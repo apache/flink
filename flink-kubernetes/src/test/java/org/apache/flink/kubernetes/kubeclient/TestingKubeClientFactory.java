@@ -24,27 +24,24 @@ import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
-
-/**
- * Testing implementation of {@link KubeClientFactory}.
- */
+/** Testing implementation of {@link KubeClientFactory}. */
 public class TestingKubeClientFactory implements KubeClientFactory {
 
-	private final TestingFlinkKubeClient.Builder flinkKubeClientBuilder;
+    private final TestingFlinkKubeClient.Builder flinkKubeClientBuilder;
 
-	public TestingKubeClientFactory(TestingFlinkKubeClient.Builder flinkKubeClientBuilder) {
-		this.flinkKubeClientBuilder = flinkKubeClientBuilder;
-	}
+    public TestingKubeClientFactory(TestingFlinkKubeClient.Builder flinkKubeClientBuilder) {
+        this.flinkKubeClientBuilder = flinkKubeClientBuilder;
+    }
 
-	@Override
-	public FlinkKubeClient fromConfiguration(Configuration flinkConfig) {
-		return fromConfiguration(
-				flinkConfig,
-				Executors.newFixedThreadPool(2, new ExecutorThreadFactory("FlinkKubeClient-IO")));
-	}
+    @Override
+    public FlinkKubeClient fromConfiguration(Configuration flinkConfig) {
+        return fromConfiguration(
+                flinkConfig,
+                Executors.newFixedThreadPool(2, new ExecutorThreadFactory("FlinkKubeClient-IO")));
+    }
 
-	@Override
-	public FlinkKubeClient fromConfiguration(Configuration flinkConfig, Executor ioExecutor) {
-		return flinkKubeClientBuilder.build();
-	}
+    @Override
+    public FlinkKubeClient fromConfiguration(Configuration flinkConfig, Executor ioExecutor) {
+        return flinkKubeClientBuilder.build();
+    }
 }

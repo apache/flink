@@ -39,175 +39,175 @@ import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 
-/**
- * This class contains reusable utility methods for unit tests.
- */
+/** This class contains reusable utility methods for unit tests. */
 public class CommonTestUtils {
 
-	/**
-	 * Creates a copy of an object via Java Serialization.
-	 *
-	 * @param original The original object.
-	 * @return The copied object.
-	 */
-	public static <T extends java.io.Serializable> T createCopySerializable(T original) throws IOException {
-		if (original == null) {
-			throw new IllegalArgumentException();
-		}
+    /**
+     * Creates a copy of an object via Java Serialization.
+     *
+     * @param original The original object.
+     * @return The copied object.
+     */
+    public static <T extends java.io.Serializable> T createCopySerializable(T original)
+            throws IOException {
+        if (original == null) {
+            throw new IllegalArgumentException();
+        }
 
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		ObjectOutputStream oos = new ObjectOutputStream(baos);
-		oos.writeObject(original);
-		oos.close();
-		baos.close();
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ObjectOutputStream oos = new ObjectOutputStream(baos);
+        oos.writeObject(original);
+        oos.close();
+        baos.close();
 
-		ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
+        ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
 
-		try (ObjectInputStream ois = new ObjectInputStream(bais)) {
-			@SuppressWarnings("unchecked")
-			T copy = (T) ois.readObject();
-			return copy;
-		}
-		catch (ClassNotFoundException e) {
-			throw new IOException(e);
-		}
-	}
+        try (ObjectInputStream ois = new ObjectInputStream(bais)) {
+            @SuppressWarnings("unchecked")
+            T copy = (T) ois.readObject();
+            return copy;
+        } catch (ClassNotFoundException e) {
+            throw new IOException(e);
+        }
+    }
 
-	/**
-	 * Creates a temporary file that contains the given string.
-	 * The file is written with the platform's default encoding.
-	 *
-	 * <p>The temp file is automatically deleted on JVM exit.
-	 *
-	 * @param contents The contents to be written to the file.
-	 * @return The temp file URI.
-	 */
-	public static String createTempFile(String contents) throws IOException {
-		File f = File.createTempFile("flink_test_", ".tmp");
-		f.deleteOnExit();
+    /**
+     * Creates a temporary file that contains the given string. The file is written with the
+     * platform's default encoding.
+     *
+     * <p>The temp file is automatically deleted on JVM exit.
+     *
+     * @param contents The contents to be written to the file.
+     * @return The temp file URI.
+     */
+    public static String createTempFile(String contents) throws IOException {
+        File f = File.createTempFile("flink_test_", ".tmp");
+        f.deleteOnExit();
 
-		try (BufferedWriter out = new BufferedWriter(new FileWriter(f))) {
-			out.write(contents);
-		}
-		return f.toURI().toString();
-	}
+        try (BufferedWriter out = new BufferedWriter(new FileWriter(f))) {
+            out.write(contents);
+        }
+        return f.toURI().toString();
+    }
 
-	/**
-	 * Permanently blocks the current thread. The thread cannot be woken
-	 * up via {@link Thread#interrupt()}.
-	 */
-	public static void blockForeverNonInterruptibly() {
-		final Object lock = new Object();
-		//noinspection InfiniteLoopStatement
-		while (true) {
-			try {
-				//noinspection SynchronizationOnLocalVariableOrMethodParameter
-				synchronized (lock) {
-					lock.wait();
-				}
-			} catch (InterruptedException ignored) {}
-		}
-	}
+    /**
+     * Permanently blocks the current thread. The thread cannot be woken up via {@link
+     * Thread#interrupt()}.
+     */
+    public static void blockForeverNonInterruptibly() {
+        final Object lock = new Object();
+        //noinspection InfiniteLoopStatement
+        while (true) {
+            try {
+                //noinspection SynchronizationOnLocalVariableOrMethodParameter
+                synchronized (lock) {
+                    lock.wait();
+                }
+            } catch (InterruptedException ignored) {
+            }
+        }
+    }
 
-	// ------------------------------------------------------------------------
-	//  Manipulation of environment
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Manipulation of environment
+    // ------------------------------------------------------------------------
 
-	public static void setEnv(Map<String, String> newenv) {
-		setEnv(newenv, true);
-	}
+    public static void setEnv(Map<String, String> newenv) {
+        setEnv(newenv, true);
+    }
 
-	// This code is taken slightly modified from: http://stackoverflow.com/a/7201825/568695
-	// it changes the environment variables of this JVM. Use only for testing purposes!
-	@SuppressWarnings("unchecked")
-	public static void setEnv(Map<String, String> newenv, boolean clearExisting) {
-		try {
-			Map<String, String> env = System.getenv();
-			Class<?> clazz = env.getClass();
-			Field field = clazz.getDeclaredField("m");
-			field.setAccessible(true);
-			Map<String, String> map = (Map<String, String>) field.get(env);
-			if (clearExisting) {
-				map.clear();
-			}
-			map.putAll(newenv);
+    // This code is taken slightly modified from: http://stackoverflow.com/a/7201825/568695
+    // it changes the environment variables of this JVM. Use only for testing purposes!
+    @SuppressWarnings("unchecked")
+    public static void setEnv(Map<String, String> newenv, boolean clearExisting) {
+        try {
+            Map<String, String> env = System.getenv();
+            Class<?> clazz = env.getClass();
+            Field field = clazz.getDeclaredField("m");
+            field.setAccessible(true);
+            Map<String, String> map = (Map<String, String>) field.get(env);
+            if (clearExisting) {
+                map.clear();
+            }
+            map.putAll(newenv);
 
-			// only for Windows
-			Class<?> processEnvironmentClass = Class.forName("java.lang.ProcessEnvironment");
-			try {
-				Field theCaseInsensitiveEnvironmentField =
-					processEnvironmentClass.getDeclaredField("theCaseInsensitiveEnvironment");
-				theCaseInsensitiveEnvironmentField.setAccessible(true);
-				Map<String, String> cienv = (Map<String, String>) theCaseInsensitiveEnvironmentField.get(null);
-				if (clearExisting) {
-					cienv.clear();
-				}
-				cienv.putAll(newenv);
-			} catch (NoSuchFieldException ignored) {}
+            // only for Windows
+            Class<?> processEnvironmentClass = Class.forName("java.lang.ProcessEnvironment");
+            try {
+                Field theCaseInsensitiveEnvironmentField =
+                        processEnvironmentClass.getDeclaredField("theCaseInsensitiveEnvironment");
+                theCaseInsensitiveEnvironmentField.setAccessible(true);
+                Map<String, String> cienv =
+                        (Map<String, String>) theCaseInsensitiveEnvironmentField.get(null);
+                if (clearExisting) {
+                    cienv.clear();
+                }
+                cienv.putAll(newenv);
+            } catch (NoSuchFieldException ignored) {
+            }
 
-		} catch (Exception e1) {
-			throw new RuntimeException(e1);
-		}
-	}
+        } catch (Exception e1) {
+            throw new RuntimeException(e1);
+        }
+    }
 
-	/**
-	 * Checks whether the given throwable contains the given cause as a cause. The cause is not checked
-	 * on equality but on type equality.
-	 *
-	 * @param throwable Throwable to check for the cause
-	 * @param cause Cause to look for
-	 * @return True if the given Throwable contains the given cause (type equality); otherwise false
-	 */
-	public static boolean containsCause(Throwable throwable, Class<? extends Throwable> cause) {
-		Throwable current = throwable;
+    /**
+     * Checks whether the given throwable contains the given cause as a cause. The cause is not
+     * checked on equality but on type equality.
+     *
+     * @param throwable Throwable to check for the cause
+     * @param cause Cause to look for
+     * @return True if the given Throwable contains the given cause (type equality); otherwise false
+     */
+    public static boolean containsCause(Throwable throwable, Class<? extends Throwable> cause) {
+        Throwable current = throwable;
 
-		while (current != null) {
-			if (cause.isAssignableFrom(current.getClass())) {
-				return true;
-			}
+        while (current != null) {
+            if (cause.isAssignableFrom(current.getClass())) {
+                return true;
+            }
 
-			current = current.getCause();
-		}
+            current = current.getCause();
+        }
 
-		return false;
-	}
+        return false;
+    }
 
-	/**
-	 * Checks whether an exception with a message occurs when running a piece of code.
-	 */
-	public static void assertThrows(String msg, Class<? extends Exception> expected, Callable<?> code) {
-		try {
-			Object result = code.call();
-			Assert.fail("Previous method call should have failed but it returned: " + result);
-		} catch (Exception e) {
-			assertThat(e, instanceOf(expected));
-			assertThat(e.getMessage(), containsString(msg));
-		}
-	}
+    /** Checks whether an exception with a message occurs when running a piece of code. */
+    public static void assertThrows(
+            String msg, Class<? extends Exception> expected, Callable<?> code) {
+        try {
+            Object result = code.call();
+            Assert.fail("Previous method call should have failed but it returned: " + result);
+        } catch (Exception e) {
+            assertThat(e, instanceOf(expected));
+            assertThat(e.getMessage(), containsString(msg));
+        }
+    }
 
-	/**
-	 * Wait util the given condition is met or timeout.
-	 *
-	 * @param condition the condition to wait for.
-	 * @param timeout the maximum time to wait for the condition to become true.
-	 * @param errorMsg the error message to include in the <code>TimeoutException</code>
-	 * 				   if the condition was not met before timeout.
-	 * @throws TimeoutException if the condition is not met before timeout.
-	 * @throws InterruptedException if the thread is interrupted.
-	 */
-	@SuppressWarnings("BusyWait")
-	public static void waitUtil(Supplier<Boolean> condition, Duration timeout, String errorMsg)
-			throws TimeoutException, InterruptedException {
-		long timeoutMs = timeout.toMillis();
-		if (timeoutMs <= 0) {
-			throw new IllegalArgumentException("The timeout must be positive.");
-		}
-		long startingTime = System.currentTimeMillis();
-		while (!condition.get() && System.currentTimeMillis() - startingTime < timeoutMs) {
-			Thread.sleep(1);
-		}
-		if (!condition.get()) {
-			throw new TimeoutException(errorMsg);
-		}
-	}
+    /**
+     * Wait util the given condition is met or timeout.
+     *
+     * @param condition the condition to wait for.
+     * @param timeout the maximum time to wait for the condition to become true.
+     * @param errorMsg the error message to include in the <code>TimeoutException</code> if the
+     *     condition was not met before timeout.
+     * @throws TimeoutException if the condition is not met before timeout.
+     * @throws InterruptedException if the thread is interrupted.
+     */
+    @SuppressWarnings("BusyWait")
+    public static void waitUtil(Supplier<Boolean> condition, Duration timeout, String errorMsg)
+            throws TimeoutException, InterruptedException {
+        long timeoutMs = timeout.toMillis();
+        if (timeoutMs <= 0) {
+            throw new IllegalArgumentException("The timeout must be positive.");
+        }
+        long startingTime = System.currentTimeMillis();
+        while (!condition.get() && System.currentTimeMillis() - startingTime < timeoutMs) {
+            Thread.sleep(1);
+        }
+        if (!condition.get()) {
+            throw new TimeoutException(errorMsg);
+        }
+    }
 }

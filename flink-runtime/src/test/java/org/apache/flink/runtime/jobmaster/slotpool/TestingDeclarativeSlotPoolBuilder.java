@@ -37,97 +37,136 @@ import java.util.function.Function;
 import java.util.function.LongConsumer;
 import java.util.function.Supplier;
 
-/**
- * Builder for {@link TestingDeclarativeSlotPool}.
- */
+/** Builder for {@link TestingDeclarativeSlotPool}. */
 public class TestingDeclarativeSlotPoolBuilder {
 
-	private Consumer<ResourceCounter> increaseResourceRequirementsByConsumer = ignored -> {};
-	private Consumer<ResourceCounter> decreaseResourceRequirementsByConsumer = ignored -> {};
-	private Supplier<Collection<ResourceRequirement>> getResourceRequirementsSupplier = Collections::emptyList;
-	private QuadFunction<Collection<? extends SlotOffer>, TaskManagerLocation, TaskManagerGateway, Long, Collection<SlotOffer>> offerSlotsFunction = (ignoredA, ignoredB, ignoredC, ignoredD) -> Collections.emptyList();
-	private Supplier<Collection<SlotInfoWithUtilization>> getFreeSlotsInformationSupplier = Collections::emptyList;
-	private Supplier<Collection<? extends SlotInfo>> getAllSlotsInformationSupplier = Collections::emptyList;
-	private BiFunction<ResourceID, Exception, ResourceCounter> releaseSlotsFunction = (ignoredA, ignoredB) -> ResourceCounter.empty();
-	private BiFunction<AllocationID, Exception, ResourceCounter> releaseSlotFunction = (ignoredA, ignoredB) -> ResourceCounter.empty();
-	private BiFunction<AllocationID, ResourceProfile, PhysicalSlot> reserveFreeSlotFunction = (ignoredA, ignoredB) -> null;
-	private TriFunction<AllocationID, Throwable, Long, ResourceCounter> freeReservedSlotFunction = (ignoredA, ignoredB, ignoredC) -> ResourceCounter.empty();
-	private Function<ResourceID, Boolean> containsSlotsFunction = ignored -> false;
-	private LongConsumer returnIdleSlotsConsumer = ignored -> {};
+    private Consumer<ResourceCounter> increaseResourceRequirementsByConsumer = ignored -> {};
+    private Consumer<ResourceCounter> decreaseResourceRequirementsByConsumer = ignored -> {};
+    private Supplier<Collection<ResourceRequirement>> getResourceRequirementsSupplier =
+            Collections::emptyList;
+    private QuadFunction<
+                    Collection<? extends SlotOffer>,
+                    TaskManagerLocation,
+                    TaskManagerGateway,
+                    Long,
+                    Collection<SlotOffer>>
+            offerSlotsFunction =
+                    (ignoredA, ignoredB, ignoredC, ignoredD) -> Collections.emptyList();
+    private Supplier<Collection<SlotInfoWithUtilization>> getFreeSlotsInformationSupplier =
+            Collections::emptyList;
+    private Supplier<Collection<? extends SlotInfo>> getAllSlotsInformationSupplier =
+            Collections::emptyList;
+    private BiFunction<ResourceID, Exception, ResourceCounter> releaseSlotsFunction =
+            (ignoredA, ignoredB) -> ResourceCounter.empty();
+    private BiFunction<AllocationID, Exception, ResourceCounter> releaseSlotFunction =
+            (ignoredA, ignoredB) -> ResourceCounter.empty();
+    private BiFunction<AllocationID, ResourceProfile, PhysicalSlot> reserveFreeSlotFunction =
+            (ignoredA, ignoredB) -> null;
+    private TriFunction<AllocationID, Throwable, Long, ResourceCounter> freeReservedSlotFunction =
+            (ignoredA, ignoredB, ignoredC) -> ResourceCounter.empty();
+    private Function<ResourceID, Boolean> containsSlotsFunction = ignored -> false;
+    private LongConsumer returnIdleSlotsConsumer = ignored -> {};
+    private Consumer<ResourceCounter> setResourceRequirementsConsumer = ignored -> {};
 
-	public TestingDeclarativeSlotPoolBuilder setIncreaseResourceRequirementsByConsumer(Consumer<ResourceCounter> increaseResourceRequirementsByConsumer) {
-		this.increaseResourceRequirementsByConsumer = increaseResourceRequirementsByConsumer;
-		return this;
-	}
+    public TestingDeclarativeSlotPoolBuilder setIncreaseResourceRequirementsByConsumer(
+            Consumer<ResourceCounter> increaseResourceRequirementsByConsumer) {
+        this.increaseResourceRequirementsByConsumer = increaseResourceRequirementsByConsumer;
+        return this;
+    }
 
-	public TestingDeclarativeSlotPoolBuilder setDecreaseResourceRequirementsByConsumer(Consumer<ResourceCounter> decreaseResourceRequirementsByConsumer) {
-		this.decreaseResourceRequirementsByConsumer = decreaseResourceRequirementsByConsumer;
-		return this;
-	}
+    public TestingDeclarativeSlotPoolBuilder setDecreaseResourceRequirementsByConsumer(
+            Consumer<ResourceCounter> decreaseResourceRequirementsByConsumer) {
+        this.decreaseResourceRequirementsByConsumer = decreaseResourceRequirementsByConsumer;
+        return this;
+    }
 
-	public TestingDeclarativeSlotPoolBuilder setGetResourceRequirementsSupplier(Supplier<Collection<ResourceRequirement>> getResourceRequirementsSupplier) {
-		this.getResourceRequirementsSupplier = getResourceRequirementsSupplier;
-		return this;
-	}
+    public TestingDeclarativeSlotPoolBuilder setSetResourceRequirementsConsumer(
+            Consumer<ResourceCounter> setResourceRequirementsConsumer) {
+        this.setResourceRequirementsConsumer = setResourceRequirementsConsumer;
+        return this;
+    }
 
-	public TestingDeclarativeSlotPoolBuilder setOfferSlotsFunction(QuadFunction<Collection<? extends SlotOffer>, TaskManagerLocation, TaskManagerGateway, Long, Collection<SlotOffer>> offerSlotsFunction) {
-		this.offerSlotsFunction = offerSlotsFunction;
-		return this;
-	}
+    public TestingDeclarativeSlotPoolBuilder setGetResourceRequirementsSupplier(
+            Supplier<Collection<ResourceRequirement>> getResourceRequirementsSupplier) {
+        this.getResourceRequirementsSupplier = getResourceRequirementsSupplier;
+        return this;
+    }
 
-	public TestingDeclarativeSlotPoolBuilder setGetFreeSlotsInformationSupplier(Supplier<Collection<SlotInfoWithUtilization>> getFreeSlotsInformationSupplier) {
-		this.getFreeSlotsInformationSupplier = getFreeSlotsInformationSupplier;
-		return this;
-	}
+    public TestingDeclarativeSlotPoolBuilder setOfferSlotsFunction(
+            QuadFunction<
+                            Collection<? extends SlotOffer>,
+                            TaskManagerLocation,
+                            TaskManagerGateway,
+                            Long,
+                            Collection<SlotOffer>>
+                    offerSlotsFunction) {
+        this.offerSlotsFunction = offerSlotsFunction;
+        return this;
+    }
 
-	public TestingDeclarativeSlotPoolBuilder setGetAllSlotsInformationSupplier(Supplier<Collection<? extends SlotInfo>> getAllSlotsInformationSupplier) {
-		this.getAllSlotsInformationSupplier = getAllSlotsInformationSupplier;
-		return this;
-	}
+    public TestingDeclarativeSlotPoolBuilder setGetFreeSlotsInformationSupplier(
+            Supplier<Collection<SlotInfoWithUtilization>> getFreeSlotsInformationSupplier) {
+        this.getFreeSlotsInformationSupplier = getFreeSlotsInformationSupplier;
+        return this;
+    }
 
-	public TestingDeclarativeSlotPoolBuilder setReleaseSlotsFunction(BiFunction<ResourceID, Exception, ResourceCounter> failSlotsConsumer) {
-		this.releaseSlotsFunction = failSlotsConsumer;
-		return this;
-	}
+    public TestingDeclarativeSlotPoolBuilder setGetAllSlotsInformationSupplier(
+            Supplier<Collection<? extends SlotInfo>> getAllSlotsInformationSupplier) {
+        this.getAllSlotsInformationSupplier = getAllSlotsInformationSupplier;
+        return this;
+    }
 
-	public TestingDeclarativeSlotPoolBuilder setReleaseSlotFunction(BiFunction<AllocationID, Exception, ResourceCounter> failSlotConsumer) {
-		this.releaseSlotFunction = failSlotConsumer;
-		return this;
-	}
+    public TestingDeclarativeSlotPoolBuilder setReleaseSlotsFunction(
+            BiFunction<ResourceID, Exception, ResourceCounter> failSlotsConsumer) {
+        this.releaseSlotsFunction = failSlotsConsumer;
+        return this;
+    }
 
-	public TestingDeclarativeSlotPoolBuilder setReserveFreeSlotFunction(BiFunction<AllocationID, ResourceProfile, PhysicalSlot> allocateFreeSlotForResourceFunction) {
-		this.reserveFreeSlotFunction = allocateFreeSlotForResourceFunction;
-		return this;
-	}
+    public TestingDeclarativeSlotPoolBuilder setReleaseSlotFunction(
+            BiFunction<AllocationID, Exception, ResourceCounter> failSlotConsumer) {
+        this.releaseSlotFunction = failSlotConsumer;
+        return this;
+    }
 
-	public TestingDeclarativeSlotPoolBuilder setFreeReservedSlotFunction(TriFunction<AllocationID, Throwable, Long, ResourceCounter> freeReservedSlotFunction) {
-		this.freeReservedSlotFunction = freeReservedSlotFunction;
-		return this;
-	}
+    public TestingDeclarativeSlotPoolBuilder setReserveFreeSlotFunction(
+            BiFunction<AllocationID, ResourceProfile, PhysicalSlot>
+                    allocateFreeSlotForResourceFunction) {
+        this.reserveFreeSlotFunction = allocateFreeSlotForResourceFunction;
+        return this;
+    }
 
-	public TestingDeclarativeSlotPoolBuilder setContainsSlotsFunction(Function<ResourceID, Boolean> containsSlotsFunction) {
-		this.containsSlotsFunction = containsSlotsFunction;
-		return this;
-	}
+    public TestingDeclarativeSlotPoolBuilder setFreeReservedSlotFunction(
+            TriFunction<AllocationID, Throwable, Long, ResourceCounter> freeReservedSlotFunction) {
+        this.freeReservedSlotFunction = freeReservedSlotFunction;
+        return this;
+    }
 
-	public TestingDeclarativeSlotPoolBuilder setReturnIdleSlotsConsumer(LongConsumer returnIdleSlotsConsumer) {
-		this.returnIdleSlotsConsumer = returnIdleSlotsConsumer;
-		return this;
-	}
+    public TestingDeclarativeSlotPoolBuilder setContainsSlotsFunction(
+            Function<ResourceID, Boolean> containsSlotsFunction) {
+        this.containsSlotsFunction = containsSlotsFunction;
+        return this;
+    }
 
-	public TestingDeclarativeSlotPool build() {
-		return new TestingDeclarativeSlotPool(
-				increaseResourceRequirementsByConsumer,
-				decreaseResourceRequirementsByConsumer,
-				getResourceRequirementsSupplier,
-				offerSlotsFunction,
-				getFreeSlotsInformationSupplier,
-				getAllSlotsInformationSupplier,
-				releaseSlotsFunction,
-				releaseSlotFunction,
-				reserveFreeSlotFunction,
-				freeReservedSlotFunction,
-				containsSlotsFunction,
-				returnIdleSlotsConsumer);
-	}
+    public TestingDeclarativeSlotPoolBuilder setReturnIdleSlotsConsumer(
+            LongConsumer returnIdleSlotsConsumer) {
+        this.returnIdleSlotsConsumer = returnIdleSlotsConsumer;
+        return this;
+    }
+
+    public TestingDeclarativeSlotPool build() {
+        return new TestingDeclarativeSlotPool(
+                increaseResourceRequirementsByConsumer,
+                decreaseResourceRequirementsByConsumer,
+                getResourceRequirementsSupplier,
+                offerSlotsFunction,
+                getFreeSlotsInformationSupplier,
+                getAllSlotsInformationSupplier,
+                releaseSlotsFunction,
+                releaseSlotFunction,
+                reserveFreeSlotFunction,
+                freeReservedSlotFunction,
+                containsSlotsFunction,
+                returnIdleSlotsConsumer,
+                setResourceRequirementsConsumer);
+    }
 }

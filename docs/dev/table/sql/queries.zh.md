@@ -682,8 +682,12 @@ WHERE o.id = s.orderId AND
       <td>
         <p>目前尚未支持非嵌套的 WITH ORDINALITY 。</p>
 {% highlight sql %}
+-- 数组元素为基本类型。
 SELECT users, tag
 FROM Orders CROSS JOIN UNNEST(tags) AS t (tag)
+-- 数组元素为ROW类型。（例如：tags ARRAY<ROW<tag_id INT, tag_name STRING>>）
+SELECT users, tag_id, tag_name
+FROM Orders CROSS JOIN UNNEST(tags) AS t (tag_id, tag_name)
 {% endhighlight %}
       </td>
     </tr>

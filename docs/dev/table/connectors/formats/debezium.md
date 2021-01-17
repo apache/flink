@@ -228,11 +228,15 @@ The following example shows how to access Debezium metadata fields in Kafka:
 <div data-lang="SQL" markdown="1">
 {% highlight sql %}
 CREATE TABLE KafkaTable (
-  `event_time` TIMESTAMP(3) METADATA FROM 'value.source.timestamp' VIRTUAL,
-  `origin_table` STRING METADATA FROM 'value.source.table' VIRTUAL,
-  `user_id` BIGINT,
-  `item_id` BIGINT,
-  `behavior` STRING
+  origin_ts TIMESTAMP(3) METADATA FROM 'value.ingestion-timestamp' VIRTUAL,
+  event_time TIMESTAMP(3) METADATA FROM 'value.source.timestamp' VIRTUAL,
+  origin_database STRING METADATA FROM 'value.source.database' VIRTUAL,
+  origin_schema STRING METADATA FROM 'value.source.schema' VIRTUAL,
+  origin_table STRING METADATA FROM 'value.source.table' VIRTUAL,
+  origin_properties MAP<STRING, STRING> METADATA FROM 'value.source.properties' VIRTUAL,
+  user_id BIGINT,
+  item_id BIGINT,
+  behavior STRING
 ) WITH (
   'connector' = 'kafka',
   'topic' = 'user_behavior',
@@ -281,10 +285,10 @@ Use format `debezium-avro-confluent` to interpret Debezium Avro messages and for
     </tr>
     <tr>
       <td><h5>debezium-avro-confluent.schema-registry.subject</h5></td>
-      <td>required by sink</td>
+      <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>The Confluent Schema Registry subject under which to register the schema used by this format during serialization.</td>
+      <td>The Confluent Schema Registry subject under which to register the schema used by this format during serialization. By default, kafka connector use "&lt;topic_name&gt;-value" as the default subject name when debezium-avro-confluent is used as the value format. But for other connectors (e.g. filesystem), the subject option is required when used as sink.</td>
     </tr>
     </tbody>
 </table>
@@ -357,7 +361,14 @@ Use format `debezium-avro-confluent` to interpret Debezium Avro messages and for
       <td style="word-wrap: break-word;">'null'</td>
       <td>String</td>
       <td>Specify string literal to replace null key when <code>'debezium-json.map-null-key.mode'</code> is LITERAL.</td>
-    </tr>        
+    </tr>     
+    <tr>
+      <td><h5>debezium-json.encode.decimal-as-plain-number</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>Encode all decimals as plain numbers instead of possible scientific notations. By default, decimals may be written using scientific notation. For example, <code>0.000000027</code> is encoded as <code>2.7E-8</code> by default, and will be written as <code>0.000000027</code> if set this option to true.</td>
+    </tr>   
     </tbody>
 </table>
 

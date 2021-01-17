@@ -47,71 +47,72 @@ import static org.junit.Assert.assertEquals;
  */
 public class BigUserProgramJobSubmitITCase extends TestLogger {
 
-	// ------------------------------------------------------------------------
-	//  The mini cluster that is shared across tests
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  The mini cluster that is shared across tests
+    // ------------------------------------------------------------------------
 
-	@ClassRule
-	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
-		new MiniClusterResourceConfiguration.Builder().build());
+    @ClassRule
+    public static final MiniClusterResource MINI_CLUSTER_RESOURCE =
+            new MiniClusterResource(new MiniClusterResourceConfiguration.Builder().build());
 
-	private final Random rnd = new Random();
+    private final Random rnd = new Random();
 
-	/**
-	 * Use a map function that references a 100MB byte array.
-	 */
-	@Test
-	public void bigDataInMap() throws Exception {
+    /** Use a map function that references a 100MB byte array. */
+    @Test
+    public void bigDataInMap() throws Exception {
 
-		final byte[] data = new byte[16 * 1024 * 1024]; // 16 MB
-		rnd.nextBytes(data); // use random data so that Java does not optimise it away
-		data[1] = 0;
-		data[3] = 0;
-		data[5] = 0;
+        final byte[] data = new byte[16 * 1024 * 1024]; // 16 MB
+        rnd.nextBytes(data); // use random data so that Java does not optimise it away
+        data[1] = 0;
+        data[3] = 0;
+        data[5] = 0;
 
-		CollectingSink resultSink = new CollectingSink();
+        CollectingSink resultSink = new CollectingSink();
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
 
-		DataStream<Integer> src = env.fromElements(1, 3, 5);
+        DataStream<Integer> src = env.fromElements(1, 3, 5);
 
-		src.map(new MapFunction<Integer, String>() {
-			private static final long serialVersionUID = 1L;
+        src.map(
+                        new MapFunction<Integer, String>() {
+                            private static final long serialVersionUID = 1L;
 
-			@Override
-			public String map(Integer value) throws Exception {
-				return "x " + value + " " + data[value];
-			}
-		}).addSink(resultSink);
+                            @Override
+                            public String map(Integer value) throws Exception {
+                                return "x " + value + " " + data[value];
+                            }
+                        })
+                .addSink(resultSink);
 
-		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+        JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
 
-		final RestClusterClient<StandaloneClusterId> restClusterClient = new RestClusterClient<>(
-			MINI_CLUSTER_RESOURCE.getClientConfiguration(),
-			StandaloneClusterId.getInstance());
+        final RestClusterClient<StandaloneClusterId> restClusterClient =
+                new RestClusterClient<>(
+                        MINI_CLUSTER_RESOURCE.getClientConfiguration(),
+                        StandaloneClusterId.getInstance());
 
-		try {
-			submitJobAndWaitForResult(restClusterClient, jobGraph, getClass().getClassLoader());
+        try {
+            submitJobAndWaitForResult(restClusterClient, jobGraph, getClass().getClassLoader());
 
-			List<String> expected = Arrays.asList("x 1 0", "x 3 0", "x 5 0");
+            List<String> expected = Arrays.asList("x 1 0", "x 3 0", "x 5 0");
 
-			List<String> result = CollectingSink.result;
+            List<String> result = CollectingSink.result;
 
-			Collections.sort(expected);
-			Collections.sort(result);
+            Collections.sort(expected);
+            Collections.sort(result);
 
-			assertEquals(expected, result);
-		} finally {
-			restClusterClient.close();
-		}
-	}
+            assertEquals(expected, result);
+        } finally {
+            restClusterClient.close();
+        }
+    }
 
-	private static class CollectingSink implements SinkFunction<String> {
-		private static final List<String> result = Collections.synchronizedList(new ArrayList<>(3));
+    private static class CollectingSink implements SinkFunction<String> {
+        private static final List<String> result = Collections.synchronizedList(new ArrayList<>(3));
 
-		public void invoke(String value, Context context) throws Exception {
-			result.add(value);
-		}
-	}
+        public void invoke(String value, Context context) throws Exception {
+            result.add(value);
+        }
+    }
 }

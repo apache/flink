@@ -39,91 +39,94 @@ import scala.util.Try;
 
 import static org.hamcrest.Matchers.is;
 
-/**
- * A {@link TypeSerializerUpgradeTestBase} for {@link TrySerializer}.
- */
+/** A {@link TypeSerializerUpgradeTestBase} for {@link TrySerializer}. */
 @RunWith(Parameterized.class)
-public class ScalaTrySerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Try<String>, Try<String>> {
+public class ScalaTrySerializerUpgradeTest
+        extends TypeSerializerUpgradeTestBase<Try<String>, Try<String>> {
 
-	private static final String SPEC_NAME = "scala-try-serializer";
+    private static final String SPEC_NAME = "scala-try-serializer";
 
-	public ScalaTrySerializerUpgradeTest(TestSpecification<Try<String>, Try<String>> testSpecification) {
-		super(testSpecification);
-	}
+    public ScalaTrySerializerUpgradeTest(
+            TestSpecification<Try<String>, Try<String>> testSpecification) {
+        super(testSpecification);
+    }
 
-	@Parameterized.Parameters(name = "Test Specification = {0}")
-	public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    @Parameterized.Parameters(name = "Test Specification = {0}")
+    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
 
-		ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-		for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
-			testSpecifications.add(
-				new TestSpecification<>(
-					SPEC_NAME,
-					migrationVersion,
-					ScalaTrySerializerSetup.class,
-					ScalaTrySerializerVerifier.class));
-		}
-		return testSpecifications;
-	}
+        ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
+        for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            SPEC_NAME,
+                            migrationVersion,
+                            ScalaTrySerializerSetup.class,
+                            ScalaTrySerializerVerifier.class));
+        }
+        return testSpecifications;
+    }
 
-	// ----------------------------------------------------------------------------------------------
-	//  Specification for "scala-try-serializer"
-	// ----------------------------------------------------------------------------------------------
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class ScalaTrySerializerSetup implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<Try<String>> {
-		@Override
-		public TypeSerializer<Try<String>> createPriorSerializer() {
-			return new TrySerializer<>(StringSerializer.INSTANCE, new ExecutionConfig());
-		}
+    // ----------------------------------------------------------------------------------------------
+    //  Specification for "scala-try-serializer"
+    // ----------------------------------------------------------------------------------------------
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class ScalaTrySerializerSetup
+            implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<Try<String>> {
+        @Override
+        public TypeSerializer<Try<String>> createPriorSerializer() {
+            return new TrySerializer<>(StringSerializer.INSTANCE, new ExecutionConfig());
+        }
 
-		@SuppressWarnings("unchecked")
-		@Override
-		public Try<String> createTestData() {
-			return new Failure(new SpecifiedException("Specified exception for ScalaTry."));
-		}
-	}
+        @SuppressWarnings("unchecked")
+        @Override
+        public Try<String> createTestData() {
+            return new Failure(new SpecifiedException("Specified exception for ScalaTry."));
+        }
+    }
 
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class ScalaTrySerializerVerifier implements TypeSerializerUpgradeTestBase.UpgradeVerifier<Try<String>> {
-		@Override
-		public TypeSerializer<Try<String>> createUpgradedSerializer() {
-			return new TrySerializer<>(StringSerializer.INSTANCE, new ExecutionConfig());
-		}
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class ScalaTrySerializerVerifier
+            implements TypeSerializerUpgradeTestBase.UpgradeVerifier<Try<String>> {
+        @Override
+        public TypeSerializer<Try<String>> createUpgradedSerializer() {
+            return new TrySerializer<>(StringSerializer.INSTANCE, new ExecutionConfig());
+        }
 
-		@SuppressWarnings("unchecked")
-		@Override
-		public Matcher<Try<String>> testDataMatcher() {
-			return is(new Failure(new SpecifiedException("Specified exception for ScalaTry.")));
-		}
+        @SuppressWarnings("unchecked")
+        @Override
+        public Matcher<Try<String>> testDataMatcher() {
+            return is(new Failure(new SpecifiedException("Specified exception for ScalaTry.")));
+        }
 
-		@Override
-		public Matcher<TypeSerializerSchemaCompatibility<Try<String>>> schemaCompatibilityMatcher(MigrationVersion version) {
-			return TypeSerializerMatchers.isCompatibleAsIs();
-		}
-	}
+        @Override
+        public Matcher<TypeSerializerSchemaCompatibility<Try<String>>> schemaCompatibilityMatcher(
+                MigrationVersion version) {
+            return TypeSerializerMatchers.isCompatibleAsIs();
+        }
+    }
 
-	/**
-	 * A specified runtime exception override {@link #equals(Object)}.
-	 */
-	public static final class SpecifiedException extends RuntimeException {
-		public SpecifiedException(String message) {
-			super(message);
-		}
+    /** A specified runtime exception override {@link #equals(Object)}. */
+    public static final class SpecifiedException extends RuntimeException {
+        public SpecifiedException(String message) {
+            super(message);
+        }
 
-		@Override
-		public boolean equals(Object obj) {
-			if (obj == this) {
-				return true;
-			}
-			if (!(obj instanceof SpecifiedException)) {
-				return false;
-			}
-			SpecifiedException other = (SpecifiedException) obj;
-			return Objects.equals(getMessage(), other.getMessage());
-		}
-	}
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == this) {
+                return true;
+            }
+            if (!(obj instanceof SpecifiedException)) {
+                return false;
+            }
+            SpecifiedException other = (SpecifiedException) obj;
+            return Objects.equals(getMessage(), other.getMessage());
+        }
+    }
 }

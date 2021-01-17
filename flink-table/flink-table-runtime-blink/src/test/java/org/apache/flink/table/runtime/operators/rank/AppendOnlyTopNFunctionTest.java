@@ -29,42 +29,51 @@ import java.util.List;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.deleteRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 
-/**
- * Tests for {@link AppendOnlyTopNFunction}.
- */
+/** Tests for {@link AppendOnlyTopNFunction}. */
 public class AppendOnlyTopNFunctionTest extends TopNFunctionTestBase {
 
-	@Override
-	protected AbstractTopNFunction createFunction(RankType rankType, RankRange rankRange,
-			boolean generateUpdateBefore, boolean outputRankNumber) {
-		return new AppendOnlyTopNFunction(minTime.toMilliseconds(), maxTime.toMilliseconds(), inputRowType,
-			generatedSortKeyComparator, sortKeySelector, rankType, rankRange, generateUpdateBefore, outputRankNumber,
-				cacheSize);
-	}
+    @Override
+    protected AbstractTopNFunction createFunction(
+            RankType rankType,
+            RankRange rankRange,
+            boolean generateUpdateBefore,
+            boolean outputRankNumber) {
+        return new AppendOnlyTopNFunction(
+                minTime.toMilliseconds(),
+                maxTime.toMilliseconds(),
+                inputRowType,
+                generatedSortKeyComparator,
+                sortKeySelector,
+                rankType,
+                rankRange,
+                generateUpdateBefore,
+                outputRankNumber,
+                cacheSize);
+    }
 
-	@Test
-	public void testVariableRankRange() throws Exception {
-		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER, new VariableRankRange(1), true, false);
-		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
-		testHarness.open();
-		testHarness.processElement(insertRecord("book", 2L, 12));
-		testHarness.processElement(insertRecord("book", 2L, 19));
-		testHarness.processElement(insertRecord("book", 2L, 11));
-		testHarness.processElement(insertRecord("fruit", 1L, 33));
-		testHarness.processElement(insertRecord("fruit", 1L, 44));
-		testHarness.processElement(insertRecord("fruit", 1L, 22));
-		testHarness.close();
+    @Test
+    public void testVariableRankRange() throws Exception {
+        AbstractTopNFunction func =
+                createFunction(RankType.ROW_NUMBER, new VariableRankRange(1), true, false);
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
+        testHarness.open();
+        testHarness.processElement(insertRecord("book", 2L, 12));
+        testHarness.processElement(insertRecord("book", 2L, 19));
+        testHarness.processElement(insertRecord("book", 2L, 11));
+        testHarness.processElement(insertRecord("fruit", 1L, 33));
+        testHarness.processElement(insertRecord("fruit", 1L, 44));
+        testHarness.processElement(insertRecord("fruit", 1L, 22));
+        testHarness.close();
 
-		List<Object> expectedOutput = new ArrayList<>();
-		expectedOutput.add(insertRecord("book", 2L, 12));
-		expectedOutput.add(insertRecord("book", 2L, 19));
-		expectedOutput.add(deleteRecord("book", 2L, 19));
-		expectedOutput.add(insertRecord("book", 2L, 11));
-		expectedOutput.add(insertRecord("fruit", 1L, 33));
-		expectedOutput.add(deleteRecord("fruit", 1L, 33));
-		expectedOutput.add(insertRecord("fruit", 1L, 22));
-		assertorWithoutRowNumber
-				.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
-	}
-
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(insertRecord("book", 2L, 12));
+        expectedOutput.add(insertRecord("book", 2L, 19));
+        expectedOutput.add(deleteRecord("book", 2L, 19));
+        expectedOutput.add(insertRecord("book", 2L, 11));
+        expectedOutput.add(insertRecord("fruit", 1L, 33));
+        expectedOutput.add(deleteRecord("fruit", 1L, 33));
+        expectedOutput.add(insertRecord("fruit", 1L, 22));
+        assertorWithoutRowNumber.assertOutputEquals(
+                "output wrong.", expectedOutput, testHarness.getOutput());
+    }
 }

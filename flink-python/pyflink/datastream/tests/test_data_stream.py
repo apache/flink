@@ -80,7 +80,7 @@ class DataStreamTests(PyFlinkTestCase):
           .add_sink(self.test_sink)
         self.env.execute('reduce_function_test')
         result = self.test_sink.get_results()
-        expected = ["1,a", "3,a", "6,a", "4,b"]
+        expected = ["+I[1, a]", "+I[3, a]", "+I[6, a]", "+I[4, b]"]
         expected.sort()
         result.sort()
         self.assertEqual(expected, result)
@@ -113,7 +113,7 @@ class DataStreamTests(PyFlinkTestCase):
             .add_sink(self.test_sink)
         self.env.execute('map_function_test')
         results = self.test_sink.get_results(False)
-        expected = ['ab,2,1', 'bdc,3,2', 'cfgs,4,3', 'deeefg,6,4']
+        expected = ['+I[ab, 2, 1]', '+I[bdc, 3, 2]', '+I[cfgs, 4, 3]', '+I[deeefg, 6, 4]']
         expected.sort()
         results.sort()
         self.assertEqual(expected, results)
@@ -224,7 +224,7 @@ class DataStreamTests(PyFlinkTestCase):
             .add_sink(self.test_sink)
         self.env.execute('map_function_test')
         results = self.test_sink.get_results(False)
-        expected = ['ab,2,1', 'bdc,3,2', 'cfgs,4,3', 'deeefg,6,4']
+        expected = ['+I[ab, 2, 1]', '+I[bdc, 3, 2]', '+I[cfgs, 4, 3]', '+I[deeefg, 6, 4]']
         expected.sort()
         results.sort()
         self.assertEqual(expected, results)
@@ -237,7 +237,7 @@ class DataStreamTests(PyFlinkTestCase):
 
         self.env.execute('flat_map_test')
         results = self.test_sink.get_results(False)
-        expected = ['a,0', 'bdc,2', 'deeefg,4']
+        expected = ['+I[a, 0]', '+I[bdc, 2]', '+I[deeefg, 4]']
         results.sort()
         expected.sort()
 
@@ -255,7 +255,7 @@ class DataStreamTests(PyFlinkTestCase):
             .add_sink(self.test_sink)
         self.env.execute('flat_map_test')
         results = self.test_sink.get_results(False)
-        expected = ['a,0', 'bdc,2', 'deeefg,4']
+        expected = ['+I[a, 0]', '+I[bdc, 2]', '+I[deeefg, 4]']
         results.sort()
         expected.sort()
         self.assertEqual(expected, results)
@@ -307,7 +307,7 @@ class DataStreamTests(PyFlinkTestCase):
         ds.filter(lambda x: x[0] % 2 == 0).add_sink(self.test_sink)
         self.env.execute("test filter")
         results = self.test_sink.get_results(False)
-        expected = ['2,Hello,Hi']
+        expected = ['+I[2, Hello, Hi]']
         results.sort()
         expected.sort()
         self.assertEqual(expected, results)
@@ -318,7 +318,7 @@ class DataStreamTests(PyFlinkTestCase):
         ds.add_sink(self.test_sink)
         self.env.execute("test_add_sink")
         results = self.test_sink.get_results(False)
-        expected = ['deeefg,4', 'bdc,2', 'ab,1', 'cfgs,3']
+        expected = ['+I[deeefg, 4]', '+I[bdc, 2]', '+I[ab, 1]', '+I[cfgs, 3]']
         results.sort()
         expected.sort()
         self.assertEqual(expected, results)
@@ -406,7 +406,7 @@ class DataStreamTests(PyFlinkTestCase):
 
         self.env.execute("test multi key by")
         results = self.test_sink.get_results(False)
-        expected = ['d,1', 'c,1', 'a,0', 'b,0', 'e,2']
+        expected = ['+I[d, 1]', '+I[c, 1]', '+I[a, 0]', '+I[b, 0]', '+I[e, 2]']
         results.sort()
         expected.sort()
         self.assertEqual(expected, results)
@@ -624,7 +624,7 @@ class DataStreamTests(PyFlinkTestCase):
             .add_sink(self.test_sink)
         self.env.execute("test primitive array type info")
         results = self.test_sink.get_results()
-        expected = ['1,[1.1, 1.2, 1.3]', '2,[2.1, 2.2, 2.3]', '3,[3.1, 3.2, 3.3]']
+        expected = ['+I[1, [1.1, 1.2, 1.3]]', '+I[2, [2.1, 2.2, 2.3]]', '+I[3, [3.1, 3.2, 3.3]]']
         results.sort()
         expected.sort()
         self.assertEqual(expected, results)
@@ -643,11 +643,28 @@ class DataStreamTests(PyFlinkTestCase):
             .add_sink(self.test_sink)
         self.env.execute("test basic array type info")
         results = self.test_sink.get_results()
-        expected = ['1,[1.1, null, 1.3],[null, hi, flink]',
-                    '2,[null, 2.2, 2.3],[hello, null, flink]',
-                    '3,[3.1, 3.2, null],[hello, hi, null]']
+        expected = ['+I[1, [1.1, null, 1.3], [null, hi, flink]]',
+                    '+I[2, [null, 2.2, 2.3], [hello, null, flink]]',
+                    '+I[3, [3.1, 3.2, null], [hello, hi, null]]']
         results.sort()
         expected.sort()
+        self.assertEqual(expected, results)
+
+    def test_sql_timestamp_type_info(self):
+        ds = self.env.from_collection([(datetime.date(2021, 1, 9),
+                                        datetime.time(12, 0, 0),
+                                        datetime.datetime(2021, 1, 9, 12, 0, 0, 11000))],
+                                      type_info=Types.ROW([Types.SQL_DATE(),
+                                                           Types.SQL_TIME(),
+                                                           Types.SQL_TIMESTAMP()]))
+
+        ds.map(lambda x: x, output_type=Types.ROW([Types.SQL_DATE(),
+                                                   Types.SQL_TIME(),
+                                                   Types.SQL_TIMESTAMP()]))\
+            .add_sink(self.test_sink)
+        self.env.execute("test sql timestamp type info")
+        results = self.test_sink.get_results()
+        expected = ['+I[2021-01-09, 12:00:00, 2021-01-09 12:00:00.011]']
         self.assertEqual(expected, results)
 
     def test_timestamp_assigner_and_watermark_strategy(self):

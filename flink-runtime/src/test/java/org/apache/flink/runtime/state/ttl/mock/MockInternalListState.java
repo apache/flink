@@ -27,50 +27,48 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** In memory mock internal list state. */
-class MockInternalListState<K, N, T>
-	extends MockInternalMergingState<K, N, T, List<T>, Iterable<T>>
-	implements InternalListState<K, N, T> {
+class MockInternalListState<K, N, T> extends MockInternalMergingState<K, N, T, List<T>, Iterable<T>>
+        implements InternalListState<K, N, T> {
 
-	private MockInternalListState() {
-		super(ArrayList::new);
-	}
+    private MockInternalListState() {
+        super(ArrayList::new);
+    }
 
-	@Override
-	public void update(List<T> elements) {
-		updateInternal(elements);
-	}
+    @Override
+    public void update(List<T> elements) {
+        updateInternal(elements);
+    }
 
-	@Override
-	public void addAll(List<T> elements) {
-		getInternal().addAll(elements);
-	}
+    @Override
+    public void addAll(List<T> elements) {
+        getInternal().addAll(elements);
+    }
 
-	@Override
-	List<T> mergeState(List<T> acc, List<T> nAcc) {
-		acc = new ArrayList<>(acc);
-		acc.addAll(nAcc);
-		return acc;
-	}
+    @Override
+    List<T> mergeState(List<T> acc, List<T> nAcc) {
+        acc = new ArrayList<>(acc);
+        acc.addAll(nAcc);
+        return acc;
+    }
 
-	@Override
-	public Iterable<T> get() {
-		return getInternal();
-	}
+    @Override
+    public Iterable<T> get() {
+        return getInternal();
+    }
 
-	@Override
-	public void add(T element) {
-		getInternal().add(element);
-	}
+    @Override
+    public void add(T element) {
+        getInternal().add(element);
+    }
 
-	@Override
-	public void clear() {
-		getInternal().clear();
-	}
+    @Override
+    public void clear() {
+        getInternal().clear();
+    }
 
-	@SuppressWarnings({"unchecked", "unused"})
-	static <N, T, S extends State, IS extends S> IS createState(
-		TypeSerializer<N> namespaceSerializer,
-		StateDescriptor<S, T> stateDesc) {
-		return (IS) new MockInternalListState<>();
-	}
+    @SuppressWarnings({"unchecked", "unused"})
+    static <N, T, S extends State, IS extends S> IS createState(
+            TypeSerializer<N> namespaceSerializer, StateDescriptor<S, T> stateDesc) {
+        return (IS) new MockInternalListState<>();
+    }
 }

@@ -30,28 +30,29 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
 /**
- * Batch {@link ExecNode} to read data from an external source defined by a bounded {@link ScanTableSource}.
+ * Batch {@link ExecNode} to read data from an external source defined by a bounded {@link
+ * ScanTableSource}.
  */
-public class BatchExecTableSourceScan extends CommonExecTableSourceScan implements BatchExecNode<RowData> {
+public class BatchExecTableSourceScan extends CommonExecTableSourceScan
+        implements BatchExecNode<RowData> {
 
-	public BatchExecTableSourceScan(
-			ScanTableSource tableSource,
-			RowType outputType,
-			String description) {
-		super(tableSource, outputType, description);
-	}
+    public BatchExecTableSourceScan(
+            ScanTableSource tableSource, RowType outputType, String description) {
+        super(tableSource, outputType, description);
+    }
 
-	@Override
-	public Transformation<RowData> createInputFormatTransformation(
-			StreamExecutionEnvironment env,
-			InputFormat<RowData, ?> inputFormat,
-			InternalTypeInfo<RowData> outputTypeInfo,
-			String name) {
-		// env.createInput will use ContinuousFileReaderOperator, but it do not support multiple
-		// paths. If read partitioned source, after partition pruning, we need let InputFormat
-		// to read multiple partitions which are multiple paths.
-		// We can use InputFormatSourceFunction directly to support InputFormat.
-		InputFormatSourceFunction<RowData> func = new InputFormatSourceFunction<>(inputFormat, outputTypeInfo);
-		return env.addSource(func, name, outputTypeInfo).getTransformation();
-	}
+    @Override
+    public Transformation<RowData> createInputFormatTransformation(
+            StreamExecutionEnvironment env,
+            InputFormat<RowData, ?> inputFormat,
+            InternalTypeInfo<RowData> outputTypeInfo,
+            String name) {
+        // env.createInput will use ContinuousFileReaderOperator, but it do not support multiple
+        // paths. If read partitioned source, after partition pruning, we need let InputFormat
+        // to read multiple partitions which are multiple paths.
+        // We can use InputFormatSourceFunction directly to support InputFormat.
+        InputFormatSourceFunction<RowData> func =
+                new InputFormatSourceFunction<>(inputFormat, outputTypeInfo);
+        return env.addSource(func, name, outputTypeInfo).getTransformation();
+    }
 }

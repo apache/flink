@@ -35,8 +35,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
 /**
- * This test makes sure that reversed classloading works for the Avro/Kryo integration when
- * Kryo is in the application jar file.
+ * This test makes sure that reversed classloading works for the Avro/Kryo integration when Kryo is
+ * in the application jar file.
  *
  * <p>If Kryo is not loaded consistently through the same classloader (parent-first), the following
  * error happens:
@@ -61,32 +61,37 @@ import static org.junit.Assert.assertNotEquals;
  */
 public class AvroKryoClassloadingTest {
 
-	@Test
-	public void testKryoInChildClasspath() throws Exception {
-		final Class<?> avroClass = AvroKryoSerializerUtils.class;
+    @Test
+    public void testKryoInChildClasspath() throws Exception {
+        final Class<?> avroClass = AvroKryoSerializerUtils.class;
 
-		final URL avroLocation = avroClass.getProtectionDomain().getCodeSource().getLocation();
-		final URL kryoLocation = Kryo.class.getProtectionDomain().getCodeSource().getLocation();
+        final URL avroLocation = avroClass.getProtectionDomain().getCodeSource().getLocation();
+        final URL kryoLocation = Kryo.class.getProtectionDomain().getCodeSource().getLocation();
 
-		final ClassLoader parentClassLoader = new FilteredClassLoader(
-				avroClass.getClassLoader(), AvroKryoSerializerUtils.class.getName());
+        final ClassLoader parentClassLoader =
+                new FilteredClassLoader(
+                        avroClass.getClassLoader(), AvroKryoSerializerUtils.class.getName());
 
-		final ClassLoader userAppClassLoader = FlinkUserCodeClassLoaders.childFirst(
-				new URL[] { avroLocation, kryoLocation },
-				parentClassLoader,
-				CoreOptions.ALWAYS_PARENT_FIRST_LOADER_PATTERNS.defaultValue().split(";"),
-				NOOP_EXCEPTION_HANDLER,
-				true);
+        final ClassLoader userAppClassLoader =
+                FlinkUserCodeClassLoaders.childFirst(
+                        new URL[] {avroLocation, kryoLocation},
+                        parentClassLoader,
+                        CoreOptions.ALWAYS_PARENT_FIRST_LOADER_PATTERNS.defaultValue().split(";"),
+                        NOOP_EXCEPTION_HANDLER,
+                        true);
 
-		final Class<?> userLoadedAvroClass = Class.forName(avroClass.getName(), false, userAppClassLoader);
-		assertNotEquals(avroClass, userLoadedAvroClass);
+        final Class<?> userLoadedAvroClass =
+                Class.forName(avroClass.getName(), false, userAppClassLoader);
+        assertNotEquals(avroClass, userLoadedAvroClass);
 
-		// call the 'addAvroGenericDataArrayRegistration(...)' method
-		final Method m = userLoadedAvroClass.getMethod("addAvroGenericDataArrayRegistration", LinkedHashMap.class);
+        // call the 'addAvroGenericDataArrayRegistration(...)' method
+        final Method m =
+                userLoadedAvroClass.getMethod(
+                        "addAvroGenericDataArrayRegistration", LinkedHashMap.class);
 
-		final LinkedHashMap<String, ?> map = new LinkedHashMap<>();
-		m.invoke(userLoadedAvroClass.newInstance(), map);
+        final LinkedHashMap<String, ?> map = new LinkedHashMap<>();
+        m.invoke(userLoadedAvroClass.newInstance(), map);
 
-		assertEquals(1, map.size());
-	}
+        assertEquals(1, map.size());
+    }
 }

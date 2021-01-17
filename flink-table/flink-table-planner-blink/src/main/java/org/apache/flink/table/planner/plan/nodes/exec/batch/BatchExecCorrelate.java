@@ -30,26 +30,24 @@ import org.apache.calcite.rex.RexNode;
 
 import javax.annotation.Nullable;
 
-/**
- * Batch exec node which matches along with join a Java/Scala user defined table function.
- */
+/** Batch exec node which matches along with join a Java/Scala user defined table function. */
 public class BatchExecCorrelate extends CommonExecCorrelate implements BatchExecNode<RowData> {
 
-	public BatchExecCorrelate(
-			FlinkJoinType joinType,
-			RexCall invocation,
-			@Nullable RexNode condition,
-			ExecEdge inputEdge,
-			RowType outputType,
-			String description) {
-		super(
-				joinType,
-				invocation,
-				condition,
-				TableStreamOperator.class,
-				false,
-				inputEdge,
-				outputType,
-				description);
-	}
+    public BatchExecCorrelate(
+            FlinkJoinType joinType,
+            RexCall invocation,
+            @Nullable RexNode condition,
+            ExecEdge inputEdge,
+            RowType outputType,
+            String description) {
+        super(
+                joinType,
+                invocation,
+                condition,
+                TableStreamOperator.class,
+                false,
+                inputEdge,
+                outputType,
+                description);
+    }
 }

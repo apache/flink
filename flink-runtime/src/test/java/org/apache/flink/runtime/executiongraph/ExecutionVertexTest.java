@@ -39,54 +39,57 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertFalse;
 
-/**
- * Tests for the {@link ExecutionVertex}.
- */
+/** Tests for the {@link ExecutionVertex}. */
 public class ExecutionVertexTest extends TestLogger {
 
-	@Test
-	public void testResetForNewExecutionReleasesPartitions() throws Exception {
-		final JobVertex producerJobVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
-		final JobVertex consumerJobVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
+    @Test
+    public void testResetForNewExecutionReleasesPartitions() throws Exception {
+        final JobVertex producerJobVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
+        final JobVertex consumerJobVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
 
-		consumerJobVertex.connectNewDataSetAsInput(producerJobVertex, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+        consumerJobVertex.connectNewDataSetAsInput(
+                producerJobVertex, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
 
-		final CompletableFuture<Collection<ResultPartitionID>> releasePartitionsFuture = new CompletableFuture<>();
-		final TestingJobMasterPartitionTracker partitionTracker = new TestingJobMasterPartitionTracker();
-		partitionTracker.setStopTrackingAndReleasePartitionsConsumer(releasePartitionsFuture::complete);
+        final CompletableFuture<Collection<ResultPartitionID>> releasePartitionsFuture =
+                new CompletableFuture<>();
+        final TestingJobMasterPartitionTracker partitionTracker =
+                new TestingJobMasterPartitionTracker();
+        partitionTracker.setStopTrackingAndReleasePartitionsConsumer(
+                releasePartitionsFuture::complete);
 
-		final JobGraph jobGraph = new JobGraph(producerJobVertex, consumerJobVertex);
-		final SchedulerBase scheduler = SchedulerTestingUtils.newSchedulerBuilder(jobGraph)
-			.setPartitionTracker(partitionTracker)
-			.build();
+        final JobGraph jobGraph = new JobGraph(producerJobVertex, consumerJobVertex);
+        final SchedulerBase scheduler =
+                SchedulerTestingUtils.newSchedulerBuilder(
+                                jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread())
+                        .setPartitionTracker(partitionTracker)
+                        .build();
 
-		scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
-		scheduler.startScheduling();
+        scheduler.startScheduling();
 
-		final ExecutionJobVertex producerExecutionJobVertex = scheduler.getExecutionJobVertex(producerJobVertex.getID());
+        final ExecutionJobVertex producerExecutionJobVertex =
+                scheduler.getExecutionJobVertex(producerJobVertex.getID());
 
-		Execution execution = producerExecutionJobVertex
-			.getTaskVertices()[0]
-			.getCurrentExecutionAttempt();
+        Execution execution =
+                producerExecutionJobVertex.getTaskVertices()[0].getCurrentExecutionAttempt();
 
-		assertFalse(releasePartitionsFuture.isDone());
+        assertFalse(releasePartitionsFuture.isDone());
 
-		execution.markFinished();
+        execution.markFinished();
 
-		assertFalse(releasePartitionsFuture.isDone());
+        assertFalse(releasePartitionsFuture.isDone());
 
-		producerExecutionJobVertex.resetForNewExecution(1L, 1L);
+        producerExecutionJobVertex.resetForNewExecution(1L, 1L);
 
-		final IntermediateResultPartitionID intermediateResultPartitionID = producerExecutionJobVertex
-			.getProducedDataSets()[0]
-			.getPartitions()[0]
-			.getPartitionId();
-		final ResultPartitionID resultPartitionID = execution
-			.getResultPartitionDeploymentDescriptor(intermediateResultPartitionID)
-			.get()
-			.getShuffleDescriptor()
-			.getResultPartitionID();
+        final IntermediateResultPartitionID intermediateResultPartitionID =
+                producerExecutionJobVertex.getProducedDataSets()[0].getPartitions()[0]
+                        .getPartitionId();
+        final ResultPartitionID resultPartitionID =
+                execution
+                        .getResultPartitionDeploymentDescriptor(intermediateResultPartitionID)
+                        .get()
+                        .getShuffleDescriptor()
+                        .getResultPartitionID();
 
-		assertThat(releasePartitionsFuture.get(), contains(resultPartitionID));
-	}
+        assertThat(releasePartitionsFuture.get(), contains(resultPartitionID));
+    }
 }

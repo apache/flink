@@ -45,21 +45,21 @@ import java.math.{BigDecimal => JBigDecimal}
 import scala.collection.JavaConversions._
 
 /**
-  * FlinkRelMdColumnInterval supplies a default implementation of
-  * [[FlinkRelMetadataQuery.getColumnInterval]] for the standard logical algebra.
-  */
+ * FlinkRelMdColumnInterval supplies a default implementation of
+ * [[FlinkRelMetadataQuery.getColumnInterval]] for the standard logical algebra.
+ */
 class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
 
   override def getDef: MetadataDef[ColumnInterval] = FlinkMetadata.ColumnInterval.DEF
 
   /**
-    * Gets interval of the given column on TableScan.
-    *
-    * @param ts    TableScan RelNode
-    * @param mq    RelMetadataQuery instance
-    * @param index the index of the given column
-    * @return interval of the given column on TableScan
-    */
+   * Gets interval of the given column on TableScan.
+   *
+   * @param ts    TableScan RelNode
+   * @param mq    RelMetadataQuery instance
+   * @param index the index of the given column
+   * @return interval of the given column on TableScan
+   */
   def getColumnInterval(ts: TableScan, mq: RelMetadataQuery, index: Int): ValueInterval = {
     val relOptTable = ts.getTable.asInstanceOf[FlinkPreparingTableBase]
     val fieldNames = relOptTable.getRowType.getFieldNames
@@ -105,13 +105,13 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
   }
 
   /**
-    * Gets interval of the given column on Values.
-    *
-    * @param values Values RelNode
-    * @param mq     RelMetadataQuery instance
-    * @param index  the index of the given column
-    * @return interval of the given column on Values
-    */
+   * Gets interval of the given column on Values.
+   *
+   * @param values Values RelNode
+   * @param mq     RelMetadataQuery instance
+   * @param index  the index of the given column
+   * @return interval of the given column on Values
+   */
   def getColumnInterval(values: Values, mq: RelMetadataQuery, index: Int): ValueInterval = {
     val tuples = values.tuples
     if (tuples.isEmpty) {
@@ -129,25 +129,25 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
   }
 
   /**
-    * Gets interval of the given column on Snapshot.
-    *
-    * @param snapshot    Snapshot RelNode
-    * @param mq    RelMetadataQuery instance
-    * @param index the index of the given column
-    * @return interval of the given column on Snapshot.
-    */
+   * Gets interval of the given column on Snapshot.
+   *
+   * @param snapshot    Snapshot RelNode
+   * @param mq    RelMetadataQuery instance
+   * @param index the index of the given column
+   * @return interval of the given column on Snapshot.
+   */
   def getColumnInterval(snapshot: Snapshot, mq: RelMetadataQuery, index: Int): ValueInterval = null
 
   /**
-    * Gets interval of the given column on Project.
-    *
-    * Note: Only support the simple RexNode, e.g RexInputRef.
-    *
-    * @param project Project RelNode
-    * @param mq      RelMetadataQuery instance
-    * @param index   the index of the given column
-    * @return interval of the given column on Project
-    */
+   * Gets interval of the given column on Project.
+   *
+   * Note: Only support the simple RexNode, e.g RexInputRef.
+   *
+   * @param project Project RelNode
+   * @param mq      RelMetadataQuery instance
+   * @param index   the index of the given column
+   * @return interval of the given column on Project
+   */
   def getColumnInterval(project: Project, mq: RelMetadataQuery, index: Int): ValueInterval = {
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
     val projects = project.getProjects
@@ -168,13 +168,13 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
   }
 
   /**
-    * Gets interval of the given column on Filter.
-    *
-    * @param filter Filter RelNode
-    * @param mq     RelMetadataQuery instance
-    * @param index  the index of the given column
-    * @return interval of the given column on Filter
-    */
+   * Gets interval of the given column on Filter.
+   *
+   * @param filter Filter RelNode
+   * @param mq     RelMetadataQuery instance
+   * @param index  the index of the given column
+   * @return interval of the given column on Filter
+   */
   def getColumnInterval(filter: Filter, mq: RelMetadataQuery, index: Int): ValueInterval = {
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
     val inputValueInterval = fmq.getColumnInterval(filter.getInput, index)
@@ -189,13 +189,13 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
   }
 
   /**
-    * Gets interval of the given column on Calc.
-    *
-    * @param calc  Filter RelNode
-    * @param mq    RelMetadataQuery instance
-    * @param index the index of the given column
-    * @return interval of the given column on Calc
-    */
+   * Gets interval of the given column on Calc.
+   *
+   * @param calc  Filter RelNode
+   * @param mq    RelMetadataQuery instance
+   * @param index the index of the given column
+   * @return interval of the given column on Calc
+   */
   def getColumnInterval(calc: Calc, mq: RelMetadataQuery, index: Int): ValueInterval = {
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
     val rexProgram = calc.getProgram
@@ -204,10 +204,10 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
   }
 
   /**
-    * Calculate interval of column which results from the given rex node in calc.
-    * Note that this function is called by function above, and is reclusive in case
-    * of "AS" rex call, and is private, too.
-    */
+   * Calculate interval of column which results from the given rex node in calc.
+   * Note that this function is called by function above, and is reclusive in case
+   * of "AS" rex call, and is private, too.
+   */
   private def getColumnIntervalOfCalc(
       calc: Calc,
       mq: RelMetadataQuery,
@@ -295,39 +295,39 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
   }
 
   /**
-    * Gets interval of the given column on Exchange.
-    *
-    * @param exchange Exchange RelNode
-    * @param mq       RelMetadataQuery instance
-    * @param index    the index of the given column
-    * @return interval of the given column on Exchange
-    */
+   * Gets interval of the given column on Exchange.
+   *
+   * @param exchange Exchange RelNode
+   * @param mq       RelMetadataQuery instance
+   * @param index    the index of the given column
+   * @return interval of the given column on Exchange
+   */
   def getColumnInterval(exchange: Exchange, mq: RelMetadataQuery, index: Int): ValueInterval = {
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
     fmq.getColumnInterval(exchange.getInput, index)
   }
 
   /**
-    * Gets interval of the given column on Sort.
-    *
-    * @param sort  Sort RelNode
-    * @param mq    RelMetadataQuery instance
-    * @param index the index of the given column
-    * @return interval of the given column on Sort
-    */
+   * Gets interval of the given column on Sort.
+   *
+   * @param sort  Sort RelNode
+   * @param mq    RelMetadataQuery instance
+   * @param index the index of the given column
+   * @return interval of the given column on Sort
+   */
   def getColumnInterval(sort: Sort, mq: RelMetadataQuery, index: Int): ValueInterval = {
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
     fmq.getColumnInterval(sort.getInput, index)
   }
 
   /**
-    * Gets interval of the given column of Expand.
-    *
-    * @param expand expand RelNode
-    * @param mq     RelMetadataQuery instance
-    * @param index  the index of the given column
-    * @return interval of the given column in batch sort
-    */
+   * Gets interval of the given column of Expand.
+   *
+   * @param expand expand RelNode
+   * @param mq     RelMetadataQuery instance
+   * @param index  the index of the given column
+   * @return interval of the given column in batch sort
+   */
   def getColumnInterval(
       expand: Expand,
       mq: RelMetadataQuery,
@@ -355,13 +355,13 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
   }
 
   /**
-    * Gets interval of the given column on Rank.
-    *
-    * @param rank        [[Rank]] instance to analyze
-    * @param mq          RelMetadataQuery instance
-    * @param index       the index of the given column
-    * @return interval of the given column on Rank
-    */
+   * Gets interval of the given column on Rank.
+   *
+   * @param rank        [[Rank]] instance to analyze
+   * @param mq          RelMetadataQuery instance
+   * @param index       the index of the given column
+   * @return interval of the given column on Rank
+   */
   def getColumnInterval(
       rank: Rank,
       mq: RelMetadataQuery,
@@ -387,24 +387,24 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
   }
 
   /**
-    * Gets interval of the given column on Aggregates.
-    *
-    * @param aggregate Aggregate RelNode
-    * @param mq        RelMetadataQuery instance
-    * @param index     the index of the given column
-    * @return interval of the given column on Aggregate
-    */
+   * Gets interval of the given column on Aggregates.
+   *
+   * @param aggregate Aggregate RelNode
+   * @param mq        RelMetadataQuery instance
+   * @param index     the index of the given column
+   * @return interval of the given column on Aggregate
+   */
   def getColumnInterval(aggregate: Aggregate, mq: RelMetadataQuery, index: Int): ValueInterval =
     estimateColumnIntervalOfAggregate(aggregate, mq, index)
 
   /**
-    * Gets interval of the given column on TableAggregates.
-    *
-    * @param aggregate TableAggregate RelNode
-    * @param mq        RelMetadataQuery instance
-    * @param index     the index of the given column
-    * @return interval of the given column on TableAggregate
-    */
+   * Gets interval of the given column on TableAggregates.
+   *
+   * @param aggregate TableAggregate RelNode
+   * @param mq        RelMetadataQuery instance
+   * @param index     the index of the given column
+   * @return interval of the given column on TableAggregate
+   */
   def getColumnInterval(
       aggregate: TableAggregate,
       mq: RelMetadataQuery, index: Int): ValueInterval =
@@ -412,121 +412,121 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
     estimateColumnIntervalOfAggregate(aggregate, mq, index)
 
   /**
-    * Gets interval of the given column on batch group aggregate.
-    *
-    * @param aggregate batch group aggregate RelNode
-    * @param mq        RelMetadataQuery instance
-    * @param index     the index of the given column
-    * @return interval of the given column on batch group aggregate
-    */
+   * Gets interval of the given column on batch group aggregate.
+   *
+   * @param aggregate batch group aggregate RelNode
+   * @param mq        RelMetadataQuery instance
+   * @param index     the index of the given column
+   * @return interval of the given column on batch group aggregate
+   */
   def getColumnInterval(
-      aggregate: BatchExecGroupAggregateBase,
+      aggregate: BatchPhysicalGroupAggregateBase,
       mq: RelMetadataQuery,
       index: Int): ValueInterval = estimateColumnIntervalOfAggregate(aggregate, mq, index)
 
   /**
-    * Gets interval of the given column on stream group aggregate.
-    *
-    * @param aggregate stream group aggregate RelNode
-    * @param mq        RelMetadataQuery instance
-    * @param index     the index of the given column
-    * @return interval of the given column on stream group Aggregate
-    */
+   * Gets interval of the given column on stream group aggregate.
+   *
+   * @param aggregate stream group aggregate RelNode
+   * @param mq        RelMetadataQuery instance
+   * @param index     the index of the given column
+   * @return interval of the given column on stream group Aggregate
+   */
   def getColumnInterval(
-      aggregate: StreamExecGroupAggregate,
+      aggregate: StreamPhysicalGroupAggregate,
       mq: RelMetadataQuery,
       index: Int): ValueInterval = estimateColumnIntervalOfAggregate(aggregate, mq, index)
 
   /**
-    * Gets interval of the given column on stream group table aggregate.
-    *
-    * @param aggregate stream group table aggregate RelNode
-    * @param mq        RelMetadataQuery instance
-    * @param index     the index of the given column
-    * @return interval of the given column on stream group TableAggregate
-    */
+   * Gets interval of the given column on stream group table aggregate.
+   *
+   * @param aggregate stream group table aggregate RelNode
+   * @param mq        RelMetadataQuery instance
+   * @param index     the index of the given column
+   * @return interval of the given column on stream group TableAggregate
+   */
   def getColumnInterval(
-    aggregate: StreamExecGroupTableAggregate,
-    mq: RelMetadataQuery,
-    index: Int): ValueInterval = estimateColumnIntervalOfAggregate(aggregate, mq, index)
-
-  /**
-    * Gets interval of the given column on stream local group aggregate.
-    *
-    * @param aggregate stream local group aggregate RelNode
-    * @param mq        RelMetadataQuery instance
-    * @param index     the index of the given column
-    * @return interval of the given column on stream local group Aggregate
-    */
-  def getColumnInterval(
-      aggregate: StreamExecLocalGroupAggregate,
+      aggregate: StreamPhysicalGroupTableAggregate,
       mq: RelMetadataQuery,
       index: Int): ValueInterval = estimateColumnIntervalOfAggregate(aggregate, mq, index)
 
   /**
-    * Gets interval of the given column on stream global group aggregate.
-    *
-    * @param aggregate stream global group aggregate RelNode
-    * @param mq        RelMetadataQuery instance
-    * @param index     the index of the given column
-    * @return interval of the given column on stream global group Aggregate
-    */
+   * Gets interval of the given column on stream local group aggregate.
+   *
+   * @param aggregate stream local group aggregate RelNode
+   * @param mq        RelMetadataQuery instance
+   * @param index     the index of the given column
+   * @return interval of the given column on stream local group Aggregate
+   */
   def getColumnInterval(
-      aggregate: StreamExecGlobalGroupAggregate,
+      aggregate: StreamPhysicalLocalGroupAggregate,
       mq: RelMetadataQuery,
       index: Int): ValueInterval = estimateColumnIntervalOfAggregate(aggregate, mq, index)
 
   /**
-    * Gets interval of the given column on window aggregate.
-    *
-    * @param agg   window aggregate RelNode
-    * @param mq    RelMetadataQuery instance
-    * @param index the index of the given column
-    * @return interval of the given column on window Aggregate
-    */
+   * Gets interval of the given column on stream global group aggregate.
+   *
+   * @param aggregate stream global group aggregate RelNode
+   * @param mq        RelMetadataQuery instance
+   * @param index     the index of the given column
+   * @return interval of the given column on stream global group Aggregate
+   */
+  def getColumnInterval(
+      aggregate: StreamPhysicalGlobalGroupAggregate,
+      mq: RelMetadataQuery,
+      index: Int): ValueInterval = estimateColumnIntervalOfAggregate(aggregate, mq, index)
+
+  /**
+   * Gets interval of the given column on window aggregate.
+   *
+   * @param agg   window aggregate RelNode
+   * @param mq    RelMetadataQuery instance
+   * @param index the index of the given column
+   * @return interval of the given column on window Aggregate
+   */
   def getColumnInterval(
       agg: WindowAggregate,
       mq: RelMetadataQuery,
       index: Int): ValueInterval = estimateColumnIntervalOfAggregate(agg, mq, index)
 
   /**
-    * Gets interval of the given column on batch window aggregate.
-    *
-    * @param agg   batch window aggregate RelNode
-    * @param mq    RelMetadataQuery instance
-    * @param index the index of the given column
-    * @return interval of the given column on batch window Aggregate
-    */
+   * Gets interval of the given column on batch window aggregate.
+   *
+   * @param agg   batch window aggregate RelNode
+   * @param mq    RelMetadataQuery instance
+   * @param index the index of the given column
+   * @return interval of the given column on batch window Aggregate
+   */
   def getColumnInterval(
-      agg: BatchExecWindowAggregateBase,
+      agg: BatchPhysicalWindowAggregateBase,
       mq: RelMetadataQuery,
       index: Int): ValueInterval = estimateColumnIntervalOfAggregate(agg, mq, index)
 
   /**
-    * Gets interval of the given column on stream window aggregate.
-    *
-    * @param agg   stream window aggregate RelNode
-    * @param mq    RelMetadataQuery instance
-    * @param index the index of the given column
-    * @return interval of the given column on stream window Aggregate
-    */
+   * Gets interval of the given column on stream window aggregate.
+   *
+   * @param agg   stream window aggregate RelNode
+   * @param mq    RelMetadataQuery instance
+   * @param index the index of the given column
+   * @return interval of the given column on stream window Aggregate
+   */
   def getColumnInterval(
-      agg: StreamExecGroupWindowAggregate,
+      agg: StreamPhysicalGroupWindowAggregate,
       mq: RelMetadataQuery,
       index: Int): ValueInterval = estimateColumnIntervalOfAggregate(agg, mq, index)
 
   /**
-    * Gets interval of the given column on stream window table aggregate.
-    *
-    * @param agg   stream window table aggregate RelNode
-    * @param mq    RelMetadataQuery instance
-    * @param index the index of the given column
-    * @return interval of the given column on stream window Aggregate
-    */
+   * Gets interval of the given column on stream window table aggregate.
+   *
+   * @param agg   stream window table aggregate RelNode
+   * @param mq    RelMetadataQuery instance
+   * @param index the index of the given column
+   * @return interval of the given column on stream window Aggregate
+   */
   def getColumnInterval(
-    agg: StreamExecGroupWindowTableAggregate,
-    mq: RelMetadataQuery,
-    index: Int): ValueInterval = estimateColumnIntervalOfAggregate(agg, mq, index)
+      agg: StreamPhysicalGroupWindowTableAggregate,
+      mq: RelMetadataQuery,
+      index: Int): ValueInterval = estimateColumnIntervalOfAggregate(agg, mq, index)
 
   private def estimateColumnIntervalOfAggregate(
       aggregate: SingleRel,
@@ -535,23 +535,23 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
     val input = aggregate.getInput
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
     val groupSet = aggregate match {
-      case agg: StreamExecGroupAggregate => agg.grouping
-      case agg: StreamExecLocalGroupAggregate => agg.grouping
-      case agg: StreamExecGlobalGroupAggregate => agg.grouping
-      case agg: StreamExecIncrementalGroupAggregate => agg.partialAggGrouping
-      case agg: StreamExecGroupWindowAggregate => agg.getGrouping
-      case agg: BatchExecGroupAggregateBase => agg.getGrouping ++ agg.getAuxGrouping
+      case agg: StreamPhysicalGroupAggregate => agg.grouping
+      case agg: StreamPhysicalLocalGroupAggregate => agg.grouping
+      case agg: StreamPhysicalGlobalGroupAggregate => agg.grouping
+      case agg: StreamPhysicalIncrementalGroupAggregate => agg.partialAggGrouping
+      case agg: StreamPhysicalGroupWindowAggregate => agg.grouping
+      case agg: BatchPhysicalGroupAggregateBase => agg.grouping ++ agg.auxGrouping
       case agg: Aggregate => AggregateUtil.checkAndGetFullGroupSet(agg)
-      case agg: BatchExecLocalSortWindowAggregate =>
+      case agg: BatchPhysicalLocalSortWindowAggregate =>
         // grouping + assignTs + auxGrouping
-        agg.getGrouping ++ Array(agg.inputTimeFieldIndex) ++ agg.getAuxGrouping
-      case agg: BatchExecLocalHashWindowAggregate =>
+        agg.grouping ++ Array(agg.inputTimeFieldIndex) ++ agg.auxGrouping
+      case agg: BatchPhysicalLocalHashWindowAggregate =>
         // grouping + assignTs + auxGrouping
-        agg.getGrouping ++ Array(agg.inputTimeFieldIndex) ++ agg.getAuxGrouping
-      case agg: BatchExecWindowAggregateBase => agg.getGrouping ++ agg.getAuxGrouping
+        agg.grouping ++ Array(agg.inputTimeFieldIndex) ++ agg.auxGrouping
+      case agg: BatchPhysicalWindowAggregateBase => agg.grouping ++ agg.auxGrouping
       case agg: TableAggregate => agg.getGroupSet.toArray
-      case agg: StreamExecGroupTableAggregate => agg.grouping
-      case agg: StreamExecGroupWindowTableAggregate => agg.getGrouping
+      case agg: StreamPhysicalGroupTableAggregate => agg.grouping
+      case agg: StreamPhysicalGroupWindowTableAggregate => agg.grouping
     }
 
     if (index < groupSet.length) {
@@ -595,28 +595,27 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
       } else {
         val aggCallIndex = index - groupSet.length
         val aggCall = aggregate match {
-          case agg: StreamExecGroupAggregate if agg.aggCalls.length > aggCallIndex =>
+          case agg: StreamPhysicalGroupAggregate if agg.aggCalls.length > aggCallIndex =>
             agg.aggCalls(aggCallIndex)
-          case agg: StreamExecGlobalGroupAggregate
-            if agg.globalAggInfoList.getActualAggregateCalls.length > aggCallIndex =>
+          case agg: StreamPhysicalGlobalGroupAggregate
+            if agg.aggCalls.length > aggCallIndex =>
             val aggCallIndexInLocalAgg = getAggCallIndexInLocalAgg(
-              aggCallIndex, agg.globalAggInfoList.getActualAggregateCalls, agg.inputRowType)
+              aggCallIndex, agg.aggCalls, agg.localAggInputRowType)
             if (aggCallIndexInLocalAgg != null) {
               return fmq.getColumnInterval(agg.getInput, groupSet.length + aggCallIndexInLocalAgg)
             } else {
               null
             }
-          case agg: StreamExecLocalGroupAggregate =>
-            getAggCallFromLocalAgg(
-              aggCallIndex, agg.aggInfoList.getActualAggregateCalls, agg.getInput.getRowType)
-          case agg: StreamExecIncrementalGroupAggregate
-            if agg.partialAggInfoList.getActualAggregateCalls.length > aggCallIndex =>
-            agg.partialAggInfoList.getActualAggregateCalls(aggCallIndex)
-          case agg: StreamExecGroupWindowAggregate if agg.aggCalls.length > aggCallIndex =>
+          case agg: StreamPhysicalLocalGroupAggregate =>
+            getAggCallFromLocalAgg(aggCallIndex, agg.aggCalls, agg.getInput.getRowType)
+          case agg: StreamPhysicalIncrementalGroupAggregate
+            if agg.partialAggCalls.length > aggCallIndex =>
+            agg.partialAggCalls(aggCallIndex)
+          case agg: StreamPhysicalGroupWindowAggregate if agg.aggCalls.length > aggCallIndex =>
             agg.aggCalls(aggCallIndex)
-          case agg: BatchExecLocalHashAggregate =>
+          case agg: BatchPhysicalLocalHashAggregate =>
             getAggCallFromLocalAgg(aggCallIndex, agg.getAggCallList, agg.getInput.getRowType)
-          case agg: BatchExecHashAggregate if agg.isMerge =>
+          case agg: BatchPhysicalHashAggregate if agg.isMerge =>
             val aggCallIndexInLocalAgg = getAggCallIndexInLocalAgg(
               aggCallIndex, agg.getAggCallList, agg.aggInputRowType)
             if (aggCallIndexInLocalAgg != null) {
@@ -624,9 +623,9 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
             } else {
               null
             }
-          case agg: BatchExecLocalSortAggregate =>
+          case agg: BatchPhysicalLocalSortAggregate =>
             getAggCallFromLocalAgg(aggCallIndex, agg.getAggCallList, agg.getInput.getRowType)
-          case agg: BatchExecSortAggregate if agg.isMerge =>
+          case agg: BatchPhysicalSortAggregate if agg.isMerge =>
             val aggCallIndexInLocalAgg = getAggCallIndexInLocalAgg(
               aggCallIndex, agg.getAggCallList, agg.aggInputRowType)
             if (aggCallIndexInLocalAgg != null) {
@@ -634,7 +633,7 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
             } else {
               null
             }
-          case agg: BatchExecGroupAggregateBase if agg.getAggCallList.length > aggCallIndex =>
+          case agg: BatchPhysicalGroupAggregateBase if agg.getAggCallList.length > aggCallIndex =>
             agg.getAggCallList(aggCallIndex)
           case agg: Aggregate =>
             val (_, aggCalls) = AggregateUtil.checkAndSplitAggCalls(agg)
@@ -643,7 +642,7 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
             } else {
               null
             }
-          case agg: BatchExecWindowAggregateBase if agg.getAggCallList.length > aggCallIndex =>
+          case agg: BatchPhysicalWindowAggregateBase if agg.getAggCallList.length > aggCallIndex =>
             agg.getAggCallList(aggCallIndex)
           case _ => null
         }
@@ -684,13 +683,13 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
   }
 
   /**
-    * Gets interval of the given column on calcite window.
-    *
-    * @param window Window RelNode
-    * @param mq     RelMetadataQuery instance
-    * @param index  the index of the given column
-    * @return interval of the given column on window
-    */
+   * Gets interval of the given column on calcite window.
+   *
+   * @param window Window RelNode
+   * @param mq     RelMetadataQuery instance
+   * @param index  the index of the given column
+   * @return interval of the given column on window
+   */
   def getColumnInterval(
       window: Window,
       mq: RelMetadataQuery,
@@ -699,28 +698,28 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
   }
 
   /**
-    * Gets interval of the given column on batch over aggregate.
-    *
-    * @param agg    batch over aggregate RelNode
-    * @param mq     RelMetadataQuery instance
-    * @param index  he index of the given column
-    * @return interval of the given column on batch over aggregate.
-    */
+   * Gets interval of the given column on batch over aggregate.
+   *
+   * @param agg    batch over aggregate RelNode
+   * @param mq     RelMetadataQuery instance
+   * @param index  he index of the given column
+   * @return interval of the given column on batch over aggregate.
+   */
   def getColumnInterval(
-      agg: BatchExecOverAggregate,
+      agg: BatchPhysicalOverAggregate,
       mq: RelMetadataQuery,
       index: Int): ValueInterval = getColumnIntervalOfOverAgg(agg, mq, index)
 
   /**
-    * Gets interval of the given column on stream over aggregate.
-    *
-    * @param agg    stream over aggregate RelNode
-    * @param mq     RelMetadataQuery instance
-    * @param index  he index of the given column
-    * @return interval of the given column on stream over aggregate.
-    */
+   * Gets interval of the given column on stream over aggregate.
+   *
+   * @param agg    stream over aggregate RelNode
+   * @param mq     RelMetadataQuery instance
+   * @param index  he index of the given column
+   * @return interval of the given column on stream over aggregate.
+   */
   def getColumnInterval(
-      agg: StreamExecOverAggregate,
+      agg: StreamPhysicalOverAggregate,
       mq: RelMetadataQuery,
       index: Int): ValueInterval = getColumnIntervalOfOverAgg(agg, mq, index)
 
@@ -740,13 +739,13 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
   }
 
   /**
-    * Gets interval of the given column on Join.
-    *
-    * @param join  Join RelNode
-    * @param mq    RelMetadataQuery instance
-    * @param index the index of the given column
-    * @return interval of the given column on Join
-    */
+   * Gets interval of the given column on Join.
+   *
+   * @param join  Join RelNode
+   * @param mq    RelMetadataQuery instance
+   * @param index the index of the given column
+   * @return interval of the given column on Join
+   */
   def getColumnInterval(join: Join, mq: RelMetadataQuery, index: Int): ValueInterval = {
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
     val joinCondition = join.getCondition
@@ -772,13 +771,13 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
   }
 
   /**
-    * Gets interval of the given column on Union.
-    *
-    * @param union Union RelNode
-    * @param mq    RelMetadataQuery instance
-    * @param index the index of the given column
-    * @return interval of the given column on Union
-    */
+   * Gets interval of the given column on Union.
+   *
+   * @param union Union RelNode
+   * @param mq    RelMetadataQuery instance
+   * @param index the index of the given column
+   * @return interval of the given column on Union
+   */
   def getColumnInterval(union: Union, mq: RelMetadataQuery, index: Int): ValueInterval = {
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
     val subIntervals = union
@@ -788,13 +787,13 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
   }
 
   /**
-    * Gets interval of the given column on RelSubset.
-    *
-    * @param subset RelSubset to analyze
-    * @param mq     RelMetadataQuery instance
-    * @param index  the index of the given column
-    * @return If exist best relNode, then transmit to it, else transmit to the original relNode
-    */
+   * Gets interval of the given column on RelSubset.
+   *
+   * @param subset RelSubset to analyze
+   * @param mq     RelMetadataQuery instance
+   * @param index  the index of the given column
+   * @return If exist best relNode, then transmit to it, else transmit to the original relNode
+   */
   def getColumnInterval(subset: RelSubset, mq: RelMetadataQuery, index: Int): ValueInterval = {
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
     val rel = Util.first(subset.getBest, subset.getOriginal)
@@ -802,13 +801,13 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
   }
 
   /**
-    * Catches-all rule when none of the others apply.
-    *
-    * @param rel   RelNode to analyze
-    * @param mq    RelMetadataQuery instance
-    * @param index the index of the given column
-    * @return Always returns null
-    */
+   * Catches-all rule when none of the others apply.
+   *
+   * @param rel   RelNode to analyze
+   * @param mq    RelMetadataQuery instance
+   * @param index the index of the given column
+   * @return Always returns null
+   */
   def getColumnInterval(rel: RelNode, mq: RelMetadataQuery, index: Int): ValueInterval = null
 
 }

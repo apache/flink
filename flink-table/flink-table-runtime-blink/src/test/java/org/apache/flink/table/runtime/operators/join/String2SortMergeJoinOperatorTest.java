@@ -54,171 +54,191 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import static org.apache.flink.table.runtime.operators.join.String2HashJoinOperatorTest.newRow;
 import static org.apache.flink.table.runtime.operators.join.String2HashJoinOperatorTest.transformToBinary;
 
-/**
- * Test for {@link SortMergeJoinOperator}.
- */
+/** Test for {@link SortMergeJoinOperator}. */
 @RunWith(Parameterized.class)
 public class String2SortMergeJoinOperatorTest {
 
-	private boolean leftIsSmall;
-	InternalTypeInfo<RowData> typeInfo = InternalTypeInfo.ofFields(
-			new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH));
-	private InternalTypeInfo<RowData> joinedInfo = InternalTypeInfo.ofFields(
-			new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH));
+    private boolean leftIsSmall;
+    InternalTypeInfo<RowData> typeInfo =
+            InternalTypeInfo.ofFields(
+                    new VarCharType(VarCharType.MAX_LENGTH),
+                    new VarCharType(VarCharType.MAX_LENGTH));
+    private InternalTypeInfo<RowData> joinedInfo =
+            InternalTypeInfo.ofFields(
+                    new VarCharType(VarCharType.MAX_LENGTH),
+                    new VarCharType(VarCharType.MAX_LENGTH),
+                    new VarCharType(VarCharType.MAX_LENGTH),
+                    new VarCharType(VarCharType.MAX_LENGTH));
 
-	public String2SortMergeJoinOperatorTest(boolean leftIsSmall) {
-		this.leftIsSmall = leftIsSmall;
-	}
+    public String2SortMergeJoinOperatorTest(boolean leftIsSmall) {
+        this.leftIsSmall = leftIsSmall;
+    }
 
-	@Parameterized.Parameters
-	public static Collection<Boolean> parameters() {
-		return Arrays.asList(true, false);
-	}
+    @Parameterized.Parameters
+    public static Collection<Boolean> parameters() {
+        return Arrays.asList(true, false);
+    }
 
-	@Test
-	public void testInnerJoin() throws Exception {
-		StreamOperator joinOperator = newOperator(FlinkJoinType.INNER, leftIsSmall);
-		TwoInputStreamTaskTestHarness<BinaryRowData, BinaryRowData, JoinedRowData> testHarness =
-				buildSortMergeJoin(joinOperator);
+    @Test
+    public void testInnerJoin() throws Exception {
+        StreamOperator joinOperator = newOperator(FlinkJoinType.INNER, leftIsSmall);
+        TwoInputStreamTaskTestHarness<BinaryRowData, BinaryRowData, JoinedRowData> testHarness =
+                buildSortMergeJoin(joinOperator);
 
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-		expectedOutput.add(new StreamRecord<>(newRow("a", "02")));
-		expectedOutput.add(new StreamRecord<>(newRow("b", "14")));
-		testHarness.waitForTaskCompletion();
-		TestHarnessUtil.assertOutputEquals("Output was not correct.",
-				expectedOutput,
-				transformToBinary(testHarness.getOutput()));
-	}
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        expectedOutput.add(new StreamRecord<>(newRow("a", "02")));
+        expectedOutput.add(new StreamRecord<>(newRow("b", "14")));
+        testHarness.waitForTaskCompletion();
+        TestHarnessUtil.assertOutputEquals(
+                "Output was not correct.",
+                expectedOutput,
+                transformToBinary(testHarness.getOutput()));
+    }
 
-	@Test
-	public void testLeftOuterJoin() throws Exception {
-		StreamOperator joinOperator = newOperator(FlinkJoinType.LEFT, leftIsSmall);
-		TwoInputStreamTaskTestHarness<BinaryRowData, BinaryRowData, JoinedRowData> testHarness =
-				buildSortMergeJoin(joinOperator);
+    @Test
+    public void testLeftOuterJoin() throws Exception {
+        StreamOperator joinOperator = newOperator(FlinkJoinType.LEFT, leftIsSmall);
+        TwoInputStreamTaskTestHarness<BinaryRowData, BinaryRowData, JoinedRowData> testHarness =
+                buildSortMergeJoin(joinOperator);
 
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-		expectedOutput.add(new StreamRecord<>(newRow("a", "02")));
-		expectedOutput.add(new StreamRecord<>(newRow("b", "14")));
-		expectedOutput.add(new StreamRecord<>(newRow("d", "0null")));
-		testHarness.waitForTaskCompletion();
-		TestHarnessUtil.assertOutputEquals("Output was not correct.",
-				expectedOutput,
-				transformToBinary(testHarness.getOutput()));
-	}
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        expectedOutput.add(new StreamRecord<>(newRow("a", "02")));
+        expectedOutput.add(new StreamRecord<>(newRow("b", "14")));
+        expectedOutput.add(new StreamRecord<>(newRow("d", "0null")));
+        testHarness.waitForTaskCompletion();
+        TestHarnessUtil.assertOutputEquals(
+                "Output was not correct.",
+                expectedOutput,
+                transformToBinary(testHarness.getOutput()));
+    }
 
-	@Test
-	public void testRightOuterJoin() throws Exception {
-		StreamOperator joinOperator = newOperator(FlinkJoinType.RIGHT, leftIsSmall);
-		TwoInputStreamTaskTestHarness<BinaryRowData, BinaryRowData, JoinedRowData> testHarness =
-				buildSortMergeJoin(joinOperator);
+    @Test
+    public void testRightOuterJoin() throws Exception {
+        StreamOperator joinOperator = newOperator(FlinkJoinType.RIGHT, leftIsSmall);
+        TwoInputStreamTaskTestHarness<BinaryRowData, BinaryRowData, JoinedRowData> testHarness =
+                buildSortMergeJoin(joinOperator);
 
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-		expectedOutput.add(new StreamRecord<>(newRow("a", "02")));
-		expectedOutput.add(new StreamRecord<>(newRow("b", "14")));
-		expectedOutput.add(new StreamRecord<>(newRow("c", "2null")));
-		testHarness.waitForTaskCompletion();
-		TestHarnessUtil.assertOutputEquals("Output was not correct.",
-				expectedOutput,
-				transformToBinary(testHarness.getOutput()));
-	}
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        expectedOutput.add(new StreamRecord<>(newRow("a", "02")));
+        expectedOutput.add(new StreamRecord<>(newRow("b", "14")));
+        expectedOutput.add(new StreamRecord<>(newRow("c", "2null")));
+        testHarness.waitForTaskCompletion();
+        TestHarnessUtil.assertOutputEquals(
+                "Output was not correct.",
+                expectedOutput,
+                transformToBinary(testHarness.getOutput()));
+    }
 
-	@Test
-	public void testFullJoin() throws Exception {
-		StreamOperator joinOperator = newOperator(FlinkJoinType.FULL, leftIsSmall);
-		TwoInputStreamTaskTestHarness<BinaryRowData, BinaryRowData, JoinedRowData> testHarness =
-				buildSortMergeJoin(joinOperator);
+    @Test
+    public void testFullJoin() throws Exception {
+        StreamOperator joinOperator = newOperator(FlinkJoinType.FULL, leftIsSmall);
+        TwoInputStreamTaskTestHarness<BinaryRowData, BinaryRowData, JoinedRowData> testHarness =
+                buildSortMergeJoin(joinOperator);
 
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-		expectedOutput.add(new StreamRecord<>(newRow("a", "02")));
-		expectedOutput.add(new StreamRecord<>(newRow("b", "14")));
-		expectedOutput.add(new StreamRecord<>(newRow("c", "2null")));
-		expectedOutput.add(new StreamRecord<>(newRow("d", "0null")));
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        expectedOutput.add(new StreamRecord<>(newRow("a", "02")));
+        expectedOutput.add(new StreamRecord<>(newRow("b", "14")));
+        expectedOutput.add(new StreamRecord<>(newRow("c", "2null")));
+        expectedOutput.add(new StreamRecord<>(newRow("d", "0null")));
 
-		testHarness.waitForTaskCompletion();
-		TestHarnessUtil.assertOutputEquals("Output was not correct.",
-				expectedOutput,
-				transformToBinary(testHarness.getOutput()));
-	}
+        testHarness.waitForTaskCompletion();
+        TestHarnessUtil.assertOutputEquals(
+                "Output was not correct.",
+                expectedOutput,
+                transformToBinary(testHarness.getOutput()));
+    }
 
-	private TwoInputStreamTaskTestHarness<BinaryRowData, BinaryRowData, JoinedRowData> buildSortMergeJoin(StreamOperator operator) throws Exception {
-		final TwoInputStreamTaskTestHarness<BinaryRowData, BinaryRowData, JoinedRowData> testHarness =
-				new TwoInputStreamTaskTestHarness<>(TwoInputStreamTask::new, 2, 2,
-					new int[]{1, 2}, typeInfo, (TypeInformation) typeInfo, joinedInfo);
+    private TwoInputStreamTaskTestHarness<BinaryRowData, BinaryRowData, JoinedRowData>
+            buildSortMergeJoin(StreamOperator operator) throws Exception {
+        final TwoInputStreamTaskTestHarness<BinaryRowData, BinaryRowData, JoinedRowData>
+                testHarness =
+                        new TwoInputStreamTaskTestHarness<>(
+                                TwoInputStreamTask::new,
+                                2,
+                                2,
+                                new int[] {1, 2},
+                                typeInfo,
+                                (TypeInformation) typeInfo,
+                                joinedInfo);
 
-		testHarness.memorySize = 36 * 1024 * 1024;
-		testHarness.setupOutputForSingletonOperatorChain();
-		testHarness.getStreamConfig().setStreamOperator(operator);
-		testHarness.getStreamConfig().setOperatorID(new OperatorID());
-		testHarness.getStreamConfig().setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.BATCH_OP, 0.99);
+        testHarness.memorySize = 36 * 1024 * 1024;
+        testHarness.setupOutputForSingletonOperatorChain();
+        testHarness.getStreamConfig().setStreamOperator(operator);
+        testHarness.getStreamConfig().setOperatorID(new OperatorID());
+        testHarness
+                .getStreamConfig()
+                .setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.OPERATOR, 0.99);
 
-		long initialTime = 0L;
+        long initialTime = 0L;
 
-		testHarness.invoke();
-		testHarness.waitForTaskRunning();
+        testHarness.invoke();
+        testHarness.waitForTaskRunning();
 
-		testHarness.processElement(new StreamRecord<>(newRow("a", "0"), initialTime), 0, 0);
-		testHarness.processElement(new StreamRecord<>(newRow("d", "0"), initialTime), 0, 0);
-		testHarness.processElement(new StreamRecord<>(newRow("a", "2"), initialTime), 1, 1);
-		testHarness.processElement(new StreamRecord<>(newRow("b", "1"), initialTime), 0, 1);
-		testHarness.processElement(new StreamRecord<>(newRow("c", "2"), initialTime), 1, 1);
-		testHarness.processElement(new StreamRecord<>(newRow("b", "4"), initialTime), 1, 0);
-		testHarness.waitForInputProcessing();
+        testHarness.processElement(new StreamRecord<>(newRow("a", "0"), initialTime), 0, 0);
+        testHarness.processElement(new StreamRecord<>(newRow("d", "0"), initialTime), 0, 0);
+        testHarness.processElement(new StreamRecord<>(newRow("a", "2"), initialTime), 1, 1);
+        testHarness.processElement(new StreamRecord<>(newRow("b", "1"), initialTime), 0, 1);
+        testHarness.processElement(new StreamRecord<>(newRow("c", "2"), initialTime), 1, 1);
+        testHarness.processElement(new StreamRecord<>(newRow("b", "4"), initialTime), 1, 0);
+        testHarness.waitForInputProcessing();
 
-		testHarness.endInput();
-		return testHarness;
-	}
+        testHarness.endInput();
+        return testHarness;
+    }
 
-	static StreamOperator newOperator(FlinkJoinType type, boolean leftIsSmaller) {
-		return new SortMergeJoinOperator(
-				0, type, leftIsSmaller,
-				new GeneratedJoinCondition("", "", new Object[0]) {
-					@Override
-					public JoinCondition newInstance(ClassLoader classLoader) {
-						return new Int2HashJoinOperatorTest.TrueCondition();
-					}
-				},
-				new GeneratedProjection("", "", new Object[0]) {
-					@Override
-					public Projection newInstance(ClassLoader classLoader) {
-						return new MyProjection();
-					}
-				},
-				new GeneratedProjection("", "", new Object[0]) {
-					@Override
-					public Projection newInstance(ClassLoader classLoader) {
-						return new MyProjection();
-					}
-				},
-				new GeneratedNormalizedKeyComputer("", "") {
-					@Override
-					public NormalizedKeyComputer newInstance(ClassLoader classLoader) {
-						return new StringNormalizedKeyComputer();
-					}
-				},
-				new GeneratedRecordComparator("", "", new Object[0]) {
-					@Override
-					public RecordComparator newInstance(ClassLoader classLoader) {
-						return new StringRecordComparator();
-					}
-				},
-				new GeneratedNormalizedKeyComputer("", "") {
-					@Override
-					public NormalizedKeyComputer newInstance(ClassLoader classLoader) {
-						return new StringNormalizedKeyComputer();
-					}
-				},
-				new GeneratedRecordComparator("", "", new Object[0]) {
-					@Override
-					public RecordComparator newInstance(ClassLoader classLoader) {
-						return new StringRecordComparator();
-					}
-				},
-				new GeneratedRecordComparator("", "", new Object[0]) {
-					@Override
-					public RecordComparator newInstance(ClassLoader classLoader) {
-						return new StringRecordComparator();
-					}
-				},
-				new boolean[]{true});
-	}
+    static StreamOperator newOperator(FlinkJoinType type, boolean leftIsSmaller) {
+        return new SortMergeJoinOperator(
+                0,
+                type,
+                leftIsSmaller,
+                new GeneratedJoinCondition("", "", new Object[0]) {
+                    @Override
+                    public JoinCondition newInstance(ClassLoader classLoader) {
+                        return new Int2HashJoinOperatorTest.TrueCondition();
+                    }
+                },
+                new GeneratedProjection("", "", new Object[0]) {
+                    @Override
+                    public Projection newInstance(ClassLoader classLoader) {
+                        return new MyProjection();
+                    }
+                },
+                new GeneratedProjection("", "", new Object[0]) {
+                    @Override
+                    public Projection newInstance(ClassLoader classLoader) {
+                        return new MyProjection();
+                    }
+                },
+                new GeneratedNormalizedKeyComputer("", "") {
+                    @Override
+                    public NormalizedKeyComputer newInstance(ClassLoader classLoader) {
+                        return new StringNormalizedKeyComputer();
+                    }
+                },
+                new GeneratedRecordComparator("", "", new Object[0]) {
+                    @Override
+                    public RecordComparator newInstance(ClassLoader classLoader) {
+                        return new StringRecordComparator();
+                    }
+                },
+                new GeneratedNormalizedKeyComputer("", "") {
+                    @Override
+                    public NormalizedKeyComputer newInstance(ClassLoader classLoader) {
+                        return new StringNormalizedKeyComputer();
+                    }
+                },
+                new GeneratedRecordComparator("", "", new Object[0]) {
+                    @Override
+                    public RecordComparator newInstance(ClassLoader classLoader) {
+                        return new StringRecordComparator();
+                    }
+                },
+                new GeneratedRecordComparator("", "", new Object[0]) {
+                    @Override
+                    public RecordComparator newInstance(ClassLoader classLoader) {
+                        return new StringRecordComparator();
+                    }
+                },
+                new boolean[] {true});
+    }
 }

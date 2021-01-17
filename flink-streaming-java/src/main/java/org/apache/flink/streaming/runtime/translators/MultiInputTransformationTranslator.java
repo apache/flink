@@ -22,7 +22,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.graph.SimpleTransformationTranslator;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
 import org.apache.flink.streaming.api.transformations.AbstractMultipleInputTransformation;
@@ -33,84 +35,104 @@ import org.apache.flink.streaming.runtime.io.MultipleInputSelectionHandler;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A {@link TransformationTranslator} for the {@link MultipleInputTransformation} and the
- * {@link KeyedMultipleInputTransformation}.
+ * A {@link TransformationTranslator} for the {@link MultipleInputTransformation} and the {@link
+ * KeyedMultipleInputTransformation}.
  *
  * @param <OUT> The type of the elements that result from this {@code MultipleInputTransformation}
  */
 @Internal
 public class MultiInputTransformationTranslator<OUT>
-		extends SimpleTransformationTranslator<OUT, AbstractMultipleInputTransformation<OUT>> {
+        extends SimpleTransformationTranslator<OUT, AbstractMultipleInputTransformation<OUT>> {
 
-	@Override
-	protected Collection<Integer> translateForBatchInternal(
-			final AbstractMultipleInputTransformation<OUT> transformation,
-			final Context context) {
-		Collection<Integer> ids = translateInternal(transformation, context);
-		boolean isKeyed = transformation instanceof KeyedMultipleInputTransformation;
-		if (isKeyed) {
-			BatchExecutionUtils.applySortingInputs(transformation.getId(), context);
-		}
-		return ids;
-	}
+    @Override
+    protected Collection<Integer> translateForBatchInternal(
+            final AbstractMultipleInputTransformation<OUT> transformation, final Context context) {
+        Collection<Integer> ids = translateInternal(transformation, context);
+        if (transformation instanceof KeyedMultipleInputTransformation) {
+            KeyedMultipleInputTransformation<OUT> keyedTransformation =
+                    (KeyedMultipleInputTransformation<OUT>) transformation;
+            List<Transformation<?>> inputs = transformation.getInputs();
+            List<KeySelector<?, ?>> keySelectors = keyedTransformation.getStateKeySelectors();
 
-	@Override
-	protected Collection<Integer> translateForStreamingInternal(
-			final AbstractMultipleInputTransformation<OUT> transformation,
-			final Context context) {
-		return translateInternal(transformation, context);
-	}
+            StreamConfig.InputRequirement[] inputRequirements =
+                    IntStream.range(0, inputs.size())
+                            .mapToObj(
+                                    idx -> {
+                                        if (keySelectors.get(idx) != null) {
+                                            return StreamConfig.InputRequirement.SORTED;
+                                        } else {
+                                            return StreamConfig.InputRequirement.PASS_THROUGH;
+                                        }
+                                    })
+                            .toArray(StreamConfig.InputRequirement[]::new);
 
-	private Collection<Integer> translateInternal(
-			final AbstractMultipleInputTransformation<OUT> transformation,
-			final Context context) {
-		checkNotNull(transformation);
-		checkNotNull(context);
+            BatchExecutionUtils.applyBatchExecutionSettings(
+                    transformation.getId(), context, inputRequirements);
+        }
+        return ids;
+    }
 
-		final List<Transformation<?>> inputTransformations = transformation.getInputs();
-		checkArgument(!inputTransformations.isEmpty(),
-				"Empty inputs for MultipleInputTransformation. Did you forget to add inputs?");
-		MultipleInputSelectionHandler.checkSupportedInputCount(inputTransformations.size());
+    @Override
+    protected Collection<Integer> translateForStreamingInternal(
+            final AbstractMultipleInputTransformation<OUT> transformation, final Context context) {
+        return translateInternal(transformation, context);
+    }
 
-		final StreamGraph streamGraph = context.getStreamGraph();
-		final String slotSharingGroup = context.getSlotSharingGroup();
-		final int transformationId = transformation.getId();
-		final ExecutionConfig executionConfig = streamGraph.getExecutionConfig();
+    private Collection<Integer> translateInternal(
+            final AbstractMultipleInputTransformation<OUT> transformation, final Context context) {
+        checkNotNull(transformation);
+        checkNotNull(context);
 
-		streamGraph.addMultipleInputOperator(
-				transformationId,
-				slotSharingGroup,
-				transformation.getCoLocationGroupKey(),
-				transformation.getOperatorFactory(),
-				transformation.getInputTypes(),
-				transformation.getOutputType(),
-				transformation.getName());
+        final List<Transformation<?>> inputTransformations = transformation.getInputs();
+        checkArgument(
+                !inputTransformations.isEmpty(),
+                "Empty inputs for MultipleInputTransformation. Did you forget to add inputs?");
+        MultipleInputSelectionHandler.checkSupportedInputCount(inputTransformations.size());
 
-		final int parallelism = transformation.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT
-				? transformation.getParallelism()
-				: executionConfig.getParallelism();
-		streamGraph.setParallelism(transformationId, parallelism);
-		streamGraph.setMaxParallelism(transformationId, transformation.getMaxParallelism());
+        final StreamGraph streamGraph = context.getStreamGraph();
+        final String slotSharingGroup = context.getSlotSharingGroup();
+        final int transformationId = transformation.getId();
+        final ExecutionConfig executionConfig = streamGraph.getExecutionConfig();
 
-		if (transformation instanceof KeyedMultipleInputTransformation) {
-			KeyedMultipleInputTransformation<OUT> keyedTransform = (KeyedMultipleInputTransformation<OUT>) transformation;
-			TypeSerializer<?> keySerializer = keyedTransform.getStateKeyType().createSerializer(executionConfig);
-			streamGraph.setMultipleInputStateKey(transformationId, keyedTransform.getStateKeySelectors(), keySerializer);
-		}
+        streamGraph.addMultipleInputOperator(
+                transformationId,
+                slotSharingGroup,
+                transformation.getCoLocationGroupKey(),
+                transformation.getOperatorFactory(),
+                transformation.getInputTypes(),
+                transformation.getOutputType(),
+                transformation.getName());
 
-		for (int i = 0; i < inputTransformations.size(); i++) {
-			final Transformation<?> inputTransformation = inputTransformations.get(i);
-			final Collection<Integer> inputIds = context.getStreamNodeIds(inputTransformation);
-			for (Integer inputId: inputIds) {
-				streamGraph.addEdge(inputId, transformationId, i + 1);
-			}
-		}
+        final int parallelism =
+                transformation.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT
+                        ? transformation.getParallelism()
+                        : executionConfig.getParallelism();
+        streamGraph.setParallelism(transformationId, parallelism);
+        streamGraph.setMaxParallelism(transformationId, transformation.getMaxParallelism());
 
-		return Collections.singleton(transformationId);
-	}
+        if (transformation instanceof KeyedMultipleInputTransformation) {
+            KeyedMultipleInputTransformation<OUT> keyedTransform =
+                    (KeyedMultipleInputTransformation<OUT>) transformation;
+            TypeSerializer<?> keySerializer =
+                    keyedTransform.getStateKeyType().createSerializer(executionConfig);
+            streamGraph.setMultipleInputStateKey(
+                    transformationId, keyedTransform.getStateKeySelectors(), keySerializer);
+        }
+
+        for (int i = 0; i < inputTransformations.size(); i++) {
+            final Transformation<?> inputTransformation = inputTransformations.get(i);
+            final Collection<Integer> inputIds = context.getStreamNodeIds(inputTransformation);
+            for (Integer inputId : inputIds) {
+                streamGraph.addEdge(inputId, transformationId, i + 1);
+            }
+        }
+
+        return Collections.singleton(transformationId);
+    }
 }

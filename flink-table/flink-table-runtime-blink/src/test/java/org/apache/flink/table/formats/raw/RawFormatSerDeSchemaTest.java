@@ -59,243 +59,179 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 
-/**
- * Tests for {@link RawFormatDeserializationSchema} {@link RawFormatSerializationSchema}.
- */
+/** Tests for {@link RawFormatDeserializationSchema} {@link RawFormatSerializationSchema}. */
 @RunWith(Parameterized.class)
 public class RawFormatSerDeSchemaTest {
 
-	@Parameterized.Parameters(name = "{index}: {0}")
-	public static List<TestSpec> testData() {
-		return Arrays.asList(
-			TestSpec
-				.type(TINYINT())
-				.value(Byte.MAX_VALUE)
-				.binary(new byte[]{Byte.MAX_VALUE}),
+    @Parameterized.Parameters(name = "{index}: {0}")
+    public static List<TestSpec> testData() {
+        return Arrays.asList(
+                TestSpec.type(TINYINT()).value(Byte.MAX_VALUE).binary(new byte[] {Byte.MAX_VALUE}),
+                TestSpec.type(SMALLINT()).value(Short.MAX_VALUE).binary(hexStringToByte("7fff")),
+                TestSpec.type(SMALLINT())
+                        .value(Short.MAX_VALUE)
+                        .withLittleEndian()
+                        .binary(hexStringToByte("ff7f")),
+                TestSpec.type(INT()).value(Integer.MAX_VALUE).binary(hexStringToByte("7fffffff")),
+                TestSpec.type(INT())
+                        .value(Integer.MAX_VALUE)
+                        .withLittleEndian()
+                        .binary(hexStringToByte("ffffff7f")),
+                TestSpec.type(BIGINT())
+                        .value(Long.MAX_VALUE)
+                        .binary(hexStringToByte("7fffffffffffffff")),
+                TestSpec.type(BIGINT())
+                        .value(Long.MAX_VALUE)
+                        .withLittleEndian()
+                        .binary(hexStringToByte("ffffffffffffff7f")),
+                TestSpec.type(FLOAT()).value(Float.MAX_VALUE).binary(hexStringToByte("7f7fffff")),
+                TestSpec.type(FLOAT())
+                        .value(Float.MAX_VALUE)
+                        .withLittleEndian()
+                        .binary(hexStringToByte("ffff7f7f")),
+                TestSpec.type(DOUBLE())
+                        .value(Double.MAX_VALUE)
+                        .binary(hexStringToByte("7fefffffffffffff")),
+                TestSpec.type(DOUBLE())
+                        .value(Double.MAX_VALUE)
+                        .withLittleEndian()
+                        .binary(hexStringToByte("ffffffffffffef7f")),
+                TestSpec.type(BOOLEAN()).value(true).binary(new byte[] {1}),
+                TestSpec.type(BOOLEAN()).value(false).binary(new byte[] {0}),
+                TestSpec.type(STRING()).value("Hello World").binary("Hello World".getBytes()),
+                TestSpec.type(STRING())
+                        .value("你好世界，Hello World")
+                        .binary("你好世界，Hello World".getBytes()),
+                TestSpec.type(STRING())
+                        .value("Flink Awesome!")
+                        .withCharset("UTF-16")
+                        .binary("Flink Awesome!".getBytes(StandardCharsets.UTF_16)),
+                TestSpec.type(STRING())
+                        .value("Flink 帅哭!")
+                        .withCharset("UTF-16")
+                        .binary("Flink 帅哭!".getBytes(StandardCharsets.UTF_16)),
+                TestSpec.type(STRING()).value("").binary("".getBytes()),
+                TestSpec.type(VARCHAR(5)).value("HELLO").binary("HELLO".getBytes()),
+                TestSpec.type(BYTES())
+                        .value(new byte[] {1, 3, 5, 7, 9})
+                        .binary(new byte[] {1, 3, 5, 7, 9}),
+                TestSpec.type(BYTES()).value(new byte[] {}).binary(new byte[] {}),
+                TestSpec.type(BINARY(3)).value(new byte[] {1, 3, 5}).binary(new byte[] {1, 3, 5}),
+                TestSpec.type(RAW(LocalDateTime.class, new LocalDateTimeSerializer()))
+                        .value(LocalDateTime.parse("2020-11-11T18:08:01.123"))
+                        .binary(
+                                serializeLocalDateTime(
+                                        LocalDateTime.parse("2020-11-11T18:08:01.123"))),
 
-			TestSpec
-				.type(SMALLINT())
-				.value(Short.MAX_VALUE)
-				.binary(hexStringToByte("7fff")),
+                // test nulls
+                TestSpec.type(TINYINT()).value(null).binary(null),
+                TestSpec.type(SMALLINT()).value(null).binary(null),
+                TestSpec.type(INT()).value(null).binary(null),
+                TestSpec.type(BIGINT()).value(null).binary(null),
+                TestSpec.type(FLOAT()).value(null).binary(null),
+                TestSpec.type(DOUBLE()).value(null).binary(null),
+                TestSpec.type(BOOLEAN()).value(null).binary(null),
+                TestSpec.type(STRING()).value(null).binary(null),
+                TestSpec.type(BYTES()).value(null).binary(null),
+                TestSpec.type(RAW(LocalDateTime.class, new LocalDateTimeSerializer()))
+                        .value(null)
+                        .binary(null));
+    }
 
-			TestSpec
-				.type(SMALLINT())
-				.value(Short.MAX_VALUE)
-				.withLittleEndian()
-				.binary(hexStringToByte("ff7f")),
+    @Parameterized.Parameter public TestSpec testSpec;
 
-			TestSpec
-				.type(INT())
-				.value(Integer.MAX_VALUE)
-				.binary(hexStringToByte("7fffffff")),
+    @Test
+    public void testSerializationAndDeserialization() throws Exception {
+        RawFormatDeserializationSchema deserializationSchema =
+                new RawFormatDeserializationSchema(
+                        testSpec.type.getLogicalType(),
+                        TypeInformation.of(RowData.class),
+                        testSpec.charsetName,
+                        testSpec.isBigEndian);
+        RawFormatSerializationSchema serializationSchema =
+                new RawFormatSerializationSchema(
+                        testSpec.type.getLogicalType(), testSpec.charsetName, testSpec.isBigEndian);
+        deserializationSchema.open(mock(DeserializationSchema.InitializationContext.class));
+        serializationSchema.open(mock(SerializationSchema.InitializationContext.class));
 
-			TestSpec
-				.type(INT())
-				.value(Integer.MAX_VALUE)
-				.withLittleEndian()
-				.binary(hexStringToByte("ffffff7f")),
+        Row row = Row.of(testSpec.value);
+        DataStructureConverter<Object, Object> converter =
+                DataStructureConverters.getConverter(ROW(FIELD("single", testSpec.type)));
+        RowData originalRowData = (RowData) converter.toInternal(row);
 
-			TestSpec
-				.type(BIGINT())
-				.value(Long.MAX_VALUE)
-				.binary(hexStringToByte("7fffffffffffffff")),
+        byte[] serializedBytes = serializationSchema.serialize(originalRowData);
+        assertArrayEquals(testSpec.binary, serializedBytes);
 
-			TestSpec
-				.type(BIGINT())
-				.value(Long.MAX_VALUE)
-				.withLittleEndian()
-				.binary(hexStringToByte("ffffffffffffff7f")),
+        RowData deserializeRowData = deserializationSchema.deserialize(serializedBytes);
+        Row actual = (Row) converter.toExternal(deserializeRowData);
+        assertEquals(row, actual);
+    }
 
-			TestSpec
-				.type(FLOAT())
-				.value(Float.MAX_VALUE)
-				.binary(hexStringToByte("7f7fffff")),
+    private static byte[] serializeLocalDateTime(LocalDateTime localDateTime) {
+        DataOutputSerializer dos = new DataOutputSerializer(16);
+        LocalDateTimeSerializer serializer = new LocalDateTimeSerializer();
+        try {
+            serializer.serialize(localDateTime, dos);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return dos.getCopyOfBuffer();
+    }
 
-			TestSpec
-				.type(FLOAT())
-				.value(Float.MAX_VALUE)
-				.withLittleEndian()
-				.binary(hexStringToByte("ffff7f7f")),
+    // --------------------------------------------------------------------------------------------
 
-			TestSpec
-				.type(DOUBLE())
-				.value(Double.MAX_VALUE)
-				.binary(hexStringToByte("7fefffffffffffff")),
+    private static class TestSpec {
 
-			TestSpec
-				.type(DOUBLE())
-				.value(Double.MAX_VALUE)
-				.withLittleEndian()
-				.binary(hexStringToByte("ffffffffffffef7f")),
+        private Object value;
+        private byte[] binary;
+        private DataType type;
+        private String charsetName = "UTF-8";
+        private boolean isBigEndian = true;
 
-			TestSpec
-				.type(BOOLEAN())
-				.value(true)
-				.binary(new byte[]{1}),
+        private TestSpec(DataType type) {
+            this.type = type;
+        }
 
-			TestSpec
-				.type(BOOLEAN())
-				.value(false)
-				.binary(new byte[]{0}),
+        public static TestSpec type(DataType fieldType) {
+            return new TestSpec(fieldType);
+        }
 
-			TestSpec
-				.type(STRING())
-				.value("Hello World")
-				.binary("Hello World".getBytes()),
+        public TestSpec value(Object value) {
+            this.value = value;
+            return this;
+        }
 
-			TestSpec
-				.type(STRING())
-				.value("你好世界，Hello World")
-				.binary("你好世界，Hello World".getBytes()),
+        public TestSpec binary(byte[] bytes) {
+            this.binary = bytes;
+            return this;
+        }
 
-			TestSpec
-				.type(STRING())
-				.value("Flink Awesome!")
-				.withCharset("UTF-16")
-				.binary("Flink Awesome!".getBytes(StandardCharsets.UTF_16)),
+        public TestSpec withCharset(String charsetName) {
+            this.charsetName = charsetName;
+            return this;
+        }
 
-			TestSpec
-				.type(STRING())
-				.value("Flink 帅哭!")
-				.withCharset("UTF-16")
-				.binary("Flink 帅哭!".getBytes(StandardCharsets.UTF_16)),
+        public TestSpec withLittleEndian() {
+            this.isBigEndian = false;
+            return this;
+        }
 
-			TestSpec
-				.type(STRING())
-				.value("")
-				.binary("".getBytes()),
-
-			TestSpec
-				.type(VARCHAR(5))
-				.value("HELLO")
-				.binary("HELLO".getBytes()),
-
-			TestSpec
-				.type(BYTES())
-				.value(new byte[]{1, 3, 5, 7, 9})
-				.binary(new byte[]{1, 3, 5, 7, 9}),
-
-			TestSpec
-				.type(BYTES())
-				.value(new byte[]{})
-				.binary(new byte[]{}),
-
-			TestSpec
-				.type(BINARY(3))
-				.value(new byte[]{1, 3, 5})
-				.binary(new byte[]{1, 3, 5}),
-
-			TestSpec
-				.type(RAW(LocalDateTime.class, new LocalDateTimeSerializer()))
-				.value(LocalDateTime.parse("2020-11-11T18:08:01.123"))
-				.binary(serializeLocalDateTime(LocalDateTime.parse("2020-11-11T18:08:01.123"))),
-
-			// test nulls
-			TestSpec.type(TINYINT()).value(null).binary(null),
-			TestSpec.type(SMALLINT()).value(null).binary(null),
-			TestSpec.type(INT()).value(null).binary(null),
-			TestSpec.type(BIGINT()).value(null).binary(null),
-			TestSpec.type(FLOAT()).value(null).binary(null),
-			TestSpec.type(DOUBLE()).value(null).binary(null),
-			TestSpec.type(BOOLEAN()).value(null).binary(null),
-			TestSpec.type(STRING()).value(null).binary(null),
-			TestSpec.type(BYTES()).value(null).binary(null),
-			TestSpec
-				.type(RAW(LocalDateTime.class, new LocalDateTimeSerializer()))
-				.value(null)
-				.binary(null)
-		);
-	}
-
-	@Parameterized.Parameter
-	public TestSpec testSpec;
-
-	@Test
-	public void testSerializationAndDeserialization() throws Exception {
-		RawFormatDeserializationSchema deserializationSchema = new RawFormatDeserializationSchema(
-			testSpec.type.getLogicalType(),
-			TypeInformation.of(RowData.class),
-			testSpec.charsetName,
-			testSpec.isBigEndian);
-		RawFormatSerializationSchema serializationSchema = new RawFormatSerializationSchema(
-			testSpec.type.getLogicalType(),
-			testSpec.charsetName,
-			testSpec.isBigEndian);
-		deserializationSchema.open(mock(DeserializationSchema.InitializationContext.class));
-		serializationSchema.open(mock(SerializationSchema.InitializationContext.class));
-
-		Row row = Row.of(testSpec.value);
-		DataStructureConverter<Object, Object> converter = DataStructureConverters.getConverter(
-			ROW(FIELD("single", testSpec.type)));
-		RowData originalRowData = (RowData) converter.toInternal(row);
-
-		byte[] serializedBytes = serializationSchema.serialize(originalRowData);
-		assertArrayEquals(testSpec.binary, serializedBytes);
-
-		RowData deserializeRowData = deserializationSchema.deserialize(serializedBytes);
-		Row actual = (Row) converter.toExternal(deserializeRowData);
-		assertEquals(row, actual);
-	}
-
-	private static byte[] serializeLocalDateTime(LocalDateTime localDateTime) {
-		DataOutputSerializer dos = new DataOutputSerializer(16);
-		LocalDateTimeSerializer serializer = new LocalDateTimeSerializer();
-		try {
-			serializer.serialize(localDateTime, dos);
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-		return dos.getCopyOfBuffer();
-	}
-
-	// --------------------------------------------------------------------------------------------
-
-	private static class TestSpec {
-
-		private Object value;
-		private byte[] binary;
-		private DataType type;
-		private String charsetName = "UTF-8";
-		private boolean isBigEndian = true;
-
-		private TestSpec(DataType type) {
-			this.type = type;
-		}
-
-		public static TestSpec type(DataType fieldType) {
-			return new TestSpec(fieldType);
-		}
-
-		public TestSpec value(Object value) {
-			this.value = value;
-			return this;
-		}
-
-		public TestSpec binary(byte[] bytes) {
-			this.binary = bytes;
-			return this;
-		}
-
-		public TestSpec withCharset(String charsetName) {
-			this.charsetName = charsetName;
-			return this;
-		}
-
-		public TestSpec withLittleEndian() {
-			this.isBigEndian = false;
-			return this;
-		}
-
-		@Override
-		public String toString() {
-			String hex = binary == null ? "null" : "0x" + StringUtils.byteToHexString(binary);
-			return "TestSpec{" +
-				"value=" + value +
-				", binary=" + hex +
-				", type=" + type +
-				", charsetName='" + charsetName + '\'' +
-				", isBigEndian=" + isBigEndian +
-				'}';
-		}
-	}
+        @Override
+        public String toString() {
+            String hex = binary == null ? "null" : "0x" + StringUtils.byteToHexString(binary);
+            return "TestSpec{"
+                    + "value="
+                    + value
+                    + ", binary="
+                    + hex
+                    + ", type="
+                    + type
+                    + ", charsetName='"
+                    + charsetName
+                    + '\''
+                    + ", isBigEndian="
+                    + isBigEndian
+                    + '}';
+        }
+    }
 }

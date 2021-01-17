@@ -23,61 +23,61 @@ import org.apache.flink.util.Preconditions;
 import java.io.Serializable;
 import java.util.Objects;
 
-/**
- * Represents the number of required resources for a specific {@link ResourceProfile}.
- */
+/** Represents the number of required resources for a specific {@link ResourceProfile}. */
 public class ResourceRequirement implements Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final ResourceProfile resourceProfile;
+    private final ResourceProfile resourceProfile;
 
-	private final int numberOfRequiredSlots;
+    private final int numberOfRequiredSlots;
 
-	private ResourceRequirement(ResourceProfile resourceProfile, int numberOfRequiredSlots) {
-		Preconditions.checkNotNull(resourceProfile);
-		Preconditions.checkArgument(numberOfRequiredSlots > 0);
+    private ResourceRequirement(ResourceProfile resourceProfile, int numberOfRequiredSlots) {
+        Preconditions.checkNotNull(resourceProfile);
+        Preconditions.checkArgument(numberOfRequiredSlots > 0);
 
-		this.resourceProfile = resourceProfile;
-		this.numberOfRequiredSlots = numberOfRequiredSlots;
-	}
+        this.resourceProfile = resourceProfile;
+        this.numberOfRequiredSlots = numberOfRequiredSlots;
+    }
 
-	public ResourceProfile getResourceProfile() {
-		return resourceProfile;
-	}
+    public ResourceProfile getResourceProfile() {
+        return resourceProfile;
+    }
 
-	public int getNumberOfRequiredSlots() {
-		return numberOfRequiredSlots;
-	}
+    public int getNumberOfRequiredSlots() {
+        return numberOfRequiredSlots;
+    }
 
-	public static ResourceRequirement create(ResourceProfile resourceProfile, int numberOfRequiredSlots) {
-		return new ResourceRequirement(resourceProfile, numberOfRequiredSlots);
-	}
+    public static ResourceRequirement create(
+            ResourceProfile resourceProfile, int numberOfRequiredSlots) {
+        return new ResourceRequirement(resourceProfile, numberOfRequiredSlots);
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		ResourceRequirement that = (ResourceRequirement) o;
-		return numberOfRequiredSlots == that.numberOfRequiredSlots &&
-			Objects.equals(resourceProfile, that.resourceProfile);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        ResourceRequirement that = (ResourceRequirement) o;
+        return numberOfRequiredSlots == that.numberOfRequiredSlots
+                && Objects.equals(resourceProfile, that.resourceProfile);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(resourceProfile, numberOfRequiredSlots);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(resourceProfile, numberOfRequiredSlots);
+    }
 
-	@Override
-	public String toString() {
-		return "ResourceRequirement{" +
-			"resourceProfile=" + resourceProfile +
-			", numberOfRequiredSlots=" + numberOfRequiredSlots +
-			'}';
-	}
+    @Override
+    public String toString() {
+        return "ResourceRequirement{"
+                + "resourceProfile="
+                + resourceProfile
+                + ", numberOfRequiredSlots="
+                + numberOfRequiredSlots
+                + '}';
+    }
 }
-

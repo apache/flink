@@ -37,140 +37,136 @@ import java.util.Random;
 import java.util.Set;
 import java.util.function.Function;
 
-/**
- * Abstract test base for implementations of {@link KeyGroupPartitioner}.
- */
+/** Abstract test base for implementations of {@link KeyGroupPartitioner}. */
 public abstract class KeyGroupPartitionerTestBase<T> extends TestLogger {
 
-	private static final DataOutputView DUMMY_OUT_VIEW =
-		new DataOutputViewStreamWrapper(new ByteArrayOutputStreamWithPos(0));
+    private static final DataOutputView DUMMY_OUT_VIEW =
+            new DataOutputViewStreamWrapper(new ByteArrayOutputStreamWithPos(0));
 
-	@Nonnull
-	protected final KeyExtractorFunction<T> keyExtractorFunction;
+    @Nonnull protected final KeyExtractorFunction<T> keyExtractorFunction;
 
-	@Nonnull
-	protected final Function<Random, T> elementGenerator;
+    @Nonnull protected final Function<Random, T> elementGenerator;
 
-	protected KeyGroupPartitionerTestBase(
-		@Nonnull Function<Random, T> elementGenerator,
-		@Nonnull KeyExtractorFunction<T> keyExtractorFunction) {
+    protected KeyGroupPartitionerTestBase(
+            @Nonnull Function<Random, T> elementGenerator,
+            @Nonnull KeyExtractorFunction<T> keyExtractorFunction) {
 
-		this.elementGenerator = elementGenerator;
-		this.keyExtractorFunction = keyExtractorFunction;
-	}
+        this.elementGenerator = elementGenerator;
+        this.keyExtractorFunction = keyExtractorFunction;
+    }
 
-	@Test
-	public void testPartitionByKeyGroup() throws IOException {
+    @Test
+    public void testPartitionByKeyGroup() throws IOException {
 
-		final Random random = new Random(0x42);
-		testPartitionByKeyGroupForSize(0, random);
-		testPartitionByKeyGroupForSize(1, random);
-		testPartitionByKeyGroupForSize(2, random);
-		testPartitionByKeyGroupForSize(10, random);
-	}
+        final Random random = new Random(0x42);
+        testPartitionByKeyGroupForSize(0, random);
+        testPartitionByKeyGroupForSize(1, random);
+        testPartitionByKeyGroupForSize(2, random);
+        testPartitionByKeyGroupForSize(10, random);
+    }
 
-	@SuppressWarnings("unchecked")
-	private void testPartitionByKeyGroupForSize(int testSize, Random random) throws IOException {
+    @SuppressWarnings("unchecked")
+    private void testPartitionByKeyGroupForSize(int testSize, Random random) throws IOException {
 
-		final Set<T> allElementsIdentitySet = Collections.newSetFromMap(new IdentityHashMap<>());
-		final T[] data = generateTestInput(random, testSize, allElementsIdentitySet);
+        final Set<T> allElementsIdentitySet = Collections.newSetFromMap(new IdentityHashMap<>());
+        final T[] data = generateTestInput(random, testSize, allElementsIdentitySet);
 
-		Assert.assertEquals(testSize, allElementsIdentitySet.size());
+        Assert.assertEquals(testSize, allElementsIdentitySet.size());
 
-		// Test with 5 key-groups.
-		final KeyGroupRange range = new KeyGroupRange(0, 4);
-		final int numberOfKeyGroups = range.getNumberOfKeyGroups();
+        // Test with 5 key-groups.
+        final KeyGroupRange range = new KeyGroupRange(0, 4);
+        final int numberOfKeyGroups = range.getNumberOfKeyGroups();
 
-		final ValidatingElementWriterDummy<T> validatingElementWriter =
-			new ValidatingElementWriterDummy<>(keyExtractorFunction, numberOfKeyGroups, allElementsIdentitySet);
+        final ValidatingElementWriterDummy<T> validatingElementWriter =
+                new ValidatingElementWriterDummy<>(
+                        keyExtractorFunction, numberOfKeyGroups, allElementsIdentitySet);
 
-		final KeyGroupPartitioner<T> testInstance = createPartitioner(data, testSize, range, numberOfKeyGroups, validatingElementWriter);
-		final StateSnapshot.StateKeyGroupWriter result = testInstance.partitionByKeyGroup();
+        final KeyGroupPartitioner<T> testInstance =
+                createPartitioner(
+                        data, testSize, range, numberOfKeyGroups, validatingElementWriter);
+        final StateSnapshot.StateKeyGroupWriter result = testInstance.partitionByKeyGroup();
 
-		for (int keyGroup = 0; keyGroup < numberOfKeyGroups; ++keyGroup) {
-			validatingElementWriter.setCurrentKeyGroup(keyGroup);
-			result.writeStateInKeyGroup(DUMMY_OUT_VIEW, keyGroup);
-		}
+        for (int keyGroup = 0; keyGroup < numberOfKeyGroups; ++keyGroup) {
+            validatingElementWriter.setCurrentKeyGroup(keyGroup);
+            result.writeStateInKeyGroup(DUMMY_OUT_VIEW, keyGroup);
+        }
 
-		validatingElementWriter.validateAllElementsSeen();
-	}
+        validatingElementWriter.validateAllElementsSeen();
+    }
 
-	@SuppressWarnings("unchecked")
-	protected T[] generateTestInput(Random random, int numElementsToGenerate, Set<T> allElementsIdentitySet) {
+    @SuppressWarnings("unchecked")
+    protected T[] generateTestInput(
+            Random random, int numElementsToGenerate, Set<T> allElementsIdentitySet) {
 
-		final int arraySize = numElementsToGenerate > 1 ? numElementsToGenerate + 5 : numElementsToGenerate;
-		T element = elementGenerator.apply(random);
-		final T[] partitioningIn = (T[]) Array.newInstance(element.getClass(), arraySize);
+        final int arraySize =
+                numElementsToGenerate > 1 ? numElementsToGenerate + 5 : numElementsToGenerate;
+        T element = elementGenerator.apply(random);
+        final T[] partitioningIn = (T[]) Array.newInstance(element.getClass(), arraySize);
 
-		for (int i = 0; i < numElementsToGenerate; ++i) {
-			partitioningIn[i] = element;
-			allElementsIdentitySet.add(element);
-			element = elementGenerator.apply(random);
-		}
+        for (int i = 0; i < numElementsToGenerate; ++i) {
+            partitioningIn[i] = element;
+            allElementsIdentitySet.add(element);
+            element = elementGenerator.apply(random);
+        }
 
-		Assert.assertEquals(numElementsToGenerate, allElementsIdentitySet.size());
-		return partitioningIn;
-	}
+        Assert.assertEquals(numElementsToGenerate, allElementsIdentitySet.size());
+        return partitioningIn;
+    }
 
-	@SuppressWarnings("unchecked")
-	protected KeyGroupPartitioner<T> createPartitioner(
-		T[] data,
-		int numElements,
-		KeyGroupRange keyGroupRange,
-		int totalKeyGroups,
-		KeyGroupPartitioner.ElementWriterFunction<T> elementWriterFunction) {
+    @SuppressWarnings("unchecked")
+    protected KeyGroupPartitioner<T> createPartitioner(
+            T[] data,
+            int numElements,
+            KeyGroupRange keyGroupRange,
+            int totalKeyGroups,
+            KeyGroupPartitioner.ElementWriterFunction<T> elementWriterFunction) {
 
-		final T[] partitioningOut = (T[]) Array.newInstance(data.getClass().getComponentType(), numElements);
-		return new KeyGroupPartitioner<>(
-			data,
-			numElements,
-			partitioningOut,
-			keyGroupRange,
-			totalKeyGroups,
-			keyExtractorFunction,
-			elementWriterFunction);
-	}
+        final T[] partitioningOut =
+                (T[]) Array.newInstance(data.getClass().getComponentType(), numElements);
+        return new KeyGroupPartitioner<>(
+                data,
+                numElements,
+                partitioningOut,
+                keyGroupRange,
+                totalKeyGroups,
+                keyExtractorFunction,
+                elementWriterFunction);
+    }
 
+    /** Simple test implementation with validation . */
+    static final class ValidatingElementWriterDummy<T>
+            implements KeyGroupPartitioner.ElementWriterFunction<T> {
 
-	/**
-	 * Simple test implementation with validation .
-	 */
-	static final class ValidatingElementWriterDummy<T> implements KeyGroupPartitioner.ElementWriterFunction<T> {
+        @Nonnull private final KeyExtractorFunction<T> keyExtractorFunction;
+        @Nonnegative private final int numberOfKeyGroups;
+        @Nonnull private final Set<T> allElementsSet;
+        @Nonnegative private int currentKeyGroup;
 
-		@Nonnull
-		private final KeyExtractorFunction<T> keyExtractorFunction;
-		@Nonnegative
-		private final int numberOfKeyGroups;
-		@Nonnull
-		private final Set<T> allElementsSet;
-		@Nonnegative
-		private int currentKeyGroup;
+        ValidatingElementWriterDummy(
+                @Nonnull KeyExtractorFunction<T> keyExtractorFunction,
+                @Nonnegative int numberOfKeyGroups,
+                @Nonnull Set<T> allElementsSet) {
+            this.keyExtractorFunction = keyExtractorFunction;
+            this.numberOfKeyGroups = numberOfKeyGroups;
+            this.allElementsSet = allElementsSet;
+        }
 
-		ValidatingElementWriterDummy(
-			@Nonnull KeyExtractorFunction<T> keyExtractorFunction,
-			@Nonnegative int numberOfKeyGroups,
-			@Nonnull Set<T> allElementsSet) {
-			this.keyExtractorFunction = keyExtractorFunction;
-			this.numberOfKeyGroups = numberOfKeyGroups;
-			this.allElementsSet = allElementsSet;
-		}
+        @Override
+        public void writeElement(@Nonnull T element, @Nonnull DataOutputView dov) {
+            Assert.assertTrue(allElementsSet.remove(element));
+            Assert.assertEquals(
+                    currentKeyGroup,
+                    KeyGroupRangeAssignment.assignToKeyGroup(
+                            keyExtractorFunction.extractKeyFromElement(element),
+                            numberOfKeyGroups));
+        }
 
-		@Override
-		public void writeElement(@Nonnull T element, @Nonnull DataOutputView dov) {
-			Assert.assertTrue(allElementsSet.remove(element));
-			Assert.assertEquals(
-				currentKeyGroup,
-				KeyGroupRangeAssignment.assignToKeyGroup(
-					keyExtractorFunction.extractKeyFromElement(element),
-					numberOfKeyGroups));
-		}
+        void validateAllElementsSeen() {
+            Assert.assertTrue(allElementsSet.isEmpty());
+        }
 
-		void validateAllElementsSeen() {
-			Assert.assertTrue(allElementsSet.isEmpty());
-		}
-
-		void setCurrentKeyGroup(int currentKeyGroup) {
-			this.currentKeyGroup = currentKeyGroup;
-		}
-	}
+        void setCurrentKeyGroup(int currentKeyGroup) {
+            this.currentKeyGroup = currentKeyGroup;
+        }
+    }
 }

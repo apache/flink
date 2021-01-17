@@ -41,6 +41,15 @@ export class JobOverviewDrawerBackpressureComponent implements OnInit, OnDestroy
     return node.subtask;
   }
 
+  prettyPrint(value: number): string {
+    if (isNaN(value)) {
+      return "N/A"
+    }
+    else {
+      return Math.round(value * 100) + "%";
+    }
+  }
+
   ngOnInit() {
     this.jobService.jobWithVertex$
       .pipe(

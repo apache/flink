@@ -18,10 +18,8 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -30,8 +28,8 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
-import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
+import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.checkpoint.hooks.MasterHooks;
@@ -49,7 +47,6 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
@@ -57,8 +54,6 @@ import org.apache.flink.util.DynamicCodeLoadingException;
 import org.apache.flink.util.SerializedValue;
 
 import org.slf4j.Logger;
-
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -70,311 +65,263 @@ import java.util.concurrent.ScheduledExecutorService;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Utility class to encapsulate the logic of building an {@link ExecutionGraph} from a {@link JobGraph}.
+ * Utility class to encapsulate the logic of building an {@link ExecutionGraph} from a {@link
+ * JobGraph}.
  */
 public class ExecutionGraphBuilder {
 
-	/**
-	 * Builds the ExecutionGraph from the JobGraph.
-	 * If a prior execution graph exists, the JobGraph will be attached. If no prior execution
-	 * graph exists, then the JobGraph will become attach to a new empty execution graph.
-	 */
-	@VisibleForTesting
-	public static ExecutionGraph buildGraph(
-			@Nullable ExecutionGraph prior,
-			JobGraph jobGraph,
-			Configuration jobManagerConfig,
-			ScheduledExecutorService futureExecutor,
-			Executor ioExecutor,
-			SlotProvider slotProvider,
-			ClassLoader classLoader,
-			CheckpointRecoveryFactory recoveryFactory,
-			Time rpcTimeout,
-			MetricGroup metrics,
-			BlobWriter blobWriter,
-			Time allocationTimeout,
-			Logger log,
-			ShuffleMaster<?> shuffleMaster,
-			JobMasterPartitionTracker partitionTracker,
-			long initializationTimestamp) throws JobExecutionException, JobException {
+    public static ExecutionGraph buildGraph(
+            JobGraph jobGraph,
+            Configuration jobManagerConfig,
+            ScheduledExecutorService futureExecutor,
+            Executor ioExecutor,
+            ClassLoader classLoader,
+            CompletedCheckpointStore completedCheckpointStore,
+            CheckpointsCleaner checkpointsCleaner,
+            CheckpointIDCounter checkpointIdCounter,
+            Time rpcTimeout,
+            MetricGroup metrics,
+            BlobWriter blobWriter,
+            Logger log,
+            ShuffleMaster<?> shuffleMaster,
+            JobMasterPartitionTracker partitionTracker,
+            ExecutionDeploymentListener executionDeploymentListener,
+            ExecutionStateUpdateListener executionStateUpdateListener,
+            long initializationTimestamp)
+            throws JobExecutionException, JobException {
 
-		return buildGraph(
-			prior,
-			jobGraph,
-			jobManagerConfig,
-			futureExecutor,
-			ioExecutor,
-			slotProvider,
-			classLoader,
-			recoveryFactory,
-			rpcTimeout,
-			metrics,
-			blobWriter,
-			allocationTimeout,
-			log,
-			shuffleMaster,
-			partitionTracker,
-			NoOpExecutionDeploymentListener.get(),
-			(execution, newState) -> {},
-			initializationTimestamp);
-	}
+        checkNotNull(jobGraph, "job graph cannot be null");
 
-	public static ExecutionGraph buildGraph(
-		@Nullable ExecutionGraph prior,
-		JobGraph jobGraph,
-		Configuration jobManagerConfig,
-		ScheduledExecutorService futureExecutor,
-		Executor ioExecutor,
-		SlotProvider slotProvider,
-		ClassLoader classLoader,
-		CheckpointRecoveryFactory recoveryFactory,
-		Time rpcTimeout,
-		MetricGroup metrics,
-		BlobWriter blobWriter,
-		Time allocationTimeout,
-		Logger log,
-		ShuffleMaster<?> shuffleMaster,
-		JobMasterPartitionTracker partitionTracker,
-		ExecutionDeploymentListener executionDeploymentListener,
-		ExecutionStateUpdateListener executionStateUpdateListener,
-		long initializationTimestamp) throws JobExecutionException, JobException {
+        final String jobName = jobGraph.getName();
+        final JobID jobId = jobGraph.getJobID();
 
-		checkNotNull(jobGraph, "job graph cannot be null");
+        final JobInformation jobInformation =
+                new JobInformation(
+                        jobId,
+                        jobName,
+                        jobGraph.getSerializedExecutionConfig(),
+                        jobGraph.getJobConfiguration(),
+                        jobGraph.getUserJarBlobKeys(),
+                        jobGraph.getClasspaths());
 
-		final String jobName = jobGraph.getName();
-		final JobID jobId = jobGraph.getJobID();
+        final int maxPriorAttemptsHistoryLength =
+                jobManagerConfig.getInteger(JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE);
 
-		final JobInformation jobInformation = new JobInformation(
-			jobId,
-			jobName,
-			jobGraph.getSerializedExecutionConfig(),
-			jobGraph.getJobConfiguration(),
-			jobGraph.getUserJarBlobKeys(),
-			jobGraph.getClasspaths());
+        final PartitionReleaseStrategy.Factory partitionReleaseStrategyFactory =
+                PartitionReleaseStrategyFactoryLoader.loadPartitionReleaseStrategyFactory(
+                        jobManagerConfig);
 
-		final int maxPriorAttemptsHistoryLength =
-				jobManagerConfig.getInteger(JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE);
+        // create a new execution graph, if none exists so far
+        final ExecutionGraph executionGraph;
+        try {
+            executionGraph =
+                    new ExecutionGraph(
+                            jobInformation,
+                            futureExecutor,
+                            ioExecutor,
+                            rpcTimeout,
+                            maxPriorAttemptsHistoryLength,
+                            classLoader,
+                            blobWriter,
+                            partitionReleaseStrategyFactory,
+                            shuffleMaster,
+                            partitionTracker,
+                            jobGraph.getScheduleMode(),
+                            executionDeploymentListener,
+                            executionStateUpdateListener,
+                            initializationTimestamp);
+        } catch (IOException e) {
+            throw new JobException("Could not create the ExecutionGraph.", e);
+        }
 
-		final PartitionReleaseStrategy.Factory partitionReleaseStrategyFactory =
-			PartitionReleaseStrategyFactoryLoader.loadPartitionReleaseStrategyFactory(jobManagerConfig);
+        // set the basic properties
 
-		// create a new execution graph, if none exists so far
-		final ExecutionGraph executionGraph;
-		try {
-			executionGraph = (prior != null) ? prior :
-				new ExecutionGraph(
-					jobInformation,
-					futureExecutor,
-					ioExecutor,
-					rpcTimeout,
-					maxPriorAttemptsHistoryLength,
-					slotProvider,
-					classLoader,
-					blobWriter,
-					allocationTimeout,
-					partitionReleaseStrategyFactory,
-					shuffleMaster,
-					partitionTracker,
-					jobGraph.getScheduleMode(),
-					executionDeploymentListener,
-					executionStateUpdateListener,
-					initializationTimestamp);
-		} catch (IOException e) {
-			throw new JobException("Could not create the ExecutionGraph.", e);
-		}
+        try {
+            executionGraph.setJsonPlan(JsonPlanGenerator.generatePlan(jobGraph));
+        } catch (Throwable t) {
+            log.warn("Cannot create JSON plan for job", t);
+            // give the graph an empty plan
+            executionGraph.setJsonPlan("{}");
+        }
 
-		// set the basic properties
+        // initialize the vertices that have a master initialization hook
+        // file output formats create directories here, input formats create splits
 
-		try {
-			executionGraph.setJsonPlan(JsonPlanGenerator.generatePlan(jobGraph));
-		}
-		catch (Throwable t) {
-			log.warn("Cannot create JSON plan for job", t);
-			// give the graph an empty plan
-			executionGraph.setJsonPlan("{}");
-		}
+        final long initMasterStart = System.nanoTime();
+        log.info("Running initialization on master for job {} ({}).", jobName, jobId);
 
-		// initialize the vertices that have a master initialization hook
-		// file output formats create directories here, input formats create splits
+        for (JobVertex vertex : jobGraph.getVertices()) {
+            String executableClass = vertex.getInvokableClassName();
+            if (executableClass == null || executableClass.isEmpty()) {
+                throw new JobSubmissionException(
+                        jobId,
+                        "The vertex "
+                                + vertex.getID()
+                                + " ("
+                                + vertex.getName()
+                                + ") has no invokable class.");
+            }
 
-		final long initMasterStart = System.nanoTime();
-		log.info("Running initialization on master for job {} ({}).", jobName, jobId);
+            try {
+                vertex.initializeOnMaster(classLoader);
+            } catch (Throwable t) {
+                throw new JobExecutionException(
+                        jobId,
+                        "Cannot initialize task '" + vertex.getName() + "': " + t.getMessage(),
+                        t);
+            }
+        }
 
-		for (JobVertex vertex : jobGraph.getVertices()) {
-			String executableClass = vertex.getInvokableClassName();
-			if (executableClass == null || executableClass.isEmpty()) {
-				throw new JobSubmissionException(jobId,
-						"The vertex " + vertex.getID() + " (" + vertex.getName() + ") has no invokable class.");
-			}
+        log.info(
+                "Successfully ran initialization on master in {} ms.",
+                (System.nanoTime() - initMasterStart) / 1_000_000);
 
-			try {
-				vertex.initializeOnMaster(classLoader);
-			}
-			catch (Throwable t) {
-					throw new JobExecutionException(jobId,
-							"Cannot initialize task '" + vertex.getName() + "': " + t.getMessage(), t);
-			}
-		}
+        // topologically sort the job vertices and attach the graph to the existing one
+        List<JobVertex> sortedTopology = jobGraph.getVerticesSortedTopologicallyFromSources();
+        if (log.isDebugEnabled()) {
+            log.debug(
+                    "Adding {} vertices from job graph {} ({}).",
+                    sortedTopology.size(),
+                    jobName,
+                    jobId);
+        }
+        executionGraph.attachJobGraph(sortedTopology);
 
-		log.info("Successfully ran initialization on master in {} ms.",
-				(System.nanoTime() - initMasterStart) / 1_000_000);
+        if (log.isDebugEnabled()) {
+            log.debug(
+                    "Successfully created execution graph from job graph {} ({}).", jobName, jobId);
+        }
 
-		// topologically sort the job vertices and attach the graph to the existing one
-		List<JobVertex> sortedTopology = jobGraph.getVerticesSortedTopologicallyFromSources();
-		if (log.isDebugEnabled()) {
-			log.debug("Adding {} vertices from job graph {} ({}).", sortedTopology.size(), jobName, jobId);
-		}
-		executionGraph.attachJobGraph(sortedTopology);
+        // configure the state checkpointing
+        if (isCheckpointingEnabled(jobGraph)) {
+            JobCheckpointingSettings snapshotSettings = jobGraph.getCheckpointingSettings();
+            List<ExecutionJobVertex> triggerVertices =
+                    idToVertex(snapshotSettings.getVerticesToTrigger(), executionGraph);
 
-		if (log.isDebugEnabled()) {
-			log.debug("Successfully created execution graph from job graph {} ({}).", jobName, jobId);
-		}
+            List<ExecutionJobVertex> ackVertices =
+                    idToVertex(snapshotSettings.getVerticesToAcknowledge(), executionGraph);
 
-		// configure the state checkpointing
-		JobCheckpointingSettings snapshotSettings = jobGraph.getCheckpointingSettings();
-		if (snapshotSettings != null) {
-			List<ExecutionJobVertex> triggerVertices =
-					idToVertex(snapshotSettings.getVerticesToTrigger(), executionGraph);
+            List<ExecutionJobVertex> confirmVertices =
+                    idToVertex(snapshotSettings.getVerticesToConfirm(), executionGraph);
 
-			List<ExecutionJobVertex> ackVertices =
-					idToVertex(snapshotSettings.getVerticesToAcknowledge(), executionGraph);
+            // Maximum number of remembered checkpoints
+            int historySize = jobManagerConfig.getInteger(WebOptions.CHECKPOINTS_HISTORY_SIZE);
 
-			List<ExecutionJobVertex> confirmVertices =
-					idToVertex(snapshotSettings.getVerticesToConfirm(), executionGraph);
+            CheckpointStatsTracker checkpointStatsTracker =
+                    new CheckpointStatsTracker(
+                            historySize,
+                            ackVertices,
+                            snapshotSettings.getCheckpointCoordinatorConfiguration(),
+                            metrics);
 
-			CompletedCheckpointStore completedCheckpoints;
-			CheckpointIDCounter checkpointIdCounter;
-			try {
-				int maxNumberOfCheckpointsToRetain = jobManagerConfig.getInteger(
-						CheckpointingOptions.MAX_RETAINED_CHECKPOINTS);
+            // load the state backend from the application settings
+            final StateBackend applicationConfiguredBackend;
+            final SerializedValue<StateBackend> serializedAppConfigured =
+                    snapshotSettings.getDefaultStateBackend();
 
-				if (maxNumberOfCheckpointsToRetain <= 0) {
-					// warning and use 1 as the default value if the setting in
-					// state.checkpoints.max-retained-checkpoints is not greater than 0.
-					log.warn("The setting for '{} : {}' is invalid. Using default value of {}",
-							CheckpointingOptions.MAX_RETAINED_CHECKPOINTS.key(),
-							maxNumberOfCheckpointsToRetain,
-							CheckpointingOptions.MAX_RETAINED_CHECKPOINTS.defaultValue());
+            if (serializedAppConfigured == null) {
+                applicationConfiguredBackend = null;
+            } else {
+                try {
+                    applicationConfiguredBackend =
+                            serializedAppConfigured.deserializeValue(classLoader);
+                } catch (IOException | ClassNotFoundException e) {
+                    throw new JobExecutionException(
+                            jobId, "Could not deserialize application-defined state backend.", e);
+                }
+            }
 
-					maxNumberOfCheckpointsToRetain = CheckpointingOptions.MAX_RETAINED_CHECKPOINTS.defaultValue();
-				}
+            final StateBackend rootBackend;
+            try {
+                rootBackend =
+                        StateBackendLoader.fromApplicationOrConfigOrDefault(
+                                applicationConfiguredBackend, jobManagerConfig, classLoader, log);
+            } catch (IllegalConfigurationException | IOException | DynamicCodeLoadingException e) {
+                throw new JobExecutionException(
+                        jobId, "Could not instantiate configured state backend", e);
+            }
 
-				completedCheckpoints = recoveryFactory.createCheckpointStore(jobId, maxNumberOfCheckpointsToRetain, classLoader);
-				checkpointIdCounter = recoveryFactory.createCheckpointIDCounter(jobId);
-			}
-			catch (Exception e) {
-				throw new JobExecutionException(jobId, "Failed to initialize high-availability checkpoint handler", e);
-			}
+            // instantiate the user-defined checkpoint hooks
 
-			// Maximum number of remembered checkpoints
-			int historySize = jobManagerConfig.getInteger(WebOptions.CHECKPOINTS_HISTORY_SIZE);
+            final SerializedValue<MasterTriggerRestoreHook.Factory[]> serializedHooks =
+                    snapshotSettings.getMasterHooks();
+            final List<MasterTriggerRestoreHook<?>> hooks;
 
-			CheckpointStatsTracker checkpointStatsTracker = new CheckpointStatsTracker(
-					historySize,
-					ackVertices,
-					snapshotSettings.getCheckpointCoordinatorConfiguration(),
-					metrics);
+            if (serializedHooks == null) {
+                hooks = Collections.emptyList();
+            } else {
+                final MasterTriggerRestoreHook.Factory[] hookFactories;
+                try {
+                    hookFactories = serializedHooks.deserializeValue(classLoader);
+                } catch (IOException | ClassNotFoundException e) {
+                    throw new JobExecutionException(
+                            jobId, "Could not instantiate user-defined checkpoint hooks", e);
+                }
 
-			// load the state backend from the application settings
-			final StateBackend applicationConfiguredBackend;
-			final SerializedValue<StateBackend> serializedAppConfigured = snapshotSettings.getDefaultStateBackend();
+                final Thread thread = Thread.currentThread();
+                final ClassLoader originalClassLoader = thread.getContextClassLoader();
+                thread.setContextClassLoader(classLoader);
 
-			if (serializedAppConfigured == null) {
-				applicationConfiguredBackend = null;
-			}
-			else {
-				try {
-					applicationConfiguredBackend = serializedAppConfigured.deserializeValue(classLoader);
-				} catch (IOException | ClassNotFoundException e) {
-					throw new JobExecutionException(jobId,
-							"Could not deserialize application-defined state backend.", e);
-				}
-			}
+                try {
+                    hooks = new ArrayList<>(hookFactories.length);
+                    for (MasterTriggerRestoreHook.Factory factory : hookFactories) {
+                        hooks.add(MasterHooks.wrapHook(factory.create(), classLoader));
+                    }
+                } finally {
+                    thread.setContextClassLoader(originalClassLoader);
+                }
+            }
 
-			final StateBackend rootBackend;
-			try {
-				rootBackend = StateBackendLoader.fromApplicationOrConfigOrDefault(
-						applicationConfiguredBackend, jobManagerConfig, classLoader, log);
-			}
-			catch (IllegalConfigurationException | IOException | DynamicCodeLoadingException e) {
-				throw new JobExecutionException(jobId, "Could not instantiate configured state backend", e);
-			}
+            final CheckpointCoordinatorConfiguration chkConfig =
+                    snapshotSettings.getCheckpointCoordinatorConfiguration();
 
-			// instantiate the user-defined checkpoint hooks
+            executionGraph.enableCheckpointing(
+                    chkConfig,
+                    triggerVertices,
+                    ackVertices,
+                    confirmVertices,
+                    hooks,
+                    checkpointIdCounter,
+                    completedCheckpointStore,
+                    rootBackend,
+                    checkpointStatsTracker,
+                    checkpointsCleaner);
+        }
 
-			final SerializedValue<MasterTriggerRestoreHook.Factory[]> serializedHooks = snapshotSettings.getMasterHooks();
-			final List<MasterTriggerRestoreHook<?>> hooks;
+        // create all the metrics for the Execution Graph
 
-			if (serializedHooks == null) {
-				hooks = Collections.emptyList();
-			}
-			else {
-				final MasterTriggerRestoreHook.Factory[] hookFactories;
-				try {
-					hookFactories = serializedHooks.deserializeValue(classLoader);
-				}
-				catch (IOException | ClassNotFoundException e) {
-					throw new JobExecutionException(jobId, "Could not instantiate user-defined checkpoint hooks", e);
-				}
+        metrics.gauge(RestartTimeGauge.METRIC_NAME, new RestartTimeGauge(executionGraph));
+        metrics.gauge(DownTimeGauge.METRIC_NAME, new DownTimeGauge(executionGraph));
+        metrics.gauge(UpTimeGauge.METRIC_NAME, new UpTimeGauge(executionGraph));
 
-				final Thread thread = Thread.currentThread();
-				final ClassLoader originalClassLoader = thread.getContextClassLoader();
-				thread.setContextClassLoader(classLoader);
+        return executionGraph;
+    }
 
-				try {
-					hooks = new ArrayList<>(hookFactories.length);
-					for (MasterTriggerRestoreHook.Factory factory : hookFactories) {
-						hooks.add(MasterHooks.wrapHook(factory.create(), classLoader));
-					}
-				}
-				finally {
-					thread.setContextClassLoader(originalClassLoader);
-				}
-			}
+    public static boolean isCheckpointingEnabled(JobGraph jobGraph) {
+        return jobGraph.getCheckpointingSettings() != null;
+    }
 
-			final CheckpointCoordinatorConfiguration chkConfig = snapshotSettings.getCheckpointCoordinatorConfiguration();
+    private static List<ExecutionJobVertex> idToVertex(
+            List<JobVertexID> jobVertices, ExecutionGraph executionGraph)
+            throws IllegalArgumentException {
 
-			executionGraph.enableCheckpointing(
-				chkConfig,
-				triggerVertices,
-				ackVertices,
-				confirmVertices,
-				hooks,
-				checkpointIdCounter,
-				completedCheckpoints,
-				rootBackend,
-				checkpointStatsTracker);
-		}
+        List<ExecutionJobVertex> result = new ArrayList<>(jobVertices.size());
 
-		// create all the metrics for the Execution Graph
+        for (JobVertexID id : jobVertices) {
+            ExecutionJobVertex vertex = executionGraph.getJobVertex(id);
+            if (vertex != null) {
+                result.add(vertex);
+            } else {
+                throw new IllegalArgumentException(
+                        "The snapshot checkpointing settings refer to non-existent vertex " + id);
+            }
+        }
 
-		metrics.gauge(RestartTimeGauge.METRIC_NAME, new RestartTimeGauge(executionGraph));
-		metrics.gauge(DownTimeGauge.METRIC_NAME, new DownTimeGauge(executionGraph));
-		metrics.gauge(UpTimeGauge.METRIC_NAME, new UpTimeGauge(executionGraph));
+        return result;
+    }
 
-		return executionGraph;
-	}
+    // ------------------------------------------------------------------------
 
-	private static List<ExecutionJobVertex> idToVertex(
-			List<JobVertexID> jobVertices, ExecutionGraph executionGraph) throws IllegalArgumentException {
-
-		List<ExecutionJobVertex> result = new ArrayList<>(jobVertices.size());
-
-		for (JobVertexID id : jobVertices) {
-			ExecutionJobVertex vertex = executionGraph.getJobVertex(id);
-			if (vertex != null) {
-				result.add(vertex);
-			} else {
-				throw new IllegalArgumentException(
-						"The snapshot checkpointing settings refer to non-existent vertex " + id);
-			}
-		}
-
-		return result;
-	}
-
-	// ------------------------------------------------------------------------
-
-	/** This class is not supposed to be instantiated. */
-	private ExecutionGraphBuilder() {}
+    /** This class is not supposed to be instantiated. */
+    private ExecutionGraphBuilder() {}
 }

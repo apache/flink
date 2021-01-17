@@ -46,83 +46,108 @@ import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterO
  * {@link MetricReporter} that exports {@link Metric Metrics} via Prometheus {@link PushGateway}.
  */
 @PublicEvolving
-@InstantiateViaFactory(factoryClassName = "org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterFactory")
+@InstantiateViaFactory(
+        factoryClassName =
+                "org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterFactory")
 public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter implements Scheduled {
 
-	private PushGateway pushGateway;
-	private String jobName;
-	private boolean deleteOnShutdown;
-	private Map<String, String> groupingKey;
+    private PushGateway pushGateway;
+    private String jobName;
+    private boolean deleteOnShutdown;
+    private Map<String, String> groupingKey;
 
-	@Override
-	public void open(MetricConfig config) {
-		super.open(config);
+    @Override
+    public void open(MetricConfig config) {
+        super.open(config);
 
-		String host = config.getString(HOST.key(), HOST.defaultValue());
-		int port = config.getInteger(PORT.key(), PORT.defaultValue());
-		String configuredJobName = config.getString(JOB_NAME.key(), JOB_NAME.defaultValue());
-		boolean randomSuffix = config.getBoolean(RANDOM_JOB_NAME_SUFFIX.key(), RANDOM_JOB_NAME_SUFFIX.defaultValue());
-		deleteOnShutdown = config.getBoolean(DELETE_ON_SHUTDOWN.key(), DELETE_ON_SHUTDOWN.defaultValue());
-		groupingKey = parseGroupingKey(config.getString(GROUPING_KEY.key(), GROUPING_KEY.defaultValue()));
+        String host = config.getString(HOST.key(), HOST.defaultValue());
+        int port = config.getInteger(PORT.key(), PORT.defaultValue());
+        String configuredJobName = config.getString(JOB_NAME.key(), JOB_NAME.defaultValue());
+        boolean randomSuffix =
+                config.getBoolean(
+                        RANDOM_JOB_NAME_SUFFIX.key(), RANDOM_JOB_NAME_SUFFIX.defaultValue());
+        deleteOnShutdown =
+                config.getBoolean(DELETE_ON_SHUTDOWN.key(), DELETE_ON_SHUTDOWN.defaultValue());
+        groupingKey =
+                parseGroupingKey(config.getString(GROUPING_KEY.key(), GROUPING_KEY.defaultValue()));
 
-		if (host == null || host.isEmpty() || port < 1) {
-			throw new IllegalArgumentException("Invalid host/port configuration. Host: " + host + " Port: " + port);
-		}
+        if (host == null || host.isEmpty() || port < 1) {
+            throw new IllegalArgumentException(
+                    "Invalid host/port configuration. Host: " + host + " Port: " + port);
+        }
 
-		if (randomSuffix) {
-			this.jobName = configuredJobName + new AbstractID();
-		} else {
-			this.jobName = configuredJobName;
-		}
+        if (randomSuffix) {
+            this.jobName = configuredJobName + new AbstractID();
+        } else {
+            this.jobName = configuredJobName;
+        }
 
-		pushGateway = new PushGateway(host + ':' + port);
-		log.info("Configured PrometheusPushGatewayReporter with {host:{}, port:{}, jobName:{}, randomJobNameSuffix:{}, deleteOnShutdown:{}, groupingKey:{}}",
-			host, port, jobName, randomSuffix, deleteOnShutdown, groupingKey);
-	}
+        pushGateway = new PushGateway(host + ':' + port);
+        log.info(
+                "Configured PrometheusPushGatewayReporter with {host:{}, port:{}, jobName:{}, randomJobNameSuffix:{}, deleteOnShutdown:{}, groupingKey:{}}",
+                host,
+                port,
+                jobName,
+                randomSuffix,
+                deleteOnShutdown,
+                groupingKey);
+    }
 
-	Map<String, String> parseGroupingKey(final String groupingKeyConfig) {
-		if (!groupingKeyConfig.isEmpty()) {
-			Map<String, String> groupingKey = new HashMap<>();
-			String[] kvs = groupingKeyConfig.split(";");
-			for (String kv : kvs) {
-				int idx = kv.indexOf("=");
-				if (idx < 0) {
-					log.warn("Invalid prometheusPushGateway groupingKey:{}, will be ignored", kv);
-					continue;
-				}
+    Map<String, String> parseGroupingKey(final String groupingKeyConfig) {
+        if (!groupingKeyConfig.isEmpty()) {
+            Map<String, String> groupingKey = new HashMap<>();
+            String[] kvs = groupingKeyConfig.split(";");
+            for (String kv : kvs) {
+                int idx = kv.indexOf("=");
+                if (idx < 0) {
+                    log.warn("Invalid prometheusPushGateway groupingKey:{}, will be ignored", kv);
+                    continue;
+                }
 
-				String labelKey = kv.substring(0, idx);
-				String labelValue = kv.substring(idx + 1);
-				if (StringUtils.isNullOrWhitespaceOnly(labelKey) || StringUtils.isNullOrWhitespaceOnly(labelValue)) {
-					log.warn("Invalid groupingKey {labelKey:{}, labelValue:{}} must not be empty", labelKey, labelValue);
-					continue;
-				}
-				groupingKey.put(labelKey, labelValue);
-			}
+                String labelKey = kv.substring(0, idx);
+                String labelValue = kv.substring(idx + 1);
+                if (StringUtils.isNullOrWhitespaceOnly(labelKey)
+                        || StringUtils.isNullOrWhitespaceOnly(labelValue)) {
+                    log.warn(
+                            "Invalid groupingKey {labelKey:{}, labelValue:{}} must not be empty",
+                            labelKey,
+                            labelValue);
+                    continue;
+                }
+                groupingKey.put(labelKey, labelValue);
+            }
 
-			return groupingKey;
-		}
-		return Collections.emptyMap();
-	}
+            return groupingKey;
+        }
+        return Collections.emptyMap();
+    }
 
-	@Override
-	public void report() {
-		try {
-			pushGateway.push(CollectorRegistry.defaultRegistry, jobName, groupingKey);
-		} catch (Exception e) {
-			log.warn("Failed to push metrics to PushGateway with jobName {}, groupingKey {}.", jobName, groupingKey, e);
-		}
-	}
+    @Override
+    public void report() {
+        try {
+            pushGateway.push(CollectorRegistry.defaultRegistry, jobName, groupingKey);
+        } catch (Exception e) {
+            log.warn(
+                    "Failed to push metrics to PushGateway with jobName {}, groupingKey {}.",
+                    jobName,
+                    groupingKey,
+                    e);
+        }
+    }
 
-	@Override
-	public void close() {
-		if (deleteOnShutdown && pushGateway != null) {
-			try {
-				pushGateway.delete(jobName, groupingKey);
-			} catch (IOException e) {
-				log.warn("Failed to delete metrics from PushGateway with jobName {}, groupingKey {}.", jobName, groupingKey, e);
-			}
-		}
-		super.close();
-	}
+    @Override
+    public void close() {
+        if (deleteOnShutdown && pushGateway != null) {
+            try {
+                pushGateway.delete(jobName, groupingKey);
+            } catch (IOException e) {
+                log.warn(
+                        "Failed to delete metrics from PushGateway with jobName {}, groupingKey {}.",
+                        jobName,
+                        groupingKey,
+                        e);
+            }
+        }
+        super.close();
+    }
 }

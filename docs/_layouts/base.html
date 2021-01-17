@@ -29,7 +29,7 @@ under the License.
     <link rel="canonical" href="{{ site.stable_baseurl }}{{ page.url | replace:'index.html',''}}">
 
     <!-- Bootstrap -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{% link page/css/bootstrap.min.css %}">
     <link rel="stylesheet" href="{% link page/css/flink.css %}">
     <link rel="stylesheet" href="{% link page/css/syntax.css %}">
     <link rel="stylesheet" href="{% link page/css/codetabs.css %}">
@@ -91,8 +91,8 @@ under the License.
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
     <script src="{% link page/js/jquery.min.js %}"></script>
     <!-- Include all compiled plugins (below), or include individual files as needed -->
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/3.1.0/anchor.min.js"></script>
+    <script src="{% link page/js/bootstrap.min.js %}"></script>
+    <script src="{% link page/js/anchor.min.js %}"></script>
     <script src="{% link page/js/flink.js %}"></script>
 
     <!-- Google Analytics -->

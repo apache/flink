@@ -23,19 +23,19 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 public abstract class PrimitiveArrayComparatorTestBase<T> extends ComparatorTestBase<T> {
-	private PrimitiveArrayTypeInfo<T> info;
+    private PrimitiveArrayTypeInfo<T> info;
 
-	public PrimitiveArrayComparatorTestBase(PrimitiveArrayTypeInfo<T> info) {
-		this.info = info;
-	}
+    public PrimitiveArrayComparatorTestBase(PrimitiveArrayTypeInfo<T> info) {
+        this.info = info;
+    }
 
-	@Override
-	protected TypeComparator<T> createComparator(boolean ascending) {
-		return info.createComparator(ascending, null).duplicate();
-	}
+    @Override
+    protected TypeComparator<T> createComparator(boolean ascending) {
+        return info.createComparator(ascending, null).duplicate();
+    }
 
-	@Override
-	protected TypeSerializer<T> createSerializer() {
-		return info.createSerializer(null);
-	}
+    @Override
+    protected TypeSerializer<T> createSerializer() {
+        return info.createSerializer(null);
+    }
 }

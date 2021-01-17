@@ -29,71 +29,71 @@ import org.apache.flink.table.runtime.util.ResettableExternalBuffer;
 import org.apache.flink.table.types.logical.RowType;
 
 /**
- * The UnboundedFollowing window frame.
- * See {@link RowUnboundedFollowingOverFrame} and {@link RangeUnboundedFollowingOverFrame}.
+ * The UnboundedFollowing window frame. See {@link RowUnboundedFollowingOverFrame} and {@link
+ * RangeUnboundedFollowingOverFrame}.
  */
 public abstract class UnboundedFollowingOverFrame implements OverWindowFrame {
 
-	private GeneratedAggsHandleFunction aggsHandleFunction;
-	private final RowType valueType;
+    private GeneratedAggsHandleFunction aggsHandleFunction;
+    private final RowType valueType;
 
-	private AggsHandleFunction processor;
-	private RowData accValue;
+    private AggsHandleFunction processor;
+    private RowData accValue;
 
-	/** Rows of the partition currently being processed. */
-	ResettableExternalBuffer input;
+    /** Rows of the partition currently being processed. */
+    ResettableExternalBuffer input;
 
-	private RowDataSerializer valueSer;
+    private RowDataSerializer valueSer;
 
-	/**
-	 * Index of the first input row with a value equal to or greater than the lower bound of the
-	 * current output row.
-	 */
-	int inputIndex = 0;
+    /**
+     * Index of the first input row with a value equal to or greater than the lower bound of the
+     * current output row.
+     */
+    int inputIndex = 0;
 
-	public UnboundedFollowingOverFrame(
-			RowType valueType,
-			GeneratedAggsHandleFunction aggsHandleFunction) {
-		this.valueType = valueType;
-		this.aggsHandleFunction = aggsHandleFunction;
-	}
+    public UnboundedFollowingOverFrame(
+            RowType valueType, GeneratedAggsHandleFunction aggsHandleFunction) {
+        this.valueType = valueType;
+        this.aggsHandleFunction = aggsHandleFunction;
+    }
 
-	@Override
-	public void open(ExecutionContext ctx) throws Exception {
-		ClassLoader cl = ctx.getRuntimeContext().getUserCodeClassLoader();
-		processor = aggsHandleFunction.newInstance(cl);
-		processor.open(new PerKeyStateDataViewStore(ctx.getRuntimeContext()));
+    @Override
+    public void open(ExecutionContext ctx) throws Exception {
+        ClassLoader cl = ctx.getRuntimeContext().getUserCodeClassLoader();
+        processor = aggsHandleFunction.newInstance(cl);
+        processor.open(new PerKeyStateDataViewStore(ctx.getRuntimeContext()));
 
-		this.aggsHandleFunction = null;
-		this.valueSer = new RowDataSerializer(valueType);
-	}
+        this.aggsHandleFunction = null;
+        this.valueSer = new RowDataSerializer(valueType);
+    }
 
-	@Override
-	public void prepare(ResettableExternalBuffer rows) throws Exception {
-		input = rows;
-		//cleanup the retired accumulators value
-		processor.setAccumulators(processor.createAccumulators());
-		inputIndex = 0;
-	}
+    @Override
+    public void prepare(ResettableExternalBuffer rows) throws Exception {
+        input = rows;
+        // cleanup the retired accumulators value
+        processor.setAccumulators(processor.createAccumulators());
+        inputIndex = 0;
+    }
 
-	RowData accumulateIterator(
-			boolean bufferUpdated,
-			BinaryRowData firstRow,
-			ResettableExternalBuffer.BufferIterator iterator) throws Exception {
-		// Only recalculate and update when the buffer changes.
-		if (bufferUpdated) {
-			//cleanup the retired accumulators value
-			processor.setAccumulators(processor.createAccumulators());
+    RowData accumulateIterator(
+            boolean bufferUpdated,
+            BinaryRowData firstRow,
+            ResettableExternalBuffer.BufferIterator iterator)
+            throws Exception {
+        // Only recalculate and update when the buffer changes.
+        if (bufferUpdated) {
+            // cleanup the retired accumulators value
+            processor.setAccumulators(processor.createAccumulators());
 
-			if (firstRow != null) {
-				processor.accumulate(firstRow);
-			}
-			while (iterator.advanceNext()) {
-				processor.accumulate(iterator.getRow());
-			}
-			accValue = valueSer.copy(processor.getValue());
-		}
-		iterator.close();
-		return accValue;
-	}
+            if (firstRow != null) {
+                processor.accumulate(firstRow);
+            }
+            while (iterator.advanceNext()) {
+                processor.accumulate(iterator.getRow());
+            }
+            accValue = valueSer.copy(processor.getValue());
+        }
+        iterator.close();
+        return accValue;
+    }
 }

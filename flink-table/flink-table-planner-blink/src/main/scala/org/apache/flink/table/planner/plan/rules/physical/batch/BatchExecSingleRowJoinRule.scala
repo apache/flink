@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecNestedLoopJoin
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalNestedLoopJoin
 
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -29,7 +29,7 @@ import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core._
 
 /**
-  * Rule that converts [[FlinkLogicalJoin]] to [[BatchExecNestedLoopJoin]]
+  * Rule that converts [[FlinkLogicalJoin]] to [[BatchPhysicalNestedLoopJoin]]
   * if one of join input sides returns at most a single row.
   */
 class BatchExecSingleRowJoinRule

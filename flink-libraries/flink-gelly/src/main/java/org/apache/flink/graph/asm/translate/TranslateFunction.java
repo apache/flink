@@ -24,8 +24,8 @@ import java.io.Serializable;
 
 /**
  * Base interface for Translate functions. Translate functions take elements and transform them,
- * element wise. A Translate function always produces a single result element for each input element.
- * Typical applications are transcribing between data types or manipulating element values.
+ * element wise. A Translate function always produces a single result element for each input
+ * element. Typical applications are transcribing between data types or manipulating element values.
  *
  * <p>Translate functions are used within the Graph API and by translating GraphAlgorithms.
  *
@@ -34,17 +34,16 @@ import java.io.Serializable;
  */
 public interface TranslateFunction<T, O> extends Function, Serializable {
 
-	/**
-	 * The translating method. Takes an element from the input data set and transforms
-	 * it into exactly one element.
-	 *
-	 * @param value input value.
-	 * @param reuse value which may be reused for output; if reuse is null then a new output object
-	 *              must be instantiated and returned
-	 * @return the transformed value
-	 *
-	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation
-	 *                   to fail and may trigger recovery.
-	 */
-	O translate(T value, O reuse) throws Exception;
+    /**
+     * The translating method. Takes an element from the input data set and transforms it into
+     * exactly one element.
+     *
+     * @param value input value.
+     * @param reuse value which may be reused for output; if reuse is null then a new output object
+     *     must be instantiated and returned
+     * @return the transformed value
+     * @throws Exception This method may throw exceptions. Throwing an exception will cause the
+     *     operation to fail and may trigger recovery.
+     */
+    O translate(T value, O reuse) throws Exception;
 }

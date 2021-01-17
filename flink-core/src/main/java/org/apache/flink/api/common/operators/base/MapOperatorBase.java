@@ -18,9 +18,6 @@
 
 package org.apache.flink.api.common.operators.base;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -33,49 +30,58 @@ import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
- *
  * @param <IN> The input type.
  * @param <OUT> The result type.
  * @param <FT> The type of the user-defined function.
  */
 @Internal
-public class MapOperatorBase<IN, OUT, FT extends MapFunction<IN, OUT>> extends SingleInputOperator<IN, OUT, FT> {
-	
-	public MapOperatorBase(UserCodeWrapper<FT> udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
-		super(udf, operatorInfo, name);
-	}
-	
-	public MapOperatorBase(FT udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
-		super(new UserCodeObjectWrapper<FT>(udf), operatorInfo, name);
-	}
-	
-	public MapOperatorBase(Class<? extends FT> udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
-		super(new UserCodeClassWrapper<FT>(udf), operatorInfo, name);
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	@Override
-	protected List<OUT> executeOnCollections(List<IN> inputData, RuntimeContext ctx, ExecutionConfig executionConfig) throws Exception {
-		MapFunction<IN, OUT> function = this.userFunction.getUserCodeObject();
-		
-		FunctionUtils.setFunctionRuntimeContext(function, ctx);
-		FunctionUtils.openFunction(function, this.parameters);
-		
-		ArrayList<OUT> result = new ArrayList<OUT>(inputData.size());
+public class MapOperatorBase<IN, OUT, FT extends MapFunction<IN, OUT>>
+        extends SingleInputOperator<IN, OUT, FT> {
 
-		TypeSerializer<IN> inSerializer = getOperatorInfo().getInputType().createSerializer(executionConfig);
-		TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer(executionConfig);
+    public MapOperatorBase(
+            UserCodeWrapper<FT> udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
+        super(udf, operatorInfo, name);
+    }
 
-		for (IN element : inputData) {
-			IN inCopy = inSerializer.copy(element);
-			OUT out = function.map(inCopy);
-			result.add(outSerializer.copy(out));
-		}
+    public MapOperatorBase(FT udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
+        super(new UserCodeObjectWrapper<FT>(udf), operatorInfo, name);
+    }
 
-		FunctionUtils.closeFunction(function);
-		
-		return result;
-	}
+    public MapOperatorBase(
+            Class<? extends FT> udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
+        super(new UserCodeClassWrapper<FT>(udf), operatorInfo, name);
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    @Override
+    protected List<OUT> executeOnCollections(
+            List<IN> inputData, RuntimeContext ctx, ExecutionConfig executionConfig)
+            throws Exception {
+        MapFunction<IN, OUT> function = this.userFunction.getUserCodeObject();
+
+        FunctionUtils.setFunctionRuntimeContext(function, ctx);
+        FunctionUtils.openFunction(function, this.parameters);
+
+        ArrayList<OUT> result = new ArrayList<OUT>(inputData.size());
+
+        TypeSerializer<IN> inSerializer =
+                getOperatorInfo().getInputType().createSerializer(executionConfig);
+        TypeSerializer<OUT> outSerializer =
+                getOperatorInfo().getOutputType().createSerializer(executionConfig);
+
+        for (IN element : inputData) {
+            IN inCopy = inSerializer.copy(element);
+            OUT out = function.map(inCopy);
+            result.add(outSerializer.copy(out));
+        }
+
+        FunctionUtils.closeFunction(function);
+
+        return result;
+    }
 }

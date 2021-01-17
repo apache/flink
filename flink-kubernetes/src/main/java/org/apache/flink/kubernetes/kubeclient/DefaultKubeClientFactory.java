@@ -25,8 +25,8 @@ import org.apache.flink.util.FileUtils;
 
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
-import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
+import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,58 +35,64 @@ import java.io.IOException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
-/**
- * Default implementation of the {@link KubeClientFactory}.
- */
+/** Default implementation of the {@link KubeClientFactory}. */
 public class DefaultKubeClientFactory implements KubeClientFactory {
 
-	private static final Logger LOG = LoggerFactory.getLogger(DefaultKubeClientFactory.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultKubeClientFactory.class);
 
-	private static final DefaultKubeClientFactory INSTANCE = new DefaultKubeClientFactory();
+    private static final DefaultKubeClientFactory INSTANCE = new DefaultKubeClientFactory();
 
-	public static DefaultKubeClientFactory getInstance() {
-		return INSTANCE;
-	}
+    public static DefaultKubeClientFactory getInstance() {
+        return INSTANCE;
+    }
 
-	public FlinkKubeClient fromConfiguration(Configuration flinkConfig) {
-		return fromConfiguration(flinkConfig, createThreadPoolForAsyncIO());
-	}
+    public FlinkKubeClient fromConfiguration(Configuration flinkConfig) {
+        return fromConfiguration(flinkConfig, createThreadPoolForAsyncIO());
+    }
 
-	public FlinkKubeClient fromConfiguration(Configuration flinkConfig, Executor ioExecutor) {
-		final Config config;
+    public FlinkKubeClient fromConfiguration(Configuration flinkConfig, Executor ioExecutor) {
+        final Config config;
 
-		final String kubeContext = flinkConfig.getString(KubernetesConfigOptions.CONTEXT);
-		if (kubeContext != null) {
-			LOG.info("Configuring kubernetes client to use context {}.", kubeContext);
-		}
+        final String kubeContext = flinkConfig.getString(KubernetesConfigOptions.CONTEXT);
+        if (kubeContext != null) {
+            LOG.info("Configuring kubernetes client to use context {}.", kubeContext);
+        }
 
-		final String kubeConfigFile = flinkConfig.getString(KubernetesConfigOptions.KUBE_CONFIG_FILE);
-		if (kubeConfigFile != null) {
-			LOG.debug("Trying to load kubernetes config from file: {}.", kubeConfigFile);
-			try {
-				// If kubeContext is null, the default context in the kubeConfigFile will be used.
-				// Note: the third parameter kubeconfigPath is optional and is set to null. It is only used to rewrite
-				// relative tls asset paths inside kubeconfig when a file is passed, and in the case that the kubeconfig
-				// references some assets via relative paths.
-				config = Config.fromKubeconfig(
-						kubeContext,
-						FileUtils.readFileUtf8(new File(kubeConfigFile)),
-						null);
-			} catch (IOException e) {
-				throw new KubernetesClientException("Load kubernetes config failed.", e);
-			}
-		} else {
-			LOG.debug("Trying to load default kubernetes config.");
+        final String kubeConfigFile =
+                flinkConfig.getString(KubernetesConfigOptions.KUBE_CONFIG_FILE);
+        if (kubeConfigFile != null) {
+            LOG.debug("Trying to load kubernetes config from file: {}.", kubeConfigFile);
+            try {
+                // If kubeContext is null, the default context in the kubeConfigFile will be used.
+                // Note: the third parameter kubeconfigPath is optional and is set to null. It is
+                // only used to rewrite
+                // relative tls asset paths inside kubeconfig when a file is passed, and in the case
+                // that the kubeconfig
+                // references some assets via relative paths.
+                config =
+                        Config.fromKubeconfig(
+                                kubeContext,
+                                FileUtils.readFileUtf8(new File(kubeConfigFile)),
+                                null);
+            } catch (IOException e) {
+                throw new KubernetesClientException("Load kubernetes config failed.", e);
+            }
+        } else {
+            LOG.debug("Trying to load default kubernetes config.");
 
-			config = Config.autoConfigure(kubeContext);
-		}
+            config = Config.autoConfigure(kubeContext);
+        }
 
-		final KubernetesClient client = new DefaultKubernetesClient(config);
+        final String namespace = flinkConfig.getString(KubernetesConfigOptions.NAMESPACE);
+        LOG.debug("Setting namespace of Kubernetes client to {}", namespace);
+        config.setNamespace(namespace);
 
-		return new Fabric8FlinkKubeClient(flinkConfig, client, () -> ioExecutor);
-	}
+        final NamespacedKubernetesClient client = new DefaultKubernetesClient(config);
 
-	private static Executor createThreadPoolForAsyncIO() {
-		return Executors.newFixedThreadPool(2, new ExecutorThreadFactory("FlinkKubeClient-IO"));
-	}
+        return new Fabric8FlinkKubeClient(flinkConfig, client, () -> ioExecutor);
+    }
+
+    private static Executor createThreadPoolForAsyncIO() {
+        return Executors.newFixedThreadPool(2, new ExecutorThreadFactory("FlinkKubeClient-IO"));
+    }
 }

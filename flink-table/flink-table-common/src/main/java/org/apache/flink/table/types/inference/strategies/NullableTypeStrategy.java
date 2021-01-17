@@ -31,64 +31,75 @@ import java.util.Optional;
 import java.util.stream.IntStream;
 
 /**
- * A type strategy that can be used to make a result type nullable if any of the selected
- * input arguments is nullable. Otherwise the type will be not null.
+ * A type strategy that can be used to make a result type nullable if any of the selected input
+ * arguments is nullable. Otherwise the type will be not null.
  */
 @Internal
 public final class NullableTypeStrategy implements TypeStrategy {
 
-	private final ConstantArgumentCount includedArguments;
+    private final ConstantArgumentCount includedArguments;
 
-	private final TypeStrategy initialStrategy;
+    private final TypeStrategy initialStrategy;
 
-	public NullableTypeStrategy(ConstantArgumentCount includedArguments, TypeStrategy initialStrategy) {
-		this.includedArguments = Preconditions.checkNotNull(includedArguments);
-		this.initialStrategy = Preconditions.checkNotNull(initialStrategy);
-	}
+    public NullableTypeStrategy(
+            ConstantArgumentCount includedArguments, TypeStrategy initialStrategy) {
+        this.includedArguments = Preconditions.checkNotNull(includedArguments);
+        this.initialStrategy = Preconditions.checkNotNull(initialStrategy);
+    }
 
-	@Override
-	public Optional<DataType> inferType(CallContext callContext) {
-		return initialStrategy.inferType(callContext)
-			.map(inferredDataType -> {
-				final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
+    @Override
+    public Optional<DataType> inferType(CallContext callContext) {
+        return initialStrategy
+                .inferType(callContext)
+                .map(
+                        inferredDataType -> {
+                            final List<DataType> argumentDataTypes =
+                                    callContext.getArgumentDataTypes();
 
-				if (argumentDataTypes.isEmpty()) {
-					return inferredDataType.notNull();
-				}
+                            if (argumentDataTypes.isEmpty()) {
+                                return inferredDataType.notNull();
+                            }
 
-				final int fromArg = includedArguments.getMinCount().orElse(0);
+                            final int fromArg = includedArguments.getMinCount().orElse(0);
 
-				final int toArg = Math.min(
-					includedArguments.getMaxCount().map(c -> c + 1).orElse(argumentDataTypes.size()),
-					argumentDataTypes.size());
+                            final int toArg =
+                                    Math.min(
+                                            includedArguments
+                                                    .getMaxCount()
+                                                    .map(c -> c + 1)
+                                                    .orElse(argumentDataTypes.size()),
+                                            argumentDataTypes.size());
 
-				final boolean isNullableArgument = IntStream.range(fromArg, toArg)
-					.mapToObj(argumentDataTypes::get)
-					.anyMatch(dataType -> dataType.getLogicalType().isNullable());
+                            final boolean isNullableArgument =
+                                    IntStream.range(fromArg, toArg)
+                                            .mapToObj(argumentDataTypes::get)
+                                            .anyMatch(
+                                                    dataType ->
+                                                            dataType.getLogicalType().isNullable());
 
-				if (isNullableArgument) {
-					return inferredDataType.nullable();
-				} else {
-					return inferredDataType.notNull();
-				}
-			});
-	}
+                            if (isNullableArgument) {
+                                return inferredDataType.nullable();
+                            } else {
+                                return inferredDataType.notNull();
+                            }
+                        });
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		NullableTypeStrategy that = (NullableTypeStrategy) o;
-		return includedArguments.equals(that.includedArguments) &&
-			initialStrategy.equals(that.initialStrategy);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        NullableTypeStrategy that = (NullableTypeStrategy) o;
+        return includedArguments.equals(that.includedArguments)
+                && initialStrategy.equals(that.initialStrategy);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(includedArguments, initialStrategy);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(includedArguments, initialStrategy);
+    }
 }

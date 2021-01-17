@@ -35,57 +35,57 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
 
-/**
- * IT case for the {@link AvroExternalJarProgram}.
- */
+/** IT case for the {@link AvroExternalJarProgram}. */
 public class AvroExternalJarProgramITCase extends TestLogger {
 
-	private static final String JAR_FILE = "maven-test-jar.jar";
+    private static final String JAR_FILE = "maven-test-jar.jar";
 
-	private static final String TEST_DATA_FILE = "/testdata.avro";
+    private static final String TEST_DATA_FILE = "/testdata.avro";
 
-	private static final int PARALLELISM = 4;
+    private static final int PARALLELISM = 4;
 
-	private static final MiniCluster MINI_CLUSTER = new MiniCluster(
-		new MiniClusterConfiguration.Builder()
-			.setNumTaskManagers(1)
-			.setNumSlotsPerTaskManager(PARALLELISM)
-			.build());
+    private static final MiniCluster MINI_CLUSTER =
+            new MiniCluster(
+                    new MiniClusterConfiguration.Builder()
+                            .setNumTaskManagers(1)
+                            .setNumSlotsPerTaskManager(PARALLELISM)
+                            .build());
 
-	@BeforeClass
-	public static void setUp() throws Exception {
-		MINI_CLUSTER.start();
-	}
+    @BeforeClass
+    public static void setUp() throws Exception {
+        MINI_CLUSTER.start();
+    }
 
-	@AfterClass
-	public static void tearDown() {
-		TestEnvironment.unsetAsContext();
-		MINI_CLUSTER.closeAsync();
-	}
+    @AfterClass
+    public static void tearDown() {
+        TestEnvironment.unsetAsContext();
+        MINI_CLUSTER.closeAsync();
+    }
 
-	@Test
-	public void testExternalProgram() throws Exception {
+    @Test
+    public void testExternalProgram() throws Exception {
 
-		String jarFile = JAR_FILE;
-		try {
-			JarUtils.checkJarFile(new File(jarFile).getAbsoluteFile().toURI().toURL());
-		} catch (IOException e) {
-			jarFile = "target/".concat(jarFile);
-		}
+        String jarFile = JAR_FILE;
+        try {
+            JarUtils.checkJarFile(new File(jarFile).getAbsoluteFile().toURI().toURL());
+        } catch (IOException e) {
+            jarFile = "target/".concat(jarFile);
+        }
 
-		TestEnvironment.setAsContext(
-			MINI_CLUSTER,
-			PARALLELISM,
-			Collections.singleton(new Path(jarFile)),
-			Collections.emptyList());
+        TestEnvironment.setAsContext(
+                MINI_CLUSTER,
+                PARALLELISM,
+                Collections.singleton(new Path(jarFile)),
+                Collections.emptyList());
 
-		String testData = getClass().getResource(TEST_DATA_FILE).toString();
+        String testData = getClass().getResource(TEST_DATA_FILE).toString();
 
-		PackagedProgram program = PackagedProgram.newBuilder()
-			.setJarFile(new File(jarFile))
-			.setArguments(new String[]{testData})
-			.build();
+        PackagedProgram program =
+                PackagedProgram.newBuilder()
+                        .setJarFile(new File(jarFile))
+                        .setArguments(new String[] {testData})
+                        .build();
 
-		program.invokeInteractiveModeForExecution();
-	}
+        program.invokeInteractiveModeForExecution();
+    }
 }

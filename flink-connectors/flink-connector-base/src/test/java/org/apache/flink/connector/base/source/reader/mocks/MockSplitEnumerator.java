@@ -32,59 +32,55 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * A mock {@link SplitEnumerator} for unit tests.
- */
-public class MockSplitEnumerator implements SplitEnumerator<MockSourceSplit, List<MockSourceSplit>> {
-	private final List<MockSourceSplit> splits;
-	private final SplitEnumeratorContext<MockSourceSplit> context;
+/** A mock {@link SplitEnumerator} for unit tests. */
+public class MockSplitEnumerator
+        implements SplitEnumerator<MockSourceSplit, List<MockSourceSplit>> {
+    private final List<MockSourceSplit> splits;
+    private final SplitEnumeratorContext<MockSourceSplit> context;
 
-	public MockSplitEnumerator(
-			List<MockSourceSplit> splits,
-			SplitEnumeratorContext<MockSourceSplit> context) {
-		this.splits = splits;
-		this.context = context;
-	}
+    public MockSplitEnumerator(
+            List<MockSourceSplit> splits, SplitEnumeratorContext<MockSourceSplit> context) {
+        this.splits = splits;
+        this.context = context;
+    }
 
-	@Override
-	public void start() {}
+    @Override
+    public void start() {}
 
-	@Override
-	public void handleSourceEvent(int subtaskId, SourceEvent sourceEvent) {}
+    @Override
+    public void handleSourceEvent(int subtaskId, SourceEvent sourceEvent) {}
 
-	@Override
-	public void handleSplitRequest(int subtaskId, @Nullable String requesterHostname) {}
+    @Override
+    public void handleSplitRequest(int subtaskId, @Nullable String requesterHostname) {}
 
-	@Override
-	public void addSplitsBack(List<MockSourceSplit> splits, int subtaskId) {
-		this.splits.addAll(splits);
-	}
+    @Override
+    public void addSplitsBack(List<MockSourceSplit> splits, int subtaskId) {
+        this.splits.addAll(splits);
+    }
 
-	@Override
-	public void addReader(int subtaskId) {
-		if (context.registeredReaders().size() == context.currentParallelism()) {
-			int numReaders = context.registeredReaders().size();
-			Map<Integer, List<MockSourceSplit>> assignment = new HashMap<>();
-			for (int i = 0; i < splits.size(); i++) {
-				assignment
-						.computeIfAbsent(i % numReaders, t -> new ArrayList<>())
-						.add(splits.get(i));
-			}
-			context.assignSplits(new SplitsAssignment<>(assignment));
-			splits.clear();
-			for (int i = 0; i < numReaders; i++) {
-				context.signalNoMoreSplits(i);
-			}
-		}
-	}
+    @Override
+    public void addReader(int subtaskId) {
+        if (context.registeredReaders().size() == context.currentParallelism()) {
+            int numReaders = context.registeredReaders().size();
+            Map<Integer, List<MockSourceSplit>> assignment = new HashMap<>();
+            for (int i = 0; i < splits.size(); i++) {
+                assignment
+                        .computeIfAbsent(i % numReaders, t -> new ArrayList<>())
+                        .add(splits.get(i));
+            }
+            context.assignSplits(new SplitsAssignment<>(assignment));
+            splits.clear();
+            for (int i = 0; i < numReaders; i++) {
+                context.signalNoMoreSplits(i);
+            }
+        }
+    }
 
-	@Override
-	public List<MockSourceSplit> snapshotState() {
-		return splits;
-	}
+    @Override
+    public List<MockSourceSplit> snapshotState() {
+        return splits;
+    }
 
-	@Override
-	public void close() throws IOException {
-
-	}
+    @Override
+    public void close() throws IOException {}
 }

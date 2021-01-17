@@ -24,32 +24,30 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.ByteValue;
 
-/**
- * Tests for {@link ByteValueArrayComparator}.
- */
+/** Tests for {@link ByteValueArrayComparator}. */
 public class ByteValueArrayComparatorTest extends ComparatorTestBase<ByteValueArray> {
 
-	@Override
-	protected TypeComparator<ByteValueArray> createComparator(boolean ascending) {
-		return new ByteValueArrayComparator(ascending);
-	}
+    @Override
+    protected TypeComparator<ByteValueArray> createComparator(boolean ascending) {
+        return new ByteValueArrayComparator(ascending);
+    }
 
-	@Override
-	protected TypeSerializer<ByteValueArray> createSerializer() {
-		return new ByteValueArraySerializer();
-	}
+    @Override
+    protected TypeSerializer<ByteValueArray> createSerializer() {
+        return new ByteValueArraySerializer();
+    }
 
-	@Override
-	protected ByteValueArray[] getSortedTestData() {
-		ByteValueArray lva0 = new ByteValueArray();
+    @Override
+    protected ByteValueArray[] getSortedTestData() {
+        ByteValueArray lva0 = new ByteValueArray();
 
-		ByteValueArray lva1 = new ByteValueArray();
-		lva1.add(new ByteValue((byte) 5));
+        ByteValueArray lva1 = new ByteValueArray();
+        lva1.add(new ByteValue((byte) 5));
 
-		ByteValueArray lva2 = new ByteValueArray();
-		lva2.add(new ByteValue((byte) 5));
-		lva2.add(new ByteValue((byte) 10));
+        ByteValueArray lva2 = new ByteValueArray();
+        lva2.add(new ByteValue((byte) 5));
+        lva2.add(new ByteValue((byte) 10));
 
-		return new ByteValueArray[]{ lva0, lva1 };
-	}
+        return new ByteValueArray[] {lva0, lva1};
+    }
 }

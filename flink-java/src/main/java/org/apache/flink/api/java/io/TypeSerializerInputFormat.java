@@ -30,34 +30,36 @@ import java.io.IOException;
 
 /**
  * Reads elements by deserializing them with a given type serializer.
+ *
  * @param <T>
  */
 @PublicEvolving
-public class TypeSerializerInputFormat<T> extends BinaryInputFormat<T> implements ResultTypeQueryable<T> {
+public class TypeSerializerInputFormat<T> extends BinaryInputFormat<T>
+        implements ResultTypeQueryable<T> {
 
-	private static final long serialVersionUID = 2123068581665107480L;
+    private static final long serialVersionUID = 2123068581665107480L;
 
-	private transient TypeInformation<T> resultType;
+    private transient TypeInformation<T> resultType;
 
-	private TypeSerializer<T> serializer;
+    private TypeSerializer<T> serializer;
 
-	public TypeSerializerInputFormat(TypeInformation<T> resultType) {
-		this.resultType = resultType;
-		// TODO: fix this shit
-		this.serializer = resultType.createSerializer(new ExecutionConfig());
-	}
+    public TypeSerializerInputFormat(TypeInformation<T> resultType) {
+        this.resultType = resultType;
+        // TODO: fix this shit
+        this.serializer = resultType.createSerializer(new ExecutionConfig());
+    }
 
-	@Override
-	protected T deserialize(T reuse, DataInputView dataInput) throws IOException {
-		return serializer.deserialize(reuse, dataInput);
-	}
+    @Override
+    protected T deserialize(T reuse, DataInputView dataInput) throws IOException {
+        return serializer.deserialize(reuse, dataInput);
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// Typing
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // Typing
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public TypeInformation<T> getProducedType() {
-		return resultType;
-	}
+    @Override
+    public TypeInformation<T> getProducedType() {
+        return resultType;
+    }
 }

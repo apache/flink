@@ -27,23 +27,22 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link JobMetricsHeaders}.
- */
+/** Tests for {@link JobMetricsHeaders}. */
 public class JobMetricsHeadersTest extends TestLogger {
 
-	private final JobMetricsHeaders jobMetricsHeaders = JobMetricsHeaders.getInstance();
+    private final JobMetricsHeaders jobMetricsHeaders = JobMetricsHeaders.getInstance();
 
-	@Test
-	public void testUrl() {
-		assertThat(jobMetricsHeaders.getTargetRestEndpointURL(),
-			equalTo("/jobs/:" + JobIDPathParameter.KEY + "/metrics"));
-	}
+    @Test
+    public void testUrl() {
+        assertThat(
+                jobMetricsHeaders.getTargetRestEndpointURL(),
+                equalTo("/jobs/:" + JobIDPathParameter.KEY + "/metrics"));
+    }
 
-	@Test
-	public void testMessageParameters() {
-		assertThat(jobMetricsHeaders.getUnresolvedMessageParameters(), instanceOf
-			(JobMetricsMessageParameters.class));
-	}
-
+    @Test
+    public void testMessageParameters() {
+        assertThat(
+                jobMetricsHeaders.getUnresolvedMessageParameters(),
+                instanceOf(JobMetricsMessageParameters.class));
+    }
 }

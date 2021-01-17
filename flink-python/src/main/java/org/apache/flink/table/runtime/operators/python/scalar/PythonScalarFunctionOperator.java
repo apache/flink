@@ -29,59 +29,54 @@ import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 
-
-/**
- * The Python {@link ScalarFunction} operator for the legacy planner.
- */
+/** The Python {@link ScalarFunction} operator for the legacy planner. */
 @Internal
 public class PythonScalarFunctionOperator extends AbstractRowPythonScalarFunctionOperator {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/**
-	 * The TypeSerializer for udf execution results.
-	 */
-	private transient TypeSerializer<Row> udfOutputTypeSerializer;
+    /** The TypeSerializer for udf execution results. */
+    private transient TypeSerializer<Row> udfOutputTypeSerializer;
 
-	/**
-	 * The TypeSerializer for udf input elements.
-	 */
-	private transient TypeSerializer<Row> udfInputTypeSerializer;
+    /** The TypeSerializer for udf input elements. */
+    private transient TypeSerializer<Row> udfInputTypeSerializer;
 
-	public PythonScalarFunctionOperator(
-		Configuration config,
-		PythonFunctionInfo[] scalarFunctions,
-		RowType inputType,
-		RowType outputType,
-		int[] udfInputOffsets,
-		int[] forwardedFields) {
-		super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
-	}
+    public PythonScalarFunctionOperator(
+            Configuration config,
+            PythonFunctionInfo[] scalarFunctions,
+            RowType inputType,
+            RowType outputType,
+            int[] udfInputOffsets,
+            int[] forwardedFields) {
+        super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
+    }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public void open() throws Exception {
-		super.open();
-		udfInputTypeSerializer = PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionInputType);
-		udfOutputTypeSerializer = PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionOutputType);
-	}
+    @Override
+    @SuppressWarnings("unchecked")
+    public void open() throws Exception {
+        super.open();
+        udfInputTypeSerializer =
+                PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionInputType);
+        udfOutputTypeSerializer =
+                PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionOutputType);
+    }
 
-	@Override
-	public void processElementInternal(CRow value) throws Exception {
-		udfInputTypeSerializer.serialize(getFunctionInput(value), baosWrapper);
-		pythonFunctionRunner.process(baos.toByteArray());
-		baos.reset();
-	}
+    @Override
+    public void processElementInternal(CRow value) throws Exception {
+        udfInputTypeSerializer.serialize(getFunctionInput(value), baosWrapper);
+        pythonFunctionRunner.process(baos.toByteArray());
+        baos.reset();
+    }
 
-	@Override
-	@SuppressWarnings("ConstantConditions")
-	public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
-		byte[] rawUdfResult = resultTuple.f0;
-		int length = resultTuple.f1;
-		CRow input = forwardedInputQueue.poll();
-		cRowWrapper.setChange(input.change());
-		bais.setBuffer(rawUdfResult, 0, length);
-		Row udfResult = udfOutputTypeSerializer.deserialize(baisWrapper);
-		cRowWrapper.collect(Row.join(input.row(), udfResult));
-	}
+    @Override
+    @SuppressWarnings("ConstantConditions")
+    public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
+        byte[] rawUdfResult = resultTuple.f0;
+        int length = resultTuple.f1;
+        CRow input = forwardedInputQueue.poll();
+        cRowWrapper.setChange(input.change());
+        bais.setBuffer(rawUdfResult, 0, length);
+        Row udfResult = udfOutputTypeSerializer.deserialize(baisWrapper);
+        cRowWrapper.collect(Row.join(input.row(), udfResult));
+    }
 }

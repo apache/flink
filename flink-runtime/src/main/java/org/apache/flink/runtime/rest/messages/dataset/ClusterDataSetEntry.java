@@ -29,34 +29,34 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
  * @see ClusterDataSetListResponseBody
  */
 class ClusterDataSetEntry {
-	private static final String FIELD_NAME_DATA_SET_ID = "id";
-	private static final String FIELD_NAME_COMPLETE = "isComplete";
+    private static final String FIELD_NAME_DATA_SET_ID = "id";
+    private static final String FIELD_NAME_COMPLETE = "isComplete";
 
-	@JsonProperty(FIELD_NAME_DATA_SET_ID)
-	private final String dataSetId;
+    @JsonProperty(FIELD_NAME_DATA_SET_ID)
+    private final String dataSetId;
 
-	@JsonProperty(FIELD_NAME_COMPLETE)
-	private final boolean isComplete;
+    @JsonProperty(FIELD_NAME_COMPLETE)
+    private final boolean isComplete;
 
-	ClusterDataSetEntry(IntermediateDataSetID dataSetId, boolean isComplete) {
-		this(dataSetId.toHexString(), isComplete);
-	}
+    ClusterDataSetEntry(IntermediateDataSetID dataSetId, boolean isComplete) {
+        this(dataSetId.toHexString(), isComplete);
+    }
 
-	@JsonCreator
-	private ClusterDataSetEntry(
-		@JsonProperty(FIELD_NAME_DATA_SET_ID) String dataSetId,
-		@JsonProperty(FIELD_NAME_COMPLETE) boolean isComplete) {
-		this.dataSetId = dataSetId;
-		this.isComplete = isComplete;
-	}
+    @JsonCreator
+    private ClusterDataSetEntry(
+            @JsonProperty(FIELD_NAME_DATA_SET_ID) String dataSetId,
+            @JsonProperty(FIELD_NAME_COMPLETE) boolean isComplete) {
+        this.dataSetId = dataSetId;
+        this.isComplete = isComplete;
+    }
 
-	@JsonIgnore
-	public String getDataSetId() {
-		return dataSetId;
-	}
+    @JsonIgnore
+    public String getDataSetId() {
+        return dataSetId;
+    }
 
-	@JsonIgnore
-	public boolean isComplete() {
-		return isComplete;
-	}
+    @JsonIgnore
+    public boolean isComplete() {
+        return isComplete;
+    }
 }

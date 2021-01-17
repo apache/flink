@@ -23,19 +23,18 @@ import org.apache.flink.ml.operator.stream.StreamOperator;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.util.Preconditions;
 
-/**
- * Transform the Table to SourceStreamOp.
- */
+/** Transform the Table to SourceStreamOp. */
 public final class TableSourceStreamOp extends StreamOperator<TableSourceStreamOp> {
 
-	public TableSourceStreamOp(Table table) {
-		super(null);
-		Preconditions.checkArgument(table != null, "The source table cannot be null.");
-		this.setOutput(table);
-	}
+    public TableSourceStreamOp(Table table) {
+        super(null);
+        Preconditions.checkArgument(table != null, "The source table cannot be null.");
+        this.setOutput(table);
+    }
 
-	@Override
-	public TableSourceStreamOp linkFrom(StreamOperator<?>... inputs) {
-		throw new UnsupportedOperationException("Table source operator should not have any upstream to link from.");
-	}
+    @Override
+    public TableSourceStreamOp linkFrom(StreamOperator<?>... inputs) {
+        throw new UnsupportedOperationException(
+                "Table source operator should not have any upstream to link from.");
+    }
 }

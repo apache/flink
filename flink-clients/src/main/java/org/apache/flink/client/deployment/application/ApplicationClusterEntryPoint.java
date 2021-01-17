@@ -47,60 +47,74 @@ import java.util.stream.Collectors;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Base class for cluster entry points targeting executing applications in "Application Mode".
- * The lifecycle of the enrtypoint is bound to that of the specific application being executed,
- * and the {@code main()} method of the application is run on the cluster.
+ * Base class for cluster entry points targeting executing applications in "Application Mode". The
+ * lifecycle of the enrtypoint is bound to that of the specific application being executed, and the
+ * {@code main()} method of the application is run on the cluster.
  */
 public class ApplicationClusterEntryPoint extends ClusterEntrypoint {
 
-	private final PackagedProgram program;
+    private final PackagedProgram program;
 
-	private final ResourceManagerFactory<?> resourceManagerFactory;
+    private final ResourceManagerFactory<?> resourceManagerFactory;
 
-	protected ApplicationClusterEntryPoint(
-			final Configuration configuration,
-			final PackagedProgram program,
-			final ResourceManagerFactory<?> resourceManagerFactory) {
-		super(configuration);
-		this.program = checkNotNull(program);
-		this.resourceManagerFactory = checkNotNull(resourceManagerFactory);
-	}
+    protected ApplicationClusterEntryPoint(
+            final Configuration configuration,
+            final PackagedProgram program,
+            final ResourceManagerFactory<?> resourceManagerFactory) {
+        super(configuration);
+        this.program = checkNotNull(program);
+        this.resourceManagerFactory = checkNotNull(resourceManagerFactory);
+    }
 
-	@Override
-	protected DispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(final Configuration configuration) {
-		return new DefaultDispatcherResourceManagerComponentFactory(
-				new DefaultDispatcherRunnerFactory(
-						ApplicationDispatcherLeaderProcessFactoryFactory
-								.create(configuration, SessionDispatcherFactory.INSTANCE, program)),
-				resourceManagerFactory,
-				JobRestEndpointFactory.INSTANCE);
-	}
+    @Override
+    protected DispatcherResourceManagerComponentFactory
+            createDispatcherResourceManagerComponentFactory(final Configuration configuration) {
+        return new DefaultDispatcherResourceManagerComponentFactory(
+                new DefaultDispatcherRunnerFactory(
+                        ApplicationDispatcherLeaderProcessFactoryFactory.create(
+                                configuration, SessionDispatcherFactory.INSTANCE, program)),
+                resourceManagerFactory,
+                JobRestEndpointFactory.INSTANCE);
+    }
 
-	@Override
-	protected ArchivedExecutionGraphStore createSerializableExecutionGraphStore(
-			final Configuration configuration,
-			final ScheduledExecutor scheduledExecutor) {
-		return new MemoryArchivedExecutionGraphStore();
-	}
+    @Override
+    protected ArchivedExecutionGraphStore createSerializableExecutionGraphStore(
+            final Configuration configuration, final ScheduledExecutor scheduledExecutor) {
+        return new MemoryArchivedExecutionGraphStore();
+    }
 
-	protected static void configureExecution(final Configuration configuration, final PackagedProgram program) throws MalformedURLException, IllegalAccessException, NoSuchFieldException, CliArgsException {
-		configuration.set(DeploymentOptions.TARGET, EmbeddedExecutor.NAME);
-		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.JARS, program.getJobJarAndDependencies(), URL::toString);
-		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.CLASSPATHS, getClasspath(configuration, program), URL::toString);
+    protected static void configureExecution(
+            final Configuration configuration, final PackagedProgram program)
+            throws MalformedURLException, IllegalAccessException, NoSuchFieldException,
+                    CliArgsException {
+        configuration.set(DeploymentOptions.TARGET, EmbeddedExecutor.NAME);
+        ConfigUtils.encodeCollectionToConfig(
+                configuration,
+                PipelineOptions.JARS,
+                program.getJobJarAndDependencies(),
+                URL::toString);
+        ConfigUtils.encodeCollectionToConfig(
+                configuration,
+                PipelineOptions.CLASSPATHS,
+                getClasspath(configuration, program),
+                URL::toString);
 
-		// If it is a PyFlink Application, we need to extract Python dependencies from the program arguments, and
-		// configure to execution configurations.
-		if (PackagedProgramUtils.isPython(program.getMainClassName())){
-			ProgramOptionsUtils.configurePythonExecution(configuration, program);
-		}
-	}
+        // If it is a PyFlink Application, we need to extract Python dependencies from the program
+        // arguments, and
+        // configure to execution configurations.
+        if (PackagedProgramUtils.isPython(program.getMainClassName())) {
+            ProgramOptionsUtils.configurePythonExecution(configuration, program);
+        }
+    }
 
-	private static List<URL> getClasspath(final Configuration configuration, final PackagedProgram program) throws MalformedURLException {
-		final List<URL> classpath = ConfigUtils.decodeListFromConfig(
-			configuration,
-			PipelineOptions.CLASSPATHS,
-			URL::new);
-		classpath.addAll(program.getClasspaths());
-		return Collections.unmodifiableList(classpath.stream().distinct().collect(Collectors.toList()));
-	}
+    private static List<URL> getClasspath(
+            final Configuration configuration, final PackagedProgram program)
+            throws MalformedURLException {
+        final List<URL> classpath =
+                ConfigUtils.decodeListFromConfig(
+                        configuration, PipelineOptions.CLASSPATHS, URL::new);
+        classpath.addAll(program.getClasspaths());
+        return Collections.unmodifiableList(
+                classpath.stream().distinct().collect(Collectors.toList()));
+    }
 }

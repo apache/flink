@@ -36,27 +36,24 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for the WebMonitorUtils.
- */
+/** Tests for the WebMonitorUtils. */
 public class WebMonitorUtilsTest extends TestLogger {
 
-	/**
-	 * Tests dynamically loading of handlers such as {@link JarUploadHandler}.
-	 */
-	@Test
-	public void testLoadWebSubmissionExtension() throws Exception {
-		final Configuration configuration = new Configuration();
-		configuration.setString(JobManagerOptions.ADDRESS, "localhost");
-		final WebMonitorExtension webMonitorExtension = WebMonitorUtils.loadWebSubmissionExtension(
-			CompletableFuture::new,
-			Time.seconds(10),
-			Collections.emptyMap(),
-			CompletableFuture.completedFuture("localhost:12345"),
-			Paths.get("/tmp"),
-			Executors.directExecutor(),
-			configuration);
+    /** Tests dynamically loading of handlers such as {@link JarUploadHandler}. */
+    @Test
+    public void testLoadWebSubmissionExtension() throws Exception {
+        final Configuration configuration = new Configuration();
+        configuration.setString(JobManagerOptions.ADDRESS, "localhost");
+        final WebMonitorExtension webMonitorExtension =
+                WebMonitorUtils.loadWebSubmissionExtension(
+                        CompletableFuture::new,
+                        Time.seconds(10),
+                        Collections.emptyMap(),
+                        CompletableFuture.completedFuture("localhost:12345"),
+                        Paths.get("/tmp"),
+                        Executors.directExecutor(),
+                        configuration);
 
-		assertThat(webMonitorExtension, is(not(nullValue())));
-	}
+        assertThat(webMonitorExtension, is(not(nullValue())));
+    }
 }

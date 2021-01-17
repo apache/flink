@@ -23,21 +23,19 @@ import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.types.logical.ArrayType;
 
-/**
- * Converter for {@link ArrayType} of {@code int[]} external type.
- */
+/** Converter for {@link ArrayType} of {@code int[]} external type. */
 @Internal
 public class ArrayIntArrayConverter implements DataStructureConverter<ArrayData, int[]> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public ArrayData toInternal(int[] external) {
-		return new GenericArrayData(external);
-	}
+    @Override
+    public ArrayData toInternal(int[] external) {
+        return new GenericArrayData(external);
+    }
 
-	@Override
-	public int[] toExternal(ArrayData internal) {
-		return internal.toIntArray();
-	}
+    @Override
+    public int[] toExternal(ArrayData internal) {
+        return internal.toIntArray();
+    }
 }

@@ -47,54 +47,61 @@ import java.io.IOException;
 @Internal
 public class SavepointOutputFormat extends RichOutputFormat<CheckpointMetadata> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(SavepointOutputFormat.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SavepointOutputFormat.class);
 
-	private final Path savepointPath;
+    private final Path savepointPath;
 
-	private transient CheckpointStorageLocation targetLocation;
+    private transient CheckpointStorageLocation targetLocation;
 
-	public SavepointOutputFormat(Path savepointPath) {
-		this.savepointPath = savepointPath;
-	}
+    public SavepointOutputFormat(Path savepointPath) {
+        this.savepointPath = savepointPath;
+    }
 
-	@Override
-	public void configure(Configuration parameters) {}
+    @Override
+    public void configure(Configuration parameters) {}
 
-	@Override
-	public void open(int taskNumber, int numTasks) throws IOException {
-		Preconditions.checkState(numTasks == 1, "SavepointOutputFormat should only be executed with parallelism 1");
+    @Override
+    public void open(int taskNumber, int numTasks) throws IOException {
+        Preconditions.checkState(
+                numTasks == 1, "SavepointOutputFormat should only be executed with parallelism 1");
 
-		targetLocation = createSavepointLocation(savepointPath);
-	}
+        targetLocation = createSavepointLocation(savepointPath);
+    }
 
-	@Override
-	public void writeRecord(CheckpointMetadata metadata) throws IOException {
-		String path = LambdaUtil.withContextClassLoader(getRuntimeContext().getUserCodeClassLoader(), () -> {
-				try (CheckpointMetadataOutputStream out = targetLocation.createMetadataOutputStream()) {
-					Checkpoints.storeCheckpointMetadata(metadata, out);
-					CompletedCheckpointStorageLocation finalizedLocation = out.closeAndFinalizeCheckpoint();
-					return finalizedLocation.getExternalPointer();
-				}
-		});
+    @Override
+    public void writeRecord(CheckpointMetadata metadata) throws IOException {
+        String path =
+                LambdaUtil.withContextClassLoader(
+                        getRuntimeContext().getUserCodeClassLoader(),
+                        () -> {
+                            try (CheckpointMetadataOutputStream out =
+                                    targetLocation.createMetadataOutputStream()) {
+                                Checkpoints.storeCheckpointMetadata(metadata, out);
+                                CompletedCheckpointStorageLocation finalizedLocation =
+                                        out.closeAndFinalizeCheckpoint();
+                                return finalizedLocation.getExternalPointer();
+                            }
+                        });
 
-		LOG.info("Savepoint written to " + path);
-	}
+        LOG.info("Savepoint written to " + path);
+    }
 
-	@Override
-	public void close() {}
+    @Override
+    public void close() {}
 
-	private static CheckpointStorageLocation createSavepointLocation(Path location) throws IOException {
-		final CheckpointStorageLocationReference reference = AbstractFsCheckpointStorageAccess.encodePathAsReference(location);
-		return new FsCheckpointStorageLocation(
-			location.getFileSystem(),
-			location,
-			location,
-			location,
-			reference,
-			(int) CheckpointingOptions.FS_SMALL_FILE_THRESHOLD.defaultValue().getBytes(),
-			CheckpointingOptions.FS_WRITE_BUFFER_SIZE.defaultValue());
-	}
+    private static CheckpointStorageLocation createSavepointLocation(Path location)
+            throws IOException {
+        final CheckpointStorageLocationReference reference =
+                AbstractFsCheckpointStorageAccess.encodePathAsReference(location);
+        return new FsCheckpointStorageLocation(
+                location.getFileSystem(),
+                location,
+                location,
+                location,
+                reference,
+                (int) CheckpointingOptions.FS_SMALL_FILE_THRESHOLD.defaultValue().getBytes(),
+                CheckpointingOptions.FS_WRITE_BUFFER_SIZE.defaultValue());
+    }
 }
-

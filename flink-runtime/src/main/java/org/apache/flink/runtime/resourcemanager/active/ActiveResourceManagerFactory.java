@@ -19,7 +19,10 @@
 package org.apache.flink.runtime.resourcemanager.active;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.metrics.ThresholdMeter;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
@@ -37,79 +40,102 @@ import org.apache.flink.runtime.rpc.RpcService;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.concurrent.Executor;
 
 /**
- * Factory class for creating {@link ActiveResourceManager} with various implementations of {@link ResourceManagerDriver}.
+ * Factory class for creating {@link ActiveResourceManager} with various implementations of {@link
+ * ResourceManagerDriver}.
  */
 public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceIDRetrievable>
-		extends ResourceManagerFactory<WorkerType> {
+        extends ResourceManagerFactory<WorkerType> {
 
-	@Override
-	public ResourceManager<WorkerType> createResourceManager(
-			Configuration configuration,
-			ResourceID resourceId,
-			RpcService rpcService,
-			HighAvailabilityServices highAvailabilityServices,
-			HeartbeatServices heartbeatServices,
-			FatalErrorHandler fatalErrorHandler,
-			ClusterInformation clusterInformation,
-			@Nullable String webInterfaceUrl,
-			MetricRegistry metricRegistry,
-			String hostname,
-			Executor ioExecutor) throws Exception {
-		return super.createResourceManager(
-				createActiveResourceManagerConfiguration(configuration),
-				resourceId,
-				rpcService,
-				highAvailabilityServices,
-				heartbeatServices,
-				fatalErrorHandler,
-				clusterInformation,
-				webInterfaceUrl,
-				metricRegistry,
-				hostname,
-				ioExecutor);
-	}
+    @Override
+    public ResourceManager<WorkerType> createResourceManager(
+            Configuration configuration,
+            ResourceID resourceId,
+            RpcService rpcService,
+            HighAvailabilityServices highAvailabilityServices,
+            HeartbeatServices heartbeatServices,
+            FatalErrorHandler fatalErrorHandler,
+            ClusterInformation clusterInformation,
+            @Nullable String webInterfaceUrl,
+            MetricRegistry metricRegistry,
+            String hostname,
+            Executor ioExecutor)
+            throws Exception {
+        return super.createResourceManager(
+                createActiveResourceManagerConfiguration(configuration),
+                resourceId,
+                rpcService,
+                highAvailabilityServices,
+                heartbeatServices,
+                fatalErrorHandler,
+                clusterInformation,
+                webInterfaceUrl,
+                metricRegistry,
+                hostname,
+                ioExecutor);
+    }
 
-	private Configuration createActiveResourceManagerConfiguration(Configuration originalConfiguration) {
-		final Configuration copiedConfig = new Configuration(originalConfiguration);
-		// In active mode, it depends on the ResourceManager to set the ResourceID of TaskManagers.
-		copiedConfig.removeConfig(TaskManagerOptions.TASK_MANAGER_RESOURCE_ID);
-		return TaskExecutorProcessUtils.getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
-				copiedConfig, TaskManagerOptions.TOTAL_PROCESS_MEMORY);
-	}
+    private Configuration createActiveResourceManagerConfiguration(
+            Configuration originalConfiguration) {
+        final Configuration copiedConfig = new Configuration(originalConfiguration);
+        // In active mode, it depends on the ResourceManager to set the ResourceID of TaskManagers.
+        copiedConfig.removeConfig(TaskManagerOptions.TASK_MANAGER_RESOURCE_ID);
+        return TaskExecutorProcessUtils.getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
+                copiedConfig, TaskManagerOptions.TOTAL_PROCESS_MEMORY);
+    }
 
-	@Override
-	public ResourceManager<WorkerType> createResourceManager(
-			Configuration configuration,
-			ResourceID resourceId,
-			RpcService rpcService,
-			HighAvailabilityServices highAvailabilityServices,
-			HeartbeatServices heartbeatServices,
-			FatalErrorHandler fatalErrorHandler,
-			ClusterInformation clusterInformation,
-			@Nullable String webInterfaceUrl,
-			ResourceManagerMetricGroup resourceManagerMetricGroup,
-			ResourceManagerRuntimeServices resourceManagerRuntimeServices,
-			Executor ioExecutor) throws Exception {
+    @Override
+    public ResourceManager<WorkerType> createResourceManager(
+            Configuration configuration,
+            ResourceID resourceId,
+            RpcService rpcService,
+            HighAvailabilityServices highAvailabilityServices,
+            HeartbeatServices heartbeatServices,
+            FatalErrorHandler fatalErrorHandler,
+            ClusterInformation clusterInformation,
+            @Nullable String webInterfaceUrl,
+            ResourceManagerMetricGroup resourceManagerMetricGroup,
+            ResourceManagerRuntimeServices resourceManagerRuntimeServices,
+            Executor ioExecutor)
+            throws Exception {
 
-		return new ActiveResourceManager<>(
-				createResourceManagerDriver(configuration, webInterfaceUrl, rpcService.getAddress()),
-				configuration,
-				rpcService,
-				resourceId,
-				highAvailabilityServices,
-				heartbeatServices,
-				resourceManagerRuntimeServices.getSlotManager(),
-				ResourceManagerPartitionTrackerImpl::new,
-				resourceManagerRuntimeServices.getJobLeaderIdService(),
-				clusterInformation,
-				fatalErrorHandler,
-				resourceManagerMetricGroup,
-				ioExecutor);
-	}
+        final ThresholdMeter failureRater = createStartWorkerFailureRater(configuration);
+        final Duration retryInterval =
+                configuration.get(ResourceManagerOptions.START_WORKER_RETRY_INTERVAL);
+        return new ActiveResourceManager<>(
+                createResourceManagerDriver(
+                        configuration, webInterfaceUrl, rpcService.getAddress()),
+                configuration,
+                rpcService,
+                resourceId,
+                highAvailabilityServices,
+                heartbeatServices,
+                resourceManagerRuntimeServices.getSlotManager(),
+                ResourceManagerPartitionTrackerImpl::new,
+                resourceManagerRuntimeServices.getJobLeaderIdService(),
+                clusterInformation,
+                fatalErrorHandler,
+                resourceManagerMetricGroup,
+                failureRater,
+                retryInterval,
+                ioExecutor);
+    }
 
-	protected abstract ResourceManagerDriver<WorkerType> createResourceManagerDriver(
-			Configuration configuration, @Nullable String webInterfaceUrl, String rpcAddress) throws Exception;
+    protected abstract ResourceManagerDriver<WorkerType> createResourceManagerDriver(
+            Configuration configuration, @Nullable String webInterfaceUrl, String rpcAddress)
+            throws Exception;
+
+    public static ThresholdMeter createStartWorkerFailureRater(Configuration configuration) {
+        double rate = configuration.getDouble(ResourceManagerOptions.START_WORKER_MAX_FAILURE_RATE);
+        if (rate <= 0) {
+            throw new IllegalConfigurationException(
+                    String.format(
+                            "Configured max start worker failure rate ('%s') must be larger than 0. Current: %f",
+                            ResourceManagerOptions.START_WORKER_MAX_FAILURE_RATE.key(), rate));
+        }
+        return new ThresholdMeter(rate, Duration.ofMinutes(1));
+    }
 }

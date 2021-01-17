@@ -31,55 +31,61 @@ import org.junit.runners.Parameterized;
 
 import java.util.List;
 
-/**
- * Tests for {@link CommunityDetection}.
- */
+/** Tests for {@link CommunityDetection}. */
 @RunWith(Parameterized.class)
 public class CommunityDetectionITCase extends MultipleProgramsTestBase {
 
-	public CommunityDetectionITCase(TestExecutionMode mode) {
-		super(mode);
-	}
+    public CommunityDetectionITCase(TestExecutionMode mode) {
+        super(mode);
+    }
 
-	private String expected;
+    private String expected;
 
-	@Test
-	public void testSingleIteration() throws Exception {
-		/*
-		 * Test one iteration of the Simple Community Detection Example
-		 */
+    @Test
+    public void testSingleIteration() throws Exception {
+        /*
+         * Test one iteration of the Simple Community Detection Example
+         */
 
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		Graph<Long, Long, Double> inputGraph = Graph.fromDataSet(
-			CommunityDetectionData.getSimpleEdgeDataSet(env), new InitLabels(), env);
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        Graph<Long, Long, Double> inputGraph =
+                Graph.fromDataSet(
+                        CommunityDetectionData.getSimpleEdgeDataSet(env), new InitLabels(), env);
 
-		List<Vertex<Long, Long>> result = inputGraph.run(new CommunityDetection<>(1, CommunityDetectionData.DELTA))
-			.getVertices().collect();
+        List<Vertex<Long, Long>> result =
+                inputGraph
+                        .run(new CommunityDetection<>(1, CommunityDetectionData.DELTA))
+                        .getVertices()
+                        .collect();
 
-		expected = CommunityDetectionData.COMMUNITIES_SINGLE_ITERATION;
-		compareResultAsTuples(result, expected);
-	}
+        expected = CommunityDetectionData.COMMUNITIES_SINGLE_ITERATION;
+        compareResultAsTuples(result, expected);
+    }
 
-	@Test
-	public void testTieBreaker() throws Exception {
-		/*
-		 * Test one iteration of the Simple Community Detection Example where a tie must be broken
-		 */
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		Graph<Long, Long, Double> inputGraph = Graph.fromDataSet(
-			CommunityDetectionData.getTieEdgeDataSet(env), new InitLabels(), env);
+    @Test
+    public void testTieBreaker() throws Exception {
+        /*
+         * Test one iteration of the Simple Community Detection Example where a tie must be broken
+         */
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        Graph<Long, Long, Double> inputGraph =
+                Graph.fromDataSet(
+                        CommunityDetectionData.getTieEdgeDataSet(env), new InitLabels(), env);
 
-		List<Vertex<Long, Long>> result = inputGraph.run(new CommunityDetection<>(1, CommunityDetectionData.DELTA))
-			.getVertices().collect();
-		expected = CommunityDetectionData.COMMUNITIES_WITH_TIE;
-		compareResultAsTuples(result, expected);
-	}
+        List<Vertex<Long, Long>> result =
+                inputGraph
+                        .run(new CommunityDetection<>(1, CommunityDetectionData.DELTA))
+                        .getVertices()
+                        .collect();
+        expected = CommunityDetectionData.COMMUNITIES_WITH_TIE;
+        compareResultAsTuples(result, expected);
+    }
 
-	@SuppressWarnings("serial")
-	private static final class InitLabels implements MapFunction<Long, Long> {
+    @SuppressWarnings("serial")
+    private static final class InitLabels implements MapFunction<Long, Long> {
 
-		public Long map(Long id) {
-			return id;
-		}
-	}
+        public Long map(Long id) {
+            return id;
+        }
+    }
 }

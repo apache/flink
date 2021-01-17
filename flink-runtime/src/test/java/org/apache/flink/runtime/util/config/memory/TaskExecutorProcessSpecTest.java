@@ -29,61 +29,63 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link TaskExecutorProcessSpec}.
- */
+/** Tests for {@link TaskExecutorProcessSpec}. */
 public class TaskExecutorProcessSpecTest extends TestLogger {
-	@Test
-	public void testEquals() {
-		TaskExecutorProcessSpec spec1 = new TaskExecutorProcessSpec(
-			new CPUResource(1.0),
-			MemorySize.parse("1m"),
-			MemorySize.parse("2m"),
-			MemorySize.parse("3m"),
-			MemorySize.parse("4m"),
-			MemorySize.parse("5m"),
-			MemorySize.parse("6m"),
-			MemorySize.parse("7m"),
-			MemorySize.parse("8m"));
+    @Test
+    public void testEquals() {
+        TaskExecutorProcessSpec spec1 =
+                new TaskExecutorProcessSpec(
+                        new CPUResource(1.0),
+                        MemorySize.parse("1m"),
+                        MemorySize.parse("2m"),
+                        MemorySize.parse("3m"),
+                        MemorySize.parse("4m"),
+                        MemorySize.parse("5m"),
+                        MemorySize.parse("6m"),
+                        MemorySize.parse("7m"),
+                        MemorySize.parse("8m"));
 
-		TaskExecutorProcessSpec spec2 = new TaskExecutorProcessSpec(
-			new CPUResource(1.0),
-			MemorySize.parse("1m"),
-			MemorySize.parse("2m"),
-			MemorySize.parse("3m"),
-			MemorySize.parse("4m"),
-			MemorySize.parse("5m"),
-			MemorySize.parse("6m"),
-			MemorySize.parse("7m"),
-			MemorySize.parse("8m"));
+        TaskExecutorProcessSpec spec2 =
+                new TaskExecutorProcessSpec(
+                        new CPUResource(1.0),
+                        MemorySize.parse("1m"),
+                        MemorySize.parse("2m"),
+                        MemorySize.parse("3m"),
+                        MemorySize.parse("4m"),
+                        MemorySize.parse("5m"),
+                        MemorySize.parse("6m"),
+                        MemorySize.parse("7m"),
+                        MemorySize.parse("8m"));
 
-		assertThat(spec1, is(spec2));
-	}
+        assertThat(spec1, is(spec2));
+    }
 
-	@Test
-	public void testNotEquals() {
-		TaskExecutorProcessSpec spec1 = new TaskExecutorProcessSpec(
-				new CPUResource(1.0),
-				MemorySize.parse("1m"),
-				MemorySize.parse("2m"),
-				MemorySize.parse("3m"),
-				MemorySize.parse("4m"),
-				MemorySize.parse("5m"),
-				MemorySize.parse("6m"),
-				MemorySize.parse("7m"),
-				MemorySize.parse("8m"));
+    @Test
+    public void testNotEquals() {
+        TaskExecutorProcessSpec spec1 =
+                new TaskExecutorProcessSpec(
+                        new CPUResource(1.0),
+                        MemorySize.parse("1m"),
+                        MemorySize.parse("2m"),
+                        MemorySize.parse("3m"),
+                        MemorySize.parse("4m"),
+                        MemorySize.parse("5m"),
+                        MemorySize.parse("6m"),
+                        MemorySize.parse("7m"),
+                        MemorySize.parse("8m"));
 
-		TaskExecutorProcessSpec spec2 = new TaskExecutorProcessSpec(
-				new CPUResource(0.0),
-				MemorySize.ZERO,
-				MemorySize.ZERO,
-				MemorySize.ZERO,
-				MemorySize.ZERO,
-				MemorySize.ZERO,
-				MemorySize.ZERO,
-				MemorySize.ZERO,
-				MemorySize.ZERO);
+        TaskExecutorProcessSpec spec2 =
+                new TaskExecutorProcessSpec(
+                        new CPUResource(0.0),
+                        MemorySize.ZERO,
+                        MemorySize.ZERO,
+                        MemorySize.ZERO,
+                        MemorySize.ZERO,
+                        MemorySize.ZERO,
+                        MemorySize.ZERO,
+                        MemorySize.ZERO,
+                        MemorySize.ZERO);
 
-		assertThat(spec1, not(spec2));
-	}
+        assertThat(spec1, not(spec2));
+    }
 }

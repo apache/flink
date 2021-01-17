@@ -36,65 +36,70 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 /**
- * Tests that the {@link JobVertex#finalizeOnMaster(ClassLoader)} is called properly and
- * only when the execution graph reaches the a successful final state.
+ * Tests that the {@link JobVertex#finalizeOnMaster(ClassLoader)} is called properly and only when
+ * the execution graph reaches the a successful final state.
  */
 public class FinalizeOnMasterTest extends TestLogger {
 
-	@Test
-	public void testFinalizeIsCalledUponSuccess() throws Exception {
-		final JobVertex vertex1 = spy(new JobVertex("test vertex 1"));
-		vertex1.setInvokableClass(NoOpInvokable.class);
-		vertex1.setParallelism(3);
+    @Test
+    public void testFinalizeIsCalledUponSuccess() throws Exception {
+        final JobVertex vertex1 = spy(new JobVertex("test vertex 1"));
+        vertex1.setInvokableClass(NoOpInvokable.class);
+        vertex1.setParallelism(3);
 
-		final JobVertex vertex2 = spy(new JobVertex("test vertex 2"));
-		vertex2.setInvokableClass(NoOpInvokable.class);
-		vertex2.setParallelism(2);
+        final JobVertex vertex2 = spy(new JobVertex("test vertex 2"));
+        vertex2.setInvokableClass(NoOpInvokable.class);
+        vertex2.setParallelism(2);
 
-		final SchedulerBase scheduler = createScheduler(new JobGraph("Test Job", vertex1, vertex2));
-		scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
-		scheduler.startScheduling();
+        final SchedulerBase scheduler =
+                createScheduler(
+                        new JobGraph("Test Job", vertex1, vertex2),
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread());
+        scheduler.startScheduling();
 
-		final ExecutionGraph eg = scheduler.getExecutionGraph();
+        final ExecutionGraph eg = scheduler.getExecutionGraph();
 
-		assertEquals(JobStatus.RUNNING, eg.getState());
+        assertEquals(JobStatus.RUNNING, eg.getState());
 
-		ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
+        ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
 
-		// move all vertices to finished state
-		ExecutionGraphTestUtils.finishAllVertices(eg);
-		assertEquals(JobStatus.FINISHED, eg.waitUntilTerminal());
+        // move all vertices to finished state
+        ExecutionGraphTestUtils.finishAllVertices(eg);
+        assertEquals(JobStatus.FINISHED, eg.waitUntilTerminal());
 
-		verify(vertex1, times(1)).finalizeOnMaster(any(ClassLoader.class));
-		verify(vertex2, times(1)).finalizeOnMaster(any(ClassLoader.class));
+        verify(vertex1, times(1)).finalizeOnMaster(any(ClassLoader.class));
+        verify(vertex2, times(1)).finalizeOnMaster(any(ClassLoader.class));
 
-		assertEquals(0, eg.getRegisteredExecutions().size());
-	}
+        assertEquals(0, eg.getRegisteredExecutions().size());
+    }
 
-	@Test
-	public void testFinalizeIsNotCalledUponFailure() throws Exception {
-		final JobVertex vertex = spy(new JobVertex("test vertex 1"));
-		vertex.setInvokableClass(NoOpInvokable.class);
-		vertex.setParallelism(1);
+    @Test
+    public void testFinalizeIsNotCalledUponFailure() throws Exception {
+        final JobVertex vertex = spy(new JobVertex("test vertex 1"));
+        vertex.setInvokableClass(NoOpInvokable.class);
+        vertex.setParallelism(1);
 
-		final SchedulerBase scheduler = createScheduler(new JobGraph("Test Job", vertex));
-		scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
-		scheduler.startScheduling();
+        final SchedulerBase scheduler =
+                createScheduler(
+                        new JobGraph("Test Job", vertex),
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread());
+        scheduler.startScheduling();
 
-		final ExecutionGraph eg = scheduler.getExecutionGraph();
+        final ExecutionGraph eg = scheduler.getExecutionGraph();
 
-		assertEquals(JobStatus.RUNNING, eg.getState());
+        assertEquals(JobStatus.RUNNING, eg.getState());
 
-		ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
+        ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
 
-		// fail the execution
-		final Execution exec = eg.getJobVertex(vertex.getID()).getTaskVertices()[0].getCurrentExecutionAttempt();
-		exec.fail(new Exception("test"));
+        // fail the execution
+        final Execution exec =
+                eg.getJobVertex(vertex.getID()).getTaskVertices()[0].getCurrentExecutionAttempt();
+        exec.fail(new Exception("test"));
 
-		assertEquals(JobStatus.FAILED, eg.waitUntilTerminal());
+        assertEquals(JobStatus.FAILED, eg.waitUntilTerminal());
 
-		verify(vertex, times(0)).finalizeOnMaster(any(ClassLoader.class));
+        verify(vertex, times(0)).finalizeOnMaster(any(ClassLoader.class));
 
-		assertEquals(0, eg.getRegisteredExecutions().size());
-	}
+        assertEquals(0, eg.getRegisteredExecutions().size());
+    }
 }

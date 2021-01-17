@@ -26,52 +26,58 @@ import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
 import org.apache.flink.table.planner.typeutils.DataViewUtils;
 import org.apache.flink.table.types.logical.RowType;
 
-/**
- * The Python AggregateFunction operator for the blink planner.
- */
+/** The Python AggregateFunction operator for the blink planner. */
 @Internal
 public class PythonStreamGroupAggregateOperator extends AbstractPythonStreamAggregateOperator {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@VisibleForTesting
-	protected static final String STREAM_GROUP_AGGREGATE_URN = "flink:transform:stream_group_aggregate:v1";
+    @VisibleForTesting
+    protected static final String STREAM_GROUP_AGGREGATE_URN =
+            "flink:transform:stream_group_aggregate:v1";
 
-	/**
-	 * True if the count(*) agg is inserted by the planner.
-	 */
-	private final boolean countStarInserted;
+    /** True if the count(*) agg is inserted by the planner. */
+    private final boolean countStarInserted;
 
-	public PythonStreamGroupAggregateOperator(
-		Configuration config,
-		RowType inputType,
-		RowType outputType,
-		PythonAggregateFunctionInfo[] aggregateFunctions,
-		DataViewUtils.DataViewSpec[][] dataViewSpecs,
-		int[] grouping,
-		int indexOfCountStar,
-		boolean countStarInserted,
-		boolean generateUpdateBefore,
-		long minRetentionTime,
-		long maxRetentionTime) {
-		super(config, inputType, outputType, aggregateFunctions, dataViewSpecs, grouping,
-			indexOfCountStar, generateUpdateBefore, minRetentionTime, maxRetentionTime);
-		this.countStarInserted = countStarInserted;
-	}
+    public PythonStreamGroupAggregateOperator(
+            Configuration config,
+            RowType inputType,
+            RowType outputType,
+            PythonAggregateFunctionInfo[] aggregateFunctions,
+            DataViewUtils.DataViewSpec[][] dataViewSpecs,
+            int[] grouping,
+            int indexOfCountStar,
+            boolean countStarInserted,
+            boolean generateUpdateBefore,
+            long minRetentionTime,
+            long maxRetentionTime) {
+        super(
+                config,
+                inputType,
+                outputType,
+                aggregateFunctions,
+                dataViewSpecs,
+                grouping,
+                indexOfCountStar,
+                generateUpdateBefore,
+                minRetentionTime,
+                maxRetentionTime);
+        this.countStarInserted = countStarInserted;
+    }
 
-	/**
-	 * Gets the proto representation of the Python user-defined aggregate functions to be executed.
-	 */
-	@Override
-	public FlinkFnApi.UserDefinedAggregateFunctions getUserDefinedFunctionsProto() {
-		FlinkFnApi.UserDefinedAggregateFunctions.Builder builder =
-			super.getUserDefinedFunctionsProto().toBuilder();
-		builder.setCountStarInserted(countStarInserted);
-		return builder.build();
-	}
+    /**
+     * Gets the proto representation of the Python user-defined aggregate functions to be executed.
+     */
+    @Override
+    public FlinkFnApi.UserDefinedAggregateFunctions getUserDefinedFunctionsProto() {
+        FlinkFnApi.UserDefinedAggregateFunctions.Builder builder =
+                super.getUserDefinedFunctionsProto().toBuilder();
+        builder.setCountStarInserted(countStarInserted);
+        return builder.build();
+    }
 
-	@Override
-	public String getFunctionUrn() {
-		return STREAM_GROUP_AGGREGATE_URN;
-	}
+    @Override
+    public String getFunctionUrn() {
+        return STREAM_GROUP_AGGREGATE_URN;
+    }
 }

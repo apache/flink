@@ -26,102 +26,113 @@ import org.junit.Test;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 
-/**
- * Plan tests for HBase connector, for example, testing projection push down.
- */
+/** Plan tests for HBase connector, for example, testing projection push down. */
 public class HBaseTablePlanTest extends TableTestBase {
 
-	private final StreamTableTestUtil util = streamTestUtil(new TableConfig());
+    private final StreamTableTestUtil util = streamTestUtil(new TableConfig());
 
-	@Test
-	public void testMultipleRowKey() {
-		util.tableEnv().executeSql(
-			"CREATE TABLE hTable (" +
-				" family1 ROW<col1 INT>," +
-				" family2 ROW<col1 STRING, col2 BIGINT>," +
-				" rowkey INT," +
-				" rowkey2 STRING " +
-				") WITH (" +
-				" 'connector' = 'hbase-2.2'," +
-				" 'table-name' = 'my_table'," +
-				" 'zookeeper.quorum' = 'localhost:2021'" +
-				")");
-		thrown().expect(containsCause(new IllegalArgumentException("Row key can't be set multiple times.")));
-		util.verifyExecPlan("SELECT * FROM hTable");
-	}
+    @Test
+    public void testMultipleRowKey() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE hTable ("
+                                + " family1 ROW<col1 INT>,"
+                                + " family2 ROW<col1 STRING, col2 BIGINT>,"
+                                + " rowkey INT,"
+                                + " rowkey2 STRING "
+                                + ") WITH ("
+                                + " 'connector' = 'hbase-2.2',"
+                                + " 'table-name' = 'my_table',"
+                                + " 'zookeeper.quorum' = 'localhost:2021'"
+                                + ")");
+        thrown().expect(
+                        containsCause(
+                                new IllegalArgumentException(
+                                        "Row key can't be set multiple times.")));
+        util.verifyExecPlan("SELECT * FROM hTable");
+    }
 
-	@Test
-	public void testNoneRowKey() {
-		util.tableEnv().executeSql(
-			"CREATE TABLE hTable (" +
-				" family1 ROW<col1 INT>," +
-				" family2 ROW<col1 STRING, col2 BIGINT>" +
-				") WITH (" +
-				" 'connector' = 'hbase-2.2'," +
-				" 'table-name' = 'my_table'," +
-				" 'zookeeper.quorum' = 'localhost:2021'" +
-				")");
-		thrown().expect(containsCause(new IllegalArgumentException(
-			"HBase table requires to define a row key field. " +
-				"A row key field is defined as an atomic type, " +
-				"column families and qualifiers are defined as ROW type.")));
-		util.verifyExecPlan("SELECT * FROM hTable");
-	}
+    @Test
+    public void testNoneRowKey() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE hTable ("
+                                + " family1 ROW<col1 INT>,"
+                                + " family2 ROW<col1 STRING, col2 BIGINT>"
+                                + ") WITH ("
+                                + " 'connector' = 'hbase-2.2',"
+                                + " 'table-name' = 'my_table',"
+                                + " 'zookeeper.quorum' = 'localhost:2021'"
+                                + ")");
+        thrown().expect(
+                        containsCause(
+                                new IllegalArgumentException(
+                                        "HBase table requires to define a row key field. "
+                                                + "A row key field is defined as an atomic type, "
+                                                + "column families and qualifiers are defined as ROW type.")));
+        util.verifyExecPlan("SELECT * FROM hTable");
+    }
 
-	@Test
-	public void testInvalidPrimaryKey() {
-		util.tableEnv().executeSql(
-			"CREATE TABLE hTable (" +
-				" family1 ROW<col1 INT>," +
-				" family2 ROW<col1 STRING, col2 BIGINT>," +
-				" rowkey STRING, " +
-				" PRIMARY KEY (family1) NOT ENFORCED " +
-				") WITH (" +
-				" 'connector' = 'hbase-2.2'," +
-				" 'table-name' = 'my_table'," +
-				" 'zookeeper.quorum' = 'localhost:2021'" +
-				")");
-		thrown().expect(containsCause(new IllegalArgumentException(
-			"Primary key of HBase table must be defined on the row key field. " +
-				"A row key field is defined as an atomic type, " +
-				"column families and qualifiers are defined as ROW type.")));
-		util.verifyExecPlan("SELECT * FROM hTable");
-	}
+    @Test
+    public void testInvalidPrimaryKey() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE hTable ("
+                                + " family1 ROW<col1 INT>,"
+                                + " family2 ROW<col1 STRING, col2 BIGINT>,"
+                                + " rowkey STRING, "
+                                + " PRIMARY KEY (family1) NOT ENFORCED "
+                                + ") WITH ("
+                                + " 'connector' = 'hbase-2.2',"
+                                + " 'table-name' = 'my_table',"
+                                + " 'zookeeper.quorum' = 'localhost:2021'"
+                                + ")");
+        thrown().expect(
+                        containsCause(
+                                new IllegalArgumentException(
+                                        "Primary key of HBase table must be defined on the row key field. "
+                                                + "A row key field is defined as an atomic type, "
+                                                + "column families and qualifiers are defined as ROW type.")));
+        util.verifyExecPlan("SELECT * FROM hTable");
+    }
 
-	@Test
-	public void testUnsupportedDataType() {
-		util.tableEnv().executeSql(
-			"CREATE TABLE hTable (" +
-				" family1 ROW<col1 INT>," +
-				" family2 ROW<col1 STRING, col2 BIGINT>," +
-				" col1 ARRAY<STRING>, " +
-				" rowkey STRING, " +
-				" PRIMARY KEY (rowkey) NOT ENFORCED " +
-				") WITH (" +
-				" 'connector' = 'hbase-2.2'," +
-				" 'table-name' = 'my_table'," +
-				" 'zookeeper.quorum' = 'localhost:2021'" +
-				")");
-		thrown().expect(containsCause(new IllegalArgumentException(
-			"Unsupported field type 'ARRAY<STRING>' for HBase.")));
-		util.verifyExecPlan("SELECT * FROM hTable");
-	}
+    @Test
+    public void testUnsupportedDataType() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE hTable ("
+                                + " family1 ROW<col1 INT>,"
+                                + " family2 ROW<col1 STRING, col2 BIGINT>,"
+                                + " col1 ARRAY<STRING>, "
+                                + " rowkey STRING, "
+                                + " PRIMARY KEY (rowkey) NOT ENFORCED "
+                                + ") WITH ("
+                                + " 'connector' = 'hbase-2.2',"
+                                + " 'table-name' = 'my_table',"
+                                + " 'zookeeper.quorum' = 'localhost:2021'"
+                                + ")");
+        thrown().expect(
+                        containsCause(
+                                new IllegalArgumentException(
+                                        "Unsupported field type 'ARRAY<STRING>' for HBase.")));
+        util.verifyExecPlan("SELECT * FROM hTable");
+    }
 
-	@Test
-	public void testProjectionPushDown() {
-		util.tableEnv().executeSql(
-			"CREATE TABLE hTable (" +
-				" family1 ROW<col1 INT>," +
-				" family2 ROW<col1 STRING, col2 BIGINT>," +
-				" family3 ROW<col1 DOUBLE, col2 BOOLEAN, col3 STRING>," +
-				" rowkey INT," +
-				" PRIMARY KEY (rowkey) NOT ENFORCED" +
-				") WITH (" +
-				" 'connector' = 'hbase-2.2'," +
-				" 'table-name' = 'my_table'," +
-				" 'zookeeper.quorum' = 'localhost:2021'" +
-				")");
-		util.verifyExecPlan("SELECT h.family3, h.family2.col2 FROM hTable AS h");
-	}
-
+    @Test
+    public void testProjectionPushDown() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE hTable ("
+                                + " family1 ROW<col1 INT>,"
+                                + " family2 ROW<col1 STRING, col2 BIGINT>,"
+                                + " family3 ROW<col1 DOUBLE, col2 BOOLEAN, col3 STRING>,"
+                                + " rowkey INT,"
+                                + " PRIMARY KEY (rowkey) NOT ENFORCED"
+                                + ") WITH ("
+                                + " 'connector' = 'hbase-2.2',"
+                                + " 'table-name' = 'my_table',"
+                                + " 'zookeeper.quorum' = 'localhost:2021'"
+                                + ")");
+        util.verifyExecPlan("SELECT h.family3, h.family2.col2 FROM hTable AS h");
+    }
 }

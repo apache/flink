@@ -29,6 +29,7 @@ import org.apache.flink.table.planner.plan.utils.{JoinUtil, KeySelectorUtil}
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinInputSideSpec
 import org.apache.flink.table.runtime.operators.join.stream.{StreamingJoinOperator, StreamingSemiAntiJoinOperator}
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
+import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core.{Join, JoinRelType}
@@ -75,13 +76,7 @@ class StreamExecJoin(
     val input = getInput(inputOrdinal)
     val inputUniqueKeys = getCluster.getMetadataQuery.getUniqueKeys(input)
     if (inputUniqueKeys != null) {
-      val joinKeys = if (inputOrdinal == 0) {
-        // left input
-        keyPairs.map(_.source).toArray
-      } else {
-        // right input
-        keyPairs.map(_.target).toArray
-      }
+      val joinKeys = if (inputOrdinal == 0) joinSpec.getLeftKeys else joinSpec.getRightKeys
       inputUniqueKeys.exists {
         uniqueKey => joinKeys.forall(uniqueKey.toArray.contains(_))
       }
@@ -130,8 +125,13 @@ class StreamExecJoin(
     val leftType = leftTransform.getOutputType.asInstanceOf[InternalTypeInfo[RowData]]
     val rightType = rightTransform.getOutputType.asInstanceOf[InternalTypeInfo[RowData]]
 
-    val (leftJoinKey, rightJoinKey) =
-      JoinUtil.checkAndGetJoinKeys(keyPairs, getLeft, getRight, allowEmptyKey = true)
+    JoinUtil.validateJoinSpec(
+        joinSpec,
+        getInputNodes.get(0).getOutputType.asInstanceOf[RowType],
+        getInputNodes.get(1).getOutputType.asInstanceOf[RowType],
+        allowEmptyKey = true)
+    val leftJoinKey = joinSpec.getLeftKeys
+    val rightJoinKey = joinSpec.getRightKeys
 
     val leftSelect = KeySelectorUtil.getRowDataSelector(leftJoinKey, leftType)
     val rightSelect = KeySelectorUtil.getRowDataSelector(rightJoinKey, rightType)
@@ -141,8 +141,7 @@ class StreamExecJoin(
 
     val generatedCondition = JoinUtil.generateConditionFunction(
       tableConfig,
-      cluster.getRexBuilder,
-      getJoinInfo,
+      joinSpec,
       leftType.toRowType,
       rightType.toRowType)
 
@@ -156,7 +155,7 @@ class StreamExecJoin(
         generatedCondition,
         leftInputSpec,
         rightInputSpec,
-        filterNulls,
+        joinSpec.getFilterNulls,
         minRetentionTime)
     } else {
       val leftIsOuter = joinType == JoinRelType.LEFT || joinType == JoinRelType.FULL
@@ -169,7 +168,7 @@ class StreamExecJoin(
         rightInputSpec,
         leftIsOuter,
         rightIsOuter,
-        filterNulls,
+        joinSpec.getFilterNulls,
         minRetentionTime)
     }
 
@@ -198,11 +197,7 @@ class StreamExecJoin(
       JoinInputSideSpec.withoutUniqueKey()
     } else {
       val inRowType = InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(input.getRowType))
-      val joinKeys = if (input == left) {
-        keyPairs.map(_.source).toArray
-      } else {
-        keyPairs.map(_.target).toArray
-      }
+      val joinKeys = if (input == left) joinSpec.getLeftKeys else joinSpec.getRightKeys
       val uniqueKeysContainedByJoinKey = uniqueKeys
         .filter(uk => uk.toArray.forall(joinKeys.contains(_)))
         .map(_.toArray)

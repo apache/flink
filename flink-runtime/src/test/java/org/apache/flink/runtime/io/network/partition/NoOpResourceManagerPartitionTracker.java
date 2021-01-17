@@ -26,32 +26,33 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * No-op {@link ResourceManagerPartitionTracker} implementation; does not track any partition and never regards a data
- * set corrupted.
+ * No-op {@link ResourceManagerPartitionTracker} implementation; does not track any partition and
+ * never regards a data set corrupted.
  */
 public enum NoOpResourceManagerPartitionTracker implements ResourceManagerPartitionTracker {
-	INSTANCE;
+    INSTANCE;
 
-	@Override
-	public void processTaskExecutorClusterPartitionReport(ResourceID taskExecutorId, ClusterPartitionReport clusterPartitionReport) {
-	}
+    @Override
+    public void processTaskExecutorClusterPartitionReport(
+            ResourceID taskExecutorId, ClusterPartitionReport clusterPartitionReport) {}
 
-	@Override
-	public void processTaskExecutorShutdown(ResourceID taskExecutorId) {
-	}
+    @Override
+    public void processTaskExecutorShutdown(ResourceID taskExecutorId) {}
 
-	@Override
-	public CompletableFuture<Void> releaseClusterPartitions(IntermediateDataSetID dataSetId) {
-		return CompletableFuture.completedFuture(null);
-	}
+    @Override
+    public CompletableFuture<Void> releaseClusterPartitions(IntermediateDataSetID dataSetId) {
+        return CompletableFuture.completedFuture(null);
+    }
 
-	@Override
-	public Map<IntermediateDataSetID, DataSetMetaInfo> listDataSets() {
-		return Collections.emptyMap();
-	}
+    @Override
+    public Map<IntermediateDataSetID, DataSetMetaInfo> listDataSets() {
+        return Collections.emptyMap();
+    }
 
-	@SuppressWarnings("unused") // unused parameter allows usage as a ResourceManagerPartitionTrackerFactory
-	public static ResourceManagerPartitionTracker get(TaskExecutorClusterPartitionReleaser ignored) {
-		return INSTANCE;
-	}
+    @SuppressWarnings(
+            "unused") // unused parameter allows usage as a ResourceManagerPartitionTrackerFactory
+    public static ResourceManagerPartitionTracker get(
+            TaskExecutorClusterPartitionReleaser ignored) {
+        return INSTANCE;
+    }
 }

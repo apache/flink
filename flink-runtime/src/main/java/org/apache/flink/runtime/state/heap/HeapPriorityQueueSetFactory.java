@@ -29,41 +29,37 @@ import org.apache.flink.runtime.state.PriorityQueueSetFactory;
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
-/**
- * Factory for {@link HeapPriorityQueueSet}.
- */
+/** Factory for {@link HeapPriorityQueueSet}. */
 public class HeapPriorityQueueSetFactory implements PriorityQueueSetFactory {
 
-	@Nonnull
-	private final KeyGroupRange keyGroupRange;
+    @Nonnull private final KeyGroupRange keyGroupRange;
 
-	@Nonnegative
-	private final int totalKeyGroups;
+    @Nonnegative private final int totalKeyGroups;
 
-	@Nonnegative
-	private final int minimumCapacity;
+    @Nonnegative private final int minimumCapacity;
 
-	public HeapPriorityQueueSetFactory(
-		@Nonnull KeyGroupRange keyGroupRange,
-		@Nonnegative int totalKeyGroups,
-		@Nonnegative int minimumCapacity) {
+    public HeapPriorityQueueSetFactory(
+            @Nonnull KeyGroupRange keyGroupRange,
+            @Nonnegative int totalKeyGroups,
+            @Nonnegative int minimumCapacity) {
 
-		this.keyGroupRange = keyGroupRange;
-		this.totalKeyGroups = totalKeyGroups;
-		this.minimumCapacity = minimumCapacity;
-	}
+        this.keyGroupRange = keyGroupRange;
+        this.totalKeyGroups = totalKeyGroups;
+        this.minimumCapacity = minimumCapacity;
+    }
 
-	@Nonnull
-	@Override
-	public <T extends HeapPriorityQueueElement & PriorityComparable & Keyed> HeapPriorityQueueSet<T> create(
-		@Nonnull String stateName,
-		@Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
+    @Nonnull
+    @Override
+    public <T extends HeapPriorityQueueElement & PriorityComparable & Keyed>
+            HeapPriorityQueueSet<T> create(
+                    @Nonnull String stateName,
+                    @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
 
-		return new HeapPriorityQueueSet<>(
-			PriorityComparator.forPriorityComparableObjects(),
-			KeyExtractorFunction.forKeyedObjects(),
-			minimumCapacity,
-			keyGroupRange,
-			totalKeyGroups);
-	}
+        return new HeapPriorityQueueSet<>(
+                PriorityComparator.forPriorityComparableObjects(),
+                KeyExtractorFunction.forKeyedObjects(),
+                minimumCapacity,
+                keyGroupRange,
+                totalKeyGroups);
+    }
 }

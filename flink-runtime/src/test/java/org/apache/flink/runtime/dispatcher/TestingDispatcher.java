@@ -30,59 +30,54 @@ import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
-/**
- * {@link Dispatcher} implementation used for testing purposes.
- */
+/** {@link Dispatcher} implementation used for testing purposes. */
 class TestingDispatcher extends Dispatcher {
 
-	private final CompletableFuture<Void> startFuture;
+    private final CompletableFuture<Void> startFuture;
 
-	TestingDispatcher(
-			RpcService rpcService,
-			DispatcherId fencingToken,
-			Collection<JobGraph> recoveredJobs,
-			DispatcherBootstrapFactory dispatcherBootstrapFactory,
-			DispatcherServices dispatcherServices) throws Exception {
-		super(
-			rpcService,
-			fencingToken,
-			recoveredJobs,
-			dispatcherBootstrapFactory,
-			dispatcherServices);
+    TestingDispatcher(
+            RpcService rpcService,
+            DispatcherId fencingToken,
+            Collection<JobGraph> recoveredJobs,
+            DispatcherBootstrapFactory dispatcherBootstrapFactory,
+            DispatcherServices dispatcherServices)
+            throws Exception {
+        super(
+                rpcService,
+                fencingToken,
+                recoveredJobs,
+                dispatcherBootstrapFactory,
+                dispatcherServices);
 
-		this.startFuture = new CompletableFuture<>();
-	}
+        this.startFuture = new CompletableFuture<>();
+    }
 
-	@Override
-	public void onStart() throws Exception {
-		try {
-			super.onStart();
-		} catch (Exception e) {
-			startFuture.completeExceptionally(e);
-			throw e;
-		}
+    @Override
+    public void onStart() throws Exception {
+        try {
+            super.onStart();
+        } catch (Exception e) {
+            startFuture.completeExceptionally(e);
+            throw e;
+        }
 
-		startFuture.complete(null);
-	}
+        startFuture.complete(null);
+    }
 
-	void completeJobExecution(ArchivedExecutionGraph archivedExecutionGraph) {
-		runAsync(
-			() -> jobReachedGloballyTerminalState(archivedExecutionGraph));
-	}
+    void completeJobExecution(ArchivedExecutionGraph archivedExecutionGraph) {
+        runAsync(() -> jobReachedGloballyTerminalState(archivedExecutionGraph));
+    }
 
-	CompletableFuture<Void> getJobTerminationFuture(@Nonnull JobID jobId, @Nonnull Time timeout) {
-		return callAsyncWithoutFencing(
-			() -> getJobTerminationFuture(jobId),
-			timeout).thenCompose(Function.identity());
-	}
+    CompletableFuture<Void> getJobTerminationFuture(@Nonnull JobID jobId, @Nonnull Time timeout) {
+        return callAsyncWithoutFencing(() -> getJobTerminationFuture(jobId), timeout)
+                .thenCompose(Function.identity());
+    }
 
-	CompletableFuture<Integer> getNumberJobs(Time timeout) {
-		return callAsyncWithoutFencing(
-			() -> listJobs(timeout).get().size(),
-			timeout);
-	}
+    CompletableFuture<Integer> getNumberJobs(Time timeout) {
+        return callAsyncWithoutFencing(() -> listJobs(timeout).get().size(), timeout);
+    }
 
-	void waitUntilStarted() {
-		startFuture.join();
-	}
+    void waitUntilStarted() {
+        startFuture.join();
+    }
 }

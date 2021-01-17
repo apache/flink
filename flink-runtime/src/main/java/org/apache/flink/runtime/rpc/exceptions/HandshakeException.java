@@ -18,21 +18,19 @@
 
 package org.apache.flink.runtime.rpc.exceptions;
 
-/**
- * Exception which signals a handshake failure.
- */
+/** Exception which signals a handshake failure. */
 public class HandshakeException extends RpcConnectionException {
-	private static final long serialVersionUID = -8176772204831111193L;
+    private static final long serialVersionUID = -8176772204831111193L;
 
-	public HandshakeException(String message) {
-		super(message);
-	}
+    public HandshakeException(String message) {
+        super(message);
+    }
 
-	public HandshakeException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    public HandshakeException(String message, Throwable cause) {
+        super(message, cause);
+    }
 
-	public HandshakeException(Throwable cause) {
-		super(cause);
-	}
+    public HandshakeException(Throwable cause) {
+        super(cause);
+    }
 }

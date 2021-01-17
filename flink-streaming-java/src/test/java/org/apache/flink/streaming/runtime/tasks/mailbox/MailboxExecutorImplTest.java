@@ -42,155 +42,162 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link MailboxExecutorImpl}.
- */
+/** Tests for {@link MailboxExecutorImpl}. */
 public class MailboxExecutorImplTest {
 
-	public static final int DEFAULT_PRIORITY = 0;
-	private MailboxExecutor mailboxExecutor;
-	private ExecutorService otherThreadExecutor;
-	private TaskMailboxImpl mailbox;
-	private MailboxProcessor mailboxProcessor;
+    public static final int DEFAULT_PRIORITY = 0;
+    private MailboxExecutor mailboxExecutor;
+    private ExecutorService otherThreadExecutor;
+    private TaskMailboxImpl mailbox;
+    private MailboxProcessor mailboxProcessor;
 
-	@Rule
-	public ExpectedException expectedException = ExpectedException.none();
+    @Rule public ExpectedException expectedException = ExpectedException.none();
 
-	@Before
-	public void setUp() throws Exception {
-		this.mailbox = new TaskMailboxImpl();
-		this.mailboxExecutor = new MailboxExecutorImpl(mailbox, DEFAULT_PRIORITY, StreamTaskActionExecutor.IMMEDIATE);
-		this.otherThreadExecutor = Executors.newSingleThreadScheduledExecutor();
-		this.mailboxProcessor = new MailboxProcessor(c -> { }, mailbox, StreamTaskActionExecutor.IMMEDIATE);
-	}
+    @Before
+    public void setUp() throws Exception {
+        this.mailbox = new TaskMailboxImpl();
+        this.mailboxExecutor =
+                new MailboxExecutorImpl(
+                        mailbox, DEFAULT_PRIORITY, StreamTaskActionExecutor.IMMEDIATE);
+        this.otherThreadExecutor = Executors.newSingleThreadScheduledExecutor();
+        this.mailboxProcessor =
+                new MailboxProcessor(c -> {}, mailbox, StreamTaskActionExecutor.IMMEDIATE);
+    }
 
-	@After
-	public void tearDown() {
-		otherThreadExecutor.shutdown();
-		try {
-			if (!otherThreadExecutor.awaitTermination(60, TimeUnit.SECONDS)) {
-				otherThreadExecutor.shutdownNow();
-				if (!otherThreadExecutor.awaitTermination(60, TimeUnit.SECONDS)) {
-					throw new IllegalStateException("Thread pool did not terminate on time!");
-				}
-			}
-		} catch (InterruptedException ie) {
-			otherThreadExecutor.shutdownNow();
-			Thread.currentThread().interrupt();
-		}
-	}
+    @After
+    public void tearDown() {
+        otherThreadExecutor.shutdown();
+        try {
+            if (!otherThreadExecutor.awaitTermination(60, TimeUnit.SECONDS)) {
+                otherThreadExecutor.shutdownNow();
+                if (!otherThreadExecutor.awaitTermination(60, TimeUnit.SECONDS)) {
+                    throw new IllegalStateException("Thread pool did not terminate on time!");
+                }
+            }
+        } catch (InterruptedException ie) {
+            otherThreadExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+    }
 
-	@Test
-	public void testIsIdle() throws Exception {
-		MailboxProcessor processor = new MailboxProcessor(MailboxDefaultAction.Controller::suspendDefaultAction);
-		MailboxExecutorImpl executor = (MailboxExecutorImpl) processor.getMailboxExecutor(DEFAULT_PRIORITY);
+    @Test
+    public void testIsIdle() throws Exception {
+        MailboxProcessor processor = new MailboxProcessor();
+        MailboxExecutorImpl executor =
+                (MailboxExecutorImpl) processor.getMailboxExecutor(DEFAULT_PRIORITY);
 
-		assertFalse(executor.isIdle());
+        assertFalse(executor.isIdle());
 
-		processor.runMailboxStep(); // suspend default action after suspension
-		processor.mailbox.drain(); // drop any control mails
+        processor.runMailboxStep(); // suspend default action after suspension
+        processor.mailbox.drain(); // drop any control mails
 
-		assertTrue(executor.isIdle());
+        assertTrue(executor.isIdle());
 
-		executor.execute(() -> {}, "");
-		assertFalse(executor.isIdle());
+        executor.execute(() -> {}, "");
+        assertFalse(executor.isIdle());
 
-		processor.mailbox.drain();
-		processor.mailbox.quiesce();
-		assertFalse(executor.isIdle());
-	}
+        processor.mailbox.drain();
+        processor.mailbox.quiesce();
+        assertFalse(executor.isIdle());
+    }
 
-	@Test
-	public void testOperations() throws Exception {
-		AtomicBoolean wasExecuted = new AtomicBoolean(false);
-		CompletableFuture.runAsync(() -> mailboxExecutor.execute(() -> wasExecuted.set(true), ""), otherThreadExecutor).get();
+    @Test
+    public void testOperations() throws Exception {
+        AtomicBoolean wasExecuted = new AtomicBoolean(false);
+        CompletableFuture.runAsync(
+                        () -> mailboxExecutor.execute(() -> wasExecuted.set(true), ""),
+                        otherThreadExecutor)
+                .get();
 
-		mailbox.take(DEFAULT_PRIORITY).run();
-		Assert.assertTrue(wasExecuted.get());
-	}
+        mailbox.take(DEFAULT_PRIORITY).run();
+        Assert.assertTrue(wasExecuted.get());
+    }
 
-	@Test
-	public void testClose() throws Exception {
-		final TestRunnable yieldRun = new TestRunnable();
-		final TestRunnable leftoverRun = new TestRunnable();
-		mailboxExecutor.execute(yieldRun, "yieldRun");
-		final Future<?> leftoverFuture = CompletableFuture.supplyAsync(
-			() -> mailboxExecutor.submit(leftoverRun, "leftoverRun"),
-			otherThreadExecutor).get();
+    @Test
+    public void testClose() throws Exception {
+        final TestRunnable yieldRun = new TestRunnable();
+        final TestRunnable leftoverRun = new TestRunnable();
+        mailboxExecutor.execute(yieldRun, "yieldRun");
+        final Future<?> leftoverFuture =
+                CompletableFuture.supplyAsync(
+                                () -> mailboxExecutor.submit(leftoverRun, "leftoverRun"),
+                                otherThreadExecutor)
+                        .get();
 
-		assertTrue(mailboxExecutor.tryYield());
-		assertEquals(Thread.currentThread(), yieldRun.wasExecutedBy());
+        assertTrue(mailboxExecutor.tryYield());
+        assertEquals(Thread.currentThread(), yieldRun.wasExecutedBy());
 
-		assertFalse(leftoverFuture.isDone());
-		assertFalse(leftoverFuture.isCancelled());
+        assertFalse(leftoverFuture.isDone());
+        assertFalse(leftoverFuture.isCancelled());
 
-		mailboxProcessor.close();
-		assertTrue(leftoverFuture.isCancelled());
+        mailboxProcessor.close();
+        assertTrue(leftoverFuture.isCancelled());
 
-		try {
-			mailboxExecutor.tryYield();
-			Assert.fail("yielding should not work after shutdown().");
-		} catch (MailboxClosedException expected) {
-		}
+        try {
+            mailboxExecutor.tryYield();
+            Assert.fail("yielding should not work after shutdown().");
+        } catch (MailboxClosedException expected) {
+        }
 
-		try {
-			mailboxExecutor.yield();
-			Assert.fail("yielding should not work after shutdown().");
-		} catch (MailboxClosedException expected) {
-		}
-	}
+        try {
+            mailboxExecutor.yield();
+            Assert.fail("yielding should not work after shutdown().");
+        } catch (MailboxClosedException expected) {
+        }
+    }
 
-	@Test
-	public void testTryYield() throws Exception {
-		final TestRunnable testRunnable = new TestRunnable();
-		CompletableFuture.runAsync(
-			() -> mailboxExecutor.execute(testRunnable, "testRunnable"),
-			otherThreadExecutor)
-			.get();
-		assertTrue(mailboxExecutor.tryYield());
-		assertFalse(mailboxExecutor.tryYield());
-		Assert.assertEquals(Thread.currentThread(), testRunnable.wasExecutedBy());
-	}
+    @Test
+    public void testTryYield() throws Exception {
+        final TestRunnable testRunnable = new TestRunnable();
+        CompletableFuture.runAsync(
+                        () -> mailboxExecutor.execute(testRunnable, "testRunnable"),
+                        otherThreadExecutor)
+                .get();
+        assertTrue(mailboxExecutor.tryYield());
+        assertFalse(mailboxExecutor.tryYield());
+        Assert.assertEquals(Thread.currentThread(), testRunnable.wasExecutedBy());
+    }
 
-	@Test
-	public void testYield() throws Exception {
-		final AtomicReference<Exception> exceptionReference = new AtomicReference<>();
-		final TestRunnable testRunnable = new TestRunnable();
-		final Thread submitThread = new Thread(() -> {
-			try {
-				mailboxExecutor.execute(testRunnable, "testRunnable");
-			} catch (Exception e) {
-				exceptionReference.set(e);
-			}
-		});
+    @Test
+    public void testYield() throws Exception {
+        final AtomicReference<Exception> exceptionReference = new AtomicReference<>();
+        final TestRunnable testRunnable = new TestRunnable();
+        final Thread submitThread =
+                new Thread(
+                        () -> {
+                            try {
+                                mailboxExecutor.execute(testRunnable, "testRunnable");
+                            } catch (Exception e) {
+                                exceptionReference.set(e);
+                            }
+                        });
 
-		submitThread.start();
-		mailboxExecutor.yield();
-		submitThread.join();
+        submitThread.start();
+        mailboxExecutor.yield();
+        submitThread.join();
 
-		Assert.assertNull(exceptionReference.get());
-		Assert.assertEquals(Thread.currentThread(), testRunnable.wasExecutedBy());
-	}
+        Assert.assertNull(exceptionReference.get());
+        Assert.assertEquals(Thread.currentThread(), testRunnable.wasExecutedBy());
+    }
 
-	/**
-	 * Test {@link Runnable} that tracks execution.
-	 */
-	static class TestRunnable implements RunnableWithException {
+    /** Test {@link Runnable} that tracks execution. */
+    static class TestRunnable implements RunnableWithException {
 
-		private Thread executedByThread = null;
+        private Thread executedByThread = null;
 
-		@Override
-		public void run() {
-			Preconditions.checkState(!isExecuted(), "Runnable was already executed before by " + executedByThread);
-			executedByThread = Thread.currentThread();
-		}
+        @Override
+        public void run() {
+            Preconditions.checkState(
+                    !isExecuted(), "Runnable was already executed before by " + executedByThread);
+            executedByThread = Thread.currentThread();
+        }
 
-		boolean isExecuted() {
-			return executedByThread != null;
-		}
+        boolean isExecuted() {
+            return executedByThread != null;
+        }
 
-		Thread wasExecutedBy() {
-			return executedByThread;
-		}
-	}
+        Thread wasExecutedBy() {
+            return executedByThread;
+        }
+    }
 }

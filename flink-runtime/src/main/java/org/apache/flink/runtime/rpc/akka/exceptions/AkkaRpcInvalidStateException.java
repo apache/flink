@@ -20,21 +20,19 @@ package org.apache.flink.runtime.rpc.akka.exceptions;
 
 import org.apache.flink.util.FlinkRuntimeException;
 
-/**
- * Exception which indicates an invalid state.
- */
+/** Exception which indicates an invalid state. */
 public class AkkaRpcInvalidStateException extends FlinkRuntimeException {
-	private static final long serialVersionUID = 7771345513700817242L;
+    private static final long serialVersionUID = 7771345513700817242L;
 
-	public AkkaRpcInvalidStateException(String message) {
-		super(message);
-	}
+    public AkkaRpcInvalidStateException(String message) {
+        super(message);
+    }
 
-	public AkkaRpcInvalidStateException(Throwable cause) {
-		super(cause);
-	}
+    public AkkaRpcInvalidStateException(Throwable cause) {
+        super(cause);
+    }
 
-	public AkkaRpcInvalidStateException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    public AkkaRpcInvalidStateException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

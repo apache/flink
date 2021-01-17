@@ -71,7 +71,7 @@ echo numpy==1.16.5 > requirements.txt
 pip download -d cached_dir -r requirements.txt --no-binary :all:
 
 # python code
-table_env.set_python_requirements("requirements.txt", "cached_dir")
+table_env.set_python_requirements("/path/to/requirements.txt", "cached_dir")
 {% endhighlight %}
         <p>Please make sure the installation packages matches the platform of the cluster and the python version used. These packages will be installed using pip, so also make sure the version of Pip (version >= 7.1.0) and the version of SetupTools (version >= 37.0.0).</p>
       </td>
@@ -86,9 +86,9 @@ table_env.set_python_requirements("requirements.txt", "cached_dir")
 zip -r py_env.zip py_env
 
 # python code
-table_env.add_python_archive("py_env.zip")
+table_env.add_python_archive("/path/to/py_env.zip")
 # or
-table_env.add_python_archive("py_env.zip", "myenv")
+table_env.add_python_archive("/path/to/py_env.zip", "myenv")
 
 # the files contained in the archive file can be accessed in UDF
 def my_udf():
@@ -103,9 +103,10 @@ def my_udf():
       <td>
         <p>Sets the path of the python interpreter which is used to execute the python udf workers, e.g., "/usr/local/bin/python3".</p>
 {% highlight python %}
-table_env.add_python_archive("py_env.zip")
+table_env.add_python_archive("/path/to/py_env.zip")
 table_env.get_config().set_python_executable("py_env.zip/py_env/bin/python")
 {% endhighlight %}
+        <p>Please note that if the path of the python interpreter comes from the uploaded python archive, the path specified in set_python_executable should be a relative path.</p>
         <p>Please make sure that the specified environment matches the platform that the cluster is running on.</p>
       </td>
     </tr>

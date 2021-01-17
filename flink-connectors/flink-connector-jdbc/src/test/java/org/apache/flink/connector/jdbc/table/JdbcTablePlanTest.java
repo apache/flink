@@ -22,33 +22,40 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
+import org.junit.Before;
 import org.junit.Test;
 
-/**
- * Plan tests for JDBC connector, for example, testing projection push down.
- */
+/** Plan tests for JDBC connector, for example, testing projection push down. */
 public class JdbcTablePlanTest extends TableTestBase {
 
-	private final StreamTableTestUtil util = streamTestUtil(new TableConfig());
+    private final StreamTableTestUtil util = streamTestUtil(new TableConfig());
 
-	@Test
-	public void testProjectionPushDown() {
-		util.tableEnv().executeSql(
-			"CREATE TABLE jdbc (" +
-				"id BIGINT," +
-				"timestamp6_col TIMESTAMP(6)," +
-				"timestamp9_col TIMESTAMP(9)," +
-				"time_col TIME," +
-				"real_col FLOAT," +
-				"double_col DOUBLE," +
-				"decimal_col DECIMAL(10, 4)" +
-				") WITH (" +
-				"  'connector'='jdbc'," +
-				"  'url'='jdbc:derby:memory:test'," +
-				"  'table-name'='test_table'" +
-				")"
-		);
-		util.verifyExecPlan("SELECT decimal_col, timestamp9_col, id FROM jdbc");
-	}
+    @Before
+    public void setup() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE jdbc ("
+                                + "id BIGINT,"
+                                + "timestamp6_col TIMESTAMP(6),"
+                                + "timestamp9_col TIMESTAMP(9),"
+                                + "time_col TIME,"
+                                + "real_col FLOAT,"
+                                + "double_col DOUBLE,"
+                                + "decimal_col DECIMAL(10, 4)"
+                                + ") WITH ("
+                                + "  'connector'='jdbc',"
+                                + "  'url'='jdbc:derby:memory:test',"
+                                + "  'table-name'='test_table'"
+                                + ")");
+    }
 
+    @Test
+    public void testProjectionPushDown() {
+        util.verifyExecPlan("SELECT decimal_col, timestamp9_col, id FROM jdbc");
+    }
+
+    @Test
+    public void testLimitPushDown() {
+        util.verifyExecPlan("SELECT id, time_col FROM jdbc LIMIT 3");
+    }
 }

@@ -43,8 +43,7 @@ class BatchPhysicalPythonCalc(
     traitSet,
     inputRel,
     calcProgram,
-    outputRowType)
-  with CommonExecPythonCalc {
+    outputRowType) {
 
   override def copy(traitSet: RelTraitSet, child: RelNode, program: RexProgram): Calc = {
     new BatchPhysicalPythonCalc(cluster, traitSet, child, program, outputRowType)

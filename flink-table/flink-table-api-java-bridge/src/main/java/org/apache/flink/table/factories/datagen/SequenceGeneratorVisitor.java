@@ -42,136 +42,146 @@ import static org.apache.flink.table.factories.DataGenTableSourceFactory.END;
 import static org.apache.flink.table.factories.DataGenTableSourceFactory.FIELDS;
 import static org.apache.flink.table.factories.DataGenTableSourceFactory.START;
 
-/**
- * Creates a sequential {@link DataGeneratorContainer} for a particular logical type.
- */
+/** Creates a sequential {@link DataGeneratorContainer} for a particular logical type. */
 @Internal
 public class SequenceGeneratorVisitor extends DataGenVisitorBase {
 
-	private final ReadableConfig config;
+    private final ReadableConfig config;
 
-	private final String startKeyStr;
+    private final String startKeyStr;
 
-	private final String endKeyStr;
+    private final String endKeyStr;
 
-	private final ConfigOption<Integer> intStart;
+    private final ConfigOption<Integer> intStart;
 
-	private final ConfigOption<Integer> intEnd;
+    private final ConfigOption<Integer> intEnd;
 
-	private final ConfigOption<Long> longStart;
+    private final ConfigOption<Long> longStart;
 
-	private final ConfigOption<Long> longEnd;
+    private final ConfigOption<Long> longEnd;
 
-	public SequenceGeneratorVisitor(String name, ReadableConfig config) {
-		super(name, config);
+    public SequenceGeneratorVisitor(String name, ReadableConfig config) {
+        super(name, config);
 
-		this.config = config;
+        this.config = config;
 
-		this.startKeyStr = FIELDS + "." + name + "." + START;
-		this.endKeyStr = FIELDS + "." + name + "." + END;
+        this.startKeyStr = FIELDS + "." + name + "." + START;
+        this.endKeyStr = FIELDS + "." + name + "." + END;
 
-		ConfigOptions.OptionBuilder startKey = key(startKeyStr);
-		ConfigOptions.OptionBuilder endKey = key(endKeyStr);
+        ConfigOptions.OptionBuilder startKey = key(startKeyStr);
+        ConfigOptions.OptionBuilder endKey = key(endKeyStr);
 
-		config.getOptional(startKey.stringType().noDefaultValue()).orElseThrow(
-			() -> new ValidationException(
-				"Could not find required property '" + startKeyStr + "' for sequence generator."));
-		config.getOptional(endKey.stringType().noDefaultValue()).orElseThrow(
-			() -> new ValidationException(
-				"Could not find required property '" + endKeyStr + "' for sequence generator."));
+        config.getOptional(startKey.stringType().noDefaultValue())
+                .orElseThrow(
+                        () ->
+                                new ValidationException(
+                                        "Could not find required property '"
+                                                + startKeyStr
+                                                + "' for sequence generator."));
+        config.getOptional(endKey.stringType().noDefaultValue())
+                .orElseThrow(
+                        () ->
+                                new ValidationException(
+                                        "Could not find required property '"
+                                                + endKeyStr
+                                                + "' for sequence generator."));
 
-		this.intStart = startKey.intType().noDefaultValue();
-		this.intEnd = endKey.intType().noDefaultValue();
-		this.longStart = startKey.longType().noDefaultValue();
-		this.longEnd = endKey.longType().noDefaultValue();
-	}
+        this.intStart = startKey.intType().noDefaultValue();
+        this.intEnd = endKey.intType().noDefaultValue();
+        this.longStart = startKey.longType().noDefaultValue();
+        this.longEnd = endKey.longType().noDefaultValue();
+    }
 
-	@Override
-	public DataGeneratorContainer visit(BooleanType booleanType) {
-		return DataGeneratorContainer.of(RandomGenerator.booleanGenerator());
-	}
+    @Override
+    public DataGeneratorContainer visit(BooleanType booleanType) {
+        return DataGeneratorContainer.of(RandomGenerator.booleanGenerator());
+    }
 
-	@Override
-	public DataGeneratorContainer visit(CharType booleanType) {
-		return DataGeneratorContainer.of(
-			getSequenceStringGenerator(
-				config.get(longStart), config.get(longEnd)),
-			longStart, longEnd);
-	}
+    @Override
+    public DataGeneratorContainer visit(CharType booleanType) {
+        return DataGeneratorContainer.of(
+                getSequenceStringGenerator(config.get(longStart), config.get(longEnd)),
+                longStart,
+                longEnd);
+    }
 
-	@Override
-	public DataGeneratorContainer visit(VarCharType booleanType) {
-		return DataGeneratorContainer.of(
-			getSequenceStringGenerator(
-				config.get(longStart), config.get(longEnd)),
-			longStart, longEnd);
-	}
+    @Override
+    public DataGeneratorContainer visit(VarCharType booleanType) {
+        return DataGeneratorContainer.of(
+                getSequenceStringGenerator(config.get(longStart), config.get(longEnd)),
+                longStart,
+                longEnd);
+    }
 
-	@Override
-	public DataGeneratorContainer visit(TinyIntType booleanType) {
-		return DataGeneratorContainer.of(
-			SequenceGenerator.byteGenerator(
-				config.get(intStart).byteValue(),
-				config.get(intEnd).byteValue()),
-			intStart, intEnd);
-	}
+    @Override
+    public DataGeneratorContainer visit(TinyIntType booleanType) {
+        return DataGeneratorContainer.of(
+                SequenceGenerator.byteGenerator(
+                        config.get(intStart).byteValue(), config.get(intEnd).byteValue()),
+                intStart,
+                intEnd);
+    }
 
-	@Override
-	public DataGeneratorContainer visit(SmallIntType booleanType) {
-		return DataGeneratorContainer.of(
-			SequenceGenerator.shortGenerator(
-				config.get(intStart).shortValue(),
-				config.get(intEnd).shortValue()),
-			intStart, intEnd);
-	}
+    @Override
+    public DataGeneratorContainer visit(SmallIntType booleanType) {
+        return DataGeneratorContainer.of(
+                SequenceGenerator.shortGenerator(
+                        config.get(intStart).shortValue(), config.get(intEnd).shortValue()),
+                intStart,
+                intEnd);
+    }
 
-	@Override
-	public DataGeneratorContainer visit(IntType integerType) {
-		return DataGeneratorContainer.of(
-			SequenceGenerator.intGenerator(
-				config.get(intStart), config.get(intEnd)),
-			intStart, intEnd);
-	}
+    @Override
+    public DataGeneratorContainer visit(IntType integerType) {
+        return DataGeneratorContainer.of(
+                SequenceGenerator.intGenerator(config.get(intStart), config.get(intEnd)),
+                intStart,
+                intEnd);
+    }
 
-	@Override
-	public DataGeneratorContainer visit(BigIntType bigIntType) {
-		return DataGeneratorContainer.of(
-			SequenceGenerator.longGenerator(
-				config.get(longStart), config.get(longEnd)),
-			longStart, longEnd);
-	}
+    @Override
+    public DataGeneratorContainer visit(BigIntType bigIntType) {
+        return DataGeneratorContainer.of(
+                SequenceGenerator.longGenerator(config.get(longStart), config.get(longEnd)),
+                longStart,
+                longEnd);
+    }
 
-	@Override
-	public DataGeneratorContainer visit(FloatType floatType) {
-		return DataGeneratorContainer.of(
-			SequenceGenerator.floatGenerator(
-				config.get(intStart).shortValue(),
-				config.get(intEnd).shortValue()),
-			intStart, intEnd);
-	}
+    @Override
+    public DataGeneratorContainer visit(FloatType floatType) {
+        return DataGeneratorContainer.of(
+                SequenceGenerator.floatGenerator(
+                        config.get(intStart).shortValue(), config.get(intEnd).shortValue()),
+                intStart,
+                intEnd);
+    }
 
-	@Override
-	public DataGeneratorContainer visit(DoubleType doubleType) {
-		return DataGeneratorContainer.of(
-			SequenceGenerator.doubleGenerator(
-				config.get(intStart), config.get(intEnd)),
-			intStart, intEnd);
-	}
+    @Override
+    public DataGeneratorContainer visit(DoubleType doubleType) {
+        return DataGeneratorContainer.of(
+                SequenceGenerator.doubleGenerator(config.get(intStart), config.get(intEnd)),
+                intStart,
+                intEnd);
+    }
 
-	@Override
-	public DataGeneratorContainer visit(DecimalType decimalType) {
-		return DataGeneratorContainer.of(
-			SequenceGenerator.bigDecimalGenerator(
-				config.get(intStart), config.get(intEnd), decimalType.getPrecision(), decimalType.getScale()),
-			intStart, intEnd);
-	}
+    @Override
+    public DataGeneratorContainer visit(DecimalType decimalType) {
+        return DataGeneratorContainer.of(
+                SequenceGenerator.bigDecimalGenerator(
+                        config.get(intStart),
+                        config.get(intEnd),
+                        decimalType.getPrecision(),
+                        decimalType.getScale()),
+                intStart,
+                intEnd);
+    }
 
-	private static SequenceGenerator<StringData> getSequenceStringGenerator(long start, long end) {
-		return new SequenceGenerator<StringData>(start, end) {
-			@Override
-			public StringData next() {
-				return StringData.fromString(valuesToEmit.poll().toString());
-			}
-		};
-	}
+    private static SequenceGenerator<StringData> getSequenceStringGenerator(long start, long end) {
+        return new SequenceGenerator<StringData>(start, end) {
+            @Override
+            public StringData next() {
+                return StringData.fromString(valuesToEmit.poll().toString());
+            }
+        };
+    }
 }

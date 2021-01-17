@@ -38,62 +38,67 @@ import java.util.Map;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
-/**
- * General tests for the {@link InternalServiceDecorator}.
- */
+/** General tests for the {@link InternalServiceDecorator}. */
 public class InternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
 
-	private InternalServiceDecorator internalServiceDecorator;
+    private InternalServiceDecorator internalServiceDecorator;
 
-	@Override
-	protected void onSetup() throws Exception {
-		super.onSetup();
+    @Override
+    protected void onSetup() throws Exception {
+        super.onSetup();
 
-		this.internalServiceDecorator = new InternalServiceDecorator(this.kubernetesJobManagerParameters);
-	}
+        this.internalServiceDecorator =
+                new InternalServiceDecorator(this.kubernetesJobManagerParameters);
+    }
 
-	@Test
-	public void testBuildAccompanyingKubernetesResources() throws IOException {
-		final List<HasMetadata> resources = this.internalServiceDecorator.buildAccompanyingKubernetesResources();
-		assertEquals(1, resources.size());
+    @Test
+    public void testBuildAccompanyingKubernetesResources() throws IOException {
+        final List<HasMetadata> resources =
+                this.internalServiceDecorator.buildAccompanyingKubernetesResources();
+        assertEquals(1, resources.size());
 
-		assertEquals(
-			InternalServiceDecorator.getNamespacedInternalServiceName(CLUSTER_ID, NAMESPACE),
-			this.flinkConfig.getString(JobManagerOptions.ADDRESS));
+        assertEquals(
+                InternalServiceDecorator.getNamespacedInternalServiceName(CLUSTER_ID, NAMESPACE),
+                this.flinkConfig.getString(JobManagerOptions.ADDRESS));
 
-		final Service internalService = (Service) resources.get(0);
+        final Service internalService = (Service) resources.get(0);
 
-		assertEquals(Constants.API_VERSION, internalService.getApiVersion());
+        assertEquals(Constants.API_VERSION, internalService.getApiVersion());
 
-		assertEquals(InternalServiceDecorator.getInternalServiceName(CLUSTER_ID), internalService.getMetadata().getName());
+        assertEquals(
+                InternalServiceDecorator.getInternalServiceName(CLUSTER_ID),
+                internalService.getMetadata().getName());
 
-		final Map<String, String> expectedLabels = getCommonLabels();
-		assertEquals(expectedLabels, internalService.getMetadata().getLabels());
+        final Map<String, String> expectedLabels = getCommonLabels();
+        assertEquals(expectedLabels, internalService.getMetadata().getLabels());
 
-		assertNull(internalService.getSpec().getType());
-		assertEquals("None", internalService.getSpec().getClusterIP());
+        assertNull(internalService.getSpec().getType());
+        assertEquals("None", internalService.getSpec().getClusterIP());
 
-		List<ServicePort> expectedServicePorts = Arrays.asList(
-			new ServicePortBuilder()
-				.withName(Constants.JOB_MANAGER_RPC_PORT_NAME)
-				.withPort(RPC_PORT)
-				.build(),
-			new ServicePortBuilder()
-				.withName(Constants.BLOB_SERVER_PORT_NAME)
-				.withPort(BLOB_SERVER_PORT)
-				.build());
-		assertEquals(expectedServicePorts, internalService.getSpec().getPorts());
+        List<ServicePort> expectedServicePorts =
+                Arrays.asList(
+                        new ServicePortBuilder()
+                                .withName(Constants.JOB_MANAGER_RPC_PORT_NAME)
+                                .withPort(RPC_PORT)
+                                .build(),
+                        new ServicePortBuilder()
+                                .withName(Constants.BLOB_SERVER_PORT_NAME)
+                                .withPort(BLOB_SERVER_PORT)
+                                .build());
+        assertEquals(expectedServicePorts, internalService.getSpec().getPorts());
 
-		expectedLabels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_JOB_MANAGER);
-		expectedLabels.putAll(userLabels);
-		assertEquals(expectedLabels, internalService.getSpec().getSelector());
-	}
+        expectedLabels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_JOB_MANAGER);
+        expectedLabels.putAll(userLabels);
+        assertEquals(expectedLabels, internalService.getSpec().getSelector());
+    }
 
-	@Test
-	public void testDisableInternalService() throws IOException {
-		this.flinkConfig.setString(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());
+    @Test
+    public void testDisableInternalService() throws IOException {
+        this.flinkConfig.setString(
+                HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());
 
-		final List<HasMetadata> resources = this.internalServiceDecorator.buildAccompanyingKubernetesResources();
-		assertEquals(0, resources.size());
-	}
+        final List<HasMetadata> resources =
+                this.internalServiceDecorator.buildAccompanyingKubernetesResources();
+        assertEquals(0, resources.size());
+    }
 }

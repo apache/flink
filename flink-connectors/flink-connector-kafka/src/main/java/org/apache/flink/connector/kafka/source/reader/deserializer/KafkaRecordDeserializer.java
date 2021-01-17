@@ -29,42 +29,44 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.Map;
 
-/**
- * An interface for the deserialization of Kafka records.
- */
+/** An interface for the deserialization of Kafka records. */
 public interface KafkaRecordDeserializer<T> extends Serializable, ResultTypeQueryable<T> {
 
-	/**
-	 * Deserialize a consumer record into the given collector.
-	 *
-	 * @param record the {@code ConsumerRecord} to deserialize.
-	 * @throws Exception if the deserialization failed.
-	 */
-	void deserialize(ConsumerRecord<byte[], byte[]> record, Collector<T> collector) throws Exception;
+    /**
+     * Deserialize a consumer record into the given collector.
+     *
+     * @param record the {@code ConsumerRecord} to deserialize.
+     * @throws Exception if the deserialization failed.
+     */
+    void deserialize(ConsumerRecord<byte[], byte[]> record, Collector<T> collector)
+            throws Exception;
 
-	/**
-	 * Wraps a Kafka {@link Deserializer} to a {@link KafkaRecordDeserializer}.
-	 * @param valueDeserializerClass the deserializer class used to deserialize the value.
-	 * @param <V> the value type.
-	 * @return A {@link KafkaRecordDeserializer} that deserialize the value with the given deserializer.
-	 */
-	static <V> KafkaRecordDeserializer<V> valueOnly(
-			Class<? extends Deserializer<V>> valueDeserializerClass) {
-		return new ValueDeserializerWrapper<>(valueDeserializerClass, Collections.emptyMap());
-	}
+    /**
+     * Wraps a Kafka {@link Deserializer} to a {@link KafkaRecordDeserializer}.
+     *
+     * @param valueDeserializerClass the deserializer class used to deserialize the value.
+     * @param <V> the value type.
+     * @return A {@link KafkaRecordDeserializer} that deserialize the value with the given
+     *     deserializer.
+     */
+    static <V> KafkaRecordDeserializer<V> valueOnly(
+            Class<? extends Deserializer<V>> valueDeserializerClass) {
+        return new ValueDeserializerWrapper<>(valueDeserializerClass, Collections.emptyMap());
+    }
 
-	/**
-	 * Wraps a Kafka {@link Deserializer} to a {@link KafkaRecordDeserializer}.
-	 * @param valueDeserializerClass the deserializer class used to deserialize the value.
-	 * @param config the configuration of the value deserializer, only valid when the deserializer
-	 *               is an implementation of {@code Configurable}.
-	 * @param <V> the value type.
-	 * @param <D> the type of the deserializer.
-	 * @return A {@link KafkaRecordDeserializer} that deserialize the value with the given deserializer.
-	 */
-	static <V, D extends Configurable & Deserializer<V>> KafkaRecordDeserializer<V> valueOnly(
-			Class<D> valueDeserializerClass,
-			Map<String, String> config) {
-		return new ValueDeserializerWrapper<>(valueDeserializerClass, config);
-	}
+    /**
+     * Wraps a Kafka {@link Deserializer} to a {@link KafkaRecordDeserializer}.
+     *
+     * @param valueDeserializerClass the deserializer class used to deserialize the value.
+     * @param config the configuration of the value deserializer, only valid when the deserializer
+     *     is an implementation of {@code Configurable}.
+     * @param <V> the value type.
+     * @param <D> the type of the deserializer.
+     * @return A {@link KafkaRecordDeserializer} that deserialize the value with the given
+     *     deserializer.
+     */
+    static <V, D extends Configurable & Deserializer<V>> KafkaRecordDeserializer<V> valueOnly(
+            Class<D> valueDeserializerClass, Map<String, String> config) {
+        return new ValueDeserializerWrapper<>(valueDeserializerClass, config);
+    }
 }

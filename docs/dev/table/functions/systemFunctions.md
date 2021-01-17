@@ -3760,7 +3760,7 @@ FROM_UNIXTIME(numeric[, string])
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a representation of the <i>numeric</i> argument as a value in <i>string</i> format (default is 'YYYY-MM-DD hh:mm:ss'). <i>numeric</i> is an internal timestamp value representing seconds since '1970-01-01 00:00:00' UTC, such as produced by the UNIX_TIMESTAMP() function. The return value is expressed in the session time zone (specified in TableConfig).</p>
+        <p>Returns a representation of the <i>numeric</i> argument as a value in <i>string</i> format (default is 'yyyy-MM-dd HH:mm:ss'). <i>numeric</i> is an internal timestamp value representing seconds since '1970-01-01 00:00:00' UTC, such as produced by the UNIX_TIMESTAMP() function. The return value is expressed in the session time zone (specified in TableConfig).</p>
         <p>E.g., <code>FROM_UNIXTIME(44)</code> returns '1970-01-01 00:00:44' if in UTC time zone, but returns '1970-01-01 09:00:44' if in 'Asia/Tokyo' time zone.</p>
         <p>Only supported in blink planner.</p>
       </td>
@@ -4480,7 +4480,24 @@ IF(condition, true_value, false_value)
         <p>Only supported in blink planner.</p>
         <p>E.g., <code>IF(5 > 3, 5, 3)</code> returns 5.</p>
       </td>
-    </tr>    
+    </tr>
+
+    <tr>
+      <td>
+{% highlight text %}
+IFNULL(input, null_replacement)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns <i>null_replacement</i> if <i>input</i> is NULL; otherwise <i>input</i> is returned.</p>
+        <p>Compared to <code>COALESCE</code> or <code>CASE WHEN</code>, this function returns a data
+          type that is very specific in terms of nullability. The returned type is the common type of
+          both arguments but only nullable if the <i>null_replacement</i> is nullable.</p>
+        <p>The function allows to pass nullable columns into a function or table that is declared with
+          a NOT NULL constraint.</p>
+        <p>E.g., <code>IFNULL(nullable_column, 5)</code> returns never NULL.</p>
+      </td>
+    </tr>
 
     <tr>
       <td>
@@ -4543,6 +4560,23 @@ BOOLEAN.?(VALUE1, VALUE2)
         <p>E.g., <code>(42 > 5).?('A', 'B')</code> returns "A".</p>
       </td>
     </tr>
+
+    <tr>
+      <td>
+{% highlight java %}
+input.ifNull(nullReplacement)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns <i>nullReplacement</i> if <i>input</i> is NULL; otherwise <i>input</i> is returned.</p>
+        <p>This function returns a data type that is very specific in terms of nullability. The returned
+          type is the common type of both arguments but only nullable if the <i>nullReplacement</i> is
+          nullable.</p>
+        <p>The function allows to pass nullable columns into a function or table that is declared with
+          a NOT NULL constraint.</p>
+        <p>E.g., <code>$("nullable_column").ifNull(5)</code> returns never NULL.</p>
+      </td>
+    </tr>
     </tbody>
 </table>
 </div>
@@ -4566,6 +4600,23 @@ BOOLEAN.?(VALUE1, VALUE2)
       <td>
         <p>Returns <i>VALUE1</i> if <i>BOOLEAN</i> evaluates to TRUE; returns <i>VALUE2</i> otherwise.</p> 
         <p>E.g., <code>(42 > 5).?("A", "B")</code> returns "A".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+{% highlight scala %}
+input.ifNull(nullReplacement)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns <i>nullReplacement</i> if <i>input</i> is NULL; otherwise <i>input</i> is returned.</p>
+        <p>This function returns a data type that is very specific in terms of nullability. The returned
+          type is the common type of both arguments but only nullable if the <i>nullReplacement</i> is
+          nullable.</p>
+        <p>The function allows to pass nullable columns into a function or table that is declared with
+          a NOT NULL constraint.</p>
+        <p>E.g., <code>$("nullable_column").ifNull(5)</code> returns never NULL.</p>
       </td>
     </tr>
     </tbody>
@@ -4600,6 +4651,22 @@ CAST(value AS type)
         <p>E.g., <code>CAST('42' AS INT)</code> returns 42; <code>CAST(NULL AS VARCHAR)</code> returns NULL of type VARCHAR.</p>
       </td>
     </tr>
+    <tr>
+      <td>
+{% highlight text %}
+TYPEOF(input)
+TYPEOF(input, force_serializable)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the string representation of the input expression's data type. By default, the
+          returned string is a summary string that might omit certain details for readability. If
+          <code>force_serializable</code> is set to TRUE, the string represents a full data type
+          that could be persisted in a catalog. Note that especially anonymous, inline data types
+          have no serializable string representation. In this case, NULL is returned.</p>
+        <p>E.g., <code>TYPEOF(12)</code> returns 'INT NOT NULL'.</p>
+      </td>
+    </tr>
   </tbody>
 </table>
 </div>
@@ -4625,6 +4692,22 @@ ANY.cast(TYPE)
         <p>E.g., <code>'42'.cast(INT)</code> returns 42; <code>Null(STRING)</code> returns NULL of type STRING.</p>
       </td>
     </tr>
+    <tr>
+      <td>
+{% highlight java %}
+call("TYPEOF", input)
+call("TYPEOF", input, force_serializable)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the string representation of the input expression's data type. By default, the
+          returned string is a summary string that might omit certain details for readability. If
+          <code>force_serializable</code> is set to TRUE, the string represents a full data type
+          that could be persisted in a catalog. Note that especially anonymous, inline data types
+          have no serializable string representation. In this case, NULL is returned.</p>
+        <p>E.g., <code>call("TYPEOF", 12)</code> returns 'INT NOT NULL'.</p>
+      </td>
+    </tr>
     </tbody>
 </table>
 </div>
@@ -4648,6 +4731,22 @@ ANY.cast(TYPE)
       <td>
         <p>Returns a new <i>ANY</i> being cast to type <i>TYPE</i>. See the supported types <a href="{% link dev/table/tableApi.md %}#data-types">here</a>.</p>
         <p>E.g., <code>"42".cast(Types.INT)</code> returns 42; <code>Null(Types.STRING)</code> returns NULL of type STRING.</p>
+      </td>
+    </tr>
+    <tr>
+      <td>
+{% highlight scala %}
+call("TYPEOF", input)
+call("TYPEOF", input, force_serializable)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the string representation of the input expression's data type. By default, the
+          returned string is a summary string that might omit certain details for readability. If
+          <code>force_serializable</code> is set to TRUE, the string represents a full data type
+          that could be persisted in a catalog. Note that especially anonymous, inline data types
+          have no serializable string representation. In this case, NULL is returned.</p>
+        <p>E.g., <code>call("TYPEOF", 12)</code> returns 'INT NOT NULL'.</p>
       </td>
     </tr>
   </tbody>

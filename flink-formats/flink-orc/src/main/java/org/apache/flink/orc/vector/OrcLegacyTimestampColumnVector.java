@@ -27,58 +27,65 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 
 /**
- * This class is used to adapt to Hive's legacy (2.0.x) timestamp column vector which is a LongColumnVector.
+ * This class is used to adapt to Hive's legacy (2.0.x) timestamp column vector which is a
+ * LongColumnVector.
  */
-public class OrcLegacyTimestampColumnVector extends AbstractOrcColumnVector implements
-		org.apache.flink.table.data.vector.TimestampColumnVector {
+public class OrcLegacyTimestampColumnVector extends AbstractOrcColumnVector
+        implements org.apache.flink.table.data.vector.TimestampColumnVector {
 
-	private final LongColumnVector hiveVector;
+    private final LongColumnVector hiveVector;
 
-	OrcLegacyTimestampColumnVector(LongColumnVector vector) {
-		super(vector);
-		this.hiveVector = vector;
-	}
+    OrcLegacyTimestampColumnVector(LongColumnVector vector) {
+        super(vector);
+        this.hiveVector = vector;
+    }
 
-	@Override
-	public TimestampData getTimestamp(int i, int precision) {
-		int index = hiveVector.isRepeating ? 0 : i;
-		Timestamp timestamp = toTimestamp(hiveVector.vector[index]);
-		return TimestampData.fromTimestamp(timestamp);
-	}
+    @Override
+    public TimestampData getTimestamp(int i, int precision) {
+        int index = hiveVector.isRepeating ? 0 : i;
+        Timestamp timestamp = toTimestamp(hiveVector.vector[index]);
+        return TimestampData.fromTimestamp(timestamp);
+    }
 
-	// creates a Hive ColumnVector of constant timestamp value
-	public static ColumnVector createFromConstant(int batchSize, Object value) {
-		LongColumnVector res = new LongColumnVector(batchSize);
-		if (value == null) {
-			res.noNulls = false;
-			res.isNull[0] = true;
-			res.isRepeating = true;
-		} else {
-			Timestamp timestamp = value instanceof LocalDateTime ?
-					Timestamp.valueOf((LocalDateTime) value) : (Timestamp) value;
-			res.fill(fromTimestamp(timestamp));
-			res.isNull[0] = false;
-		}
-		return res;
-	}
+    // creates a Hive ColumnVector of constant timestamp value
+    public static ColumnVector createFromConstant(int batchSize, Object value) {
+        LongColumnVector res = new LongColumnVector(batchSize);
+        if (value == null) {
+            res.noNulls = false;
+            res.isNull[0] = true;
+            res.isRepeating = true;
+        } else {
+            Timestamp timestamp =
+                    value instanceof LocalDateTime
+                            ? Timestamp.valueOf((LocalDateTime) value)
+                            : (Timestamp) value;
+            res.fill(fromTimestamp(timestamp));
+            res.isNull[0] = false;
+        }
+        return res;
+    }
 
-	// converting from/to Timestamp is copied from Hive 2.0.0 TimestampUtils
-	private static long fromTimestamp(Timestamp timestamp) {
-		long time = timestamp.getTime();
-		int nanos = timestamp.getNanos();
-		return (time * 1000000) + (nanos % 1000000);
-	}
+    // converting from/to Timestamp is copied from Hive 2.0.0 TimestampUtils
+    private static long fromTimestamp(Timestamp timestamp) {
+        long time = timestamp.getTime();
+        int nanos = timestamp.getNanos();
+        return (time * 1000000) + (nanos % 1000000);
+    }
 
-	private static Timestamp toTimestamp(long timeInNanoSec) {
-		long integralSecInMillis = (timeInNanoSec / 1000000000) * 1000; // Full seconds converted to millis.
-		long nanos = timeInNanoSec % 1000000000; // The nanoseconds.
-		if (nanos < 0) {
-			nanos = 1000000000 + nanos; // The positive nano-part that will be added to milliseconds.
-			integralSecInMillis = ((timeInNanoSec / 1000000000) - 1) * 1000; // Reduce by one second.
-		}
-		Timestamp res = new Timestamp(0);
-		res.setTime(integralSecInMillis);
-		res.setNanos((int) nanos);
-		return res;
-	}
+    private static Timestamp toTimestamp(long timeInNanoSec) {
+        long integralSecInMillis =
+                (timeInNanoSec / 1000000000) * 1000; // Full seconds converted to millis.
+        long nanos = timeInNanoSec % 1000000000; // The nanoseconds.
+        if (nanos < 0) {
+            nanos =
+                    1000000000
+                            + nanos; // The positive nano-part that will be added to milliseconds.
+            integralSecInMillis =
+                    ((timeInNanoSec / 1000000000) - 1) * 1000; // Reduce by one second.
+        }
+        Timestamp res = new Timestamp(0);
+        res.setTime(integralSecInMillis);
+        res.setNanos((int) nanos);
+        return res;
+    }
 }

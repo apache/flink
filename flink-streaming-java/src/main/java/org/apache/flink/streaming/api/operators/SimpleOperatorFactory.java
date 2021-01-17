@@ -34,95 +34,96 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class SimpleOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OUT> {
 
-	private final StreamOperator<OUT> operator;
+    private final StreamOperator<OUT> operator;
 
-	/**
-	 * Create a SimpleOperatorFactory from existed StreamOperator.
-	 */
-	@SuppressWarnings("unchecked")
-	public static <OUT> SimpleOperatorFactory<OUT> of(StreamOperator<OUT> operator) {
-		if (operator == null) {
-			return null;
-		} else if (operator instanceof StreamSource &&
-				((StreamSource) operator).getUserFunction() instanceof InputFormatSourceFunction) {
-			return new SimpleInputFormatOperatorFactory<OUT>((StreamSource) operator);
-		} else if (operator instanceof StreamSink &&
-			((StreamSink) operator).getUserFunction() instanceof OutputFormatSinkFunction) {
-			return new SimpleOutputFormatOperatorFactory<>((StreamSink) operator);
-		} else if (operator instanceof AbstractUdfStreamOperator) {
-			return new SimpleUdfStreamOperatorFactory<OUT>((AbstractUdfStreamOperator) operator);
-		} else {
-			return new SimpleOperatorFactory<>(operator);
-		}
-	}
+    /** Create a SimpleOperatorFactory from existed StreamOperator. */
+    @SuppressWarnings("unchecked")
+    public static <OUT> SimpleOperatorFactory<OUT> of(StreamOperator<OUT> operator) {
+        if (operator == null) {
+            return null;
+        } else if (operator instanceof StreamSource
+                && ((StreamSource) operator).getUserFunction()
+                        instanceof InputFormatSourceFunction) {
+            return new SimpleInputFormatOperatorFactory<OUT>((StreamSource) operator);
+        } else if (operator instanceof StreamSink
+                && ((StreamSink) operator).getUserFunction() instanceof OutputFormatSinkFunction) {
+            return new SimpleOutputFormatOperatorFactory<>((StreamSink) operator);
+        } else if (operator instanceof AbstractUdfStreamOperator) {
+            return new SimpleUdfStreamOperatorFactory<OUT>((AbstractUdfStreamOperator) operator);
+        } else {
+            return new SimpleOperatorFactory<>(operator);
+        }
+    }
 
-	protected SimpleOperatorFactory(StreamOperator<OUT> operator) {
-		this.operator = checkNotNull(operator);
-		if (operator instanceof SetupableStreamOperator) {
-			this.chainingStrategy = ((SetupableStreamOperator) operator).getChainingStrategy();
-		}
-	}
+    protected SimpleOperatorFactory(StreamOperator<OUT> operator) {
+        this.operator = checkNotNull(operator);
+        if (operator instanceof SetupableStreamOperator) {
+            this.chainingStrategy = ((SetupableStreamOperator) operator).getChainingStrategy();
+        }
+    }
 
-	public StreamOperator<OUT> getOperator() {
-		return operator;
-	}
+    public StreamOperator<OUT> getOperator() {
+        return operator;
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public <T extends StreamOperator<OUT>> T createStreamOperator(StreamOperatorParameters<OUT> parameters) {
-		if (operator instanceof AbstractStreamOperator) {
-			((AbstractStreamOperator) operator).setProcessingTimeService(processingTimeService);
-		}
-		if (operator instanceof SetupableStreamOperator) {
-			((SetupableStreamOperator) operator).setup(
-				parameters.getContainingTask(),
-				parameters.getStreamConfig(),
-				parameters.getOutput());
-		}
-		return (T) operator;
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    public <T extends StreamOperator<OUT>> T createStreamOperator(
+            StreamOperatorParameters<OUT> parameters) {
+        if (operator instanceof AbstractStreamOperator) {
+            ((AbstractStreamOperator) operator).setProcessingTimeService(processingTimeService);
+        }
+        if (operator instanceof SetupableStreamOperator) {
+            ((SetupableStreamOperator) operator)
+                    .setup(
+                            parameters.getContainingTask(),
+                            parameters.getStreamConfig(),
+                            parameters.getOutput());
+        }
+        return (T) operator;
+    }
 
-	@Override
-	public void setChainingStrategy(ChainingStrategy strategy) {
-		this.chainingStrategy = strategy;
-		if (operator instanceof SetupableStreamOperator) {
-			((SetupableStreamOperator) operator).setChainingStrategy(strategy);
-		}
-	}
+    @Override
+    public void setChainingStrategy(ChainingStrategy strategy) {
+        this.chainingStrategy = strategy;
+        if (operator instanceof SetupableStreamOperator) {
+            ((SetupableStreamOperator) operator).setChainingStrategy(strategy);
+        }
+    }
 
-	@Override
-	public boolean isStreamSource() {
-		return operator instanceof StreamSource;
-	}
+    @Override
+    public boolean isStreamSource() {
+        return operator instanceof StreamSource;
+    }
 
-	@Override
-	public boolean isLegacySource() {
-		return operator instanceof StreamSource;
-	}
+    @Override
+    public boolean isLegacySource() {
+        return operator instanceof StreamSource;
+    }
 
-	@Override
-	public boolean isOutputTypeConfigurable() {
-		return operator instanceof OutputTypeConfigurable;
-	}
+    @Override
+    public boolean isOutputTypeConfigurable() {
+        return operator instanceof OutputTypeConfigurable;
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public void setOutputType(TypeInformation<OUT> type, ExecutionConfig executionConfig) {
-		((OutputTypeConfigurable<OUT>) operator).setOutputType(type, executionConfig);
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    public void setOutputType(TypeInformation<OUT> type, ExecutionConfig executionConfig) {
+        ((OutputTypeConfigurable<OUT>) operator).setOutputType(type, executionConfig);
+    }
 
-	@Override
-	public boolean isInputTypeConfigurable() {
-		return operator instanceof InputTypeConfigurable;
-	}
+    @Override
+    public boolean isInputTypeConfigurable() {
+        return operator instanceof InputTypeConfigurable;
+    }
 
-	@Override
-	public void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig) {
-		((InputTypeConfigurable) operator).setInputType(type, executionConfig);
-	}
+    @Override
+    public void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig) {
+        ((InputTypeConfigurable) operator).setInputType(type, executionConfig);
+    }
 
-	@Override
-	public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
-		return operator.getClass();
-	}
+    @Override
+    public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
+        return operator.getClass();
+    }
 }

@@ -19,17 +19,18 @@
 package org.apache.flink.runtime.scheduler;
 
 /**
- * Deployment option which indicates whether the task should notify master when its data is available.
+ * Deployment option which indicates whether the task should notify master when its data is
+ * available.
  */
 public class DeploymentOption {
 
-	private final boolean notifyPartitionDataAvailable;
+    private final boolean notifyPartitionDataAvailable;
 
-	public DeploymentOption(boolean notifyPartitionDataAvailable) {
-		this.notifyPartitionDataAvailable = notifyPartitionDataAvailable;
-	}
+    public DeploymentOption(boolean notifyPartitionDataAvailable) {
+        this.notifyPartitionDataAvailable = notifyPartitionDataAvailable;
+    }
 
-	public boolean notifyPartitionDataAvailable() {
-		return notifyPartitionDataAvailable;
-	}
+    public boolean notifyPartitionDataAvailable() {
+        return notifyPartitionDataAvailable;
+    }
 }

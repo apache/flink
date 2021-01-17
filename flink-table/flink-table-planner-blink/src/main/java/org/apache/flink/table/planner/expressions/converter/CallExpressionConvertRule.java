@@ -28,32 +28,26 @@ import org.apache.calcite.tools.RelBuilder;
 
 import java.util.Optional;
 
-/**
- * Rule to convert {@link CallExpression}.
- */
+/** Rule to convert {@link CallExpression}. */
 public interface CallExpressionConvertRule {
 
-	/**
-	 * Convert call expression with context to RexNode.
-	 *
-	 * @return Success return RexNode of {@link Optional#of}, Fail return {@link Optional#empty()}.
-	 */
-	Optional<RexNode> convert(CallExpression call, ConvertContext context);
+    /**
+     * Convert call expression with context to RexNode.
+     *
+     * @return Success return RexNode of {@link Optional#of}, Fail return {@link Optional#empty()}.
+     */
+    Optional<RexNode> convert(CallExpression call, ConvertContext context);
 
-	/**
-	 * Context of {@link CallExpressionConvertRule}.
-	 */
-	interface ConvertContext {
+    /** Context of {@link CallExpressionConvertRule}. */
+    interface ConvertContext {
 
-		/**
-		 * Convert expression to RexNode, used by children conversion.
-		 */
-		RexNode toRexNode(Expression expr);
+        /** Convert expression to RexNode, used by children conversion. */
+        RexNode toRexNode(Expression expr);
 
-		RelBuilder getRelBuilder();
+        RelBuilder getRelBuilder();
 
-		FlinkTypeFactory getTypeFactory();
+        FlinkTypeFactory getTypeFactory();
 
-		DataTypeFactory getDataTypeFactory();
-	}
+        DataTypeFactory getDataTypeFactory();
+    }
 }

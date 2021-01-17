@@ -31,20 +31,23 @@ import java.util.UUID;
  */
 public class TestingListener extends TestingRetrievalBase implements LeaderRetrievalListener {
 
-	private static final Logger LOG = LoggerFactory.getLogger(TestingListener.class);
+    private static final Logger LOG = LoggerFactory.getLogger(TestingListener.class);
 
-	@Override
-	public void notifyLeaderAddress(String leaderAddress, UUID leaderSessionID) {
-		LOG.debug("Notified about new leader address {} with session ID {}.", leaderAddress, leaderSessionID);
-		if (leaderAddress == null && leaderSessionID == null) {
-			offerToLeaderQueue(LeaderInformation.empty());
-		} else {
-			offerToLeaderQueue(LeaderInformation.known(leaderSessionID, leaderAddress));
-		}
-	}
+    @Override
+    public void notifyLeaderAddress(String leaderAddress, UUID leaderSessionID) {
+        LOG.debug(
+                "Notified about new leader address {} with session ID {}.",
+                leaderAddress,
+                leaderSessionID);
+        if (leaderAddress == null && leaderSessionID == null) {
+            offerToLeaderQueue(LeaderInformation.empty());
+        } else {
+            offerToLeaderQueue(LeaderInformation.known(leaderSessionID, leaderAddress));
+        }
+    }
 
-	@Override
-	public void handleError(Exception exception) {
-		super.handleError(exception);
-	}
+    @Override
+    public void handleError(Exception exception) {
+        super.handleError(exception);
+    }
 }

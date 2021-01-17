@@ -22,28 +22,26 @@ import org.apache.flink.util.SerializedValue;
 
 import java.io.IOException;
 
-/**
- * An extension of SerializedValue which caches the deserialized data.
- */
+/** An extension of SerializedValue which caches the deserialized data. */
 public class CachedSerializedValue<T> extends SerializedValue<T> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private transient T deserialized;
+    private transient T deserialized;
 
-	public CachedSerializedValue(T value) throws IOException {
-		super(value);
-	}
+    public CachedSerializedValue(T value) throws IOException {
+        super(value);
+    }
 
-	@Override
-	public T deserializeValue(ClassLoader loader) throws IOException, ClassNotFoundException {
-		if (deserialized == null) {
-			deserialized = super.deserializeValue(loader);
-		}
-		return deserialized;
-	}
+    @Override
+    public T deserializeValue(ClassLoader loader) throws IOException, ClassNotFoundException {
+        if (deserialized == null) {
+            deserialized = super.deserializeValue(loader);
+        }
+        return deserialized;
+    }
 
-	public T deserializeValue() throws IOException, ClassNotFoundException {
-		return deserializeValue(Thread.currentThread().getContextClassLoader());
-	}
+    public T deserializeValue() throws IOException, ClassNotFoundException {
+        return deserializeValue(Thread.currentThread().getContextClassLoader());
+    }
 }

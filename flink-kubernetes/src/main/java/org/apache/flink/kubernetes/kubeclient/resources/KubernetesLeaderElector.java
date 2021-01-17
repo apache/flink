@@ -35,70 +35,80 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Represent {@link KubernetesLeaderElector} in kubernetes. {@link LeaderElector#run()} is a blocking call. It should be
- * run in the IO executor, not the main thread. The lifecycle is bound to single leader election. Once the leadership
- * is revoked, as well as the {@link LeaderCallbackHandler#notLeader()} is called, the {@link LeaderElector#run()} will
- * finish. To start another round of election, we need to trigger again.
+ * Represent {@link KubernetesLeaderElector} in kubernetes. {@link LeaderElector#run()} is a
+ * blocking call. It should be run in the IO executor, not the main thread. The lifecycle is bound
+ * to single leader election. Once the leadership is revoked, as well as the {@link
+ * LeaderCallbackHandler#notLeader()} is called, the {@link LeaderElector#run()} will finish. To
+ * start another round of election, we need to trigger again.
  *
- * <p>{@link LeaderElector#run()} is responsible for creating the leader ConfigMap and continuously update the
- * annotation. The annotation key is {@link #LEADER_ANNOTATION_KEY} and the value is in the following json format.
- * metadata:
- *   annotations:
- *     control-plane.alpha.kubernetes.io/leader: '{"holderIdentity":"623e39fb-70c3-44f1-811f-561ec4a28d75","leaseDuration":15.000000000,"acquireTime":"2020-10-20T04:06:31.431000Z","renewTime":"2020-10-22T08:51:36.843000Z","leaderTransitions":37981}'
+ * <p>{@link LeaderElector#run()} is responsible for creating the leader ConfigMap and continuously
+ * update the annotation. The annotation key is {@link #LEADER_ANNOTATION_KEY} and the value is in
+ * the following json format. metadata: annotations: control-plane.alpha.kubernetes.io/leader:
+ * '{"holderIdentity":"623e39fb-70c3-44f1-811f-561ec4a28d75","leaseDuration":15.000000000,"acquireTime":"2020-10-20T04:06:31.431000Z","renewTime":"2020-10-22T08:51:36.843000Z","leaderTransitions":37981}'
  */
 public class KubernetesLeaderElector {
 
-	private static final Logger LOG = LoggerFactory.getLogger(KubernetesLeaderElector.class);
-	@VisibleForTesting
-	public static final String LEADER_ANNOTATION_KEY = "control-plane.alpha.kubernetes.io/leader";
+    private static final Logger LOG = LoggerFactory.getLogger(KubernetesLeaderElector.class);
 
-	private final ExecutorService executorService = Executors.newSingleThreadExecutor(
-		new ExecutorThreadFactory("KubernetesLeaderElector-ExecutorService"));
+    @VisibleForTesting
+    public static final String LEADER_ANNOTATION_KEY = "control-plane.alpha.kubernetes.io/leader";
 
-	private final LeaderElector<NamespacedKubernetesClient> internalLeaderElector;
+    private final ExecutorService executorService =
+            Executors.newSingleThreadExecutor(
+                    new ExecutorThreadFactory("KubernetesLeaderElector-ExecutorService"));
 
-	public KubernetesLeaderElector(
-			NamespacedKubernetesClient kubernetesClient,
-			String namespace,
-			KubernetesLeaderElectionConfiguration leaderConfig,
-			LeaderCallbackHandler leaderCallbackHandler) {
-		final LeaderElectionConfig leaderElectionConfig = new LeaderElectionConfigBuilder()
-			.withName(leaderConfig.getConfigMapName())
-			.withLeaseDuration(leaderConfig.getLeaseDuration())
-			.withLock(new ConfigMapLock(namespace, leaderConfig.getConfigMapName(), leaderConfig.getLockIdentity()))
-			.withRenewDeadline(leaderConfig.getRenewDeadline())
-			.withRetryPeriod(leaderConfig.getRetryPeriod())
-			.withLeaderCallbacks(new LeaderCallbacks(
-				leaderCallbackHandler::isLeader,
-				leaderCallbackHandler::notLeader,
-				newLeader -> LOG.info("New leader elected {} for {}.", newLeader, leaderConfig.getConfigMapName())
-			))
-			.build();
-		internalLeaderElector = new LeaderElector<>(kubernetesClient, leaderElectionConfig);
-		LOG.info("Create KubernetesLeaderElector {} with lock identity {}.",
-			leaderConfig.getConfigMapName(), leaderConfig.getLockIdentity());
-	}
+    private final LeaderElector<NamespacedKubernetesClient> internalLeaderElector;
 
-	public void run() {
-		executorService.submit(internalLeaderElector::run);
-	}
+    public KubernetesLeaderElector(
+            NamespacedKubernetesClient kubernetesClient,
+            KubernetesLeaderElectionConfiguration leaderConfig,
+            LeaderCallbackHandler leaderCallbackHandler) {
+        final LeaderElectionConfig leaderElectionConfig =
+                new LeaderElectionConfigBuilder()
+                        .withName(leaderConfig.getConfigMapName())
+                        .withLeaseDuration(leaderConfig.getLeaseDuration())
+                        .withLock(
+                                new ConfigMapLock(
+                                        kubernetesClient.getNamespace(),
+                                        leaderConfig.getConfigMapName(),
+                                        leaderConfig.getLockIdentity()))
+                        .withRenewDeadline(leaderConfig.getRenewDeadline())
+                        .withRetryPeriod(leaderConfig.getRetryPeriod())
+                        .withLeaderCallbacks(
+                                new LeaderCallbacks(
+                                        leaderCallbackHandler::isLeader,
+                                        leaderCallbackHandler::notLeader,
+                                        newLeader ->
+                                                LOG.info(
+                                                        "New leader elected {} for {}.",
+                                                        newLeader,
+                                                        leaderConfig.getConfigMapName())))
+                        .build();
+        internalLeaderElector = new LeaderElector<>(kubernetesClient, leaderElectionConfig);
+        LOG.info(
+                "Create KubernetesLeaderElector {} with lock identity {}.",
+                leaderConfig.getConfigMapName(),
+                leaderConfig.getLockIdentity());
+    }
 
-	public void stop() {
-		executorService.shutdownNow();
-	}
+    public void run() {
+        executorService.submit(internalLeaderElector::run);
+    }
 
-	public static boolean hasLeadership(KubernetesConfigMap configMap, String lockIdentity) {
-		final String leader = configMap.getAnnotations().get(LEADER_ANNOTATION_KEY);
-		return leader != null && leader.contains(lockIdentity);
-	}
+    public void stop() {
+        executorService.shutdownNow();
+    }
 
-	/**
-	 * Callback handler for leader election.
-	 */
-	public abstract static class LeaderCallbackHandler {
+    public static boolean hasLeadership(KubernetesConfigMap configMap, String lockIdentity) {
+        final String leader = configMap.getAnnotations().get(LEADER_ANNOTATION_KEY);
+        return leader != null && leader.contains(lockIdentity);
+    }
 
-		public abstract void isLeader();
+    /** Callback handler for leader election. */
+    public abstract static class LeaderCallbackHandler {
 
-		public abstract void notLeader();
-	}
+        public abstract void isLeader();
+
+        public abstract void notLeader();
+    }
 }

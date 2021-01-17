@@ -33,9 +33,9 @@ import java.util.Objects;
 /**
  * Type information that wraps a serializer that originated from a {@link DataType}.
  *
- * <p>{@link TypeInformation} is a legacy class for the sole purpose of creating a {@link TypeSerializer}.
- * This class acts as an adapter when entering or leaving the table ecosystem to other APIs where type
- * information is required.
+ * <p>{@link TypeInformation} is a legacy class for the sole purpose of creating a {@link
+ * TypeSerializer}. This class acts as an adapter when entering or leaving the table ecosystem to
+ * other APIs where type information is required.
  *
  * <p>The original {@link DataType} is stored in every instance (for access during pre-flight phase
  * and planning) but has no effect on equality because only serialization matters during runtime.
@@ -48,111 +48,112 @@ import java.util.Objects;
 @Internal
 public final class ExternalTypeInfo<T> extends TypeInformation<T> implements DataTypeQueryable {
 
-	private static final String FORMAT = "%s(%s, %s)";
+    private static final String FORMAT = "%s(%s, %s)";
 
-	private final DataType dataType;
+    private final DataType dataType;
 
-	private final TypeSerializer<T> typeSerializer;
+    private final TypeSerializer<T> typeSerializer;
 
-	private ExternalTypeInfo(DataType dataType, TypeSerializer<T> typeSerializer) {
-		this.dataType = Preconditions.checkNotNull(dataType);
-		this.typeSerializer = Preconditions.checkNotNull(typeSerializer);
-	}
+    private ExternalTypeInfo(DataType dataType, TypeSerializer<T> typeSerializer) {
+        this.dataType = Preconditions.checkNotNull(dataType);
+        this.typeSerializer = Preconditions.checkNotNull(typeSerializer);
+    }
 
-	/**
-	 * Creates type information for a {@link DataType} that is possibly represented by internal data
-	 * structures but serialized and deserialized into external data structures.
-	 */
-	public static <T> ExternalTypeInfo<T> of(DataType dataType) {
-		final TypeSerializer<T> serializer = createExternalTypeSerializer(dataType);
-		return new ExternalTypeInfo<>(dataType, serializer);
-	}
+    /**
+     * Creates type information for a {@link DataType} that is possibly represented by internal data
+     * structures but serialized and deserialized into external data structures.
+     */
+    public static <T> ExternalTypeInfo<T> of(DataType dataType) {
+        final TypeSerializer<T> serializer = createExternalTypeSerializer(dataType);
+        return new ExternalTypeInfo<>(dataType, serializer);
+    }
 
-	@SuppressWarnings("unchecked")
-	private static <T> TypeSerializer<T> createExternalTypeSerializer(DataType dataType) {
-		final LogicalType logicalType = dataType.getLogicalType();
-		if (logicalType instanceof RawType) {
-			final RawType<?> rawType = (RawType<?>) logicalType;
-			if (dataType.getConversionClass() == rawType.getOriginatingClass()) {
-				return (TypeSerializer<T>) rawType.getTypeSerializer();
-			}
-		}
-		throw new UnsupportedOperationException("External type information is not fully implemented yet.");
-	}
+    @SuppressWarnings("unchecked")
+    private static <T> TypeSerializer<T> createExternalTypeSerializer(DataType dataType) {
+        final LogicalType logicalType = dataType.getLogicalType();
+        if (logicalType instanceof RawType) {
+            final RawType<?> rawType = (RawType<?>) logicalType;
+            if (dataType.getConversionClass() == rawType.getOriginatingClass()) {
+                return (TypeSerializer<T>) rawType.getTypeSerializer();
+            }
+        }
+        throw new UnsupportedOperationException(
+                "External type information is not fully implemented yet.");
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public DataType getDataType() {
-		return dataType;
-	}
+    @Override
+    public DataType getDataType() {
+        return dataType;
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public boolean isBasicType() {
-		return false;
-	}
+    @Override
+    public boolean isBasicType() {
+        return false;
+    }
 
-	@Override
-	public boolean isTupleType() {
-		return false;
-	}
+    @Override
+    public boolean isTupleType() {
+        return false;
+    }
 
-	@Override
-	public int getArity() {
-		return 1;
-	}
+    @Override
+    public int getArity() {
+        return 1;
+    }
 
-	@Override
-	public int getTotalFields() {
-		return 1;
-	}
+    @Override
+    public int getTotalFields() {
+        return 1;
+    }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public Class<T> getTypeClass() {
-		return (Class<T>) dataType.getConversionClass();
-	}
+    @Override
+    @SuppressWarnings("unchecked")
+    public Class<T> getTypeClass() {
+        return (Class<T>) dataType.getConversionClass();
+    }
 
-	@Override
-	public boolean isKeyType() {
-		return false;
-	}
+    @Override
+    public boolean isKeyType() {
+        return false;
+    }
 
-	@Override
-	public TypeSerializer<T> createSerializer(ExecutionConfig config) {
-		return typeSerializer;
-	}
+    @Override
+    public TypeSerializer<T> createSerializer(ExecutionConfig config) {
+        return typeSerializer;
+    }
 
-	@Override
-	public String toString() {
-		return String.format(
-			FORMAT,
-			dataType.getLogicalType().asSummaryString(),
-			dataType.getConversionClass().getName(),
-			typeSerializer.getClass().getName());
-	}
+    @Override
+    public String toString() {
+        return String.format(
+                FORMAT,
+                dataType.getLogicalType().asSummaryString(),
+                dataType.getConversionClass().getName(),
+                typeSerializer.getClass().getName());
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		ExternalTypeInfo<?> that = (ExternalTypeInfo<?>) o;
-		return typeSerializer.equals(that.typeSerializer);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        ExternalTypeInfo<?> that = (ExternalTypeInfo<?>) o;
+        return typeSerializer.equals(that.typeSerializer);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(typeSerializer);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(typeSerializer);
+    }
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof ExternalTypeInfo;
-	}
+    @Override
+    public boolean canEqual(Object obj) {
+        return obj instanceof ExternalTypeInfo;
+    }
 }

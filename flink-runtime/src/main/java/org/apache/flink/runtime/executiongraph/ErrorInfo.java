@@ -23,48 +23,49 @@ import org.apache.flink.util.SerializedThrowable;
 
 import java.io.Serializable;
 
-/**
- * Simple container to hold an exception and the corresponding timestamp.
- */
+/** Simple container to hold an exception and the corresponding timestamp. */
 public class ErrorInfo implements Serializable {
 
-	private static final long serialVersionUID = -6138942031953594202L;
+    private static final long serialVersionUID = -6138942031953594202L;
 
-	/** The exception that we keep holding forever. Has no strong reference to any user-defined code. */
-	private final SerializedThrowable exception;
+    /**
+     * The exception that we keep holding forever. Has no strong reference to any user-defined code.
+     */
+    private final SerializedThrowable exception;
 
-	private final long timestamp;
-	public ErrorInfo(Throwable exception, long timestamp) {
-		Preconditions.checkNotNull(exception);
-		Preconditions.checkArgument(timestamp > 0);
+    private final long timestamp;
 
-		this.exception = exception instanceof SerializedThrowable ?
-				(SerializedThrowable) exception : new SerializedThrowable(exception);
-		this.timestamp = timestamp;
-	}
+    public ErrorInfo(Throwable exception, long timestamp) {
+        Preconditions.checkNotNull(exception);
+        Preconditions.checkArgument(timestamp > 0);
 
-	/**
-	 * Returns the serialized form of the original exception.
-	 */
-	public SerializedThrowable getException() {
-		return exception;
-	}
+        this.exception =
+                exception instanceof SerializedThrowable
+                        ? (SerializedThrowable) exception
+                        : new SerializedThrowable(exception);
+        this.timestamp = timestamp;
+    }
 
-	/**
-	 * Returns the contained exception as a string.
-	 *
-	 * @return failure causing exception as a string, or {@code "(null)"}
-	 */
-	public String getExceptionAsString() {
-		return exception.getFullStringifiedStackTrace();
-	}
+    /** Returns the serialized form of the original exception. */
+    public SerializedThrowable getException() {
+        return exception;
+    }
 
-	/**
-	 * Returns the timestamp for the contained exception.
-	 *
-	 * @return timestamp of contained exception, or 0 if no exception was set
-	 */
-	public long getTimestamp() {
-		return timestamp;
-	}
+    /**
+     * Returns the contained exception as a string.
+     *
+     * @return failure causing exception as a string, or {@code "(null)"}
+     */
+    public String getExceptionAsString() {
+        return exception.getFullStringifiedStackTrace();
+    }
+
+    /**
+     * Returns the timestamp for the contained exception.
+     *
+     * @return timestamp of contained exception, or 0 if no exception was set
+     */
+    public long getTimestamp() {
+        return timestamp;
+    }
 }

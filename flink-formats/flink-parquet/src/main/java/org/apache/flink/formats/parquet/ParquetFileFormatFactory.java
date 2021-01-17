@@ -47,88 +47,90 @@ import java.util.Set;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
-/**
- * Parquet format factory for file system.
- */
+/** Parquet format factory for file system. */
 public class ParquetFileFormatFactory implements BulkReaderFormatFactory, BulkWriterFormatFactory {
 
-	public static final String IDENTIFIER = "parquet";
+    public static final String IDENTIFIER = "parquet";
 
-	public static final ConfigOption<Boolean> UTC_TIMEZONE = key("utc-timezone")
-			.booleanType()
-			.defaultValue(false)
-			.withDescription("Use UTC timezone or local timezone to the conversion between epoch" +
-					" time and LocalDateTime. Hive 0.x/1.x/2.x use local timezone. But Hive 3.x" +
-					" use UTC timezone");
+    public static final ConfigOption<Boolean> UTC_TIMEZONE =
+            key("utc-timezone")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Use UTC timezone or local timezone to the conversion between epoch"
+                                    + " time and LocalDateTime. Hive 0.x/1.x/2.x use local timezone. But Hive 3.x"
+                                    + " use UTC timezone");
 
-	@Override
-	public BulkDecodingFormat<RowData> createDecodingFormat(
-			DynamicTableFactory.Context context, ReadableConfig formatOptions) {
-		return new BulkDecodingFormat<RowData>() {
-			@Override
-			public BulkFormat<RowData, FileSourceSplit> createRuntimeDecoder(
-					DynamicTableSource.Context sourceContext,
-					DataType producedDataType) {
-				String defaultPartName = context.getCatalogTable().getOptions().getOrDefault(
-						FileSystemOptions.PARTITION_DEFAULT_NAME.key(),
-						FileSystemOptions.PARTITION_DEFAULT_NAME.defaultValue());
-				return ParquetColumnarRowInputFormat.createPartitionedFormat(
-						getParquetConfiguration(formatOptions),
-						(RowType) producedDataType.getLogicalType(),
-						context.getCatalogTable().getPartitionKeys(),
-						PartitionFieldExtractor.forFileSystem(defaultPartName),
-						VectorizedColumnBatch.DEFAULT_SIZE,
-						formatOptions.get(UTC_TIMEZONE),
-						true);
-			}
+    @Override
+    public BulkDecodingFormat<RowData> createDecodingFormat(
+            DynamicTableFactory.Context context, ReadableConfig formatOptions) {
+        return new BulkDecodingFormat<RowData>() {
+            @Override
+            public BulkFormat<RowData, FileSourceSplit> createRuntimeDecoder(
+                    DynamicTableSource.Context sourceContext, DataType producedDataType) {
+                String defaultPartName =
+                        context.getCatalogTable()
+                                .getOptions()
+                                .getOrDefault(
+                                        FileSystemOptions.PARTITION_DEFAULT_NAME.key(),
+                                        FileSystemOptions.PARTITION_DEFAULT_NAME.defaultValue());
+                return ParquetColumnarRowInputFormat.createPartitionedFormat(
+                        getParquetConfiguration(formatOptions),
+                        (RowType) producedDataType.getLogicalType(),
+                        context.getCatalogTable().getPartitionKeys(),
+                        PartitionFieldExtractor.forFileSystem(defaultPartName),
+                        VectorizedColumnBatch.DEFAULT_SIZE,
+                        formatOptions.get(UTC_TIMEZONE),
+                        true);
+            }
 
-			@Override
-			public ChangelogMode getChangelogMode() {
-				return ChangelogMode.insertOnly();
-			}
-		};
-	}
+            @Override
+            public ChangelogMode getChangelogMode() {
+                return ChangelogMode.insertOnly();
+            }
+        };
+    }
 
-	@Override
-	public EncodingFormat<BulkWriter.Factory<RowData>> createEncodingFormat(
-			DynamicTableFactory.Context context, ReadableConfig formatOptions) {
-		return new EncodingFormat<BulkWriter.Factory<RowData>>() {
-			@Override
-			public BulkWriter.Factory<RowData> createRuntimeEncoder(
-					DynamicTableSink.Context sinkContext, DataType consumedDataType) {
-				return ParquetRowDataBuilder.createWriterFactory(
-						(RowType) consumedDataType.getLogicalType(),
-						getParquetConfiguration(formatOptions),
-						formatOptions.get(UTC_TIMEZONE));
-			}
+    @Override
+    public EncodingFormat<BulkWriter.Factory<RowData>> createEncodingFormat(
+            DynamicTableFactory.Context context, ReadableConfig formatOptions) {
+        return new EncodingFormat<BulkWriter.Factory<RowData>>() {
+            @Override
+            public BulkWriter.Factory<RowData> createRuntimeEncoder(
+                    DynamicTableSink.Context sinkContext, DataType consumedDataType) {
+                return ParquetRowDataBuilder.createWriterFactory(
+                        (RowType) consumedDataType.getLogicalType(),
+                        getParquetConfiguration(formatOptions),
+                        formatOptions.get(UTC_TIMEZONE));
+            }
 
-			@Override
-			public ChangelogMode getChangelogMode() {
-				return ChangelogMode.insertOnly();
-			}
-		};
-	}
+            @Override
+            public ChangelogMode getChangelogMode() {
+                return ChangelogMode.insertOnly();
+            }
+        };
+    }
 
-	private static Configuration getParquetConfiguration(ReadableConfig options) {
-		Configuration conf = new Configuration();
-		Properties properties = new Properties();
-		((org.apache.flink.configuration.Configuration) options).addAllToProperties(properties);
-		properties.forEach((k, v) -> conf.set(IDENTIFIER + "." + k, v.toString()));
-		return conf;
-	}
+    private static Configuration getParquetConfiguration(ReadableConfig options) {
+        Configuration conf = new Configuration();
+        Properties properties = new Properties();
+        ((org.apache.flink.configuration.Configuration) options).addAllToProperties(properties);
+        properties.forEach((k, v) -> conf.set(IDENTIFIER + "." + k, v.toString()));
+        return conf;
+    }
 
-	@Override
-	public String factoryIdentifier() {
-		return "parquet";
-	}
+    @Override
+    public String factoryIdentifier() {
+        return "parquet";
+    }
 
-	@Override
-	public Set<ConfigOption<?>> requiredOptions() {
-		return new HashSet<>();
-	}
+    @Override
+    public Set<ConfigOption<?>> requiredOptions() {
+        return new HashSet<>();
+    }
 
-	@Override
-	public Set<ConfigOption<?>> optionalOptions() {
-		return new HashSet<>();
-	}
+    @Override
+    public Set<ConfigOption<?>> optionalOptions() {
+        return new HashSet<>();
+    }
 }

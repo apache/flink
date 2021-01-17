@@ -244,6 +244,7 @@ object FlinkStreamRuleSets {
     PushProjectIntoLegacyTableSourceScanRule.INSTANCE,
     PushFilterIntoTableSourceScanRule.INSTANCE,
     PushFilterIntoLegacyTableSourceScanRule.INSTANCE,
+    PushLimitIntoTableSourceScanRule.INSTANCE,
 
     // reorder the projecct and watermark assigner
     ProjectWatermarkAssignerTransposeRule.INSTANCE,
@@ -380,7 +381,8 @@ object FlinkStreamRuleSets {
     //Rule that rewrites temporal join with extracted primary key
     TemporalJoinRewriteWithUniqueKeyRule.INSTANCE,
     // Rule that splits python ScalarFunctions from java/scala ScalarFunctions.
-    PythonCalcSplitRule.SPLIT_REX_FIELD,
+    PythonCalcSplitRule.SPLIT_CONDITION_REX_FIELD,
+    PythonCalcSplitRule.SPLIT_PROJECTION_REX_FIELD,
     PythonCalcSplitRule.SPLIT_CONDITION,
     PythonCalcSplitRule.SPLIT_PROJECT,
     PythonCalcSplitRule.SPLIT_PANDAS_IN_PROJECT,
@@ -408,35 +410,35 @@ object FlinkStreamRuleSets {
     // union
     StreamPhysicalUnionRule.INSTANCE,
     // sort
-    StreamExecSortRule.INSTANCE,
-    StreamExecLimitRule.INSTANCE,
-    StreamExecSortLimitRule.INSTANCE,
-    StreamExecTemporalSortRule.INSTANCE,
+    StreamPhysicalSortRule.INSTANCE,
+    StreamPhysicalLimitRule.INSTANCE,
+    StreamPhysicalSortLimitRule.INSTANCE,
+    StreamPhysicalTemporalSortRule.INSTANCE,
     // rank
-    StreamExecRankRule.INSTANCE,
-    StreamExecDeduplicateRule.RANK_INSTANCE,
+    StreamPhysicalRankRule.INSTANCE,
+    StreamPhysicalDeduplicateRule.RANK_INSTANCE,
     // expand
     StreamPhysicalExpandRule.INSTANCE,
     // group agg
-    StreamExecGroupAggregateRule.INSTANCE,
-    StreamExecGroupTableAggregateRule.INSTANCE,
-    StreamExecPythonGroupAggregateRule.INSTANCE,
-    StreamExecPythonGroupTableAggregateRule.INSTANCE,
+    StreamPhysicalGroupAggregateRule.INSTANCE,
+    StreamPhysicalGroupTableAggregateRule.INSTANCE,
+    StreamPhysicalPythonGroupAggregateRule.INSTANCE,
+    StreamPhysicalPythonGroupTableAggregateRule.INSTANCE,
     // over agg
-    StreamExecOverAggregateRule.INSTANCE,
-    StreamExecPythonOverAggregateRule.INSTANCE,
+    StreamPhysicalOverAggregateRule.INSTANCE,
+    StreamPhysicalPythonOverAggregateRule.INSTANCE,
     // window agg
-    StreamExecGroupWindowAggregateRule.INSTANCE,
-    StreamExecGroupWindowTableAggregateRule.INSTANCE,
-    StreamExecPythonGroupWindowAggregateRule.INSTANCE,
+    StreamPhysicalGroupWindowAggregateRule.INSTANCE,
+    StreamPhysicalGroupWindowTableAggregateRule.INSTANCE,
+    StreamPhysicalPythonGroupWindowAggregateRule.INSTANCE,
     // join
     StreamExecJoinRule.INSTANCE,
     StreamExecIntervalJoinRule.INSTANCE,
-    StreamExecTemporalJoinRule.INSTANCE,
+    StreamPhysicalTemporalJoinRule.INSTANCE,
     StreamExecLookupJoinRule.SNAPSHOT_ON_TABLESCAN,
     StreamExecLookupJoinRule.SNAPSHOT_ON_CALC_TABLESCAN,
     // CEP
-    StreamExecMatchRule.INSTANCE,
+    StreamPhysicalMatchRule.INSTANCE,
     // correlate
     StreamPhysicalConstantTableFunctionScanRule.INSTANCE,
     StreamPhysicalCorrelateRule.INSTANCE,

@@ -29,79 +29,75 @@ import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.util.Litmus;
 
 /**
- * Parse SQL MAP type, i.e. MAP&lt;INT NOT NULL, TIMESTAMP NULL&gt;, the key and value can specify
- * a suffix to indicate if the type is nullable, default is nullable.
+ * Parse SQL MAP type, i.e. MAP&lt;INT NOT NULL, TIMESTAMP NULL&gt;, the key and value can specify a
+ * suffix to indicate if the type is nullable, default is nullable.
  *
  * <p>MAP type does not belong to standard SQL.
  */
 public class SqlMapTypeNameSpec extends SqlTypeNameSpec {
 
-	private final SqlDataTypeSpec keyType;
-	private final SqlDataTypeSpec valType;
+    private final SqlDataTypeSpec keyType;
+    private final SqlDataTypeSpec valType;
 
-	/**
-	 * Creates a {@code SqlMapTypeNameSpec}.
-	 *
-	 * @param keyType key type
-	 * @param valType value type
-	 * @param pos     the parser position
-	 */
-	public SqlMapTypeNameSpec(
-			SqlDataTypeSpec keyType,
-			SqlDataTypeSpec valType,
-			SqlParserPos pos) {
-		super(new SqlIdentifier(SqlTypeName.MAP.getName(), pos), pos);
-		this.keyType = keyType;
-		this.valType = valType;
-	}
+    /**
+     * Creates a {@code SqlMapTypeNameSpec}.
+     *
+     * @param keyType key type
+     * @param valType value type
+     * @param pos the parser position
+     */
+    public SqlMapTypeNameSpec(SqlDataTypeSpec keyType, SqlDataTypeSpec valType, SqlParserPos pos) {
+        super(new SqlIdentifier(SqlTypeName.MAP.getName(), pos), pos);
+        this.keyType = keyType;
+        this.valType = valType;
+    }
 
-	public SqlDataTypeSpec getKeyType() {
-		return keyType;
-	}
+    public SqlDataTypeSpec getKeyType() {
+        return keyType;
+    }
 
-	public SqlDataTypeSpec getValType() {
-		return valType;
-	}
+    public SqlDataTypeSpec getValType() {
+        return valType;
+    }
 
-	@Override
-	public RelDataType deriveType(SqlValidator validator) {
-		return validator.getTypeFactory()
-			.createMapType(
-				keyType.deriveType(validator),
-				valType.deriveType(validator));
-	}
+    @Override
+    public RelDataType deriveType(SqlValidator validator) {
+        return validator
+                .getTypeFactory()
+                .createMapType(keyType.deriveType(validator), valType.deriveType(validator));
+    }
 
-	@Override
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		writer.keyword("MAP");
-		SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.FUN_CALL, "<", ">");
-		writer.sep(","); // configures the writer
-		keyType.unparse(writer, leftPrec, rightPrec);
-		// Default is nullable.
-		if (keyType.getNullable() != null && !keyType.getNullable()) {
-			writer.keyword("NOT NULL");
-		}
-		writer.sep(",");
-		valType.unparse(writer, leftPrec, rightPrec);
-		// Default is nullable.
-		if (valType.getNullable() != null && !valType.getNullable()) {
-			writer.keyword("NOT NULL");
-		}
-		writer.endList(frame);
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        writer.keyword("MAP");
+        SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.FUN_CALL, "<", ">");
+        writer.sep(","); // configures the writer
+        keyType.unparse(writer, leftPrec, rightPrec);
+        // Default is nullable.
+        if (keyType.getNullable() != null && !keyType.getNullable()) {
+            writer.keyword("NOT NULL");
+        }
+        writer.sep(",");
+        valType.unparse(writer, leftPrec, rightPrec);
+        // Default is nullable.
+        if (valType.getNullable() != null && !valType.getNullable()) {
+            writer.keyword("NOT NULL");
+        }
+        writer.endList(frame);
+    }
 
-	@Override
-	public boolean equalsDeep(SqlTypeNameSpec spec, Litmus litmus) {
-		if (!(spec instanceof SqlMapTypeNameSpec)) {
-			return litmus.fail("{} != {}", this, spec);
-		}
-		SqlMapTypeNameSpec that = (SqlMapTypeNameSpec) spec;
-		if (!this.keyType.equalsDeep(that.keyType, litmus)) {
-			return litmus.fail("{} != {}", this, spec);
-		}
-		if (!this.valType.equalsDeep(that.valType, litmus)) {
-			return litmus.fail("{} != {}", this, spec);
-		}
-		return litmus.succeed();
-	}
+    @Override
+    public boolean equalsDeep(SqlTypeNameSpec spec, Litmus litmus) {
+        if (!(spec instanceof SqlMapTypeNameSpec)) {
+            return litmus.fail("{} != {}", this, spec);
+        }
+        SqlMapTypeNameSpec that = (SqlMapTypeNameSpec) spec;
+        if (!this.keyType.equalsDeep(that.keyType, litmus)) {
+            return litmus.fail("{} != {}", this, spec);
+        }
+        if (!this.valType.equalsDeep(that.valType, litmus)) {
+            return litmus.fail("{} != {}", this, spec);
+        }
+        return litmus.succeed();
+    }
 }

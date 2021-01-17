@@ -33,73 +33,76 @@ import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Attach the jvm command and args to the main container for running the JobManager code.
- */
+/** Attach the jvm command and args to the main container for running the JobManager code. */
 public class JavaCmdJobManagerDecorator extends AbstractKubernetesStepDecorator {
 
-	private final KubernetesJobManagerParameters kubernetesJobManagerParameters;
+    private final KubernetesJobManagerParameters kubernetesJobManagerParameters;
 
-	public JavaCmdJobManagerDecorator(KubernetesJobManagerParameters kubernetesJobManagerParameters) {
-		this.kubernetesJobManagerParameters = checkNotNull(kubernetesJobManagerParameters);
-	}
+    public JavaCmdJobManagerDecorator(
+            KubernetesJobManagerParameters kubernetesJobManagerParameters) {
+        this.kubernetesJobManagerParameters = checkNotNull(kubernetesJobManagerParameters);
+    }
 
-	@Override
-	public FlinkPod decorateFlinkPod(FlinkPod flinkPod) {
-		final JobManagerProcessSpec processSpec = JobManagerProcessUtils.processSpecFromConfigWithNewOptionToInterpretLegacyHeap(
-			kubernetesJobManagerParameters.getFlinkConfiguration(),
-			JobManagerOptions.TOTAL_PROCESS_MEMORY);
-		final List<String> startCommand = getJobManagerStartCommand(
-			kubernetesJobManagerParameters.getFlinkConfiguration(),
-			processSpec,
-			kubernetesJobManagerParameters.getFlinkConfDirInPod(),
-			kubernetesJobManagerParameters.getFlinkLogDirInPod(),
-			kubernetesJobManagerParameters.hasLogback(),
-			kubernetesJobManagerParameters.hasLog4j(),
-			kubernetesJobManagerParameters.getEntrypointClass());
+    @Override
+    public FlinkPod decorateFlinkPod(FlinkPod flinkPod) {
+        final JobManagerProcessSpec processSpec =
+                JobManagerProcessUtils.processSpecFromConfigWithNewOptionToInterpretLegacyHeap(
+                        kubernetesJobManagerParameters.getFlinkConfiguration(),
+                        JobManagerOptions.TOTAL_PROCESS_MEMORY);
+        final List<String> startCommand =
+                getJobManagerStartCommand(
+                        kubernetesJobManagerParameters.getFlinkConfiguration(),
+                        processSpec,
+                        kubernetesJobManagerParameters.getFlinkConfDirInPod(),
+                        kubernetesJobManagerParameters.getFlinkLogDirInPod(),
+                        kubernetesJobManagerParameters.hasLogback(),
+                        kubernetesJobManagerParameters.hasLog4j(),
+                        kubernetesJobManagerParameters.getEntrypointClass());
 
-		final Container mainContainerWithStartCmd = new ContainerBuilder(flinkPod.getMainContainer())
-			.withCommand(kubernetesJobManagerParameters.getContainerEntrypoint())
-			.withArgs(startCommand)
-			.build();
+        final Container mainContainerWithStartCmd =
+                new ContainerBuilder(flinkPod.getMainContainer())
+                        .withCommand(kubernetesJobManagerParameters.getContainerEntrypoint())
+                        .withArgs(startCommand)
+                        .build();
 
-		return new FlinkPod.Builder(flinkPod)
-			.withMainContainer(mainContainerWithStartCmd)
-			.build();
-	}
+        return new FlinkPod.Builder(flinkPod).withMainContainer(mainContainerWithStartCmd).build();
+    }
 
-	/**
-	 * Generates the shell command to start a jobmanager for kubernetes.
-	 *
-	 * @param flinkConfig The Flink configuration.
-	 * @param jobManagerProcessSpec JobManager process memory spec.
-	 * @param configDirectory The configuration directory for the flink-conf.yaml
-	 * @param logDirectory The log directory.
-	 * @param hasLogback Uses logback?
-	 * @param hasLog4j Uses log4j?
-	 * @param mainClass The main class to start with.
-	 * @return A String containing the job manager startup command.
-	 */
-	private static List<String> getJobManagerStartCommand(
-			Configuration flinkConfig,
-			JobManagerProcessSpec jobManagerProcessSpec,
-			String configDirectory,
-			String logDirectory,
-			boolean hasLogback,
-			boolean hasLog4j,
-			String mainClass) {
-		final String jvmMemOpts = JobManagerProcessUtils.generateJvmParametersStr(jobManagerProcessSpec, flinkConfig);
-		final String dynamicParameters = JobManagerProcessUtils.generateDynamicConfigsStr(jobManagerProcessSpec);
-		final String javaCommand = KubernetesUtils.getCommonStartCommand(
-			flinkConfig,
-			KubernetesUtils.ClusterComponent.JOB_MANAGER,
-			jvmMemOpts,
-			configDirectory,
-			logDirectory,
-			hasLogback,
-			hasLog4j,
-			mainClass,
-			dynamicParameters);
-		return KubernetesUtils.getStartCommandWithBashWrapper(javaCommand);
-	}
+    /**
+     * Generates the shell command to start a jobmanager for kubernetes.
+     *
+     * @param flinkConfig The Flink configuration.
+     * @param jobManagerProcessSpec JobManager process memory spec.
+     * @param configDirectory The configuration directory for the flink-conf.yaml
+     * @param logDirectory The log directory.
+     * @param hasLogback Uses logback?
+     * @param hasLog4j Uses log4j?
+     * @param mainClass The main class to start with.
+     * @return A String containing the job manager startup command.
+     */
+    private static List<String> getJobManagerStartCommand(
+            Configuration flinkConfig,
+            JobManagerProcessSpec jobManagerProcessSpec,
+            String configDirectory,
+            String logDirectory,
+            boolean hasLogback,
+            boolean hasLog4j,
+            String mainClass) {
+        final String jvmMemOpts =
+                JobManagerProcessUtils.generateJvmParametersStr(jobManagerProcessSpec, flinkConfig);
+        final String dynamicParameters =
+                JobManagerProcessUtils.generateDynamicConfigsStr(jobManagerProcessSpec);
+        final String javaCommand =
+                KubernetesUtils.getCommonStartCommand(
+                        flinkConfig,
+                        KubernetesUtils.ClusterComponent.JOB_MANAGER,
+                        jvmMemOpts,
+                        configDirectory,
+                        logDirectory,
+                        hasLogback,
+                        hasLog4j,
+                        mainClass,
+                        dynamicParameters);
+        return KubernetesUtils.getStartCommandWithBashWrapper(javaCommand);
+    }
 }

@@ -41,50 +41,49 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInte
 @Internal
 public final class TypeTransformations {
 
-	/**
-	 * Transformation that uses internal data structures for all conversion classes.
-	 */
-	public static final TypeTransformation TO_INTERNAL_CLASS =
-		(dataType) -> dataType.bridgedTo(toInternalConversionClass(dataType.getLogicalType()));
+    /** Transformation that uses internal data structures for all conversion classes. */
+    public static final TypeTransformation TO_INTERNAL_CLASS =
+            (dataType) -> dataType.bridgedTo(toInternalConversionClass(dataType.getLogicalType()));
 
-	/**
-	 * Returns a type transformation that transforms data type to a new data type whose conversion
-	 * class is {@link java.sql.Timestamp}/{@link java.sql.Time}/{@link java.sql.Date}
-	 * if the original data type is TIMESTAMP/TIME/DATE.
-	 */
-	public static TypeTransformation timeToSqlTypes() {
-		Map<LogicalTypeRoot, Class<?>> conversions = new HashMap<>();
-		conversions.put(LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE, Timestamp.class);
-		conversions.put(LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE, Time.class);
-		conversions.put(LogicalTypeRoot.DATE, Date.class);
-		return new DataTypeConversionClassTransformation(conversions);
-	}
+    /**
+     * Returns a type transformation that transforms data type to a new data type whose conversion
+     * class is {@link java.sql.Timestamp}/{@link java.sql.Time}/{@link java.sql.Date} if the
+     * original data type is TIMESTAMP/TIME/DATE.
+     */
+    public static TypeTransformation timeToSqlTypes() {
+        Map<LogicalTypeRoot, Class<?>> conversions = new HashMap<>();
+        conversions.put(LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE, Timestamp.class);
+        conversions.put(LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE, Time.class);
+        conversions.put(LogicalTypeRoot.DATE, Date.class);
+        return new DataTypeConversionClassTransformation(conversions);
+    }
 
-	/**
-	 * Returns a type transformation that transforms legacy decimal data type to DECIMAL(38, 18).
-	 */
-	public static TypeTransformation legacyDecimalToDefaultDecimal() {
-		return LegacyDecimalTypeTransformation.INSTANCE;
-	}
+    /**
+     * Returns a type transformation that transforms legacy decimal data type to DECIMAL(38, 18).
+     */
+    public static TypeTransformation legacyDecimalToDefaultDecimal() {
+        return LegacyDecimalTypeTransformation.INSTANCE;
+    }
 
-	/**
-	 * Returns a type transformation that transforms LEGACY('RAW', ...) type to the RAW(..., ?) type.
-	 */
-	public static TypeTransformation legacyRawToTypeInfoRaw() {
-		return LegacyRawTypeTransformation.INSTANCE;
-	}
+    /**
+     * Returns a type transformation that transforms LEGACY('RAW', ...) type to the RAW(..., ?)
+     * type.
+     */
+    public static TypeTransformation legacyRawToTypeInfoRaw() {
+        return LegacyRawTypeTransformation.INSTANCE;
+    }
 
-	/**
-	 * Returns a type transformation that transforms data type to nullable data type but keeps
-	 * other information unchanged.
-	 */
-	public static TypeTransformation toNullable() {
-		return DataType::nullable;
-	}
+    /**
+     * Returns a type transformation that transforms data type to nullable data type but keeps other
+     * information unchanged.
+     */
+    public static TypeTransformation toNullable() {
+        return DataType::nullable;
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	private TypeTransformations() {
-		// no instantiation
-	}
+    private TypeTransformations() {
+        // no instantiation
+    }
 }

@@ -38,58 +38,57 @@ import java.io.IOException;
 @Internal
 public class PythonScalarFunctionFlatMap extends AbstractPythonScalarFunctionFlatMap {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private static final String SCALAR_FUNCTION_SCHEMA_CODER_URN = "flink:coder:schema:scalar_function:v1";
+    private static final String SCALAR_FUNCTION_SCHEMA_CODER_URN =
+            "flink:coder:schema:scalar_function:v1";
 
-	/**
-	 * The TypeSerializer for udf input elements.
-	 */
-	private transient TypeSerializer<Row> userDefinedFunctionInputTypeSerializer;
+    /** The TypeSerializer for udf input elements. */
+    private transient TypeSerializer<Row> userDefinedFunctionInputTypeSerializer;
 
-	/**
-	 * The TypeSerializer for user-defined function execution results.
-	 */
-	private transient TypeSerializer<Row> userDefinedFunctionOutputTypeSerializer;
+    /** The TypeSerializer for user-defined function execution results. */
+    private transient TypeSerializer<Row> userDefinedFunctionOutputTypeSerializer;
 
-	public PythonScalarFunctionFlatMap(
-		Configuration config,
-		PythonFunctionInfo[] scalarFunctions,
-		RowType inputType,
-		RowType outputType,
-		int[] udfInputOffsets,
-		int[] forwardedFields) {
-		super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
-	}
+    public PythonScalarFunctionFlatMap(
+            Configuration config,
+            PythonFunctionInfo[] scalarFunctions,
+            RowType inputType,
+            RowType outputType,
+            int[] udfInputOffsets,
+            int[] forwardedFields) {
+        super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
+    }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
-		userDefinedFunctionInputTypeSerializer = PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionInputType);
-		userDefinedFunctionOutputTypeSerializer = PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionOutputType);
-	}
+    @Override
+    @SuppressWarnings("unchecked")
+    public void open(Configuration parameters) throws Exception {
+        super.open(parameters);
+        userDefinedFunctionInputTypeSerializer =
+                PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionInputType);
+        userDefinedFunctionOutputTypeSerializer =
+                PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionOutputType);
+    }
 
-	@Override
-	public String getInputOutputCoderUrn() {
-		return SCALAR_FUNCTION_SCHEMA_CODER_URN;
-	}
+    @Override
+    public String getInputOutputCoderUrn() {
+        return SCALAR_FUNCTION_SCHEMA_CODER_URN;
+    }
 
-	@Override
-	public void processElementInternal(Row value) throws Exception {
-		userDefinedFunctionInputTypeSerializer.serialize(getFunctionInput(value), baosWrapper);
-		pythonFunctionRunner.process(baos.toByteArray());
-		baos.reset();
-	}
+    @Override
+    public void processElementInternal(Row value) throws Exception {
+        userDefinedFunctionInputTypeSerializer.serialize(getFunctionInput(value), baosWrapper);
+        pythonFunctionRunner.process(baos.toByteArray());
+        baos.reset();
+    }
 
-	@Override
-	@SuppressWarnings("ConstantConditions")
-	public void emitResult(Tuple2<byte[], Integer> resultTuple) throws IOException {
-		byte[] rawUdfResult = resultTuple.f0;
-		int length = resultTuple.f1;
-		Row input = forwardedInputQueue.poll();
-		bais.setBuffer(rawUdfResult, 0, length);
-		Row udfResult = userDefinedFunctionOutputTypeSerializer.deserialize(baisWrapper);
-		this.resultCollector.collect(Row.join(input, udfResult));
-	}
+    @Override
+    @SuppressWarnings("ConstantConditions")
+    public void emitResult(Tuple2<byte[], Integer> resultTuple) throws IOException {
+        byte[] rawUdfResult = resultTuple.f0;
+        int length = resultTuple.f1;
+        Row input = forwardedInputQueue.poll();
+        bais.setBuffer(rawUdfResult, 0, length);
+        Row udfResult = userDefinedFunctionOutputTypeSerializer.deserialize(baisWrapper);
+        this.resultCollector.collect(Row.join(input, udfResult));
+    }
 }

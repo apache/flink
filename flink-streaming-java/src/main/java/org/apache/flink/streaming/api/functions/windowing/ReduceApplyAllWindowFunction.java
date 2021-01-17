@@ -32,30 +32,29 @@ import java.util.Collections;
  */
 @Internal
 public class ReduceApplyAllWindowFunction<W extends Window, T, R>
-	extends WrappingFunction<AllWindowFunction<T, R, W>>
-	implements AllWindowFunction<T, R, W> {
+        extends WrappingFunction<AllWindowFunction<T, R, W>> implements AllWindowFunction<T, R, W> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final ReduceFunction<T> reduceFunction;
+    private final ReduceFunction<T> reduceFunction;
 
-	public ReduceApplyAllWindowFunction(ReduceFunction<T> reduceFunction,
-		AllWindowFunction<T, R, W> windowFunction) {
-		super(windowFunction);
-		this.reduceFunction = reduceFunction;
-	}
+    public ReduceApplyAllWindowFunction(
+            ReduceFunction<T> reduceFunction, AllWindowFunction<T, R, W> windowFunction) {
+        super(windowFunction);
+        this.reduceFunction = reduceFunction;
+    }
 
-	@Override
-	public void apply(W window, Iterable<T> input, Collector<R> out) throws Exception {
+    @Override
+    public void apply(W window, Iterable<T> input, Collector<R> out) throws Exception {
 
-		T curr = null;
-		for (T val: input) {
-			if (curr == null) {
-				curr = val;
-			} else {
-				curr = reduceFunction.reduce(curr, val);
-			}
-		}
-		wrappedFunction.apply(window, Collections.singletonList(curr), out);
-	}
+        T curr = null;
+        for (T val : input) {
+            if (curr == null) {
+                curr = val;
+            } else {
+                curr = reduceFunction.reduce(curr, val);
+            }
+        }
+        wrappedFunction.apply(window, Collections.singletonList(curr), out);
+    }
 }

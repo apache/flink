@@ -33,132 +33,124 @@ import java.util.Random;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
- * A generator for events. The generator internally maintains a series of state
- * machines (addresses and current associated state) and returns transition events
- * from those state machines. Each time the next event is generators, this
- * generator picks a random state machine and creates a random transition on that
- * state machine.
+ * A generator for events. The generator internally maintains a series of state machines (addresses
+ * and current associated state) and returns transition events from those state machines. Each time
+ * the next event is generators, this generator picks a random state machine and creates a random
+ * transition on that state machine.
  *
- * <p>The generator randomly adds new state machines, and removes state machines as
- * soon as they reach the terminal state. This implementation maintains up to
- * 1000 state machines concurrently.
+ * <p>The generator randomly adds new state machines, and removes state machines as soon as they
+ * reach the terminal state. This implementation maintains up to 1000 state machines concurrently.
  */
 public class EventsGenerator {
 
-	/** The random number generator. */
-	private final Random rnd;
+    /** The random number generator. */
+    private final Random rnd;
 
-	/** The currently active state machines. */
-	private final LinkedHashMap<Integer, State> states;
+    /** The currently active state machines. */
+    private final LinkedHashMap<Integer, State> states;
 
-	/** Probability with this generator generates an illegal state transition. */
-	private final double errorProb;
+    /** Probability with this generator generates an illegal state transition. */
+    private final double errorProb;
 
-	public EventsGenerator() {
-		this(0.0);
-	}
+    public EventsGenerator() {
+        this(0.0);
+    }
 
-	public EventsGenerator(double errorProb) {
-		checkArgument(errorProb >= 0.0 && errorProb <= 1.0, "Invalid error probability");
-		this.errorProb = errorProb;
+    public EventsGenerator(double errorProb) {
+        checkArgument(errorProb >= 0.0 && errorProb <= 1.0, "Invalid error probability");
+        this.errorProb = errorProb;
 
-		this.rnd = new Random();
-		this.states = new LinkedHashMap<>();
-	}
+        this.rnd = new Random();
+        this.states = new LinkedHashMap<>();
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Creates a new random event. This method randomly pick either
-	 * one of its currently running state machines, or start a new state machine for
-	 * a random IP address.
-	 *
-	 * <p>With {@link #errorProb} probability, the generated event will be from an illegal state
-	 * transition of one of the currently running state machines.
-	 *
-	 * @param minIp The lower bound for the range from which a new IP address may be picked.
-	 * @param maxIp The upper bound for the range from which a new IP address may be picked.
-	 * @return A next random event.
-	 */
-	public Event next(int minIp, int maxIp) {
-		final double p = rnd.nextDouble();
+    /**
+     * Creates a new random event. This method randomly pick either one of its currently running
+     * state machines, or start a new state machine for a random IP address.
+     *
+     * <p>With {@link #errorProb} probability, the generated event will be from an illegal state
+     * transition of one of the currently running state machines.
+     *
+     * @param minIp The lower bound for the range from which a new IP address may be picked.
+     * @param maxIp The upper bound for the range from which a new IP address may be picked.
+     * @return A next random event.
+     */
+    public Event next(int minIp, int maxIp) {
+        final double p = rnd.nextDouble();
 
-		if (p * 1000 >= states.size()) {
-			// create a new state machine
-			final int nextIP = rnd.nextInt(maxIp - minIp) + minIp;
+        if (p * 1000 >= states.size()) {
+            // create a new state machine
+            final int nextIP = rnd.nextInt(maxIp - minIp) + minIp;
 
-			if (!states.containsKey(nextIP)) {
-				EventTypeAndState eventAndState = State.Initial.randomTransition(rnd);
-				states.put(nextIP, eventAndState.state);
-				return new Event(eventAndState.eventType, nextIP);
-			}
-			else {
-				// collision on IP address, try again
-				return next(minIp, maxIp);
-			}
-		}
-		else {
-			// pick an existing state machine
+            if (!states.containsKey(nextIP)) {
+                EventTypeAndState eventAndState = State.Initial.randomTransition(rnd);
+                states.put(nextIP, eventAndState.state);
+                return new Event(eventAndState.eventType, nextIP);
+            } else {
+                // collision on IP address, try again
+                return next(minIp, maxIp);
+            }
+        } else {
+            // pick an existing state machine
 
-			// skip over some elements in the linked map, then take the next
-			// update it, and insert it at the end
+            // skip over some elements in the linked map, then take the next
+            // update it, and insert it at the end
 
-			int numToSkip = Math.min(20, rnd.nextInt(states.size()));
-			Iterator<Entry<Integer, State>> iter = states.entrySet().iterator();
+            int numToSkip = Math.min(20, rnd.nextInt(states.size()));
+            Iterator<Entry<Integer, State>> iter = states.entrySet().iterator();
 
-			for (int i = numToSkip; i > 0; --i) {
-				iter.next();
-			}
+            for (int i = numToSkip; i > 0; --i) {
+                iter.next();
+            }
 
-			Entry<Integer, State> entry = iter.next();
-			State currentState = entry.getValue();
-			int address = entry.getKey();
+            Entry<Integer, State> entry = iter.next();
+            State currentState = entry.getValue();
+            int address = entry.getKey();
 
-			iter.remove();
+            iter.remove();
 
-			if (p < errorProb) {
-				EventType event = currentState.randomInvalidTransition(rnd);
-				return new Event(event, address);
-			}
-			else {
-				EventTypeAndState eventAndState = currentState.randomTransition(rnd);
-				if (!eventAndState.state.isTerminal()) {
-					// reinsert
-					states.put(address, eventAndState.state);
-				}
+            if (p < errorProb) {
+                EventType event = currentState.randomInvalidTransition(rnd);
+                return new Event(event, address);
+            } else {
+                EventTypeAndState eventAndState = currentState.randomTransition(rnd);
+                if (!eventAndState.state.isTerminal()) {
+                    // reinsert
+                    states.put(address, eventAndState.state);
+                }
 
-				return new Event(eventAndState.eventType, address);
-			}
-		}
-	}
+                return new Event(eventAndState.eventType, address);
+            }
+        }
+    }
 
-	/**
-	 * Creates an event for an illegal state transition of one of the internal
-	 * state machines. If the generator has not yet started any state machines
-	 * (for example, because no call to {@link #next(int, int)} was made, yet), this
-	 * will return null.
-	 *
-	 * @return An event for a illegal state transition, or null, if not possible.
-	 */
-	@Nullable
-	public Event nextInvalid() {
-		final Iterator<Entry<Integer, State>> iter = states.entrySet().iterator();
-		if (iter.hasNext()) {
-			final Entry<Integer, State> entry = iter.next();
+    /**
+     * Creates an event for an illegal state transition of one of the internal state machines. If
+     * the generator has not yet started any state machines (for example, because no call to {@link
+     * #next(int, int)} was made, yet), this will return null.
+     *
+     * @return An event for a illegal state transition, or null, if not possible.
+     */
+    @Nullable
+    public Event nextInvalid() {
+        final Iterator<Entry<Integer, State>> iter = states.entrySet().iterator();
+        if (iter.hasNext()) {
+            final Entry<Integer, State> entry = iter.next();
 
-			State currentState = entry.getValue();
-			int address = entry.getKey();
-			iter.remove();
+            State currentState = entry.getValue();
+            int address = entry.getKey();
+            iter.remove();
 
-			EventType event = currentState.randomInvalidTransition(rnd);
-			return new Event(event, address);
-		}
-		else {
-			return null;
-		}
-	}
+            EventType event = currentState.randomInvalidTransition(rnd);
+            return new Event(event, address);
+        } else {
+            return null;
+        }
+    }
 
-	public int numActiveEntries() {
-		return states.size();
-	}
+    public int numActiveEntries() {
+        return states.size();
+    }
 }

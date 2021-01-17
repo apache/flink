@@ -36,65 +36,62 @@ import java.util.LinkedHashMap;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Abstract class to describe statements like ALTER TABLE [[catalogName.] dataBasesName].tableName ...
+ * Abstract class to describe statements like ALTER TABLE [[catalogName.] dataBasesName].tableName
+ * ...
  */
 public abstract class SqlAlterTable extends SqlCall {
 
-	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("ALTER TABLE", SqlKind.ALTER_TABLE);
+    public static final SqlSpecialOperator OPERATOR =
+            new SqlSpecialOperator("ALTER TABLE", SqlKind.ALTER_TABLE);
 
-	protected final SqlIdentifier tableIdentifier;
-	protected final SqlNodeList partitionSpec;
+    protected final SqlIdentifier tableIdentifier;
+    protected final SqlNodeList partitionSpec;
 
-	public SqlAlterTable(
-			SqlParserPos pos,
-			SqlIdentifier tableName,
-			@Nullable SqlNodeList partitionSpec) {
-		super(pos);
-		this.tableIdentifier = requireNonNull(tableName, "tableName should not be null");
-		this.partitionSpec = partitionSpec;
-	}
+    public SqlAlterTable(
+            SqlParserPos pos, SqlIdentifier tableName, @Nullable SqlNodeList partitionSpec) {
+        super(pos);
+        this.tableIdentifier = requireNonNull(tableName, "tableName should not be null");
+        this.partitionSpec = partitionSpec;
+    }
 
-	public SqlAlterTable(
-			SqlParserPos pos,
-			SqlIdentifier tableName) {
-		this(pos, tableName, null);
-	}
+    public SqlAlterTable(SqlParserPos pos, SqlIdentifier tableName) {
+        this(pos, tableName, null);
+    }
 
-	@Override
-	public SqlOperator getOperator() {
-		return OPERATOR;
-	}
+    @Override
+    public SqlOperator getOperator() {
+        return OPERATOR;
+    }
 
-	public SqlIdentifier getTableName() {
-		return tableIdentifier;
-	}
+    public SqlIdentifier getTableName() {
+        return tableIdentifier;
+    }
 
-	@Override
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		writer.keyword("ALTER TABLE");
-		tableIdentifier.unparse(writer, leftPrec, rightPrec);
-		SqlNodeList partitionSpec = getPartitionSpec();
-		if (partitionSpec != null && partitionSpec.size() > 0) {
-			writer.keyword("PARTITION");
-			partitionSpec.unparse(writer, getOperator().getLeftPrec(), getOperator().getRightPrec());
-		}
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        writer.keyword("ALTER TABLE");
+        tableIdentifier.unparse(writer, leftPrec, rightPrec);
+        SqlNodeList partitionSpec = getPartitionSpec();
+        if (partitionSpec != null && partitionSpec.size() > 0) {
+            writer.keyword("PARTITION");
+            partitionSpec.unparse(
+                    writer, getOperator().getLeftPrec(), getOperator().getRightPrec());
+        }
+    }
 
-	public String[] fullTableName() {
-		return tableIdentifier.names.toArray(new String[0]);
-	}
+    public String[] fullTableName() {
+        return tableIdentifier.names.toArray(new String[0]);
+    }
 
-	/**
-	 * Returns the partition spec if the ALTER should be applied to partitions, and null otherwise.
-	 */
-	public SqlNodeList getPartitionSpec() {
-		return partitionSpec;
-	}
+    /**
+     * Returns the partition spec if the ALTER should be applied to partitions, and null otherwise.
+     */
+    public SqlNodeList getPartitionSpec() {
+        return partitionSpec;
+    }
 
-	/**
-	 * Get partition spec as key-value strings.
-	 */
-	public LinkedHashMap<String, String> getPartitionKVs() {
-		return SqlPartitionUtils.getPartitionKVs(getPartitionSpec());
-	}
+    /** Get partition spec as key-value strings. */
+    public LinkedHashMap<String, String> getPartitionKVs() {
+        return SqlPartitionUtils.getPartitionKVs(getPartitionSpec());
+    }
 }

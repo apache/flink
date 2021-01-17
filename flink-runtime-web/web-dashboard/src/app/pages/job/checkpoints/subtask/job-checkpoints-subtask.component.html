@@ -91,6 +91,7 @@
         <th nzSortKey="alignment.processed" nzShowSort><strong>Processed (persisted) Data</strong></th>
         <th nzSortKey="alignment.duration" nzShowSort><strong>Alignment Duration</strong></th>
         <th nzSortKey="start_delay" nzShowSort><strong>Start Delay</strong></th>
+        <th nzSortKey="unaligned_checkpoint" nzShowSort><strong>Unaligned Checkpoint</strong></th>
       </tr>
     </thead>
     <tbody>
@@ -105,6 +106,7 @@
           <td>{{ subTask['alignment']['processed'] | humanizeBytes }} ({{ subTask['alignment']['persisted'] | humanizeBytes }})</td>
           <td>{{ subTask['alignment']['duration'] | humanizeDuration}}</td>
           <td>{{ subTask['start_delay'] | humanizeDuration}}</td>
+          <td>{{ subTask['unaligned_checkpoint']}}</td>
         </ng-container>
         <ng-container *ngIf="subTask['status'] == 'pending_or_failed'">
           <td colspan="7">n/a</td>

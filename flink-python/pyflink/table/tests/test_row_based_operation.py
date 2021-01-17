@@ -49,7 +49,8 @@ class RowBasedOperationTests(object):
             .execute_insert("Results") \
             .wait()
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["4,9", "3,4", "7,36", "10,81", "5,16"])
+        self.assert_equals(
+            actual, ["+I[4, 9]", "+I[3, 4]", "+I[7, 36]", "+I[10, 81]", "+I[5, 16]"])
 
     def test_map_with_pandas_udf(self):
         t = self.t_env.from_elements(
@@ -87,7 +88,9 @@ class RowBasedOperationTests(object):
 
         t.map(pandas_udf).map(pandas_udf_2).execute_insert("Results").wait()
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["4,8", "2,10", "2,28", "2,18", "4,14"])
+        self.assert_equals(
+            actual,
+            ["+I[4, 8]", "+I[2, 10]", "+I[2, 28]", "+I[2, 18]", "+I[4, 14]"])
 
     def test_flat_map(self):
         t = self.t_env.from_elements(
@@ -97,8 +100,9 @@ class RowBasedOperationTests(object):
                  DataTypes.FIELD("b", DataTypes.STRING())]))
 
         table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b'],
-            [DataTypes.BIGINT(), DataTypes.STRING()])
+            ['a', 'b', 'c', 'd', 'e', 'f'],
+            [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.BIGINT(),
+             DataTypes.STRING(), DataTypes.BIGINT(), DataTypes.STRING()])
         self.t_env.register_table_sink("Results", table_sink)
 
         @udtf(result_types=[DataTypes.INT(), DataTypes.STRING()])
@@ -108,10 +112,15 @@ class RowBasedOperationTests(object):
 
         t.flat_map(split) \
             .flat_map(split) \
+            .join_lateral(split.alias("a", "b")) \
+            .left_outer_join_lateral(split.alias("c", "d")) \
             .execute_insert("Results") \
             .wait()
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["1,2", "1,3", "2,1", "1,5", "1,6", "1,7"])
+        self.assert_equals(
+            actual,
+            ["+I[1, 2, 1, 2, 1, 2]", "+I[1, 3, 1, 3, 1, 3]", "+I[2, 1, 2, 1, 2, 1]",
+             "+I[1, 5, 1, 5, 1, 5]", "+I[1, 6, 1, 6, 1, 6]", "+I[1, 7, 1, 7, 1, 7]"])
 
 
 class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkBatchTableTestCase):
@@ -139,7 +148,7 @@ class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkBatchTab
             .execute_insert("Results") \
             .wait()
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["1,5.0,1", "2,2.0,2"])
+        self.assert_equals(actual, ["+I[1, 5.0, 1]", "+I[2, 2.0, 2]"])
 
     def test_aggregate_with_pandas_udaf_without_keys(self):
         t = self.t_env.from_elements(
@@ -164,7 +173,7 @@ class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkBatchTab
             .execute_insert("Results") \
             .wait()
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["3.8,8"])
+        self.assert_equals(actual, ["+I[3.8, 8]"])
 
     def test_window_aggregate_with_pandas_udaf(self):
         import datetime
@@ -210,8 +219,8 @@ class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkBatchTab
 
         actual = source_sink_utils.results()
         self.assert_equals(actual,
-                           ["2018-03-11 03:59:59.999,2.2,3",
-                            "2018-03-11 04:59:59.999,8.0,8"])
+                           ["+I[2018-03-11 03:59:59.999, 2.2, 3]",
+                            "+I[2018-03-11 04:59:59.999, 8.0, 8]"])
 
 
 class StreamRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkStreamTableTestCase):
@@ -233,7 +242,8 @@ class StreamRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkStreamT
             .aggregate(agg.alias("c", "d")) \
             .select("a, c, d") \
             .to_pandas()
-        assert_frame_equal(result, pd.DataFrame([[1, 3, 15], [2, 2, 4]], columns=['a', 'c', 'd']))
+        assert_frame_equal(result.sort_values('a').reset_index(drop=True),
+                           pd.DataFrame([[1, 3, 15], [2, 2, 4]], columns=['a', 'c', 'd']))
 
     def test_flat_aggregate(self):
         import pandas as pd
@@ -275,11 +285,11 @@ class StreamRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkStreamT
             .flat_aggregate(my_concat(t.b, ',').alias("b")) \
             .select(t.b, t.c) \
             .alias("a, c")
-        assert_frame_equal(result.to_pandas(),
-                           pd.DataFrame([["Hi,Hi2,Hi,Hi3,Hi3", "hi"],
-                                         ["Hi,Hi2,Hi,Hi3,Hi3", "hi"],
+        assert_frame_equal(result.to_pandas().sort_values('c').reset_index(drop=True),
+                           pd.DataFrame([["Hi,Hi,Hi2,Hi2,Hi3", "Hello"],
                                          ["Hi,Hi,Hi2,Hi2,Hi3", "Hello"],
-                                         ["Hi,Hi,Hi2,Hi2,Hi3", "Hello"]],
+                                         ["Hi,Hi2,Hi,Hi3,Hi3", "hi"],
+                                         ["Hi,Hi2,Hi,Hi3,Hi3", "hi"]],
                                         columns=['a', 'c']))
 
 

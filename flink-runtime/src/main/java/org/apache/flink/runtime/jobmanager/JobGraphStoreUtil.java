@@ -21,26 +21,24 @@ package org.apache.flink.runtime.jobmanager;
 import org.apache.flink.api.common.JobID;
 
 /**
- * JobGraphStore utility interfaces. For example, convert a name(e.g. ZooKeeper path, key name in Kubernetes ConfigMap)
- * to {@link JobID}, or vice versa.
+ * JobGraphStore utility interfaces. For example, convert a name(e.g. ZooKeeper path, key name in
+ * Kubernetes ConfigMap) to {@link JobID}, or vice versa.
  */
 public interface JobGraphStoreUtil {
 
-	/**
-	 * Get the name in external storage from job id.
-	 *
-	 * @param jobId job id
-	 *
-	 * @return Key name in ConfigMap or child path name in ZooKeeper
-	 */
-	String jobIDToName(JobID jobId);
+    /**
+     * Get the name in external storage from job id.
+     *
+     * @param jobId job id
+     * @return Key name in ConfigMap or child path name in ZooKeeper
+     */
+    String jobIDToName(JobID jobId);
 
-	/**
-	 * Get the job id from name.
-	 *
-	 * @param name Key name in ConfigMap or child path name in ZooKeeper
-	 *
-	 * @return parsed job id.
-	 */
-	JobID nameToJobID(String name);
+    /**
+     * Get the job id from name.
+     *
+     * @param name Key name in ConfigMap or child path name in ZooKeeper
+     * @return parsed job id.
+     */
+    JobID nameToJobID(String name);
 }

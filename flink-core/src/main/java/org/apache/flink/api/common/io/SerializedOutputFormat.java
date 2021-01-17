@@ -18,24 +18,25 @@
 
 package org.apache.flink.api.common.io;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataOutputView;
 
+import java.io.IOException;
+
 /**
- * Stores elements by serializing them with their regular serialization/deserialization functionality.
- * 
+ * Stores elements by serializing them with their regular serialization/deserialization
+ * functionality.
+ *
  * @see SerializedInputFormat
  */
 @Public
 public class SerializedOutputFormat<T extends IOReadableWritable> extends BinaryOutputFormat<T> {
-	
-	private static final long serialVersionUID = 1L;
 
-	@Override
-	protected void serialize(T record, DataOutputView dataOutputView) throws IOException {
-		record.write(dataOutputView);
-	}
+    private static final long serialVersionUID = 1L;
+
+    @Override
+    protected void serialize(T record, DataOutputView dataOutputView) throws IOException {
+        record.write(dataOutputView);
+    }
 }

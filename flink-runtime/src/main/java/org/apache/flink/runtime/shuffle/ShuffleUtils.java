@@ -20,42 +20,41 @@ package org.apache.flink.runtime.shuffle;
 
 import java.util.function.Function;
 
-/**
- * Common utility methods for shuffle service.
- */
+/** Common utility methods for shuffle service. */
 public class ShuffleUtils {
 
-	private ShuffleUtils() {
-	}
+    private ShuffleUtils() {}
 
-	/**
-	 * Apply different functions to known and unknown {@link ShuffleDescriptor}s.
-	 *
-	 * <p>Also casts known {@link ShuffleDescriptor}.
-	 *
-	 * @param shuffleDescriptorClass concrete class of {@code shuffleDescriptor}
-	 * @param shuffleDescriptor concrete shuffle descriptor to check
-	 * @param functionOfUnknownDescriptor supplier to call in case {@code shuffleDescriptor} is unknown
-	 * @param functionOfKnownDescriptor function to call in case {@code shuffleDescriptor} is known
-	 * @param <T> return type of called functions
-	 * @param <SD> concrete type of {@code shuffleDescriptor} to check
-	 * @return result of either function call
-	 */
-	@SuppressWarnings("unchecked")
-	public static <T, SD extends ShuffleDescriptor> T applyWithShuffleTypeCheck(
-			Class<SD> shuffleDescriptorClass,
-			ShuffleDescriptor shuffleDescriptor,
-			Function<UnknownShuffleDescriptor, T> functionOfUnknownDescriptor,
-			Function<SD, T> functionOfKnownDescriptor) {
-		if (shuffleDescriptor.isUnknown()) {
-			return functionOfUnknownDescriptor.apply((UnknownShuffleDescriptor) shuffleDescriptor);
-		} else if (shuffleDescriptorClass.equals(shuffleDescriptor.getClass())) {
-			return functionOfKnownDescriptor.apply((SD) shuffleDescriptor);
-		} else {
-			throw new IllegalArgumentException(String.format(
-				"Unsupported ShuffleDescriptor type <%s>, only <%s> is supported",
-				shuffleDescriptor.getClass().getName(),
-				shuffleDescriptorClass.getName()));
-		}
-	}
+    /**
+     * Apply different functions to known and unknown {@link ShuffleDescriptor}s.
+     *
+     * <p>Also casts known {@link ShuffleDescriptor}.
+     *
+     * @param shuffleDescriptorClass concrete class of {@code shuffleDescriptor}
+     * @param shuffleDescriptor concrete shuffle descriptor to check
+     * @param functionOfUnknownDescriptor supplier to call in case {@code shuffleDescriptor} is
+     *     unknown
+     * @param functionOfKnownDescriptor function to call in case {@code shuffleDescriptor} is known
+     * @param <T> return type of called functions
+     * @param <SD> concrete type of {@code shuffleDescriptor} to check
+     * @return result of either function call
+     */
+    @SuppressWarnings("unchecked")
+    public static <T, SD extends ShuffleDescriptor> T applyWithShuffleTypeCheck(
+            Class<SD> shuffleDescriptorClass,
+            ShuffleDescriptor shuffleDescriptor,
+            Function<UnknownShuffleDescriptor, T> functionOfUnknownDescriptor,
+            Function<SD, T> functionOfKnownDescriptor) {
+        if (shuffleDescriptor.isUnknown()) {
+            return functionOfUnknownDescriptor.apply((UnknownShuffleDescriptor) shuffleDescriptor);
+        } else if (shuffleDescriptorClass.equals(shuffleDescriptor.getClass())) {
+            return functionOfKnownDescriptor.apply((SD) shuffleDescriptor);
+        } else {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "Unsupported ShuffleDescriptor type <%s>, only <%s> is supported",
+                            shuffleDescriptor.getClass().getName(),
+                            shuffleDescriptorClass.getName()));
+        }
+    }
 }

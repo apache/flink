@@ -46,95 +46,98 @@ import static org.junit.Assert.assertTrue;
  */
 public class IntegerFileSinkTestDataUtils {
 
-	/**
-	 * Testing sink {@link Encoder} that writes integer with its binary representation.
-	 */
-	public static class IntEncoder implements Encoder<Integer> {
+    /** Testing sink {@link Encoder} that writes integer with its binary representation. */
+    public static class IntEncoder implements Encoder<Integer> {
 
-		@Override
-		public void encode(Integer element, OutputStream stream) throws IOException {
-			stream.write(ByteBuffer.allocate(4).putInt(element).array());
-			stream.flush();
-		}
-	}
+        @Override
+        public void encode(Integer element, OutputStream stream) throws IOException {
+            stream.write(ByteBuffer.allocate(4).putInt(element).array());
+            stream.flush();
+        }
+    }
 
-	/**
-	 * Testing {@link BucketAssigner} that assigns integers according to modulo.
-	 */
-	public static class ModuloBucketAssigner implements BucketAssigner<Integer, String> {
+    /** Testing {@link BucketAssigner} that assigns integers according to modulo. */
+    public static class ModuloBucketAssigner implements BucketAssigner<Integer, String> {
 
-		private final int numBuckets;
+        private final int numBuckets;
 
-		public ModuloBucketAssigner(int numBuckets) {
-			this.numBuckets = numBuckets;
-		}
+        public ModuloBucketAssigner(int numBuckets) {
+            this.numBuckets = numBuckets;
+        }
 
-		@Override
-		public String getBucketId(Integer element, Context context) {
-			return Integer.toString(element % numBuckets);
-		}
+        @Override
+        public String getBucketId(Integer element, Context context) {
+            return Integer.toString(element % numBuckets);
+        }
 
-		@Override
-		public SimpleVersionedSerializer<String> getSerializer() {
-			return SimpleVersionedStringSerializer.INSTANCE;
-		}
-	}
+        @Override
+        public SimpleVersionedSerializer<String> getSerializer() {
+            return SimpleVersionedStringSerializer.INSTANCE;
+        }
+    }
 
-	/**
-	 * Verifies the files written by the sink contains the expected integer sequences.
-	 * The integers are partition into different buckets according to module, and each
-	 * integer will be repeated by <tt>numSources</tt> times.
-	 *
-	 * @param path The directory to check.
-	 * @param numRecords The total number of records.
-	 * @param numBuckets The number of buckets to assign.
-	 * @param numSources The parallelism of sources generating the sequences. Each integer will be
-	 *                   repeat for <tt>numSources</tt> times.
-	 */
-	public static void checkIntegerSequenceSinkOutput(String path, int numRecords, int numBuckets, int numSources) throws Exception {
-		File dir = new File(path);
-		String[] subDirNames = dir.list();
-		assertNotNull(subDirNames);
+    /**
+     * Verifies the files written by the sink contains the expected integer sequences. The integers
+     * are partition into different buckets according to module, and each integer will be repeated
+     * by <tt>numSources</tt> times.
+     *
+     * @param path The directory to check.
+     * @param numRecords The total number of records.
+     * @param numBuckets The number of buckets to assign.
+     * @param numSources The parallelism of sources generating the sequences. Each integer will be
+     *     repeat for <tt>numSources</tt> times.
+     */
+    public static void checkIntegerSequenceSinkOutput(
+            String path, int numRecords, int numBuckets, int numSources) throws Exception {
+        File dir = new File(path);
+        String[] subDirNames = dir.list();
+        assertNotNull(subDirNames);
 
-		Arrays.sort(subDirNames, Comparator.comparingInt(Integer::parseInt));
-		assertEquals(numBuckets, subDirNames.length);
-		for (int i = 0; i < numBuckets; ++i) {
-			assertEquals(Integer.toString(i), subDirNames[i]);
+        Arrays.sort(subDirNames, Comparator.comparingInt(Integer::parseInt));
+        assertEquals(numBuckets, subDirNames.length);
+        for (int i = 0; i < numBuckets; ++i) {
+            assertEquals(Integer.toString(i), subDirNames[i]);
 
-			// now check its content
-			File bucketDir = new File(path, subDirNames[i]);
-			assertTrue(
-					bucketDir.getAbsolutePath() + " Should be a existing directory",
-					bucketDir.isDirectory());
+            // now check its content
+            File bucketDir = new File(path, subDirNames[i]);
+            assertTrue(
+                    bucketDir.getAbsolutePath() + " Should be a existing directory",
+                    bucketDir.isDirectory());
 
-			Map<Integer, Integer> counts = new HashMap<>();
-			File[] files = bucketDir.listFiles(f -> !f.getName().startsWith("."));
-			assertNotNull(files);
+            Map<Integer, Integer> counts = new HashMap<>();
+            File[] files = bucketDir.listFiles(f -> !f.getName().startsWith("."));
+            assertNotNull(files);
 
-			for (File file : files) {
-				assertTrue(file.isFile());
+            for (File file : files) {
+                assertTrue(file.isFile());
 
-				try (DataInputStream dataInputStream = new DataInputStream(new FileInputStream(file))) {
-					while (true) {
-						int value = dataInputStream.readInt();
-						counts.compute(value, (k, v) -> v == null ? 1 : v + 1);
-					}
-				} catch (EOFException e) {
-					// End the reading
-				}
-			}
+                try (DataInputStream dataInputStream =
+                        new DataInputStream(new FileInputStream(file))) {
+                    while (true) {
+                        int value = dataInputStream.readInt();
+                        counts.compute(value, (k, v) -> v == null ? 1 : v + 1);
+                    }
+                } catch (EOFException e) {
+                    // End the reading
+                }
+            }
 
-			int expectedCount = numRecords / numBuckets +
-					(i < numRecords % numBuckets ? 1 : 0);
-			assertEquals(expectedCount, counts.size());
+            int expectedCount = numRecords / numBuckets + (i < numRecords % numBuckets ? 1 : 0);
+            assertEquals(expectedCount, counts.size());
 
-			for (int j = i; j < numRecords; j += numBuckets) {
-				assertEquals(
-						"The record " + j + " should occur " + numSources + " times, " +
-								" but only occurs " + counts.getOrDefault(j, 0) + "time",
-						numSources,
-						counts.getOrDefault(j, 0).intValue());
-			}
-		}
-	}
+            for (int j = i; j < numRecords; j += numBuckets) {
+                assertEquals(
+                        "The record "
+                                + j
+                                + " should occur "
+                                + numSources
+                                + " times, "
+                                + " but only occurs "
+                                + counts.getOrDefault(j, 0)
+                                + "time",
+                        numSources,
+                        counts.getOrDefault(j, 0).intValue());
+            }
+        }
+    }
 }

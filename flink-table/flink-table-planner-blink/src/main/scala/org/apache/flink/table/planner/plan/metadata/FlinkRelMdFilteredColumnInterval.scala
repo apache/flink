@@ -19,8 +19,8 @@ package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.planner.plan.metadata.FlinkMetadata.FilteredColumnInterval
 import org.apache.flink.table.planner.plan.nodes.calcite.TableAggregate
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecGroupAggregateBase
-import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecGlobalGroupAggregate, StreamExecGroupAggregate, StreamExecGroupTableAggregate, StreamExecGroupWindowAggregate, StreamExecGroupWindowTableAggregate, StreamExecLocalGroupAggregate}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalGroupAggregateBase
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalGlobalGroupAggregate, StreamPhysicalGroupAggregate, StreamPhysicalGroupTableAggregate, StreamPhysicalGroupWindowAggregate, StreamPhysicalGroupWindowTableAggregate, StreamPhysicalLocalGroupAggregate}
 import org.apache.flink.table.planner.plan.stats.ValueInterval
 import org.apache.flink.table.planner.plan.utils.ColumnIntervalUtil
 import org.apache.flink.util.Preconditions.checkArgument
@@ -176,7 +176,7 @@ class FlinkRelMdFilteredColumnInterval private extends MetadataHandler[FilteredC
   }
 
   def getFilteredColumnInterval(
-      aggregate: BatchExecGroupAggregateBase,
+      aggregate: BatchPhysicalGroupAggregateBase,
       mq: RelMetadataQuery,
       columnIndex: Int,
       filterArg: Int): ValueInterval = {
@@ -184,7 +184,7 @@ class FlinkRelMdFilteredColumnInterval private extends MetadataHandler[FilteredC
   }
 
   def getFilteredColumnInterval(
-      aggregate: StreamExecGroupAggregate,
+      aggregate: StreamPhysicalGroupAggregate,
       mq: RelMetadataQuery,
       columnIndex: Int,
       filterArg: Int): ValueInterval = {
@@ -192,7 +192,7 @@ class FlinkRelMdFilteredColumnInterval private extends MetadataHandler[FilteredC
   }
 
   def getFilteredColumnInterval(
-    aggregate: StreamExecGroupTableAggregate,
+    aggregate: StreamPhysicalGroupTableAggregate,
     mq: RelMetadataQuery,
     columnIndex: Int,
     filterArg: Int): ValueInterval = {
@@ -200,7 +200,7 @@ class FlinkRelMdFilteredColumnInterval private extends MetadataHandler[FilteredC
   }
 
   def getFilteredColumnInterval(
-      aggregate: StreamExecLocalGroupAggregate,
+      aggregate: StreamPhysicalLocalGroupAggregate,
       mq: RelMetadataQuery,
       columnIndex: Int,
       filterArg: Int): ValueInterval = {
@@ -208,7 +208,7 @@ class FlinkRelMdFilteredColumnInterval private extends MetadataHandler[FilteredC
   }
 
   def getFilteredColumnInterval(
-      aggregate: StreamExecGlobalGroupAggregate,
+      aggregate: StreamPhysicalGlobalGroupAggregate,
       mq: RelMetadataQuery,
       columnIndex: Int,
       filterArg: Int): ValueInterval = {
@@ -216,7 +216,7 @@ class FlinkRelMdFilteredColumnInterval private extends MetadataHandler[FilteredC
   }
 
   def getColumnInterval(
-      aggregate: StreamExecGroupWindowAggregate,
+      aggregate: StreamPhysicalGroupWindowAggregate,
       mq: RelMetadataQuery,
       columnIndex: Int,
       filterArg: Int): ValueInterval = {
@@ -224,7 +224,7 @@ class FlinkRelMdFilteredColumnInterval private extends MetadataHandler[FilteredC
   }
 
   def getFilteredColumnInterval(
-    aggregate: StreamExecGroupWindowTableAggregate,
+    aggregate: StreamPhysicalGroupWindowTableAggregate,
     mq: RelMetadataQuery,
     columnIndex: Int,
     filterArg: Int): ValueInterval = {

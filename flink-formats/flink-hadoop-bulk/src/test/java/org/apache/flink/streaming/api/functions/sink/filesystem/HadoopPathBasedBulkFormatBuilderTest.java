@@ -34,62 +34,68 @@ import java.net.URLClassLoader;
 
 import static org.junit.Assert.assertNotNull;
 
-/**
- * Tests the behaviors of {@link HadoopPathBasedBulkFormatBuilder}.
- */
+/** Tests the behaviors of {@link HadoopPathBasedBulkFormatBuilder}. */
 public class HadoopPathBasedBulkFormatBuilderTest {
 
-	/**
-	 * Tests if we could create {@link HadoopPathBasedBulkFormatBuilder} within user classloader.
-	 * It is mainly verify we have fixed the issue raised in https://issues.apache.org/jira/browse/FLINK-19398.
-	 */
-	@Test
-	@SuppressWarnings({"unchecked", "rawtypes"})
-	public void testCreatingBuildWithinUserClassLoader() throws Exception {
-		ClassLoader appClassLoader = getClass().getClassLoader();
-		Assume.assumeTrue(appClassLoader instanceof URLClassLoader);
+    /**
+     * Tests if we could create {@link HadoopPathBasedBulkFormatBuilder} within user classloader. It
+     * is mainly verify we have fixed the issue raised in
+     * https://issues.apache.org/jira/browse/FLINK-19398.
+     */
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public void testCreatingBuildWithinUserClassLoader() throws Exception {
+        ClassLoader appClassLoader = getClass().getClassLoader();
+        Assume.assumeTrue(appClassLoader instanceof URLClassLoader);
 
-		ClassLoader userClassLoader = new SpecifiedChildFirstUserClassLoader(
-				HadoopPathBasedBulkFormatBuilder.class.getName(),
-				appClassLoader,
-				((URLClassLoader) appClassLoader).getURLs());
+        ClassLoader userClassLoader =
+                new SpecifiedChildFirstUserClassLoader(
+                        HadoopPathBasedBulkFormatBuilder.class.getName(),
+                        appClassLoader,
+                        ((URLClassLoader) appClassLoader).getURLs());
 
-		Class<HadoopPathBasedBulkFormatBuilder> userHadoopFormatBuildClass =
-				(Class<HadoopPathBasedBulkFormatBuilder>) userClassLoader.loadClass(
-						HadoopPathBasedBulkFormatBuilder.class.getName());
-		Constructor<?> constructor = userHadoopFormatBuildClass.getConstructor(
-				Path.class,
-				HadoopPathBasedBulkWriter.Factory.class,
-				Configuration.class,
-				BucketAssigner.class);
-		Object hadoopFormatBuilder = constructor.newInstance(
-				new Path("/tmp"),
-				new TestHadoopPathBasedBulkWriterFactory(),
-				new Configuration(),
-				new DateTimeBucketAssigner<>());
+        Class<HadoopPathBasedBulkFormatBuilder> userHadoopFormatBuildClass =
+                (Class<HadoopPathBasedBulkFormatBuilder>)
+                        userClassLoader.loadClass(HadoopPathBasedBulkFormatBuilder.class.getName());
+        Constructor<?> constructor =
+                userHadoopFormatBuildClass.getConstructor(
+                        Path.class,
+                        HadoopPathBasedBulkWriter.Factory.class,
+                        Configuration.class,
+                        BucketAssigner.class);
+        Object hadoopFormatBuilder =
+                constructor.newInstance(
+                        new Path("/tmp"),
+                        new TestHadoopPathBasedBulkWriterFactory(),
+                        new Configuration(),
+                        new DateTimeBucketAssigner<>());
 
-		Buckets<String, String> buckets = (Buckets<String, String>) userHadoopFormatBuildClass
-				.getMethod("createBuckets", int.class)
-				.invoke(hadoopFormatBuilder, 0);
-		assertNotNull(buckets);
-	}
+        Buckets<String, String> buckets =
+                (Buckets<String, String>)
+                        userHadoopFormatBuildClass
+                                .getMethod("createBuckets", int.class)
+                                .invoke(hadoopFormatBuilder, 0);
+        assertNotNull(buckets);
+    }
 
-	private static class SpecifiedChildFirstUserClassLoader extends FlinkUserCodeClassLoader {
+    private static class SpecifiedChildFirstUserClassLoader extends FlinkUserCodeClassLoader {
 
-		private final String specifiedClassName;
+        private final String specifiedClassName;
 
-		protected SpecifiedChildFirstUserClassLoader(String specifiedClassName, ClassLoader parent, URL[] urls) {
-			super(urls, parent);
-			this.specifiedClassName = specifiedClassName;
-		}
+        protected SpecifiedChildFirstUserClassLoader(
+                String specifiedClassName, ClassLoader parent, URL[] urls) {
+            super(urls, parent);
+            this.specifiedClassName = specifiedClassName;
+        }
 
-		@Override
-		protected Class<?> loadClassWithoutExceptionHandling(String name, boolean resolve) throws ClassNotFoundException {
-			if (name.equals(specifiedClassName)) {
-				return findClass(name);
-			} else {
-				return super.loadClassWithoutExceptionHandling(name, resolve);
-			}
-		}
-	}
+        @Override
+        protected Class<?> loadClassWithoutExceptionHandling(String name, boolean resolve)
+                throws ClassNotFoundException {
+            if (name.equals(specifiedClassName)) {
+                return findClass(name);
+            } else {
+                return super.loadClassWithoutExceptionHandling(name, resolve);
+            }
+        }
+    }
 }

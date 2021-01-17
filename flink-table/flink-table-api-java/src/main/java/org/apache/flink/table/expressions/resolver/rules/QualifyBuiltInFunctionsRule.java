@@ -30,46 +30,51 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Looks up built-in functions in a catalog for retrieving a fully qualified {@link ObjectIdentifier}.
+ * Looks up built-in functions in a catalog for retrieving a fully qualified {@link
+ * ObjectIdentifier}.
  */
 @Internal
 final class QualifyBuiltInFunctionsRule implements ResolverRule {
 
-	@Override
-	public List<Expression> apply(List<Expression> expression, ResolutionContext context) {
-		return expression.stream()
-			.map(expr -> expr.accept(new QualifyBuiltInFunctionVisitor(context)))
-			.collect(Collectors.toList());
-	}
+    @Override
+    public List<Expression> apply(List<Expression> expression, ResolutionContext context) {
+        return expression.stream()
+                .map(expr -> expr.accept(new QualifyBuiltInFunctionVisitor(context)))
+                .collect(Collectors.toList());
+    }
 
-	private static class QualifyBuiltInFunctionVisitor extends RuleExpressionVisitor<Expression> {
+    private static class QualifyBuiltInFunctionVisitor extends RuleExpressionVisitor<Expression> {
 
-		QualifyBuiltInFunctionVisitor(ResolutionContext resolutionContext) {
-			super(resolutionContext);
-		}
+        QualifyBuiltInFunctionVisitor(ResolutionContext resolutionContext) {
+            super(resolutionContext);
+        }
 
-		@Override
-		public Expression visit(UnresolvedCallExpression unresolvedCall) {
-			if (!unresolvedCall.getFunctionIdentifier().isPresent() &&
-					unresolvedCall.getFunctionDefinition() instanceof BuiltInFunctionDefinition) {
-				final FunctionLookup.Result functionLookup = resolutionContext
-					.functionLookup()
-					.lookupBuiltInFunction(((BuiltInFunctionDefinition) unresolvedCall.getFunctionDefinition()));
+        @Override
+        public Expression visit(UnresolvedCallExpression unresolvedCall) {
+            if (!unresolvedCall.getFunctionIdentifier().isPresent()
+                    && unresolvedCall.getFunctionDefinition()
+                            instanceof BuiltInFunctionDefinition) {
+                final FunctionLookup.Result functionLookup =
+                        resolutionContext
+                                .functionLookup()
+                                .lookupBuiltInFunction(
+                                        ((BuiltInFunctionDefinition)
+                                                unresolvedCall.getFunctionDefinition()));
 
-				return ApiExpressionUtils.unresolvedCall(
-					functionLookup.getFunctionIdentifier(),
-					functionLookup.getFunctionDefinition(),
-					unresolvedCall.getChildren().stream()
-						.map(c -> c.accept(this))
-						.collect(Collectors.toList()));
-			}
+                return ApiExpressionUtils.unresolvedCall(
+                        functionLookup.getFunctionIdentifier(),
+                        functionLookup.getFunctionDefinition(),
+                        unresolvedCall.getChildren().stream()
+                                .map(c -> c.accept(this))
+                                .collect(Collectors.toList()));
+            }
 
-			return unresolvedCall;
-		}
+            return unresolvedCall;
+        }
 
-		@Override
-		protected Expression defaultMethod(Expression expression) {
-			return expression;
-		}
-	}
+        @Override
+        protected Expression defaultMethod(Expression expression) {
+            return expression;
+        }
+    }
 }

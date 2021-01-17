@@ -309,7 +309,7 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
   }
 
   def getDistinctRowCount(
-      rel: BatchExecGroupAggregateBase,
+      rel: BatchPhysicalGroupAggregateBase,
       mq: RelMetadataQuery,
       groupKey: ImmutableBitSet,
       predicate: RexNode): JDouble = {
@@ -397,9 +397,9 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
       predicate: RexNode): (Option[RexNode], Option[RexNode]) = agg match {
     case rel: Aggregate =>
       FlinkRelMdUtil.splitPredicateOnAggregate(rel, predicate)
-    case rel: BatchExecGroupAggregateBase =>
+    case rel: BatchPhysicalGroupAggregateBase =>
       FlinkRelMdUtil.splitPredicateOnAggregate(rel, predicate)
-    case rel: BatchExecWindowAggregateBase =>
+    case rel: BatchPhysicalWindowAggregateBase =>
       FlinkRelMdUtil.splitPredicateOnAggregate(rel, predicate)
   }
 
@@ -427,7 +427,7 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
   }
 
   def getDistinctRowCount(
-      rel: BatchExecWindowAggregateBase,
+      rel: BatchPhysicalWindowAggregateBase,
       mq: RelMetadataQuery,
       groupKey: ImmutableBitSet,
       predicate: RexNode): JDouble = {
@@ -438,7 +438,7 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
     }
 
     val newPredicate = if (rel.isFinal) {
-      val namedWindowStartIndex = rel.getRowType.getFieldCount - rel.getNamedProperties.size
+      val namedWindowStartIndex = rel.getRowType.getFieldCount - rel.namedWindowProperties.size
       val groupKeyFromNamedWindow = groupKey.toList.exists(_ >= namedWindowStartIndex)
       if (groupKeyFromNamedWindow) {
         // cannot estimate DistinctRowCount result when some group keys are from named windows
@@ -455,7 +455,7 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
       }
     } else {
       // local window aggregate
-      val assignTsFieldIndex = rel.getGrouping.length
+      val assignTsFieldIndex = rel.grouping.length
       if (groupKey.toList.contains(assignTsFieldIndex)) {
         // groupKey contains `assignTs` fields
         return null
@@ -472,7 +472,7 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
       predicate: RexNode): JDouble = getDistinctRowCountOfOverAgg(rel, mq, groupKey, predicate)
 
   def getDistinctRowCount(
-      rel: BatchExecOverAggregate,
+      rel: BatchPhysicalOverAggregate,
       mq: RelMetadataQuery,
       groupKey: ImmutableBitSet,
       predicate: RexNode): JDouble = getDistinctRowCountOfOverAgg(rel, mq, groupKey, predicate)

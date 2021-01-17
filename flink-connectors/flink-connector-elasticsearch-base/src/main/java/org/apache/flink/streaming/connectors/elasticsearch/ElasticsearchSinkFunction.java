@@ -34,24 +34,24 @@ import java.io.Serializable;
  * <p>Example:
  *
  * <pre>{@code
- *					private static class TestElasticSearchSinkFunction implements
- *						ElasticsearchSinkFunction<Tuple2<Integer, String>> {
+ * 				private static class TestElasticSearchSinkFunction implements
+ * 					ElasticsearchSinkFunction<Tuple2<Integer, String>> {
  *
- *					public IndexRequest createIndexRequest(Tuple2<Integer, String> element) {
- *						Map<String, Object> json = new HashMap<>();
- *						json.put("data", element.f1);
+ * 				public IndexRequest createIndexRequest(Tuple2<Integer, String> element) {
+ * 					Map<String, Object> json = new HashMap<>();
+ * 					json.put("data", element.f1);
  *
- *						return Requests.indexRequest()
- *							.index("my-index")
- *							.type("my-type")
- *							.id(element.f0.toString())
- *							.source(json);
- *						}
+ * 					return Requests.indexRequest()
+ * 						.index("my-index")
+ * 						.type("my-type")
+ * 						.id(element.f0.toString())
+ * 						.source(json);
+ * 					}
  *
- *				public void process(Tuple2<Integer, String> element, RuntimeContext ctx, RequestIndexer indexer) {
- *					indexer.add(createIndexRequest(element));
- *				}
- *		}
+ * 			public void process(Tuple2<Integer, String> element, RuntimeContext ctx, RequestIndexer indexer) {
+ * 				indexer.add(createIndexRequest(element));
+ * 			}
+ * 	}
  *
  * }</pre>
  *
@@ -60,23 +60,22 @@ import java.io.Serializable;
 @PublicEvolving
 public interface ElasticsearchSinkFunction<T> extends Serializable, Function {
 
-	/**
-	 * Initialization method for the function. It is called once before the actual working process methods.
-	 */
-	default void open() throws Exception {}
+    /**
+     * Initialization method for the function. It is called once before the actual working process
+     * methods.
+     */
+    default void open() throws Exception {}
 
-	/**
-	 * Tear-down method for the function. It is called when the sink closes.
-	 */
-	default void close () throws Exception {}
+    /** Tear-down method for the function. It is called when the sink closes. */
+    default void close() throws Exception {}
 
-	/**
-	 * Process the incoming element to produce multiple {@link ActionRequest ActionsRequests}.
-	 * The produced requests should be added to the provided {@link RequestIndexer}.
-	 *
-	 * @param element incoming element to process
-	 * @param ctx     runtime context containing information about the sink instance
-	 * @param indexer request indexer that {@code ActionRequest} should be added to
-	 */
-	void process(T element, RuntimeContext ctx, RequestIndexer indexer);
+    /**
+     * Process the incoming element to produce multiple {@link ActionRequest ActionsRequests}. The
+     * produced requests should be added to the provided {@link RequestIndexer}.
+     *
+     * @param element incoming element to process
+     * @param ctx runtime context containing information about the sink instance
+     * @param indexer request indexer that {@code ActionRequest} should be added to
+     */
+    void process(T element, RuntimeContext ctx, RequestIndexer indexer);
 }

@@ -39,85 +39,87 @@ import java.util.ArrayDeque;
 import java.util.Optional;
 import java.util.Queue;
 
-/**
- * The {@link SplitReader} implementation for the file source.
- */
+/** The {@link SplitReader} implementation for the file source. */
 @Internal
-final class FileSourceSplitReader<T, SplitT extends FileSourceSplit> implements SplitReader<RecordAndPosition<T>, SplitT> {
+final class FileSourceSplitReader<T, SplitT extends FileSourceSplit>
+        implements SplitReader<RecordAndPosition<T>, SplitT> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(FileSourceSplitReader.class);
+    private static final Logger LOG = LoggerFactory.getLogger(FileSourceSplitReader.class);
 
-	private final Configuration config;
-	private final BulkFormat<T, SplitT> readerFactory;
+    private final Configuration config;
+    private final BulkFormat<T, SplitT> readerFactory;
 
-	private final Queue<SplitT> splits;
+    private final Queue<SplitT> splits;
 
-	@Nullable
-	private BulkFormat.Reader<T> currentReader;
-	@Nullable
-	private String currentSplitId;
+    @Nullable private BulkFormat.Reader<T> currentReader;
+    @Nullable private String currentSplitId;
 
-	public FileSourceSplitReader(Configuration config, BulkFormat<T, SplitT> readerFactory) {
-		this.config = config;
-		this.readerFactory = readerFactory;
-		this.splits = new ArrayDeque<>();
-	}
+    public FileSourceSplitReader(Configuration config, BulkFormat<T, SplitT> readerFactory) {
+        this.config = config;
+        this.readerFactory = readerFactory;
+        this.splits = new ArrayDeque<>();
+    }
 
-	@Override
-	public RecordsWithSplitIds<RecordAndPosition<T>> fetch() throws IOException {
-		checkSplitOrStartNext();
+    @Override
+    public RecordsWithSplitIds<RecordAndPosition<T>> fetch() throws IOException {
+        checkSplitOrStartNext();
 
-		final BulkFormat.RecordIterator<T> nextBatch = currentReader.readBatch();
-		return nextBatch == null ? finishSplit() : FileRecords.forRecords(currentSplitId, nextBatch);
-	}
+        final BulkFormat.RecordIterator<T> nextBatch = currentReader.readBatch();
+        return nextBatch == null
+                ? finishSplit()
+                : FileRecords.forRecords(currentSplitId, nextBatch);
+    }
 
-	@Override
-	public void handleSplitsChanges(final SplitsChange<SplitT> splitChange) {
-		if (!(splitChange instanceof SplitsAddition)) {
-			throw new UnsupportedOperationException(String.format(
-					"The SplitChange type of %s is not supported.", splitChange.getClass()));
-		}
+    @Override
+    public void handleSplitsChanges(final SplitsChange<SplitT> splitChange) {
+        if (!(splitChange instanceof SplitsAddition)) {
+            throw new UnsupportedOperationException(
+                    String.format(
+                            "The SplitChange type of %s is not supported.",
+                            splitChange.getClass()));
+        }
 
-		LOG.debug("Handling split change {}", splitChange);
-		splits.addAll(splitChange.splits());
-	}
+        LOG.debug("Handling split change {}", splitChange);
+        splits.addAll(splitChange.splits());
+    }
 
-	@Override
-	public void wakeUp() {}
+    @Override
+    public void wakeUp() {}
 
-	@Override
-	public void close() throws Exception {
-		if (currentReader != null) {
-			currentReader.close();
-		}
-	}
+    @Override
+    public void close() throws Exception {
+        if (currentReader != null) {
+            currentReader.close();
+        }
+    }
 
-	private void checkSplitOrStartNext() throws IOException {
-		if (currentReader != null) {
-			return;
-		}
+    private void checkSplitOrStartNext() throws IOException {
+        if (currentReader != null) {
+            return;
+        }
 
-		final SplitT nextSplit = splits.poll();
-		if (nextSplit == null) {
-			throw new IOException("Cannot fetch from another split - no split remaining");
-		}
+        final SplitT nextSplit = splits.poll();
+        if (nextSplit == null) {
+            throw new IOException("Cannot fetch from another split - no split remaining");
+        }
 
-		currentSplitId = nextSplit.splitId();
+        currentSplitId = nextSplit.splitId();
 
-		final Optional<CheckpointedPosition> position = nextSplit.getReaderPosition();
-		currentReader = position.isPresent()
-				? readerFactory.restoreReader(config, nextSplit)
-				: readerFactory.createReader(config, nextSplit);
-	}
+        final Optional<CheckpointedPosition> position = nextSplit.getReaderPosition();
+        currentReader =
+                position.isPresent()
+                        ? readerFactory.restoreReader(config, nextSplit)
+                        : readerFactory.createReader(config, nextSplit);
+    }
 
-	private FileRecords<T> finishSplit() throws IOException {
-		if (currentReader != null) {
-			currentReader.close();
-			currentReader = null;
-		}
+    private FileRecords<T> finishSplit() throws IOException {
+        if (currentReader != null) {
+            currentReader.close();
+            currentReader = null;
+        }
 
-		final FileRecords<T> finishRecords = FileRecords.finishedSplit(currentSplitId);
-		currentSplitId = null;
-		return finishRecords;
-	}
+        final FileRecords<T> finishRecords = FileRecords.finishedSplit(currentSplitId);
+        currentSplitId = null;
+        return finishRecords;
+    }
 }

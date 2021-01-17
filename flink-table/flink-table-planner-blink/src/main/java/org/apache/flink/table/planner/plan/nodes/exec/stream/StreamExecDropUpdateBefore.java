@@ -32,31 +32,29 @@ import org.apache.flink.table.types.logical.RowType;
 import java.util.Collections;
 
 /**
- * Stream {@link ExecNode} which will drop the UPDATE_BEFORE messages.
- * This is usually used as an optimization for the downstream operators that doesn't need
- * the UPDATE_BEFORE messages, but the upstream operator can't drop it by itself (e.g. the source).
+ * Stream {@link ExecNode} which will drop the UPDATE_BEFORE messages. This is usually used as an
+ * optimization for the downstream operators that doesn't need the UPDATE_BEFORE messages, but the
+ * upstream operator can't drop it by itself (e.g. the source).
  */
-public class StreamExecDropUpdateBefore extends ExecNodeBase<RowData> implements StreamExecNode<RowData> {
+public class StreamExecDropUpdateBefore extends ExecNodeBase<RowData>
+        implements StreamExecNode<RowData> {
 
-	public StreamExecDropUpdateBefore(
-			ExecEdge inputEdge,
-			RowType outputType,
-			String description) {
-		super(Collections.singletonList(inputEdge), outputType, description);
-	}
+    public StreamExecDropUpdateBefore(ExecEdge inputEdge, RowType outputType, String description) {
+        super(Collections.singletonList(inputEdge), outputType, description);
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-		final Transformation<RowData> inputTransform =
-				(Transformation<RowData>) getInputNodes().get(0).translateToPlan(planner);
-		final StreamFilter<RowData> operator = new StreamFilter<>(new DropUpdateBeforeFunction());
+    @SuppressWarnings("unchecked")
+    @Override
+    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+        final Transformation<RowData> inputTransform =
+                (Transformation<RowData>) getInputNodes().get(0).translateToPlan(planner);
+        final StreamFilter<RowData> operator = new StreamFilter<>(new DropUpdateBeforeFunction());
 
-		return new OneInputTransformation<>(
-				inputTransform,
-				getDesc(),
-				operator,
-				inputTransform.getOutputType(),
-				inputTransform.getParallelism());
-	}
+        return new OneInputTransformation<>(
+                inputTransform,
+                getDesc(),
+                operator,
+                inputTransform.getOutputType(),
+                inputTransform.getParallelism());
+    }
 }

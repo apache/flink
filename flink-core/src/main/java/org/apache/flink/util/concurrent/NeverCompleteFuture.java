@@ -27,74 +27,73 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-/**
- * A future that never completes.
- */
+/** A future that never completes. */
 @Internal
 public final class NeverCompleteFuture implements ScheduledFuture<Object> {
 
-	private final Object lock = new Object();
+    private final Object lock = new Object();
 
-	private final long delayMillis;
+    private final long delayMillis;
 
-	private volatile boolean canceled;
+    private volatile boolean canceled;
 
-	public NeverCompleteFuture(long delayMillis) {
-		this.delayMillis = delayMillis;
-	}
+    public NeverCompleteFuture(long delayMillis) {
+        this.delayMillis = delayMillis;
+    }
 
-	@Override
-	public long getDelay(@Nonnull TimeUnit unit) {
-		return unit.convert(delayMillis, TimeUnit.MILLISECONDS);
-	}
+    @Override
+    public long getDelay(@Nonnull TimeUnit unit) {
+        return unit.convert(delayMillis, TimeUnit.MILLISECONDS);
+    }
 
-	@Override
-	public int compareTo(@Nonnull Delayed o) {
-		long otherMillis = o.getDelay(TimeUnit.MILLISECONDS);
-		return Long.compare(this.delayMillis, otherMillis);
-	}
+    @Override
+    public int compareTo(@Nonnull Delayed o) {
+        long otherMillis = o.getDelay(TimeUnit.MILLISECONDS);
+        return Long.compare(this.delayMillis, otherMillis);
+    }
 
-	@Override
-	public boolean cancel(boolean mayInterruptIfRunning) {
-		synchronized (lock) {
-			canceled = true;
-			lock.notifyAll();
-		}
-		return true;
-	}
+    @Override
+    public boolean cancel(boolean mayInterruptIfRunning) {
+        synchronized (lock) {
+            canceled = true;
+            lock.notifyAll();
+        }
+        return true;
+    }
 
-	@Override
-	public boolean isCancelled() {
-		return canceled;
-	}
+    @Override
+    public boolean isCancelled() {
+        return canceled;
+    }
 
-	@Override
-	public boolean isDone() {
-		return false;
-	}
+    @Override
+    public boolean isDone() {
+        return false;
+    }
 
-	@Override
-	public Object get() throws InterruptedException {
-		synchronized (lock) {
-			while (!canceled) {
-				lock.wait();
-			}
-		}
-		throw new CancellationException();
-	}
+    @Override
+    public Object get() throws InterruptedException {
+        synchronized (lock) {
+            while (!canceled) {
+                lock.wait();
+            }
+        }
+        throw new CancellationException();
+    }
 
-	@Override
-	public Object get(long timeout, @Nonnull TimeUnit unit) throws InterruptedException, TimeoutException {
-		synchronized (lock) {
-			while (!canceled) {
-				unit.timedWait(lock, timeout);
-			}
+    @Override
+    public Object get(long timeout, @Nonnull TimeUnit unit)
+            throws InterruptedException, TimeoutException {
+        synchronized (lock) {
+            while (!canceled) {
+                unit.timedWait(lock, timeout);
+            }
 
-			if (canceled) {
-				throw new CancellationException();
-			} else {
-				throw new TimeoutException();
-			}
-		}
-	}
+            if (canceled) {
+                throw new CancellationException();
+            } else {
+                throw new TimeoutException();
+            }
+        }
+    }
 }

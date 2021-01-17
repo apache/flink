@@ -31,85 +31,86 @@ import static org.mockito.Mockito.when;
 
 public class CompletedCheckpointStatsSummaryTest {
 
-	/**
-	 * Tests simple updates of the completed checkpoint stats.
-	 */
-	@Test
-	public void testSimpleUpdates() throws Exception {
-		long triggerTimestamp = 123123L;
-		long ackTimestamp = 123123 + 1212312399L;
-		long stateSize = Integer.MAX_VALUE + 17787L;
-		long processedData = Integer.MAX_VALUE + 123123L;
-		long persistedData = Integer.MAX_VALUE + 42L;
+    /** Tests simple updates of the completed checkpoint stats. */
+    @Test
+    public void testSimpleUpdates() throws Exception {
+        long triggerTimestamp = 123123L;
+        long ackTimestamp = 123123 + 1212312399L;
+        long stateSize = Integer.MAX_VALUE + 17787L;
+        long processedData = Integer.MAX_VALUE + 123123L;
+        long persistedData = Integer.MAX_VALUE + 42L;
 
-		CompletedCheckpointStatsSummary summary = new CompletedCheckpointStatsSummary();
-		assertEquals(0, summary.getStateSizeStats().getCount());
-		assertEquals(0, summary.getEndToEndDurationStats().getCount());
-		assertEquals(0, summary.getProcessedDataStats().getCount());
-		assertEquals(0, summary.getPersistedDataStats().getCount());
+        CompletedCheckpointStatsSummary summary = new CompletedCheckpointStatsSummary();
+        assertEquals(0, summary.getStateSizeStats().getCount());
+        assertEquals(0, summary.getEndToEndDurationStats().getCount());
+        assertEquals(0, summary.getProcessedDataStats().getCount());
+        assertEquals(0, summary.getPersistedDataStats().getCount());
 
-		int numCheckpoints = 10;
+        int numCheckpoints = 10;
 
-		for (int i = 0; i < numCheckpoints; i++) {
-			CompletedCheckpointStats completed = createCompletedCheckpoint(
-				i,
-				triggerTimestamp,
-				ackTimestamp + i,
-				stateSize + i,
-				processedData + i,
-				persistedData + i);
+        for (int i = 0; i < numCheckpoints; i++) {
+            CompletedCheckpointStats completed =
+                    createCompletedCheckpoint(
+                            i,
+                            triggerTimestamp,
+                            ackTimestamp + i,
+                            stateSize + i,
+                            processedData + i,
+                            persistedData + i);
 
-			summary.updateSummary(completed);
+            summary.updateSummary(completed);
 
-			assertEquals(i + 1, summary.getStateSizeStats().getCount());
-			assertEquals(i + 1, summary.getEndToEndDurationStats().getCount());
-			assertEquals(i + 1, summary.getProcessedDataStats().getCount());
-			assertEquals(i + 1, summary.getPersistedDataStats().getCount());
-		}
+            assertEquals(i + 1, summary.getStateSizeStats().getCount());
+            assertEquals(i + 1, summary.getEndToEndDurationStats().getCount());
+            assertEquals(i + 1, summary.getProcessedDataStats().getCount());
+            assertEquals(i + 1, summary.getPersistedDataStats().getCount());
+        }
 
-		MinMaxAvgStats stateSizeStats = summary.getStateSizeStats();
-		assertEquals(stateSize, stateSizeStats.getMinimum());
-		assertEquals(stateSize + numCheckpoints - 1, stateSizeStats.getMaximum());
+        MinMaxAvgStats stateSizeStats = summary.getStateSizeStats();
+        assertEquals(stateSize, stateSizeStats.getMinimum());
+        assertEquals(stateSize + numCheckpoints - 1, stateSizeStats.getMaximum());
 
-		MinMaxAvgStats durationStats = summary.getEndToEndDurationStats();
-		assertEquals(ackTimestamp - triggerTimestamp, durationStats.getMinimum());
-		assertEquals(ackTimestamp - triggerTimestamp + numCheckpoints - 1, durationStats.getMaximum());
+        MinMaxAvgStats durationStats = summary.getEndToEndDurationStats();
+        assertEquals(ackTimestamp - triggerTimestamp, durationStats.getMinimum());
+        assertEquals(
+                ackTimestamp - triggerTimestamp + numCheckpoints - 1, durationStats.getMaximum());
 
-		MinMaxAvgStats processedDataStats = summary.getProcessedDataStats();
-		assertEquals(processedData, processedDataStats.getMinimum());
-		assertEquals(processedData + numCheckpoints - 1, processedDataStats.getMaximum());
+        MinMaxAvgStats processedDataStats = summary.getProcessedDataStats();
+        assertEquals(processedData, processedDataStats.getMinimum());
+        assertEquals(processedData + numCheckpoints - 1, processedDataStats.getMaximum());
 
-		MinMaxAvgStats persistedDataStats = summary.getPersistedDataStats();
-		assertEquals(persistedData, persistedDataStats.getMinimum());
-		assertEquals(persistedData + numCheckpoints - 1, persistedDataStats.getMaximum());
-	}
+        MinMaxAvgStats persistedDataStats = summary.getPersistedDataStats();
+        assertEquals(persistedData, persistedDataStats.getMinimum());
+        assertEquals(persistedData + numCheckpoints - 1, persistedDataStats.getMaximum());
+    }
 
-	private CompletedCheckpointStats createCompletedCheckpoint(
-		long checkpointId,
-		long triggerTimestamp,
-		long ackTimestamp,
-		long stateSize,
-		long processedData,
-		long persistedData) {
+    private CompletedCheckpointStats createCompletedCheckpoint(
+            long checkpointId,
+            long triggerTimestamp,
+            long ackTimestamp,
+            long stateSize,
+            long processedData,
+            long persistedData) {
 
-		SubtaskStateStats latest = mock(SubtaskStateStats.class);
-		when(latest.getAckTimestamp()).thenReturn(ackTimestamp);
+        SubtaskStateStats latest = mock(SubtaskStateStats.class);
+        when(latest.getAckTimestamp()).thenReturn(ackTimestamp);
 
-		Map<JobVertexID, TaskStateStats> taskStats = new HashMap<>();
-		JobVertexID jobVertexId = new JobVertexID();
-		taskStats.put(jobVertexId, new TaskStateStats(jobVertexId, 1));
+        Map<JobVertexID, TaskStateStats> taskStats = new HashMap<>();
+        JobVertexID jobVertexId = new JobVertexID();
+        taskStats.put(jobVertexId, new TaskStateStats(jobVertexId, 1));
 
-		return new CompletedCheckpointStats(
-			checkpointId,
-			triggerTimestamp,
-			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-			1,
-			taskStats,
-			1,
-			stateSize,
-			processedData,
-			persistedData,
-			latest,
-			null);
-	}
+        return new CompletedCheckpointStats(
+                checkpointId,
+                triggerTimestamp,
+                CheckpointProperties.forCheckpoint(
+                        CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+                1,
+                taskStats,
+                1,
+                stateSize,
+                processedData,
+                persistedData,
+                latest,
+                null);
+    }
 }

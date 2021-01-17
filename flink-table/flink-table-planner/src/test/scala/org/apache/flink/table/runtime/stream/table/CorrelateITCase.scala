@@ -28,13 +28,16 @@ import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 
 import org.junit.Assert._
-import org.junit.{Before, Test}
+import org.junit.{Before, Rule, Test}
 
 import java.lang.{Boolean => JBoolean}
 
 import scala.collection.mutable
 
 class CorrelateITCase extends AbstractTestBase {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
   val settings: EnvironmentSettings = EnvironmentSettings.newInstance().useOldPlanner().build()

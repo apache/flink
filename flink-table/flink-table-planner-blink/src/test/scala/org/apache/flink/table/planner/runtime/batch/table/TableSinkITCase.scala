@@ -22,13 +22,18 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.TestData._
+import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.util.ExceptionUtils
+
 import org.junit.Assert.{assertEquals, assertTrue, fail}
-import org.junit.Test
+import org.junit.{Rule, Test}
 
 import scala.collection.JavaConversions._
 
 class TableSinkITCase extends BatchTestBase {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   @Test
   def testDecimalOnOutputFormatTableSink(): Unit = {

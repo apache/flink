@@ -28,48 +28,47 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * IT case for data generator source.
- */
+/** IT case for data generator source. */
 public class DataGeneratorConnectorITCase extends BatchTestBase {
 
-	private static final String TABLE = "CREATE TABLE datagen_t (\n" +
-		"	f0 CHAR(1),\n" +
-		"	f1 VARCHAR(10),\n" +
-		"	f2 STRING,\n" +
-		"	f3 BOOLEAN,\n" +
-		"	f4 DECIMAL(32,2),\n" +
-		"	f5 TINYINT,\n" +
-		"	f6 SMALLINT,\n" +
-		"	f7 INT,\n" +
-		"	f8 BIGINT,\n" +
-		"	f9 FLOAT,\n" +
-		"	f10 DOUBLE,\n" +
-		"	f11 DATE,\n" +
-		"	f12 TIME,\n" +
-		"	f13 TIMESTAMP(3),\n" +
-		"	f14 TIMESTAMP WITH LOCAL TIME ZONE,\n" +
-		"	f15 INT ARRAY,\n" +
-		"	f16 MAP<STRING, DATE>,\n" +
-		"	f17 DECIMAL(32,2) MULTISET,\n" +
-		"	f18 ROW<a BIGINT, b TIME, c ROW<d TIMESTAMP>>\n" +
-		") WITH (" +
-		"	'connector' = 'datagen',\n" +
-		"	'number-of-rows' = '10'\n" +
-		")";
+    private static final String TABLE =
+            "CREATE TABLE datagen_t (\n"
+                    + "	f0 CHAR(1),\n"
+                    + "	f1 VARCHAR(10),\n"
+                    + "	f2 STRING,\n"
+                    + "	f3 BOOLEAN,\n"
+                    + "	f4 DECIMAL(32,2),\n"
+                    + "	f5 TINYINT,\n"
+                    + "	f6 SMALLINT,\n"
+                    + "	f7 INT,\n"
+                    + "	f8 BIGINT,\n"
+                    + "	f9 FLOAT,\n"
+                    + "	f10 DOUBLE,\n"
+                    + "	f11 DATE,\n"
+                    + "	f12 TIME,\n"
+                    + "	f13 TIMESTAMP(3),\n"
+                    + "	f14 TIMESTAMP WITH LOCAL TIME ZONE,\n"
+                    + "	f15 INT ARRAY,\n"
+                    + "	f16 MAP<STRING, DATE>,\n"
+                    + "	f17 DECIMAL(32,2) MULTISET,\n"
+                    + "	f18 ROW<a BIGINT, b TIME, c ROW<d TIMESTAMP>>\n"
+                    + ") WITH ("
+                    + "	'connector' = 'datagen',\n"
+                    + "	'number-of-rows' = '10'\n"
+                    + ")";
 
-	@Test
-	public void testTypes() throws Exception {
-		tEnv().executeSql(TABLE);
+    @Test
+    public void testTypes() throws Exception {
+        tEnv().executeSql(TABLE);
 
-		List<Row> results = new ArrayList<>();
+        List<Row> results = new ArrayList<>();
 
-		try (CloseableIterator<Row> iter = tEnv().executeSql("select * from datagen_t").collect()) {
-			while (iter.hasNext()) {
-				results.add(iter.next());
-			}
-		}
+        try (CloseableIterator<Row> iter = tEnv().executeSql("select * from datagen_t").collect()) {
+            while (iter.hasNext()) {
+                results.add(iter.next());
+            }
+        }
 
-		Assert.assertEquals("Unexpected number of results", 10, results.size());
-	}
+        Assert.assertEquals("Unexpected number of results", 10, results.size());
+    }
 }

@@ -33,71 +33,67 @@ import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.row;
 
-/**
- * Tests for different combinations around {@link BuiltInFunctionDefinitions#ROW}.
- */
+/** Tests for different combinations around {@link BuiltInFunctionDefinitions#ROW}. */
 public class RowFunctionITCase extends BuiltInFunctionTestBase {
 
-	@Parameters(name = "{index}: {0}")
-	public static List<TestSpec> testData() {
-		return Arrays.asList(
-			TestSpec
-				.forFunction(BuiltInFunctionDefinitions.ROW, "with field access")
-				.onFieldsWithData(12, "Hello world")
-				.andDataTypes(DataTypes.INT(), DataTypes.STRING())
-				.testTableApiResult(
-					row($("f0"), $("f1")),
-					Row.of(12, "Hello world"),
-					DataTypes.ROW(
-						DataTypes.FIELD("f0", DataTypes.INT()),
-						DataTypes.FIELD("f1", DataTypes.STRING())).notNull())
-				.testSqlResult(
-					"ROW(f0, f1)",
-					Row.of(12, "Hello world"),
-					DataTypes.ROW(
-						DataTypes.FIELD("EXPR$0", DataTypes.INT()),
-						DataTypes.FIELD("EXPR$1", DataTypes.STRING())).notNull()),
+    @Parameters(name = "{index}: {0}")
+    public static List<TestSpec> testData() {
+        return Arrays.asList(
+                TestSpec.forFunction(BuiltInFunctionDefinitions.ROW, "with field access")
+                        .onFieldsWithData(12, "Hello world")
+                        .andDataTypes(DataTypes.INT(), DataTypes.STRING())
+                        .testTableApiResult(
+                                row($("f0"), $("f1")),
+                                Row.of(12, "Hello world"),
+                                DataTypes.ROW(
+                                                DataTypes.FIELD("f0", DataTypes.INT()),
+                                                DataTypes.FIELD("f1", DataTypes.STRING()))
+                                        .notNull())
+                        .testSqlResult(
+                                "ROW(f0, f1)",
+                                Row.of(12, "Hello world"),
+                                DataTypes.ROW(
+                                                DataTypes.FIELD("EXPR$0", DataTypes.INT()),
+                                                DataTypes.FIELD("EXPR$1", DataTypes.STRING()))
+                                        .notNull()),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.ROW, "within function call")
+                        .onFieldsWithData(12, "Hello world")
+                        .andDataTypes(DataTypes.INT(), DataTypes.STRING())
+                        .withFunction(TakesRow.class)
+                        .testResult(
+                                call("TakesRow", row($("f0"), $("f1")), 1),
+                                "TakesRow(ROW(f0, f1), 1)",
+                                Row.of(13, "Hello world"),
+                                DataTypes.ROW(
+                                        DataTypes.FIELD("i", DataTypes.INT()),
+                                        DataTypes.FIELD("s", DataTypes.STRING()))),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.ROW, "within cast")
+                        .onFieldsWithData(1)
+                        .testResult(
+                                row($("f0").plus(12), "Hello world")
+                                        .cast(
+                                                DataTypes.ROW(
+                                                                DataTypes.FIELD(
+                                                                        "i", DataTypes.INT()),
+                                                                DataTypes.FIELD(
+                                                                        "s", DataTypes.STRING()))
+                                                        .notNull()),
+                                "CAST((f0 + 12, 'Hello world') AS ROW<i INT, s STRING>)",
+                                Row.of(13, "Hello world"),
+                                DataTypes.ROW(
+                                                DataTypes.FIELD("i", DataTypes.INT()),
+                                                DataTypes.FIELD("s", DataTypes.STRING()))
+                                        .notNull()));
+    }
 
-			TestSpec
-				.forFunction(BuiltInFunctionDefinitions.ROW, "within function call")
-				.onFieldsWithData(12, "Hello world")
-				.andDataTypes(DataTypes.INT(), DataTypes.STRING())
-				.withFunction(TakesRow.class)
-				.testResult(
-					call("TakesRow", row($("f0"), $("f1")), 1),
-					"TakesRow(ROW(f0, f1), 1)",
-					Row.of(13, "Hello world"),
-					DataTypes.ROW(
-						DataTypes.FIELD("i", DataTypes.INT()),
-						DataTypes.FIELD("s", DataTypes.STRING()))),
+    // --------------------------------------------------------------------------------------------
 
-			TestSpec
-				.forFunction(BuiltInFunctionDefinitions.ROW, "within cast")
-				.onFieldsWithData(1)
-				.testResult(
-					row($("f0").plus(12), "Hello world")
-						.cast(
-							DataTypes.ROW(
-								DataTypes.FIELD("i", DataTypes.INT()),
-								DataTypes.FIELD("s", DataTypes.STRING())).notNull()
-						),
-					"CAST((f0 + 12, 'Hello world') AS ROW<i INT, s STRING>)",
-					Row.of(13, "Hello world"),
-					DataTypes.ROW(
-						DataTypes.FIELD("i", DataTypes.INT()),
-						DataTypes.FIELD("s", DataTypes.STRING())).notNull())
-		);
-	}
-
-	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * Identity function for a row.
-	 */
-	public static class TakesRow extends ScalarFunction {
-		public @DataTypeHint("ROW<i INT, s STRING>") Row eval(@DataTypeHint("ROW<i INT, s STRING>") Row row, Integer i) {
-			row.setField(0, (int) row.getField(0) + i);
-			return row;
-		}
-	}
+    /** Identity function for a row. */
+    public static class TakesRow extends ScalarFunction {
+        public @DataTypeHint("ROW<i INT, s STRING>") Row eval(
+                @DataTypeHint("ROW<i INT, s STRING>") Row row, Integer i) {
+            row.setField("i", (int) row.getField("i") + i);
+            return row;
+        }
+    }
 }

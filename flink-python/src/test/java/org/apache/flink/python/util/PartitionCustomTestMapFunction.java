@@ -23,26 +23,29 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.types.Row;
 
 /**
- * {@link PartitionCustomTestMapFunction} is a dedicated MapFunction to make sure the specific field data is equal to
- * current sub-task index.
+ * {@link PartitionCustomTestMapFunction} is a dedicated MapFunction to make sure the specific field
+ * data is equal to current sub-task index.
  */
 public class PartitionCustomTestMapFunction extends RichMapFunction<Row, Row> {
 
-	private int currentTaskIndex;
+    private int currentTaskIndex;
 
-	@Override
-	public void open(Configuration parameters) {
-		this.currentTaskIndex = getRuntimeContext().getIndexOfThisSubtask();
-	}
+    @Override
+    public void open(Configuration parameters) {
+        this.currentTaskIndex = getRuntimeContext().getIndexOfThisSubtask();
+    }
 
-	@Override
-	public Row map(Row value) throws Exception {
-		int expectedPartitionIndex = (Integer) (value.getField(1)) % getRuntimeContext()
-			.getNumberOfParallelSubtasks();
-		if (expectedPartitionIndex != currentTaskIndex) {
-			throw new RuntimeException(String.format("the data: Row<%s> was sent to the wrong partition[%d], " +
-				"expected partition is [%d].", value.toString(), currentTaskIndex, expectedPartitionIndex));
-		}
-		return value;
-	}
+    @Override
+    public Row map(Row value) throws Exception {
+        int expectedPartitionIndex =
+                (Integer) (value.getField(1)) % getRuntimeContext().getNumberOfParallelSubtasks();
+        if (expectedPartitionIndex != currentTaskIndex) {
+            throw new RuntimeException(
+                    String.format(
+                            "the data: Row<%s> was sent to the wrong partition[%d], "
+                                    + "expected partition is [%d].",
+                            value.toString(), currentTaskIndex, expectedPartitionIndex));
+        }
+        return value;
+    }
 }

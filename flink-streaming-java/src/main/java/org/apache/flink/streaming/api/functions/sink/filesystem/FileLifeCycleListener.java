@@ -21,21 +21,18 @@ package org.apache.flink.streaming.api.functions.sink.filesystem;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.Path;
 
-/**
- * Listener about the status of file.
- */
+/** Listener about the status of file. */
 @Internal
 public interface FileLifeCycleListener<BucketID> {
 
-	/**
-	 * Notifies a new file has been opened.
-	 *
-	 * <p>Note that this does not mean that the file has been created in the file system. It is
-	 * only created logically and the actual file will be generated after it is committed.
-	 *
-	 * @param bucketID The bucketID of newly opened file.
-	 * @param newPath The path of newly opened file.
-	 */
-	void onPartFileOpened(BucketID bucketID, Path newPath);
-
+    /**
+     * Notifies a new file has been opened.
+     *
+     * <p>Note that this does not mean that the file has been created in the file system. It is only
+     * created logically and the actual file will be generated after it is committed.
+     *
+     * @param bucketID The bucketID of newly opened file.
+     * @param newPath The path of newly opened file.
+     */
+    void onPartFileOpened(BucketID bucketID, Path newPath);
 }

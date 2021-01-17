@@ -26,21 +26,21 @@ import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
-/**
- * This type transformation transforms the LEGACY('RAW', ...) type to the RAW(..., ?) type.
- */
+/** This type transformation transforms the LEGACY('RAW', ...) type to the RAW(..., ?) type. */
 public class LegacyRawTypeTransformation implements TypeTransformation {
 
-	public static final TypeTransformation INSTANCE = new LegacyRawTypeTransformation();
+    public static final TypeTransformation INSTANCE = new LegacyRawTypeTransformation();
 
-	@Override
-	public DataType transform(DataType typeToTransform) {
-		LogicalType logicalType = typeToTransform.getLogicalType();
-		if (logicalType instanceof LegacyTypeInformationType && logicalType.getTypeRoot() == LogicalTypeRoot.RAW) {
-			TypeInformation<?> typeInfo = ((LegacyTypeInformationType<?>) logicalType).getTypeInformation();
-			DataType rawType = DataTypes.RAW(typeInfo).bridgedTo(typeInfo.getTypeClass());
-			return logicalType.isNullable() ? rawType : rawType.notNull();
-		}
-		return typeToTransform;
-	}
+    @Override
+    public DataType transform(DataType typeToTransform) {
+        LogicalType logicalType = typeToTransform.getLogicalType();
+        if (logicalType instanceof LegacyTypeInformationType
+                && logicalType.getTypeRoot() == LogicalTypeRoot.RAW) {
+            TypeInformation<?> typeInfo =
+                    ((LegacyTypeInformationType<?>) logicalType).getTypeInformation();
+            DataType rawType = DataTypes.RAW(typeInfo).bridgedTo(typeInfo.getTypeClass());
+            return logicalType.isNullable() ? rawType : rawType.notNull();
+        }
+        return typeToTransform;
+    }
 }

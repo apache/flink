@@ -19,11 +19,9 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.annotation.PublicEvolving;
 
-/**
- * Error codes used in {@link FlinkKafkaException}.
- */
+/** Error codes used in {@link FlinkKafkaException}. */
 @PublicEvolving
 public enum FlinkKafkaErrorCode {
-	PRODUCERS_POOL_EMPTY,
-	EXTERNAL_ERROR
+    PRODUCERS_POOL_EMPTY,
+    EXTERNAL_ERROR
 }

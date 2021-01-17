@@ -36,49 +36,55 @@ import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleServiceLoader;
 
-/**
- * Singleton default factory for {@link JobManagerRunnerImpl}.
- */
+/** Singleton default factory for {@link JobManagerRunnerImpl}. */
 public enum DefaultJobManagerRunnerFactory implements JobManagerRunnerFactory {
-	INSTANCE;
+    INSTANCE;
 
-	@Override
-	public JobManagerRunner createJobManagerRunner(
-			JobGraph jobGraph,
-			Configuration configuration,
-			RpcService rpcService,
-			HighAvailabilityServices highAvailabilityServices,
-			HeartbeatServices heartbeatServices,
-			JobManagerSharedServices jobManagerServices,
-			JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
-			FatalErrorHandler fatalErrorHandler,
-			long initializationTimestamp) throws Exception {
+    @Override
+    public JobManagerRunner createJobManagerRunner(
+            JobGraph jobGraph,
+            Configuration configuration,
+            RpcService rpcService,
+            HighAvailabilityServices highAvailabilityServices,
+            HeartbeatServices heartbeatServices,
+            JobManagerSharedServices jobManagerServices,
+            JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
+            FatalErrorHandler fatalErrorHandler,
+            long initializationTimestamp)
+            throws Exception {
 
-		final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
+        final JobMasterConfiguration jobMasterConfiguration =
+                JobMasterConfiguration.fromConfiguration(configuration);
 
-		final SlotPoolFactory slotPoolFactory = SlotPoolFactory.fromConfiguration(configuration);
-		final SchedulerNGFactory schedulerNGFactory = SchedulerNGFactoryFactory.createSchedulerNGFactory(configuration);
-		final ShuffleMaster<?> shuffleMaster = ShuffleServiceLoader.loadShuffleServiceFactory(configuration).createShuffleMaster(configuration);
+        final SlotPoolFactory slotPoolFactory = SlotPoolFactory.fromConfiguration(configuration);
+        final SchedulerNGFactory schedulerNGFactory =
+                SchedulerNGFactoryFactory.createSchedulerNGFactory(configuration);
+        final ShuffleMaster<?> shuffleMaster =
+                ShuffleServiceLoader.loadShuffleServiceFactory(configuration)
+                        .createShuffleMaster(configuration);
 
-		final JobMasterServiceFactory jobMasterFactory = new DefaultJobMasterServiceFactory(
-			jobMasterConfiguration,
-			slotPoolFactory,
-			rpcService,
-			highAvailabilityServices,
-			jobManagerServices,
-			heartbeatServices,
-			jobManagerJobMetricGroupFactory,
-			fatalErrorHandler,
-			schedulerNGFactory,
-			shuffleMaster);
+        final JobMasterServiceFactory jobMasterFactory =
+                new DefaultJobMasterServiceFactory(
+                        jobMasterConfiguration,
+                        slotPoolFactory,
+                        rpcService,
+                        highAvailabilityServices,
+                        jobManagerServices,
+                        heartbeatServices,
+                        jobManagerJobMetricGroupFactory,
+                        fatalErrorHandler,
+                        schedulerNGFactory,
+                        shuffleMaster);
 
-		return new JobManagerRunnerImpl(
-			jobGraph,
-			jobMasterFactory,
-			highAvailabilityServices,
-			jobManagerServices.getLibraryCacheManager().registerClassLoaderLease(jobGraph.getJobID()),
-			jobManagerServices.getScheduledExecutorService(),
-			fatalErrorHandler,
-			initializationTimestamp);
-	}
+        return new JobManagerRunnerImpl(
+                jobGraph,
+                jobMasterFactory,
+                highAvailabilityServices,
+                jobManagerServices
+                        .getLibraryCacheManager()
+                        .registerClassLoaderLease(jobGraph.getJobID()),
+                jobManagerServices.getScheduledExecutorService(),
+                fatalErrorHandler,
+                initializationTimestamp);
+    }
 }

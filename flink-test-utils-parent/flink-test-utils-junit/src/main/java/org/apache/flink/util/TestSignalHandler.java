@@ -23,62 +23,61 @@ import org.slf4j.LoggerFactory;
 import sun.misc.Signal;
 
 /**
- * This signal handler / signal logger is based on Apache Hadoop's org.apache.hadoop.util.SignalLogger.
+ * This signal handler / signal logger is based on Apache Hadoop's
+ * org.apache.hadoop.util.SignalLogger.
  *
  * <p>This is a reduced version of {@link org.apache.flink.runtime.util.SignalHandler}.
  */
 public class TestSignalHandler {
 
-	private static final Logger LOG = LoggerFactory.getLogger(TestSignalHandler.class);
+    private static final Logger LOG = LoggerFactory.getLogger(TestSignalHandler.class);
 
-	private static boolean registered = false;
+    private static boolean registered = false;
 
-	/**
-	 * Our signal handler.
-	 */
-	private static class Handler implements sun.misc.SignalHandler {
+    /** Our signal handler. */
+    private static class Handler implements sun.misc.SignalHandler {
 
-		private final sun.misc.SignalHandler prevHandler;
+        private final sun.misc.SignalHandler prevHandler;
 
-		Handler(String name) {
-			prevHandler = Signal.handle(new Signal(name), this);
-		}
+        Handler(String name) {
+            prevHandler = Signal.handle(new Signal(name), this);
+        }
 
-		/**
-		 * Handle an incoming signal.
-		 *
-		 * @param signal    The incoming signal
-		 */
-		@Override
-		public void handle(Signal signal) {
-			LOG.warn("RECEIVED SIGNAL {}: SIG{}. Shutting down as requested.",
-				signal.getNumber(),
-				signal.getName());
-			prevHandler.handle(signal);
-		}
-	}
+        /**
+         * Handle an incoming signal.
+         *
+         * @param signal The incoming signal
+         */
+        @Override
+        public void handle(Signal signal) {
+            LOG.warn(
+                    "RECEIVED SIGNAL {}: SIG{}. Shutting down as requested.",
+                    signal.getNumber(),
+                    signal.getName());
+            prevHandler.handle(signal);
+        }
+    }
 
-	/**
-	 * Register some signal handlers.
-	 */
-	public static void register() {
-		synchronized (TestSignalHandler.class) {
-			if (registered) {
-				return;
-			}
-			registered = true;
+    /** Register some signal handlers. */
+    public static void register() {
+        synchronized (TestSignalHandler.class) {
+            if (registered) {
+                return;
+            }
+            registered = true;
 
-			final String[] signals = System.getProperty("os.name").startsWith("Windows")
-				? new String[]{"TERM", "INT"}
-				: new String[]{"TERM", "HUP", "INT"};
+            final String[] signals =
+                    System.getProperty("os.name").startsWith("Windows")
+                            ? new String[] {"TERM", "INT"}
+                            : new String[] {"TERM", "HUP", "INT"};
 
-			for (String signalName : signals) {
-				try {
-					new Handler(signalName);
-				} catch (Exception e) {
-					LOG.info("Error while registering signal handler", e);
-				}
-			}
-		}
-	}
+            for (String signalName : signals) {
+                try {
+                    new Handler(signalName);
+                } catch (Exception e) {
+                    LOG.info("Error while registering signal handler", e);
+                }
+            }
+        }
+    }
 }

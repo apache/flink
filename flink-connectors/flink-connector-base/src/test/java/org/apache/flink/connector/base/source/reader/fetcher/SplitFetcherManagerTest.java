@@ -42,138 +42,140 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.fail;
 
-/**
- * Unit tests for the {@link SplitFetcherManager}.
- */
+/** Unit tests for the {@link SplitFetcherManager}. */
 public class SplitFetcherManagerTest {
 
-	@Test
-	public void testExceptionPropagationFirstFetch() throws Exception {
-		testExceptionPropagation();
-	}
+    @Test
+    public void testExceptionPropagationFirstFetch() throws Exception {
+        testExceptionPropagation();
+    }
 
-	@Test
-	public void testExceptionPropagationSuccessiveFetch() throws Exception {
-		testExceptionPropagation(
-				new TestingRecordsWithSplitIds<>("testSplit", 1, 2, 3, 4),
-				new TestingRecordsWithSplitIds<>("testSplit", 5, 6, 7, 8)
-		);
-	}
+    @Test
+    public void testExceptionPropagationSuccessiveFetch() throws Exception {
+        testExceptionPropagation(
+                new TestingRecordsWithSplitIds<>("testSplit", 1, 2, 3, 4),
+                new TestingRecordsWithSplitIds<>("testSplit", 5, 6, 7, 8));
+    }
 
-	@Test
-	public void testCloseFetcherWithException() throws Exception {
-		TestingSplitReader<Object, TestingSourceSplit> reader = new TestingSplitReader<>();
-		reader.setCloseWithException();
-		SplitFetcherManager<Object, TestingSourceSplit> fetcherManager =
-				createFetcher("test-split", new FutureCompletingBlockingQueue<>(), reader);
-		fetcherManager.close(1000L);
-		try {
-			fetcherManager.checkErrors();
-		} catch (Exception e) {
-			assertEquals(
-					"Artificial exception on closing the split reader.",
-					ExceptionUtils.getRootCause(e).getMessage());
-		}
-	}
+    @Test
+    public void testCloseFetcherWithException() throws Exception {
+        TestingSplitReader<Object, TestingSourceSplit> reader = new TestingSplitReader<>();
+        reader.setCloseWithException();
+        SplitFetcherManager<Object, TestingSourceSplit> fetcherManager =
+                createFetcher("test-split", new FutureCompletingBlockingQueue<>(), reader);
+        fetcherManager.close(1000L);
+        try {
+            fetcherManager.checkErrors();
+        } catch (Exception e) {
+            assertEquals(
+                    "Artificial exception on closing the split reader.",
+                    ExceptionUtils.getRootCause(e).getMessage());
+        }
+    }
 
-	// the final modifier is important so that '@SafeVarargs' is accepted on Java 8
-	@SuppressWarnings("FinalPrivateMethod")
-	@SafeVarargs
-	private final void testExceptionPropagation(final RecordsWithSplitIds<Integer>... fetchesBeforeError) throws Exception {
-		final IOException testingException = new IOException("test");
+    // the final modifier is important so that '@SafeVarargs' is accepted on Java 8
+    @SuppressWarnings("FinalPrivateMethod")
+    @SafeVarargs
+    private final void testExceptionPropagation(
+            final RecordsWithSplitIds<Integer>... fetchesBeforeError) throws Exception {
+        final IOException testingException = new IOException("test");
 
-		final FutureCompletingBlockingQueue<RecordsWithSplitIds<Integer>> queue = new FutureCompletingBlockingQueue<>(10);
-		final AwaitingReader<Integer, TestingSourceSplit> reader = new AwaitingReader<>(testingException, fetchesBeforeError);
-		final SplitFetcherManager<Integer, TestingSourceSplit> fetcher = createFetcher("testSplit", queue, reader);
+        final FutureCompletingBlockingQueue<RecordsWithSplitIds<Integer>> queue =
+                new FutureCompletingBlockingQueue<>(10);
+        final AwaitingReader<Integer, TestingSourceSplit> reader =
+                new AwaitingReader<>(testingException, fetchesBeforeError);
+        final SplitFetcherManager<Integer, TestingSourceSplit> fetcher =
+                createFetcher("testSplit", queue, reader);
 
-		reader.awaitAllRecordsReturned();
-		drainQueue(queue);
+        reader.awaitAllRecordsReturned();
+        drainQueue(queue);
 
-		assertFalse(queue.getAvailabilityFuture().isDone());
-		reader.triggerThrowException();
+        assertFalse(queue.getAvailabilityFuture().isDone());
+        reader.triggerThrowException();
 
-		// await the error propagation
-		queue.getAvailabilityFuture().get();
+        // await the error propagation
+        queue.getAvailabilityFuture().get();
 
-		try {
-			fetcher.checkErrors();
-			fail("expected exception");
-		} catch (Exception e) {
-			assertSame(testingException, e.getCause().getCause());
-		} finally {
-			fetcher.close(20_000L);
-		}
-	}
+        try {
+            fetcher.checkErrors();
+            fail("expected exception");
+        } catch (Exception e) {
+            assertSame(testingException, e.getCause().getCause());
+        } finally {
+            fetcher.close(20_000L);
+        }
+    }
 
-	// ------------------------------------------------------------------------
-	//  test helpers
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  test helpers
+    // ------------------------------------------------------------------------
 
-	private static <E> SplitFetcherManager<E, TestingSourceSplit> createFetcher(
-			final String splitId,
-			final FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> queue,
-			final SplitReader<E, TestingSourceSplit> reader) {
+    private static <E> SplitFetcherManager<E, TestingSourceSplit> createFetcher(
+            final String splitId,
+            final FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> queue,
+            final SplitReader<E, TestingSourceSplit> reader) {
 
-		final SingleThreadFetcherManager<E, TestingSourceSplit> fetcher =
-				new SingleThreadFetcherManager<>(queue, () -> reader);
-		fetcher.addSplits(Collections.singletonList(new TestingSourceSplit(splitId)));
-		return fetcher;
-	}
+        final SingleThreadFetcherManager<E, TestingSourceSplit> fetcher =
+                new SingleThreadFetcherManager<>(queue, () -> reader);
+        fetcher.addSplits(Collections.singletonList(new TestingSourceSplit(splitId)));
+        return fetcher;
+    }
 
-	private static void drainQueue(FutureCompletingBlockingQueue<?> queue) {
-		//noinspection StatementWithEmptyBody
-		while (queue.poll() != null) {}
-	}
+    private static void drainQueue(FutureCompletingBlockingQueue<?> queue) {
+        //noinspection StatementWithEmptyBody
+        while (queue.poll() != null) {}
+    }
 
-	// ------------------------------------------------------------------------
-	//  test mocks
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  test mocks
+    // ------------------------------------------------------------------------
 
-	private static final class AwaitingReader<E, SplitT extends SourceSplit> implements SplitReader <E, SplitT> {
+    private static final class AwaitingReader<E, SplitT extends SourceSplit>
+            implements SplitReader<E, SplitT> {
 
-		private final Queue<RecordsWithSplitIds<E>> fetches;
-		private final IOException testError;
+        private final Queue<RecordsWithSplitIds<E>> fetches;
+        private final IOException testError;
 
-		private final OneShotLatch inBlocking = new OneShotLatch();
-		private final OneShotLatch throwError = new OneShotLatch();
+        private final OneShotLatch inBlocking = new OneShotLatch();
+        private final OneShotLatch throwError = new OneShotLatch();
 
-		@SafeVarargs
-		AwaitingReader(IOException testError, RecordsWithSplitIds<E>... fetches) {
-			this.testError = testError;
-			this.fetches = new ArrayDeque<>(Arrays.asList(fetches));
-		}
+        @SafeVarargs
+        AwaitingReader(IOException testError, RecordsWithSplitIds<E>... fetches) {
+            this.testError = testError;
+            this.fetches = new ArrayDeque<>(Arrays.asList(fetches));
+        }
 
-		@Override
-		public RecordsWithSplitIds<E> fetch() throws IOException {
-			if (!fetches.isEmpty()) {
-				return fetches.poll();
-			} else {
-				inBlocking.trigger();
-				try {
-					throwError.await();
-				} catch (InterruptedException e) {
-					Thread.currentThread().interrupt();
-					throw new IOException("interrupted");
-				}
-				throw testError;
-			}
-		}
+        @Override
+        public RecordsWithSplitIds<E> fetch() throws IOException {
+            if (!fetches.isEmpty()) {
+                return fetches.poll();
+            } else {
+                inBlocking.trigger();
+                try {
+                    throwError.await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("interrupted");
+                }
+                throw testError;
+            }
+        }
 
-		@Override
-		public void handleSplitsChanges(SplitsChange<SplitT> splitsChanges) {}
+        @Override
+        public void handleSplitsChanges(SplitsChange<SplitT> splitsChanges) {}
 
-		@Override
-		public void wakeUp() {}
+        @Override
+        public void wakeUp() {}
 
-		@Override
-		public void close() throws Exception {}
+        @Override
+        public void close() throws Exception {}
 
-		public void awaitAllRecordsReturned() throws InterruptedException {
-			inBlocking.await();
-		}
+        public void awaitAllRecordsReturned() throws InterruptedException {
+            inBlocking.await();
+        }
 
-		public void triggerThrowException() {
-			throwError.trigger();
-		}
-	}
+        public void triggerThrowException() {
+            throwError.trigger();
+        }
+    }
 }

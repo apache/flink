@@ -66,162 +66,181 @@ import java.util.concurrent.CompletableFuture;
 import static org.hamcrest.CoreMatchers.sameInstance;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for the {@link TaskExecutor TaskExecutor's} slot lifetime and its
- * dependencies.
- */
+/** Tests for the {@link TaskExecutor TaskExecutor's} slot lifetime and its dependencies. */
 public class TaskExecutorSlotLifetimeTest extends TestLogger {
 
-	@ClassRule
-	public static final TestingRpcServiceResource TESTING_RPC_SERVICE_RESOURCE = new TestingRpcServiceResource();
+    @ClassRule
+    public static final TestingRpcServiceResource TESTING_RPC_SERVICE_RESOURCE =
+            new TestingRpcServiceResource();
 
-	@Rule
-	public final TestingFatalErrorHandlerResource testingFatalErrorHandlerResource = new TestingFatalErrorHandlerResource();
+    @Rule
+    public final TestingFatalErrorHandlerResource testingFatalErrorHandlerResource =
+            new TestingFatalErrorHandlerResource();
 
-	@Before
-	public void setup() {
-		UserClassLoaderExtractingInvokable.clearQueue();
-	}
+    @Before
+    public void setup() {
+        UserClassLoaderExtractingInvokable.clearQueue();
+    }
 
-	/**
-	 * Tests that the user code class loader is bound to the lifetime of the
-	 * slot. This means that it is being reused across a failover, for example.
-	 * See FLINK-16408.
-	 */
-	@Test
-	public void testUserCodeClassLoaderIsBoundToSlot() throws Exception {
-		final Configuration configuration = new Configuration();
-		final TestingRpcService rpcService = TESTING_RPC_SERVICE_RESOURCE.getTestingRpcService();
+    /**
+     * Tests that the user code class loader is bound to the lifetime of the slot. This means that
+     * it is being reused across a failover, for example. See FLINK-16408.
+     */
+    @Test
+    public void testUserCodeClassLoaderIsBoundToSlot() throws Exception {
+        final Configuration configuration = new Configuration();
+        final TestingRpcService rpcService = TESTING_RPC_SERVICE_RESOURCE.getTestingRpcService();
 
-		final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
-		final CompletableFuture<SlotReport> firstSlotReportFuture = new CompletableFuture<>();
-		resourceManagerGateway.setSendSlotReportFunction(resourceIDInstanceIDSlotReportTuple3 -> {
-			firstSlotReportFuture.complete(resourceIDInstanceIDSlotReportTuple3.f2);
-			return CompletableFuture.completedFuture(Acknowledge.get());
-		});
+        final TestingResourceManagerGateway resourceManagerGateway =
+                new TestingResourceManagerGateway();
+        final CompletableFuture<SlotReport> firstSlotReportFuture = new CompletableFuture<>();
+        resourceManagerGateway.setSendSlotReportFunction(
+                resourceIDInstanceIDSlotReportTuple3 -> {
+                    firstSlotReportFuture.complete(resourceIDInstanceIDSlotReportTuple3.f2);
+                    return CompletableFuture.completedFuture(Acknowledge.get());
+                });
 
-		final BlockingQueue<TaskExecutionState> taskExecutionStates = new ArrayBlockingQueue<>(2);
-		final OneShotLatch slotsOfferedLatch = new OneShotLatch();
-		final TestingJobMasterGateway jobMasterGateway = new TestingJobMasterGatewayBuilder()
-			.setOfferSlotsFunction((resourceID, slotOffers) -> {
-				slotsOfferedLatch.trigger();
-				return CompletableFuture.completedFuture(slotOffers);
-			})
-			.setUpdateTaskExecutionStateFunction(FunctionUtils.uncheckedFunction(
-				taskExecutionState -> {
-					taskExecutionStates.put(taskExecutionState);
-					return CompletableFuture.completedFuture(Acknowledge.get());
-				}))
-			.build();
+        final BlockingQueue<TaskExecutionState> taskExecutionStates = new ArrayBlockingQueue<>(2);
+        final OneShotLatch slotsOfferedLatch = new OneShotLatch();
+        final TestingJobMasterGateway jobMasterGateway =
+                new TestingJobMasterGatewayBuilder()
+                        .setOfferSlotsFunction(
+                                (resourceID, slotOffers) -> {
+                                    slotsOfferedLatch.trigger();
+                                    return CompletableFuture.completedFuture(slotOffers);
+                                })
+                        .setUpdateTaskExecutionStateFunction(
+                                FunctionUtils.uncheckedFunction(
+                                        taskExecutionState -> {
+                                            taskExecutionStates.put(taskExecutionState);
+                                            return CompletableFuture.completedFuture(
+                                                    Acknowledge.get());
+                                        }))
+                        .build();
 
-		final LeaderRetrievalService resourceManagerLeaderRetriever = new SettableLeaderRetrievalService(resourceManagerGateway.getAddress(), resourceManagerGateway.getFencingToken().toUUID());
-		final LeaderRetrievalService jobMasterLeaderRetriever = new SettableLeaderRetrievalService(jobMasterGateway.getAddress(), jobMasterGateway.getFencingToken().toUUID());
+        final LeaderRetrievalService resourceManagerLeaderRetriever =
+                new SettableLeaderRetrievalService(
+                        resourceManagerGateway.getAddress(),
+                        resourceManagerGateway.getFencingToken().toUUID());
+        final LeaderRetrievalService jobMasterLeaderRetriever =
+                new SettableLeaderRetrievalService(
+                        jobMasterGateway.getAddress(), jobMasterGateway.getFencingToken().toUUID());
 
-		final TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServicesBuilder()
-			.setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever)
-			.setJobMasterLeaderRetrieverFunction(ignored -> jobMasterLeaderRetriever)
-			.build();
+        final TestingHighAvailabilityServices haServices =
+                new TestingHighAvailabilityServicesBuilder()
+                        .setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever)
+                        .setJobMasterLeaderRetrieverFunction(ignored -> jobMasterLeaderRetriever)
+                        .build();
 
-		rpcService.registerGateway(resourceManagerGateway.getAddress(), resourceManagerGateway);
-		rpcService.registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
+        rpcService.registerGateway(resourceManagerGateway.getAddress(), resourceManagerGateway);
+        rpcService.registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
 
-		final LocalUnresolvedTaskManagerLocation unresolvedTaskManagerLocation = new LocalUnresolvedTaskManagerLocation();
+        final LocalUnresolvedTaskManagerLocation unresolvedTaskManagerLocation =
+                new LocalUnresolvedTaskManagerLocation();
 
-		try (final TaskExecutor taskExecutor = createTaskExecutor(configuration, rpcService, haServices, unresolvedTaskManagerLocation)) {
+        try (final TaskExecutor taskExecutor =
+                createTaskExecutor(
+                        configuration, rpcService, haServices, unresolvedTaskManagerLocation)) {
 
-			taskExecutor.start();
+            taskExecutor.start();
 
-			final SlotReport slotReport = firstSlotReportFuture.join();
-			final SlotID firstSlotId = slotReport.iterator().next().getSlotID();
+            final SlotReport slotReport = firstSlotReportFuture.join();
+            final SlotID firstSlotId = slotReport.iterator().next().getSlotID();
 
-			final TaskExecutorGateway taskExecutorGateway = taskExecutor.getSelfGateway(TaskExecutorGateway.class);
+            final TaskExecutorGateway taskExecutorGateway =
+                    taskExecutor.getSelfGateway(TaskExecutorGateway.class);
 
-			final JobID jobId = new JobID();
-			final AllocationID allocationId = new AllocationID();
-			taskExecutorGateway.requestSlot(
-				firstSlotId,
-				jobId,
-				allocationId,
-				ResourceProfile.ZERO,
-				jobMasterGateway.getAddress(),
-				resourceManagerGateway.getFencingToken(),
-				RpcUtils.INF_TIMEOUT).join();
+            final JobID jobId = new JobID();
+            final AllocationID allocationId = new AllocationID();
+            taskExecutorGateway
+                    .requestSlot(
+                            firstSlotId,
+                            jobId,
+                            allocationId,
+                            ResourceProfile.ZERO,
+                            jobMasterGateway.getAddress(),
+                            resourceManagerGateway.getFencingToken(),
+                            RpcUtils.INF_TIMEOUT)
+                    .join();
 
-			final TaskDeploymentDescriptor tdd = TaskDeploymentDescriptorBuilder.newBuilder(jobId, UserClassLoaderExtractingInvokable.class)
-				.setAllocationId(allocationId)
-				.build();
+            final TaskDeploymentDescriptor tdd =
+                    TaskDeploymentDescriptorBuilder.newBuilder(
+                                    jobId, UserClassLoaderExtractingInvokable.class)
+                            .setAllocationId(allocationId)
+                            .build();
 
-			slotsOfferedLatch.await();
+            slotsOfferedLatch.await();
 
-			taskExecutorGateway.submitTask(
-				tdd,
-				jobMasterGateway.getFencingToken(),
-				RpcUtils.INF_TIMEOUT).join();
+            taskExecutorGateway
+                    .submitTask(tdd, jobMasterGateway.getFencingToken(), RpcUtils.INF_TIMEOUT)
+                    .join();
 
-			final ClassLoader firstClassLoader = UserClassLoaderExtractingInvokable.take();
+            final ClassLoader firstClassLoader = UserClassLoaderExtractingInvokable.take();
 
-			// wait for the first task to finish
-			TaskExecutionState taskExecutionState;
-			do {
-				taskExecutionState = taskExecutionStates.take();
-			} while (!taskExecutionState.getExecutionState().isTerminal());
+            // wait for the first task to finish
+            TaskExecutionState taskExecutionState;
+            do {
+                taskExecutionState = taskExecutionStates.take();
+            } while (!taskExecutionState.getExecutionState().isTerminal());
 
-			// check that a second task will re-use the same class loader
-			taskExecutorGateway.submitTask(
-				tdd,
-				jobMasterGateway.getFencingToken(),
-				RpcUtils.INF_TIMEOUT).join();
+            // check that a second task will re-use the same class loader
+            taskExecutorGateway
+                    .submitTask(tdd, jobMasterGateway.getFencingToken(), RpcUtils.INF_TIMEOUT)
+                    .join();
 
-			final ClassLoader secondClassLoader = UserClassLoaderExtractingInvokable.take();
+            final ClassLoader secondClassLoader = UserClassLoaderExtractingInvokable.take();
 
-			assertThat(firstClassLoader, sameInstance(secondClassLoader));
-		}
-	}
+            assertThat(firstClassLoader, sameInstance(secondClassLoader));
+        }
+    }
 
-	private TaskExecutor createTaskExecutor(Configuration configuration, TestingRpcService rpcService, TestingHighAvailabilityServices haServices, LocalUnresolvedTaskManagerLocation unresolvedTaskManagerLocation) throws IOException {
-		return new TaskExecutor(
-			rpcService,
-			TaskManagerConfiguration.fromConfiguration(
-				configuration,
-				TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(configuration),
-				InetAddress.getLoopbackAddress().getHostAddress()),
-			haServices,
-			new TaskManagerServicesBuilder()
-				.setTaskSlotTable(TaskSlotUtils.createTaskSlotTable(1))
-				.setUnresolvedTaskManagerLocation(unresolvedTaskManagerLocation)
-				.build(),
-			ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
-			new TestingHeartbeatServices(),
-			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
-			new BlobCacheService(
-				configuration,
-				new VoidBlobStore(),
-				null),
-			testingFatalErrorHandlerResource.getFatalErrorHandler(),
-			new TestingTaskExecutorPartitionTracker(),
-			TaskManagerRunner.createBackPressureSampleService(configuration, rpcService.getScheduledExecutor()));
-	}
+    private TaskExecutor createTaskExecutor(
+            Configuration configuration,
+            TestingRpcService rpcService,
+            TestingHighAvailabilityServices haServices,
+            LocalUnresolvedTaskManagerLocation unresolvedTaskManagerLocation)
+            throws IOException {
+        return new TaskExecutor(
+                rpcService,
+                TaskManagerConfiguration.fromConfiguration(
+                        configuration,
+                        TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(
+                                configuration),
+                        InetAddress.getLoopbackAddress().getHostAddress()),
+                haServices,
+                new TaskManagerServicesBuilder()
+                        .setTaskSlotTable(TaskSlotUtils.createTaskSlotTable(1))
+                        .setUnresolvedTaskManagerLocation(unresolvedTaskManagerLocation)
+                        .build(),
+                ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
+                new TestingHeartbeatServices(),
+                UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+                null,
+                new BlobCacheService(configuration, new VoidBlobStore(), null),
+                testingFatalErrorHandlerResource.getFatalErrorHandler(),
+                new TestingTaskExecutorPartitionTracker());
+    }
 
-	public static final class UserClassLoaderExtractingInvokable extends AbstractInvokable {
+    public static final class UserClassLoaderExtractingInvokable extends AbstractInvokable {
 
-		private static BlockingQueue<ClassLoader> userCodeClassLoaders = new ArrayBlockingQueue<>(2);
+        private static BlockingQueue<ClassLoader> userCodeClassLoaders =
+                new ArrayBlockingQueue<>(2);
 
-		public UserClassLoaderExtractingInvokable(Environment environment) {
-			super(environment);
-		}
+        public UserClassLoaderExtractingInvokable(Environment environment) {
+            super(environment);
+        }
 
-		@Override
-		public void invoke() throws Exception {
-			userCodeClassLoaders.put(getEnvironment().getUserCodeClassLoader().asClassLoader());
-		}
+        @Override
+        public void invoke() throws Exception {
+            userCodeClassLoaders.put(getEnvironment().getUserCodeClassLoader().asClassLoader());
+        }
 
-		private static void clearQueue() {
-			userCodeClassLoaders.clear();
-		}
+        private static void clearQueue() {
+            userCodeClassLoaders.clear();
+        }
 
-		private static ClassLoader take() throws InterruptedException {
-			return userCodeClassLoaders.take();
-		}
-	}
+        private static ClassLoader take() throws InterruptedException {
+            return userCodeClassLoaders.take();
+        }
+    }
 }

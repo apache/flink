@@ -24,19 +24,19 @@ import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.table.data.RowData;
 
 /**
- * A special operator which collects all inputs' records and forwards them
- * in {@link MultipleInputStreamOperatorBase}.
+ * A special operator which collects all inputs' records and forwards them in {@link
+ * MultipleInputStreamOperatorBase}.
  */
 public class UnionStreamOperator extends StreamMap<RowData, RowData> implements BoundedMultiInput {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public UnionStreamOperator() {
-		// use MapFunction to combine the input data
-		super((MapFunction<RowData, RowData>) value -> value);
-	}
+    public UnionStreamOperator() {
+        // use MapFunction to combine the input data
+        super((MapFunction<RowData, RowData>) value -> value);
+    }
 
-	@Override
-	public void endInput(int inputId) throws Exception {
-		// do nothing
-	}
+    @Override
+    public void endInput(int inputId) throws Exception {
+        // do nothing
+    }
 }

@@ -18,111 +18,111 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.io.IOException;
-import java.sql.Timestamp;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+import java.io.IOException;
+import java.sql.Timestamp;
+
 @Internal
 public final class SqlTimestampSerializer extends TypeSerializerSingleton<Timestamp> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public static final SqlTimestampSerializer INSTANCE = new SqlTimestampSerializer();
+    public static final SqlTimestampSerializer INSTANCE = new SqlTimestampSerializer();
 
-	@Override
-	public boolean isImmutableType() {
-		return false;
-	}
+    @Override
+    public boolean isImmutableType() {
+        return false;
+    }
 
-	@Override
-	public Timestamp createInstance() {
-		return new Timestamp(0L);
-	}
+    @Override
+    public Timestamp createInstance() {
+        return new Timestamp(0L);
+    }
 
-	@Override
-	public Timestamp copy(Timestamp from) {
-		if (from == null) {
-			return null;
-		}
-		final Timestamp t = new Timestamp(from.getTime());
-		t.setNanos(from.getNanos());
-		return t;
-	}
+    @Override
+    public Timestamp copy(Timestamp from) {
+        if (from == null) {
+            return null;
+        }
+        final Timestamp t = new Timestamp(from.getTime());
+        t.setNanos(from.getNanos());
+        return t;
+    }
 
-	@Override
-	public Timestamp copy(Timestamp from, Timestamp reuse) {
-		if (from == null) {
-			return null;
-		}
-		reuse.setTime(from.getTime());
-		reuse.setNanos(from.getNanos());
-		return reuse;
-	}
+    @Override
+    public Timestamp copy(Timestamp from, Timestamp reuse) {
+        if (from == null) {
+            return null;
+        }
+        reuse.setTime(from.getTime());
+        reuse.setNanos(from.getNanos());
+        return reuse;
+    }
 
-	@Override
-	public int getLength() {
-		return 12;
-	}
+    @Override
+    public int getLength() {
+        return 12;
+    }
 
-	@Override
-	public void serialize(Timestamp record, DataOutputView target) throws IOException {
-		if (record == null) {
-			target.writeLong(Long.MIN_VALUE);
-			target.writeInt(0);
-		} else {
-			target.writeLong(record.getTime());
-			target.writeInt(record.getNanos());
-		}
-	}
+    @Override
+    public void serialize(Timestamp record, DataOutputView target) throws IOException {
+        if (record == null) {
+            target.writeLong(Long.MIN_VALUE);
+            target.writeInt(0);
+        } else {
+            target.writeLong(record.getTime());
+            target.writeInt(record.getNanos());
+        }
+    }
 
-	@Override
-	public Timestamp deserialize(DataInputView source) throws IOException {
-		final long v = source.readLong();
-		if (v == Long.MIN_VALUE) {
-			return null;
-		} else {
-			final Timestamp t = new Timestamp(v);
-			t.setNanos(source.readInt());
-			return t;
-		}
-	}
+    @Override
+    public Timestamp deserialize(DataInputView source) throws IOException {
+        final long v = source.readLong();
+        if (v == Long.MIN_VALUE) {
+            return null;
+        } else {
+            final Timestamp t = new Timestamp(v);
+            t.setNanos(source.readInt());
+            return t;
+        }
+    }
 
-	@Override
-	public Timestamp deserialize(Timestamp reuse, DataInputView source) throws IOException {
-		final long v = source.readLong();
-		if (v == Long.MIN_VALUE) {
-			return null;
-		}
-		reuse.setTime(v);
-		reuse.setNanos(source.readInt());
-		return reuse;
-	}
+    @Override
+    public Timestamp deserialize(Timestamp reuse, DataInputView source) throws IOException {
+        final long v = source.readLong();
+        if (v == Long.MIN_VALUE) {
+            return null;
+        }
+        reuse.setTime(v);
+        reuse.setNanos(source.readInt());
+        return reuse;
+    }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		target.writeLong(source.readLong());
-		target.writeInt(source.readInt());
-	}
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+        target.writeLong(source.readLong());
+        target.writeInt(source.readInt());
+    }
 
-	@Override
-	public TypeSerializerSnapshot<Timestamp> snapshotConfiguration() {
-		return new SqlTimestampSerializerSnapshot();
-	}
+    @Override
+    public TypeSerializerSnapshot<Timestamp> snapshotConfiguration() {
+        return new SqlTimestampSerializerSnapshot();
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Serializer configuration snapshot for compatibility and format evolution.
-	 */
-	@SuppressWarnings("WeakerAccess")
-	public static final class SqlTimestampSerializerSnapshot extends SimpleTypeSerializerSnapshot<Timestamp> {
+    /** Serializer configuration snapshot for compatibility and format evolution. */
+    @SuppressWarnings("WeakerAccess")
+    public static final class SqlTimestampSerializerSnapshot
+            extends SimpleTypeSerializerSnapshot<Timestamp> {
 
-		public SqlTimestampSerializerSnapshot() {
-			super(() -> INSTANCE);
-		}
-	}
+        public SqlTimestampSerializerSnapshot() {
+            super(() -> INSTANCE);
+        }
+    }
 }

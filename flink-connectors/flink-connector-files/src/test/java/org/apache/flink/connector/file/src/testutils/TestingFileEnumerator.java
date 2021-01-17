@@ -28,29 +28,28 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 
-/**
- * A {@link FileEnumerator} where splits are manually added during tests.
- */
+/** A {@link FileEnumerator} where splits are manually added during tests. */
 public class TestingFileEnumerator implements FileEnumerator {
 
-	private final ArrayDeque<FileSourceSplit> splits = new ArrayDeque<>();
+    private final ArrayDeque<FileSourceSplit> splits = new ArrayDeque<>();
 
-	public TestingFileEnumerator(FileSourceSplit... initialSplits) {
-		addSplits(initialSplits);
-	}
+    public TestingFileEnumerator(FileSourceSplit... initialSplits) {
+        addSplits(initialSplits);
+    }
 
-	@Override
-	public Collection<FileSourceSplit> enumerateSplits(Path[] paths, int minDesiredSplits) throws IOException {
-		synchronized (splits) {
-			final ArrayList<FileSourceSplit> currentSplits = new ArrayList<>(splits);
-			splits.clear();
-			return currentSplits;
-		}
-	}
+    @Override
+    public Collection<FileSourceSplit> enumerateSplits(Path[] paths, int minDesiredSplits)
+            throws IOException {
+        synchronized (splits) {
+            final ArrayList<FileSourceSplit> currentSplits = new ArrayList<>(splits);
+            splits.clear();
+            return currentSplits;
+        }
+    }
 
-	public void addSplits(FileSourceSplit... newSplits) {
-		synchronized (splits) {
-			splits.addAll(Arrays.asList(newSplits));
-		}
-	}
+    public void addSplits(FileSourceSplit... newSplits) {
+        synchronized (splits) {
+            splits.addAll(Arrays.asList(newSplits));
+        }
+    }
 }

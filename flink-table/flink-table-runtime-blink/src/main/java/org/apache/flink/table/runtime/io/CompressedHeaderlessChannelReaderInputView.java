@@ -41,122 +41,124 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * A {@link org.apache.flink.core.memory.DataInputView} that is backed by a
- * {@link BufferFileReader}, making it effectively a data input stream. The view reads it data
- * in blocks from the underlying channel and decompress it before returning to caller. The view
- * can only read data that has been written by {@link CompressedHeaderlessChannelWriterOutputView},
- * due to block formatting.
+ * A {@link org.apache.flink.core.memory.DataInputView} that is backed by a {@link
+ * BufferFileReader}, making it effectively a data input stream. The view reads it data in blocks
+ * from the underlying channel and decompress it before returning to caller. The view can only read
+ * data that has been written by {@link CompressedHeaderlessChannelWriterOutputView}, due to block
+ * formatting.
  */
-public class CompressedHeaderlessChannelReaderInputView
-		extends AbstractChannelReaderInputView
-		implements RequestDoneCallback<Buffer>, BufferRecycler {
+public class CompressedHeaderlessChannelReaderInputView extends AbstractChannelReaderInputView
+        implements RequestDoneCallback<Buffer>, BufferRecycler {
 
-	private final BlockDecompressor decompressor;
-	private final BufferFileReader reader;
-	private final MemorySegment uncompressedBuffer;
-	private final AtomicReference<IOException> cause;
+    private final BlockDecompressor decompressor;
+    private final BufferFileReader reader;
+    private final MemorySegment uncompressedBuffer;
+    private final AtomicReference<IOException> cause;
 
-	private final LinkedBlockingQueue<Buffer> retBuffers = new LinkedBlockingQueue<>();
+    private final LinkedBlockingQueue<Buffer> retBuffers = new LinkedBlockingQueue<>();
 
-	private int numBlocksRemaining;
-	private int currentSegmentLimit;
+    private int numBlocksRemaining;
+    private int currentSegmentLimit;
 
-	public CompressedHeaderlessChannelReaderInputView(
-			FileIOChannel.ID id,
-			IOManager ioManager,
-			BlockCompressionFactory compressionCodecFactory,
-			int compressionBlockSize,
-			int numBlocks) throws IOException {
-		super(0);
-		this.numBlocksRemaining = numBlocks;
-		this.reader = ioManager.createBufferFileReader(id, this);
-		uncompressedBuffer = MemorySegmentFactory.wrap(new byte[compressionBlockSize]);
-		decompressor = compressionCodecFactory.getDecompressor();
-		cause = new AtomicReference<>();
+    public CompressedHeaderlessChannelReaderInputView(
+            FileIOChannel.ID id,
+            IOManager ioManager,
+            BlockCompressionFactory compressionCodecFactory,
+            int compressionBlockSize,
+            int numBlocks)
+            throws IOException {
+        super(0);
+        this.numBlocksRemaining = numBlocks;
+        this.reader = ioManager.createBufferFileReader(id, this);
+        uncompressedBuffer = MemorySegmentFactory.wrap(new byte[compressionBlockSize]);
+        decompressor = compressionCodecFactory.getDecompressor();
+        cause = new AtomicReference<>();
 
-		BlockCompressor compressor = compressionCodecFactory.getCompressor();
-		for (int i = 0; i < 2; i++) {
-			MemorySegment segment = MemorySegmentFactory.wrap(new byte[compressor.getMaxCompressedSize(
-					compressionBlockSize)]);
-			reader.readInto(new NetworkBuffer(segment, this));
-		}
-	}
+        BlockCompressor compressor = compressionCodecFactory.getCompressor();
+        for (int i = 0; i < 2; i++) {
+            MemorySegment segment =
+                    MemorySegmentFactory.wrap(
+                            new byte[compressor.getMaxCompressedSize(compressionBlockSize)]);
+            reader.readInto(new NetworkBuffer(segment, this));
+        }
+    }
 
-	@Override
-	protected MemorySegment nextSegment(MemorySegment current) throws IOException {
-		if (cause.get() != null) {
-			throw cause.get();
-		}
+    @Override
+    protected MemorySegment nextSegment(MemorySegment current) throws IOException {
+        if (cause.get() != null) {
+            throw cause.get();
+        }
 
-		// check for end-of-stream
-		if (this.numBlocksRemaining <= 0) {
-			this.reader.close();
-			throw new EOFException();
-		}
+        // check for end-of-stream
+        if (this.numBlocksRemaining <= 0) {
+            this.reader.close();
+            throw new EOFException();
+        }
 
-		try {
-			Buffer buffer;
-			while ((buffer = retBuffers.poll(1, TimeUnit.SECONDS)) == null) {
-				if (cause.get() != null) {
-					throw cause.get();
-				}
-			}
-			this.currentSegmentLimit = decompressor.decompress(
-					buffer.getMemorySegment().getArray(), 0, buffer.getSize(),
-					uncompressedBuffer.getArray(), 0
-			);
+        try {
+            Buffer buffer;
+            while ((buffer = retBuffers.poll(1, TimeUnit.SECONDS)) == null) {
+                if (cause.get() != null) {
+                    throw cause.get();
+                }
+            }
+            this.currentSegmentLimit =
+                    decompressor.decompress(
+                            buffer.getMemorySegment().getArray(),
+                            0,
+                            buffer.getSize(),
+                            uncompressedBuffer.getArray(),
+                            0);
 
-			buffer.recycleBuffer();
-			this.numBlocksRemaining--;
-			return uncompressedBuffer;
-		}
-		catch (InterruptedException e) {
-			throw new IOException(e);
-		}
-	}
+            buffer.recycleBuffer();
+            this.numBlocksRemaining--;
+            return uncompressedBuffer;
+        } catch (InterruptedException e) {
+            throw new IOException(e);
+        }
+    }
 
-	public BufferFileReader getReader() {
-		return reader;
-	}
+    public BufferFileReader getReader() {
+        return reader;
+    }
 
-	@Override
-	protected int getLimitForSegment(MemorySegment segment) {
-		return currentSegmentLimit;
-	}
+    @Override
+    protected int getLimitForSegment(MemorySegment segment) {
+        return currentSegmentLimit;
+    }
 
-	@Override
-	public List<MemorySegment> close() throws IOException {
-		reader.close();
-		return Collections.emptyList();
-	}
+    @Override
+    public List<MemorySegment> close() throws IOException {
+        reader.close();
+        return Collections.emptyList();
+    }
 
-	@Override
-	public FileIOChannel getChannel() {
-		return reader;
-	}
+    @Override
+    public FileIOChannel getChannel() {
+        return reader;
+    }
 
-	public boolean isClosed() {
-		return reader.isClosed();
-	}
+    public boolean isClosed() {
+        return reader.isClosed();
+    }
 
-	@Override
-	public void requestSuccessful(Buffer request) {
-		retBuffers.add(request);
-	}
+    @Override
+    public void requestSuccessful(Buffer request) {
+        retBuffers.add(request);
+    }
 
-	@Override
-	public void requestFailed(Buffer buffer, IOException e) {
-		cause.compareAndSet(null, e);
-		throw new RuntimeException(e);
-	}
+    @Override
+    public void requestFailed(Buffer buffer, IOException e) {
+        cause.compareAndSet(null, e);
+        throw new RuntimeException(e);
+    }
 
-	@Override
-	public void recycle(MemorySegment segment) {
-		try {
-			reader.readInto(new NetworkBuffer(segment, this));
-		}
-		catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-	}
+    @Override
+    public void recycle(MemorySegment segment) {
+        try {
+            reader.readInto(new NetworkBuffer(segment, this));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

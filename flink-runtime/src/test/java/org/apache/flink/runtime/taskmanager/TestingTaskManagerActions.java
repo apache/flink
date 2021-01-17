@@ -23,70 +23,73 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-/**
- * Testing implementation of {@link TaskManagerActions}.
- */
+/** Testing implementation of {@link TaskManagerActions}. */
 public class TestingTaskManagerActions implements TaskManagerActions {
 
-	private final BiConsumer<String, Throwable> notifyFatalErrorConsumer;
+    private final BiConsumer<String, Throwable> notifyFatalErrorConsumer;
 
-	private final BiConsumer<ExecutionAttemptID, Throwable> failTaskConsumer;
+    private final BiConsumer<ExecutionAttemptID, Throwable> failTaskConsumer;
 
-	private final Consumer<TaskExecutionState> updateTaskExecutionStateConsumer;
+    private final Consumer<TaskExecutionState> updateTaskExecutionStateConsumer;
 
-	private TestingTaskManagerActions(
-			BiConsumer<String, Throwable> notifyFatalErrorConsumer,
-			BiConsumer<ExecutionAttemptID, Throwable> failTaskConsumer,
-			Consumer<TaskExecutionState> updateTaskExecutionStateConsumer) {
-		this.notifyFatalErrorConsumer = notifyFatalErrorConsumer;
-		this.failTaskConsumer = failTaskConsumer;
-		this.updateTaskExecutionStateConsumer = updateTaskExecutionStateConsumer;
-	}
+    private TestingTaskManagerActions(
+            BiConsumer<String, Throwable> notifyFatalErrorConsumer,
+            BiConsumer<ExecutionAttemptID, Throwable> failTaskConsumer,
+            Consumer<TaskExecutionState> updateTaskExecutionStateConsumer) {
+        this.notifyFatalErrorConsumer = notifyFatalErrorConsumer;
+        this.failTaskConsumer = failTaskConsumer;
+        this.updateTaskExecutionStateConsumer = updateTaskExecutionStateConsumer;
+    }
 
-	@Override
-	public void notifyFatalError(String message, Throwable cause) {
-		notifyFatalErrorConsumer.accept(message, cause);
-	}
+    @Override
+    public void notifyFatalError(String message, Throwable cause) {
+        notifyFatalErrorConsumer.accept(message, cause);
+    }
 
-	@Override
-	public void failTask(ExecutionAttemptID executionAttemptID, Throwable cause) {
-		failTaskConsumer.accept(executionAttemptID, cause);
-	}
+    @Override
+    public void failTask(ExecutionAttemptID executionAttemptID, Throwable cause) {
+        failTaskConsumer.accept(executionAttemptID, cause);
+    }
 
-	@Override
-	public void updateTaskExecutionState(TaskExecutionState taskExecutionState) {
-		updateTaskExecutionStateConsumer.accept(taskExecutionState);
-	}
+    @Override
+    public void updateTaskExecutionState(TaskExecutionState taskExecutionState) {
+        updateTaskExecutionStateConsumer.accept(taskExecutionState);
+    }
 
-	public static Builder newBuilder() {
-		return new Builder();
-	}
+    public static Builder newBuilder() {
+        return new Builder();
+    }
 
-	public static final class Builder {
+    public static final class Builder {
 
-		private BiConsumer<String, Throwable> notifyFatalErrorConsumer = (ignoredA, ignoredB) -> {};
-		private BiConsumer<ExecutionAttemptID, Throwable> failTaskConsumer = (ignoredA, ignoredB) -> {};
-		private Consumer<TaskExecutionState> updateTaskExecutionStateConsumer = ignored -> {};
+        private BiConsumer<String, Throwable> notifyFatalErrorConsumer = (ignoredA, ignoredB) -> {};
+        private BiConsumer<ExecutionAttemptID, Throwable> failTaskConsumer =
+                (ignoredA, ignoredB) -> {};
+        private Consumer<TaskExecutionState> updateTaskExecutionStateConsumer = ignored -> {};
 
-		private Builder() {}
+        private Builder() {}
 
-		public Builder setNotifyFatalErrorConsumer(BiConsumer<String, Throwable> notifyFatalErrorConsumer) {
-			this.notifyFatalErrorConsumer = notifyFatalErrorConsumer;
-			return this;
-		}
+        public Builder setNotifyFatalErrorConsumer(
+                BiConsumer<String, Throwable> notifyFatalErrorConsumer) {
+            this.notifyFatalErrorConsumer = notifyFatalErrorConsumer;
+            return this;
+        }
 
-		public Builder setFailTaskConsumer(BiConsumer<ExecutionAttemptID, Throwable> failTaskConsumer) {
-			this.failTaskConsumer = failTaskConsumer;
-			return this;
-		}
+        public Builder setFailTaskConsumer(
+                BiConsumer<ExecutionAttemptID, Throwable> failTaskConsumer) {
+            this.failTaskConsumer = failTaskConsumer;
+            return this;
+        }
 
-		public Builder setUpdateTaskExecutionStateConsumer(Consumer<TaskExecutionState> updateTaskExecutionStateConsumer) {
-			this.updateTaskExecutionStateConsumer = updateTaskExecutionStateConsumer;
-			return this;
-		}
+        public Builder setUpdateTaskExecutionStateConsumer(
+                Consumer<TaskExecutionState> updateTaskExecutionStateConsumer) {
+            this.updateTaskExecutionStateConsumer = updateTaskExecutionStateConsumer;
+            return this;
+        }
 
-		public TestingTaskManagerActions build() {
-			return new TestingTaskManagerActions(notifyFatalErrorConsumer, failTaskConsumer, updateTaskExecutionStateConsumer);
-		}
-	}
+        public TestingTaskManagerActions build() {
+            return new TestingTaskManagerActions(
+                    notifyFatalErrorConsumer, failTaskConsumer, updateTaskExecutionStateConsumer);
+        }
+    }
 }

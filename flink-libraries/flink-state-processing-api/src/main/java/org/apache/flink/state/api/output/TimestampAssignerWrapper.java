@@ -22,22 +22,20 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.state.api.functions.Timestamper;
 import org.apache.flink.streaming.api.functions.TimestampAssigner;
 
-/**
- * Wraps an existing {@link TimestampAssigner} into a {@link Timestamper}.
- */
+/** Wraps an existing {@link TimestampAssigner} into a {@link Timestamper}. */
 @Internal
 public class TimestampAssignerWrapper<T> implements Timestamper<T> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final TimestampAssigner<T> assigner;
+    private final TimestampAssigner<T> assigner;
 
-	public TimestampAssignerWrapper(TimestampAssigner<T> assigner) {
-		this.assigner = assigner;
-	}
+    public TimestampAssignerWrapper(TimestampAssigner<T> assigner) {
+        this.assigner = assigner;
+    }
 
-	@Override
-	public long timestamp(T element) {
-		return assigner.extractTimestamp(element, Long.MIN_VALUE);
-	}
+    @Override
+    public long timestamp(T element) {
+        return assigner.extractTimestamp(element, Long.MIN_VALUE);
+    }
 }

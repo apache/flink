@@ -27,60 +27,62 @@ import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
-/**
- * {@link EmbeddedHaServices} extension to expose leadership granting and revoking.
- */
-public class EmbeddedHaServicesWithLeadershipControl extends EmbeddedHaServices implements HaLeadershipControl {
-	private final CheckpointRecoveryFactory testingCheckpointRecoveryFactory;
+/** {@link EmbeddedHaServices} extension to expose leadership granting and revoking. */
+public class EmbeddedHaServicesWithLeadershipControl extends EmbeddedHaServices
+        implements HaLeadershipControl {
+    private final CheckpointRecoveryFactory testingCheckpointRecoveryFactory;
 
-	public EmbeddedHaServicesWithLeadershipControl(Executor executor) {
-		super(executor);
-		this.testingCheckpointRecoveryFactory = new PerJobCheckpointRecoveryFactory(
-			n -> new EmbeddedCompletedCheckpointStore(),
-			StandaloneCheckpointIDCounter::new);
-	}
+    public EmbeddedHaServicesWithLeadershipControl(Executor executor) {
+        super(executor);
+        this.testingCheckpointRecoveryFactory =
+                new PerJobCheckpointRecoveryFactory(
+                        n -> new EmbeddedCompletedCheckpointStore(),
+                        StandaloneCheckpointIDCounter::new);
+    }
 
-	@Override
-	public CompletableFuture<Void> revokeDispatcherLeadership() {
-		final EmbeddedLeaderService dispatcherLeaderService = getDispatcherLeaderService();
-		return dispatcherLeaderService.revokeLeadership();
-	}
+    @Override
+    public CompletableFuture<Void> revokeDispatcherLeadership() {
+        final EmbeddedLeaderService dispatcherLeaderService = getDispatcherLeaderService();
+        return dispatcherLeaderService.revokeLeadership();
+    }
 
-	@Override
-	public CompletableFuture<Void> grantDispatcherLeadership() {
-		final EmbeddedLeaderService dispatcherLeaderService = getDispatcherLeaderService();
-		return dispatcherLeaderService.grantLeadership();
-	}
+    @Override
+    public CompletableFuture<Void> grantDispatcherLeadership() {
+        final EmbeddedLeaderService dispatcherLeaderService = getDispatcherLeaderService();
+        return dispatcherLeaderService.grantLeadership();
+    }
 
-	@Override
-	public CompletableFuture<Void> revokeJobMasterLeadership(JobID jobId) {
-		final EmbeddedLeaderService jobMasterLeaderService = getJobManagerLeaderService(jobId);
-		return jobMasterLeaderService.revokeLeadership();
-	}
+    @Override
+    public CompletableFuture<Void> revokeJobMasterLeadership(JobID jobId) {
+        final EmbeddedLeaderService jobMasterLeaderService = getJobManagerLeaderService(jobId);
+        return jobMasterLeaderService.revokeLeadership();
+    }
 
-	@Override
-	public CompletableFuture<Void> grantJobMasterLeadership(JobID jobId) {
-		final EmbeddedLeaderService jobMasterLeaderService = getJobManagerLeaderService(jobId);
-		return jobMasterLeaderService.grantLeadership();
-	}
+    @Override
+    public CompletableFuture<Void> grantJobMasterLeadership(JobID jobId) {
+        final EmbeddedLeaderService jobMasterLeaderService = getJobManagerLeaderService(jobId);
+        return jobMasterLeaderService.grantLeadership();
+    }
 
-	@Override
-	public CompletableFuture<Void> revokeResourceManagerLeadership() {
-		final EmbeddedLeaderService resourceManagerLeaderService = getResourceManagerLeaderService();
-		return resourceManagerLeaderService.revokeLeadership();
-	}
+    @Override
+    public CompletableFuture<Void> revokeResourceManagerLeadership() {
+        final EmbeddedLeaderService resourceManagerLeaderService =
+                getResourceManagerLeaderService();
+        return resourceManagerLeaderService.revokeLeadership();
+    }
 
-	@Override
-	public CompletableFuture<Void> grantResourceManagerLeadership() {
-		final EmbeddedLeaderService resourceManagerLeaderService = getResourceManagerLeaderService();
-		return resourceManagerLeaderService.grantLeadership();
-	}
+    @Override
+    public CompletableFuture<Void> grantResourceManagerLeadership() {
+        final EmbeddedLeaderService resourceManagerLeaderService =
+                getResourceManagerLeaderService();
+        return resourceManagerLeaderService.grantLeadership();
+    }
 
-	@Override
-	public CheckpointRecoveryFactory getCheckpointRecoveryFactory() {
-		synchronized (lock) {
-			checkNotShutdown();
-			return testingCheckpointRecoveryFactory;
-		}
-	}
+    @Override
+    public CheckpointRecoveryFactory getCheckpointRecoveryFactory() {
+        synchronized (lock) {
+            checkNotShutdown();
+            return testingCheckpointRecoveryFactory;
+        }
+    }
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.translators;
 
+import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
 import org.apache.flink.streaming.api.operators.BatchGroupedReduceOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
@@ -29,54 +30,54 @@ import java.util.Collection;
 /**
  * A {@link TransformationTranslator} for the {@link ReduceTransformation}.
  *
- * @param <IN> The type of the elements in the input {@code Transformation} of the transformation to translate.
+ * @param <IN> The type of the elements in the input {@code Transformation} of the transformation to
+ *     translate.
  */
 public class ReduceTransformationTranslator<IN, KEY>
-		extends AbstractOneInputTransformationTranslator<IN, IN, ReduceTransformation<IN, KEY>> {
-	@Override
-	public Collection<Integer> translateForBatchInternal(
-			final ReduceTransformation<IN, KEY> transformation,
-			final Context context) {
-		BatchGroupedReduceOperator<IN, KEY> groupedReduce = new BatchGroupedReduceOperator<>(
-			transformation.getReducer(),
-			transformation
-				.getInputType()
-				.createSerializer(context.getStreamGraph().getExecutionConfig())
-		);
-		SimpleOperatorFactory<IN> operatorFactory = SimpleOperatorFactory.of(groupedReduce);
-		operatorFactory.setChainingStrategy(transformation.getChainingStrategy());
-		Collection<Integer> ids = translateInternal(
-			transformation,
-			operatorFactory,
-			transformation.getInputType(),
-			transformation.getKeySelector(),
-			transformation.getKeyTypeInfo(),
-			context);
-		BatchExecutionUtils.applySortingInputs(transformation.getId(), context);
+        extends AbstractOneInputTransformationTranslator<IN, IN, ReduceTransformation<IN, KEY>> {
+    @Override
+    public Collection<Integer> translateForBatchInternal(
+            final ReduceTransformation<IN, KEY> transformation, final Context context) {
+        BatchGroupedReduceOperator<IN, KEY> groupedReduce =
+                new BatchGroupedReduceOperator<>(
+                        transformation.getReducer(),
+                        transformation
+                                .getInputType()
+                                .createSerializer(context.getStreamGraph().getExecutionConfig()));
+        SimpleOperatorFactory<IN> operatorFactory = SimpleOperatorFactory.of(groupedReduce);
+        operatorFactory.setChainingStrategy(transformation.getChainingStrategy());
+        Collection<Integer> ids =
+                translateInternal(
+                        transformation,
+                        operatorFactory,
+                        transformation.getInputType(),
+                        transformation.getKeySelector(),
+                        transformation.getKeyTypeInfo(),
+                        context);
+        BatchExecutionUtils.applyBatchExecutionSettings(
+                transformation.getId(), context, StreamConfig.InputRequirement.SORTED);
 
-		return ids;
-	}
+        return ids;
+    }
 
-	@Override
-	public Collection<Integer> translateForStreamingInternal(
-			final ReduceTransformation<IN, KEY> transformation,
-			final Context context) {
-		StreamGroupedReduceOperator<IN> groupedReduce = new StreamGroupedReduceOperator<>(
-			transformation.getReducer(),
-			transformation
-				.getInputType()
-				.createSerializer(context.getStreamGraph().getExecutionConfig())
-		);
+    @Override
+    public Collection<Integer> translateForStreamingInternal(
+            final ReduceTransformation<IN, KEY> transformation, final Context context) {
+        StreamGroupedReduceOperator<IN> groupedReduce =
+                new StreamGroupedReduceOperator<>(
+                        transformation.getReducer(),
+                        transformation
+                                .getInputType()
+                                .createSerializer(context.getStreamGraph().getExecutionConfig()));
 
-		SimpleOperatorFactory<IN> operatorFactory = SimpleOperatorFactory.of(groupedReduce);
-		operatorFactory.setChainingStrategy(transformation.getChainingStrategy());
-		return translateInternal(
-			transformation,
-			operatorFactory,
-			transformation.getInputType(),
-			transformation.getKeySelector(),
-			transformation.getKeyTypeInfo(),
-			context);
-	}
-
+        SimpleOperatorFactory<IN> operatorFactory = SimpleOperatorFactory.of(groupedReduce);
+        operatorFactory.setChainingStrategy(transformation.getChainingStrategy());
+        return translateInternal(
+                transformation,
+                operatorFactory,
+                transformation.getInputType(),
+                transformation.getKeySelector(),
+                transformation.getKeyTypeInfo(),
+                context);
+    }
 }

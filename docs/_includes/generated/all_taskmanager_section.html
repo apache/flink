@@ -18,7 +18,7 @@
             <td><h5>task.cancellation.timeout</h5></td>
             <td style="word-wrap: break-word;">180000</td>
             <td>Long</td>
-            <td>Timeout in milliseconds after which a task cancellation times out and leads to a fatal TaskManager error. A value of 0 deactivates the watch dog.</td>
+            <td>Timeout in milliseconds after which a task cancellation times out and leads to a fatal TaskManager error. A value of 0 deactivates the watch dog. Notice that a task cancellation is different from both a task failure and a clean shutdown.  Task cancellation timeout only applies to task cancellation and does not apply to task closing/clean-up caused by a task failure or a clean shutdown.</td>
         </tr>
         <tr>
             <td><h5>task.cancellation.timers.timeout</h5></td>

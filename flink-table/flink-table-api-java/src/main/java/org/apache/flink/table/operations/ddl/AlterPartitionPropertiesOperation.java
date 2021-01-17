@@ -23,27 +23,29 @@ import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.operations.OperationUtils;
 
-/**
- * Operation to alter the properties of partition.
- */
+/** Operation to alter the properties of partition. */
 public class AlterPartitionPropertiesOperation extends AlterPartitionOperation {
 
-	private final CatalogPartition catalogPartition;
+    private final CatalogPartition catalogPartition;
 
-	public AlterPartitionPropertiesOperation(ObjectIdentifier tableIdentifier, CatalogPartitionSpec partitionSpec,
-			CatalogPartition catalogPartition) {
-		super(tableIdentifier, partitionSpec);
-		this.catalogPartition = catalogPartition;
-	}
+    public AlterPartitionPropertiesOperation(
+            ObjectIdentifier tableIdentifier,
+            CatalogPartitionSpec partitionSpec,
+            CatalogPartition catalogPartition) {
+        super(tableIdentifier, partitionSpec);
+        this.catalogPartition = catalogPartition;
+    }
 
-	public CatalogPartition getCatalogPartition() {
-		return catalogPartition;
-	}
+    public CatalogPartition getCatalogPartition() {
+        return catalogPartition;
+    }
 
-	@Override
-	public String asSummaryString() {
-		String spec = OperationUtils.formatPartitionSpec(partitionSpec);
-		String properties = OperationUtils.formatProperties(catalogPartition.getProperties());
-		return String.format("ALTER TABLE %s PARTITION (%s) SET (%s)", tableIdentifier.asSummaryString(), spec, properties);
-	}
+    @Override
+    public String asSummaryString() {
+        String spec = OperationUtils.formatPartitionSpec(partitionSpec);
+        String properties = OperationUtils.formatProperties(catalogPartition.getProperties());
+        return String.format(
+                "ALTER TABLE %s PARTITION (%s) SET (%s)",
+                tableIdentifier.asSummaryString(), spec, properties);
+    }
 }

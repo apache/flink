@@ -20,13 +20,11 @@ package org.apache.flink.runtime.util.jartestprogram;
 
 import org.apache.flink.api.common.functions.FilterFunction;
 
-/**
- * Static factory for a lambda filter function.
- */
+/** Static factory for a lambda filter function. */
 public class UtilFunction {
 
-	@SuppressWarnings("Convert2MethodRef")
-	public static FilterFunction<String> getWordFilter() {
-		return (v) -> WordFilter.filter(v);
-	}
+    @SuppressWarnings("Convert2MethodRef")
+    public static FilterFunction<String> getWordFilter() {
+        return (v) -> WordFilter.filter(v);
+    }
 }

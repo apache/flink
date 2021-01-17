@@ -24,58 +24,57 @@ import java.util.List;
 /**
  * The message sent by upstream.
  *
- * <p>Need to ensure that the partitions are ready to commit. That is to say, the files in
- * the partition have become readable rather than temporary.
+ * <p>Need to ensure that the partitions are ready to commit. That is to say, the files in the
+ * partition have become readable rather than temporary.
  */
 public class PartitionCommitInfo implements Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private long checkpointId;
-	private int taskId;
-	private int numberOfTasks;
-	private List<String> partitions;
+    private long checkpointId;
+    private int taskId;
+    private int numberOfTasks;
+    private List<String> partitions;
 
-	public PartitionCommitInfo() {
-	}
+    public PartitionCommitInfo() {}
 
-	public PartitionCommitInfo(
-			long checkpointId, int taskId, int numberOfTasks, List<String> partitions) {
-		this.checkpointId = checkpointId;
-		this.taskId = taskId;
-		this.numberOfTasks = numberOfTasks;
-		this.partitions = partitions;
-	}
+    public PartitionCommitInfo(
+            long checkpointId, int taskId, int numberOfTasks, List<String> partitions) {
+        this.checkpointId = checkpointId;
+        this.taskId = taskId;
+        this.numberOfTasks = numberOfTasks;
+        this.partitions = partitions;
+    }
 
-	public long getCheckpointId() {
-		return checkpointId;
-	}
+    public long getCheckpointId() {
+        return checkpointId;
+    }
 
-	public void setCheckpointId(long checkpointId) {
-		this.checkpointId = checkpointId;
-	}
+    public void setCheckpointId(long checkpointId) {
+        this.checkpointId = checkpointId;
+    }
 
-	public int getTaskId() {
-		return taskId;
-	}
+    public int getTaskId() {
+        return taskId;
+    }
 
-	public void setTaskId(int taskId) {
-		this.taskId = taskId;
-	}
+    public void setTaskId(int taskId) {
+        this.taskId = taskId;
+    }
 
-	public int getNumberOfTasks() {
-		return numberOfTasks;
-	}
+    public int getNumberOfTasks() {
+        return numberOfTasks;
+    }
 
-	public void setNumberOfTasks(int numberOfTasks) {
-		this.numberOfTasks = numberOfTasks;
-	}
+    public void setNumberOfTasks(int numberOfTasks) {
+        this.numberOfTasks = numberOfTasks;
+    }
 
-	public List<String> getPartitions() {
-		return partitions;
-	}
+    public List<String> getPartitions() {
+        return partitions;
+    }
 
-	public void setPartitions(List<String> partitions) {
-		this.partitions = partitions;
-	}
+    public void setPartitions(List<String> partitions) {
+        this.partitions = partitions;
+    }
 }

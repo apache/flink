@@ -18,22 +18,22 @@
 
 package org.apache.flink.connector.jdbc.fakedb;
 
-/**
- * Utilities and constants for FakeDB.
- */
+/** Utilities and constants for FakeDB. */
 public class FakeDBUtils {
-	public static final String URL_PREFIX = "jdbc:fake:";
+    public static final String URL_PREFIX = "jdbc:fake:";
 
-	public static final String TEST_DB_URL = composeDBUrl("test");
+    public static final String TEST_DB_URL = composeDBUrl("test");
 
-	public static final String DRIVER1_CLASS_NAME = "org.apache.flink.connector.jdbc.fakedb.driver.FakeDriver1";
-	public static final String DRIVER2_CLASS_NAME = "org.apache.flink.connector.jdbc.fakedb.driver.FakeDriver2";
+    public static final String DRIVER1_CLASS_NAME =
+            "org.apache.flink.connector.jdbc.fakedb.driver.FakeDriver1";
+    public static final String DRIVER2_CLASS_NAME =
+            "org.apache.flink.connector.jdbc.fakedb.driver.FakeDriver2";
 
-	public static String composeDBUrl(String db) {
-		return URL_PREFIX + db;
-	}
+    public static String composeDBUrl(String db) {
+        return URL_PREFIX + db;
+    }
 
-	public static boolean acceptsUrl(String url) {
-		return url.startsWith(URL_PREFIX);
-	}
+    public static boolean acceptsUrl(String url) {
+        return url.startsWith(URL_PREFIX);
+    }
 }

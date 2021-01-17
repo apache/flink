@@ -32,125 +32,126 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
-/**
- * Tests for {@link InputChannel}.
- */
+/** Tests for {@link InputChannel}. */
 public class InputChannelTest {
 
-	@Test
-	public void testExponentialBackoff() throws Exception {
-		InputChannel ch = createInputChannel(500, 4000);
+    @Test
+    public void testExponentialBackoff() throws Exception {
+        InputChannel ch = createInputChannel(500, 4000);
 
-		assertEquals(0, ch.getCurrentBackoff());
+        assertEquals(0, ch.getCurrentBackoff());
 
-		assertTrue(ch.increaseBackoff());
-		assertEquals(500, ch.getCurrentBackoff());
+        assertTrue(ch.increaseBackoff());
+        assertEquals(500, ch.getCurrentBackoff());
 
-		assertTrue(ch.increaseBackoff());
-		assertEquals(1000, ch.getCurrentBackoff());
+        assertTrue(ch.increaseBackoff());
+        assertEquals(1000, ch.getCurrentBackoff());
 
-		assertTrue(ch.increaseBackoff());
-		assertEquals(2000, ch.getCurrentBackoff());
+        assertTrue(ch.increaseBackoff());
+        assertEquals(2000, ch.getCurrentBackoff());
 
-		assertTrue(ch.increaseBackoff());
-		assertEquals(4000, ch.getCurrentBackoff());
+        assertTrue(ch.increaseBackoff());
+        assertEquals(4000, ch.getCurrentBackoff());
 
-		assertFalse(ch.increaseBackoff());
-		assertEquals(4000, ch.getCurrentBackoff());
-	}
+        assertFalse(ch.increaseBackoff());
+        assertEquals(4000, ch.getCurrentBackoff());
+    }
 
-	@Test
-	public void testExponentialBackoffCappedAtMax() throws Exception {
-		InputChannel ch = createInputChannel(500, 3000);
+    @Test
+    public void testExponentialBackoffCappedAtMax() throws Exception {
+        InputChannel ch = createInputChannel(500, 3000);
 
-		assertEquals(0, ch.getCurrentBackoff());
+        assertEquals(0, ch.getCurrentBackoff());
 
-		assertTrue(ch.increaseBackoff());
-		assertEquals(500, ch.getCurrentBackoff());
+        assertTrue(ch.increaseBackoff());
+        assertEquals(500, ch.getCurrentBackoff());
 
-		assertTrue(ch.increaseBackoff());
-		assertEquals(1000, ch.getCurrentBackoff());
+        assertTrue(ch.increaseBackoff());
+        assertEquals(1000, ch.getCurrentBackoff());
 
-		assertTrue(ch.increaseBackoff());
-		assertEquals(2000, ch.getCurrentBackoff());
+        assertTrue(ch.increaseBackoff());
+        assertEquals(2000, ch.getCurrentBackoff());
 
-		assertTrue(ch.increaseBackoff());
-		assertEquals(3000, ch.getCurrentBackoff());
+        assertTrue(ch.increaseBackoff());
+        assertEquals(3000, ch.getCurrentBackoff());
 
-		assertFalse(ch.increaseBackoff());
-		assertEquals(3000, ch.getCurrentBackoff());
-	}
+        assertFalse(ch.increaseBackoff());
+        assertEquals(3000, ch.getCurrentBackoff());
+    }
 
-	@Test
-	public void testExponentialBackoffSingle() throws Exception {
-		InputChannel ch = createInputChannel(500, 500);
+    @Test
+    public void testExponentialBackoffSingle() throws Exception {
+        InputChannel ch = createInputChannel(500, 500);
 
-		assertEquals(0, ch.getCurrentBackoff());
+        assertEquals(0, ch.getCurrentBackoff());
 
-		assertTrue(ch.increaseBackoff());
-		assertEquals(500, ch.getCurrentBackoff());
+        assertTrue(ch.increaseBackoff());
+        assertEquals(500, ch.getCurrentBackoff());
 
-		assertFalse(ch.increaseBackoff());
-		assertEquals(500, ch.getCurrentBackoff());
-	}
+        assertFalse(ch.increaseBackoff());
+        assertEquals(500, ch.getCurrentBackoff());
+    }
 
-	@Test
-	public void testExponentialNoBackoff() throws Exception {
-		InputChannel ch = createInputChannel(0, 0);
+    @Test
+    public void testExponentialNoBackoff() throws Exception {
+        InputChannel ch = createInputChannel(0, 0);
 
-		assertEquals(0, ch.getCurrentBackoff());
+        assertEquals(0, ch.getCurrentBackoff());
 
-		assertFalse(ch.increaseBackoff());
-		assertEquals(0, ch.getCurrentBackoff());
-	}
+        assertFalse(ch.increaseBackoff());
+        assertEquals(0, ch.getCurrentBackoff());
+    }
 
-	private InputChannel createInputChannel(int initialBackoff, int maxBackoff) {
-		return new MockInputChannel(
-			mock(SingleInputGate.class),
-			0,
-			new ResultPartitionID(),
-			initialBackoff,
-			maxBackoff);
-	}
+    private InputChannel createInputChannel(int initialBackoff, int maxBackoff) {
+        return new MockInputChannel(
+                mock(SingleInputGate.class),
+                0,
+                new ResultPartitionID(),
+                initialBackoff,
+                maxBackoff);
+    }
 
-	// ---------------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------------
 
-	private static class MockInputChannel extends InputChannel {
+    private static class MockInputChannel extends InputChannel {
 
-		private MockInputChannel(
-			SingleInputGate inputGate,
-			int channelIndex,
-			ResultPartitionID partitionId,
-			int initialBackoff,
-			int maxBackoff) {
+        private MockInputChannel(
+                SingleInputGate inputGate,
+                int channelIndex,
+                ResultPartitionID partitionId,
+                int initialBackoff,
+                int maxBackoff) {
 
-			super(inputGate, channelIndex, partitionId, initialBackoff, maxBackoff, new SimpleCounter(), new SimpleCounter());
-		}
+            super(
+                    inputGate,
+                    channelIndex,
+                    partitionId,
+                    initialBackoff,
+                    maxBackoff,
+                    new SimpleCounter(),
+                    new SimpleCounter());
+        }
 
-		@Override
-		public void resumeConsumption() {
-		}
+        @Override
+        public void resumeConsumption() {}
 
-		@Override
-		void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {
-		}
+        @Override
+        void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {}
 
-		@Override
-		Optional<BufferAndAvailability> getNextBuffer() throws IOException, InterruptedException {
-			return Optional.empty();
-		}
+        @Override
+        Optional<BufferAndAvailability> getNextBuffer() throws IOException, InterruptedException {
+            return Optional.empty();
+        }
 
-		@Override
-		void sendTaskEvent(TaskEvent event) throws IOException {
-		}
+        @Override
+        void sendTaskEvent(TaskEvent event) throws IOException {}
 
-		@Override
-		boolean isReleased() {
-			return false;
-		}
+        @Override
+        boolean isReleased() {
+            return false;
+        }
 
-		@Override
-		void releaseAllResources() throws IOException {
-		}
-	}
+        @Override
+        void releaseAllResources() throws IOException {}
+    }
 }

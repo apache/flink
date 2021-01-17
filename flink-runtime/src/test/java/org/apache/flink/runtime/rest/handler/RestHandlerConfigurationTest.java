@@ -26,26 +26,25 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link RestHandlerConfiguration}.
- */
+/** Tests for {@link RestHandlerConfiguration}. */
 public class RestHandlerConfigurationTest extends TestLogger {
 
-	@Test
-	public void testWebSubmitFeatureFlagEnabled() {
-		testWebSubmitFeatureFlag(true);
-	}
+    @Test
+    public void testWebSubmitFeatureFlagEnabled() {
+        testWebSubmitFeatureFlag(true);
+    }
 
-	@Test
-	public void testWebSubmitFeatureFlagDisabled() {
-		testWebSubmitFeatureFlag(false);
-	}
+    @Test
+    public void testWebSubmitFeatureFlagDisabled() {
+        testWebSubmitFeatureFlag(false);
+    }
 
-	private static void testWebSubmitFeatureFlag(boolean webSubmitEnabled) {
-		final Configuration config = new Configuration();
-		config.setBoolean(WebOptions.SUBMIT_ENABLE, webSubmitEnabled);
+    private static void testWebSubmitFeatureFlag(boolean webSubmitEnabled) {
+        final Configuration config = new Configuration();
+        config.setBoolean(WebOptions.SUBMIT_ENABLE, webSubmitEnabled);
 
-		RestHandlerConfiguration restHandlerConfiguration = RestHandlerConfiguration.fromConfiguration(config);
-		assertEquals(webSubmitEnabled, restHandlerConfiguration.isWebSubmitEnabled());
-	}
+        RestHandlerConfiguration restHandlerConfiguration =
+                RestHandlerConfiguration.fromConfiguration(config);
+        assertEquals(webSubmitEnabled, restHandlerConfiguration.isWebSubmitEnabled());
+    }
 }

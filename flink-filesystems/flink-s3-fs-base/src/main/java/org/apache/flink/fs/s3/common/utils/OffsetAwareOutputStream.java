@@ -27,36 +27,34 @@ import java.io.OutputStream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * An {@link OutputStream} that keeps track of its current length.
- */
+/** An {@link OutputStream} that keeps track of its current length. */
 @Internal
 public final class OffsetAwareOutputStream implements Closeable {
 
-	private final OutputStream currentOut;
+    private final OutputStream currentOut;
 
-	private long position;
+    private long position;
 
-	OffsetAwareOutputStream(OutputStream currentOut, long position) {
-		this.currentOut = checkNotNull(currentOut);
-		this.position = position;
-	}
+    OffsetAwareOutputStream(OutputStream currentOut, long position) {
+        this.currentOut = checkNotNull(currentOut);
+        this.position = position;
+    }
 
-	public long getLength() {
-		return position;
-	}
+    public long getLength() {
+        return position;
+    }
 
-	public void write(byte[] b, int off, int len) throws IOException {
-		currentOut.write(b, off, len);
-		position += len;
-	}
+    public void write(byte[] b, int off, int len) throws IOException {
+        currentOut.write(b, off, len);
+        position += len;
+    }
 
-	public void flush() throws IOException {
-		currentOut.flush();
-	}
+    public void flush() throws IOException {
+        currentOut.flush();
+    }
 
-	@Override
-	public void close() {
-		IOUtils.closeQuietly(currentOut);
-	}
+    @Override
+    public void close() {
+        IOUtils.closeQuietly(currentOut);
+    }
 }

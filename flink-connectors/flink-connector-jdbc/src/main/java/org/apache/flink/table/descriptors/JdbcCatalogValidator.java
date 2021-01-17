@@ -20,24 +20,22 @@ package org.apache.flink.table.descriptors;
 
 import org.apache.flink.connector.jdbc.catalog.JdbcCatalog;
 
-/**
- * Validator for {@link JdbcCatalog}.
- */
+/** Validator for {@link JdbcCatalog}. */
 public class JdbcCatalogValidator extends CatalogDescriptorValidator {
 
-	public static final String CATALOG_TYPE_VALUE_JDBC = "jdbc";
+    public static final String CATALOG_TYPE_VALUE_JDBC = "jdbc";
 
-	public static final String CATALOG_JDBC_USERNAME = "username";
-	public static final String CATALOG_JDBC_PASSWORD = "password";
-	public static final String CATALOG_JDBC_BASE_URL = "base-url";
+    public static final String CATALOG_JDBC_USERNAME = "username";
+    public static final String CATALOG_JDBC_PASSWORD = "password";
+    public static final String CATALOG_JDBC_BASE_URL = "base-url";
 
-	@Override
-	public void validate(DescriptorProperties properties) {
-		super.validate(properties);
-		properties.validateValue(CATALOG_TYPE, CATALOG_TYPE_VALUE_JDBC, false);
-		properties.validateString(CATALOG_JDBC_BASE_URL, false, 1);
-		properties.validateString(CATALOG_JDBC_USERNAME, false, 1);
-		properties.validateString(CATALOG_JDBC_PASSWORD, false, 1);
-		properties.validateString(CATALOG_DEFAULT_DATABASE, false, 1);
-	}
+    @Override
+    public void validate(DescriptorProperties properties) {
+        super.validate(properties);
+        properties.validateValue(CATALOG_TYPE, CATALOG_TYPE_VALUE_JDBC, false);
+        properties.validateString(CATALOG_JDBC_BASE_URL, false, 1);
+        properties.validateString(CATALOG_JDBC_USERNAME, false, 1);
+        properties.validateString(CATALOG_JDBC_PASSWORD, false, 1);
+        properties.validateString(CATALOG_DEFAULT_DATABASE, false, 1);
+    }
 }

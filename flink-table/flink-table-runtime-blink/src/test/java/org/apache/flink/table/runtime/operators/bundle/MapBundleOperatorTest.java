@@ -38,83 +38,84 @@ import static junit.framework.TestCase.assertEquals;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link MapBundleOperator}.
- */
+/** Tests for {@link MapBundleOperator}. */
 public class MapBundleOperatorTest {
 
-	@Test
-	public void testSimple() throws Exception {
-		@SuppressWarnings("unchecked")
-		TestMapBundleFunction func = new TestMapBundleFunction();
-		CountBundleTrigger<Tuple2<String, String>> trigger = new CountBundleTrigger<>(3);
-		KeySelector<Tuple2<String, String>, String> keySelector =
-				(KeySelector<Tuple2<String, String>, String>) value -> value.f0;
+    @Test
+    public void testSimple() throws Exception {
+        @SuppressWarnings("unchecked")
+        TestMapBundleFunction func = new TestMapBundleFunction();
+        CountBundleTrigger<Tuple2<String, String>> trigger = new CountBundleTrigger<>(3);
+        KeySelector<Tuple2<String, String>, String> keySelector =
+                (KeySelector<Tuple2<String, String>, String>) value -> value.f0;
 
-		OneInputStreamOperatorTestHarness<Tuple2<String, String>, String> op =
-				new OneInputStreamOperatorTestHarness<>(
-						new MapBundleOperator<>(func, trigger, keySelector));
-		op.open();
-		synchronized (op.getCheckpointLock()) {
-			StreamRecord<Tuple2<String, String>> input = new StreamRecord<>(null);
+        OneInputStreamOperatorTestHarness<Tuple2<String, String>, String> op =
+                new OneInputStreamOperatorTestHarness<>(
+                        new MapBundleOperator<>(func, trigger, keySelector));
+        op.open();
+        synchronized (op.getCheckpointLock()) {
+            StreamRecord<Tuple2<String, String>> input = new StreamRecord<>(null);
 
-			input.replace(new Tuple2<>("k1", "v1"));
-			op.processElement(input);
+            input.replace(new Tuple2<>("k1", "v1"));
+            op.processElement(input);
 
-			input.replace(new Tuple2<>("k1", "v2"));
-			op.processElement(input);
+            input.replace(new Tuple2<>("k1", "v2"));
+            op.processElement(input);
 
-			assertEquals(0, func.getFinishCount());
+            assertEquals(0, func.getFinishCount());
 
-			input.replace(new Tuple2<>("k2", "v3"));
-			op.processElement(input);
+            input.replace(new Tuple2<>("k2", "v3"));
+            op.processElement(input);
 
-			assertEquals(1, func.getFinishCount());
-			assertThat(Arrays.asList("k1=v1,v2", "k2=v3"), is(func.getOutputs()));
+            assertEquals(1, func.getFinishCount());
+            assertThat(Arrays.asList("k1=v1,v2", "k2=v3"), is(func.getOutputs()));
 
-			input.replace(new Tuple2<>("k3", "v4"));
-			op.processElement(input);
+            input.replace(new Tuple2<>("k3", "v4"));
+            op.processElement(input);
 
-			input.replace(new Tuple2<>("k4", "v5"));
-			op.processElement(input);
+            input.replace(new Tuple2<>("k4", "v5"));
+            op.processElement(input);
 
-			assertEquals(1, func.getFinishCount());
+            assertEquals(1, func.getFinishCount());
 
-			op.close();
-			assertEquals(2, func.getFinishCount());
-			assertThat(Arrays.asList("k3=v4", "k4=v5"), is(func.getOutputs()));
-		}
-	}
+            op.close();
+            assertEquals(2, func.getFinishCount());
+            assertThat(Arrays.asList("k3=v4", "k4=v5"), is(func.getOutputs()));
+        }
+    }
 
-	private static class TestMapBundleFunction extends MapBundleFunction<String, String, Tuple2<String, String>, String> {
+    private static class TestMapBundleFunction
+            extends MapBundleFunction<String, String, Tuple2<String, String>, String> {
 
-		private int finishCount = 0;
-		private List<String> outputs = new ArrayList<>();
+        private int finishCount = 0;
+        private List<String> outputs = new ArrayList<>();
 
-		@Override
-		public String addInput(@Nullable String value, Tuple2<String, String> input) throws Exception {
-			if (value == null) {
-				return input.f1;
-			} else {
-				return value + "," + input.f1;
-			}
-		}
+        @Override
+        public String addInput(@Nullable String value, Tuple2<String, String> input)
+                throws Exception {
+            if (value == null) {
+                return input.f1;
+            } else {
+                return value + "," + input.f1;
+            }
+        }
 
-		@Override
-		public void finishBundle(Map<String, String> buffer, Collector<String> out) throws Exception {
-			finishCount++;
-			outputs.clear();
-			for (Map.Entry<String, String> entry : buffer.entrySet()) {
-				outputs.add(entry.getKey() + "=" + entry.getValue());
-			}
-		}
+        @Override
+        public void finishBundle(Map<String, String> buffer, Collector<String> out)
+                throws Exception {
+            finishCount++;
+            outputs.clear();
+            for (Map.Entry<String, String> entry : buffer.entrySet()) {
+                outputs.add(entry.getKey() + "=" + entry.getValue());
+            }
+        }
 
-		int getFinishCount() {
-			return finishCount;
-		}
+        int getFinishCount() {
+            return finishCount;
+        }
 
-		List<String> getOutputs() {
-			return outputs;
-		}
-	}
+        List<String> getOutputs() {
+            return outputs;
+        }
+    }
 }

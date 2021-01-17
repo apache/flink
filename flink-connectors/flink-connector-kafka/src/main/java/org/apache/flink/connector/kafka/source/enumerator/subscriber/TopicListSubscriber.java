@@ -34,38 +34,38 @@ import static org.apache.flink.connector.kafka.source.enumerator.subscriber.Kafk
 import static org.apache.flink.connector.kafka.source.enumerator.subscriber.KafkaSubscriberUtils.updatePartitionChanges;
 
 /**
- * A subscriber to a fixed list of topics. The subscribed topics must hav existed
- * in the Kafka cluster, otherwise an exception will be thrown.
+ * A subscriber to a fixed list of topics. The subscribed topics must hav existed in the Kafka
+ * cluster, otherwise an exception will be thrown.
  */
 class TopicListSubscriber implements KafkaSubscriber {
-	private static final long serialVersionUID = -6917603843104947866L;
-	private static final Logger LOG = LoggerFactory.getLogger(TopicListSubscriber.class);
-	private final List<String> topics;
+    private static final long serialVersionUID = -6917603843104947866L;
+    private static final Logger LOG = LoggerFactory.getLogger(TopicListSubscriber.class);
+    private final List<String> topics;
 
-	TopicListSubscriber(List<String> topics) {
-		this.topics = topics;
-	}
+    TopicListSubscriber(List<String> topics) {
+        this.topics = topics;
+    }
 
-	@Override
-	public PartitionChange getPartitionChanges(
-			AdminClient adminClient,
-			Set<TopicPartition> currentAssignment) {
-		Set<TopicPartition> newPartitions = new HashSet<>();
-		Set<TopicPartition> removedPartitions = new HashSet<>(currentAssignment);
+    @Override
+    public PartitionChange getPartitionChanges(
+            AdminClient adminClient, Set<TopicPartition> currentAssignment) {
+        Set<TopicPartition> newPartitions = new HashSet<>();
+        Set<TopicPartition> removedPartitions = new HashSet<>(currentAssignment);
 
-		Map<String, TopicDescription> topicMetadata;
-		try {
-			topicMetadata = adminClient.describeTopics(topics).all().get();
-		} catch (Exception e) {
-			throw new RuntimeException("Failed to get topic metadata.", e);
-		}
-		topics.forEach(topic -> {
-			List<TopicPartitionInfo> partitions = topicMetadata.get(topic).partitions();
-			if (partitions != null) {
-				updatePartitionChanges(topic, newPartitions, removedPartitions, partitions);
-			}
-		});
-		maybeLog(newPartitions, removedPartitions, LOG);
-		return new PartitionChange(newPartitions, removedPartitions);
-	}
+        Map<String, TopicDescription> topicMetadata;
+        try {
+            topicMetadata = adminClient.describeTopics(topics).all().get();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to get topic metadata.", e);
+        }
+        topics.forEach(
+                topic -> {
+                    List<TopicPartitionInfo> partitions = topicMetadata.get(topic).partitions();
+                    if (partitions != null) {
+                        updatePartitionChanges(topic, newPartitions, removedPartitions, partitions);
+                    }
+                });
+        maybeLog(newPartitions, removedPartitions, LOG);
+        return new PartitionChange(newPartitions, removedPartitions);
+    }
 }

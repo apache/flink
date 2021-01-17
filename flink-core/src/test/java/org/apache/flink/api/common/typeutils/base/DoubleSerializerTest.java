@@ -22,35 +22,41 @@ import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.util.Random;
-/**
- * A test for the {@link DoubleSerializer}.
- */
-public class DoubleSerializerTest extends SerializerTestBase<Double> {
-	
-	@Override
-	protected TypeSerializer<Double> createSerializer() {
-		return new DoubleSerializer();
-	}
-	
-	@Override
-	protected int getLength() {
-		return 8;
-	}
-	
-	@Override
-	protected Class<Double> getTypeClass() {
-		return Double.class;
-	}
-	
-	@Override
-	protected Double[] getTestData() {
-		Random rnd = new Random(874597969123412341L);
-		double rndDouble = rnd.nextDouble() * Double.MAX_VALUE;
 
-		return new Double[] {Double.valueOf(0), Double.valueOf(1), Double.valueOf(-1),
-							Double.valueOf(Double.MAX_VALUE), Double.valueOf(Double.MIN_VALUE),
-							Double.valueOf(rndDouble), Double.valueOf(-rndDouble),
-							Double.valueOf(Double.NaN),
-							Double.valueOf(Double.NEGATIVE_INFINITY), Double.valueOf(Double.POSITIVE_INFINITY)};
-	}
-}	
+/** A test for the {@link DoubleSerializer}. */
+public class DoubleSerializerTest extends SerializerTestBase<Double> {
+
+    @Override
+    protected TypeSerializer<Double> createSerializer() {
+        return new DoubleSerializer();
+    }
+
+    @Override
+    protected int getLength() {
+        return 8;
+    }
+
+    @Override
+    protected Class<Double> getTypeClass() {
+        return Double.class;
+    }
+
+    @Override
+    protected Double[] getTestData() {
+        Random rnd = new Random(874597969123412341L);
+        double rndDouble = rnd.nextDouble() * Double.MAX_VALUE;
+
+        return new Double[] {
+            Double.valueOf(0),
+            Double.valueOf(1),
+            Double.valueOf(-1),
+            Double.valueOf(Double.MAX_VALUE),
+            Double.valueOf(Double.MIN_VALUE),
+            Double.valueOf(rndDouble),
+            Double.valueOf(-rndDouble),
+            Double.valueOf(Double.NaN),
+            Double.valueOf(Double.NEGATIVE_INFINITY),
+            Double.valueOf(Double.POSITIVE_INFINITY)
+        };
+    }
+}

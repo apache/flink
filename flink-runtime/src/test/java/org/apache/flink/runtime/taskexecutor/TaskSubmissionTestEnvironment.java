@@ -78,311 +78,357 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.Mockito.mock;
 
-/**
- * Simple environment setup for task executor task.
- */
+/** Simple environment setup for task executor task. */
 class TaskSubmissionTestEnvironment implements AutoCloseable {
 
-	private final HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
-	private final TestingRpcService testingRpcService;
-	private final BlobCacheService blobCacheService = new BlobCacheService(new Configuration(), new VoidBlobStore(), null);
-	private final Time timeout = Time.milliseconds(10000L);
-	private final TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
-	private final TimerService<AllocationID> timerService = new TimerService<>(TestingUtils.defaultExecutor(), timeout.toMilliseconds());
+    private final HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
+    private final TestingRpcService testingRpcService;
+    private final BlobCacheService blobCacheService =
+            new BlobCacheService(new Configuration(), new VoidBlobStore(), null);
+    private final Time timeout = Time.milliseconds(10000L);
+    private final TestingFatalErrorHandler testingFatalErrorHandler =
+            new TestingFatalErrorHandler();
+    private final TimerService<AllocationID> timerService =
+            new TimerService<>(TestingUtils.defaultExecutor(), timeout.toMilliseconds());
 
-	private final TestingHighAvailabilityServices haServices;
-	private final TemporaryFolder temporaryFolder;
-	private final ThreadSafeTaskSlotTable<Task> threadSafeTaskSlotTable;
-	private final JobMasterId jobMasterId;
+    private final TestingHighAvailabilityServices haServices;
+    private final TemporaryFolder temporaryFolder;
+    private final ThreadSafeTaskSlotTable<Task> threadSafeTaskSlotTable;
+    private final JobMasterId jobMasterId;
 
-	private TestingTaskExecutor taskExecutor;
+    private TestingTaskExecutor taskExecutor;
 
-	private TaskSubmissionTestEnvironment(
-			JobID jobId,
-			JobMasterId jobMasterId,
-			int slotSize,
-			TestingJobMasterGateway testingJobMasterGateway,
-			Configuration configuration,
-			List<Tuple3<ExecutionAttemptID, ExecutionState, CompletableFuture<Void>>> taskManagerActionListeners,
-			@Nullable String metricQueryServiceAddress,
-			TestingRpcService testingRpcService,
-			ShuffleEnvironment<?, ?> shuffleEnvironment) throws Exception {
+    private TaskSubmissionTestEnvironment(
+            JobID jobId,
+            JobMasterId jobMasterId,
+            int slotSize,
+            TestingJobMasterGateway testingJobMasterGateway,
+            Configuration configuration,
+            List<Tuple3<ExecutionAttemptID, ExecutionState, CompletableFuture<Void>>>
+                    taskManagerActionListeners,
+            @Nullable String metricQueryServiceAddress,
+            TestingRpcService testingRpcService,
+            ShuffleEnvironment<?, ?> shuffleEnvironment)
+            throws Exception {
 
-		this.haServices = new TestingHighAvailabilityServices();
-		this.haServices.setResourceManagerLeaderRetriever(new SettableLeaderRetrievalService());
-		this.haServices.setJobMasterLeaderRetriever(jobId, new SettableLeaderRetrievalService());
+        this.haServices = new TestingHighAvailabilityServices();
+        this.haServices.setResourceManagerLeaderRetriever(new SettableLeaderRetrievalService());
+        this.haServices.setJobMasterLeaderRetriever(jobId, new SettableLeaderRetrievalService());
 
-		this.temporaryFolder = new TemporaryFolder();
-		this.temporaryFolder.create();
+        this.temporaryFolder = new TemporaryFolder();
+        this.temporaryFolder.create();
 
-		this.jobMasterId = jobMasterId;
+        this.jobMasterId = jobMasterId;
 
-		final TaskSlotTable<Task> taskSlotTable = slotSize > 0 ?
-			TaskSlotUtils.createTaskSlotTable(slotSize) :
-			TestingTaskSlotTable
-				.<Task>newBuilder()
-				.tryMarkSlotActiveReturns(true)
-				.addTaskReturns(true)
-				.closeAsyncReturns(CompletableFuture.completedFuture(null))
-				.allocateSlotReturns(true)
-				.memoryManagerGetterReturns(null)
-				.build();
+        final TaskSlotTable<Task> taskSlotTable =
+                slotSize > 0
+                        ? TaskSlotUtils.createTaskSlotTable(slotSize)
+                        : TestingTaskSlotTable.<Task>newBuilder()
+                                .tryMarkSlotActiveReturns(true)
+                                .addTaskReturns(true)
+                                .closeAsyncReturns(CompletableFuture.completedFuture(null))
+                                .allocateSlotReturns(true)
+                                .memoryManagerGetterReturns(null)
+                                .build();
 
-		JobMasterGateway jobMasterGateway;
-		if (testingJobMasterGateway == null) {
-			jobMasterGateway = new TestingJobMasterGatewayBuilder()
-				.setFencingTokenSupplier(() -> jobMasterId)
-				.build();
-		} else {
-			jobMasterGateway = testingJobMasterGateway;
-		}
+        JobMasterGateway jobMasterGateway;
+        if (testingJobMasterGateway == null) {
+            jobMasterGateway =
+                    new TestingJobMasterGatewayBuilder()
+                            .setFencingTokenSupplier(() -> jobMasterId)
+                            .build();
+        } else {
+            jobMasterGateway = testingJobMasterGateway;
+        }
 
-		this.testingRpcService = testingRpcService;
-		final DefaultJobTable jobTable = DefaultJobTable.create();
+        this.testingRpcService = testingRpcService;
+        final DefaultJobTable jobTable = DefaultJobTable.create();
 
-		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
-			false,
-			new File[]{temporaryFolder.newFolder()},
-			Executors.directExecutor());
+        TaskExecutorLocalStateStoresManager localStateStoresManager =
+                new TaskExecutorLocalStateStoresManager(
+                        false,
+                        new File[] {temporaryFolder.newFolder()},
+                        Executors.directExecutor());
 
-		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
-			.setShuffleEnvironment(shuffleEnvironment)
-			.setTaskSlotTable(taskSlotTable)
-			.setJobTable(jobTable)
-			.setTaskStateManager(localStateStoresManager)
-			.build();
+        final TaskManagerServices taskManagerServices =
+                new TaskManagerServicesBuilder()
+                        .setShuffleEnvironment(shuffleEnvironment)
+                        .setTaskSlotTable(taskSlotTable)
+                        .setJobTable(jobTable)
+                        .setTaskStateManager(localStateStoresManager)
+                        .build();
 
-		taskExecutor = createTaskExecutor(taskManagerServices, metricQueryServiceAddress, configuration);
+        taskExecutor =
+                createTaskExecutor(taskManagerServices, metricQueryServiceAddress, configuration);
 
-		taskExecutor.start();
-		taskExecutor.waitUntilStarted();
+        taskExecutor.start();
+        taskExecutor.waitUntilStarted();
 
-		this.threadSafeTaskSlotTable = new ThreadSafeTaskSlotTable<>(taskSlotTable, taskExecutor.getMainThreadExecutableForTesting());
+        this.threadSafeTaskSlotTable =
+                new ThreadSafeTaskSlotTable<>(
+                        taskSlotTable, taskExecutor.getMainThreadExecutableForTesting());
 
-		TaskManagerActions taskManagerActions;
-		if (taskManagerActionListeners.size() == 0) {
-			taskManagerActions = new NoOpTaskManagerActions();
-		} else {
-			TestTaskManagerActions testTaskManagerActions = new TestTaskManagerActions(threadSafeTaskSlotTable, jobMasterGateway);
-			for (Tuple3<ExecutionAttemptID, ExecutionState, CompletableFuture<Void>> listenerTuple : taskManagerActionListeners) {
-				testTaskManagerActions.addListener(listenerTuple.f0, listenerTuple.f1, listenerTuple.f2);
-			}
-			taskManagerActions = testTaskManagerActions;
-		}
+        TaskManagerActions taskManagerActions;
+        if (taskManagerActionListeners.size() == 0) {
+            taskManagerActions = new NoOpTaskManagerActions();
+        } else {
+            TestTaskManagerActions testTaskManagerActions =
+                    new TestTaskManagerActions(threadSafeTaskSlotTable, jobMasterGateway);
+            for (Tuple3<ExecutionAttemptID, ExecutionState, CompletableFuture<Void>> listenerTuple :
+                    taskManagerActionListeners) {
+                testTaskManagerActions.addListener(
+                        listenerTuple.f0, listenerTuple.f1, listenerTuple.f2);
+            }
+            taskManagerActions = testTaskManagerActions;
+        }
 
-		registerJobMasterConnection(
-			jobTable,
-			jobId,
-			testingRpcService,
-			jobMasterGateway,
-			taskManagerActions,
-			timeout,
-			taskExecutor.getMainThreadExecutableForTesting());
-	}
+        registerJobMasterConnection(
+                jobTable,
+                jobId,
+                testingRpcService,
+                jobMasterGateway,
+                taskManagerActions,
+                timeout,
+                taskExecutor.getMainThreadExecutableForTesting());
+    }
 
-	static void registerJobMasterConnection(
-			JobTable jobTable,
-			JobID jobId,
-			RpcService testingRpcService,
-			JobMasterGateway jobMasterGateway,
-			TaskManagerActions taskManagerActions,
-			Time timeout,
-			MainThreadExecutable mainThreadExecutable) {
-		mainThreadExecutable.runAsync(() -> {
-			final JobTable.Job job = jobTable.getOrCreateJob(jobId, () -> TestingJobServices.newBuilder().build());
-			job.connect(
-				ResourceID.generate(),
-				jobMasterGateway,
-				taskManagerActions,
-				new TestCheckpointResponder(),
-				new TestGlobalAggregateManager(),
-				new RpcResultPartitionConsumableNotifier(jobMasterGateway, testingRpcService.getExecutor(), timeout),
-				TestingPartitionProducerStateChecker.newBuilder()
-					.setPartitionProducerStateFunction((jobID, intermediateDataSetID, resultPartitionID) -> CompletableFuture.completedFuture(ExecutionState.RUNNING))
-					.build());
-		});
-	}
+    static void registerJobMasterConnection(
+            JobTable jobTable,
+            JobID jobId,
+            RpcService testingRpcService,
+            JobMasterGateway jobMasterGateway,
+            TaskManagerActions taskManagerActions,
+            Time timeout,
+            MainThreadExecutable mainThreadExecutable) {
+        mainThreadExecutable.runAsync(
+                () -> {
+                    final JobTable.Job job =
+                            jobTable.getOrCreateJob(
+                                    jobId, () -> TestingJobServices.newBuilder().build());
+                    job.connect(
+                            ResourceID.generate(),
+                            jobMasterGateway,
+                            taskManagerActions,
+                            new TestCheckpointResponder(),
+                            new TestGlobalAggregateManager(),
+                            new RpcResultPartitionConsumableNotifier(
+                                    jobMasterGateway, testingRpcService.getExecutor(), timeout),
+                            TestingPartitionProducerStateChecker.newBuilder()
+                                    .setPartitionProducerStateFunction(
+                                            (jobID, intermediateDataSetID, resultPartitionID) ->
+                                                    CompletableFuture.completedFuture(
+                                                            ExecutionState.RUNNING))
+                                    .build());
+                });
+    }
 
-	public TestingTaskExecutor getTaskExecutor() {
-		return taskExecutor;
-	}
+    public TestingTaskExecutor getTaskExecutor() {
+        return taskExecutor;
+    }
 
-	public TaskExecutorGateway getTaskExecutorGateway() {
-		return taskExecutor.getSelfGateway(TaskExecutorGateway.class);
-	}
+    public TaskExecutorGateway getTaskExecutorGateway() {
+        return taskExecutor.getSelfGateway(TaskExecutorGateway.class);
+    }
 
-	public TaskSlotTable<Task> getTaskSlotTable() {
-		return threadSafeTaskSlotTable;
-	}
+    public TaskSlotTable<Task> getTaskSlotTable() {
+        return threadSafeTaskSlotTable;
+    }
 
-	public JobMasterId getJobMasterId() {
-		return jobMasterId;
-	}
+    public JobMasterId getJobMasterId() {
+        return jobMasterId;
+    }
 
-	public TestingFatalErrorHandler getTestingFatalErrorHandler() {
-		return testingFatalErrorHandler;
-	}
+    public TestingFatalErrorHandler getTestingFatalErrorHandler() {
+        return testingFatalErrorHandler;
+    }
 
-	@Nonnull
-	private TestingTaskExecutor createTaskExecutor(TaskManagerServices taskManagerServices, @Nullable String metricQueryServiceAddress, Configuration configuration) {
-		final Configuration copiedConf = new Configuration(configuration);
+    @Nonnull
+    private TestingTaskExecutor createTaskExecutor(
+            TaskManagerServices taskManagerServices,
+            @Nullable String metricQueryServiceAddress,
+            Configuration configuration) {
+        final Configuration copiedConf = new Configuration(configuration);
 
-		return new TestingTaskExecutor(
-			testingRpcService,
-			TaskManagerConfiguration.fromConfiguration(
-				copiedConf,
-				TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(copiedConf),
-				InetAddress.getLoopbackAddress().getHostAddress()),
-			haServices,
-			taskManagerServices,
-			ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
-			heartbeatServices,
-			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			metricQueryServiceAddress,
-			blobCacheService,
-			testingFatalErrorHandler,
-			new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()),
-			TaskManagerRunner.createBackPressureSampleService(configuration, testingRpcService.getScheduledExecutor()));
-	}
+        return new TestingTaskExecutor(
+                testingRpcService,
+                TaskManagerConfiguration.fromConfiguration(
+                        copiedConf,
+                        TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(
+                                copiedConf),
+                        InetAddress.getLoopbackAddress().getHostAddress()),
+                haServices,
+                taskManagerServices,
+                ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
+                heartbeatServices,
+                UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+                metricQueryServiceAddress,
+                blobCacheService,
+                testingFatalErrorHandler,
+                new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()));
+    }
 
-	private static ShuffleEnvironment<?, ?> createShuffleEnvironment(
-			ResourceID taskManagerLocation,
-			boolean localCommunication,
-			Configuration configuration,
-			RpcService testingRpcService,
-			boolean mockShuffleEnvironment) throws Exception {
-		final ShuffleEnvironment<?, ?> shuffleEnvironment;
-		if (mockShuffleEnvironment) {
-			shuffleEnvironment = mock(ShuffleEnvironment.class, Mockito.RETURNS_MOCKS);
-		} else {
-			final InetSocketAddress socketAddress = new InetSocketAddress(
-				InetAddress.getByName(testingRpcService.getAddress()), configuration.getInteger(NettyShuffleEnvironmentOptions.DATA_PORT));
+    private static ShuffleEnvironment<?, ?> createShuffleEnvironment(
+            ResourceID taskManagerLocation,
+            boolean localCommunication,
+            Configuration configuration,
+            RpcService testingRpcService,
+            boolean mockShuffleEnvironment)
+            throws Exception {
+        final ShuffleEnvironment<?, ?> shuffleEnvironment;
+        if (mockShuffleEnvironment) {
+            shuffleEnvironment = mock(ShuffleEnvironment.class, Mockito.RETURNS_MOCKS);
+        } else {
+            final InetSocketAddress socketAddress =
+                    new InetSocketAddress(
+                            InetAddress.getByName(testingRpcService.getAddress()),
+                            configuration.getInteger(NettyShuffleEnvironmentOptions.DATA_PORT));
 
-			final NettyConfig nettyConfig = new NettyConfig(socketAddress.getAddress(), socketAddress.getPort(),
-				ConfigurationParserUtils.getPageSize(configuration), ConfigurationParserUtils.getSlot(configuration), configuration);
+            final NettyConfig nettyConfig =
+                    new NettyConfig(
+                            socketAddress.getAddress(),
+                            socketAddress.getPort(),
+                            ConfigurationParserUtils.getPageSize(configuration),
+                            ConfigurationParserUtils.getSlot(configuration),
+                            configuration);
 
-			shuffleEnvironment =  new NettyShuffleEnvironmentBuilder()
-				.setTaskManagerLocation(taskManagerLocation)
-				.setPartitionRequestInitialBackoff(configuration.getInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL))
-				.setPartitionRequestMaxBackoff(configuration.getInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX))
-				.setNettyConfig(localCommunication ? null : nettyConfig)
-				.build();
+            shuffleEnvironment =
+                    new NettyShuffleEnvironmentBuilder()
+                            .setTaskManagerLocation(taskManagerLocation)
+                            .setPartitionRequestInitialBackoff(
+                                    configuration.getInteger(
+                                            NettyShuffleEnvironmentOptions
+                                                    .NETWORK_REQUEST_BACKOFF_INITIAL))
+                            .setPartitionRequestMaxBackoff(
+                                    configuration.getInteger(
+                                            NettyShuffleEnvironmentOptions
+                                                    .NETWORK_REQUEST_BACKOFF_MAX))
+                            .setNettyConfig(localCommunication ? null : nettyConfig)
+                            .build();
 
-			shuffleEnvironment.start();
-		}
+            shuffleEnvironment.start();
+        }
 
-		return shuffleEnvironment;
-	}
+        return shuffleEnvironment;
+    }
 
-	@Override
-	public void close() throws Exception {
-		testingRpcService.stopService().join();
+    @Override
+    public void close() throws Exception {
+        testingRpcService.stopService().join();
 
-		timerService.stop();
+        timerService.stop();
 
-		blobCacheService.close();
+        blobCacheService.close();
 
-		temporaryFolder.delete();
+        temporaryFolder.delete();
 
-		testingFatalErrorHandler.rethrowError();
-	}
+        testingFatalErrorHandler.rethrowError();
+    }
 
-	public static final class Builder {
+    public static final class Builder {
 
-		private JobID jobId;
-		private boolean mockShuffleEnvironment = true;
-		private int slotSize;
-		private JobMasterId jobMasterId = JobMasterId.generate();
-		private TestingJobMasterGateway jobMasterGateway;
-		private boolean localCommunication = true;
-		private Configuration configuration = new Configuration();
-		@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-		private Optional<ShuffleEnvironment<?, ?>> optionalShuffleEnvironment = Optional.empty();
-		private ResourceID resourceID = ResourceID.generate();
-		@Nullable
-		private String metricQueryServiceAddress;
+        private JobID jobId;
+        private boolean mockShuffleEnvironment = true;
+        private int slotSize;
+        private JobMasterId jobMasterId = JobMasterId.generate();
+        private TestingJobMasterGateway jobMasterGateway;
+        private boolean localCommunication = true;
+        private Configuration configuration = new Configuration();
 
-		private List<Tuple3<ExecutionAttemptID, ExecutionState, CompletableFuture<Void>>> taskManagerActionListeners = new ArrayList<>();
+        @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+        private Optional<ShuffleEnvironment<?, ?>> optionalShuffleEnvironment = Optional.empty();
 
-		public Builder(JobID jobId) {
-			this.jobId = jobId;
-		}
+        private ResourceID resourceID = ResourceID.generate();
+        @Nullable private String metricQueryServiceAddress;
 
-		public Builder setMetricQueryServiceAddress(String metricQueryServiceAddress) {
-			this.metricQueryServiceAddress = metricQueryServiceAddress;
-			return this;
-		}
+        private List<Tuple3<ExecutionAttemptID, ExecutionState, CompletableFuture<Void>>>
+                taskManagerActionListeners = new ArrayList<>();
 
-		public Builder useRealNonMockShuffleEnvironment() {
-			this.optionalShuffleEnvironment = Optional.empty();
-			this.mockShuffleEnvironment = false;
-			return this;
-		}
+        public Builder(JobID jobId) {
+            this.jobId = jobId;
+        }
 
-		public Builder setShuffleEnvironment(ShuffleEnvironment<?, ?> optionalShuffleEnvironment) {
-			this.mockShuffleEnvironment = false;
-			this.optionalShuffleEnvironment = Optional.of(optionalShuffleEnvironment);
-			return this;
-		}
+        public Builder setMetricQueryServiceAddress(String metricQueryServiceAddress) {
+            this.metricQueryServiceAddress = metricQueryServiceAddress;
+            return this;
+        }
 
-		public Builder setSlotSize(int slotSize) {
-			this.slotSize = slotSize;
-			return this;
-		}
+        public Builder useRealNonMockShuffleEnvironment() {
+            this.optionalShuffleEnvironment = Optional.empty();
+            this.mockShuffleEnvironment = false;
+            return this;
+        }
 
-		public Builder setJobMasterId(JobMasterId jobMasterId) {
-			this.jobMasterId = jobMasterId;
-			return this;
-		}
+        public Builder setShuffleEnvironment(ShuffleEnvironment<?, ?> optionalShuffleEnvironment) {
+            this.mockShuffleEnvironment = false;
+            this.optionalShuffleEnvironment = Optional.of(optionalShuffleEnvironment);
+            return this;
+        }
 
-		public Builder setJobMasterGateway(TestingJobMasterGateway jobMasterGateway) {
-			this.jobMasterGateway = jobMasterGateway;
-			return this;
-		}
+        public Builder setSlotSize(int slotSize) {
+            this.slotSize = slotSize;
+            return this;
+        }
 
-		public Builder setLocalCommunication(boolean localCommunication) {
-			this.localCommunication = localCommunication;
-			return this;
-		}
+        public Builder setJobMasterId(JobMasterId jobMasterId) {
+            this.jobMasterId = jobMasterId;
+            return this;
+        }
 
-		public Builder setConfiguration(Configuration configuration) {
-			this.configuration = configuration;
-			return this;
-		}
+        public Builder setJobMasterGateway(TestingJobMasterGateway jobMasterGateway) {
+            this.jobMasterGateway = jobMasterGateway;
+            return this;
+        }
 
-		public Builder addTaskManagerActionListener(ExecutionAttemptID eid, ExecutionState executionState, CompletableFuture<Void> future) {
-			taskManagerActionListeners.add(Tuple3.of(eid, executionState, future));
-			return this;
-		}
+        public Builder setLocalCommunication(boolean localCommunication) {
+            this.localCommunication = localCommunication;
+            return this;
+        }
 
-		public Builder setResourceID(ResourceID resourceID) {
-			this.resourceID = resourceID;
-			return this;
-		}
+        public Builder setConfiguration(Configuration configuration) {
+            this.configuration = configuration;
+            return this;
+        }
 
-		public TaskSubmissionTestEnvironment build() throws Exception {
-			final TestingRpcService testingRpcService = new TestingRpcService();
-			final ShuffleEnvironment<?, ?> network = optionalShuffleEnvironment.orElseGet(() -> {
-				try {
-					return createShuffleEnvironment(resourceID,
-						localCommunication,
-						configuration,
-						testingRpcService,
-						mockShuffleEnvironment);
-				} catch (Exception e) {
-					throw new FlinkRuntimeException("Failed to build TaskSubmissionTestEnvironment", e);
-				}
-			});
-			return new TaskSubmissionTestEnvironment(
-				jobId,
-				jobMasterId,
-				slotSize,
-				jobMasterGateway,
-				configuration,
-				taskManagerActionListeners,
-				metricQueryServiceAddress,
-				testingRpcService,
-				network);
-		}
-	}
+        public Builder addTaskManagerActionListener(
+                ExecutionAttemptID eid,
+                ExecutionState executionState,
+                CompletableFuture<Void> future) {
+            taskManagerActionListeners.add(Tuple3.of(eid, executionState, future));
+            return this;
+        }
+
+        public Builder setResourceID(ResourceID resourceID) {
+            this.resourceID = resourceID;
+            return this;
+        }
+
+        public TaskSubmissionTestEnvironment build() throws Exception {
+            final TestingRpcService testingRpcService = new TestingRpcService();
+            final ShuffleEnvironment<?, ?> network =
+                    optionalShuffleEnvironment.orElseGet(
+                            () -> {
+                                try {
+                                    return createShuffleEnvironment(
+                                            resourceID,
+                                            localCommunication,
+                                            configuration,
+                                            testingRpcService,
+                                            mockShuffleEnvironment);
+                                } catch (Exception e) {
+                                    throw new FlinkRuntimeException(
+                                            "Failed to build TaskSubmissionTestEnvironment", e);
+                                }
+                            });
+            return new TaskSubmissionTestEnvironment(
+                    jobId,
+                    jobMasterId,
+                    slotSize,
+                    jobMasterGateway,
+                    configuration,
+                    taskManagerActionListeners,
+                    metricQueryServiceAddress,
+                    testingRpcService,
+                    network);
+        }
+    }
 }

@@ -36,135 +36,144 @@ import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Type information for Java SQL Date/Time/Timestamp.
- */
+/** Type information for Java SQL Date/Time/Timestamp. */
 @PublicEvolving
 public class SqlTimeTypeInfo<T> extends TypeInformation<T> implements AtomicType<T> {
 
-	private static final long serialVersionUID = -132955295409131880L;
+    private static final long serialVersionUID = -132955295409131880L;
 
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public static final SqlTimeTypeInfo<Date> DATE = new SqlTimeTypeInfo<>(Date.class, SqlDateSerializer.INSTANCE, (Class) DateComparator.class);
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public static final SqlTimeTypeInfo<Date> DATE =
+            new SqlTimeTypeInfo<>(
+                    Date.class, SqlDateSerializer.INSTANCE, (Class) DateComparator.class);
 
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public static final SqlTimeTypeInfo<Time> TIME = new SqlTimeTypeInfo<>(Time.class, SqlTimeSerializer.INSTANCE, (Class) DateComparator.class);
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public static final SqlTimeTypeInfo<Time> TIME =
+            new SqlTimeTypeInfo<>(
+                    Time.class, SqlTimeSerializer.INSTANCE, (Class) DateComparator.class);
 
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public static final SqlTimeTypeInfo<Timestamp> TIMESTAMP = new SqlTimeTypeInfo<>(Timestamp.class, SqlTimestampSerializer.INSTANCE, (Class) SqlTimestampComparator.class);
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public static final SqlTimeTypeInfo<Timestamp> TIMESTAMP =
+            new SqlTimeTypeInfo<>(
+                    Timestamp.class,
+                    SqlTimestampSerializer.INSTANCE,
+                    (Class) SqlTimestampComparator.class);
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	private final Class<T> clazz;
+    private final Class<T> clazz;
 
-	private final TypeSerializer<T> serializer;
+    private final TypeSerializer<T> serializer;
 
-	private final Class<? extends TypeComparator<T>> comparatorClass;
+    private final Class<? extends TypeComparator<T>> comparatorClass;
 
-	protected SqlTimeTypeInfo(Class<T> clazz, TypeSerializer<T> serializer, Class<? extends TypeComparator<T>> comparatorClass) {
-		this.clazz = checkNotNull(clazz);
-		this.serializer = checkNotNull(serializer);
-		this.comparatorClass = checkNotNull(comparatorClass);
-	}
+    protected SqlTimeTypeInfo(
+            Class<T> clazz,
+            TypeSerializer<T> serializer,
+            Class<? extends TypeComparator<T>> comparatorClass) {
+        this.clazz = checkNotNull(clazz);
+        this.serializer = checkNotNull(serializer);
+        this.comparatorClass = checkNotNull(comparatorClass);
+    }
 
-	@Override
-	public boolean isBasicType() {
-		return false;
-	}
+    @Override
+    public boolean isBasicType() {
+        return false;
+    }
 
-	@Override
-	public boolean isTupleType() {
-		return false;
-	}
+    @Override
+    public boolean isTupleType() {
+        return false;
+    }
 
-	@Override
-	public int getArity() {
-		return 1;
-	}
+    @Override
+    public int getArity() {
+        return 1;
+    }
 
-	@Override
-	public int getTotalFields() {
-		return 1;
-	}
+    @Override
+    public int getTotalFields() {
+        return 1;
+    }
 
-	@Override
-	public Class<T> getTypeClass() {
-		return clazz;
-	}
+    @Override
+    public Class<T> getTypeClass() {
+        return clazz;
+    }
 
-	@Override
-	public boolean isKeyType() {
-		return true;
-	}
+    @Override
+    public boolean isKeyType() {
+        return true;
+    }
 
-	@Override
-	public TypeSerializer<T> createSerializer(ExecutionConfig executionConfig) {
-		return serializer;
-	}
+    @Override
+    public TypeSerializer<T> createSerializer(ExecutionConfig executionConfig) {
+        return serializer;
+    }
 
-	@Override
-	public TypeComparator<T> createComparator(boolean sortOrderAscending, ExecutionConfig executionConfig) {
-		return instantiateComparator(comparatorClass, sortOrderAscending);
-	}
+    @Override
+    public TypeComparator<T> createComparator(
+            boolean sortOrderAscending, ExecutionConfig executionConfig) {
+        return instantiateComparator(comparatorClass, sortOrderAscending);
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(clazz, serializer, comparatorClass);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(clazz, serializer, comparatorClass);
+    }
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof SqlTimeTypeInfo;
-	}
+    @Override
+    public boolean canEqual(Object obj) {
+        return obj instanceof SqlTimeTypeInfo;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof SqlTimeTypeInfo) {
-			@SuppressWarnings("unchecked")
-			SqlTimeTypeInfo<T> other = (SqlTimeTypeInfo<T>) obj;
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof SqlTimeTypeInfo) {
+            @SuppressWarnings("unchecked")
+            SqlTimeTypeInfo<T> other = (SqlTimeTypeInfo<T>) obj;
 
-			return other.canEqual(this) &&
-				this.clazz == other.clazz &&
-				serializer.equals(other.serializer) &&
-				this.comparatorClass == other.comparatorClass;
-		} else {
-			return false;
-		}
-	}
+            return other.canEqual(this)
+                    && this.clazz == other.clazz
+                    && serializer.equals(other.serializer)
+                    && this.comparatorClass == other.comparatorClass;
+        } else {
+            return false;
+        }
+    }
 
-	@Override
-	public String toString() {
-		return clazz.getSimpleName();
-	}
+    @Override
+    public String toString() {
+        return clazz.getSimpleName();
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	private static <X> TypeComparator<X> instantiateComparator(Class<? extends TypeComparator<X>> comparatorClass, boolean ascendingOrder) {
-		try {
-			Constructor<? extends TypeComparator<X>> constructor = comparatorClass.getConstructor(boolean.class);
-			return constructor.newInstance(ascendingOrder);
-		}
-		catch (Exception e) {
-			throw new RuntimeException("Could not initialize comparator " + comparatorClass.getName(), e);
-		}
-	}
+    private static <X> TypeComparator<X> instantiateComparator(
+            Class<? extends TypeComparator<X>> comparatorClass, boolean ascendingOrder) {
+        try {
+            Constructor<? extends TypeComparator<X>> constructor =
+                    comparatorClass.getConstructor(boolean.class);
+            return constructor.newInstance(ascendingOrder);
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Could not initialize comparator " + comparatorClass.getName(), e);
+        }
+    }
 
-	@SuppressWarnings("unchecked")
-	public static <X> SqlTimeTypeInfo<X> getInfoFor(Class<X> type) {
-		checkNotNull(type);
+    @SuppressWarnings("unchecked")
+    public static <X> SqlTimeTypeInfo<X> getInfoFor(Class<X> type) {
+        checkNotNull(type);
 
-		if (type == Date.class) {
-			return (SqlTimeTypeInfo<X>) DATE;
-		}
-		else if (type == Time.class) {
-			return (SqlTimeTypeInfo<X>) TIME;
-		}
-		else if (type == Timestamp.class) {
-			return (SqlTimeTypeInfo<X>) TIMESTAMP;
-		}
-		return null;
-	}
-
+        if (type == Date.class) {
+            return (SqlTimeTypeInfo<X>) DATE;
+        } else if (type == Time.class) {
+            return (SqlTimeTypeInfo<X>) TIME;
+        } else if (type == Timestamp.class) {
+            return (SqlTimeTypeInfo<X>) TIMESTAMP;
+        }
+        return null;
+    }
 }

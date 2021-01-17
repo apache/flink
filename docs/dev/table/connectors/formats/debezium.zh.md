@@ -228,11 +228,15 @@ The following example shows how to access Debezium metadata fields in Kafka:
 <div data-lang="SQL" markdown="1">
 {% highlight sql %}
 CREATE TABLE KafkaTable (
-  `event_time` TIMESTAMP(3) METADATA FROM 'value.source.timestamp' VIRTUAL,
-  `origin_table` STRING METADATA FROM 'value.source.table' VIRTUAL,
-  `user_id` BIGINT,
-  `item_id` BIGINT,
-  `behavior` STRING
+  origin_ts TIMESTAMP(3) METADATA FROM 'value.ingestion-timestamp' VIRTUAL,
+  event_time TIMESTAMP(3) METADATA FROM 'value.source.timestamp' VIRTUAL,
+  origin_database STRING METADATA FROM 'value.source.database' VIRTUAL,
+  origin_schema STRING METADATA FROM 'value.source.schema' VIRTUAL,
+  origin_table STRING METADATA FROM 'value.source.table' VIRTUAL,
+  origin_properties MAP<STRING, STRING> METADATA FROM 'value.source.properties' VIRTUAL,
+  user_id BIGINT,
+  item_id BIGINT,
+  behavior STRING
 ) WITH (
   'connector' = 'kafka',
   'topic' = 'user_behavior',
@@ -281,10 +285,10 @@ Flink 提供了 `debezium-avro-confluent` 和 `debezium-json` 两种 format 来�
     </tr>
     <tr>
       <td><h5>debezium-avro-confluent.schema-registry.subject</h5></td>
-      <td>sink 必选</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Confluent Schema Registry主题，用于在序列化期间注册此格式使用的 schema。</td>
+      <td>Confluent Schema Registry主题，用于在序列化期间注册此格式使用的 schema。默认 kafka 连接器会使用 "&lt;topic_name&gt;-value" 作为默认的 subject 名字，但是对于其他连接器（如 filesystem）则在当做 sink 使用时需要显式指定 subject 名字。</td>
     </tr>
     </tbody>
 </table>
@@ -355,6 +359,13 @@ Flink 提供了 `debezium-avro-confluent` 和 `debezium-json` 两种 format 来�
       <td style="word-wrap: break-word;">'null'</td>
       <td>String</td>
       <td>当 <code>'debezium-json.map-null-key.mode'</code> 是 LITERAL 的时候，指定字符串常量替换 Map 中的空 key 值。</td>
+    </tr>
+    <tr>
+      <td><h5>debezium-json.encode.decimal-as-plain-number</h5></td>
+      <td>选填</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>将所有 DECIMAL 类型的数据保持原状，不使用科学计数法表示。例：<code>0.000000027</code> 默认会表示为 <code>2.7E-8</code>。当此选项设为 true 时，则会表示为 <code>0.000000027</code>。</td>
     </tr>
     </tbody>
 </table>

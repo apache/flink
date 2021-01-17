@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * <p>
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -36,83 +36,79 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link StreamSink}.
- */
+/** Tests for {@link StreamSink}. */
 public class StreamSinkOperatorTest extends TestLogger {
 
-	@Rule
-	public ExpectedException expectedException = ExpectedException.none();
+    @Rule public ExpectedException expectedException = ExpectedException.none();
 
-	/**
-	 * Verify that we can correctly query watermark, processing time and the timestamp from the
-	 * context.
-	 */
-	@Test
-	public void testTimeQuerying() throws Exception {
+    /**
+     * Verify that we can correctly query watermark, processing time and the timestamp from the
+     * context.
+     */
+    @Test
+    public void testTimeQuerying() throws Exception {
 
-		BufferingQueryingSink<String> bufferingSink = new BufferingQueryingSink<>();
+        BufferingQueryingSink<String> bufferingSink = new BufferingQueryingSink<>();
 
-		StreamSink<String> operator = new StreamSink<>(bufferingSink);
+        StreamSink<String> operator = new StreamSink<>(bufferingSink);
 
-		OneInputStreamOperatorTestHarness<String, Object> testHarness =
-				new OneInputStreamOperatorTestHarness<>(operator);
+        OneInputStreamOperatorTestHarness<String, Object> testHarness =
+                new OneInputStreamOperatorTestHarness<>(operator);
 
-		testHarness.setup();
-		testHarness.open();
+        testHarness.setup();
+        testHarness.open();
 
-		testHarness.processWatermark(new Watermark(17));
-		testHarness.setProcessingTime(12);
-		testHarness.processElement(new StreamRecord<>("Hello", 12L));
+        testHarness.processWatermark(new Watermark(17));
+        testHarness.setProcessingTime(12);
+        testHarness.processElement(new StreamRecord<>("Hello", 12L));
 
-		testHarness.processWatermark(new Watermark(42));
-		testHarness.setProcessingTime(15);
-		testHarness.processElement(new StreamRecord<>("Ciao", 13L));
+        testHarness.processWatermark(new Watermark(42));
+        testHarness.setProcessingTime(15);
+        testHarness.processElement(new StreamRecord<>("Ciao", 13L));
 
-		testHarness.processWatermark(new Watermark(42));
-		testHarness.setProcessingTime(15);
-		testHarness.processElement(new StreamRecord<>("Ciao"));
+        testHarness.processWatermark(new Watermark(42));
+        testHarness.setProcessingTime(15);
+        testHarness.processElement(new StreamRecord<>("Ciao"));
 
-		assertThat(bufferingSink.data.size(), is(3));
+        assertThat(bufferingSink.data.size(), is(3));
 
-		assertThat(bufferingSink.data,
-			contains(
-				new Tuple4<>(17L, 12L, 12L, "Hello"),
-				new Tuple4<>(42L, 15L, 13L, "Ciao"),
-				new Tuple4<>(42L, 15L, null, "Ciao")));
+        assertThat(
+                bufferingSink.data,
+                contains(
+                        new Tuple4<>(17L, 12L, 12L, "Hello"),
+                        new Tuple4<>(42L, 15L, 13L, "Ciao"),
+                        new Tuple4<>(42L, 15L, null, "Ciao")));
 
-		testHarness.close();
-	}
+        testHarness.close();
+    }
 
-	private static class BufferingQueryingSink<T> implements SinkFunction<T> {
+    private static class BufferingQueryingSink<T> implements SinkFunction<T> {
 
-		// watermark, processing-time, timestamp, event
-		private final List<Tuple4<Long, Long, Long, T>> data;
+        // watermark, processing-time, timestamp, event
+        private final List<Tuple4<Long, Long, Long, T>> data;
 
-		public BufferingQueryingSink() {
-			data = new ArrayList<>();
-		}
+        public BufferingQueryingSink() {
+            data = new ArrayList<>();
+        }
 
-		@Override
-		public void invoke(
-			T value, Context context) throws Exception {
-			Long timestamp = context.timestamp();
-			if (timestamp != null) {
-				data.add(
-					new Tuple4<>(
-						context.currentWatermark(),
-						context.currentProcessingTime(),
-						context.timestamp(),
-						value));
-			} else {
-				data.add(
-					new Tuple4<>(
-						context.currentWatermark(),
-						context.currentProcessingTime(),
-						null,
-						value));
-
-			}
-		}
-	}
+        @Override
+        public void invoke(T value, Context context) throws Exception {
+            Long timestamp = context.timestamp();
+            if (timestamp != null) {
+                data.add(
+                        new Tuple4<>(
+                                context.currentWatermark(),
+                                context.currentProcessingTime(),
+                                context.timestamp(),
+                                value));
+            } else {
+                data.add(
+                        new Tuple4<>(
+                                context.currentWatermark(),
+                                context.currentProcessingTime(),
+                                null,
+                                value));
+            }
+        }
+    }
 }

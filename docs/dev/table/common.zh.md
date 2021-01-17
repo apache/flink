@@ -54,22 +54,19 @@ Table API 和 SQL 程序的结构
 // create a TableEnvironment for specific planner batch or streaming
 TableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
 
-// create a Table
-tableEnv.connect(...).createTemporaryTable("table1");
+// create an input Table
+tableEnv.executeSql("CREATE TEMPORARY TABLE table1 ... WITH ( 'connector' = ... )");
 // register an output Table
-tableEnv.connect(...).createTemporaryTable("outputTable");
+tableEnv.executeSql("CREATE TEMPORARY TABLE outputTable ... WITH ( 'connector' = ... )");
 
 // create a Table object from a Table API query
-Table tapiResult = tableEnv.from("table1").select(...);
+Table table2 = tableEnv.from("table1").select(...);
 // create a Table object from a SQL query
-Table sqlResult  = tableEnv.sqlQuery("SELECT ... FROM table1 ... ");
+Table table3 = tableEnv.sqlQuery("SELECT ... FROM table1 ... ");
 
 // emit a Table API result Table to a TableSink, same for SQL result
-TableResult tableResult = tapiResult.executeInsert("outputTable");
+TableResult tableResult = table2.executeInsert("outputTable");
 tableResult...
-
-// execute
-tableEnv.execute("java_job");
 
 {% endhighlight %}
 </div>
@@ -80,22 +77,19 @@ tableEnv.execute("java_job");
 // create a TableEnvironment for specific planner batch or streaming
 val tableEnv = ... // see "Create a TableEnvironment" section
 
-// create a Table
-tableEnv.connect(...).createTemporaryTable("table1")
+// create an input Table
+tableEnv.executeSql("CREATE TEMPORARY TABLE table1 ... WITH ( 'connector' = ... )")
 // register an output Table
-tableEnv.connect(...).createTemporaryTable("outputTable")
+tableEnv.executeSql("CREATE TEMPORARY TABLE outputTable ... WITH ( 'connector' = ... )")
 
 // create a Table from a Table API query
-val tapiResult = tableEnv.from("table1").select(...)
+val table2 = tableEnv.from("table1").select(...)
 // create a Table from a SQL query
-val sqlResult  = tableEnv.sqlQuery("SELECT ... FROM table1 ...")
+val table3 = tableEnv.sqlQuery("SELECT ... FROM table1 ...")
 
 // emit a Table API result Table to a TableSink, same for SQL result
-TableResult tableResult = tapiResult.executeInsert("outputTable");
+val tableResult = table2.executeInsert("outputTable")
 tableResult...
-
-// execute
-tableEnv.execute("scala_job")
 
 {% endhighlight %}
 </div>
@@ -106,23 +100,19 @@ tableEnv.execute("scala_job")
 # create a TableEnvironment for specific planner batch or streaming
 table_env = ... # see "Create a TableEnvironment" section
 
-# register a Table
-table_env.connect(...).create_temporary_table("table1")
-
+# register an input Table
+table_env.executeSql("CREATE TEMPORARY TABLE table1 ... WITH ( 'connector' = ... )")
 # register an output Table
-table_env.connect(...).create_temporary_table("outputTable")
+table_env.executeSql("CREATE TEMPORARY TABLE outputTable ... WITH ( 'connector' = ... )")
 
 # create a Table from a Table API query
-tapi_result = table_env.from_path("table1").select(...)
+table2 = table_env.from_path("table1").select(...)
 # create a Table from a SQL query
-sql_result  = table_env.sql_query("SELECT ... FROM table1 ...")
+table3 = table_env.sql_query("SELECT ... FROM table1 ...")
 
 # emit a Table API result Table to a TableSink, same for SQL result
-table_result = tapi_result.execute_insert("outputTable")
+table_result = table3.execute_insert("outputTable")
 table_result...
-
-# execute
-table_env.execute("python_job")
 
 {% endhighlight %}
 </div>

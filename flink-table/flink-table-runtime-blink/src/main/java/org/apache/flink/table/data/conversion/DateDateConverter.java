@@ -22,21 +22,19 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils;
 import org.apache.flink.table.types.logical.DateType;
 
-/**
- * Converter for {@link DateType} of {@link java.sql.Date} external type.
- */
+/** Converter for {@link DateType} of {@link java.sql.Date} external type. */
 @Internal
 public class DateDateConverter implements DataStructureConverter<Integer, java.sql.Date> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public Integer toInternal(java.sql.Date external) {
-		return SqlDateTimeUtils.dateToInternal(external);
-	}
+    @Override
+    public Integer toInternal(java.sql.Date external) {
+        return SqlDateTimeUtils.dateToInternal(external);
+    }
 
-	@Override
-	public java.sql.Date toExternal(Integer internal) {
-		return SqlDateTimeUtils.internalToDate(internal);
-	}
+    @Override
+    public java.sql.Date toExternal(Integer internal) {
+        return SqlDateTimeUtils.internalToDate(internal);
+    }
 }

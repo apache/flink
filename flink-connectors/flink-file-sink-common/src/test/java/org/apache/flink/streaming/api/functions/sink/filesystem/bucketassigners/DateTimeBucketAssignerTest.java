@@ -28,43 +28,43 @@ import java.time.ZoneId;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link DateTimeBucketAssigner}.
- */
+/** Tests for {@link DateTimeBucketAssigner}. */
 public class DateTimeBucketAssignerTest {
-	private static final long TEST_TIME_IN_MILLIS = 1533363082011L;
+    private static final long TEST_TIME_IN_MILLIS = 1533363082011L;
 
-	private static final MockedContext mockedContext = new MockedContext();
+    private static final MockedContext mockedContext = new MockedContext();
 
-	@Test
-	public void testGetBucketPathWithSpecifiedTimezone() {
-		DateTimeBucketAssigner bucketAssigner = new DateTimeBucketAssigner(ZoneId.of("America/Los_Angeles"));
+    @Test
+    public void testGetBucketPathWithSpecifiedTimezone() {
+        DateTimeBucketAssigner bucketAssigner =
+                new DateTimeBucketAssigner(ZoneId.of("America/Los_Angeles"));
 
-		assertEquals("2018-08-03--23", bucketAssigner.getBucketId(null, mockedContext));
-	}
+        assertEquals("2018-08-03--23", bucketAssigner.getBucketId(null, mockedContext));
+    }
 
-	@Test
-	public void testGetBucketPathWithSpecifiedFormatString() {
-		DateTimeBucketAssigner bucketAssigner = new DateTimeBucketAssigner("yyyy-MM-dd-HH", ZoneId.of("America/Los_Angeles"));
+    @Test
+    public void testGetBucketPathWithSpecifiedFormatString() {
+        DateTimeBucketAssigner bucketAssigner =
+                new DateTimeBucketAssigner("yyyy-MM-dd-HH", ZoneId.of("America/Los_Angeles"));
 
-		assertEquals("2018-08-03-23", bucketAssigner.getBucketId(null, mockedContext));
-	}
+        assertEquals("2018-08-03-23", bucketAssigner.getBucketId(null, mockedContext));
+    }
 
-	private static class MockedContext implements BucketAssigner.Context {
-		@Override
-		public long currentProcessingTime() {
-			return TEST_TIME_IN_MILLIS;
-		}
+    private static class MockedContext implements BucketAssigner.Context {
+        @Override
+        public long currentProcessingTime() {
+            return TEST_TIME_IN_MILLIS;
+        }
 
-		@Override
-		public long currentWatermark() {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public long currentWatermark() {
+            throw new UnsupportedOperationException();
+        }
 
-		@Nullable
-		@Override
-		public Long timestamp() {
-			return null;
-		}
-	}
+        @Nullable
+        @Override
+        public Long timestamp() {
+            return null;
+        }
+    }
 }

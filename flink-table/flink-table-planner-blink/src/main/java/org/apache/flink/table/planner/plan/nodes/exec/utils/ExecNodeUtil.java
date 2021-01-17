@@ -32,83 +32,77 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-/**
- * An Utility class that helps translating {@link ExecNode} to {@link Transformation}.
- */
+/** An Utility class that helps translating {@link ExecNode} to {@link Transformation}. */
 public class ExecNodeUtil {
+    /**
+     * Set memoryBytes to {@link
+     * Transformation#declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase, int)}.
+     */
+    public static <T> void setManagedMemoryWeight(
+            Transformation<T> transformation, long memoryBytes) {
+        // Using Bytes can easily overflow
+        // Using KibiBytes to cast to int
+        // Careful about zero
+        if (memoryBytes > 0) {
+            int memoryKibiBytes = (int) Math.max(1, (memoryBytes >> 10));
+            Optional<Integer> previousWeight =
+                    transformation.declareManagedMemoryUseCaseAtOperatorScope(
+                            ManagedMemoryUseCase.OPERATOR, memoryKibiBytes);
+            if (previousWeight.isPresent()) {
+                throw new TableException(
+                        "Managed memory weight has been set, this should not happen.");
+            }
+        }
+    }
 
-	/**
-	 * Set memoryBytes to {@link Transformation#declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase, int)}.
-	 */
-	public static <T> void setManagedMemoryWeight(
-			Transformation<T> transformation,
-			long memoryBytes) {
-		// Using Bytes can easily overflow
-		// Using KibiBytes to cast to int
-		// Careful about zero
-		if (memoryBytes > 0) {
-			int memoryKibiBytes = (int) Math.max(1, (memoryBytes >> 10));
-			Optional<Integer> previousWeight = transformation.declareManagedMemoryUseCaseAtOperatorScope(
-					ManagedMemoryUseCase.BATCH_OP, memoryKibiBytes);
-			if (previousWeight.isPresent()) {
-				throw new TableException("Managed memory weight has been set, this should not happen.");
-			}
-		}
-	}
+    /** Create a {@link OneInputTransformation} with memoryBytes. */
+    public static <T> OneInputTransformation<T, T> createOneInputTransformation(
+            Transformation<T> input,
+            String name,
+            StreamOperatorFactory<T> operatorFactory,
+            TypeInformation<T> outputType,
+            int parallelism,
+            long memoryBytes) {
+        OneInputTransformation<T, T> transformation =
+                new OneInputTransformation<>(input, name, operatorFactory, outputType, parallelism);
+        setManagedMemoryWeight(transformation, memoryBytes);
+        return transformation;
+    }
 
-	/**
-	 * Create a {@link OneInputTransformation} with memoryBytes.
-	 */
-	public static <T> OneInputTransformation<T, T> createOneInputTransformation(
-			Transformation<T> input,
-			String name,
-			StreamOperatorFactory<T> operatorFactory,
-			TypeInformation<T> outputType,
-			int parallelism,
-			long memoryBytes) {
-		OneInputTransformation<T, T> transformation = new OneInputTransformation<>(
-				input, name, operatorFactory, outputType, parallelism);
-		setManagedMemoryWeight(transformation, memoryBytes);
-		return transformation;
-	}
+    /** Create a {@link TwoInputTransformation} with memoryBytes. */
+    public static <T> TwoInputTransformation<T, T, T> createTwoInputTransformation(
+            Transformation<T> input1,
+            Transformation<T> input2,
+            String name,
+            StreamOperatorFactory<T> operatorFactory,
+            TypeInformation<T> outputType,
+            int parallelism,
+            long memoryBytes) {
+        TwoInputTransformation<T, T, T> transformation =
+                new TwoInputTransformation<>(
+                        input1, input2, name, operatorFactory, outputType, parallelism);
+        setManagedMemoryWeight(transformation, memoryBytes);
+        return transformation;
+    }
 
-	/**
-	 * Create a {@link TwoInputTransformation} with memoryBytes.
-	 */
-	public static <T> TwoInputTransformation<T, T, T> createTwoInputTransformation(
-			Transformation<T> input1,
-			Transformation<T> input2,
-			String name,
-			StreamOperatorFactory<T> operatorFactory,
-			TypeInformation<T> outputType,
-			int parallelism,
-			long memoryBytes) {
-		TwoInputTransformation<T, T, T> transformation = new TwoInputTransformation<>(
-				input1, input2, name, operatorFactory, outputType, parallelism);
-		setManagedMemoryWeight(transformation, memoryBytes);
-		return transformation;
-	}
-
-	/**
-	 * Return description for multiple input node.
-	 */
-	public static String getMultipleInputDescription(
-			ExecNode<?> rootNode,
-			List<ExecNode<?>> inputNodes,
-			List<ExecEdge> inputEdges) {
-		String members = ExecNodePlanDumper.treeToString(rootNode, inputNodes, true).replace("\n", "\\n");
-		StringBuilder sb = new StringBuilder();
-		sb.append("MultipleInput(");
-		List<String> readOrders = inputEdges.stream()
-				.map(ExecEdge::getPriority)
-				.map(Object::toString)
-				.collect(Collectors.toList());
-		boolean hasDiffReadOrder = readOrders.stream().distinct().count() > 1;
-		if (hasDiffReadOrder) {
-			sb.append("readOrder=[").append(String.join(",", readOrders)).append("], ");
-		}
-		sb.append("members=[\\n").append(members).append("]");
-		sb.append(")");
-		return sb.toString();
-	}
+    /** Return description for multiple input node. */
+    public static String getMultipleInputDescription(
+            ExecNode<?> rootNode, List<ExecNode<?>> inputNodes, List<ExecEdge> inputEdges) {
+        String members =
+                ExecNodePlanDumper.treeToString(rootNode, inputNodes, true).replace("\n", "\\n");
+        StringBuilder sb = new StringBuilder();
+        sb.append("MultipleInput(");
+        List<String> readOrders =
+                inputEdges.stream()
+                        .map(ExecEdge::getPriority)
+                        .map(Object::toString)
+                        .collect(Collectors.toList());
+        boolean hasDiffReadOrder = readOrders.stream().distinct().count() > 1;
+        if (hasDiffReadOrder) {
+            sb.append("readOrder=[").append(String.join(",", readOrders)).append("], ");
+        }
+        sb.append("members=[\\n").append(members).append("]");
+        sb.append(")");
+        return sb.toString();
+    }
 }

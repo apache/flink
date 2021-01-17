@@ -30,43 +30,44 @@ import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
-/**
- * Implementation of {@link WorkerResourceSpecFactory} for Yarn deployments.
- */
+/** Implementation of {@link WorkerResourceSpecFactory} for Yarn deployments. */
 public class YarnWorkerResourceSpecFactory extends WorkerResourceSpecFactory {
 
-	public static final YarnWorkerResourceSpecFactory INSTANCE = new YarnWorkerResourceSpecFactory();
+    public static final YarnWorkerResourceSpecFactory INSTANCE =
+            new YarnWorkerResourceSpecFactory();
 
-	private static final Logger LOG = LoggerFactory.getLogger(YarnWorkerResourceSpecFactory.class);
+    private static final Logger LOG = LoggerFactory.getLogger(YarnWorkerResourceSpecFactory.class);
 
-	private YarnWorkerResourceSpecFactory() {}
+    private YarnWorkerResourceSpecFactory() {}
 
-	@Override
-	public WorkerResourceSpec createDefaultWorkerResourceSpec(Configuration configuration) {
-		return workerResourceSpecFromConfigAndCpu(configuration, getDefaultCpus(configuration));
-	}
+    @Override
+    public WorkerResourceSpec createDefaultWorkerResourceSpec(Configuration configuration) {
+        return workerResourceSpecFromConfigAndCpu(configuration, getDefaultCpus(configuration));
+    }
 
-	@VisibleForTesting
-	static CPUResource getDefaultCpus(final Configuration configuration) {
-		int fallback = configuration.getInteger(YarnConfigOptions.VCORES);
-		double cpuCoresDouble = TaskExecutorProcessUtils.getCpuCoresWithFallback(configuration, fallback).getValue().doubleValue();
-		@SuppressWarnings("NumericCastThatLosesPrecision")
-		long cpuCoresLong = Math.max((long) Math.ceil(cpuCoresDouble), 1L);
-		//noinspection FloatingPointEquality
-		if (cpuCoresLong != cpuCoresDouble) {
-			LOG.info(
-				"The amount of cpu cores must be a positive integer on Yarn. Rounding {} up to the closest positive integer {}.",
-				cpuCoresDouble,
-				cpuCoresLong);
-		}
-		if (cpuCoresLong > Integer.MAX_VALUE) {
-			throw new IllegalConfigurationException(String.format(
-				"The amount of cpu cores %d cannot exceed Integer.MAX_VALUE: %d",
-				cpuCoresLong,
-				Integer.MAX_VALUE));
-		}
-		//noinspection NumericCastThatLosesPrecision
-		return new CPUResource(cpuCoresLong);
-	}
+    @VisibleForTesting
+    static CPUResource getDefaultCpus(final Configuration configuration) {
+        int fallback = configuration.getInteger(YarnConfigOptions.VCORES);
+        double cpuCoresDouble =
+                TaskExecutorProcessUtils.getCpuCoresWithFallback(configuration, fallback)
+                        .getValue()
+                        .doubleValue();
+        @SuppressWarnings("NumericCastThatLosesPrecision")
+        long cpuCoresLong = Math.max((long) Math.ceil(cpuCoresDouble), 1L);
+        //noinspection FloatingPointEquality
+        if (cpuCoresLong != cpuCoresDouble) {
+            LOG.info(
+                    "The amount of cpu cores must be a positive integer on Yarn. Rounding {} up to the closest positive integer {}.",
+                    cpuCoresDouble,
+                    cpuCoresLong);
+        }
+        if (cpuCoresLong > Integer.MAX_VALUE) {
+            throw new IllegalConfigurationException(
+                    String.format(
+                            "The amount of cpu cores %d cannot exceed Integer.MAX_VALUE: %d",
+                            cpuCoresLong, Integer.MAX_VALUE));
+        }
+        //noinspection NumericCastThatLosesPrecision
+        return new CPUResource(cpuCoresLong);
+    }
 }

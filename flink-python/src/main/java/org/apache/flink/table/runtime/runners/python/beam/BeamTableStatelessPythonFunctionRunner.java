@@ -33,48 +33,55 @@ import java.util.Map;
 
 import static org.apache.flink.table.runtime.typeutils.PythonTypeUtils.getRowCoderProto;
 
-/**
- * A {@link BeamTableStatelessPythonFunctionRunner} used to execute Python stateless functions.
- */
+/** A {@link BeamTableStatelessPythonFunctionRunner} used to execute Python stateless functions. */
 @Internal
 public class BeamTableStatelessPythonFunctionRunner extends BeamPythonFunctionRunner {
 
-	private final RowType inputType;
-	private final RowType outputType;
-	private final String coderUrn;
-	private final FlinkFnApi.UserDefinedFunctions userDefinedFunctions;
+    private final RowType inputType;
+    private final RowType outputType;
+    private final String coderUrn;
+    private final FlinkFnApi.UserDefinedFunctions userDefinedFunctions;
 
-	public BeamTableStatelessPythonFunctionRunner(
-		String taskName,
-		PythonEnvironmentManager environmentManager,
-		RowType inputType,
-		RowType outputType,
-		String functionUrn,
-		FlinkFnApi.UserDefinedFunctions userDefinedFunctions,
-		String coderUrn,
-		Map<String, String> jobOptions,
-		FlinkMetricContainer flinkMetricContainer,
-		MemoryManager memoryManager,
-		double managedMemoryFraction) {
-		super(taskName, environmentManager, functionUrn, jobOptions, flinkMetricContainer, null, null, memoryManager, managedMemoryFraction);
-		this.coderUrn = Preconditions.checkNotNull(coderUrn);
-		this.inputType = Preconditions.checkNotNull(inputType);
-		this.outputType = Preconditions.checkNotNull(outputType);
-		this.userDefinedFunctions = userDefinedFunctions;
-	}
+    public BeamTableStatelessPythonFunctionRunner(
+            String taskName,
+            PythonEnvironmentManager environmentManager,
+            RowType inputType,
+            RowType outputType,
+            String functionUrn,
+            FlinkFnApi.UserDefinedFunctions userDefinedFunctions,
+            String coderUrn,
+            Map<String, String> jobOptions,
+            FlinkMetricContainer flinkMetricContainer,
+            MemoryManager memoryManager,
+            double managedMemoryFraction) {
+        super(
+                taskName,
+                environmentManager,
+                functionUrn,
+                jobOptions,
+                flinkMetricContainer,
+                null,
+                null,
+                memoryManager,
+                managedMemoryFraction);
+        this.coderUrn = Preconditions.checkNotNull(coderUrn);
+        this.inputType = Preconditions.checkNotNull(inputType);
+        this.outputType = Preconditions.checkNotNull(outputType);
+        this.userDefinedFunctions = userDefinedFunctions;
+    }
 
-	@Override
-	protected byte[] getUserDefinedFunctionsProtoBytes() {
-		return this.userDefinedFunctions.toByteArray();
-	}
+    @Override
+    protected byte[] getUserDefinedFunctionsProtoBytes() {
+        return this.userDefinedFunctions.toByteArray();
+    }
 
-	@Override
-	protected RunnerApi.Coder getInputCoderProto() {
-		return getRowCoderProto(inputType, coderUrn);
-	}
+    @Override
+    protected RunnerApi.Coder getInputCoderProto() {
+        return getRowCoderProto(inputType, coderUrn);
+    }
 
-	@Override
-	protected RunnerApi.Coder getOutputCoderProto() {
-		return getRowCoderProto(outputType, coderUrn);
-	}
+    @Override
+    protected RunnerApi.Coder getOutputCoderProto() {
+        return getRowCoderProto(outputType, coderUrn);
+    }
 }

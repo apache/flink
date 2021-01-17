@@ -43,12 +43,12 @@ import static java.util.Collections.singletonList;
 /**
  * A {@code LIKE} clause in a {@code CREATE TABLE} statement.
  *
- * <p>It enables to use an existing table descriptor to define a new, adjusted/extended table.
- * Users can control the way particular features of both declarations are merged using {@link MergingStrategy}
- * and {@link FeatureOption}.
+ * <p>It enables to use an existing table descriptor to define a new, adjusted/extended table. Users
+ * can control the way particular features of both declarations are merged using {@link
+ * MergingStrategy} and {@link FeatureOption}.
  *
- * <p>Example:
- * A DDL like the one below for creating a `derived_table`
+ * <p>Example: A DDL like the one below for creating a `derived_table`
+ *
  * <pre>{@code
  * CREATE TABLE base_table_1 (
  *     id BIGINT,
@@ -70,7 +70,8 @@ import static java.util.Collections.singletonList;
  * LIKE base_table (
  *   OVERWRITING OPTIONS,
  *   EXCLUDING CONSTRAINTS
- * )}</pre>
+ * )
+ * }</pre>
  *
  * <p>is equivalent to:
  *
@@ -88,190 +89,194 @@ import static java.util.Collections.singletonList;
  * }</pre>
  */
 public class SqlTableLike extends SqlCall implements ExtendedSqlNode {
-	/**
-	 * A strategy that describes how the features of the parent source table
-	 * should be merged with the features of the newly created table.
-	 *
-	 * <ul>
-	 *     <li>EXCLUDING - does not include the given feature of the source table</li>
-	 *     <li>INCLUDING - includes feature of the source table, fails on duplicate entries,
-	 *          e.g. if an option with the same key exists in both tables.</li>
-	 *     <li>OVERWRITING - includes feature of the source table, overwrites duplicate entries of the
-	 *          source table with properties of the new table, e.g. if an option with the same key
-	 *          exists in both tables, the one from the current statement will be used.</li>
-	 * </ul>
-	 */
-	public enum MergingStrategy {
-		INCLUDING,
-		EXCLUDING,
-		OVERWRITING
-	}
+    /**
+     * A strategy that describes how the features of the parent source table should be merged with
+     * the features of the newly created table.
+     *
+     * <ul>
+     *   <li>EXCLUDING - does not include the given feature of the source table
+     *   <li>INCLUDING - includes feature of the source table, fails on duplicate entries, e.g. if
+     *       an option with the same key exists in both tables.
+     *   <li>OVERWRITING - includes feature of the source table, overwrites duplicate entries of the
+     *       source table with properties of the new table, e.g. if an option with the same key
+     *       exists in both tables, the one from the current statement will be used.
+     * </ul>
+     */
+    public enum MergingStrategy {
+        INCLUDING,
+        EXCLUDING,
+        OVERWRITING
+    }
 
-	/**
-	 * A feature of a table descriptor that will be merged into the new table.
-	 * The way how a certain feature will be merged into the final descriptor is controlled with
-	 * {@link MergingStrategy}.
-	 * <ul>
-	 *     <li>ALL - a shortcut to change the default merging strategy if none provided</li>
-	 *     <li>CONSTRAINTS - constraints such as primary and unique keys</li>
-	 *     <li>GENERATED - computed columns</li>
-	 *     <li>METADATA - metadata columns</li>
-	 *     <li>WATERMARKS - watermark declarations</li>
-	 *     <li>PARTITIONS - partition of the tables</li>
-	 *     <li>OPTIONS - connector options that describe connector and format properties</li>
-	 * </ul>
-	 *
-	 * <p>Example:
-	 * <pre>{@code
-	 * LIKE `sourceTable` (
-	 *   INCLUDING ALL
-	 *   OVERWRITING OPTIONS
-	 *   EXCLUDING PARTITIONS
-	 * )
-	 * }</pre>
-	 * is equivalent to:
-	 * <pre>{@code
-	 * LIKE `sourceTable` (
-	 *   INCLUDING GENERATED
-	 *   INCLUDING CONSTRAINTS
-	 *   OVERWRITING OPTIONS
-	 *   EXCLUDING PARTITIONS
-	 * )
-	 * }</pre>
-	 */
-	public enum FeatureOption {
-		ALL,
-		CONSTRAINTS,
-		GENERATED,
-		METADATA,
-		OPTIONS,
-		PARTITIONS,
-		WATERMARKS
-	}
+    /**
+     * A feature of a table descriptor that will be merged into the new table. The way how a certain
+     * feature will be merged into the final descriptor is controlled with {@link MergingStrategy}.
+     *
+     * <ul>
+     *   <li>ALL - a shortcut to change the default merging strategy if none provided
+     *   <li>CONSTRAINTS - constraints such as primary and unique keys
+     *   <li>GENERATED - computed columns
+     *   <li>METADATA - metadata columns
+     *   <li>WATERMARKS - watermark declarations
+     *   <li>PARTITIONS - partition of the tables
+     *   <li>OPTIONS - connector options that describe connector and format properties
+     * </ul>
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * LIKE `sourceTable` (
+     *   INCLUDING ALL
+     *   OVERWRITING OPTIONS
+     *   EXCLUDING PARTITIONS
+     * )
+     * }</pre>
+     *
+     * <p>is equivalent to:
+     *
+     * <pre>{@code
+     * LIKE `sourceTable` (
+     *   INCLUDING GENERATED
+     *   INCLUDING CONSTRAINTS
+     *   OVERWRITING OPTIONS
+     *   EXCLUDING PARTITIONS
+     * )
+     * }</pre>
+     */
+    public enum FeatureOption {
+        ALL,
+        CONSTRAINTS,
+        GENERATED,
+        METADATA,
+        OPTIONS,
+        PARTITIONS,
+        WATERMARKS
+    }
 
-	private final SqlIdentifier sourceTable;
-	private final List<SqlTableLikeOption> options;
+    private final SqlIdentifier sourceTable;
+    private final List<SqlTableLikeOption> options;
 
-	private static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("LIKE TABLE", SqlKind.OTHER);
+    private static final SqlSpecialOperator OPERATOR =
+            new SqlSpecialOperator("LIKE TABLE", SqlKind.OTHER);
 
-	public SqlTableLike(
-			SqlParserPos pos,
-			SqlIdentifier sourceTable,
-			List<SqlTableLikeOption> options) {
-		super(pos);
-		this.sourceTable = sourceTable;
-		this.options = options;
-	}
+    public SqlTableLike(
+            SqlParserPos pos, SqlIdentifier sourceTable, List<SqlTableLikeOption> options) {
+        super(pos);
+        this.sourceTable = sourceTable;
+        this.options = options;
+    }
 
-	@Nonnull
-	@Override
-	public SqlOperator getOperator() {
-		return OPERATOR;
-	}
+    @Nonnull
+    @Override
+    public SqlOperator getOperator() {
+        return OPERATOR;
+    }
 
-	@Nonnull
-	@Override
-	public List<SqlNode> getOperandList() {
-		return singletonList(sourceTable);
-	}
+    @Nonnull
+    @Override
+    public List<SqlNode> getOperandList() {
+        return singletonList(sourceTable);
+    }
 
-	public SqlIdentifier getSourceTable() {
-		return sourceTable;
-	}
+    public SqlIdentifier getSourceTable() {
+        return sourceTable;
+    }
 
-	public List<SqlTableLikeOption> getOptions() {
-		return options;
-	}
+    public List<SqlTableLikeOption> getOptions() {
+        return options;
+    }
 
-	private static final Map<FeatureOption, List<MergingStrategy>> invalidCombinations = new HashMap<>();
+    private static final Map<FeatureOption, List<MergingStrategy>> invalidCombinations =
+            new HashMap<>();
 
-	static {
-		invalidCombinations.put(FeatureOption.ALL, singletonList(MergingStrategy.OVERWRITING));
-		invalidCombinations.put(FeatureOption.PARTITIONS, singletonList(MergingStrategy.OVERWRITING));
-		invalidCombinations.put(FeatureOption.CONSTRAINTS, singletonList(MergingStrategy.OVERWRITING));
-	}
+    static {
+        invalidCombinations.put(FeatureOption.ALL, singletonList(MergingStrategy.OVERWRITING));
+        invalidCombinations.put(
+                FeatureOption.PARTITIONS, singletonList(MergingStrategy.OVERWRITING));
+        invalidCombinations.put(
+                FeatureOption.CONSTRAINTS, singletonList(MergingStrategy.OVERWRITING));
+    }
 
-	@Override
-	public void validate() throws SqlValidateException {
-		long distinctFeatures = options.stream().map(SqlTableLikeOption::getFeatureOption).distinct().count();
-		if (distinctFeatures != options.size()) {
-			throw new SqlValidateException(pos, "Each like option feature can be declared only once.");
-		}
+    @Override
+    public void validate() throws SqlValidateException {
+        long distinctFeatures =
+                options.stream().map(SqlTableLikeOption::getFeatureOption).distinct().count();
+        if (distinctFeatures != options.size()) {
+            throw new SqlValidateException(
+                    pos, "Each like option feature can be declared only once.");
+        }
 
-		for (SqlTableLikeOption option : options) {
-			if (invalidCombinations.getOrDefault(option.featureOption, Collections.emptyList())
-				.contains(option.mergingStrategy)) {
-				throw new SqlValidateException(
-					pos,
-					String.format(
-						"Illegal merging strategy '%s' for '%s' option.",
-						option.getMergingStrategy(),
-						option.getFeatureOption()));
-			}
-		}
-	}
+        for (SqlTableLikeOption option : options) {
+            if (invalidCombinations
+                    .getOrDefault(option.featureOption, Collections.emptyList())
+                    .contains(option.mergingStrategy)) {
+                throw new SqlValidateException(
+                        pos,
+                        String.format(
+                                "Illegal merging strategy '%s' for '%s' option.",
+                                option.getMergingStrategy(), option.getFeatureOption()));
+            }
+        }
+    }
 
-	@Override
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		writer.keyword("LIKE");
-		sourceTable.unparse(writer, leftPrec, rightPrec);
-		SqlWriter.Frame frame = writer.startList("(", ")");
-		for (SqlTableLikeOption option : options) {
-			writer.newlineAndIndent();
-			writer.print("  ");
-			writer.keyword(option.mergingStrategy.toString());
-			writer.keyword(option.featureOption.toString());
-		}
-		writer.newlineAndIndent();
-		writer.endList(frame);
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        writer.keyword("LIKE");
+        sourceTable.unparse(writer, leftPrec, rightPrec);
+        SqlWriter.Frame frame = writer.startList("(", ")");
+        for (SqlTableLikeOption option : options) {
+            writer.newlineAndIndent();
+            writer.print("  ");
+            writer.keyword(option.mergingStrategy.toString());
+            writer.keyword(option.featureOption.toString());
+        }
+        writer.newlineAndIndent();
+        writer.endList(frame);
+    }
 
-	/**
-	 * A pair of {@link MergingStrategy} and {@link FeatureOption}.
-	 *
-	 * @see MergingStrategy
-	 * @see FeatureOption
-	 */
-	public static class SqlTableLikeOption {
-		private final MergingStrategy mergingStrategy;
-		private final FeatureOption featureOption;
+    /**
+     * A pair of {@link MergingStrategy} and {@link FeatureOption}.
+     *
+     * @see MergingStrategy
+     * @see FeatureOption
+     */
+    public static class SqlTableLikeOption {
+        private final MergingStrategy mergingStrategy;
+        private final FeatureOption featureOption;
 
-		public SqlTableLikeOption(
-				MergingStrategy mergingStrategy,
-				FeatureOption featureOption) {
-			this.mergingStrategy = mergingStrategy;
-			this.featureOption = featureOption;
-		}
+        public SqlTableLikeOption(MergingStrategy mergingStrategy, FeatureOption featureOption) {
+            this.mergingStrategy = mergingStrategy;
+            this.featureOption = featureOption;
+        }
 
-		public MergingStrategy getMergingStrategy() {
-			return mergingStrategy;
-		}
+        public MergingStrategy getMergingStrategy() {
+            return mergingStrategy;
+        }
 
-		public FeatureOption getFeatureOption() {
-			return featureOption;
-		}
+        public FeatureOption getFeatureOption() {
+            return featureOption;
+        }
 
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			SqlTableLikeOption that = (SqlTableLikeOption) o;
-			return mergingStrategy == that.mergingStrategy &&
-				featureOption == that.featureOption;
-		}
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            SqlTableLikeOption that = (SqlTableLikeOption) o;
+            return mergingStrategy == that.mergingStrategy && featureOption == that.featureOption;
+        }
 
-		@Override
-		public int hashCode() {
-			return Objects.hash(mergingStrategy, featureOption);
-		}
+        @Override
+        public int hashCode() {
+            return Objects.hash(mergingStrategy, featureOption);
+        }
 
-		@Override
-		public String toString() {
-			return String.format("%s %s", mergingStrategy, featureOption);
-		}
-	}
+        @Override
+        public String toString() {
+            return String.format("%s %s", mergingStrategy, featureOption);
+        }
+    }
 }

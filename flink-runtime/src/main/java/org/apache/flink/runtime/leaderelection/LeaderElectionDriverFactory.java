@@ -20,24 +20,23 @@ package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 
-/**
- * Factory for creating {@link LeaderElectionDriver} with different implementation.
- */
+/** Factory for creating {@link LeaderElectionDriver} with different implementation. */
 public interface LeaderElectionDriverFactory {
 
-	/**
-	 * Create a specific {@link LeaderElectionDriver} and start the necessary services. For example, LeaderLatch
-	 * and NodeCache in Zookeeper, KubernetesLeaderElector and ConfigMap watcher in Kubernetes.
-	 *
-	 * @param leaderEventHandler handler for the leader election driver to process leader events.
-	 * @param leaderContenderDescription leader contender description.
-	 * @param fatalErrorHandler fatal error handler
-	 *
-	 * @throws Exception when create a specific {@link LeaderElectionDriver} implementation and start the necessary
-	 * services.
-	 */
-	LeaderElectionDriver createLeaderElectionDriver(
-			LeaderElectionEventHandler leaderEventHandler,
-			FatalErrorHandler fatalErrorHandler,
-			String leaderContenderDescription) throws Exception;
+    /**
+     * Create a specific {@link LeaderElectionDriver} and start the necessary services. For example,
+     * LeaderLatch and NodeCache in Zookeeper, KubernetesLeaderElector and ConfigMap watcher in
+     * Kubernetes.
+     *
+     * @param leaderEventHandler handler for the leader election driver to process leader events.
+     * @param leaderContenderDescription leader contender description.
+     * @param fatalErrorHandler fatal error handler
+     * @throws Exception when create a specific {@link LeaderElectionDriver} implementation and
+     *     start the necessary services.
+     */
+    LeaderElectionDriver createLeaderElectionDriver(
+            LeaderElectionEventHandler leaderEventHandler,
+            FatalErrorHandler fatalErrorHandler,
+            String leaderContenderDescription)
+            throws Exception;
 }

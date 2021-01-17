@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.translators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 
@@ -35,42 +36,51 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public class TwoInputTransformationTranslator<IN1, IN2, OUT>
-		extends AbstractTwoInputTransformationTranslator<IN1, IN2, OUT, TwoInputTransformation<IN1, IN2, OUT>> {
+        extends AbstractTwoInputTransformationTranslator<
+                IN1, IN2, OUT, TwoInputTransformation<IN1, IN2, OUT>> {
 
-	@Override
-	protected Collection<Integer> translateForBatchInternal(
-			final TwoInputTransformation<IN1, IN2, OUT> transformation,
-			final Context context) {
-		Collection<Integer> ids = translateInternal(transformation, context);
-		boolean isKeyed =
-			transformation.getStateKeySelector1() != null && transformation.getStateKeySelector2() != null;
-		if (isKeyed) {
-			BatchExecutionUtils.applySortingInputs(transformation.getId(), context);
-		}
-		return ids;
-	}
+    @Override
+    protected Collection<Integer> translateForBatchInternal(
+            final TwoInputTransformation<IN1, IN2, OUT> transformation, final Context context) {
+        Collection<Integer> ids = translateInternal(transformation, context);
 
-	@Override
-	protected Collection<Integer> translateForStreamingInternal(
-			final TwoInputTransformation<IN1, IN2, OUT> transformation,
-			final Context context) {
-		return translateInternal(transformation, context);
-	}
+        StreamConfig.InputRequirement input1Requirement =
+                transformation.getStateKeySelector1() != null
+                        ? StreamConfig.InputRequirement.SORTED
+                        : StreamConfig.InputRequirement.PASS_THROUGH;
 
-	private Collection<Integer> translateInternal(
-			final TwoInputTransformation<IN1, IN2, OUT> transformation,
-			final Context context) {
-		checkNotNull(transformation);
-		checkNotNull(context);
+        StreamConfig.InputRequirement input2Requirement =
+                transformation.getStateKeySelector2() != null
+                        ? StreamConfig.InputRequirement.SORTED
+                        : StreamConfig.InputRequirement.PASS_THROUGH;
 
-		return translateInternal(
-				transformation,
-				transformation.getInput1(),
-				transformation.getInput2(),
-				transformation.getOperatorFactory(),
-				transformation.getStateKeyType(),
-				transformation.getStateKeySelector1(),
-				transformation.getStateKeySelector2(),
-				context);
-	}
+        if (input1Requirement == StreamConfig.InputRequirement.SORTED
+                || input2Requirement == StreamConfig.InputRequirement.SORTED) {
+            BatchExecutionUtils.applyBatchExecutionSettings(
+                    transformation.getId(), context, input1Requirement, input2Requirement);
+        }
+        return ids;
+    }
+
+    @Override
+    protected Collection<Integer> translateForStreamingInternal(
+            final TwoInputTransformation<IN1, IN2, OUT> transformation, final Context context) {
+        return translateInternal(transformation, context);
+    }
+
+    private Collection<Integer> translateInternal(
+            final TwoInputTransformation<IN1, IN2, OUT> transformation, final Context context) {
+        checkNotNull(transformation);
+        checkNotNull(context);
+
+        return translateInternal(
+                transformation,
+                transformation.getInput1(),
+                transformation.getInput2(),
+                transformation.getOperatorFactory(),
+                transformation.getStateKeyType(),
+                transformation.getStateKeySelector1(),
+                transformation.getStateKeySelector2(),
+                context);
+    }
 }

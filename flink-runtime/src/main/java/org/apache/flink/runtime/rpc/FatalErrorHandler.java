@@ -18,18 +18,16 @@
 
 package org.apache.flink.runtime.rpc;
 
-/**
- * Handler for fatal errors.
- */
+/** Handler for fatal errors. */
 public interface FatalErrorHandler {
 
-	/**
-	 * Being called when a fatal error occurs.
-	 *
-	 * <p>IMPORTANT: This call should never be blocking since it might be called from within
-	 * the main thread of an {@link RpcEndpoint}.
-	 *
-	 * @param exception cause
-	 */
-	void onFatalError(Throwable exception);
+    /**
+     * Being called when a fatal error occurs.
+     *
+     * <p>IMPORTANT: This call should never be blocking since it might be called from within the
+     * main thread of an {@link RpcEndpoint}.
+     *
+     * @param exception cause
+     */
+    void onFatalError(Throwable exception);
 }

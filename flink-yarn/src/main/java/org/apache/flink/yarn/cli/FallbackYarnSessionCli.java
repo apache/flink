@@ -25,21 +25,21 @@ import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
 import org.apache.commons.cli.CommandLine;
 
 /**
- * A stub Yarn Command Line to throw an exception with the correct
- * message when the {@code HADOOP_CLASSPATH} is not set.
+ * A stub Yarn Command Line to throw an exception with the correct message when the {@code
+ * HADOOP_CLASSPATH} is not set.
  */
 @Internal
 public class FallbackYarnSessionCli extends AbstractYarnCli {
 
-	public FallbackYarnSessionCli(Configuration configuration) {
-		super(configuration, "y", "yarn");
-	}
+    public FallbackYarnSessionCli(Configuration configuration) {
+        super(configuration, "y", "yarn");
+    }
 
-	@Override
-	public boolean isActive(CommandLine commandLine) {
-		if (super.isActive(commandLine)) {
-			throw new IllegalStateException(YarnDeploymentTarget.ERROR_MESSAGE);
-		}
-		return false;
-	}
+    @Override
+    public boolean isActive(CommandLine commandLine) {
+        if (super.isActive(commandLine)) {
+            throw new IllegalStateException(YarnDeploymentTarget.ERROR_MESSAGE);
+        }
+        return false;
+    }
 }

@@ -21,18 +21,16 @@ package org.apache.flink.runtime.webmonitor.testutils;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 
-/**
- * Simple test program that exposes passed arguments.
- */
+/** Simple test program that exposes passed arguments. */
 public class ParameterProgram {
 
-	public static volatile String[] actualArguments = null;
+    public static volatile String[] actualArguments = null;
 
-	public static void main(String[] args) throws Exception {
-		actualArguments = args;
+    public static void main(String[] args) throws Exception {
+        actualArguments = args;
 
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.fromElements("hello", "world").output(new DiscardingOutputFormat<>());
-		env.execute();
-	}
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.fromElements("hello", "world").output(new DiscardingOutputFormat<>());
+        env.execute();
+    }
 }

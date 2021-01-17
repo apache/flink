@@ -32,26 +32,23 @@ import java.util.Collection;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
-/**
- * Tests for the {@link FsJobArchivist}.
- */
+/** Tests for the {@link FsJobArchivist}. */
 public class FsJobArchivistTest {
 
-	@Rule
-	public final TemporaryFolder tmpFolder = new TemporaryFolder();
+    @Rule public final TemporaryFolder tmpFolder = new TemporaryFolder();
 
-	@Test
-	public void testArchiveJob() throws Exception {
-		final Path tmpPath = new Path(tmpFolder.getRoot().getAbsolutePath());
-		final JobID jobId = new JobID();
+    @Test
+    public void testArchiveJob() throws Exception {
+        final Path tmpPath = new Path(tmpFolder.getRoot().getAbsolutePath());
+        final JobID jobId = new JobID();
 
-		final Collection<ArchivedJson> toArchive = new ArrayList<>(2);
-		toArchive.add(new ArchivedJson("dir1", "hello"));
-		toArchive.add(new ArchivedJson("dir1/dir11", "world"));
+        final Collection<ArchivedJson> toArchive = new ArrayList<>(2);
+        toArchive.add(new ArchivedJson("dir1", "hello"));
+        toArchive.add(new ArchivedJson("dir1/dir11", "world"));
 
-		final Path archive = FsJobArchivist.archiveJob(tmpPath, jobId, toArchive);
-		final Collection<ArchivedJson> restored = FsJobArchivist.getArchivedJsons(archive);
+        final Path archive = FsJobArchivist.archiveJob(tmpPath, jobId, toArchive);
+        final Collection<ArchivedJson> restored = FsJobArchivist.getArchivedJsons(archive);
 
-		Assert.assertThat(restored, containsInAnyOrder(toArchive.toArray()));
-	}
+        Assert.assertThat(restored, containsInAnyOrder(toArchive.toArray()));
+    }
 }

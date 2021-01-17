@@ -20,19 +20,21 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
+import org.apache.flink.table.planner.plan.nodes.exec.utils.JoinSpec
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition
-import org.apache.flink.table.types.logical.LogicalType
+import org.apache.flink.table.runtime.types.PlannerTypeUtils
+import org.apache.flink.table.types.logical.{LogicalType, RowType}
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{Join, JoinInfo}
-import org.apache.calcite.rex.{RexBuilder, RexNode}
+import org.apache.calcite.rex.{RexNode, RexUtil}
 import org.apache.calcite.util.ImmutableIntList
-import org.apache.calcite.util.mapping.IntPair
 
 import java.util
+import java.util.Optional
 
-import scala.collection.mutable
+import scala.collection.JavaConversions._
 
 /**
   * Util for [[Join]]s.
@@ -40,48 +42,50 @@ import scala.collection.mutable
 object JoinUtil {
 
   /**
-    * Check and get join left and right keys.
-    */
-  def checkAndGetJoinKeys(
-      keyPairs: List[IntPair],
-      left: RelNode,
-      right: RelNode,
-      allowEmptyKey: Boolean = false): (Array[Int], Array[Int]) = {
-    // get the equality keys
-    val leftKeys = mutable.ArrayBuffer.empty[Int]
-    val rightKeys = mutable.ArrayBuffer.empty[Int]
-    if (keyPairs.isEmpty) {
-      if (allowEmptyKey) {
-        (leftKeys.toArray, rightKeys.toArray)
-      } else {
+   * Create [[JoinSpec]] according to the given join.
+   */
+  def createJoinSpec(join: Join): JoinSpec = {
+    val filterNulls = new util.ArrayList[java.lang.Boolean]
+    val joinInfo = createJoinInfo(join.getLeft, join.getRight, join.getCondition, filterNulls)
+    val nonEquiCondition =
+        RexUtil.composeConjunction(join.getCluster.getRexBuilder, joinInfo.nonEquiConditions)
+    new JoinSpec(
+        JoinTypeUtil.getFlinkJoinType(join.getJoinType),
+        joinInfo.leftKeys.toIntArray,
+        joinInfo.rightKeys.toIntArray,
+        filterNulls.map(_.booleanValue()).toArray,
+        nonEquiCondition)
+  }
+
+  /**
+   * Validates that join keys in [[JoinSpec]] is compatible in both sides of join.
+   */
+  def validateJoinSpec(
+      joinSpec: JoinSpec,
+      leftType: RowType,
+      rightType: RowType,
+      allowEmptyKey: Boolean = false): Unit = {
+    if (joinSpec.getLeftKeys.isEmpty && !allowEmptyKey) {
         throw new TableException(
           s"Joins should have at least one equality condition.\n" +
-            s"\tleft: ${left.toString}\n\tright: ${right.toString}\n" +
+            s"\tLeft type: $leftType\n\tright type: $rightType\n" +
             s"please re-check the join statement and make sure there's " +
             "equality condition for join.")
-      }
-    } else {
-      // at least one equality expression
-      val leftFields = left.getRowType.getFieldList
-      val rightFields = right.getRowType.getFieldList
+    }
 
-      keyPairs.foreach { pair =>
-        val leftKeyType = leftFields.get(pair.source).getType.getSqlTypeName
-        val rightKeyType = rightFields.get(pair.target).getType.getSqlTypeName
+    val leftKeys = joinSpec.getLeftKeys
+    val rightKeys = joinSpec.getRightKeys
+    (0 until joinSpec.getJoinKeySize).foreach { idx =>
+        val leftKeyType = leftType.getTypeAt(leftKeys(idx))
+        val rightKeyType = rightType.getTypeAt(rightKeys(idx))
 
         // check if keys are compatible
-        if (leftKeyType == rightKeyType) {
-          // add key pair
-          leftKeys += pair.source
-          rightKeys += pair.target
-        } else {
+        if (!PlannerTypeUtils.isInteroperable(leftKeyType, rightKeyType)) {
           throw new TableException(
             s"Join: Equality join predicate on incompatible types. " +
-              s"\tLeft: ${left.toString}\n\tright: ${right.toString}\n" +
+              s"\tLeft type: $leftType\n\tright type: $rightType\n" +
               "please re-check the join statement.")
         }
-      }
-      (leftKeys.toArray, rightKeys.toArray)
     }
   }
 
@@ -111,22 +115,32 @@ object JoinUtil {
 
   def generateConditionFunction(
       config: TableConfig,
-      rexBuilder: RexBuilder,
-      joinInfo: JoinInfo,
+      joinSpec: JoinSpec,
       leftType: LogicalType,
       rightType: LogicalType): GeneratedJoinCondition = {
+    generateConditionFunction(
+        config,
+        joinSpec.getNonEquiCondition().orElse(null),
+        leftType,
+        rightType)
+  }
+
+  def generateConditionFunction(
+        config: TableConfig,
+        nonEquiCondition: RexNode,
+        leftType: LogicalType,
+        rightType: LogicalType): GeneratedJoinCondition = {
     val ctx = CodeGeneratorContext(config)
     // should consider null fields
     val exprGenerator = new ExprCodeGenerator(ctx, false)
-      .bindInput(leftType)
-      .bindSecondInput(rightType)
+        .bindInput(leftType)
+        .bindSecondInput(rightType)
 
-    val body = if (joinInfo.isEqui) {
+    val body = if (nonEquiCondition == null) {
       // only equality condition
       "return true;"
     } else {
-      val nonEquiPredicates = joinInfo.getRemaining(rexBuilder)
-      val condition = exprGenerator.generateExpression(nonEquiPredicates)
+      val condition = exprGenerator.generateExpression(nonEquiCondition)
       s"""
          |${condition.code}
          |return ${condition.resultTerm};

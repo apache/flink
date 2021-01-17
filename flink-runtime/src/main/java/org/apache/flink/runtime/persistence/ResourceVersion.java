@@ -21,18 +21,19 @@ package org.apache.flink.runtime.persistence;
 import java.io.Serializable;
 
 /**
- * Resource version for specific state handle on the underlying storage. The implementation also needs to implement the
- * {@link Comparable} interface so that we could compare the resource versions.
+ * Resource version for specific state handle on the underlying storage. The implementation also
+ * needs to implement the {@link Comparable} interface so that we could compare the resource
+ * versions.
  *
  * @param <R> Type of {@link ResourceVersion}
  */
 public interface ResourceVersion<R> extends Comparable<R>, Serializable {
 
-	/**
-	 * Check whether the state handle is existing.
-	 *
-	 * @return true if state handle exists with current {@link ResourceVersion} on external storage. Or false
-	 * it does not exist.
-	 */
-	boolean isExisting();
+    /**
+     * Check whether the state handle is existing.
+     *
+     * @return true if state handle exists with current {@link ResourceVersion} on external storage.
+     *     Or false it does not exist.
+     */
+    boolean isExisting();
 }

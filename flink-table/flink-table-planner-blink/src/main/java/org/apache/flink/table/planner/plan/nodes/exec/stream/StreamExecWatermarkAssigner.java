@@ -39,52 +39,53 @@ import org.apache.calcite.rex.RexNode;
 import java.util.Collections;
 import java.util.Optional;
 
-/**
- * Stream {@link ExecNode} which generates watermark based on the input elements.
- */
-public class StreamExecWatermarkAssigner extends ExecNodeBase<RowData> implements StreamExecNode<RowData> {
-	private final RexNode watermarkExpr;
-	private final int rowtimeFieldIndex;
+/** Stream {@link ExecNode} which generates watermark based on the input elements. */
+public class StreamExecWatermarkAssigner extends ExecNodeBase<RowData>
+        implements StreamExecNode<RowData> {
+    private final RexNode watermarkExpr;
+    private final int rowtimeFieldIndex;
 
-	public StreamExecWatermarkAssigner(
-			RexNode watermarkExpr,
-			int rowtimeFieldIndex,
-			ExecEdge inputEdge,
-			RowType outputType,
-			String description) {
-		super(Collections.singletonList(inputEdge), outputType, description);
-		this.watermarkExpr = watermarkExpr;
-		this.rowtimeFieldIndex = rowtimeFieldIndex;
-	}
+    public StreamExecWatermarkAssigner(
+            RexNode watermarkExpr,
+            int rowtimeFieldIndex,
+            ExecEdge inputEdge,
+            RowType outputType,
+            String description) {
+        super(Collections.singletonList(inputEdge), outputType, description);
+        this.watermarkExpr = watermarkExpr;
+        this.rowtimeFieldIndex = rowtimeFieldIndex;
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-		final ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
-		final Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
+    @SuppressWarnings("unchecked")
+    @Override
+    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+        final ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
+        final Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
 
-		final TableConfig tableConfig = planner.getTableConfig();
+        final TableConfig tableConfig = planner.getTableConfig();
 
-		final GeneratedWatermarkGenerator watermarkGenerator =
-				WatermarkGeneratorCodeGenerator.generateWatermarkGenerator(
-						tableConfig,
-						(RowType) inputNode.getOutputType(),
-						watermarkExpr,
-						JavaScalaConversionUtil.toScala(Optional.empty()));
+        final GeneratedWatermarkGenerator watermarkGenerator =
+                WatermarkGeneratorCodeGenerator.generateWatermarkGenerator(
+                        tableConfig,
+                        (RowType) inputNode.getOutputType(),
+                        watermarkExpr,
+                        JavaScalaConversionUtil.toScala(Optional.empty()));
 
-		final long idleTimeout = tableConfig.getConfiguration().get(
-				ExecutionConfigOptions.TABLE_EXEC_SOURCE_IDLE_TIMEOUT).toMillis();
+        final long idleTimeout =
+                tableConfig
+                        .getConfiguration()
+                        .get(ExecutionConfigOptions.TABLE_EXEC_SOURCE_IDLE_TIMEOUT)
+                        .toMillis();
 
-		final WatermarkAssignerOperatorFactory operatorFactory = new WatermarkAssignerOperatorFactory(
-				rowtimeFieldIndex,
-				idleTimeout,
-				watermarkGenerator);
+        final WatermarkAssignerOperatorFactory operatorFactory =
+                new WatermarkAssignerOperatorFactory(
+                        rowtimeFieldIndex, idleTimeout, watermarkGenerator);
 
-		return new OneInputTransformation<>(
-				inputTransform,
-				getDesc(),
-				operatorFactory,
-				InternalTypeInfo.of(getOutputType()),
-				inputTransform.getParallelism());
-	}
+        return new OneInputTransformation<>(
+                inputTransform,
+                getDesc(),
+                operatorFactory,
+                InternalTypeInfo.of(getOutputType()),
+                inputTransform.getParallelism());
+    }
 }

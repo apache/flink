@@ -30,29 +30,27 @@ import java.util.Map;
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
 
-/**
- * Catalog factory for testing.
- */
+/** Catalog factory for testing. */
 public class TestCatalogFactory implements CatalogFactory {
 
-	public static final String CATALOG_TYPE_TEST = "test";
+    public static final String CATALOG_TYPE_TEST = "test";
 
-	@Override
-	public Catalog createCatalog(String name, Map<String, String> properties) {
-		return new GenericInMemoryCatalog(name);
-	}
+    @Override
+    public Catalog createCatalog(String name, Map<String, String> properties) {
+        return new GenericInMemoryCatalog(name);
+    }
 
-	@Override
-	public Map<String, String> requiredContext() {
-		Map<String, String> context = new HashMap<>();
-		context.put(CATALOG_TYPE, CATALOG_TYPE_TEST);
-		context.put(CATALOG_PROPERTY_VERSION, "1");
+    @Override
+    public Map<String, String> requiredContext() {
+        Map<String, String> context = new HashMap<>();
+        context.put(CATALOG_TYPE, CATALOG_TYPE_TEST);
+        context.put(CATALOG_PROPERTY_VERSION, "1");
 
-		return context;
-	}
+        return context;
+    }
 
-	@Override
-	public List<String> supportedProperties() {
-		return Collections.emptyList();
-	}
+    @Override
+    public List<String> supportedProperties() {
+        return Collections.emptyList();
+    }
 }

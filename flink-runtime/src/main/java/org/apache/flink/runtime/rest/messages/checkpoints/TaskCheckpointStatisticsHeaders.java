@@ -25,53 +25,57 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * Headers for the {@link TaskCheckpointStatisticDetailsHandler}.
- */
-public class TaskCheckpointStatisticsHeaders implements MessageHeaders<EmptyRequestBody, TaskCheckpointStatisticsWithSubtaskDetails, TaskCheckpointMessageParameters> {
+/** Headers for the {@link TaskCheckpointStatisticDetailsHandler}. */
+public class TaskCheckpointStatisticsHeaders
+        implements MessageHeaders<
+                EmptyRequestBody,
+                TaskCheckpointStatisticsWithSubtaskDetails,
+                TaskCheckpointMessageParameters> {
 
-	private static final TaskCheckpointStatisticsHeaders INSTANCE = new TaskCheckpointStatisticsHeaders();
+    private static final TaskCheckpointStatisticsHeaders INSTANCE =
+            new TaskCheckpointStatisticsHeaders();
 
-	public static final String URL = "/jobs/:jobid/checkpoints/details/:checkpointid/subtasks/:vertexid";
+    public static final String URL =
+            "/jobs/:jobid/checkpoints/details/:checkpointid/subtasks/:vertexid";
 
-	private TaskCheckpointStatisticsHeaders() {}
+    private TaskCheckpointStatisticsHeaders() {}
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public Class<TaskCheckpointStatisticsWithSubtaskDetails> getResponseClass() {
-		return TaskCheckpointStatisticsWithSubtaskDetails.class;
-	}
+    @Override
+    public Class<TaskCheckpointStatisticsWithSubtaskDetails> getResponseClass() {
+        return TaskCheckpointStatisticsWithSubtaskDetails.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public TaskCheckpointMessageParameters getUnresolvedMessageParameters() {
-		return new TaskCheckpointMessageParameters();
-	}
+    @Override
+    public TaskCheckpointMessageParameters getUnresolvedMessageParameters() {
+        return new TaskCheckpointMessageParameters();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static TaskCheckpointStatisticsHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static TaskCheckpointStatisticsHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Returns checkpoint statistics for a task and its subtasks.";
-	}
+    @Override
+    public String getDescription() {
+        return "Returns checkpoint statistics for a task and its subtasks.";
+    }
 }

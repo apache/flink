@@ -39,62 +39,68 @@ import java.util.function.Function;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
-/**
- * An {@link PipelineExecutor} for executing a {@link Pipeline} locally.
- */
+/** An {@link PipelineExecutor} for executing a {@link Pipeline} locally. */
 @Internal
 public class LocalExecutor implements PipelineExecutor {
 
-	public static final String NAME = "local";
+    public static final String NAME = "local";
 
-	private final Configuration configuration;
-	private final Function<MiniClusterConfiguration, MiniCluster> miniClusterFactory;
+    private final Configuration configuration;
+    private final Function<MiniClusterConfiguration, MiniCluster> miniClusterFactory;
 
-	public static LocalExecutor create(Configuration configuration) {
-		return new LocalExecutor(configuration, MiniCluster::new);
-	}
+    public static LocalExecutor create(Configuration configuration) {
+        return new LocalExecutor(configuration, MiniCluster::new);
+    }
 
-	public static LocalExecutor createWithFactory(
-			Configuration configuration, Function<MiniClusterConfiguration, MiniCluster> miniClusterFactory) {
-		return new LocalExecutor(configuration, miniClusterFactory);
-	}
+    public static LocalExecutor createWithFactory(
+            Configuration configuration,
+            Function<MiniClusterConfiguration, MiniCluster> miniClusterFactory) {
+        return new LocalExecutor(configuration, miniClusterFactory);
+    }
 
-	private LocalExecutor(Configuration configuration, Function<MiniClusterConfiguration, MiniCluster> miniClusterFactory) {
-		this.configuration = configuration;
-		this.miniClusterFactory = miniClusterFactory;
-	}
+    private LocalExecutor(
+            Configuration configuration,
+            Function<MiniClusterConfiguration, MiniCluster> miniClusterFactory) {
+        this.configuration = configuration;
+        this.miniClusterFactory = miniClusterFactory;
+    }
 
-	@Override
-	public CompletableFuture<JobClient> execute(Pipeline pipeline, Configuration configuration, ClassLoader userCodeClassloader) throws Exception {
-		checkNotNull(pipeline);
-		checkNotNull(configuration);
+    @Override
+    public CompletableFuture<JobClient> execute(
+            Pipeline pipeline, Configuration configuration, ClassLoader userCodeClassloader)
+            throws Exception {
+        checkNotNull(pipeline);
+        checkNotNull(configuration);
 
-		Configuration effectiveConfig = new Configuration();
-		effectiveConfig.addAll(this.configuration);
-		effectiveConfig.addAll(configuration);
+        Configuration effectiveConfig = new Configuration();
+        effectiveConfig.addAll(this.configuration);
+        effectiveConfig.addAll(configuration);
 
-		// we only support attached execution with the local executor.
-		checkState(configuration.getBoolean(DeploymentOptions.ATTACHED));
+        // we only support attached execution with the local executor.
+        checkState(configuration.getBoolean(DeploymentOptions.ATTACHED));
 
-		final JobGraph jobGraph = getJobGraph(pipeline, effectiveConfig);
+        final JobGraph jobGraph = getJobGraph(pipeline, effectiveConfig);
 
-		return PerJobMiniClusterFactory.createWithFactory(effectiveConfig, miniClusterFactory).submitJob(jobGraph, userCodeClassloader);
-	}
+        return PerJobMiniClusterFactory.createWithFactory(effectiveConfig, miniClusterFactory)
+                .submitJob(jobGraph, userCodeClassloader);
+    }
 
-	private JobGraph getJobGraph(Pipeline pipeline, Configuration configuration) throws MalformedURLException {
-		// This is a quirk in how LocalEnvironment used to work. It sets the default parallelism
-		// to <num taskmanagers> * <num task slots>. Might be questionable but we keep the behaviour
-		// for now.
-		if (pipeline instanceof Plan) {
-			Plan plan = (Plan) pipeline;
-			final int slotsPerTaskManager = configuration.getInteger(
-					TaskManagerOptions.NUM_TASK_SLOTS, plan.getMaximumParallelism());
-			final int numTaskManagers = configuration.getInteger(
-					ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
+    private JobGraph getJobGraph(Pipeline pipeline, Configuration configuration)
+            throws MalformedURLException {
+        // This is a quirk in how LocalEnvironment used to work. It sets the default parallelism
+        // to <num taskmanagers> * <num task slots>. Might be questionable but we keep the behaviour
+        // for now.
+        if (pipeline instanceof Plan) {
+            Plan plan = (Plan) pipeline;
+            final int slotsPerTaskManager =
+                    configuration.getInteger(
+                            TaskManagerOptions.NUM_TASK_SLOTS, plan.getMaximumParallelism());
+            final int numTaskManagers =
+                    configuration.getInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
 
-			plan.setDefaultParallelism(slotsPerTaskManager * numTaskManagers);
-		}
+            plan.setDefaultParallelism(slotsPerTaskManager * numTaskManagers);
+        }
 
-		return PipelineExecutorUtils.getJobGraph(pipeline, configuration);
-	}
+        return PipelineExecutorUtils.getJobGraph(pipeline, configuration);
+    }
 }

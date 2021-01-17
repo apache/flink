@@ -29,101 +29,111 @@ import java.util.function.Function;
 @Internal
 class ProcessingTimeServiceImpl implements ProcessingTimeService {
 
-	private final TimerService timerService;
+    private final TimerService timerService;
 
-	private final Function<ProcessingTimeCallback, ProcessingTimeCallback> processingTimeCallbackWrapper;
+    private final Function<ProcessingTimeCallback, ProcessingTimeCallback>
+            processingTimeCallbackWrapper;
 
-	private final AtomicInteger numRunningTimers;
+    private final AtomicInteger numRunningTimers;
 
-	private final CompletableFuture<Void> quiesceCompletedFuture;
+    private final CompletableFuture<Void> quiesceCompletedFuture;
 
-	private volatile boolean quiesced;
+    private volatile boolean quiesced;
 
-	ProcessingTimeServiceImpl(
-			TimerService timerService,
-			Function<ProcessingTimeCallback, ProcessingTimeCallback> processingTimeCallbackWrapper) {
-		this.timerService = timerService;
-		this.processingTimeCallbackWrapper = processingTimeCallbackWrapper;
+    ProcessingTimeServiceImpl(
+            TimerService timerService,
+            Function<ProcessingTimeCallback, ProcessingTimeCallback>
+                    processingTimeCallbackWrapper) {
+        this.timerService = timerService;
+        this.processingTimeCallbackWrapper = processingTimeCallbackWrapper;
 
-		this.numRunningTimers = new AtomicInteger(0);
-		this.quiesceCompletedFuture = new CompletableFuture<>();
-		this.quiesced = false;
-	}
+        this.numRunningTimers = new AtomicInteger(0);
+        this.quiesceCompletedFuture = new CompletableFuture<>();
+        this.quiesced = false;
+    }
 
-	@Override
-	public long getCurrentProcessingTime() {
-		return timerService.getCurrentProcessingTime();
-	}
+    @Override
+    public long getCurrentProcessingTime() {
+        return timerService.getCurrentProcessingTime();
+    }
 
-	@Override
-	public ScheduledFuture<?> registerTimer(long timestamp, ProcessingTimeCallback target) {
-		if (isQuiesced()) {
-			return new NeverCompleteFuture(
-				ProcessingTimeServiceUtil.getProcessingTimeDelay(timestamp, getCurrentProcessingTime()));
-		}
+    @Override
+    public ScheduledFuture<?> registerTimer(long timestamp, ProcessingTimeCallback target) {
+        if (isQuiesced()) {
+            return new NeverCompleteFuture(
+                    ProcessingTimeServiceUtil.getProcessingTimeDelay(
+                            timestamp, getCurrentProcessingTime()));
+        }
 
-		return timerService.registerTimer(
-			timestamp, addQuiesceProcessingToCallback(processingTimeCallbackWrapper.apply(target)));
-	}
+        return timerService.registerTimer(
+                timestamp,
+                addQuiesceProcessingToCallback(processingTimeCallbackWrapper.apply(target)));
+    }
 
-	@Override
-	public ScheduledFuture<?> scheduleAtFixedRate(ProcessingTimeCallback callback, long initialDelay, long period) {
-		if (isQuiesced()) {
-			return new NeverCompleteFuture(initialDelay);
-		}
+    @Override
+    public ScheduledFuture<?> scheduleAtFixedRate(
+            ProcessingTimeCallback callback, long initialDelay, long period) {
+        if (isQuiesced()) {
+            return new NeverCompleteFuture(initialDelay);
+        }
 
-		return timerService.scheduleAtFixedRate(
-			addQuiesceProcessingToCallback(processingTimeCallbackWrapper.apply(callback)), initialDelay, period);
-	}
+        return timerService.scheduleAtFixedRate(
+                addQuiesceProcessingToCallback(processingTimeCallbackWrapper.apply(callback)),
+                initialDelay,
+                period);
+    }
 
-	@Override
-	public ScheduledFuture<?> scheduleWithFixedDelay(ProcessingTimeCallback callback, long initialDelay, long period) {
-		if (isQuiesced()) {
-			return new NeverCompleteFuture(initialDelay);
-		}
+    @Override
+    public ScheduledFuture<?> scheduleWithFixedDelay(
+            ProcessingTimeCallback callback, long initialDelay, long period) {
+        if (isQuiesced()) {
+            return new NeverCompleteFuture(initialDelay);
+        }
 
-		return timerService.scheduleWithFixedDelay(
-			addQuiesceProcessingToCallback(processingTimeCallbackWrapper.apply(callback)), initialDelay, period);
-	}
+        return timerService.scheduleWithFixedDelay(
+                addQuiesceProcessingToCallback(processingTimeCallbackWrapper.apply(callback)),
+                initialDelay,
+                period);
+    }
 
-	@Override
-	public CompletableFuture<Void> quiesce() {
-		if (!quiesced) {
-			quiesced = true;
+    @Override
+    public CompletableFuture<Void> quiesce() {
+        if (!quiesced) {
+            quiesced = true;
 
-			if (numRunningTimers.get() == 0) {
-				quiesceCompletedFuture.complete(null);
-			}
-		}
+            if (numRunningTimers.get() == 0) {
+                quiesceCompletedFuture.complete(null);
+            }
+        }
 
-		return quiesceCompletedFuture;
-	}
+        return quiesceCompletedFuture;
+    }
 
-	private boolean isQuiesced() {
-		return quiesced;
-	}
+    private boolean isQuiesced() {
+        return quiesced;
+    }
 
-	private ProcessingTimeCallback addQuiesceProcessingToCallback(ProcessingTimeCallback callback) {
+    private ProcessingTimeCallback addQuiesceProcessingToCallback(ProcessingTimeCallback callback) {
 
-		return timestamp -> {
-			if (isQuiesced()) {
-				return;
-			}
+        return timestamp -> {
+            if (isQuiesced()) {
+                return;
+            }
 
-			numRunningTimers.incrementAndGet();
-			try {
-				// double check to deal with the race condition:
-				// before executing the previous line to increase the number of running timers,
-				// the quiesce-completed future is already completed as the number of running
-				// timers is 0 and "quiesced" is true
-				if (!isQuiesced()) {
-					callback.onProcessingTime(timestamp);
-				}
-			} finally {
-				if (numRunningTimers.decrementAndGet() == 0 && isQuiesced()) {
-					quiesceCompletedFuture.complete(null);
-				}
-			}
-		};
-	}
+            numRunningTimers.incrementAndGet();
+            try {
+                // double check to deal with the race condition:
+                // before executing the previous line to increase the number of running timers,
+                // the quiesce-completed future is already completed as the number of running
+                // timers is 0 and "quiesced" is true
+                if (!isQuiesced()) {
+                    callback.onProcessingTime(timestamp);
+                }
+            } finally {
+                if (numRunningTimers.decrementAndGet() == 0 && isQuiesced()) {
+                    quiesceCompletedFuture.complete(null);
+                }
+            }
+        };
+    }
 }
