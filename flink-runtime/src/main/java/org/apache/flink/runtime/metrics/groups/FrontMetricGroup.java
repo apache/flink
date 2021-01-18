@@ -43,7 +43,10 @@ public class FrontMetricGroup<P extends AbstractMetricGroup<?>> extends ProxyMet
     @Override
     public String getMetricIdentifier(String metricName) {
         return parentMetricGroup.getMetricIdentifier(
-                metricName, null, this.settings.getReporterIndex(), this.settings.getDelimiter());
+                metricName,
+                CharacterFilter.NO_OP_FILTER,
+                this.settings.getReporterIndex(),
+                this.settings.getDelimiter());
     }
 
     @Override
