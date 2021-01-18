@@ -1213,28 +1213,6 @@ public class StreamingJobGraphGenerator {
             interval = Long.MAX_VALUE;
         }
 
-        //  --- configure the participating vertices ---
-
-        // collect the vertices that receive "trigger checkpoint" messages.
-        // currently, these are all the sources
-        List<JobVertexID> triggerVertices = new ArrayList<>();
-
-        // collect the vertices that need to acknowledge the checkpoint
-        // currently, these are all vertices
-        List<JobVertexID> ackVertices = new ArrayList<>(jobVertices.size());
-
-        // collect the vertices that receive "commit checkpoint" messages
-        // currently, these are all vertices
-        List<JobVertexID> commitVertices = new ArrayList<>(jobVertices.size());
-
-        for (JobVertex vertex : jobVertices.values()) {
-            if (vertex.isInputVertex()) {
-                triggerVertices.add(vertex.getID());
-            }
-            commitVertices.add(vertex.getID());
-            ackVertices.add(vertex.getID());
-        }
-
         //  --- configure options ---
 
         CheckpointRetentionPolicy retentionAfterTermination;
@@ -1318,9 +1296,6 @@ public class StreamingJobGraphGenerator {
 
         JobCheckpointingSettings settings =
                 new JobCheckpointingSettings(
-                        triggerVertices,
-                        ackVertices,
-                        commitVertices,
                         CheckpointCoordinatorConfiguration.builder()
                                 .setCheckpointInterval(interval)
                                 .setCheckpointTimeout(cfg.getCheckpointTimeout())
