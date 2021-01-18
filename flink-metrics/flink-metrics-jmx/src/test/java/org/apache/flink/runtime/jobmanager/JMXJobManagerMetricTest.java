@@ -32,7 +32,6 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
@@ -50,7 +49,6 @@ import javax.management.ObjectName;
 
 import java.lang.management.ManagementFactory;
 import java.time.Duration;
-import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -93,9 +91,6 @@ public class JMXJobManagerMetricTest extends TestLogger {
             JobGraph jobGraph = new JobGraph("TestingJob", sourceJobVertex);
             jobGraph.setSnapshotSettings(
                     new JobCheckpointingSettings(
-                            Collections.<JobVertexID>emptyList(),
-                            Collections.<JobVertexID>emptyList(),
-                            Collections.<JobVertexID>emptyList(),
                             new CheckpointCoordinatorConfiguration(
                                     500,
                                     500,

@@ -83,6 +83,7 @@ import static org.powermock.api.mockito.PowerMockito.when;
 public class PendingCheckpointTest {
 
     private static final Map<ExecutionAttemptID, ExecutionVertex> ACK_TASKS = new HashMap<>();
+    private static final List<ExecutionVertex> TASKS_TO_COMMIT = new ArrayList<>();
     private static final ExecutionAttemptID ATTEMPT_ID = new ExecutionAttemptID();
 
     static {
@@ -97,6 +98,7 @@ public class PendingCheckpointTest {
         when(vertex.getTotalNumberOfParallelSubtasks()).thenReturn(1);
         when(vertex.getJobVertex()).thenReturn(jobVertex);
         ACK_TASKS.put(ATTEMPT_ID, vertex);
+        TASKS_TO_COMMIT.add(vertex);
     }
 
     @Rule public final TemporaryFolder tmpFolder = new TemporaryFolder();
@@ -686,12 +688,13 @@ public class PendingCheckpointTest {
                         4096);
 
         final Map<ExecutionAttemptID, ExecutionVertex> ackTasks = new HashMap<>(ACK_TASKS);
+        final List<ExecutionVertex> tasksToCommit = new ArrayList<>(TASKS_TO_COMMIT);
 
         return new PendingCheckpoint(
                 new JobID(),
                 0,
                 1,
-                ackTasks,
+                new CheckpointPlan(Collections.emptyList(), ackTasks, tasksToCommit),
                 operatorCoordinators,
                 masterStateIdentifiers,
                 props,

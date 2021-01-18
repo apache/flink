@@ -46,7 +46,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -106,12 +105,7 @@ public class ArchivedExecutionGraphTest extends TestLogger {
                         false,
                         0);
         JobCheckpointingSettings checkpointingSettings =
-                new JobCheckpointingSettings(
-                        Arrays.asList(v1ID, v2ID),
-                        Arrays.asList(v1ID, v2ID),
-                        Arrays.asList(v1ID, v2ID),
-                        chkConfig,
-                        null);
+                new JobCheckpointingSettings(chkConfig, null);
         jobGraph.setSnapshotSettings(checkpointingSettings);
 
         SchedulerBase scheduler =

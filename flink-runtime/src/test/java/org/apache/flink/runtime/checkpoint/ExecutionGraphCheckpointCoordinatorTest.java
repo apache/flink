@@ -152,12 +152,7 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
                         false,
                         0);
         final JobCheckpointingSettings checkpointingSettings =
-                new JobCheckpointingSettings(
-                        Collections.emptyList(),
-                        Collections.emptyList(),
-                        Collections.emptyList(),
-                        chkConfig,
-                        null);
+                new JobCheckpointingSettings(chkConfig, null);
         jobGraph.setSnapshotSettings(checkpointingSettings);
 
         final SchedulerBase scheduler =

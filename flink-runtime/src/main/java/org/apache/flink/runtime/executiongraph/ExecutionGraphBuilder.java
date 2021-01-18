@@ -43,7 +43,6 @@ import org.apache.flink.runtime.executiongraph.metrics.UpTimeGauge;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
@@ -197,14 +196,6 @@ public class ExecutionGraphBuilder {
         // configure the state checkpointing
         if (isCheckpointingEnabled(jobGraph)) {
             JobCheckpointingSettings snapshotSettings = jobGraph.getCheckpointingSettings();
-            List<ExecutionJobVertex> triggerVertices =
-                    idToVertex(snapshotSettings.getVerticesToTrigger(), executionGraph);
-
-            List<ExecutionJobVertex> ackVertices =
-                    idToVertex(snapshotSettings.getVerticesToAcknowledge(), executionGraph);
-
-            List<ExecutionJobVertex> confirmVertices =
-                    idToVertex(snapshotSettings.getVerticesToConfirm(), executionGraph);
 
             // Maximum number of remembered checkpoints
             int historySize = jobManagerConfig.getInteger(WebOptions.CHECKPOINTS_HISTORY_SIZE);
@@ -311,9 +302,6 @@ public class ExecutionGraphBuilder {
 
             executionGraph.enableCheckpointing(
                     chkConfig,
-                    triggerVertices,
-                    ackVertices,
-                    confirmVertices,
                     hooks,
                     checkpointIdCounter,
                     completedCheckpointStore,
@@ -334,25 +322,6 @@ public class ExecutionGraphBuilder {
 
     public static boolean isCheckpointingEnabled(JobGraph jobGraph) {
         return jobGraph.getCheckpointingSettings() != null;
-    }
-
-    private static List<ExecutionJobVertex> idToVertex(
-            List<JobVertexID> jobVertices, ExecutionGraph executionGraph)
-            throws IllegalArgumentException {
-
-        List<ExecutionJobVertex> result = new ArrayList<>(jobVertices.size());
-
-        for (JobVertexID id : jobVertices) {
-            ExecutionJobVertex vertex = executionGraph.getJobVertex(id);
-            if (vertex != null) {
-                result.add(vertex);
-            } else {
-                throw new IllegalArgumentException(
-                        "The snapshot checkpointing settings refer to non-existent vertex " + id);
-            }
-        }
-
-        return result;
     }
 
     // ------------------------------------------------------------------------

@@ -47,7 +47,6 @@ import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGate
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
@@ -78,9 +77,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
@@ -154,15 +151,6 @@ public class SchedulerTestingUtils {
             final JobGraph jobGraph,
             @Nullable StateBackend stateBackend,
             @Nullable CheckpointStorage checkpointStorage) {
-        final List<JobVertexID> triggerVertices = new ArrayList<>();
-        final List<JobVertexID> allVertices = new ArrayList<>();
-
-        for (JobVertex vertex : jobGraph.getVertices()) {
-            if (vertex.isInputVertex()) {
-                triggerVertices.add(vertex.getID());
-            }
-            allVertices.add(vertex.getID());
-        }
 
         final CheckpointCoordinatorConfiguration config =
                 new CheckpointCoordinatorConfiguration(
@@ -196,13 +184,7 @@ public class SchedulerTestingUtils {
 
         jobGraph.setSnapshotSettings(
                 new JobCheckpointingSettings(
-                        triggerVertices,
-                        allVertices,
-                        allVertices,
-                        config,
-                        serializedStateBackend,
-                        serializedCheckpointStorage,
-                        null));
+                        config, serializedStateBackend, serializedCheckpointStorage, null));
     }
 
     public static Collection<ExecutionAttemptID> getAllCurrentExecutionAttempts(
