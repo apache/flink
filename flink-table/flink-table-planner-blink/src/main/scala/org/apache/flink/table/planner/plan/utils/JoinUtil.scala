@@ -19,9 +19,12 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.{TableConfig, TableException}
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
 import org.apache.flink.table.planner.plan.nodes.exec.utils.JoinSpec
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition
+import org.apache.flink.table.runtime.operators.join.stream.state.JoinInputSideSpec
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
 
@@ -32,7 +35,6 @@ import org.apache.calcite.rex.{RexNode, RexUtil}
 import org.apache.calcite.util.ImmutableIntList
 
 import java.util
-import java.util.Optional
 
 import scala.collection.JavaConversions._
 
@@ -151,5 +153,37 @@ object JoinUtil {
       ctx,
       "ConditionFunction",
       body)
+  }
+
+  def analyzeJoinInput(
+      inputTypeInfo: InternalTypeInfo[RowData],
+      joinKeys: Array[Int],
+      uniqueKeys: util.List[Array[Int]]): JoinInputSideSpec = {
+
+    if (uniqueKeys == null || uniqueKeys.isEmpty) {
+      JoinInputSideSpec.withoutUniqueKey
+    } else {
+      val joinKeySet = new util.HashSet[Integer]
+      joinKeys.map(Int.box).foreach(joinKeySet.add)
+      val uniqueKeysContainedByJoinKey = uniqueKeys
+          .filter((uk: Array[Int]) => joinKeySet.containsAll(uk.toList))
+
+      if (uniqueKeysContainedByJoinKey.isEmpty) {
+        val smallestUniqueKey = getSmallestKey(uniqueKeys)
+        val uniqueKeySelector = KeySelectorUtil.getRowDataSelector(smallestUniqueKey, inputTypeInfo)
+        val uniqueKeyTypeInfo = uniqueKeySelector.getProducedType
+        JoinInputSideSpec.withUniqueKey(uniqueKeyTypeInfo, uniqueKeySelector)
+      } else {
+        // join key contains unique key
+        val smallestUniqueKey = getSmallestKey(uniqueKeysContainedByJoinKey)
+        val uniqueKeySelector = KeySelectorUtil.getRowDataSelector(smallestUniqueKey, inputTypeInfo)
+        val uniqueKeyTypeInfo = uniqueKeySelector.getProducedType
+        JoinInputSideSpec.withUniqueKeyContainedByJoinKey(uniqueKeyTypeInfo, uniqueKeySelector)
+      }
+    }
+  }
+
+  private def getSmallestKey(keys: util.List[Array[Int]]) = {
+    keys.reduce((k1, k2) => if (k1.length <= k2.length) k1 else k2)
   }
 }

@@ -22,7 +22,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalJoin, FlinkLogicalRel, FlinkLogicalSnapshot}
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecJoin
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalJoin
 import org.apache.flink.table.planner.plan.utils.{IntervalJoinUtil, TemporalJoinUtil}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -31,10 +31,10 @@ import scala.collection.JavaConversions._
 
 /**
   * Rule that converts [[FlinkLogicalJoin]] without window bounds in join condition
-  * to [[StreamExecJoin]].
+  * to [[StreamPhysicalJoin]].
   */
-class StreamExecJoinRule
-  extends StreamPhysicalJoinRuleBase("StreamExecJoinRule") {
+class StreamPhysicalJoinRule
+  extends StreamPhysicalJoinRuleBase("StreamPhysicalJoinRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: FlinkLogicalJoin = call.rel(0)
@@ -88,7 +88,7 @@ class StreamExecJoinRule
       rightInput: FlinkRelNode,
       rightConversion: RelNode => RelNode,
       providedTraitSet: RelTraitSet): FlinkRelNode = {
-    new StreamExecJoin(
+    new StreamPhysicalJoin(
       join.getCluster,
       providedTraitSet,
       leftConversion(leftInput),
@@ -98,6 +98,6 @@ class StreamExecJoinRule
   }
 }
 
-object StreamExecJoinRule {
-  val INSTANCE: RelOptRule = new StreamExecJoinRule
+object StreamPhysicalJoinRule {
+  val INSTANCE: RelOptRule = new StreamPhysicalJoinRule
 }
