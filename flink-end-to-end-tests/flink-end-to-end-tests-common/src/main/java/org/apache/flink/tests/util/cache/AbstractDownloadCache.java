@@ -128,7 +128,11 @@ abstract class AbstractDownloadCache implements DownloadCache {
             Files.createDirectories(scopedDownloadDir);
             log.info("Downloading {}.", url);
             AutoClosableProcess.create(
-                            CommandLineWrapper.wget(url).targetDir(scopedDownloadDir).build())
+                            CommandLineWrapper.wget(url)
+                                    .targetDir(scopedDownloadDir)
+                                    .timeoutSecs(
+                                            downloadGlobalTimeout.getSeconds() / downloadMaxRetries)
+                                    .build())
                     .runBlockingWithRetry(
                             downloadMaxRetries, downloadAttemptTimeout, downloadGlobalTimeout);
 
