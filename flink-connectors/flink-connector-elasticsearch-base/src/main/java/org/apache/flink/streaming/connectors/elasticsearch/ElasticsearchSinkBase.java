@@ -386,13 +386,11 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
         }
 
         if (bulkProcessorFlushMaxSizeMb != null) {
-            bulkProcessorBuilder.setBulkSize(
-                    new ByteSizeValue(bulkProcessorFlushMaxSizeMb, ByteSizeUnit.MB));
+            configureBulkSize(bulkProcessorBuilder);
         }
 
         if (bulkProcessorFlushIntervalMillis != null) {
-            bulkProcessorBuilder.setFlushInterval(
-                    TimeValue.timeValueMillis(bulkProcessorFlushIntervalMillis));
+            configureFlushInterval(bulkProcessorBuilder);
         }
 
         // if backoff retrying is disabled, bulkProcessorFlushBackoffPolicy will be null
@@ -400,6 +398,27 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
                 bulkProcessorBuilder, bulkProcessorFlushBackoffPolicy);
 
         return bulkProcessorBuilder.build();
+    }
+
+    private void configureBulkSize(BulkProcessor.Builder bulkProcessorBuilder) {
+        final ByteSizeUnit sizeUnit;
+        if (bulkProcessorFlushMaxSizeMb == -1) {
+            // bulk size can be disabled with -1, however the ByteSizeValue constructor accepts -1
+            // only with BYTES as the size unit
+            sizeUnit = ByteSizeUnit.BYTES;
+        } else {
+            sizeUnit = ByteSizeUnit.MB;
+        }
+        bulkProcessorBuilder.setBulkSize(new ByteSizeValue(bulkProcessorFlushMaxSizeMb, sizeUnit));
+    }
+
+    private void configureFlushInterval(BulkProcessor.Builder bulkProcessorBuilder) {
+        if (bulkProcessorFlushIntervalMillis == -1) {
+            bulkProcessorBuilder.setFlushInterval(null);
+        } else {
+            bulkProcessorBuilder.setFlushInterval(
+                    TimeValue.timeValueMillis(bulkProcessorFlushIntervalMillis));
+        }
     }
 
     private void checkErrorAndRethrow() {
