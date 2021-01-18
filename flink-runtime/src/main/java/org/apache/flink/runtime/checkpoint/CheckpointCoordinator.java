@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.hooks.MasterHooks;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
-import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
@@ -78,8 +77,8 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
-import static java.util.stream.Collectors.toMap;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -112,16 +111,6 @@ public class CheckpointCoordinator {
     private final Executor executor;
 
     private final CheckpointsCleaner checkpointsCleaner;
-
-    /** Tasks who need to be sent a message when a checkpoint is started. */
-    private final ExecutionVertex[] tasksToTrigger;
-
-    /** Tasks who need to acknowledge a checkpoint before it succeeds. */
-    private final ExecutionVertex[] tasksToWaitFor;
-
-    /** Tasks who need to be sent a message when a checkpoint is confirmed. */
-    // TODO currently we use commit vertices to receive "abort checkpoint" messages.
-    private final ExecutionVertex[] tasksToCommitTo;
 
     /** The operator coordinators that need to be checkpointed. */
     private final Collection<OperatorCoordinatorCheckpointContext> coordinatorsToCheckpoint;
@@ -223,6 +212,11 @@ public class CheckpointCoordinator {
     private boolean isTriggering = false;
 
     private final CheckpointRequestDecider requestDecider;
+
+    private final CheckpointBriefCalculator checkpointBriefCalculator;
+
+    private final ExecutionAttemptMappingProvider attemptMappingProvider;
+
     private final LinkedHashMap<ExecutionAttemptID, ExecutionVertex> cachedTasksById;
 
     // --------------------------------------------------------------------------------------------
@@ -230,44 +224,6 @@ public class CheckpointCoordinator {
     public CheckpointCoordinator(
             JobID job,
             CheckpointCoordinatorConfiguration chkConfig,
-            ExecutionVertex[] tasksToTrigger,
-            ExecutionVertex[] tasksToWaitFor,
-            ExecutionVertex[] tasksToCommitTo,
-            Collection<OperatorCoordinatorCheckpointContext> coordinatorsToCheckpoint,
-            CheckpointIDCounter checkpointIDCounter,
-            CompletedCheckpointStore completedCheckpointStore,
-            CheckpointStorage checkpointStorage,
-            Executor executor,
-            CheckpointsCleaner checkpointsCleaner,
-            ScheduledExecutor timer,
-            SharedStateRegistryFactory sharedStateRegistryFactory,
-            CheckpointFailureManager failureManager) {
-
-        this(
-                job,
-                chkConfig,
-                tasksToTrigger,
-                tasksToWaitFor,
-                tasksToCommitTo,
-                coordinatorsToCheckpoint,
-                checkpointIDCounter,
-                completedCheckpointStore,
-                checkpointStorage,
-                executor,
-                checkpointsCleaner,
-                timer,
-                sharedStateRegistryFactory,
-                failureManager,
-                SystemClock.getInstance());
-    }
-
-    @VisibleForTesting
-    public CheckpointCoordinator(
-            JobID job,
-            CheckpointCoordinatorConfiguration chkConfig,
-            ExecutionVertex[] tasksToTrigger,
-            ExecutionVertex[] tasksToWaitFor,
-            ExecutionVertex[] tasksToCommitTo,
             Collection<OperatorCoordinatorCheckpointContext> coordinatorsToCheckpoint,
             CheckpointIDCounter checkpointIDCounter,
             CompletedCheckpointStore completedCheckpointStore,
@@ -277,6 +233,41 @@ public class CheckpointCoordinator {
             ScheduledExecutor timer,
             SharedStateRegistryFactory sharedStateRegistryFactory,
             CheckpointFailureManager failureManager,
+            CheckpointBriefCalculator checkpointBriefCalculator,
+            ExecutionAttemptMappingProvider attemptMappingProvider) {
+
+        this(
+                job,
+                chkConfig,
+                coordinatorsToCheckpoint,
+                checkpointIDCounter,
+                completedCheckpointStore,
+                checkpointStorage,
+                executor,
+                checkpointsCleaner,
+                timer,
+                sharedStateRegistryFactory,
+                failureManager,
+                checkpointBriefCalculator,
+                attemptMappingProvider,
+                SystemClock.getInstance());
+    }
+
+    @VisibleForTesting
+    public CheckpointCoordinator(
+            JobID job,
+            CheckpointCoordinatorConfiguration chkConfig,
+            Collection<OperatorCoordinatorCheckpointContext> coordinatorsToCheckpoint,
+            CheckpointIDCounter checkpointIDCounter,
+            CompletedCheckpointStore completedCheckpointStore,
+            CheckpointStorage checkpointStorage,
+            Executor executor,
+            CheckpointsCleaner checkpointsCleaner,
+            ScheduledExecutor timer,
+            SharedStateRegistryFactory sharedStateRegistryFactory,
+            CheckpointFailureManager failureManager,
+            CheckpointBriefCalculator checkpointBriefCalculator,
+            ExecutionAttemptMappingProvider attemptMappingProvider,
             Clock clock) {
 
         // sanity checks
@@ -299,9 +290,6 @@ public class CheckpointCoordinator {
         this.baseInterval = baseInterval;
         this.checkpointTimeout = chkConfig.getCheckpointTimeout();
         this.minPauseBetweenCheckpoints = minPauseBetweenCheckpoints;
-        this.tasksToTrigger = checkNotNull(tasksToTrigger);
-        this.tasksToWaitFor = checkNotNull(tasksToWaitFor);
-        this.tasksToCommitTo = checkNotNull(tasksToCommitTo);
         this.coordinatorsToCheckpoint =
                 Collections.unmodifiableCollection(coordinatorsToCheckpoint);
         this.pendingCheckpoints = new LinkedHashMap<>();
@@ -313,6 +301,8 @@ public class CheckpointCoordinator {
         this.sharedStateRegistry = sharedStateRegistryFactory.create(executor);
         this.isPreferCheckpointForRecovery = chkConfig.isPreferCheckpointForRecovery();
         this.failureManager = checkNotNull(failureManager);
+        this.checkpointBriefCalculator = checkNotNull(checkpointBriefCalculator);
+        this.attemptMappingProvider = checkNotNull(attemptMappingProvider);
         this.clock = checkNotNull(clock);
         this.isExactlyOnceMode = chkConfig.isExactlyOnce();
         this.unalignedCheckpointsEnabled = chkConfig.isUnalignedCheckpointsEnabled();
@@ -350,13 +340,15 @@ public class CheckpointCoordinator {
                         this.minPauseBetweenCheckpoints,
                         this.pendingCheckpoints::size,
                         this.checkpointsCleaner::getNumberOfCheckpointsToClean);
+
         this.cachedTasksById =
-                new LinkedHashMap<ExecutionAttemptID, ExecutionVertex>(tasksToWaitFor.length) {
+                new LinkedHashMap<ExecutionAttemptID, ExecutionVertex>(
+                        attemptMappingProvider.getNumberOfTasks()) {
 
                     @Override
                     protected boolean removeEldestEntry(
                             Map.Entry<ExecutionAttemptID, ExecutionVertex> eldest) {
-                        return size() > CheckpointCoordinator.this.tasksToWaitFor.length;
+                        return size() > attemptMappingProvider.getNumberOfTasks();
                     }
                 };
     }
@@ -548,8 +540,7 @@ public class CheckpointCoordinator {
                 preCheckGlobalState(request.isPeriodic);
             }
 
-            final Execution[] executions = getTriggerExecutions();
-            final Map<ExecutionAttemptID, ExecutionVertex> ackTasks = getAckTasks();
+            CheckpointBrief checkpointBrief = checkpointBriefCalculator.calculateCheckpointBrief();
 
             // we will actually trigger this checkpoint!
             Preconditions.checkState(!isTriggering);
@@ -563,7 +554,7 @@ public class CheckpointCoordinator {
                                             createPendingCheckpoint(
                                                     timestamp,
                                                     request.props,
-                                                    ackTasks,
+                                                    checkpointBrief,
                                                     request.isPeriodic,
                                                     checkpointIdAndStorageLocation.checkpointId,
                                                     checkpointIdAndStorageLocation
@@ -636,7 +627,7 @@ public class CheckpointCoordinator {
                                                         checkpointId,
                                                         checkpoint.getCheckpointStorageLocation(),
                                                         request.props,
-                                                        executions,
+                                                        checkpointBrief.getTasksToTrigger(),
                                                         request.advanceToEndOfTime);
 
                                                 coordinatorsToCheckpoint.forEach(
@@ -711,7 +702,7 @@ public class CheckpointCoordinator {
     private PendingCheckpoint createPendingCheckpoint(
             long timestamp,
             CheckpointProperties props,
-            Map<ExecutionAttemptID, ExecutionVertex> ackTasks,
+            CheckpointBrief checkpointBrief,
             boolean isPeriodic,
             long checkpointID,
             CheckpointStorageLocation checkpointStorageLocation,
@@ -732,14 +723,15 @@ public class CheckpointCoordinator {
                         job,
                         checkpointID,
                         timestamp,
-                        ackTasks,
+                        checkpointBrief.getTasksToWait(),
+                        checkpointBrief.getTasksToCommitTo(),
                         OperatorInfo.getIds(coordinatorsToCheckpoint),
                         masterHooks.keySet(),
                         props,
                         checkpointStorageLocation,
                         onCompletionPromise);
 
-        reportToStatsTracker(checkpoint, ackTasks);
+        reportToStatsTracker(checkpoint, checkpointBrief.getTasksToWait());
 
         synchronized (lock) {
             pendingCheckpoints.put(checkpointID, checkpoint);
@@ -822,7 +814,7 @@ public class CheckpointCoordinator {
      * @param checkpointID the checkpoint id
      * @param checkpointStorageLocation the checkpoint location
      * @param props the checkpoint properties
-     * @param executions the executions which should be triggered
+     * @param tasksToTrigger the executions which should be triggered
      * @param advanceToEndOfTime Flag indicating if the source should inject a {@code MAX_WATERMARK}
      *     in the pipeline to fire any registered event-time timers.
      */
@@ -831,7 +823,7 @@ public class CheckpointCoordinator {
             long checkpointID,
             CheckpointStorageLocation checkpointStorageLocation,
             CheckpointProperties props,
-            Execution[] executions,
+            List<Execution> tasksToTrigger,
             boolean advanceToEndOfTime) {
 
         final CheckpointOptions checkpointOptions =
@@ -843,7 +835,7 @@ public class CheckpointCoordinator {
                         alignmentTimeout);
 
         // send the messages to the tasks that trigger their checkpoint
-        for (Execution execution : executions) {
+        for (Execution execution : tasksToTrigger) {
             if (props.isSynchronous()) {
                 execution.triggerSynchronousSavepoint(
                         checkpointID, timestamp, checkpointOptions, advanceToEndOfTime);
@@ -1236,7 +1228,10 @@ public class CheckpointCoordinator {
                             }
                         });
 
-                sendAbortedMessages(checkpointId, pendingCheckpoint.getCheckpointTimestamp());
+                sendAbortedMessages(
+                        pendingCheckpoint.getTasksToCommitTo(),
+                        checkpointId,
+                        pendingCheckpoint.getCheckpointTimestamp());
                 throw new CheckpointException(
                         "Could not complete the pending checkpoint " + checkpointId + '.',
                         CheckpointFailureReason.FINALIZE_CHECKPOINT_FAILURE,
@@ -1277,7 +1272,10 @@ public class CheckpointCoordinator {
         }
 
         // send the "notify complete" call to all vertices, coordinators, etc.
-        sendAcknowledgeMessages(checkpointId, completedCheckpoint.getTimestamp());
+        sendAcknowledgeMessages(
+                pendingCheckpoint.getTasksToCommitTo(),
+                checkpointId,
+                completedCheckpoint.getTimestamp());
     }
 
     void scheduleTriggerRequest() {
@@ -1291,9 +1289,10 @@ public class CheckpointCoordinator {
         }
     }
 
-    private void sendAcknowledgeMessages(long checkpointId, long timestamp) {
+    private void sendAcknowledgeMessages(
+            List<ExecutionVertex> tasksToCommit, long checkpointId, long timestamp) {
         // commit tasks
-        for (ExecutionVertex ev : tasksToCommitTo) {
+        for (ExecutionVertex ev : tasksToCommit) {
             Execution ee = ev.getCurrentExecutionAttempt();
             if (ee != null) {
                 ee.notifyCheckpointComplete(checkpointId, timestamp);
@@ -1306,12 +1305,13 @@ public class CheckpointCoordinator {
         }
     }
 
-    private void sendAbortedMessages(long checkpointId, long timeStamp) {
+    private void sendAbortedMessages(
+            List<ExecutionVertex> tasksToAbort, long checkpointId, long timeStamp) {
         // send notification of aborted checkpoints asynchronously.
         executor.execute(
                 () -> {
                     // send the "abort checkpoint" messages to necessary vertices.
-                    for (ExecutionVertex ev : tasksToCommitTo) {
+                    for (ExecutionVertex ev : tasksToAbort) {
                         Execution ee = ev.getCurrentExecutionAttempt();
                         if (ee != null) {
                             ee.notifyCheckpointAborted(checkpointId, timeStamp);
@@ -1843,6 +1843,7 @@ public class CheckpointCoordinator {
 
     public void reportStats(long id, ExecutionAttemptID attemptId, CheckpointMetrics metrics)
             throws CheckpointException {
+
         if (statsTracker != null) {
             getVertex(attemptId)
                     .ifPresent(ev -> statsTracker.reportIncompleteStats(id, ev, metrics));
@@ -1935,6 +1936,7 @@ public class CheckpointCoordinator {
                 }
             } finally {
                 sendAbortedMessages(
+                        pendingCheckpoint.getTasksToCommitTo(),
                         pendingCheckpoint.getCheckpointId(),
                         pendingCheckpoint.getCheckpointTimestamp());
                 pendingCheckpoints.remove(pendingCheckpoint.getCheckpointId());
@@ -1954,65 +1956,6 @@ public class CheckpointCoordinator {
         if (isPeriodic && !periodicScheduling) {
             throw new CheckpointException(CheckpointFailureReason.PERIODIC_SCHEDULER_SHUTDOWN);
         }
-    }
-
-    /**
-     * Check if all tasks that we need to trigger are running. If not, abort the checkpoint.
-     *
-     * @return the executions need to be triggered.
-     * @throws CheckpointException the exception fails checking
-     */
-    private Execution[] getTriggerExecutions() throws CheckpointException {
-        Execution[] executions = new Execution[tasksToTrigger.length];
-        for (int i = 0; i < tasksToTrigger.length; i++) {
-            Execution ee = tasksToTrigger[i].getCurrentExecutionAttempt();
-            if (ee == null) {
-                LOG.info(
-                        "Checkpoint triggering task {} of job {} is not being executed at the moment. Aborting checkpoint.",
-                        tasksToTrigger[i].getTaskNameWithSubtaskIndex(),
-                        job);
-                throw new CheckpointException(
-                        CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
-            } else if (ee.getState() == ExecutionState.RUNNING) {
-                executions[i] = ee;
-            } else {
-                LOG.info(
-                        "Checkpoint triggering task {} of job {} is not in state {} but {} instead. Aborting checkpoint.",
-                        tasksToTrigger[i].getTaskNameWithSubtaskIndex(),
-                        job,
-                        ExecutionState.RUNNING,
-                        ee.getState());
-                throw new CheckpointException(
-                        CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
-            }
-        }
-        return executions;
-    }
-
-    /**
-     * Check if all tasks that need to acknowledge the checkpoint are running. If not, abort the
-     * checkpoint
-     *
-     * @return the execution vertices which should give an ack response
-     * @throws CheckpointException the exception fails checking
-     */
-    private Map<ExecutionAttemptID, ExecutionVertex> getAckTasks() throws CheckpointException {
-        Map<ExecutionAttemptID, ExecutionVertex> ackTasks = new HashMap<>(tasksToWaitFor.length);
-
-        for (ExecutionVertex ev : tasksToWaitFor) {
-            Execution ee = ev.getCurrentExecutionAttempt();
-            if (ee != null) {
-                ackTasks.put(ee.getAttemptId(), ev);
-            } else {
-                LOG.info(
-                        "Checkpoint acknowledging task {} of job {} is not being executed at the moment. Aborting checkpoint.",
-                        ev.getTaskNameWithSubtaskIndex(),
-                        job);
-                throw new CheckpointException(
-                        CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
-            }
-        }
-        return ackTasks;
     }
 
     private void abortPendingAndQueuedCheckpoints(CheckpointException exception) {
@@ -2122,7 +2065,7 @@ public class CheckpointCoordinator {
 
     private Optional<ExecutionVertex> getVertex(ExecutionAttemptID id) throws CheckpointException {
         if (!cachedTasksById.containsKey(id)) {
-            cachedTasksById.putAll(getAckTasks());
+            cachedTasksById.putAll(attemptMappingProvider.getCurrentAttemptMappings());
             if (!cachedTasksById.containsKey(id)) {
                 // the task probably gone after a restart
                 cachedTasksById.put(id, null);
@@ -2138,12 +2081,10 @@ public class CheckpointCoordinator {
         }
         Map<JobVertexID, Integer> vertices =
                 tasks.values().stream()
-                        .map(ExecutionVertex::getJobVertex)
-                        .distinct()
                         .collect(
-                                toMap(
-                                        ExecutionJobVertex::getJobVertexId,
-                                        ExecutionJobVertex::getParallelism));
+                                Collectors.groupingBy(
+                                        ExecutionVertex::getJobvertexId,
+                                        Collectors.reducing(0, e -> 1, Integer::sum)));
         checkpoint.setStatsCallback(
                 statsTracker.reportPendingCheckpoint(
                         checkpoint.getCheckpointID(),

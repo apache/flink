@@ -34,7 +34,6 @@ import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
@@ -64,7 +63,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
@@ -75,7 +73,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.junit.Assert.assertEquals;
@@ -202,9 +199,6 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
     }
 
     private static JobCheckpointingSettings createCheckpointSettings(JobVertex... vertices) {
-        final List<JobVertexID> ids =
-                Arrays.stream(vertices).map(JobVertex::getID).collect(Collectors.toList());
-
         final CheckpointCoordinatorConfiguration coordCfg =
                 new CheckpointCoordinatorConfiguration.CheckpointCoordinatorConfigurationBuilder()
                         .setMaxConcurrentCheckpoints(1)
@@ -212,7 +206,7 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
                         .setCheckpointTimeout(100_000)
                         .build();
 
-        return new JobCheckpointingSettings(ids, ids, ids, coordCfg, null);
+        return new JobCheckpointingSettings(coordCfg, null);
     }
 
     // ------------------------------------------------------------------------

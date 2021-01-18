@@ -665,9 +665,6 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
         final JobGraph jobGraph = new JobGraph(jobId, "test");
         jobGraph.setSnapshotSettings(
                 new JobCheckpointingSettings(
-                        Collections.<JobVertexID>emptyList(),
-                        Collections.<JobVertexID>emptyList(),
-                        Collections.<JobVertexID>emptyList(),
                         new CheckpointCoordinatorConfiguration(
                                 100,
                                 10 * 60 * 1000,

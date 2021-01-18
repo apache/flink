@@ -30,7 +30,6 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -50,9 +49,6 @@ public class CheckpointStatsTrackerTest {
     public void testGetSnapshottingSettings() throws Exception {
         JobCheckpointingSettings snapshottingSettings =
                 new JobCheckpointingSettings(
-                        Collections.singletonList(new JobVertexID()),
-                        Collections.singletonList(new JobVertexID()),
-                        Collections.singletonList(new JobVertexID()),
                         new CheckpointCoordinatorConfiguration(
                                 181238123L,
                                 19191992L,
