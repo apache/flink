@@ -45,6 +45,7 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionDeploymentListener;
@@ -99,6 +100,8 @@ import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.function.FunctionUtils;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
 import org.slf4j.Logger;
 
@@ -163,6 +166,10 @@ public abstract class SchedulerBase implements SchedulerNG {
     protected final ExecutionVertexVersioner executionVertexVersioner;
 
     private final Map<OperatorID, OperatorCoordinatorHolder> coordinatorMap;
+
+    private final Map<Throwable, Collection<ErrorInfo>> exceptionHistory = new HashMap<>();
+
+    private final Map<ExecutionVertexID, ErrorInfo> exceptionCache = new HashMap<>();
 
     private ComponentMainThreadExecutor mainThreadExecutor =
             new ComponentMainThreadExecutor.DummyComponentMainThreadExecutor(
@@ -515,6 +522,7 @@ public abstract class SchedulerBase implements SchedulerNG {
     protected void failJob(Throwable cause) {
         incrementVersionsOfAllVertices();
         executionGraph.failJob(cause);
+        getTerminationFuture().thenRun(() -> globallyArchiveExceptions(cause));
     }
 
     protected final SchedulingTopology getSchedulingTopology() {
@@ -648,6 +656,25 @@ public abstract class SchedulerBase implements SchedulerNG {
         return executionGraph.getTerminationFuture().thenApply(FunctionUtils.nullFn());
     }
 
+    protected void archiveExceptions(
+            Throwable rootCause, Collection<ExecutionVertexID> restartedExecutionVertices) {
+        Set<ErrorInfo> exceptionsOfRestartedExecutionVertices =
+                new HashSet<>(restartedExecutionVertices.size());
+        for (ExecutionVertexID executionVertexID : restartedExecutionVertices) {
+            if (exceptionCache.containsKey(executionVertexID)) {
+                ErrorInfo errorInfo = exceptionCache.remove(executionVertexID);
+                exceptionsOfRestartedExecutionVertices.add(errorInfo);
+            }
+        }
+
+        exceptionHistory.put(rootCause, exceptionsOfRestartedExecutionVertices);
+    }
+
+    protected void globallyArchiveExceptions(Throwable rootCause) {
+        exceptionHistory.put(rootCause, Sets.newHashSet(exceptionCache.values()));
+        exceptionCache.clear();
+    }
+
     @Override
     public final boolean updateTaskExecutionState(
             final TaskExecutionStateTransition taskExecutionState) {
@@ -658,6 +685,14 @@ public abstract class SchedulerBase implements SchedulerNG {
 
         if (updateSuccess) {
             checkState(executionVertexId.isPresent());
+            this.getExecutionVertexId(taskExecutionState.getID())
+                    .ifPresent(
+                            id ->
+                                    exceptionCache.put(
+                                            id,
+                                            new ErrorInfo(
+                                                    taskExecutionState.getError(userCodeLoader),
+                                                    System.currentTimeMillis())));
 
             if (isNotifiable(executionVertexId.get(), taskExecutionState)) {
                 updateTaskExecutionStateInternal(executionVertexId.get(), taskExecutionState);

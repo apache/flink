@@ -270,9 +270,22 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         delayExecutor.schedule(
                 () ->
                         FutureUtils.assertNoException(
-                                cancelFuture.thenRunAsync(
-                                        restartTasks(executionVertexVersions, globalRecovery),
-                                        getMainThreadExecutor())),
+                                cancelFuture
+                                        .thenRunAsync(
+                                                restartTasks(
+                                                        executionVertexVersions, globalRecovery),
+                                                getMainThreadExecutor())
+                                        .thenRunAsync(
+                                                () ->
+                                                        archiveExceptions(
+                                                                failureHandlingResult.getError(),
+                                                                executionVertexVersions.stream()
+                                                                        .map(
+                                                                                ExecutionVertexVersion
+                                                                                        ::getExecutionVertexId)
+                                                                        .collect(
+                                                                                Collectors
+                                                                                        .toList())))),
                 failureHandlingResult.getRestartDelayMS(),
                 TimeUnit.MILLISECONDS);
     }
