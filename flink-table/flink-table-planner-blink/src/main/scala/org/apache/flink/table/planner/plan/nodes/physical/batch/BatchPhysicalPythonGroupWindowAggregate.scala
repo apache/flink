@@ -100,7 +100,7 @@ class BatchPhysicalPythonGroupWindowAggregate(
   override def translateToExecNode(): ExecNode[_] = {
     new BatchExecPythonGroupWindowAggregate(
       grouping,
-      auxGrouping,
+      grouping ++ auxGrouping,
       aggCalls.toArray,
       window,
       inputTimeFieldIndex,
