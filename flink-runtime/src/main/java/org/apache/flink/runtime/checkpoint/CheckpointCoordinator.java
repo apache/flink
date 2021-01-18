@@ -1278,7 +1278,14 @@ public class CheckpointCoordinator {
     }
 
     void scheduleTriggerRequest() {
-        timer.execute(this::executeQueuedRequest);
+        synchronized (lock) {
+            if (isShutdown()) {
+                LOG.debug(
+                        "Skip scheduling trigger request because the CheckpointCoordinator is shut down");
+            } else {
+                timer.execute(this::executeQueuedRequest);
+            }
+        }
     }
 
     private void sendAcknowledgeMessages(long checkpointId, long timestamp) {
