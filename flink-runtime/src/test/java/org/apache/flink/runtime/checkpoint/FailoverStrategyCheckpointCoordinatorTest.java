@@ -59,6 +59,7 @@ public class FailoverStrategyCheckpointCoordinatorTest extends TestLogger {
     public void testAbortPendingCheckpointsWithTriggerValidation() {
         final int maxConcurrentCheckpoints = ThreadLocalRandom.current().nextInt(10) + 1;
         ExecutionVertex executionVertex = mockExecutionVertex();
+        JobID jobId = new JobID();
         CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration =
                 new CheckpointCoordinatorConfiguration(
                         Integer.MAX_VALUE,
@@ -72,11 +73,8 @@ public class FailoverStrategyCheckpointCoordinatorTest extends TestLogger {
                         0);
         CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinator(
-                        new JobID(),
+                        jobId,
                         checkpointCoordinatorConfiguration,
-                        new ExecutionVertex[] {executionVertex},
-                        new ExecutionVertex[] {executionVertex},
-                        new ExecutionVertex[] {executionVertex},
                         Collections.emptyList(),
                         new StandaloneCheckpointIDCounter(),
                         new StandaloneCompletedCheckpointStore(1),
@@ -85,7 +83,14 @@ public class FailoverStrategyCheckpointCoordinatorTest extends TestLogger {
                         new CheckpointsCleaner(),
                         manualThreadExecutor,
                         SharedStateRegistry.DEFAULT_FACTORY,
-                        mock(CheckpointFailureManager.class));
+                        mock(CheckpointFailureManager.class),
+                        new CheckpointPlanCalculator(
+                                jobId,
+                                Collections.singletonList(executionVertex),
+                                Collections.singletonList(executionVertex),
+                                Collections.singletonList(executionVertex)),
+                        new ExecutionAttemptMappingProvider(
+                                Collections.singletonList(executionVertex)));
 
         // switch current execution's state to running to allow checkpoint could be triggered.
         mockExecutionRunning(executionVertex);
