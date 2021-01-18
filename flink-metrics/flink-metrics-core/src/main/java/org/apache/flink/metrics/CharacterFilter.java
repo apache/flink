@@ -23,6 +23,7 @@ package org.apache.flink.metrics;
  * can transform. The returned string is the transformation result.
  */
 public interface CharacterFilter {
+    CharacterFilter NO_OP_FILTER = input -> input;
 
     /**
      * Filter the given string and generate a resulting string from it.
