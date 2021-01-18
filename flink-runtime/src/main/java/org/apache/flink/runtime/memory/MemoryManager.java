@@ -218,7 +218,7 @@ public class MemoryManager {
         Preconditions.checkState(!isShutDown, "Memory manager has been shut down.");
         Preconditions.checkArgument(
                 numberOfPages <= totalNumberOfPages,
-                "Cannot allocate more segments %d than the max number %d",
+                "Cannot allocate more segments %s than the max number %s",
                 numberOfPages,
                 totalNumberOfPages);
 
