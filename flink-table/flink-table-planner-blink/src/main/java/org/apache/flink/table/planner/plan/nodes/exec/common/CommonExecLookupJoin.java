@@ -226,37 +226,32 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
             final RowType tableSourceRowType) {
         final List<String> imCompatibleConditions = new LinkedList<>();
         lookupKeys.entrySet().stream()
-                .filter(
-                        entry -> entry.getValue() instanceof LookupJoinUtil.FieldRefLookupKey)
+                .filter(entry -> entry.getValue() instanceof LookupJoinUtil.FieldRefLookupKey)
                 .forEach(
                         entry -> {
                             int rightKey = entry.getKey();
-                            int leftKey = ((LookupJoinUtil.FieldRefLookupKey) entry.getValue())
-                                    .index;
+                            int leftKey =
+                                    ((LookupJoinUtil.FieldRefLookupKey) entry.getValue()).index;
                             LogicalType leftType = inputRowType.getTypeAt(leftKey);
                             LogicalType rightType = tableSourceRowType.getTypeAt(rightKey);
-                            boolean isCompatible = PlannerTypeUtils.isInteroperable(
-                                    leftType, rightType);
+                            boolean isCompatible =
+                                    PlannerTypeUtils.isInteroperable(leftType, rightType);
                             if (!isCompatible) {
                                 String leftName = inputRowType.getFieldNames().get(leftKey);
                                 String rightName = tableSourceRowType.getFieldNames().get(rightKey);
                                 imCompatibleConditions.add(
                                         String.format(
-                                            "%s[%s]=%s[%s]",
-                                            leftName,
-                                            leftType,
-                                            rightName,
-                                            rightType));
+                                                "%s[%s]=%s[%s]",
+                                                leftName, leftType, rightName, rightType));
                             }
-                        }
-                );
+                        });
 
         if (!imCompatibleConditions.isEmpty()) {
-            throw new TableException("Temporal table join requires equivalent condition "
-                    + "of the same type, but the condition is "
-                    + StringUtils.join(imCompatibleConditions, ","));
+            throw new TableException(
+                    "Temporal table join requires equivalent condition "
+                            + "of the same type, but the condition is "
+                            + StringUtils.join(imCompatibleConditions, ","));
         }
-
     }
 
     @SuppressWarnings("unchecked")
