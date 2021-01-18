@@ -22,6 +22,7 @@ package org.apache.flink.runtime.scheduler.adaptivebatch;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.failurelistener.FailureListener;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
@@ -61,6 +62,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -103,7 +105,8 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements Schedule
             final ShuffleMaster<?> shuffleMaster,
             final Time rpcTimeout,
             final VertexParallelismDecider vertexParallelismDecider,
-            int defaultMaxParallelism)
+            int defaultMaxParallelism,
+            final Set<FailureListener> failureListeners)
             throws Exception {
 
         super(
@@ -130,7 +133,8 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements Schedule
                 shuffleMaster,
                 rpcTimeout,
                 computeVertexParallelismStoreForDynamicGraph(
-                        jobGraph.getVertices(), defaultMaxParallelism));
+                        jobGraph.getVertices(), defaultMaxParallelism),
+                failureListeners);
 
         this.logicalTopology = DefaultLogicalTopology.fromJobGraph(jobGraph);
 

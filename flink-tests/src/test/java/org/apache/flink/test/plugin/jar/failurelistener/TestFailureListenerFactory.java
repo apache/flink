@@ -18,11 +18,18 @@
 
 package org.apache.flink.test.plugin.jar.failurelistener;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.failurelistener.FailureListener;
+import org.apache.flink.core.failurelistener.FailureListenerFactory;
+import org.apache.flink.metrics.MetricGroup;
 
-/** Implementation of {@link FailureListener} for plugin loading test. */
-public class TestFailureListener implements FailureListener {
+/** Factory for creating {@link TestFailureListener}.for plugin loading test. */
+public class TestFailureListenerFactory implements FailureListenerFactory {
 
     @Override
-    public void onFailure(Throwable cause, boolean globalFailure) {}
+    public FailureListener createFailureListener(
+            Configuration configuration, JobID jobId, String jobName, MetricGroup metricGroup) {
+        return new TestFailureListener();
+    }
 }

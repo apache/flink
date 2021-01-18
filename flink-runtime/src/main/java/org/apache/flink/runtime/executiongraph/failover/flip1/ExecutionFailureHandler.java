@@ -17,8 +17,8 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
+import org.apache.flink.core.failurelistener.FailureListener;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.executiongraph.FailureListener;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
@@ -27,6 +27,7 @@ import org.apache.flink.runtime.throwable.ThrowableType;
 import org.apache.flink.util.IterableUtils;
 
 import javax.annotation.Nullable;
+
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
@@ -51,7 +52,7 @@ public class ExecutionFailureHandler {
     /** Number of all restarts happened since this job is submitted. */
     private long numberOfRestarts;
 
-    private Set<FailureListener> failureListeners;
+    private final Set<FailureListener> failureListeners;
 
     /**
      * Creates the handler to deal with task failures.
@@ -114,9 +115,7 @@ public class ExecutionFailureHandler {
 
     /** @param failureListener the failure listener to be registered */
     public void registerFailureListener(FailureListener failureListener) {
-        if (!failureListeners.contains(failureListener)) {
-            failureListeners.add(failureListener);
-        }
+        failureListeners.add(failureListener);
     }
 
     private FailureHandlingResult handleFailure(
@@ -126,8 +125,16 @@ public class ExecutionFailureHandler {
             final Set<ExecutionVertexID> verticesToRestart,
             final boolean globalFailure) {
 
-        for (FailureListener listener : failureListeners) {
-            listener.onFailure(cause, globalFailure);
+        try {
+            for (FailureListener listener : failureListeners) {
+                listener.onFailure(cause, globalFailure);
+            }
+        } catch (Throwable e) {
+            return FailureHandlingResult.unrecoverable(
+                    failingExecutionVertexId,
+                    new JobException("Unexpected exception in FailureListener", e),
+                    timestamp,
+                    false);
         }
 
         if (isUnrecoverableError(cause)) {

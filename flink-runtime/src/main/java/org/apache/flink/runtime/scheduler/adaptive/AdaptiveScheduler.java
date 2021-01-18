@@ -27,6 +27,7 @@ import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.core.failurelistener.FailureListener;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
@@ -127,6 +128,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
@@ -184,6 +186,7 @@ public class AdaptiveScheduler
 
     private final ComponentMainThreadExecutor componentMainThreadExecutor;
     private final FatalErrorHandler fatalErrorHandler;
+    private final Set<FailureListener> failureListeners;
 
     private final Collection<JobStatusListener> jobStatusListeners;
 
@@ -231,7 +234,8 @@ public class AdaptiveScheduler
             ComponentMainThreadExecutor mainThreadExecutor,
             FatalErrorHandler fatalErrorHandler,
             JobStatusListener jobStatusListener,
-            ExecutionGraphFactory executionGraphFactory)
+            ExecutionGraphFactory executionGraphFactory,
+            Set<FailureListener> failureListeners)
             throws JobExecutionException {
 
         assertPreconditions(jobGraph);
@@ -250,6 +254,7 @@ public class AdaptiveScheduler
         this.restartBackoffTimeStrategy = restartBackoffTimeStrategy;
         this.fatalErrorHandler = fatalErrorHandler;
         this.checkpointsCleaner = checkpointsCleaner;
+        this.failureListeners = failureListeners;
         this.completedCheckpointStore =
                 SchedulerUtils.createCompletedCheckpointStoreIfCheckpointingIsEnabled(
                         jobGraph, configuration, checkpointRecoveryFactory, ioExecutor, LOG);

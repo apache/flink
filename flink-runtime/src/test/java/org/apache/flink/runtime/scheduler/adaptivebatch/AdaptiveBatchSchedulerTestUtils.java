@@ -98,7 +98,8 @@ public class AdaptiveBatchSchedulerTestUtils {
                     shuffleMaster,
                     rpcTimeout,
                     vertexParallelismDecider,
-                    defaultMaxParallelism);
+                    defaultMaxParallelism,
+                    failureListeners);
         }
     }
 }

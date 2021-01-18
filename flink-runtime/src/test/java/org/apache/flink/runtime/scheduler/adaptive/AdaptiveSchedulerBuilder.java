@@ -20,6 +20,7 @@ package org.apache.flink.runtime.scheduler.adaptive;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.core.failurelistener.FailureListener;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
@@ -48,6 +49,8 @@ import org.apache.flink.util.FatalExitExceptionHandler;
 
 import javax.annotation.Nullable;
 
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 
 /** Builder for {@link AdaptiveScheduler}. */
@@ -77,6 +80,7 @@ public class AdaptiveSchedulerBuilder {
                     FatalExitExceptionHandler.INSTANCE.uncaughtException(
                             Thread.currentThread(), error);
     private JobStatusListener jobStatusListener = (ignoredA, ignoredB, ignoredC) -> {};
+    private Set<FailureListener> failureListeners = new HashSet<>();
     private long initializationTimestamp = System.currentTimeMillis();
 
     @Nullable private SlotAllocator slotAllocator;
@@ -211,6 +215,7 @@ public class AdaptiveSchedulerBuilder {
                 mainThreadExecutor,
                 fatalErrorHandler,
                 jobStatusListener,
-                executionGraphFactory);
+                executionGraphFactory,
+                failureListeners);
     }
 }

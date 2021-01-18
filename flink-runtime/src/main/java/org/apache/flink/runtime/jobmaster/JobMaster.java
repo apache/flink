@@ -22,10 +22,9 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.core.failurelistener.FailureListener;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.BlobWriter;
@@ -35,8 +34,8 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.executiongraph.FailureListenerFactory;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
+import org.apache.flink.runtime.failurelistener.FailureListenerUtils;
 import org.apache.flink.runtime.heartbeat.HeartbeatListener;
 import org.apache.flink.runtime.heartbeat.HeartbeatManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatReceiver;
@@ -321,13 +320,21 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
         this.jobManagerJobMetricGroup = jobMetricGroupFactory.create(jobGraph);
         this.jobStatusListener = new JobManagerJobStatusListener();
+
+        Set<FailureListener> failureListeners =
+                FailureListenerUtils.getFailureListeners(
+                        jobMasterConfiguration.getConfiguration(),
+                        jid,
+                        jobName,
+                        jobManagerJobMetricGroup);
+
         this.schedulerNG =
                 createScheduler(
                         slotPoolServiceSchedulerFactory,
-                        jobMasterConfiguration.getConfiguration(),
                         executionDeploymentTracker,
                         jobManagerJobMetricGroup,
-                        jobStatusListener);
+                        jobStatusListener,
+                        failureListeners);
 
         this.heartbeatServices = checkNotNull(heartbeatServices);
         this.taskManagerHeartbeatManager = NoOpHeartbeatManager.getInstance();
@@ -341,13 +348,11 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
     private SchedulerNG createScheduler(
             SlotPoolServiceSchedulerFactory slotPoolServiceSchedulerFactory,
-            Configuration configuration,
             ExecutionDeploymentTracker executionDeploymentTracker,
             JobManagerJobMetricGroup jobManagerJobMetricGroup,
-            JobStatusListener jobStatusListener)
+            JobStatusListener jobStatusListener,
+            Set<FailureListener> failureListeners)
             throws Exception {
-
-        FailureListenerFactory failureListenerFactory = new FailureListenerFactory(configuration);
 
         final SchedulerNG scheduler =
                 slotPoolServiceSchedulerFactory.createScheduler(
@@ -370,7 +375,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                         getMainThreadExecutor(),
                         fatalErrorHandler,
                         jobStatusListener,
-                        failureListenerFactory);
+                        failureListeners);
 
         return scheduler;
     }

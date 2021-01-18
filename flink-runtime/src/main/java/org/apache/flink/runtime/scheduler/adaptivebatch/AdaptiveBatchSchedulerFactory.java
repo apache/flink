@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.core.failurelistener.FailureListener;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
@@ -63,6 +64,7 @@ import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.slf4j.Logger;
 
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -91,7 +93,8 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
             long initializationTimestamp,
             ComponentMainThreadExecutor mainThreadExecutor,
             FatalErrorHandler fatalErrorHandler,
-            JobStatusListener jobStatusListener)
+            JobStatusListener jobStatusListener,
+            Set<FailureListener> failureListeners)
             throws Exception {
 
         checkState(
@@ -171,8 +174,8 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                 shuffleMaster,
                 rpcTimeout,
                 DefaultVertexParallelismDecider.from(jobMasterConfiguration),
-                DefaultVertexParallelismDecider.getNormalizedMaxParallelism(
-                        jobMasterConfiguration));
+                DefaultVertexParallelismDecider.getNormalizedMaxParallelism(jobMasterConfiguration),
+                failureListeners);
     }
 
     private void checkAllExchangesBlocking(final JobGraph jobGraph) {

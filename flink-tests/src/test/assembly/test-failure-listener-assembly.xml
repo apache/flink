@@ -31,6 +31,7 @@ under the License.
 			<!-- the service impl -->
 			<includes>
 				<include>org/apache/flink/test/plugin/jar/failurelistener/TestFailureListener.class</include>
+				<include>org/apache/flink/test/plugin/jar/failurelistener/TestFailureListenerFactory.class</include>
 			</includes>
 		</fileSet>
 		<fileSet>

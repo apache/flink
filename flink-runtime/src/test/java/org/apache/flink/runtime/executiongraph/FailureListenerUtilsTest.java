@@ -19,34 +19,36 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.failurelistener.FailureListener;
+import org.apache.flink.runtime.failurelistener.DefaultFailureListener;
+import org.apache.flink.runtime.failurelistener.FailureListenerUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.factories.UnregisteredJobManagerJobMetricGroupFactory;
 
 import org.junit.Test;
 
-import java.net.URISyntaxException;
-import java.util.List;
+import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Test for {@link org.apache.flink.runtime.executiongraph.DefaultFailureListener} created by {@link
- * org.apache.flink.runtime.executiongraph.FailureListenerFactory}.
+ * Test for {@link DefaultFailureListener} created by {@link
+ * org.apache.flink.runtime.failurelistener.FailureListenerUtils}.
  */
-public class FailureListenerFactoryTest {
+public class FailureListenerUtilsTest {
 
     @Test
-    public void testLoadDefaultFailureListener() throws URISyntaxException {
-        FailureListenerFactory failureListenerFactory =
-                new FailureListenerFactory(new Configuration());
+    public void testLoadDefaultFailureListener() {
+        final JobGraph jg = new JobGraph("Test");
+        Set<FailureListener> failureListeners =
+                FailureListenerUtils.getFailureListeners(
+                        new Configuration(),
+                        jg.getJobID(),
+                        jg.getName(),
+                        UnregisteredJobManagerJobMetricGroupFactory.INSTANCE.create(jg));
 
-        List<FailureListener> failureListenerList =
-                failureListenerFactory.createFailureListener(
-                        UnregisteredJobManagerJobMetricGroupFactory.INSTANCE.create(
-                                new JobGraph("Test")));
-
-        assertEquals(1, failureListenerList.size());
-        assertTrue(failureListenerList.get(0) instanceof DefaultFailureListener);
+        assertEquals(1, failureListeners.size());
+        assertTrue(failureListeners.iterator().next() instanceof DefaultFailureListener);
     }
 }
