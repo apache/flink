@@ -81,7 +81,6 @@ import org.apache.commons.lang3.StringUtils;
 
 import javax.annotation.Nullable;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -285,7 +284,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
                                 tableSourceRowType,
                                 resultRowType,
                                 allLookupKeys,
-                                getOrderedLookupKeys(allLookupKeys),
+                                LookupJoinUtil.getOrderedLookupKeys(allLookupKeys.keySet()),
                                 asyncLookupFunction,
                                 StringUtils.join(temporalTable.getQualifiedName(), "."));
 
@@ -354,7 +353,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
         DataTypeFactory dataTypeFactory =
                 ShortcutUtils.unwrapContext(relBuilder).getCatalogManager().getDataTypeFactory();
 
-        int[] orderedLookupKeys = getOrderedLookupKeys(allLookupKeys);
+        int[] orderedLookupKeys = LookupJoinUtil.getOrderedLookupKeys(allLookupKeys.keySet());
 
         GeneratedFunction<FlatMapFunction<RowData, RowData>> generatedFetcher =
                 LookupJoinCodeGenerator.generateSyncLookupFunction(
@@ -410,12 +409,6 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
                             rightRowType.getFieldCount());
         }
         return SimpleOperatorFactory.of(new ProcessOperator<>(processFunc));
-    }
-
-    private int[] getOrderedLookupKeys(Map<Integer, LookupJoinUtil.LookupKey> allLookupKeys) {
-        List<Integer> lookupKeyIndicesInOrder = new ArrayList<>(allLookupKeys.keySet());
-        lookupKeyIndicesInOrder.sort(Integer::compareTo);
-        return lookupKeyIndicesInOrder.stream().mapToInt(Integer::intValue).toArray();
     }
 
     // ----------------------------------------------------------------------------------------

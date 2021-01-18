@@ -36,6 +36,7 @@ import org.apache.calcite.rex.RexLiteral;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.IntStream;
 
 /** Utilities for lookup joins using {@link LookupTableSource}. */
 @Internal
@@ -72,18 +73,26 @@ public final class LookupJoinUtil {
         // no instantiation
     }
 
+    /** Gets lookup keys sorted by index in ascending order. */
+    public static int[] getOrderedLookupKeys(Collection<Integer> allLookupKeys) {
+        List<Integer> lookupKeyIndicesInOrder = new ArrayList<>(allLookupKeys);
+        lookupKeyIndicesInOrder.sort(Integer::compareTo);
+        return lookupKeyIndicesInOrder.stream().mapToInt(Integer::intValue).toArray();
+    }
+
     /** Gets LookupFunction from temporal table according to the given lookup keys. */
     public static UserDefinedFunction getLookupFunction(
             RelOptTable temporalTable, Collection<Integer> lookupKeys) {
 
-        List<Integer> lookupKeyIndicesInOrder = new ArrayList<>(lookupKeys);
-        lookupKeyIndicesInOrder.sort(Integer::compareTo);
+        int[] lookupKeyIndicesInOrder = getOrderedLookupKeys(lookupKeys);
 
         if (temporalTable instanceof TableSourceTable) {
             // TODO: support nested lookup keys in the future,
             //  currently we only support top-level lookup keys
             int[][] indices =
-                    lookupKeyIndicesInOrder.stream().map(i -> new int[] {i}).toArray(int[][]::new);
+                    IntStream.of(lookupKeyIndicesInOrder)
+                            .mapToObj(i -> new int[] {i})
+                            .toArray(int[][]::new);
             LookupTableSource tableSource =
                     (LookupTableSource) ((TableSourceTable) temporalTable).tableSource();
             LookupRuntimeProviderContext providerContext =
@@ -99,8 +108,8 @@ public final class LookupJoinUtil {
 
         if (temporalTable instanceof LegacyTableSourceTable) {
             String[] lookupFieldNamesInOrder =
-                    lookupKeyIndicesInOrder.stream()
-                            .map(temporalTable.getRowType().getFieldNames()::get)
+                    IntStream.of(lookupKeyIndicesInOrder)
+                            .mapToObj(temporalTable.getRowType().getFieldNames()::get)
                             .toArray(String[]::new);
             LegacyTableSourceTable<?> legacyTableSourceTable =
                     (LegacyTableSourceTable<?>) temporalTable;
