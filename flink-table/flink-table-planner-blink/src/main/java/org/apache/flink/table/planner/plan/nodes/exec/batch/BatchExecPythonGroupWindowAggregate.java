@@ -32,7 +32,6 @@ import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.codegen.agg.batch.WindowCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.expressions.PlannerProctimeAttribute;
 import org.apache.flink.table.planner.expressions.PlannerRowtimeAttribute;
 import org.apache.flink.table.planner.expressions.PlannerWindowEnd;
 import org.apache.flink.table.planner.expressions.PlannerWindowProperty;
@@ -135,9 +134,6 @@ public class BatchExecPythonGroupWindowAggregate extends CommonExecPythonAggrega
                                     }
                                     if (property instanceof PlannerRowtimeAttribute) {
                                         return 2;
-                                    }
-                                    if (property instanceof PlannerProctimeAttribute) {
-                                        return 3;
                                     }
                                     throw new TableException("Unexpected property " + property);
                                 })
