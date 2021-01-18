@@ -322,7 +322,7 @@ public class FlinkSecurityManagerTest extends TestLogger {
                 });
     }
 
-    @Test(expected = UserSystemExitException.class)
+    @Test
     public void testMultiSecurityManagersWithSetFirstAndMonitored() {
         Configuration configuration = new Configuration();
 
@@ -336,11 +336,15 @@ public class FlinkSecurityManagerTest extends TestLogger {
         System.setSecurityManager(newSecurityManager);
 
         FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
-        newSecurityManager.checkExit(TEST_EXIT_CODE);
+        try {
+            newSecurityManager.checkExit(TEST_EXIT_CODE);
+            fail("Expect exception to be thrown");
+        } catch (UserSystemExitException ue) {
+        }
         assertThat(newSecurityManager.getExitStatus(), is(TEST_EXIT_CODE));
     }
 
-    @Test(expected = UserSystemExitException.class)
+    @Test
     public void testMultiSecurityManagersWithSetLastAndMonitored() {
         Configuration configuration = new Configuration();
 
@@ -354,7 +358,10 @@ public class FlinkSecurityManagerTest extends TestLogger {
         FlinkSecurityManager.setFromConfiguration(configuration);
 
         FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
-        System.getSecurityManager().checkExit(TEST_EXIT_CODE);
+        try {
+            System.getSecurityManager().checkExit(TEST_EXIT_CODE);
+        } catch (UserSystemExitException ue) {
+        }
         assertNull(oldSecurityManager.getExitStatus());
     }
 
