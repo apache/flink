@@ -360,6 +360,7 @@ public class FlinkSecurityManagerTest extends TestLogger {
         FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
         try {
             System.getSecurityManager().checkExit(TEST_EXIT_CODE);
+            fail("Expect exception to be thrown");
         } catch (UserSystemExitException ue) {
         }
         assertNull(oldSecurityManager.getExitStatus());
