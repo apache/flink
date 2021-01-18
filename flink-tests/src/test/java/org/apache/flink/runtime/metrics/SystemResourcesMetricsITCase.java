@@ -20,6 +20,7 @@ package org.apache.flink.runtime.metrics;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
+import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
@@ -127,7 +128,8 @@ public class SystemResourcesMetricsITCase extends TestLogger {
 
         @Override
         public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
-            final String metricIdentifier = group.getMetricIdentifier(metricName, name -> name);
+            final String metricIdentifier =
+                    group.getMetricIdentifier(metricName, CharacterFilter.NO_OP_FILTER);
             for (final String expectedPattern : patternFutures.keySet()) {
                 if (metricIdentifier.matches(expectedPattern)) {
                     patternFutures.get(expectedPattern).complete(null);
