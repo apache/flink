@@ -26,6 +26,7 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
@@ -130,6 +131,16 @@ public class CheckpointCoordinatorTest extends TestLogger {
     @Before
     public void setUp() throws Exception {
         manuallyTriggeredScheduledExecutor = new ManuallyTriggeredScheduledExecutor();
+    }
+
+    @Test
+    public void testScheduleTriggerRequestDuringShutdown() throws Exception {
+        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+        CheckpointCoordinator coordinator =
+                getCheckpointCoordinator(new ScheduledExecutorServiceAdapter(executor));
+        coordinator.shutdown();
+        executor.shutdownNow();
+        coordinator.scheduleTriggerRequest(); // shouldn't fail
     }
 
     @Test
@@ -3144,6 +3155,10 @@ public class CheckpointCoordinatorTest extends TestLogger {
     }
 
     private CheckpointCoordinator getCheckpointCoordinator() {
+        return getCheckpointCoordinator(manuallyTriggeredScheduledExecutor);
+    }
+
+    private CheckpointCoordinator getCheckpointCoordinator(ScheduledExecutor timer) {
         final ExecutionAttemptID triggerAttemptID1 = new ExecutionAttemptID();
         final ExecutionAttemptID triggerAttemptID2 = new ExecutionAttemptID();
         ExecutionVertex triggerVertex1 = mockExecutionVertex(triggerAttemptID1);
@@ -3168,7 +3183,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                 .setTasksToTrigger(new ExecutionVertex[] {triggerVertex1, triggerVertex2})
                 .setTasksToWaitFor(new ExecutionVertex[] {ackVertex1, ackVertex2})
                 .setTasksToCommitTo(new ExecutionVertex[] {})
-                .setTimer(manuallyTriggeredScheduledExecutor)
+                .setTimer(timer)
                 .build();
     }
 
