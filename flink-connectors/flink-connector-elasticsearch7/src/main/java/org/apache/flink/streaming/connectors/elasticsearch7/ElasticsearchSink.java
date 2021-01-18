@@ -109,39 +109,43 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, RestHighLevel
         }
 
         /**
-         * Sets the maximum number of actions to buffer for each bulk request.
+         * Sets the maximum number of actions to buffer for each bulk request. You can pass -1 to
+         * disable it.
          *
          * @param numMaxActions the maximum number of actions to buffer per bulk request.
          */
         public void setBulkFlushMaxActions(int numMaxActions) {
             Preconditions.checkArgument(
-                    numMaxActions > 0, "Max number of buffered actions must be larger than 0.");
+                    numMaxActions == -1 || numMaxActions > 0,
+                    "Max number of buffered actions must be larger than 0.");
 
             this.bulkRequestsConfig.put(
                     CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, String.valueOf(numMaxActions));
         }
 
         /**
-         * Sets the maximum size of buffered actions, in mb, per bulk request.
+         * Sets the maximum size of buffered actions, in mb, per bulk request. You can pass -1 to
+         * disable it.
          *
          * @param maxSizeMb the maximum size of buffered actions, in mb.
          */
         public void setBulkFlushMaxSizeMb(int maxSizeMb) {
             Preconditions.checkArgument(
-                    maxSizeMb > 0, "Max size of buffered actions must be larger than 0.");
+                    maxSizeMb == -1 || maxSizeMb > 0,
+                    "Max size of buffered actions must be larger than 0.");
 
             this.bulkRequestsConfig.put(
                     CONFIG_KEY_BULK_FLUSH_MAX_SIZE_MB, String.valueOf(maxSizeMb));
         }
 
         /**
-         * Sets the bulk flush interval, in milliseconds.
+         * Sets the bulk flush interval, in milliseconds. You can pass -1 to disable it.
          *
          * @param intervalMillis the bulk flush interval, in milliseconds.
          */
         public void setBulkFlushInterval(long intervalMillis) {
             Preconditions.checkArgument(
-                    intervalMillis >= 0,
+                    intervalMillis == -1 || intervalMillis >= 0,
                     "Interval (in milliseconds) between each flush must be larger than or equal to 0.");
 
             this.bulkRequestsConfig.put(
