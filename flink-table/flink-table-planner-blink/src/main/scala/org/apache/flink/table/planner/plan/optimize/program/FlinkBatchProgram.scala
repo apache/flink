@@ -32,6 +32,7 @@ object FlinkBatchProgram {
   val SUBQUERY_REWRITE = "subquery_rewrite"
   val TEMPORAL_JOIN_REWRITE = "temporal_join_rewrite"
   val DECORRELATE = "decorrelate"
+  val TIME_INDICATOR = "time_indicator"
   val DEFAULT_REWRITE = "default_rewrite"
   val PREDICATE_PUSHDOWN = "predicate_pushdown"
   val JOIN_REORDER = "join_reorder"
@@ -74,6 +75,8 @@ object FlinkBatchProgram {
           .build(), "convert table references after sub-queries removed")
         .build()
     )
+    // convert time indicators
+    chainedProgram.addLast(TIME_INDICATOR, new FlinkRelTimeIndicatorProgram)
 
     // rewrite special temporal join plan
     chainedProgram.addLast(

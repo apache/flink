@@ -78,6 +78,23 @@ TableSourceScan(table=[[default_catalog, default_database, ProjectableTable, pro
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testSimpleProjectWithProctime">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c, PROCTIME() FROM ProjectableTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2], EXPR$2=[PROCTIME()])
++- LogicalTableScan(table=[[default_catalog, default_database, ProjectableTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, c, PROCTIME_MATERIALIZE(PROCTIME()) AS EXPR$2])
++- TableSourceScan(table=[[default_catalog, default_database, ProjectableTable, project=[a, c]]], fields=[a, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testProjectWithoutInputRef">
     <Resource name="sql">
       <![CDATA[SELECT COUNT(1) FROM ProjectableTable]]>
