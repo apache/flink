@@ -74,7 +74,8 @@ For subtasks there are a couple of more detailed stats available.
 - **Sync Duration**: The duration of the synchronous part of the checkpoint. This includes snapshotting state of the operators and blocks all other activity on the subtask (processing records, firing timers, etc).
 - **Async Duration**: The duration of the asynchronous part of the checkpoint. This includes time it took to write the checkpoint on to the selected filesystem. For unaligned checkpoints this also includes also the time the subtask had to wait for last of the checkpoint barriers to arrive (alignment duration) and the time it took to persist the in-flight data.
 - **Alignment Duration**: The time between processing the first and the last checkpoint barrier. For aligned checkpoints, during the alignment, the channels that have already received checkpoint barrier are blocked from processing more data.
-- **Start Delay**: The time it took for the first checkpoint barrier to reach this subtasks since the checkpoint barrier has been created.
+- **Start Delay**: The time it took for the first checkpoint barrier to reach this subtask since the checkpoint barrier has been created.
+- **Unaligned Checkpoint**: Whether the checkpoint for the subtask is completed as an unaligned checkpoint. An aligned checkpoint can switch to an unaligned checkpoint if the alignment timeouts.
 
 #### History Size Configuration
 
