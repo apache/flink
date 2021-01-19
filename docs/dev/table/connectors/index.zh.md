@@ -116,7 +116,7 @@ CREATE TABLE MyUserTable (
   `user` BIGINT,
   `message` STRING,
   `rowtime` TIMESTAMP(3) METADATA FROM 'timestamp',    -- use a metadata column to access Kafka's record timestamp
-  `proctime AS PROCTIME(),    -- use a computed column to define a proctime attribute
+  `proctime` AS PROCTIME(),    -- use a computed column to define a proctime attribute
   WATERMARK FOR `rowtime` AS `rowtime` - INTERVAL '5' SECOND    -- use a WATERMARK statement to define a rowtime attribute
 ) WITH (
   -- declare the external system to connect to
