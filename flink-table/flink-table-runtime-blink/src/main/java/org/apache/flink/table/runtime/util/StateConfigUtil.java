@@ -20,9 +20,13 @@ package org.apache.flink.table.runtime.util;
 
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.state.KeyedStateBackend;
 
 /** Utility to create a {@link StateTtlConfig} object. */
-public class StateTtlConfigUtil {
+public class StateConfigUtil {
+
+    private static final String ROCKSDB_KEYED_STATE_BACKEDN =
+            "org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend";
 
     /**
      * Creates a {@link StateTtlConfig} depends on retentionTime parameter.
@@ -38,5 +42,11 @@ public class StateTtlConfigUtil {
         } else {
             return StateTtlConfig.DISABLED;
         }
+    }
+
+    public static boolean isStateImmutableInStateBackend(KeyedStateBackend<?> stateBackend) {
+        // TODO: remove this once FLINK-21027 is supported
+        // state key and value is immutable only when using rocksdb state backend
+        return ROCKSDB_KEYED_STATE_BACKEDN.equals(stateBackend.getClass().getCanonicalName());
     }
 }
