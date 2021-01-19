@@ -43,7 +43,7 @@ import org.apache.flink.table.planner.plan.logical.SlidingGroupWindow;
 import org.apache.flink.table.planner.plan.logical.TumblingGroupWindow;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
-import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecPythonAggregate;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy;
@@ -67,6 +67,7 @@ import org.slf4j.LoggerFactory;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
+import java.util.Collections;
 
 import static org.apache.flink.table.planner.plan.utils.AggregateUtil.hasRowIntervalType;
 import static org.apache.flink.table.planner.plan.utils.AggregateUtil.hasTimeIntervalType;
@@ -77,7 +78,7 @@ import static org.apache.flink.table.planner.plan.utils.AggregateUtil.toDuration
 import static org.apache.flink.table.planner.plan.utils.AggregateUtil.toLong;
 
 /** Stream [[ExecNode]] for group widow aggregate (Python user defined aggregate function). */
-public class StreamExecPythonGroupWindowAggregate extends CommonExecPythonAggregate
+public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData> {
     private static final Logger LOGGER =
             LoggerFactory.getLogger(StreamExecPythonGroupWindowAggregate.class);
@@ -101,7 +102,7 @@ public class StreamExecPythonGroupWindowAggregate extends CommonExecPythonAggreg
             ExecEdge inputEdge,
             RowType outputType,
             String description) {
-        super(inputEdge, outputType, description);
+        super(Collections.singletonList(inputEdge), outputType, description);
         this.grouping = grouping;
         this.aggCalls = aggCalls;
         this.window = window;
@@ -265,7 +266,7 @@ public class StreamExecPythonGroupWindowAggregate extends CommonExecPythonAggreg
                         .toArray();
 
         Tuple2<int[], PythonFunctionInfo[]> aggInfos =
-                extractPythonAggregateFunctionInfosFromAggregateCall(aggCalls);
+                CommonPythonUtil.extractPythonAggregateFunctionInfosFromAggregateCall(aggCalls);
         int[] pythonUdafInputOffsets = aggInfos.f0;
         PythonFunctionInfo[] pythonFunctionInfos = aggInfos.f1;
         OneInputStreamOperator<RowData, RowData> pythonOperator =

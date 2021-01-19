@@ -64,7 +64,7 @@ class StreamPhysicalPythonGroupTableAggregate(
     val needRetraction = !ChangelogPlanUtils.inputInsertOnly(this)
     new StreamExecPythonGroupTableAggregate(
       grouping,
-      aggCalls,
+      aggCalls.toArray,
       aggCallNeedRetractions,
       generateUpdateBefore,
       needRetraction,

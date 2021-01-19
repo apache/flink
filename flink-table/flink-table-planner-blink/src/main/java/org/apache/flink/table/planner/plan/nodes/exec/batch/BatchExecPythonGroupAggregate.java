@@ -30,7 +30,7 @@ import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
-import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecPythonAggregate;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
@@ -39,9 +39,10 @@ import org.apache.calcite.rel.core.AggregateCall;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Collections;
 
 /** Batch [[ExecNode]] for Python unbounded group aggregate. */
-public class BatchExecPythonGroupAggregate extends CommonExecPythonAggregate
+public class BatchExecPythonGroupAggregate extends ExecNodeBase<RowData>
         implements BatchExecNode<RowData> {
 
     private static final String ARROW_PYTHON_AGGREGATE_FUNCTION_OPERATOR_NAME =
@@ -59,7 +60,7 @@ public class BatchExecPythonGroupAggregate extends CommonExecPythonAggregate
             ExecEdge inputEdge,
             RowType outputType,
             String description) {
-        super(inputEdge, outputType, description);
+        super(Collections.singletonList(inputEdge), outputType, description);
         this.grouping = grouping;
         this.groupingSet = groupingSet;
         this.aggCalls = aggCalls;
@@ -91,7 +92,7 @@ public class BatchExecPythonGroupAggregate extends CommonExecPythonAggregate
             RowType outputRowType,
             Configuration config) {
         final Tuple2<int[], PythonFunctionInfo[]> aggInfos =
-                extractPythonAggregateFunctionInfosFromAggregateCall(aggCalls);
+                CommonPythonUtil.extractPythonAggregateFunctionInfosFromAggregateCall(aggCalls);
         int[] pythonUdafInputOffsets = aggInfos.f0;
         PythonFunctionInfo[] pythonFunctionInfos = aggInfos.f1;
         OneInputStreamOperator<RowData, RowData> pythonOperator =
