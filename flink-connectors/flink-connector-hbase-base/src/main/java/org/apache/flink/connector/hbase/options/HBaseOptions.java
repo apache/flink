@@ -154,9 +154,9 @@ public class HBaseOptions {
         // create default configuration from current runtime env (`hbase-site.xml` in classpath)
         // first,
         Configuration hbaseClientConf = HBaseConfigurationUtil.getHBaseConfiguration();
-        hbaseClientConf.set(HConstants.ZOOKEEPER_QUORUM, tableOptions.get(ZOOKEEPER_QUORUM));
+        hbaseClientConf.set(HConstants.ZOOKEEPER_QUORUM, tableOptions.getString(ZOOKEEPER_QUORUM));
         hbaseClientConf.set(
-                HConstants.ZOOKEEPER_ZNODE_PARENT, tableOptions.get(ZOOKEEPER_ZNODE_PARENT));
+                HConstants.ZOOKEEPER_ZNODE_PARENT, tableOptions.getString(ZOOKEEPER_ZNODE_PARENT));
         // add HBase properties
         final Properties properties = getHBaseClientProperties(options);
         properties.forEach((k, v) -> hbaseClientConf.set(k.toString(), v.toString()));
