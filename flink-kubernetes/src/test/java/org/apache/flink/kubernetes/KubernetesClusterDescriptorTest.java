@@ -28,7 +28,9 @@ import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesDeploymentTarget;
 import org.apache.flink.kubernetes.kubeclient.decorators.InternalServiceDecorator;
 import org.apache.flink.kubernetes.utils.Constants;
@@ -46,7 +48,9 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.apache.flink.kubernetes.utils.Constants.ENV_FLINK_POD_IP_ADDRESS;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for the {@link KubernetesClusterDescriptor}. */
@@ -184,6 +188,27 @@ public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
                 "Should only have one jar",
                 IllegalArgumentException.class,
                 () -> descriptor.deployApplicationCluster(clusterSpecification, appConfig));
+    }
+
+    @Test
+    public void testDeployApplicationClusterWithClusterIP() throws Exception {
+        flinkConfig.set(
+                PipelineOptions.JARS, Collections.singletonList("local:///path/of/user.jar"));
+        flinkConfig.set(DeploymentOptions.TARGET, KubernetesDeploymentTarget.APPLICATION.getName());
+        flinkConfig.set(
+                KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE,
+                KubernetesConfigOptions.ServiceExposedType.ClusterIP);
+
+        final ClusterClient<String> clusterClient =
+                descriptor
+                        .deployApplicationCluster(clusterSpecification, appConfig)
+                        .getClusterClient();
+
+        final String address = CLUSTER_ID + Constants.FLINK_REST_SERVICE_SUFFIX + "." + NAMESPACE;
+        final int port = flinkConfig.get(RestOptions.PORT);
+        assertThat(
+                clusterClient.getWebInterfaceURL(),
+                is(String.format("http://%s:%d", address, port)));
     }
 
     private ClusterClientProvider<String> deploySessionCluster() throws ClusterDeploymentException {
