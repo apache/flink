@@ -22,7 +22,7 @@ package org.apache.flink.table.catalog;
 public interface CatalogView extends CatalogBaseTable {
 
     /**
-     * Original text of the view definition that also perserves the original formatting.
+     * Original text of the view definition that also preserves the original formatting.
      *
      * @return the original string literal provided by the user.
      */
