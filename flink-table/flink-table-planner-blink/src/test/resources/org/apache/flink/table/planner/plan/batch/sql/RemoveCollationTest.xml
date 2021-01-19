@@ -546,12 +546,12 @@ LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
     <Resource name="optimized exec plan">
       <![CDATA[
 SortAggregate(isMerge=[false], groupBy=[a], select=[a, SUM(b) AS EXPR$1])
-+- Calc(select=[a, b])
-   +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b ASC], global=[true], select=[a, b, c, w0$o0])
-      +- Sort(orderBy=[a ASC, b ASC])
-         +- Exchange(distribution=[hash[a]])
-            +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b ASC], global=[false], select=[a, b, c])
-               +- Sort(orderBy=[a ASC, b ASC])
++- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b ASC], global=[true], select=[a, b])
+   +- Sort(orderBy=[a ASC, b ASC])
+      +- Exchange(distribution=[hash[a]])
+         +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b ASC], global=[false], select=[a, b])
+            +- Sort(orderBy=[a ASC, b ASC])
+               +- Calc(select=[a, b])
                   +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -671,12 +671,12 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)], EXPR$1=[SUM($1)])
     <Resource name="optimized exec plan">
       <![CDATA[
 SortAggregate(isMerge=[false], select=[COUNT(a) AS EXPR$0, SUM(b) AS EXPR$1])
-+- Calc(select=[a, b])
-   +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[], orderBy=[b ASC], global=[true], select=[a, b, c, w0$o0])
-      +- Sort(orderBy=[b ASC])
-         +- Exchange(distribution=[single])
-            +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[], orderBy=[b ASC], global=[false], select=[a, b, c])
-               +- Sort(orderBy=[b ASC])
++- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[], orderBy=[b ASC], global=[true], select=[a, b])
+   +- Sort(orderBy=[b ASC])
+      +- Exchange(distribution=[single])
+         +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[], orderBy=[b ASC], global=[false], select=[a, b])
+            +- Sort(orderBy=[b ASC])
+               +- Calc(select=[a, b])
                   +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>

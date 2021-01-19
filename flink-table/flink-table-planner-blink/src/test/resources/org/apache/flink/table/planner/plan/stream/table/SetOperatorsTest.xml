@@ -100,9 +100,10 @@ LogicalProject(b=[$1], c=[$2])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[b, c])
-+- Union(all=[true], union=[a, b, c])
-   :- LegacyTableSourceScan(table=[[default_catalog, default_database, left, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+Union(all=[true], union=[b, c])
+:- Calc(select=[b, c])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, left, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Calc(select=[b, c])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, right, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
