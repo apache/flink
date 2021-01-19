@@ -139,8 +139,24 @@ public class EmulatedPubSubNewSourceTest extends GCloudUnitTestBase {
                         getPubSubHostPort());
 
         DataStream<String> fromPubSub =
-                env.fromSource(source, WatermarkStrategy.noWatermarks(), "test-pubsub-new-source")
-                        .name("PubSub source");
+                env.fromSource(source, WatermarkStrategy.noWatermarks(), "test-pubsub-new-source");
+        //                        .name("PubSub source");
+
+        //        fromPubSub.addSink(
+        //                new RichSinkFunction<String>() {
+        //                    @Override
+        //                    public void open(Configuration parameters) throws Exception {
+        //                        getRuntimeContext().addAccumulator("result", new
+        // ListAccumulator<String>());
+        //                    }
+        //
+        //                    @Override
+        //                    public void invoke(String value, SinkFunction.Context context)
+        //                            throws Exception {
+        //                        getRuntimeContext().getAccumulator("result").add(value);
+        //                    }
+        //                });
+        //        List<String> output = env.execute().getAccumulatorResult("result");
 
         List<String> output = new ArrayList<>();
         DataStreamUtils

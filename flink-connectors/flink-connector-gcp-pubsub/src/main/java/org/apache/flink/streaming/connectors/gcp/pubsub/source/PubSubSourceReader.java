@@ -32,7 +32,13 @@ public class PubSubSourceReader<T>
     }
 
     @Override
-    protected void onSplitFinished(Map<String, PubSubSplitState> finishedSplitIds) {}
+    protected void onSplitFinished(Map<String, PubSubSplitState> finishedSplitIds) {
+        //        try {
+        //            close();
+        //        } catch (Exception e) {
+        //            e.printStackTrace();
+        //        }
+    }
 
     @Override
     protected PubSubSplitState initializedState(PubSubSplit split) {

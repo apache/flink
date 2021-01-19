@@ -26,7 +26,7 @@ import java.util.List;
 public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSubSplit> {
     private final PubSubSubscriber subscriber;
     private final PubSubDeserializationSchema<T> deserializationSchema;
-    private final SimpleCollector<T> collector;
+    private final PubSubCollector collector;
 
     public PubSubSplitReader(
             PubSubDeserializationSchema deserializationSchema,
@@ -67,25 +67,26 @@ public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSub
                         timeout);
 
         this.deserializationSchema = deserializationSchema;
-        this.collector = new SimpleCollector<T>();
+        this.collector = new PubSubCollector();
     }
 
     @Override
     public RecordsWithSplitIds<Tuple2<T, Long>> fetch() throws IOException {
-        RecordsBySplits.Builder<Tuple2<T, Long>> messagesToReturn = new RecordsBySplits.Builder<>();
+        //        PubSubSplitRecords<Tuple2<T, Long>> recordsBySplit = new PubSubSplitRecords<>();
+
+        RecordsBySplits.Builder<Tuple2<T, Long>> recordsBySplits = new RecordsBySplits.Builder<>();
         List<ReceivedMessage> receivedMessages = subscriber.pull();
         //		TODO: no checkpointing yet...
         List<String> messageIdsToAck = new ArrayList<>();
         for (ReceivedMessage receivedMessage : receivedMessages) {
             try {
                 deserializationSchema.deserialize(receivedMessage.getMessage(), collector);
-                //				TODO: is there any case, where there can be more than one message in
-                // collector?
+                // TODO: is there any case, where there can be more than one message in collector?
                 collector
                         .getMessages()
                         .forEach(
                                 r -> {
-                                    messagesToReturn.add(
+                                    recordsBySplits.add(
                                             "0",
                                             new Tuple2<>(
                                                     r,
@@ -96,7 +97,6 @@ public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSub
                                     System.out.println(
                                             r.toString() + " " + receivedMessage.getAckId());
                                 });
-
                 System.out.println(receivedMessage.getAckId());
                 messageIdsToAck.add(receivedMessage.getAckId());
             } catch (Exception e) {
@@ -106,7 +106,10 @@ public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSub
             }
         }
         subscriber.acknowledge(messageIdsToAck);
-        return messagesToReturn.build();
+        if (collector.isEndOfStreamSignalled()) {
+            recordsBySplits.addFinishedSplit(PubSubSplit.SPLIT_ID);
+        }
+        return recordsBySplits.build();
     }
 
     @Override
@@ -120,13 +123,19 @@ public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSub
         subscriber.close();
     }
 
-    //	TODO: share this collector between KafkaSource and PubSubSource if it remains the same?
-    private static class SimpleCollector<T> implements Collector<T> {
+    private class PubSubCollector implements Collector<T> {
         private final List<T> messages = new ArrayList<>();
 
+        private boolean endOfStreamSignalled = false;
+
         @Override
-        public void collect(T record) {
-            messages.add(record);
+        public void collect(T message) {
+            if (endOfStreamSignalled || deserializationSchema.isEndOfStream(message)) {
+                this.endOfStreamSignalled = true;
+                return;
+            }
+
+            messages.add(message);
         }
 
         @Override
@@ -138,6 +147,10 @@ public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSub
 
         private void reset() {
             messages.clear();
+        }
+
+        public boolean isEndOfStreamSignalled() {
+            return endOfStreamSignalled;
         }
     }
 }
