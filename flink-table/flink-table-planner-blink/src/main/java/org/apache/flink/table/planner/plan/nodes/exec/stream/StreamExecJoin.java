@@ -96,11 +96,6 @@ public class StreamExecJoin extends ExecNodeBase<RowData> implements StreamExecN
         final JoinInputSideSpec rightInputSpec =
                 JoinUtil.analyzeJoinInput(rightTypeInfo, rightJoinKey, rightUniqueKeys);
 
-        RowDataKeySelector leftSelect =
-                KeySelectorUtil.getRowDataSelector(leftJoinKey, leftTypeInfo);
-        RowDataKeySelector rightSelect =
-                KeySelectorUtil.getRowDataSelector(rightJoinKey, rightTypeInfo);
-
         GeneratedJoinCondition generatedCondition =
                 JoinUtil.generateConditionFunction(tableConfig, joinSpec, leftType, rightType);
 
@@ -152,6 +147,10 @@ public class StreamExecJoin extends ExecNodeBase<RowData> implements StreamExecN
         }
 
         // set KeyType and Selector for state
+        RowDataKeySelector leftSelect =
+                KeySelectorUtil.getRowDataSelector(leftJoinKey, leftTypeInfo);
+        RowDataKeySelector rightSelect =
+                KeySelectorUtil.getRowDataSelector(rightJoinKey, rightTypeInfo);
         ret.setStateKeySelectors(leftSelect, rightSelect);
         ret.setStateKeyType(leftSelect.getProducedType());
         return ret;
