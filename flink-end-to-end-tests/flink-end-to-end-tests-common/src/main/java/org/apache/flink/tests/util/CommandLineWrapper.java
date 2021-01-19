@@ -19,6 +19,7 @@
 package org.apache.flink.tests.util;
 
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -35,7 +36,7 @@ public enum CommandLineWrapper {
 
         private final String url;
         private Path targetDir;
-        private long timeoutSecs;
+        private int timeoutSecs;
 
         WGetBuilder(String url) {
             this.url = url;
@@ -46,8 +47,8 @@ public enum CommandLineWrapper {
             return this;
         }
 
-        public WGetBuilder timeoutSecs(long secs) {
-            this.timeoutSecs = secs;
+        public WGetBuilder timeoutSecs(Duration timeout) {
+            this.timeoutSecs = timeout.getSeconds();
             return this;
         }
 
@@ -62,7 +63,7 @@ public enum CommandLineWrapper {
             }
             if (timeoutSecs > 0) {
                 commandsList.add("--timeout");
-                commandsList.add(Long.toString(timeoutSecs));
+                commandsList.add(Integer.toString(timeoutSecs));
             }
             commandsList.add(url);
             return commandsList.toArray(new String[commandsList.size()]);
