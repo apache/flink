@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.operators.join.interval;
 
-import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -30,7 +29,6 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.OuterJoinPaddingUtil;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -61,13 +59,10 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
     protected final long allowedLateness;
     private final InternalTypeInfo<RowData> leftType;
     private final InternalTypeInfo<RowData> rightType;
-    private GeneratedFunction<FlatJoinFunction<RowData, RowData, RowData>> genJoinFunc;
+    private final IntervalJoinFunction joinFunction;
     private transient OuterJoinPaddingUtil paddingUtil;
 
     private transient EmitAwareCollector joinCollector;
-
-    // the join function for other conditions
-    private transient FlatJoinFunction<RowData, RowData, RowData> joinFunction;
 
     // cache to store rows form the left stream
     private transient MapState<Long, List<Tuple2<RowData, Boolean>>> leftCache;
@@ -94,7 +89,7 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
             long allowedLateness,
             InternalTypeInfo<RowData> leftType,
             InternalTypeInfo<RowData> rightType,
-            GeneratedFunction<FlatJoinFunction<RowData, RowData, RowData>> genJoinFunc) {
+            IntervalJoinFunction joinFunc) {
         this.joinType = joinType;
         this.leftRelativeSize = -leftLowerBound;
         this.rightRelativeSize = leftUpperBound;
@@ -105,18 +100,13 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
         this.allowedLateness = allowedLateness;
         this.leftType = leftType;
         this.rightType = rightType;
-        this.genJoinFunc = genJoinFunc;
+        this.joinFunction = joinFunc;
     }
 
     @Override
     public void open(Configuration parameters) throws Exception {
-        LOGGER.debug(
-                "Instantiating JoinFunction: {} \n\n Code:\n{}",
-                genJoinFunc.getClassName(),
-                genJoinFunc.getCode());
-        joinFunction = genJoinFunc.newInstance(getRuntimeContext().getUserCodeClassLoader());
-        genJoinFunc = null;
-
+        joinFunction.setRuntimeContext(getRuntimeContext());
+        joinFunction.open(parameters);
         joinCollector = new EmitAwareCollector();
 
         // Initialize the data caches.
@@ -149,8 +139,16 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
     }
 
     @Override
+    public void close() throws Exception {
+        if (this.joinFunction != null) {
+            this.joinFunction.close();
+        }
+    }
+
+    @Override
     public void processElement1(RowData leftRow, Context ctx, Collector<RowData> out)
             throws Exception {
+        joinFunction.setJoinKey(ctx.getCurrentKey());
         joinCollector.setInnerCollector(out);
         updateOperatorTime(ctx);
 
@@ -238,6 +236,7 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
     @Override
     public void processElement2(RowData rightRow, Context ctx, Collector<RowData> out)
             throws Exception {
+        joinFunction.setJoinKey(ctx.getCurrentKey());
         joinCollector.setInnerCollector(out);
         updateOperatorTime(ctx);
         long timeForRightRow = getTimeForRightStream(ctx, rightRow);
@@ -320,6 +319,7 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
     @Override
     public void onTimer(long timestamp, OnTimerContext ctx, Collector<RowData> out)
             throws Exception {
+        joinFunction.setJoinKey(ctx.getCurrentKey());
         joinCollector.setInnerCollector(out);
         updateOperatorTime(ctx);
         // In the future, we should separate the left and right watermarks. Otherwise, the

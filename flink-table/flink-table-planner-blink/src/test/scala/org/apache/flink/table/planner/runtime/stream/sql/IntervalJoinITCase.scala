@@ -82,6 +82,49 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     env.execute()
   }
 
+  @Test
+  def testProcessTimeJoinWithIsNotDistinctFrom(): Unit = {
+    env.setParallelism(1)
+
+    val sqlQuery =
+      """
+        |SELECT t2.a, t2.c, t1.c
+        |FROM T1 as t1 join T2 as t2 ON
+        |  t1.a is not distinct from t2.a AND
+        |  t1.proctime BETWEEN t2.proctime - INTERVAL '5' SECOND AND
+        |    t2.proctime + INTERVAL '5' SECOND
+        |""".stripMargin
+
+    val data1 = new mutable.MutableList[(Int, Long, String)]
+    data1.+=((1, 1L, "Hi1"))
+    data1.+=((1, 2L, "Hi2"))
+    data1.+=((1, 5L, "Hi3"))
+    data1.+=((2, 7L, "Hi5"))
+    data1.+=((1, 9L, "Hi6"))
+    data1.+=((1, 8L, "Hi8"))
+
+    val data2 = new mutable.MutableList[(Int, Long, String)]
+    data2.+=((1, 1L, "HiHi"))
+    data2.+=((2, 2L, "HeHe"))
+
+    val tmp1 = env.fromCollection(data1).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
+    tEnv.registerTable("TmpT1", tmp1)
+    val subquery1 = "SELECT IF(a = 1, CAST(NULL AS INT), a) as a, b, c, proctime FROM TmpT1"
+    val t1 = tEnv.sqlQuery(subquery1)
+    tEnv.registerTable("T1", t1)
+
+    val tmp2 = env.fromCollection(data2).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
+    tEnv.registerTable("TmpT2", tmp2)
+    val subquery2 = "SELECT IF(a = 1, CAST(NULL AS INT), a) as a, b, c, proctime FROM TmpT2"
+    val t2 = tEnv.sqlQuery(subquery2)
+    tEnv.registerTable("T2", t2)
+
+    val sink = new TestingAppendSink
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    result.addSink(sink)
+    env.execute()
+  }
+
   /** test proctime inner join with other condition **/
   @Test
   def testProcessTimeInnerJoinWithOtherConditions(): Unit = {
@@ -175,6 +218,57 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       "A,RIGHT6,LEFT5",
       "A,RIGHT6,LEFT6",
       "B,RIGHT7,LEFT4")
+    assertEquals(expected, sink.getAppendResults.sorted)
+  }
+
+  /** test rowtime inner join **/
+  @Test
+  def testRowTimeInnerJoinWithIsNotDistinctFrom(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT t2.key, t2.id, t1.id
+        |FROM T1 as t1 join T2 as t2 ON
+        |  t1.key is not distinct from t2.key AND
+        |  t1.rowtime BETWEEN t2.rowtime - INTERVAL '5' SECOND AND
+        |    t2.rowtime + INTERVAL '6' SECOND
+        |""".stripMargin
+
+    val data1 = new mutable.MutableList[(String, String, Long)]
+    // for boundary test
+    data1.+=(("A", "LEFT0.999", 999L))
+    data1.+=(("A", "LEFT1", 1000L))
+    data1.+=(("A", "LEFT2", 2000L))
+    data1.+=(("A", "LEFT3", 3000L))
+    data1.+=(("B", "LEFT4", 4000L))
+    data1.+=(("A", "LEFT5", 5000L))
+    data1.+=(("A", "LEFT6", 6000L))
+    // test null key
+    data1.+=((null.asInstanceOf[String], "LEFT8", 8000L))
+
+    val data2 = new mutable.MutableList[(String, String, Long)]
+    data2.+=(("A", "RIGHT6", 6000L))
+    data2.+=(("B", "RIGHT7", 7000L))
+    // test null key
+    data2.+=((null.asInstanceOf[String], "RIGHT10", 10000L))
+
+    val t1 = env.fromCollection(data1)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+    val t2 = env.fromCollection(data2)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+
+    tEnv.registerTable("T1", t1)
+    tEnv.registerTable("T2", t2)
+    val sink = new TestingAppendSink
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    result.addSink(sink)
+    env.execute()
+    val expected = mutable.MutableList("A,RIGHT6,LEFT1", "A,RIGHT6,LEFT2", "A,RIGHT6,LEFT3",
+      "A,RIGHT6,LEFT5",
+      "A,RIGHT6,LEFT6",
+      "B,RIGHT7,LEFT4",
+      "null,RIGHT10,LEFT8")
     assertEquals(expected, sink.getAppendResults.sorted)
   }
 

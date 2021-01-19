@@ -470,11 +470,11 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
   }
 
   def getUniqueKeys(
-      rel: StreamExecIntervalJoin,
+      rel: StreamPhysicalIntervalJoin,
       mq: RelMetadataQuery,
       ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
-    val joinInfo = JoinInfo.of(rel.getLeft, rel.getRight, rel.joinCondition)
-    getJoinUniqueKeys(joinInfo, rel.joinType, rel.getLeft, rel.getRight, mq, ignoreNulls)
+    val joinInfo = JoinInfo.of(rel.getLeft, rel.getRight, rel.originalCondition)
+    getJoinUniqueKeys(joinInfo, rel.getJoinType, rel.getLeft, rel.getRight, mq, ignoreNulls)
   }
 
   def getUniqueKeys(

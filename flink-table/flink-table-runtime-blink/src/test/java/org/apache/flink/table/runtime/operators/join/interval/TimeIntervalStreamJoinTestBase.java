@@ -18,9 +18,8 @@
 
 package org.apache.flink.table.runtime.operators.join.interval;
 
-import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.generated.GeneratedFunction;
+import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.types.logical.BigIntType;
@@ -39,24 +38,22 @@ abstract class TimeIntervalStreamJoinTestBase {
                     new VarCharType(VarCharType.MAX_LENGTH));
     RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(outputRowType.toRowFieldTypes());
 
-    private String funcCode =
-            "public class IntervalJoinFunction\n"
-                    + "    extends org.apache.flink.api.common.functions.RichFlatJoinFunction {\n"
-                    + "  final org.apache.flink.table.data.utils.JoinedRowData joinedRow = new org.apache.flink.table.data.utils.JoinedRowData();\n"
-                    + "  public IntervalJoinFunction(Object[] references) throws Exception {}\n"
-                    + "  @Override\n"
-                    + "  public void open(org.apache.flink.configuration.Configuration parameters) throws Exception {}\n"
-                    + "  @Override\n"
-                    + "  public void join(Object _in1, Object _in2, org.apache.flink.util.Collector c) throws Exception {\n"
-                    + "    org.apache.flink.table.data.RowData in1 = (org.apache.flink.table.data.RowData) _in1;\n"
-                    + "    org.apache.flink.table.data.RowData in2 = (org.apache.flink.table.data.RowData) _in2;\n"
-                    + "    joinedRow.replace(in1,in2);\n"
-                    + "    c.collect(joinedRow);\n"
-                    + "  }\n"
-                    + "  @Override\n"
-                    + "  public void close() throws Exception {}\n"
+    protected String funcCode =
+            "public class TestIntervalJoinCondition extends org.apache.flink.api.common.functions.AbstractRichFunction "
+                    + "implements org.apache.flink.table.runtime.generated.JoinCondition {\n"
+                    + "\n"
+                    + "    public TestIntervalJoinCondition(Object[] reference) {\n"
+                    + "    }\n"
+                    + "\n"
+                    + "    @Override\n"
+                    + "    public boolean apply(org.apache.flink.table.data.RowData in1, org.apache.flink.table.data.RowData in2) {\n"
+                    + "        return true;\n"
+                    + "    }\n"
                     + "}\n";
-
-    GeneratedFunction<FlatJoinFunction<RowData, RowData, RowData>> generatedFunction =
-            new GeneratedFunction("IntervalJoinFunction", funcCode, new Object[0]);
+    protected IntervalJoinFunction joinFunction =
+            new IntervalJoinFunction(
+                    new GeneratedJoinCondition(
+                            "TestIntervalJoinCondition", funcCode, new Object[0]),
+                    outputRowType,
+                    new boolean[] {true});
 }

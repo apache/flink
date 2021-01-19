@@ -463,8 +463,8 @@ class IntervalJoinTest extends TableTestBase {
       util.tableEnv.getConfig)
 
     val timeTypeStr = if (windowBounds.get.isEventTime) "rowtime" else "proctime"
-    assertEquals(expLeftSize, windowBounds.get.leftLowerBound)
-    assertEquals(expRightSize, windowBounds.get.leftUpperBound)
+    assertEquals(expLeftSize, windowBounds.get.getLeftLowerBound)
+    assertEquals(expRightSize, windowBounds.get.getLeftUpperBound)
     assertEquals(expTimeType, timeTypeStr)
   }
 

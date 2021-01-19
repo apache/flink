@@ -236,7 +236,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         val children = visitChildren(cep, ModifyKindSetTrait.INSERT_ONLY, "Match Recognize")
         createNewNode(cep, children, ModifyKindSetTrait.INSERT_ONLY, requiredTrait, requester)
 
-      case _: StreamPhysicalTemporalSort | _: StreamExecIntervalJoin |
+      case _: StreamPhysicalTemporalSort | _: StreamPhysicalIntervalJoin |
            _: StreamPhysicalOverAggregate | _: StreamPhysicalPythonOverAggregate =>
         // TemporalSort, OverAggregate, IntervalJoin only support consuming insert-only
         // and producing insert-only changes
@@ -466,7 +466,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
 
       case _: StreamPhysicalGroupWindowAggregate | _: StreamPhysicalGroupWindowTableAggregate |
            _: StreamPhysicalDeduplicate | _: StreamPhysicalTemporalSort | _: StreamPhysicalMatch |
-           _: StreamPhysicalOverAggregate | _: StreamExecIntervalJoin |
+           _: StreamPhysicalOverAggregate | _: StreamPhysicalIntervalJoin |
            _: StreamPhysicalPythonGroupWindowAggregate | _: StreamPhysicalPythonOverAggregate =>
         // WindowAggregate, WindowTableAggregate, Deduplicate, TemporalSort, CEP, OverAggregate
         // and IntervalJoin require nothing about UpdateKind.
