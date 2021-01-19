@@ -32,7 +32,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Collector;
 
 import static org.apache.flink.table.data.util.RowDataUtil.isAccumulateMsg;
-import static org.apache.flink.table.runtime.util.StateTtlConfigUtil.createTtlConfig;
+import static org.apache.flink.table.runtime.util.StateConfigUtil.createTtlConfig;
 
 /** Aggregate Function used for the groupby (without window) table aggregate. */
 public class GroupTableAggFunction extends KeyedProcessFunction<RowData, RowData, RowData> {

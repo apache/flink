@@ -35,7 +35,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.table.runtime.util.StateTtlConfigUtil.createTtlConfig;
+import static org.apache.flink.table.runtime.util.StateConfigUtil.createTtlConfig;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Utility to create a {@link JoinRecordStateView} depends on {@link JoinInputSideSpec}. */
