@@ -491,7 +491,7 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
   }
 
   def getRelModifiedMonotonicity(
-      rel: StreamExecIntervalJoin,
+      rel: StreamPhysicalIntervalJoin,
       mq: RelMetadataQuery): RelModifiedMonotonicity = {
     // window join won't have update
     constants(rel.getRowType.getFieldCount)

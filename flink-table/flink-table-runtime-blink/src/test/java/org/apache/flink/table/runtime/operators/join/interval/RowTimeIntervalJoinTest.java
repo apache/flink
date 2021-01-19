@@ -49,7 +49,7 @@ public class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
     public void testRowTimeInnerJoinWithCommonBounds() throws Exception {
         RowTimeIntervalJoin joinProcessFunc =
                 new RowTimeIntervalJoin(
-                        FlinkJoinType.INNER, -10, 20, 0, rowType, rowType, generatedFunction, 0, 0);
+                        FlinkJoinType.INNER, -10, 20, 0, rowType, rowType, joinFunction, 0, 0);
 
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinProcessFunc);
@@ -114,7 +114,7 @@ public class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
     public void testRowTimeInnerJoinWithNegativeBounds() throws Exception {
         RowTimeIntervalJoin joinProcessFunc =
                 new RowTimeIntervalJoin(
-                        FlinkJoinType.INNER, -10, -7, 0, rowType, rowType, generatedFunction, 0, 0);
+                        FlinkJoinType.INNER, -10, -7, 0, rowType, rowType, joinFunction, 0, 0);
 
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinProcessFunc);
@@ -169,7 +169,7 @@ public class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
     public void testRowTimeLeftOuterJoin() throws Exception {
         RowTimeIntervalJoin joinProcessFunc =
                 new RowTimeIntervalJoin(
-                        FlinkJoinType.LEFT, -5, 9, 0, rowType, rowType, generatedFunction, 0, 0);
+                        FlinkJoinType.LEFT, -5, 9, 0, rowType, rowType, joinFunction, 0, 0);
 
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinProcessFunc);
@@ -239,7 +239,7 @@ public class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
     public void testRowTimeRightOuterJoin() throws Exception {
         RowTimeIntervalJoin joinProcessFunc =
                 new RowTimeIntervalJoin(
-                        FlinkJoinType.RIGHT, -5, 9, 0, rowType, rowType, generatedFunction, 0, 0);
+                        FlinkJoinType.RIGHT, -5, 9, 0, rowType, rowType, joinFunction, 0, 0);
 
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinProcessFunc);
@@ -310,7 +310,7 @@ public class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
     public void testRowTimeFullOuterJoin() throws Exception {
         RowTimeIntervalJoin joinProcessFunc =
                 new RowTimeIntervalJoin(
-                        FlinkJoinType.FULL, -5, 9, 0, rowType, rowType, generatedFunction, 0, 0);
+                        FlinkJoinType.FULL, -5, 9, 0, rowType, rowType, joinFunction, 0, 0);
 
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinProcessFunc);
