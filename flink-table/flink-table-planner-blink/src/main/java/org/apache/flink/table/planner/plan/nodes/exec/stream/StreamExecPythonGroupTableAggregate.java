@@ -47,24 +47,26 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.Collections;
 
-/** Stream {@link ExecNode} for Python unbounded group aggregate. */
-public class StreamExecPythonGroupAggregate extends ExecNodeBase<RowData>
+/** Stream [[ExecNode]] for unbounded python group table aggregate. */
+public class StreamExecPythonGroupTableAggregate extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData> {
+    private static final Logger LOG =
+            LoggerFactory.getLogger(StreamExecPythonGroupTableAggregate.class);
 
-    private static final Logger LOG = LoggerFactory.getLogger(StreamExecPythonGroupAggregate.class);
-    private static final String PYTHON_STREAM_AGGREAGTE_OPERATOR_NAME =
-            "org.apache.flink.table.runtime.operators.python.aggregate.PythonStreamGroupAggregateOperator";
-
+    private static final String PYTHON_STREAM_TABLE_AGGREGATE_OPERATOR_NAME =
+            "org.apache.flink.table.runtime.operators.python.aggregate."
+                    + "PythonStreamGroupTableAggregateOperator";
     private final int[] grouping;
     private final AggregateCall[] aggCalls;
     private final boolean[] aggCallNeedRetractions;
     private final boolean generateUpdateBefore;
     private final boolean needRetraction;
 
-    public StreamExecPythonGroupAggregate(
+    public StreamExecPythonGroupTableAggregate(
             int[] grouping,
             AggregateCall[] aggCalls,
             boolean[] aggCallNeedRetractions,
@@ -105,16 +107,15 @@ public class StreamExecPythonGroupAggregate extends ExecNodeBase<RowData>
                         needRetraction,
                         true,
                         true);
-        final int inputCountIndex = aggInfoList.getIndexOfCountStar();
-        final boolean countStarInserted = aggInfoList.countStarInserted();
+        int inputCountIndex = aggInfoList.getIndexOfCountStar();
         Tuple2<PythonAggregateFunctionInfo[], DataViewUtils.DataViewSpec[][]>
                 aggInfosAndDataViewSpecs =
                         CommonPythonUtil.extractPythonAggregateFunctionInfos(aggInfoList, aggCalls);
         PythonAggregateFunctionInfo[] pythonFunctionInfos = aggInfosAndDataViewSpecs.f0;
         DataViewUtils.DataViewSpec[][] dataViewSpecs = aggInfosAndDataViewSpecs.f1;
         Configuration config = CommonPythonUtil.getMergedConfig(planner.getExecEnv(), tableConfig);
-        final OneInputStreamOperator<RowData, RowData> operator =
-                getPythonAggregateFunctionOperator(
+        OneInputStreamOperator<RowData, RowData> pythonOperator =
+                getPythonTableAggregateFunctionOperator(
                         config,
                         inputRowType,
                         InternalTypeInfo.of(getOutputType()).toRowType(),
@@ -122,14 +123,14 @@ public class StreamExecPythonGroupAggregate extends ExecNodeBase<RowData>
                         dataViewSpecs,
                         tableConfig.getMinIdleStateRetentionTime(),
                         tableConfig.getMaxIdleStateRetentionTime(),
-                        inputCountIndex,
-                        countStarInserted);
-        // partitioned aggregation
-        OneInputTransformation transform =
-                new OneInputTransformation(
+                        generateUpdateBefore,
+                        inputCountIndex);
+
+        OneInputTransformation<RowData, RowData> transform =
+                new OneInputTransformation<>(
                         inputTransform,
                         getDesc(),
-                        operator,
+                        pythonOperator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());
 
@@ -151,17 +152,17 @@ public class StreamExecPythonGroupAggregate extends ExecNodeBase<RowData>
     }
 
     @SuppressWarnings("unchecked")
-    private OneInputStreamOperator<RowData, RowData> getPythonAggregateFunctionOperator(
+    private OneInputStreamOperator<RowData, RowData> getPythonTableAggregateFunctionOperator(
             Configuration config,
-            RowType inputType,
-            RowType outputType,
+            RowType inputRowType,
+            RowType outputRowType,
             PythonAggregateFunctionInfo[] aggregateFunctions,
             DataViewUtils.DataViewSpec[][] dataViewSpecs,
             long minIdleStateRetentionTime,
             long maxIdleStateRetentionTime,
-            int indexOfCountStar,
-            boolean countStarInserted) {
-        Class<?> clazz = CommonPythonUtil.loadClass(PYTHON_STREAM_AGGREAGTE_OPERATOR_NAME);
+            boolean generateUpdateBefore,
+            int indexOfCountStar) {
+        Class clazz = CommonPythonUtil.loadClass(PYTHON_STREAM_TABLE_AGGREGATE_OPERATOR_NAME);
         try {
             Constructor ctor =
                     clazz.getConstructor(
@@ -173,25 +174,26 @@ public class StreamExecPythonGroupAggregate extends ExecNodeBase<RowData>
                             int[].class,
                             int.class,
                             boolean.class,
-                            boolean.class,
                             long.class,
                             long.class);
             return (OneInputStreamOperator<RowData, RowData>)
                     ctor.newInstance(
                             config,
-                            inputType,
-                            outputType,
+                            inputRowType,
+                            outputRowType,
                             aggregateFunctions,
                             dataViewSpecs,
                             grouping,
                             indexOfCountStar,
-                            countStarInserted,
                             generateUpdateBefore,
                             minIdleStateRetentionTime,
                             maxIdleStateRetentionTime);
-        } catch (Exception e) {
+        } catch (NoSuchMethodException
+                | InstantiationException
+                | IllegalAccessException
+                | InvocationTargetException e) {
             throw new TableException(
-                    "Python Stream Aggregate Function Operator constructed failed.", e);
+                    "PythonStreamGroupTableAggregateOperator constructed failed.", e);
         }
     }
 }
