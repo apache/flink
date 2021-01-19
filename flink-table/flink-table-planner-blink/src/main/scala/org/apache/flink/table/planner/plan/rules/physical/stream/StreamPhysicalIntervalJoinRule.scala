@@ -21,7 +21,8 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecIntervalJoin
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalIntervalJoin
+
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 
@@ -29,10 +30,10 @@ import scala.collection.JavaConversions._
 
 /**
   * Rule that converts non-SEMI/ANTI [[FlinkLogicalJoin]] with window bounds in join condition
-  * to [[StreamExecIntervalJoin]].
+  * to [[StreamPhysicalIntervalJoin]].
   */
-class StreamExecIntervalJoinRule
-  extends StreamPhysicalJoinRuleBase("StreamExecIntervalJoinRule") {
+class StreamPhysicalIntervalJoinRule
+  extends StreamPhysicalJoinRuleBase("StreamPhysicalIntervalJoinRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: FlinkLogicalJoin = call.rel(0)
@@ -68,23 +69,18 @@ class StreamExecIntervalJoinRule
       rightConversion: RelNode => RelNode,
       providedTraitSet: RelTraitSet): FlinkRelNode = {
     val (windowBounds, remainCondition) = extractWindowBounds(join)
-    new StreamExecIntervalJoin(
+    new StreamPhysicalIntervalJoin(
       join.getCluster,
       providedTraitSet,
       leftConversion(leftInput),
       rightConversion(rightInput),
-      join.getCondition,
       join.getJoinType,
-      join.getRowType,
-      windowBounds.get.isEventTime,
-      windowBounds.get.leftLowerBound,
-      windowBounds.get.leftUpperBound,
-      windowBounds.get.leftTimeIdx,
-      windowBounds.get.rightTimeIdx,
-      remainCondition)
+      join.getCondition,
+      remainCondition.getOrElse(join.getCluster.getRexBuilder.makeLiteral(true)),
+      windowBounds.get)
   }
 }
 
-object StreamExecIntervalJoinRule {
-  val INSTANCE: RelOptRule = new StreamExecIntervalJoinRule
+object StreamPhysicalIntervalJoinRule {
+  val INSTANCE: RelOptRule = new StreamPhysicalIntervalJoinRule
 }
