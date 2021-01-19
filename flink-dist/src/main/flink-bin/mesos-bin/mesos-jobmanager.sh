@@ -29,7 +29,7 @@ bin=$(cd "${bin}" || exit; pwd)
 parseJmArgsAndExportLogs "${ARGS[@]}"
 
 if [ ! -z "${DYNAMIC_PARAMETERS}" ]; then
-    ARGS+=(${DYNAMIC_PARAMETERS[@]})
+    ARGS=(${DYNAMIC_PARAMETERS[@]} "${ARGS[@]}")
 fi
 
 if [ "$FLINK_IDENT_STRING" = "" ]; then
