@@ -111,8 +111,7 @@ public class HivePartitionUtils {
             List<Map<String, String>> remainingPartitions) {
         List<HiveTablePartition> allHivePartitions = new ArrayList<>();
         try (HiveMetastoreClientWrapper client =
-                HiveMetastoreClientFactory.create(
-                        new HiveConf(jobConf, HiveConf.class), hiveVersion)) {
+                HiveMetastoreClientFactory.create(HiveConfUtils.create(jobConf), hiveVersion)) {
             String dbName = tablePath.getDatabaseName();
             String tableName = tablePath.getObjectName();
             List<String> partitionColNames = catalogTable.getPartitionKeys();

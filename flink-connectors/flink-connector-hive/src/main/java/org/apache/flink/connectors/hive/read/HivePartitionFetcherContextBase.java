@@ -21,6 +21,7 @@ package org.apache.flink.connectors.hive.read;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connectors.hive.ConsumeOrder;
 import org.apache.flink.connectors.hive.JobConfWrapper;
+import org.apache.flink.connectors.hive.util.HiveConfUtils;
 import org.apache.flink.connectors.hive.util.HivePartitionUtils;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
@@ -33,7 +34,6 @@ import org.apache.flink.table.types.DataType;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
@@ -99,8 +99,7 @@ public abstract class HivePartitionFetcherContextBase<P> implements PartitionFet
 
     @Override
     public void open() throws Exception {
-        metaStoreClient =
-                hiveShim.getHiveMetastoreClient(new HiveConf(confWrapper.conf(), HiveConf.class));
+        metaStoreClient = hiveShim.getHiveMetastoreClient(HiveConfUtils.create(confWrapper.conf()));
         table = metaStoreClient.getTable(tablePath.getDatabaseName(), tablePath.getObjectName());
         tableSd = table.getSd();
         tableProps = HiveReflectionUtils.getTableMetadata(hiveShim, table);
