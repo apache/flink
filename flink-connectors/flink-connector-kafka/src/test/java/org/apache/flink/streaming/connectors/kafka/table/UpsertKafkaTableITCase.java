@@ -517,6 +517,9 @@ public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
                                 "Tim",
                                 "Shenzhen",
                                 LocalDateTime.parse("2020-08-16T00:06:00")),
+                        // Keep the timestamp in the records are in the ascending order.
+                        // It will keep the records in the kafka partition are in the order.
+                        // It has the same effects by adjusting the watermark strategy.
                         changelogRow(
                                 "+U",
                                 103L,
