@@ -49,4 +49,9 @@ public class SlotManagerUtils {
         }
         return numSlots;
     }
+
+    public static ResourceProfile getEffectiveResourceProfile(
+            ResourceProfile requirement, ResourceProfile defaultResourceProfile) {
+        return requirement.equals(ResourceProfile.UNKNOWN) ? defaultResourceProfile : requirement;
+    }
 }

@@ -78,4 +78,18 @@ public class SlotManagerUtilsTest extends TestLogger {
                 SlotManagerUtils.calculateDefaultNumSlots(ResourceProfile.ANY, defaultSlotResource),
                 is(Integer.MAX_VALUE));
     }
+
+    @Test
+    public void testGetEffectiveResourceProfile() {
+        final ResourceProfile defaultProfile = ResourceProfile.fromResources(5, 10);
+        final ResourceProfile concreteRequirement = ResourceProfile.fromResources(1, 20);
+
+        assertThat(
+                SlotManagerUtils.getEffectiveResourceProfile(
+                        ResourceProfile.UNKNOWN, defaultProfile),
+                is(defaultProfile));
+        assertThat(
+                SlotManagerUtils.getEffectiveResourceProfile(concreteRequirement, defaultProfile),
+                is(concreteRequirement));
+    }
 }
