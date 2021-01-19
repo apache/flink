@@ -199,7 +199,7 @@ jobs:
       condition: not(eq(variables['SKIP'], '1'))
     - task: Cache@2
       inputs:
-        key: e2e-cache
+        key: e2e-cache | flink-end-to-end-tests/**/*.java, !**/avro/**
         path: $(E2E_CACHE_FOLDER)
       displayName: Cache E2E files
       continueOnError: true

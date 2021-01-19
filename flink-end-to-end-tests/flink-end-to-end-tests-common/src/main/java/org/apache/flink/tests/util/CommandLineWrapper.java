@@ -36,7 +36,7 @@ public enum CommandLineWrapper {
 
         private final String url;
         private Path targetDir;
-        private int timeoutSecs;
+        private long timeoutSecs;
 
         WGetBuilder(String url) {
             this.url = url;
@@ -63,7 +63,7 @@ public enum CommandLineWrapper {
             }
             if (timeoutSecs > 0) {
                 commandsList.add("--timeout");
-                commandsList.add(Integer.toString(timeoutSecs));
+                commandsList.add(Long.toString(timeoutSecs));
             }
             commandsList.add(url);
             return commandsList.toArray(new String[commandsList.size()]);
