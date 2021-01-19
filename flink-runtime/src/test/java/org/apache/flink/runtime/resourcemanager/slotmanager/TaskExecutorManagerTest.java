@@ -328,32 +328,6 @@ public class TaskExecutorManagerTest extends TestLogger {
         }
     }
 
-    @Test
-    public void testGenerateDefaultSlotProfile() {
-        final int numSlots = 5;
-        final ResourceProfile resourceProfile =
-                ResourceProfile.newBuilder()
-                        .setCpuCores(1.0)
-                        .setTaskHeapMemoryMB(1)
-                        .setTaskOffHeapMemoryMB(2)
-                        .setNetworkMemoryMB(3)
-                        .setManagedMemoryMB(4)
-                        .build();
-        final WorkerResourceSpec workerResourceSpec =
-                new WorkerResourceSpec.Builder()
-                        .setCpuCores(1.0 * numSlots)
-                        .setTaskHeapMemoryMB(1 * numSlots)
-                        .setTaskOffHeapMemoryMB(2 * numSlots)
-                        .setNetworkMemoryMB(3 * numSlots)
-                        .setManagedMemoryMB(4 * numSlots)
-                        .build();
-
-        assertThat(
-                TaskExecutorManager.generateDefaultSlotResourceProfile(
-                        workerResourceSpec, numSlots),
-                is(resourceProfile));
-    }
-
     private static TaskExecutorManagerBuilder createTaskExecutorManagerBuilder() {
         return new TaskExecutorManagerBuilder()
                 .setResourceActions(createResourceActionsBuilder().build());

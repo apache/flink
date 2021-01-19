@@ -1638,7 +1638,7 @@ public class SlotManagerImplTest extends TestLogger {
         final int numberSlots = 3;
         final TestingResourceActions resourceActions = new TestingResourceActionsBuilder().build();
         final ResourceProfile resourceProfile =
-                SlotManagerImpl.generateDefaultSlotResourceProfile(
+                SlotManagerUtils.generateDefaultSlotResourceProfile(
                         WORKER_RESOURCE_SPEC, numberSlots);
 
         try (final SlotManagerImpl slotManager =
@@ -1944,30 +1944,5 @@ public class SlotManagerImplTest extends TestLogger {
                 firstSlotReport,
                 ResourceProfile.ANY,
                 ResourceProfile.ANY);
-    }
-
-    @Test
-    public void testGenerateDefaultSlotProfile() {
-        final int numSlots = 5;
-        final ResourceProfile resourceProfile =
-                ResourceProfile.newBuilder()
-                        .setCpuCores(1.0)
-                        .setTaskHeapMemoryMB(1)
-                        .setTaskOffHeapMemoryMB(2)
-                        .setNetworkMemoryMB(3)
-                        .setManagedMemoryMB(4)
-                        .build();
-        final WorkerResourceSpec workerResourceSpec =
-                new WorkerResourceSpec.Builder()
-                        .setCpuCores(1.0 * numSlots)
-                        .setTaskHeapMemoryMB(1 * numSlots)
-                        .setTaskOffHeapMemoryMB(2 * numSlots)
-                        .setNetworkMemoryMB(3 * numSlots)
-                        .setManagedMemoryMB(4 * numSlots)
-                        .build();
-
-        assertThat(
-                SlotManagerImpl.generateDefaultSlotResourceProfile(workerResourceSpec, numSlots),
-                is(resourceProfile));
     }
 }
