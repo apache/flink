@@ -245,14 +245,14 @@ LogicalProject(deptno=[$0], gender=[$2], min_name=[$3])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[deptno, gender, min_name], where=[(($f5 > 2) OR ((gender = _UTF-16LE'M':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AND (deptno = 10)))])
-+- GroupAggregate(groupBy=[deptno, deptno0, gender, $e], select=[deptno, deptno0, gender, $e, MIN(ename) AS min_name, COUNT(*) AS $f5])
-   +- Exchange(distribution=[hash[deptno, deptno0, gender, $e]])
-      +- Expand(projects=[deptno, deptno0, gender, ename, $e])
-         +- Calc(select=[deptno, deptno0, gender, ename])
-            +- Join(joinType=[InnerJoin], where=[(deptno = deptno0)], select=[ename, deptno, gender, deptno0, dname], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-               :- Exchange(distribution=[hash[deptno]])
-               :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
-               +- Exchange(distribution=[hash[deptno]])
++- GroupAggregate(groupBy=[deptno, gender, deptno0, $e], select=[deptno, gender, deptno0, $e, MIN(ename) AS min_name, COUNT(*) AS $f5])
+   +- Exchange(distribution=[hash[deptno, gender, deptno0, $e]])
+      +- Expand(projects=[ename, deptno, gender, deptno0, $e])
+         +- Join(joinType=[InnerJoin], where=[(deptno = deptno0)], select=[ename, deptno, gender, deptno0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+            :- Exchange(distribution=[hash[deptno]])
+            :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+            +- Exchange(distribution=[hash[deptno]])
+               +- Calc(select=[deptno])
                   +- LegacyTableSourceScan(table=[[default_catalog, default_database, dept, source: [TestTableSource(deptno, dname)]]], fields=[deptno, dname])
 ]]>
     </Resource>
