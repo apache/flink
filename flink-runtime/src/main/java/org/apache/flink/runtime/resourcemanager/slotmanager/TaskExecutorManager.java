@@ -120,7 +120,8 @@ class TaskExecutorManager implements AutoCloseable {
         this.redundantTaskManagerNum = redundantTaskManagerNum;
         this.taskManagerTimeout = taskManagerTimeout;
         this.defaultSlotResourceProfile =
-                generateDefaultSlotResourceProfile(defaultWorkerResourceSpec, numSlotsPerWorker);
+                SlotManagerUtils.generateDefaultSlotResourceProfile(
+                        defaultWorkerResourceSpec, numSlotsPerWorker);
 
         this.resourceActions = Preconditions.checkNotNull(resourceActions);
         this.mainThreadExecutor = mainThreadExecutor;
@@ -132,19 +133,6 @@ class TaskExecutorManager implements AutoCloseable {
                         0L,
                         taskManagerTimeout.toMilliseconds(),
                         TimeUnit.MILLISECONDS);
-    }
-
-    @VisibleForTesting
-    static ResourceProfile generateDefaultSlotResourceProfile(
-            WorkerResourceSpec workerResourceSpec, int numSlotsPerWorker) {
-        return ResourceProfile.newBuilder()
-                .setCpuCores(workerResourceSpec.getCpuCores().divide(numSlotsPerWorker))
-                .setTaskHeapMemory(workerResourceSpec.getTaskHeapSize().divide(numSlotsPerWorker))
-                .setTaskOffHeapMemory(
-                        workerResourceSpec.getTaskOffHeapSize().divide(numSlotsPerWorker))
-                .setManagedMemory(workerResourceSpec.getManagedMemSize().divide(numSlotsPerWorker))
-                .setNetworkMemory(workerResourceSpec.getNetworkMemSize().divide(numSlotsPerWorker))
-                .build();
     }
 
     @Override

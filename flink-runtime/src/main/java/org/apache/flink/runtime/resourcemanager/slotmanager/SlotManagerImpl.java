@@ -165,7 +165,8 @@ public class SlotManagerImpl implements SlotManager {
         this.defaultWorkerResourceSpec = slotManagerConfiguration.getDefaultWorkerResourceSpec();
         this.numSlotsPerWorker = slotManagerConfiguration.getNumSlotsPerWorker();
         this.defaultSlotResourceProfile =
-                generateDefaultSlotResourceProfile(defaultWorkerResourceSpec, numSlotsPerWorker);
+                SlotManagerUtils.generateDefaultSlotResourceProfile(
+                        defaultWorkerResourceSpec, numSlotsPerWorker);
         this.slotManagerMetricGroup = Preconditions.checkNotNull(slotManagerMetricGroup);
         this.maxSlotNum = slotManagerConfiguration.getMaxSlotNum();
         this.redundantTaskManagerNum = slotManagerConfiguration.getRedundantTaskManagerNum();
@@ -1345,19 +1346,6 @@ public class SlotManagerImpl implements SlotManager {
         if (null != request) {
             request.cancel(false);
         }
-    }
-
-    @VisibleForTesting
-    public static ResourceProfile generateDefaultSlotResourceProfile(
-            WorkerResourceSpec workerResourceSpec, int numSlotsPerWorker) {
-        return ResourceProfile.newBuilder()
-                .setCpuCores(workerResourceSpec.getCpuCores().divide(numSlotsPerWorker))
-                .setTaskHeapMemory(workerResourceSpec.getTaskHeapSize().divide(numSlotsPerWorker))
-                .setTaskOffHeapMemory(
-                        workerResourceSpec.getTaskOffHeapSize().divide(numSlotsPerWorker))
-                .setManagedMemory(workerResourceSpec.getManagedMemSize().divide(numSlotsPerWorker))
-                .setNetworkMemory(workerResourceSpec.getNetworkMemSize().divide(numSlotsPerWorker))
-                .build();
     }
 
     // ---------------------------------------------------------------------------------------------
