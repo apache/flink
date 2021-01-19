@@ -83,6 +83,7 @@ Checkpoint 历史记录保存有关最近触发的 checkpoint 的统计信息，
 - **Async Duration**：Checkpoint 的异步部分的持续时间。这包括将 checkpoint 写入设置的文件系统所需的时间。对于 unaligned checkpoint，这还包括 subtask 必须等待最后一个 checkpoint barrier 到达的时间（checkpoint alignment 持续时间）以及持久化数据所需的时间。
 - **Alignment Duration**：处理第一个和最后一个 checkpoint barrier 之间的时间。对于 checkpoint alignment 机制的 checkpoint，在 checkpoint alignment 过程中，已经接收到 checkpoint barrier 的 channel 将阻塞并停止处理后续的数据。
 - **Start Delay**：从 checkpoint barrier 创建开始到 subtask 收到第一个 checkpoint barrier 所用的时间。
+- **Unaligned Checkpoint**：Checkpoint 完成的时候是否是一个 unaligned checkpoint。在 alignment 超时的时候 aligned checkpoint 可以自动切换成 unaligned checkpoint。
 
 <a name="history-size-configuration"></a>
 
