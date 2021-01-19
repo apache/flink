@@ -33,7 +33,7 @@ LogicalProject(a=[$0], s=[$3])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, s])
+Calc(select=[a, f0 AS s])
 +- Correlate(invocation=[UNNEST($cor0.c)], correlate=[table(UNNEST($cor0.c))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) ARRAY c, VARCHAR(2147483647) f0)], joinType=[INNER])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
@@ -66,7 +66,7 @@ LogicalProject(b=[$0], s=[$2])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[b, s])
+Calc(select=[b, f0 AS s])
 +- Correlate(invocation=[UNNEST($cor0.set)], correlate=[table(UNNEST($cor0.set))], select=[b,set,f0], rowType=[RecordType(BIGINT b, BIGINT MULTISET set, BIGINT f0)], joinType=[INNER])
    +- GroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 3000)], select=[b, COLLECT(b) AS set])
       +- Exchange(distribution=[hash[b]])
@@ -92,7 +92,7 @@ LogicalProject(a=[$0], b=[$1], v=[$4])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, v])
+Calc(select=[a, b, f1 AS v])
 +- Correlate(invocation=[UNNEST($cor0.c)], correlate=[table(UNNEST($cor0.c))], select=[a,b,c,f0,f1], rowType=[RecordType(INTEGER a, BIGINT b, (VARCHAR(2147483647), VARCHAR(2147483647)) MAP c, VARCHAR(2147483647) f0, VARCHAR(2147483647) f1)], joinType=[INNER])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
@@ -123,7 +123,7 @@ LogicalProject(a=[$0], b=[$1], x=[$2], y=[$3])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, x, y], where=[(x > a)])
+Calc(select=[a, b, _1, _2], where=[(_1 > a)])
 +- Correlate(invocation=[UNNEST($cor0.b)], correlate=[table(UNNEST($cor0.b))], select=[a,b,_1,_2], rowType=[RecordType(INTEGER a, RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2) ARRAY b, INTEGER _1, VARCHAR(2147483647) _2)], joinType=[INNER])
    +- Calc(select=[a, b], where=[(a < 3)])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b)]]], fields=[a, b])
@@ -153,7 +153,7 @@ LogicalProject(a=[$0], s=[$2])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, s])
+Calc(select=[a, f0 AS s])
 +- Correlate(invocation=[UNNEST($cor0.set)], correlate=[table(UNNEST($cor0.set))], select=[a,set,f0], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) MULTISET set, VARCHAR(2147483647) f0)], joinType=[LEFT])
    +- GroupAggregate(groupBy=[a], select=[a, COLLECT(b) AS set])
       +- Exchange(distribution=[hash[a]])
@@ -179,7 +179,7 @@ LogicalProject(a=[$0], s=[$3])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, s])
+Calc(select=[a, f0 AS s])
 +- Correlate(invocation=[UNNEST($cor0.c)], correlate=[table(UNNEST($cor0.c))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, INTEGER ARRAY b, INTEGER ARRAY ARRAY c, INTEGER ARRAY f0)], joinType=[INNER])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
@@ -208,7 +208,7 @@ LogicalProject(b=[$0], id=[$2], point=[$3])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[b, id, point])
+Calc(select=[b, _1 AS id, _2 AS point])
 +- Correlate(invocation=[UNNEST($cor0.set)], correlate=[table(UNNEST($cor0.set))], select=[b,set,_1,_2], rowType=[RecordType(INTEGER b, RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2) MULTISET set, INTEGER _1, VARCHAR(2147483647) _2)], joinType=[INNER])
    +- GroupAggregate(groupBy=[b], select=[b, COLLECT(c) AS set])
       +- Exchange(distribution=[hash[b]])
@@ -234,7 +234,7 @@ LogicalProject(a=[$0], b=[$1], s=[$3])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, s])
+Calc(select=[a, b, f0 AS s])
 +- Correlate(invocation=[UNNEST($cor0.b)], correlate=[table(UNNEST($cor0.b))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, INTEGER ARRAY b, INTEGER ARRAY ARRAY c, INTEGER f0)], joinType=[INNER])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>

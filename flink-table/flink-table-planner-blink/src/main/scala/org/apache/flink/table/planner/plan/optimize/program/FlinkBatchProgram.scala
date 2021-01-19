@@ -36,6 +36,7 @@ object FlinkBatchProgram {
   val PREDICATE_PUSHDOWN = "predicate_pushdown"
   val JOIN_REORDER = "join_reorder"
   val JOIN_REWRITE = "join_rewrite"
+  val PROJECT_REWRITE = "project_rewrite"
   val WINDOW = "window"
   val LOGICAL = "logical"
   val LOGICAL_REWRITE = "logical_rewrite"
@@ -173,20 +174,11 @@ object FlinkBatchProgram {
 
     // window rewrite
     chainedProgram.addLast(
-      WINDOW,
-      FlinkGroupProgramBuilder.newBuilder[BatchOptimizeContext]
-        .addProgram(
-          FlinkHepRuleSetProgramBuilder.newBuilder
-            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
-            .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-            .add(FlinkBatchRuleSets.PROJECT_RULES)
-            .build(), "project rules")
-        .addProgram(
-          FlinkHepRuleSetProgramBuilder.newBuilder
-            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
-            .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-            .add(FlinkBatchRuleSets.WINDOW_RULES)
-            .build(), "window")
+      PROJECT_REWRITE,
+      FlinkHepRuleSetProgramBuilder.newBuilder
+        .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
+        .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+        .add(FlinkBatchRuleSets.PROJECT_RULES)
         .build())
 
     // optimize the logical plan

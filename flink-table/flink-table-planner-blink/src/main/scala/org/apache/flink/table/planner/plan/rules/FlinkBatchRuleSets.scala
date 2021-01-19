@@ -113,8 +113,15 @@ object FlinkBatchRuleSets {
       List(
         // Transform window to LogicalWindowAggregate
         BatchLogicalWindowAggregateRule.INSTANCE,
+        // slices a project into sections which contain window agg functions
+        // and sections which do not.
+        CoreRules.PROJECT_TO_LOGICAL_PROJECT_AND_WINDOW,
+        // adjust the sequence of window's groups.
+        WindowGroupReorderRule.INSTANCE,
         WindowPropertiesRules.WINDOW_PROPERTIES_RULE,
         WindowPropertiesRules.WINDOW_PROPERTIES_HAVING_RULE,
+        // let project transpose window operator.
+        CoreRules.PROJECT_WINDOW_TRANSPOSE,
         //ensure union set operator have the same row type
         new CoerceInputsRule(classOf[LogicalUnion], false),
         //ensure intersect set operator have the same row type
@@ -211,16 +218,6 @@ object FlinkBatchRuleSets {
     CoreRules.AGGREGATE_PROJECT_PULL_UP_CONSTANTS,
     // push project through a Union
     CoreRules.PROJECT_SET_OP_TRANSPOSE
-  )
-
-  val WINDOW_RULES: RuleSet = RuleSets.ofList(
-    // slices a project into sections which contain window agg functions and sections which do not.
-    CoreRules.PROJECT_TO_LOGICAL_PROJECT_AND_WINDOW,
-    //adjust the sequence of window's groups.
-    WindowGroupReorderRule.INSTANCE,
-    // Transform window to LogicalWindowAggregate
-    WindowPropertiesRules.WINDOW_PROPERTIES_RULE,
-    WindowPropertiesRules.WINDOW_PROPERTIES_HAVING_RULE
   )
 
   val JOIN_COND_EQUAL_TRANSFER_RULES: RuleSet = RuleSets.ofList((

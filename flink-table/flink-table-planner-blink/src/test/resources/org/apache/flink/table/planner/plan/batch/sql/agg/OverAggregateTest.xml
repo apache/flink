@@ -255,10 +255,10 @@ LogicalProject(c=[$2], EXPR$1=[COUNT() OVER (PARTITION BY $2)])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS $1])
-+- OverAggregate(partitionBy=[c], window#0=[COUNT(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[a, b, c, w0$o0])
-   +- Sort(orderBy=[c ASC])
-      +- Exchange(distribution=[hash[c]])
+OverAggregate(partitionBy=[c], window#0=[COUNT(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[c, w0$o0])
++- Sort(orderBy=[c ASC])
+   +- Exchange(distribution=[hash[c]])
+      +- Calc(select=[c])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -295,9 +295,9 @@ LogicalProject(c=[$2], EXPR$1=[COUNT() OVER ()])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS $1])
-+- OverAggregate(window#0=[COUNT(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[a, b, c, w0$o0])
-   +- Exchange(distribution=[single])
+OverAggregate(window#0=[COUNT(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[c, w0$o0])
++- Exchange(distribution=[single])
+   +- Calc(select=[c])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -365,10 +365,11 @@ LogicalProject(EXPR$0=[RANK() OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST, $2 
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[w0$o0 AS $0])
-+- OverAggregate(partitionBy=[c], orderBy=[a ASC, c ASC], window#0=[RANK(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0])
++- OverAggregate(partitionBy=[c], orderBy=[a ASC, c ASC], window#0=[RANK(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, w0$o0])
    +- Sort(orderBy=[c ASC, a ASC])
       +- Exchange(distribution=[hash[c]])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- Calc(select=[a, c])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
