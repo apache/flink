@@ -112,16 +112,28 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
                 return new RestClusterClient<>(
                         configuration,
                         clusterId,
-                        new StandaloneClientHAServices(
-                                HighAvailabilityServicesUtils.getWebMonitorAddress(
-                                        configuration,
-                                        HighAvailabilityServicesUtils.AddressResolution
-                                                .TRY_ADDRESS_RESOLUTION)));
+                        new StandaloneClientHAServices(getWebMonitorAddress(configuration)));
             } catch (Exception e) {
                 throw new RuntimeException(
                         new ClusterRetrieveException("Could not create the RestClusterClient.", e));
             }
         };
+    }
+
+    private String getWebMonitorAddress(Configuration configuration) throws Exception {
+        HighAvailabilityServicesUtils.AddressResolution resolution =
+                HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION;
+        if (configuration.get(KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE)
+                == KubernetesConfigOptions.ServiceExposedType.ClusterIP) {
+            resolution = HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION;
+            LOG.warn(
+                    "Please note that Flink client operations(e.g. cancel, list, stop,"
+                            + " savepoint, etc.) won't work from outside the Kubernetes cluster"
+                            + " since '{}' has been set to {}.",
+                    KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE.key(),
+                    KubernetesConfigOptions.ServiceExposedType.ClusterIP);
+        }
+        return HighAvailabilityServicesUtils.getWebMonitorAddress(configuration, resolution);
     }
 
     @Override
