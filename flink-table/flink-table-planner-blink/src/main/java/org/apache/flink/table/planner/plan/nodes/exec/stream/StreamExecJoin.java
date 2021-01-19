@@ -92,7 +92,7 @@ public class StreamExecJoin extends ExecNodeBase<RowData> implements StreamExecN
         final JoinInputSideSpec leftInputSpec =
                 JoinUtil.analyzeJoinInput(leftTypeInfo, leftJoinKey, leftUniqueKeys);
 
-        final InternalTypeInfo<RowData> rightTypeInfo = InternalTypeInfo.of(leftType);
+        final InternalTypeInfo<RowData> rightTypeInfo = InternalTypeInfo.of(rightType);
         final JoinInputSideSpec rightInputSpec =
                 JoinUtil.analyzeJoinInput(rightTypeInfo, rightJoinKey, rightUniqueKeys);
 
