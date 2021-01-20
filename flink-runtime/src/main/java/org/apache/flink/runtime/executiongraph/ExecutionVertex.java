@@ -546,27 +546,7 @@ public class ExecutionVertex
     //   Actions
     // --------------------------------------------------------------------------------------------
 
-    /**
-     * Archives the current Execution and creates a new Execution for this vertex.
-     *
-     * <p>This method atomically checks if the ExecutionGraph is still of an expected global mod.
-     * version and replaces the execution if that is the case. If the ExecutionGraph has increased
-     * its global mod. version in the meantime, this operation fails.
-     *
-     * <p>This mechanism can be used to prevent conflicts between various concurrent recovery and
-     * reconfiguration actions in a similar way as "optimistic concurrency control".
-     *
-     * @param timestamp The creation timestamp for the new Execution
-     */
-    public void resetForNewExecution(final long timestamp) {
-        LOG.debug(
-                "Resetting execution vertex {} for new execution.", getTaskNameWithSubtaskIndex());
-
-        synchronized (priorExecutions) {
-            resetForNewExecutionInternal(timestamp);
-        }
-    }
-
+    /** Archives the current Execution and creates a new Execution for this vertex. */
     public void resetForNewExecution() {
         resetForNewExecutionInternal(System.currentTimeMillis());
     }
