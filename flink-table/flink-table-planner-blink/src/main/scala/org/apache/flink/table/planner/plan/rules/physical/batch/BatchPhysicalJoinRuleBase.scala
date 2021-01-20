@@ -31,7 +31,7 @@ import org.apache.calcite.util.ImmutableBitSet
 
 import java.lang.{Boolean => JBoolean, Double => JDouble}
 
-trait BatchExecJoinRuleBase {
+trait BatchPhysicalJoinRuleBase {
 
   def addLocalDistinctAgg(
       node: RelNode,
@@ -57,7 +57,7 @@ trait BatchExecJoinRuleBase {
     val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(buildRel)
     val mq = buildRel.getCluster.getMetadataQuery
     val ratioConf = tableConfig.getConfiguration.getDouble(
-      BatchExecJoinRuleBase.TABLE_OPTIMIZER_SEMI_JOIN_BUILD_DISTINCT_NDV_RATIO)
+      BatchPhysicalJoinRuleBase.TABLE_OPTIMIZER_SEMI_JOIN_BUILD_DISTINCT_NDV_RATIO)
     val inputRows = mq.getRowCount(buildRel)
     val ndvOfGroupKey = mq.getDistinctRowCount(
       buildRel, ImmutableBitSet.of(distinctKeys: _*), null)
@@ -78,7 +78,7 @@ trait BatchExecJoinRuleBase {
     }
   }
 }
-object BatchExecJoinRuleBase {
+object BatchPhysicalJoinRuleBase {
 
   // It is a experimental config, will may be removed later.
   @Experimental

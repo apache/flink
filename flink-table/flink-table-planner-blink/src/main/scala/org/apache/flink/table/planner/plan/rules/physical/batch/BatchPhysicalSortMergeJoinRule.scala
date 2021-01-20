@@ -48,7 +48,7 @@ class BatchPhysicalSortMergeJoinRule
     operand(classOf[FlinkLogicalJoin],
       operand(classOf[RelNode], any)),
     "BatchPhysicalSortMergeJoinRule")
-  with BatchExecJoinRuleBase {
+  with BatchPhysicalJoinRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: Join = call.rel(0)
@@ -128,7 +128,7 @@ class BatchPhysicalSortMergeJoinRule
 
     // add more possibility to only shuffle by partial joinKeys, now only single one
     val isShuffleByPartialKeyEnabled = tableConfig.getConfiguration.getBoolean(
-      BatchExecJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED)
+      BatchPhysicalJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED)
     if (isShuffleByPartialKeyEnabled && joinInfo.pairs().length > 1) {
       joinInfo.pairs().foreach { pair =>
         // sort require full key not partial key,

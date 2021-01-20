@@ -23,7 +23,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.plan.stats.TableStats
-import org.apache.flink.table.planner.plan.rules.physical.batch.{BatchExecJoinRuleBase, BatchPhysicalSortMergeJoinRule}
+import org.apache.flink.table.planner.plan.rules.physical.batch.{BatchPhysicalJoinRuleBase, BatchPhysicalSortMergeJoinRule}
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.utils.{TableFunc1, TableTestBase}
 
@@ -88,7 +88,7 @@ class RemoveShuffleTest extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin,SortAgg")
     util.tableEnv.getConfig.getConfiguration.setBoolean(
-      BatchExecJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED, true)
+      BatchPhysicalJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED, true)
     // push down HashExchange[c] into HashAgg
     val sqlQuery =
       """
@@ -108,7 +108,7 @@ class RemoveShuffleTest extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin,SortAgg")
     util.tableEnv.getConfig.getConfiguration.setBoolean(
-      BatchExecJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED, true)
+      BatchPhysicalJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED, true)
     // push down HashExchange[c] into HashAgg
     val sqlQuery =
       """
@@ -370,7 +370,7 @@ class RemoveShuffleTest extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration.setLong(
       OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
     util.tableEnv.getConfig.getConfiguration.setBoolean(
-      BatchExecJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED, true)
+      BatchPhysicalJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED, true)
     val sqlQuery =
       """
         |WITH r AS (SELECT d, count(f) as cnt FROM y GROUP BY d)
@@ -420,7 +420,7 @@ class RemoveShuffleTest extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg")
     util.tableEnv.getConfig.getConfiguration.setBoolean(
-      BatchExecJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED, true)
+      BatchPhysicalJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED, true)
     val sqlQuery =
       """
         |SELECT a, SUM(b) FROM (
@@ -437,7 +437,7 @@ class RemoveShuffleTest extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg")
     util.tableEnv.getConfig.getConfiguration.setBoolean(
-      BatchExecJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED, false)
+      BatchPhysicalJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED, false)
     val sqlQuery =
       """
         |SELECT * FROM (
@@ -454,7 +454,7 @@ class RemoveShuffleTest extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg")
     util.tableEnv.getConfig.getConfiguration.setBoolean(
-      BatchExecJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED, true)
+      BatchPhysicalJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED, true)
     val sqlQuery =
       """
         |SELECT * FROM (
