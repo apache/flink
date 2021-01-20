@@ -91,22 +91,11 @@ class SynchronousValueRuntimeState(ValueState):
         return None
 
     def update(self, value) -> None:
-        self._clear_read_cache()
-        if self._internal_state._added_elements:
-            self._internal_state._added_elements[0] = value
-        else:
-            self._internal_state.add(value)
+        self._internal_state.clear()
+        self._internal_state.add(value)
 
     def clear(self) -> None:
         self._internal_state.clear()
-
-    def _clear_read_cache(self):
-        state_handler = self._internal_state._state_handler
-        state_key = self._internal_state._state_key
-        cache_token = state_handler._get_cache_token(state_key)
-        if cache_token:
-            cache_key = state_handler._convert_to_cache_key(state_key)
-            state_handler._state_cache.clear(cache_key, cache_token)
 
 
 class SynchronousListRuntimeState(ListState):
@@ -728,11 +717,6 @@ class SynchronousMapRuntimeState(MapState):
         self._internal_state.clear()
 
 
-class StateType(Enum):
-    VS = 0  # short for VALUE_STATE
-    LS = 1  # short for LIST_STATE
-
-
 class RemoteKeyedStateBackend(object):
     """
     A keyed state backend provides methods for managing keyed state.
@@ -767,7 +751,7 @@ class RemoteKeyedStateBackend(object):
         if name in self._all_states:
             self.validate_list_state(name, element_coder)
             return self._all_states[name]
-        internal_bag_state = self._get_internal_bag_state(name, element_coder, StateType.LS)
+        internal_bag_state = self._get_internal_bag_state(name, element_coder)
         list_state = SynchronousListRuntimeState(internal_bag_state)
         self._all_states[name] = list_state
         return list_state
@@ -776,7 +760,7 @@ class RemoteKeyedStateBackend(object):
         if name in self._all_states:
             self.validate_value_state(name, value_coder)
             return self._all_states[name]
-        internal_bag_state = self._get_internal_bag_state(name, value_coder, StateType.VS)
+        internal_bag_state = self._get_internal_bag_state(name, value_coder)
         value_state = SynchronousValueRuntimeState(internal_bag_state)
         self._all_states[name] = value_state
         return value_state
@@ -818,12 +802,12 @@ class RemoteKeyedStateBackend(object):
                     state._internal_state._map_value_coder != map_value_coder:
                 raise Exception("State name corrupted: %s" % name)
 
-    def _get_internal_bag_state(self, name, element_coder, state_type: StateType):
+    def _get_internal_bag_state(self, name, element_coder):
         cached_state = self._internal_state_cache.get((name, self._encoded_current_key))
         if cached_state is not None:
             return cached_state
         state_spec = userstate.BagStateSpec(name, element_coder)
-        internal_state = self._create_bag_state(state_spec, state_type)
+        internal_state = self._create_bag_state(state_spec)
         return internal_state
 
     def _get_internal_map_state(self, name, map_key_coder, map_value_coder):
@@ -833,14 +817,14 @@ class RemoteKeyedStateBackend(object):
         internal_map_state = self._create_internal_map_state(name, map_key_coder, map_value_coder)
         return internal_map_state
 
-    def _create_bag_state(self, state_spec: userstate.StateSpec, state_type: StateType) \
+    def _create_bag_state(self, state_spec: userstate.StateSpec) \
             -> userstate.AccumulatingRuntimeState:
         if isinstance(state_spec, userstate.BagStateSpec):
             bag_state = SynchronousBagRuntimeState(
                 self._state_handler,
                 state_key=beam_fn_api_pb2.StateKey(
                     bag_user_state=beam_fn_api_pb2.StateKey.BagUserState(
-                        transform_id=state_type.name,
+                        transform_id="",
                         user_state_id=state_spec.name,
                         key=self._encoded_current_key)),
                 value_coder=state_spec.coder)
@@ -874,12 +858,9 @@ class RemoteKeyedStateBackend(object):
                 # cache old internal state
                 self._internal_state_cache.put(
                     (state_name, encoded_old_key), state_obj._internal_state)
-            if isinstance(state_obj, SynchronousValueRuntimeState):
+            if isinstance(state_obj, (SynchronousValueRuntimeState, SynchronousListRuntimeState)):
                 state_obj._internal_state = self._get_internal_bag_state(
-                    state_name, state_obj._internal_state._value_coder, StateType.VS)
-            elif isinstance(state_obj, SynchronousListRuntimeState):
-                state_obj._internal_state = self._get_internal_bag_state(
-                    state_name, state_obj._internal_state._value_coder, StateType.LS)
+                    state_name, state_obj._internal_state._value_coder)
             elif isinstance(state_obj, SynchronousMapRuntimeState):
                 state_obj._internal_state = self._get_internal_map_state(
                     state_name,
