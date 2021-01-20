@@ -32,14 +32,14 @@ import org.apache.calcite.rel.core._
   * Rule that converts [[FlinkLogicalJoin]] to [[BatchPhysicalNestedLoopJoin]]
   * if one of join input sides returns at most a single row.
   */
-class BatchExecSingleRowJoinRule
+class BatchPhysicalSingleRowJoinRule
   extends ConverterRule(
     classOf[FlinkLogicalJoin],
     FlinkConventions.LOGICAL,
     FlinkConventions.BATCH_PHYSICAL,
-    "BatchExecSingleRowJoinRule")
-  with BatchExecJoinRuleBase
-  with BatchExecNestedLoopJoinRuleBase {
+    "BatchPhysicalSingleRowJoinRule")
+  with BatchPhysicalJoinRuleBase
+  with BatchPhysicalNestedLoopJoinRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: Join = call.rel(0)
@@ -81,6 +81,6 @@ class BatchExecSingleRowJoinRule
   }
 }
 
-object BatchExecSingleRowJoinRule {
-  val INSTANCE: RelOptRule = new BatchExecSingleRowJoinRule
+object BatchPhysicalSingleRowJoinRule {
+  val INSTANCE: RelOptRule = new BatchPhysicalSingleRowJoinRule
 }
