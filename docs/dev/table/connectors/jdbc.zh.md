@@ -54,7 +54,7 @@ JDBC连接器允许使用JDBC驱动向任意类型的关系型数据库读取或
 <br>
 当前，JDBC 连接器和驱动不在 Flink 二进制发布包中，请参阅 [这里]({% link dev/project-configuration.zh.md %}) 了解在集群上执行时何连接它们。
 
-如何创建 JDBC table
+如何创建 JDBC 表
 ----------------
 
 JDBC table可以按如下定义：
@@ -90,13 +90,13 @@ ON myTopic.key = MyUserTable.id;
 </div>
 </div>
 
-连接器参数选项
+连接器参数
 ----------------
 
 <table class="table table-bordered">
     <thead>
       <tr>
-        <th class="text-left" style="width: 25%">选项</th>
+        <th class="text-left" style="width: 25%">参数</th>
         <th class="text-left" style="width: 8%">是否必填</th>
         <th class="text-left" style="width: 7%">默认值</th>
         <th class="text-left" style="width: 10%">类型</th>
