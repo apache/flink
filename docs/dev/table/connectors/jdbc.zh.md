@@ -40,9 +40,7 @@ JDBC连接器允许使用JDBC驱动向任意类型的关系型数据库读取或
 ------------
 
 {% assign connector = site.data.sql-connectors['jdbc'] %} 
-{% include sql-connector-download-table.zh.html 
-​    connector=connector
-%}
+{% include sql-connector-download-table.zh.html connector='connector' %}
 
 <br>
 在连接到具体数据库时，也需要对应的驱动依赖，目前支持的驱动如下：
@@ -54,9 +52,9 @@ JDBC连接器允许使用JDBC驱动向任意类型的关系型数据库读取或
 | Derby       | `org.apache.derby` |        `derby`         | [下载](http://db.apache.org/derby/derby_downloads.html) |
 
 <br>
-当前，JDBC 连接器和驱动在 Flink 二进制发布包中，请参阅 [这里]({% link dev/project-configuration.zh.md %}) 了解在集群上执行时何连接它们。
+当前，JDBC 连接器和驱动不在 Flink 二进制发布包中，请参阅 [这里]({% link dev/project-configuration.zh.md %}) 了解在集群上执行时何连接它们。
 
-如何创建JDBC table
+如何创建 JDBC table
 ----------------
 
 JDBC table可以按如下定义：
@@ -111,7 +109,7 @@ ON myTopic.key = MyUserTable.id;
       <td>必填</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>指定使用什么类型的 connector, 这里应该是 <code>'jdbc'</code></td>
+      <td>指定使用什么类型的 connector, 这里应该是 <code>'jdbc'</code>。</td>
     </tr>
     <tr>
       <td><h5>url</h5></td>
@@ -139,7 +137,7 @@ ON myTopic.key = MyUserTable.id;
       <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td> JDBC 用户名： <code>'username'</code> 和 <code>'password'</code> 必须都被指定，如果指定了两者中任一参数</td>
+      <td> JDBC 用户名： <code>'username'</code> 和 <code>'password'</code> 必须都被指定，如果指定了两者中任一参数。</td>
     </tr>
     <tr>
       <td><h5>password</h5></td>
@@ -153,7 +151,7 @@ ON myTopic.key = MyUserTable.id;
       <td>可选</td>
       <td style="word-wrap: break-word;">60s</td>
       <td>Duration</td>
-      <td>最大重试超时时间，超时时间应该是以秒为单位，并且不应该小于1秒</td>
+      <td>最大重试超时时间，超时时间应该是以秒为单位，并且不应该小于1秒。</td>
     </tr>
     <tr>
       <td><h5>scan.partition.column</h5></td>
@@ -202,14 +200,14 @@ ON myTopic.key = MyUserTable.id;
       <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>Integer</td>
-      <td>Lookup Cache 的最大行数，若超过该值，则最老的行记录将会过期。默认情况下，Lookup Cache 是未开启的。请查阅如下 <a href="#lookup-cache">Lookup Cache</a> 章节了解更详细的信息。
+      <td>Lookup Cache 的最大行数，若超过该值，则最老的行记录将会过期。默认情况下，Lookup Cache 是未开启的。请查阅如下 <a href="#lookup-cache">Lookup Cache</a> 章节了解更详细的信息。</td>
     </tr>
     <tr>
       <td><h5>lookup.cache.ttl</h5></td>
       <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>Duration</td>
-      <td>查找缓存中每一行记录的最大存活时间，若超过该时间，则最老的行记录将被设置成已过期。默认情况下，查找缓存是未开启的。查看如下 <a href="#lookup-cache">Lookup Cache</a> 部分可以了解到更详细的信息 </td>
+      <td>查找缓存中每一行记录的最大存活时间，若超过该时间，则最老的行记录将被设置成已过期。默认情况下，查找缓存是未开启的。查看如下 <a href="#lookup-cache">Lookup Cache</a> 部分可以了解到更详细的信息。</td>
     </tr>
     <tr>
       <td><h5>lookup.max-retries</h5></td>
@@ -223,7 +221,7 @@ ON myTopic.key = MyUserTable.id;
       <td>可选</td>
       <td style="word-wrap: break-word;">100</td>
       <td>Integer</td>
-      <td>flush前缓存记录的最大大小,可以设置为<code>0</code> 来禁用它</td>
+      <td>flush前缓存记录的最大大小,可以设置为<code>0</code> 来禁用它。</td>
     </tr>
     <tr>
       <td><h5>sink.buffer-flush.interval</h5></td>
@@ -244,7 +242,7 @@ ON myTopic.key = MyUserTable.id;
       <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>Integer</td>
-      <td>用于定义 JDBC sink 算子的并行度。默认情况下，并行度是由框架决定的：使用与上游链式算子相同的并行度。</td>
+      <td>用于定义 JDBC sink 算子的并行度。默认情况下，并行度是由框架决定：使用与上游链式算子相同的并行度。</td>
     </tr>
     </tbody>
 </table>
