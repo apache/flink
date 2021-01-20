@@ -27,6 +27,7 @@ import org.apache.flink.connectors.hive.read.HiveContinuousMonitoringFunction;
 import org.apache.flink.connectors.hive.read.HiveTableFileInputFormat;
 import org.apache.flink.connectors.hive.read.HiveTableInputFormat;
 import org.apache.flink.connectors.hive.read.TimestampedHiveInputSplit;
+import org.apache.flink.connectors.hive.util.HiveConfUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -440,8 +441,7 @@ public class HiveTableSource
         // major
         // refactoring. We will postpone this until we merge Blink to Flink.
         try (HiveMetastoreClientWrapper client =
-                HiveMetastoreClientFactory.create(
-                        new HiveConf(jobConf, HiveConf.class), hiveVersion)) {
+                HiveMetastoreClientFactory.create(HiveConfUtils.create(jobConf), hiveVersion)) {
             String dbName = tablePath.getDatabaseName();
             String tableName = tablePath.getObjectName();
             List<String> partitionColNames = catalogTable.getPartitionKeys();

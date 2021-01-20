@@ -20,6 +20,7 @@ package org.apache.flink.connectors.hive;
 
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.connectors.hive.util.HiveConfUtils;
 import org.apache.flink.connectors.hive.write.HiveBulkWriterFactory;
 import org.apache.flink.connectors.hive.write.HiveOutputFormatFactory;
 import org.apache.flink.connectors.hive.write.HiveWriterFactory;
@@ -130,8 +131,7 @@ public class HiveTableSink
         String dbName = identifier.getDatabaseName();
         String tableName = identifier.getObjectName();
         try (HiveMetastoreClientWrapper client =
-                HiveMetastoreClientFactory.create(
-                        new HiveConf(jobConf, HiveConf.class), hiveVersion)) {
+                HiveMetastoreClientFactory.create(HiveConfUtils.create(jobConf), hiveVersion)) {
             Table table = client.getTable(dbName, tableName);
             StorageDescriptor sd = table.getSd();
             HiveTableMetaStoreFactory msFactory =

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils;
 import org.apache.flink.connectors.hive.HiveDynamicTableFactory;
 import org.apache.flink.connectors.hive.HiveTableFactory;
+import org.apache.flink.connectors.hive.util.HiveConfUtils;
 import org.apache.flink.sql.parser.hive.ddl.HiveDDLUtils;
 import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.AlterTableOp;
 import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveDatabase;
@@ -223,7 +224,7 @@ public class HiveCatalog extends AbstractCatalog {
                 break;
             }
         }
-        return new HiveConf(hadoopConf, HiveConf.class);
+        return HiveConfUtils.create(hadoopConf);
     }
 
     @VisibleForTesting
