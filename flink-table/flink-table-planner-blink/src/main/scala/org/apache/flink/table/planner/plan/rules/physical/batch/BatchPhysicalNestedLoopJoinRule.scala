@@ -37,8 +37,8 @@ class BatchPhysicalNestedLoopJoinRule
     operand(classOf[FlinkLogicalJoin],
       operand(classOf[RelNode], any)),
     "BatchPhysicalNestedLoopJoinRule")
-  with BatchExecJoinRuleBase
-  with BatchExecNestedLoopJoinRuleBase {
+  with BatchPhysicalJoinRuleBase
+  with BatchPhysicalNestedLoopJoinRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig

@@ -26,7 +26,7 @@ import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{Join, JoinRelType}
 
-trait BatchExecNestedLoopJoinRuleBase {
+trait BatchPhysicalNestedLoopJoinRuleBase {
 
   def createNestedLoopJoin(
       join: Join,

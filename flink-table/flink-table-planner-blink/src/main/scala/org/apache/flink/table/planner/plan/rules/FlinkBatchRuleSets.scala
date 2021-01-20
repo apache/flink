@@ -426,7 +426,7 @@ object FlinkBatchRuleSets {
     BatchPhysicalHashJoinRule.INSTANCE,
     BatchPhysicalSortMergeJoinRule.INSTANCE,
     BatchPhysicalNestedLoopJoinRule.INSTANCE,
-    BatchExecSingleRowJoinRule.INSTANCE,
+    BatchPhysicalSingleRowJoinRule.INSTANCE,
     BatchPhysicalLookupJoinRule.SNAPSHOT_ON_TABLESCAN,
     BatchPhysicalLookupJoinRule.SNAPSHOT_ON_CALC_TABLESCAN,
     // correlate
