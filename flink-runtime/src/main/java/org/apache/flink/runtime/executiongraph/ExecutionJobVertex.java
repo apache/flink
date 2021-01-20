@@ -497,30 +497,6 @@ public class ExecutionJobVertex
         }
     }
 
-    public void resetForNewExecution(final long timestamp) {
-
-        synchronized (stateMonitor) {
-            // check and reset the sharing groups with scheduler hints
-            for (int i = 0; i < parallelism; i++) {
-                taskVertices[i].resetForNewExecution(timestamp);
-            }
-
-            // set up the input splits again
-            try {
-                if (this.inputSplits != null) {
-                    // lazy assignment
-                    @SuppressWarnings("unchecked")
-                    InputSplitSource<InputSplit> splitSource =
-                            (InputSplitSource<InputSplit>) jobVertex.getInputSplitSource();
-                    this.splitAssigner = splitSource.getInputSplitAssigner(this.inputSplits);
-                }
-            } catch (Throwable t) {
-                throw new RuntimeException(
-                        "Re-creating the input split assigner failed: " + t.getMessage(), t);
-            }
-        }
-    }
-
     // --------------------------------------------------------------------------------------------
     //  Accumulators / Metrics
     // --------------------------------------------------------------------------------------------
