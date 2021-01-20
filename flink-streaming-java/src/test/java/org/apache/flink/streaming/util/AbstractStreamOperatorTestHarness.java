@@ -255,6 +255,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
         this.config.setStateBackendUsesManagedMemory(true);
         this.config.setManagedMemoryFractionOperatorOfUseCase(
                 ManagedMemoryUseCase.STATE_BACKEND, 1.0);
+        this.config.setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.OPERATOR, 1.0);
         this.executionConfig = env.getExecutionConfig();
         this.checkpointLock = new Object();
 
