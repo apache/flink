@@ -78,7 +78,9 @@ public class ExecutionVertexTest extends TestLogger {
 
         assertFalse(releasePartitionsFuture.isDone());
 
-        producerExecutionJobVertex.resetForNewExecution(1L);
+        for (ExecutionVertex executionVertex : producerExecutionJobVertex.getTaskVertices()) {
+            executionVertex.resetForNewExecution();
+        }
 
         final IntermediateResultPartitionID intermediateResultPartitionID =
                 producerExecutionJobVertex.getProducedDataSets()[0].getPartitions()[0]
