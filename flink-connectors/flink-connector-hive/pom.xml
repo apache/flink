@@ -1120,7 +1120,7 @@ under the License.
 					<!-- Bump arrow netty dependency -->
 					<groupId>io.netty</groupId>
 					<artifactId>netty-buffer</artifactId>
-					<version>4.1.44.Final</version>
+					<version>4.1.46.Final</version>
 					<scope>provided</scope>
 				</dependency>
 
@@ -1128,7 +1128,7 @@ under the License.
 					<!-- Bump arrow netty dependency -->
 					<groupId>io.netty</groupId>
 					<artifactId>netty-common</artifactId>
-					<version>4.1.44.Final</version>
+					<version>4.1.46.Final</version>
 					<scope>provided</scope>
 				</dependency>
 
