@@ -128,6 +128,7 @@ public final class CombineRecordsFunction implements WindowCombineFunction {
     // Factory
     // ----------------------------------------------------------------------------------------
 
+    /** Factory to create {@link CombineRecordsFunction}. */
     public static final class Factory implements WindowCombineFunction.Factory {
 
         private static final long serialVersionUID = 1L;

@@ -49,8 +49,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * can apply the slicing optimization. The core idea of slicing optimization is to divide all
  * elements from a data stream into a finite number of non-overlapping chunks (a.k.a. slices).
  *
- * <p>
- *
  * <h3>Concept of Aligned Window and Unaligned Window</h3>
  *
  * <p>We divide windows into 2 categories: Aligned Windows and Unaligned Windows.
@@ -69,8 +67,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>Because aligned windows can be divided into finite number of non-overlapping chunks (a.k.a.
  * slices), which can apply efficient processing to share intermediate results.
  *
- * <p>
- *
  * <h3>Concept of Slice</h3>
  *
  * <p>Dividing a window of aligned windows into a finite number of non-overlapping chunks, where the
@@ -82,11 +78,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *   <li>A window is consist of a finite number of slices.
  * </ul>
  *
- * <p>
- *
  * <h3>Abstraction of Slicing Window Operator</h3>
  *
- * A slicing window operator is a simple wrap of {@link SlicingWindowProcessor}. It delegates all
+ * <p>A slicing window operator is a simple wrap of {@link SlicingWindowProcessor}. It delegates all
  * the important methods to the underlying processor, where the processor can have different
  * implementation for aggregate and topk or others.
  *

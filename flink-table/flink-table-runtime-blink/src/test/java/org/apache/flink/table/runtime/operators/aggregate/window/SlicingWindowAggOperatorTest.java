@@ -738,7 +738,6 @@ public class SlicingWindowAggOperatorTest {
                 fail("Open was not called");
             }
             GenericRowData rowData = new GenericRowData(2);
-            ;
             rowData.setField(1, 0L); // count has default 0 value
             return rowData;
         }

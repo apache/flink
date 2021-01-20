@@ -114,6 +114,7 @@ public final class RecordsWindowBuffer implements WindowBuffer {
     // Factory
     // ------------------------------------------------------------------------------------------
 
+    /** Factory to create {@link RecordsWindowBuffer}. */
     public static final class Factory implements WindowBuffer.Factory {
 
         private static final long serialVersionUID = 1L;

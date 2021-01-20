@@ -99,7 +99,7 @@ public final class SliceAssigners {
     // Slice Assigners
     // ------—------—------—------—------—------—------—------—------—------—------—------—------—
 
-    /** The {@link SliceAssigner} for tumbling windows */
+    /** The {@link SliceAssigner} for tumbling windows. */
     public static final class TumblingSliceAssigner extends AbstractSliceAssigner
             implements SliceUnsharedAssigner {
         private static final long serialVersionUID = 1L;
@@ -146,7 +146,7 @@ public final class SliceAssigners {
         }
     }
 
-    /** The {@link SliceAssigner} for hopping windows */
+    /** The {@link SliceAssigner} for hopping windows. */
     public static final class HoppingSliceAssigner extends AbstractSliceAssigner
             implements SliceSharedAssigner {
         private static final long serialVersionUID = 1L;
@@ -217,7 +217,7 @@ public final class SliceAssigners {
         }
     }
 
-    /** The {@link SliceAssigner} for cumulative windows */
+    /** The {@link SliceAssigner} for cumulative windows. */
     public static final class CumulativeSliceAssigner extends AbstractSliceAssigner
             implements SliceSharedAssigner {
         private static final long serialVersionUID = 1L;

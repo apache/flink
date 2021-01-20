@@ -27,7 +27,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/** Tests for {@link SliceAssigners.TumblingSliceAssigner} */
+/** Tests for {@link SliceAssigners.TumblingSliceAssigner}. */
 public class TumblingSliceAssignerTest extends SliceAssignerTestBase {
 
     @Test

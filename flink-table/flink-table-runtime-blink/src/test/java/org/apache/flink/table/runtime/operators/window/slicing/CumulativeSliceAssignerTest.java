@@ -29,7 +29,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/** Tests for {@link SliceAssigners.CumulativeSliceAssigner} */
+/** Tests for {@link SliceAssigners.CumulativeSliceAssigner}. */
 public class CumulativeSliceAssignerTest extends SliceAssignerTestBase {
 
     @Test

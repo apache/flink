@@ -30,7 +30,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-/** Tests for {@link SliceAssigners.HoppingSliceAssigner} */
+/** Tests for {@link SliceAssigners.HoppingSliceAssigner}. */
 public class HoppingSliceAssignerTest extends SliceAssignerTestBase {
 
     @Test

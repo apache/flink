@@ -26,7 +26,7 @@ import java.util.Collections;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-/** Tests for {@link SliceAssigners.WindowedSliceAssigner} */
+/** Tests for {@link SliceAssigners.WindowedSliceAssigner}. */
 public class WindowedSliceAssignerTest extends SliceAssignerTestBase {
 
     @Test
