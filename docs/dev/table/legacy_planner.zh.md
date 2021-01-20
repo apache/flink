@@ -27,7 +27,7 @@ Flink supports two different planner implementations; the modern planner (someti
 For production use cases, we recommend the modern planner which is the default.
 
 The legacy planner is in maintenance mode and no longer under active development.
-The primary reason to continue using the legacy planner is [DataSet]({% link dev/batch/index.md %}) interop.
+The primary reason to continue using the legacy planner is [DataSet]({% link dev/batch/index.zh.md %}) interop.
 
 {% capture dataset_interop_note %}
 If you are not using the Legacy planner for DataSet interop, the community strongly
@@ -98,7 +98,7 @@ val tEnv = TableEnvironment.create(settings)
 </div>
 </div>
 
-`BatchTableEnvironment` may used for [DataSet]({% link dev/batch/index.md %}) and [DataStream]({% link dev/datastream_api.md %}) interop respectively.
+`BatchTableEnvironment` may used for [DataSet]({% link dev/batch/index.zh.md %}) and [DataStream]({% link dev/datastream_api.zh.md %}) interop respectively.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -282,12 +282,12 @@ can fallback to type information defined in `org.apache.flink.table.api.Types` a
 
 The following features are not supported by the legacy planner.
 
-- [Deduplication]({% link dev/table/sql/queries.md %}#deduplication %})
-- [Key Value Configurations]({% link dev/table/config.md %}#overview)
-- [Streaming Aggregation Optimization]({% link dev/table/tuning/streaming_aggregation_optimization.md %})
+- [Deduplication]({% link dev/table/sql/queries.zh.md %}#deduplication %})
+- [Key Value Configurations]({% link dev/table/config.zh.md %}#overview)
+- [Streaming Aggregation Optimization]({% link dev/table/tuning/streaming_aggregation_optimization.zh.md %})
 - Streaming mode Grouping sets, Rollup and Cube aggregations
-- [Top-N]({% link dev/table/sql/queries.md %}#top-n)
-- [Versioned Tables]({% link dev/table/streaming/versioned_tables.md %})
+- [Top-N]({% link dev/table/sql/queries.zh.md %}#top-n)
+- [Versioned Tables]({% link dev/table/streaming/versioned_tables.zh.md %})
 
 ## Unsupported Built-In Functions
 
