@@ -20,12 +20,13 @@ package org.apache.flink.table.runtime.util;
 
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 
 /** Utility to create a {@link StateTtlConfig} object. */
 public class StateConfigUtil {
 
-    private static final String ROCKSDB_KEYED_STATE_BACKEDN =
+    private static final String ROCKSDB_KEYED_STATE_BACKEND =
             "org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend";
 
     /**
@@ -45,8 +46,18 @@ public class StateConfigUtil {
     }
 
     public static boolean isStateImmutableInStateBackend(KeyedStateBackend<?> stateBackend) {
-        // TODO: remove this once FLINK-21027 is supported
-        // state key and value is immutable only when using rocksdb state backend
-        return ROCKSDB_KEYED_STATE_BACKEDN.equals(stateBackend.getClass().getCanonicalName());
+        // TODO: remove the hard code check once FLINK-21027 is supported
+        // state key and value is immutable only when using rocksdb state backend and timer
+        boolean isRocksDbState =
+                ROCKSDB_KEYED_STATE_BACKEND.equals(stateBackend.getClass().getCanonicalName());
+        boolean isHeapTimer = false;
+        if (stateBackend instanceof AbstractKeyedStateBackend) {
+            // currently, requiresLegacySynchronousTimerSnapshots()
+            // indicates the underlying uses heap-bsased timer
+            isHeapTimer =
+                    ((AbstractKeyedStateBackend<?>) stateBackend)
+                            .requiresLegacySynchronousTimerSnapshots();
+        }
+        return isRocksDbState && !isHeapTimer;
     }
 }

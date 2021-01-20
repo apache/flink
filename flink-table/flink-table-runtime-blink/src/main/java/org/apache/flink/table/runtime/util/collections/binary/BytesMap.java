@@ -34,7 +34,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Base class for {@link BytesHashMap} and BytesMultiMap.
+ * Base class for {@link BytesHashMap} and {@link BytesMultiMap}.
  *
  * @param <K> type of the map key.
  * @param <V> type of the map value.
