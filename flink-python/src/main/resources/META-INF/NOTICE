@@ -10,8 +10,8 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.fasterxml.jackson.core:jackson-core:2.10.1
 - com.fasterxml.jackson.core:jackson-databind:2.10.1
 - com.google.flatbuffers:flatbuffers-java:1.9.0
-- io.netty:netty-buffer:4.1.44.Final
-- io.netty:netty-common:4.1.44.Final
+- io.netty:netty-buffer:4.1.46.Final
+- io.netty:netty-common:4.1.46.Final
 - joda-time:joda-time:2.5
 - org.apache.arrow:arrow-format:0.16.0
 - org.apache.arrow:arrow-memory:0.16.0
