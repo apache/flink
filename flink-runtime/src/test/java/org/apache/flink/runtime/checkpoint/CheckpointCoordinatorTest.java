@@ -138,7 +138,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
         ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
         CheckpointCoordinator coordinator =
                 getCheckpointCoordinator(new ScheduledExecutorServiceAdapter(executor));
-        coordinator.shutdown();
+        coordinator.shutdown(JobStatus.CANCELLING);
         executor.shutdownNow();
         coordinator.scheduleTriggerRequest(); // shouldn't fail
     }
