@@ -28,9 +28,9 @@ import java.security.SecureRandom;
  * Generates {@link Xid} from:
  *
  * <ol>
- *   <li>checkpoint id
+ *   <li>checkpoint id (4 bytes)
  *   <li>subtask index
- *   <li>4 random bytes to provide uniqueness across other jobs and apps (generated at startup using
+ *   <li>8 random bytes to provide uniqueness across other jobs and apps (generated at startup using
  *       {@link SecureRandom})
  * </ol>
  *
@@ -45,38 +45,29 @@ class SemanticXidGenerator implements XidGenerator {
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private static final int FORMAT_ID = 201;
-    private static final int BQUAL_DYN_PART_LEN =
-            Integer.BYTES; // length of the branchQualifier dynamic part, which is task index
-    private static final int BQUAL_DYN_PART_POS = 0; // and it's starting position
 
     private transient byte[] gtridBuffer; // globalTransactionId = checkpoint id (long)
     private transient byte[] bqualBuffer; // branchQualifier = task index + random bytes
 
     @Override
     public void open() {
-        bqualBuffer = new byte[Long.BYTES];
-        byte[] bqualStaticPart = getRandomBytes(bqualBuffer.length - BQUAL_DYN_PART_LEN);
-        System.arraycopy(
-                bqualStaticPart, 0, bqualBuffer, BQUAL_DYN_PART_LEN, bqualStaticPart.length);
+        bqualBuffer = getRandomBytes(Long.BYTES);
         gtridBuffer = new byte[Long.BYTES];
     }
 
     @Override
     public Xid generateXid(RuntimeContext runtimeContext, long checkpointId) {
-        writeNumber(
-                runtimeContext.getIndexOfThisSubtask(),
-                Integer.BYTES,
-                bqualBuffer,
-                BQUAL_DYN_PART_POS);
-        writeNumber(checkpointId, Long.BYTES, gtridBuffer, 0);
+        writeNumber(runtimeContext.getIndexOfThisSubtask(), gtridBuffer, 0);
+        // deliberately write only 4 bytes of checkpoint id and rely on random generation
+        writeNumber((int) checkpointId, gtridBuffer, Integer.BYTES);
         // relying on arrays copying inside XidImpl constructor
         return new XidImpl(FORMAT_ID, gtridBuffer, bqualBuffer);
     }
 
-    private static void writeNumber(long number, int numberLength, byte[] dst, int dstPos) {
-        for (int i = dstPos; i < numberLength; i++) {
+    private static void writeNumber(int number, byte[] dst, int dstOffset) {
+        for (int i = dstOffset; i < dstOffset + Integer.BYTES; i++) {
             dst[i] = (byte) number;
-            number >>= 8;
+            number >>>= Byte.SIZE;
         }
     }
 
