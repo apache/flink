@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
@@ -25,6 +26,7 @@ import org.apache.flink.util.ExceptionUtils;
 
 import java.io.Serializable;
 
+/** {@code ArchivedExecution} is a readonly representation of {@link Execution}. */
 public class ArchivedExecution implements AccessExecution, Serializable {
     private static final long serialVersionUID = 4817108757483345173L;
     // --------------------------------------------------------------------------------------------

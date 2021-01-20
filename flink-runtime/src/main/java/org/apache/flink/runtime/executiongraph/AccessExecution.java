@@ -15,15 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
-/**
- * Common interface for the runtime {@link Execution and {@link ArchivedExecution}.
- */
+/** Common interface for the runtime {@link Execution} and {@link ArchivedExecution}. */
 public interface AccessExecution {
     /**
      * Returns the {@link ExecutionAttemptID} for this Execution.
