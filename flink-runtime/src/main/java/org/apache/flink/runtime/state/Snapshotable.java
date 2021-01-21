@@ -36,7 +36,7 @@ import java.util.concurrent.RunnableFuture;
  * @see SnapshotStrategyRunner
  */
 @Internal
-public interface Snapshottable<S extends StateObject> {
+public interface Snapshotable<S extends StateObject> {
 
     /**
      * Operation that writes a snapshot into a stream that is provided by the given {@link

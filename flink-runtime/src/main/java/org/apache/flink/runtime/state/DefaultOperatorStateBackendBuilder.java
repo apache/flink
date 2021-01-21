@@ -26,6 +26,9 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.flink.runtime.state.SnapshotStrategyRunner.ExecutionType.ASYNCHRONOUS;
+import static org.apache.flink.runtime.state.SnapshotStrategyRunner.ExecutionType.SYNCHRONOUS;
+
 /**
  * Builder class for {@link DefaultOperatorStateBackend} which handles all necessary initializations
  * and clean ups.
@@ -94,6 +97,6 @@ public class DefaultOperatorStateBackendBuilder
                         "DefaultOperatorStateBackend snapshot",
                         snapshotStrategy,
                         cancelStreamRegistryForBackend,
-                        !asynchronousSnapshots));
+                        asynchronousSnapshots ? ASYNCHRONOUS : SYNCHRONOUS));
     }
 }

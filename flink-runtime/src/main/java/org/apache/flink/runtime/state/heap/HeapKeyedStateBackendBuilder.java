@@ -37,6 +37,9 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.flink.runtime.state.SnapshotStrategyRunner.ExecutionType.ASYNCHRONOUS;
+import static org.apache.flink.runtime.state.SnapshotStrategyRunner.ExecutionType.SYNCHRONOUS;
+
 /**
  * Builder class for {@link HeapKeyedStateBackend} which handles all necessary initializations and
  * clean ups.
@@ -136,7 +139,7 @@ public class HeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
                         "Heap backend snapshot",
                         snapshotStrategy,
                         cancelStreamRegistryForBackend,
-                        !asynchronousSnapshots),
+                        asynchronousSnapshots ? ASYNCHRONOUS : SYNCHRONOUS),
                 stateTableFactory,
                 keyContext);
     }

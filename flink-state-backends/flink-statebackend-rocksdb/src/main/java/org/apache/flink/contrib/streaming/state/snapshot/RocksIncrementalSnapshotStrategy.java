@@ -171,7 +171,9 @@ public class RocksIncrementalSnapshotStrategy<K>
                     @Nonnull CheckpointStreamFactory checkpointStreamFactory,
                     @Nonnull CheckpointOptions checkpointOptions) {
 
-        if (snapshotResources.stateMetaInfoSnapshots.isEmpty()) {
+        List<StateMetaInfoSnapshot> stateMetaInfoSnapshots =
+                snapshotResources.stateMetaInfoSnapshots;
+        if (stateMetaInfoSnapshots.isEmpty()) {
             return SnapshotResult::empty;
         }
 
@@ -181,7 +183,7 @@ public class RocksIncrementalSnapshotStrategy<K>
                 cancelStreamRegistry,
                 snapshotResources.snapshotDirectory,
                 snapshotResources.baseSstFiles,
-                snapshotResources.stateMetaInfoSnapshots);
+                stateMetaInfoSnapshots);
     }
 
     @Override

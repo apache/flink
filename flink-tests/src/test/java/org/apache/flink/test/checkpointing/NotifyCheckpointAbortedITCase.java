@@ -91,6 +91,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.runtime.state.SnapshotStrategyRunner.ExecutionType.SYNCHRONOUS;
 import static org.junit.Assert.assertEquals;
 
 /** Integrated tests to verify the logic to notify checkpoint aborted via RPC message. */
@@ -354,7 +355,7 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
         public DeclineSinkFailingOperatorStateBackend(
                 ExecutionConfig executionConfig,
                 CloseableRegistry closeStreamOnCancelRegistry,
-                SnapshotStrategyRunner<OperatorStateHandle, ?> snapshotStrategy) {
+                SnapshotStrategyRunner<OperatorStateHandle, ?> snapshotStrategyRunner) {
             super(
                     executionConfig,
                     closeStreamOnCancelRegistry,
@@ -362,7 +363,7 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
                     new HashMap<>(),
                     new HashMap<>(),
                     new HashMap<>(),
-                    snapshotStrategy);
+                    snapshotStrategyRunner);
         }
     }
 
@@ -398,7 +399,7 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
                                 "StuckAsyncSnapshotStrategy",
                                 new DeclineSinkFailingSnapshotStrategy(),
                                 cancelStreamRegistry,
-                                true));
+                                SYNCHRONOUS));
             } else {
                 return new DefaultOperatorStateBackendBuilder(
                                 env.getUserCodeClassLoader().asClassLoader(),

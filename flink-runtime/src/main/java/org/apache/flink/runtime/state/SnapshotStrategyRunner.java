@@ -36,6 +36,11 @@ import java.util.concurrent.RunnableFuture;
  * @param <T> type of the snapshot result.
  */
 public final class SnapshotStrategyRunner<T extends StateObject, SR extends SnapshotResources> {
+    /** Flag to tell how the strategy should be executed. */
+    public enum ExecutionType {
+        SYNCHRONOUS,
+        ASYNCHRONOUS
+    }
 
     private static final Logger LOG = LoggerFactory.getLogger(SnapshotStrategyRunner.class);
 
@@ -53,17 +58,17 @@ public final class SnapshotStrategyRunner<T extends StateObject, SR extends Snap
     @Nonnull private final SnapshotStrategy<T, SR> snapshotStrategy;
     @Nonnull private final CloseableRegistry cancelStreamRegistry;
 
-    @Nonnull private final boolean isSynchronous;
+    @Nonnull private final ExecutionType executionType;
 
     public SnapshotStrategyRunner(
             @Nonnull String description,
             @Nonnull SnapshotStrategy<T, SR> snapshotStrategy,
             @Nonnull CloseableRegistry cancelStreamRegistry,
-            boolean isSynchronous) {
+            @Nonnull ExecutionType executionType) {
         this.description = description;
         this.snapshotStrategy = snapshotStrategy;
         this.cancelStreamRegistry = cancelStreamRegistry;
-        this.isSynchronous = isSynchronous;
+        this.executionType = executionType;
     }
 
     @Nonnull
@@ -84,25 +89,29 @@ public final class SnapshotStrategyRunner<T extends StateObject, SR extends Snap
                         streamFactory,
                         checkpointOptions);
 
-        if (isSynchronous) {
-            return DoneFuture.of(asyncSnapshot.get());
-        } else {
-            return new AsyncSnapshotCallable<SnapshotResult<T>>() {
-                @Override
-                protected SnapshotResult<T> callInternal() throws Exception {
-                    return asyncSnapshot.get();
-                }
+        switch (executionType) {
+            case SYNCHRONOUS:
+                return DoneFuture.of(asyncSnapshot.get());
+            case ASYNCHRONOUS:
+                return new AsyncSnapshotCallable<SnapshotResult<T>>() {
+                    @Override
+                    protected SnapshotResult<T> callInternal() throws Exception {
+                        return asyncSnapshot.get();
+                    }
 
-                @Override
-                protected void cleanupProvidedResources() {
-                    snapshotResources.release();
-                }
+                    @Override
+                    protected void cleanupProvidedResources() {
+                        snapshotResources.release();
+                    }
 
-                @Override
-                protected void logAsyncSnapshotComplete(long startTime) {
-                    logCompletedInternal(LOG_ASYNC_COMPLETED_TEMPLATE, streamFactory, startTime);
-                }
-            }.toAsyncSnapshotFutureTask(cancelStreamRegistry);
+                    @Override
+                    protected void logAsyncSnapshotComplete(long startTime) {
+                        logCompletedInternal(
+                                LOG_ASYNC_COMPLETED_TEMPLATE, streamFactory, startTime);
+                    }
+                }.toAsyncSnapshotFutureTask(cancelStreamRegistry);
+            default:
+                throw new IllegalStateException("Unknown execution type: " + executionType);
         }
     }
 

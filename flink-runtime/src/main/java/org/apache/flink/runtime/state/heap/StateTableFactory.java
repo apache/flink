@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 
 /**
- * A factory method for creating a {@link StateTable}.
+ * A factory for {@link StateTable StateTables}.
  *
  * @param <K> The type of key on which a state backend is keyed
  */

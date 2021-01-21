@@ -106,7 +106,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
      * The snapshot strategy for this backend. This determines, e.g., if snapshots are synchronous
      * or asynchronous.
      */
-    private final SnapshotStrategyRunner<KeyedStateHandle, ?> snapshotStrategy;
+    private final SnapshotStrategyRunner<KeyedStateHandle, ?> snapshotStrategyRunner;
 
     private final StateTableFactory<K> stateTableFactory;
 
@@ -125,7 +125,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             Map<String, HeapPriorityQueueSnapshotRestoreWrapper> registeredPQStates,
             LocalRecoveryConfig localRecoveryConfig,
             HeapPriorityQueueSetFactory priorityQueueSetFactory,
-            SnapshotStrategyRunner<KeyedStateHandle, ?> snapshotStrategy,
+            SnapshotStrategyRunner<KeyedStateHandle, ?> snapshotStrategyRunner,
             StateTableFactory<K> stateTableFactory,
             InternalKeyContext<K> keyContext) {
         super(
@@ -141,7 +141,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         this.registeredPQStates = registeredPQStates;
         this.localRecoveryConfig = localRecoveryConfig;
         this.priorityQueueSetFactory = priorityQueueSetFactory;
-        this.snapshotStrategy = snapshotStrategy;
+        this.snapshotStrategyRunner = snapshotStrategyRunner;
         this.stateTableFactory = stateTableFactory;
         LOG.info("Initializing heap keyed state backend with stream factory.");
     }
@@ -356,7 +356,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             @Nonnull CheckpointOptions checkpointOptions)
             throws Exception {
 
-        return snapshotStrategy.snapshot(checkpointId, timestamp, streamFactory, checkpointOptions);
+        return snapshotStrategyRunner.snapshot(
+                checkpointId, timestamp, streamFactory, checkpointOptions);
     }
 
     @Override

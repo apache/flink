@@ -136,7 +136,8 @@ class HeapSnapshotStrategy<K>
                     @Nonnull CheckpointStreamFactory streamFactory,
                     @Nonnull CheckpointOptions checkpointOptions) {
 
-        if (syncPartResource.getMetaInfoSnapshots().isEmpty()) {
+        List<StateMetaInfoSnapshot> metaInfoSnapshots = syncPartResource.getMetaInfoSnapshots();
+        if (metaInfoSnapshots.isEmpty()) {
             return SnapshotResult::empty;
         }
 
@@ -146,7 +147,7 @@ class HeapSnapshotStrategy<K>
                         // should support to
                         // get a serialized form already at state registration time in the future
                         getKeySerializer(),
-                        syncPartResource.getMetaInfoSnapshots(),
+                        metaInfoSnapshots,
                         !Objects.equals(
                                 UncompressedStreamCompressionDecorator.INSTANCE,
                                 keyGroupCompressionDecorator));
@@ -167,6 +168,9 @@ class HeapSnapshotStrategy<K>
                                                 CheckpointedStateScope.EXCLUSIVE, streamFactory);
 
         return () -> {
+            final Map<StateUID, Integer> stateNamesToId = syncPartResource.getStateNamesToId();
+            final Map<StateUID, StateSnapshot> cowStateStableSnapshots =
+                    syncPartResource.getCowStateStableSnapshots();
             final CheckpointStreamWithResultProvider streamWithResultProvider =
                     checkpointStreamSupplier.get();
 
@@ -189,15 +193,14 @@ class HeapSnapshotStrategy<K>
                 outView.writeInt(keyGroupId);
 
                 for (Map.Entry<StateUID, StateSnapshot> stateSnapshot :
-                        syncPartResource.getCowStateStableSnapshots().entrySet()) {
+                        cowStateStableSnapshots.entrySet()) {
                     StateSnapshot.StateKeyGroupWriter partitionedSnapshot =
                             stateSnapshot.getValue().getKeyGroupWriter();
                     try (OutputStream kgCompressionOut =
                             keyGroupCompressionDecorator.decorateWithCompression(localStream)) {
                         DataOutputViewStreamWrapper kgCompressionView =
                                 new DataOutputViewStreamWrapper(kgCompressionOut);
-                        kgCompressionView.writeShort(
-                                syncPartResource.getStateNamesToId().get(stateSnapshot.getKey()));
+                        kgCompressionView.writeShort(stateNamesToId.get(stateSnapshot.getKey()));
                         partitionedSnapshot.writeStateInKeyGroup(kgCompressionView, keyGroupId);
                     } // this will just close the outer compression stream
                 }

@@ -112,8 +112,13 @@ class DefaultOperatorStateBackendSnapshotStrategy
                     @Nonnull CheckpointStreamFactory streamFactory,
                     @Nonnull CheckpointOptions checkpointOptions) {
 
-        if (syncPartResource.getRegisteredBroadcastStatesDeepCopies().isEmpty()
-                && syncPartResource.getRegisteredOperatorStatesDeepCopies().isEmpty()) {
+        Map<String, PartitionableListState<?>> registeredOperatorStatesDeepCopies =
+                syncPartResource.getRegisteredOperatorStatesDeepCopies();
+        Map<String, BackendWritableBroadcastState<?, ?>> registeredBroadcastStatesDeepCopies =
+                syncPartResource.getRegisteredBroadcastStatesDeepCopies();
+
+        if (registeredBroadcastStatesDeepCopies.isEmpty()
+                && registeredOperatorStatesDeepCopies.isEmpty()) {
             return SnapshotResult::empty;
         }
 
@@ -125,21 +130,19 @@ class DefaultOperatorStateBackendSnapshotStrategy
 
             // get the registered operator state infos ...
             List<StateMetaInfoSnapshot> operatorMetaInfoSnapshots =
-                    new ArrayList<>(
-                            syncPartResource.getRegisteredOperatorStatesDeepCopies().size());
+                    new ArrayList<>(registeredOperatorStatesDeepCopies.size());
 
             for (Map.Entry<String, PartitionableListState<?>> entry :
-                    syncPartResource.getRegisteredOperatorStatesDeepCopies().entrySet()) {
+                    registeredOperatorStatesDeepCopies.entrySet()) {
                 operatorMetaInfoSnapshots.add(entry.getValue().getStateMetaInfo().snapshot());
             }
 
             // ... get the registered broadcast operator state infos ...
             List<StateMetaInfoSnapshot> broadcastMetaInfoSnapshots =
-                    new ArrayList<>(
-                            syncPartResource.getRegisteredBroadcastStatesDeepCopies().size());
+                    new ArrayList<>(registeredBroadcastStatesDeepCopies.size());
 
             for (Map.Entry<String, BackendWritableBroadcastState<?, ?>> entry :
-                    syncPartResource.getRegisteredBroadcastStatesDeepCopies().entrySet()) {
+                    registeredBroadcastStatesDeepCopies.entrySet()) {
                 broadcastMetaInfoSnapshots.add(entry.getValue().getStateMetaInfo().snapshot());
             }
 
@@ -156,13 +159,13 @@ class DefaultOperatorStateBackendSnapshotStrategy
 
             // we put BOTH normal and broadcast state metadata here
             int initialMapCapacity =
-                    syncPartResource.getRegisteredOperatorStatesDeepCopies().size()
-                            + syncPartResource.getRegisteredBroadcastStatesDeepCopies().size();
+                    registeredOperatorStatesDeepCopies.size()
+                            + registeredBroadcastStatesDeepCopies.size();
             final Map<String, OperatorStateHandle.StateMetaInfo> writtenStatesMetaData =
                     new HashMap<>(initialMapCapacity);
 
             for (Map.Entry<String, PartitionableListState<?>> entry :
-                    syncPartResource.getRegisteredOperatorStatesDeepCopies().entrySet()) {
+                    registeredOperatorStatesDeepCopies.entrySet()) {
 
                 PartitionableListState<?> value = entry.getValue();
                 long[] partitionOffsets = value.write(localOut);
@@ -174,7 +177,7 @@ class DefaultOperatorStateBackendSnapshotStrategy
 
             // ... and the broadcast states themselves ...
             for (Map.Entry<String, BackendWritableBroadcastState<?, ?>> entry :
-                    syncPartResource.getRegisteredBroadcastStatesDeepCopies().entrySet()) {
+                    registeredBroadcastStatesDeepCopies.entrySet()) {
 
                 BackendWritableBroadcastState<?, ?> value = entry.getValue();
                 long[] partitionOffsets = {value.write(localOut)};

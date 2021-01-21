@@ -83,7 +83,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
     private final Map<String, BackendWritableBroadcastState<?, ?>> accessedBroadcastStatesByName;
 
-    private final SnapshotStrategyRunner<OperatorStateHandle, ?> snapshotStrategy;
+    private final SnapshotStrategyRunner<OperatorStateHandle, ?> snapshotStrategyRunner;
 
     public DefaultOperatorStateBackend(
             ExecutionConfig executionConfig,
@@ -92,14 +92,14 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
             Map<String, BackendWritableBroadcastState<?, ?>> registeredBroadcastStates,
             Map<String, PartitionableListState<?>> accessedStatesByName,
             Map<String, BackendWritableBroadcastState<?, ?>> accessedBroadcastStatesByName,
-            SnapshotStrategyRunner<OperatorStateHandle, ?> snapshotStrategy) {
+            SnapshotStrategyRunner<OperatorStateHandle, ?> snapshotStrategyRunner) {
         this.closeStreamOnCancelRegistry = closeStreamOnCancelRegistry;
         this.executionConfig = executionConfig;
         this.registeredOperatorStates = registeredOperatorStates;
         this.registeredBroadcastStates = registeredBroadcastStates;
         this.accessedStatesByName = accessedStatesByName;
         this.accessedBroadcastStatesByName = accessedBroadcastStatesByName;
-        this.snapshotStrategy = snapshotStrategy;
+        this.snapshotStrategyRunner = snapshotStrategyRunner;
     }
 
     public ExecutionConfig getExecutionConfig() {
@@ -227,7 +227,8 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
             @Nonnull CheckpointStreamFactory streamFactory,
             @Nonnull CheckpointOptions checkpointOptions)
             throws Exception {
-        return snapshotStrategy.snapshot(checkpointId, timestamp, streamFactory, checkpointOptions);
+        return snapshotStrategyRunner.snapshot(
+                checkpointId, timestamp, streamFactory, checkpointOptions);
     }
 
     private <S> ListState<S> getListState(
