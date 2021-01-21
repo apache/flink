@@ -68,10 +68,7 @@ public class DefaultOperatorStateBackendBuilder
 
         DefaultOperatorStateBackendSnapshotStrategy snapshotStrategy =
                 new DefaultOperatorStateBackendSnapshotStrategy(
-                        userClassloader,
-                        registeredOperatorStates,
-                        registeredBroadcastStates,
-                        cancelStreamRegistryForBackend);
+                        userClassloader, registeredOperatorStates, registeredBroadcastStates);
         OperatorStateRestoreOperation restoreOperation =
                 new OperatorStateRestoreOperation(
                         cancelStreamRegistry,

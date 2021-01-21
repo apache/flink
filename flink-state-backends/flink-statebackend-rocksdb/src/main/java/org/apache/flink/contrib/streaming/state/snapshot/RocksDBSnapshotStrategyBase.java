@@ -21,7 +21,6 @@ package org.apache.flink.contrib.streaming.state.snapshot;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.RocksDbKvStateInfo;
-import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
@@ -70,9 +69,6 @@ public abstract class RocksDBSnapshotStrategyBase<K, R extends SnapshotResources
     /** The configuration for local recovery. */
     @Nonnull protected final LocalRecoveryConfig localRecoveryConfig;
 
-    /** A {@link CloseableRegistry} that will be closed when the task is cancelled. */
-    @Nonnull protected final CloseableRegistry cancelStreamRegistry;
-
     public RocksDBSnapshotStrategyBase(
             @Nonnull String description,
             @Nonnull RocksDB db,
@@ -81,8 +77,7 @@ public abstract class RocksDBSnapshotStrategyBase<K, R extends SnapshotResources
             @Nonnull LinkedHashMap<String, RocksDbKvStateInfo> kvStateInformation,
             @Nonnull KeyGroupRange keyGroupRange,
             @Nonnegative int keyGroupPrefixBytes,
-            @Nonnull LocalRecoveryConfig localRecoveryConfig,
-            @Nonnull CloseableRegistry cancelStreamRegistry) {
+            @Nonnull LocalRecoveryConfig localRecoveryConfig) {
         this.db = db;
         this.rocksDBResourceGuard = rocksDBResourceGuard;
         this.keySerializer = keySerializer;
@@ -90,7 +85,6 @@ public abstract class RocksDBSnapshotStrategyBase<K, R extends SnapshotResources
         this.keyGroupRange = keyGroupRange;
         this.keyGroupPrefixBytes = keyGroupPrefixBytes;
         this.localRecoveryConfig = localRecoveryConfig;
-        this.cancelStreamRegistry = cancelStreamRegistry;
         this.description = description;
     }
 

@@ -50,7 +50,6 @@ import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ResourceGuard;
-import org.apache.flink.util.function.SupplierWithException;
 
 import org.rocksdb.Checkpoint;
 import org.rocksdb.RocksDB;
@@ -133,8 +132,7 @@ public class RocksIncrementalSnapshotStrategy<K>
                 kvStateInformation,
                 keyGroupRange,
                 keyGroupPrefixBytes,
-                localRecoveryConfig,
-                cancelStreamRegistry);
+                localRecoveryConfig);
 
         this.instanceBasePath = instanceBasePath;
         this.backendUID = backendUID;
@@ -163,24 +161,22 @@ public class RocksIncrementalSnapshotStrategy<K>
     }
 
     @Override
-    public SupplierWithException<SnapshotResult<KeyedStateHandle>, ? extends Exception>
-            asyncSnapshot(
-                    IncrementalRocksDBSnapshotResources snapshotResources,
-                    long checkpointId,
-                    long timestamp,
-                    @Nonnull CheckpointStreamFactory checkpointStreamFactory,
-                    @Nonnull CheckpointOptions checkpointOptions) {
+    public SnapshotResultSupplier<KeyedStateHandle> asyncSnapshot(
+            IncrementalRocksDBSnapshotResources snapshotResources,
+            long checkpointId,
+            long timestamp,
+            @Nonnull CheckpointStreamFactory checkpointStreamFactory,
+            @Nonnull CheckpointOptions checkpointOptions) {
 
         List<StateMetaInfoSnapshot> stateMetaInfoSnapshots =
                 snapshotResources.stateMetaInfoSnapshots;
         if (stateMetaInfoSnapshots.isEmpty()) {
-            return SnapshotResult::empty;
+            return snapshotCloseableRegistry -> SnapshotResult.empty();
         }
 
         return new RocksDBIncrementalSnapshotOperation(
                 checkpointId,
                 checkpointStreamFactory,
-                cancelStreamRegistry,
                 snapshotResources.snapshotDirectory,
                 snapshotResources.baseSstFiles,
                 stateMetaInfoSnapshots);
@@ -296,7 +292,7 @@ public class RocksIncrementalSnapshotStrategy<K>
      * Encapsulates the process to perform an incremental snapshot of a RocksDBKeyedStateBackend.
      */
     private final class RocksDBIncrementalSnapshotOperation
-            implements SupplierWithException<SnapshotResult<KeyedStateHandle>, Exception> {
+            implements SnapshotResultSupplier<KeyedStateHandle> {
 
         /** Id for the current checkpoint. */
         private final long checkpointId;
@@ -313,12 +309,9 @@ public class RocksIncrementalSnapshotStrategy<K>
         /** All sst files that were part of the last previously completed checkpoint. */
         @Nullable private final Set<StateHandleID> baseSstFiles;
 
-        @Nonnull private final CloseableRegistry cancelStreamRegistry;
-
         private RocksDBIncrementalSnapshotOperation(
                 long checkpointId,
                 @Nonnull CheckpointStreamFactory checkpointStreamFactory,
-                @Nonnull CloseableRegistry cancelStreamRegistry,
                 @Nonnull SnapshotDirectory localBackupDirectory,
                 @Nullable Set<StateHandleID> baseSstFiles,
                 @Nonnull List<StateMetaInfoSnapshot> stateMetaInfoSnapshots) {
@@ -328,11 +321,11 @@ public class RocksIncrementalSnapshotStrategy<K>
             this.checkpointId = checkpointId;
             this.localBackupDirectory = localBackupDirectory;
             this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
-            this.cancelStreamRegistry = cancelStreamRegistry;
         }
 
         @Override
-        public SnapshotResult<KeyedStateHandle> get() throws Exception {
+        public SnapshotResult<KeyedStateHandle> get(CloseableRegistry snapshotCloseableRegistry)
+                throws Exception {
 
             boolean completed = false;
 
@@ -345,7 +338,7 @@ public class RocksIncrementalSnapshotStrategy<K>
 
             try {
 
-                metaStateHandle = materializeMetaData();
+                metaStateHandle = materializeMetaData(snapshotCloseableRegistry);
 
                 // Sanity checks - they should never fail
                 Preconditions.checkNotNull(metaStateHandle, "Metadata was not properly created.");
@@ -353,7 +346,7 @@ public class RocksIncrementalSnapshotStrategy<K>
                         metaStateHandle.getJobManagerOwnedSnapshot(),
                         "Metadata for job manager was not properly created.");
 
-                uploadSstFiles(sstFiles, miscFiles);
+                uploadSstFiles(sstFiles, miscFiles, snapshotCloseableRegistry);
 
                 synchronized (materializedSstFiles) {
                     materializedSstFiles.put(checkpointId, sstFiles.keySet());
@@ -428,7 +421,8 @@ public class RocksIncrementalSnapshotStrategy<K>
 
         private void uploadSstFiles(
                 @Nonnull Map<StateHandleID, StreamStateHandle> sstFiles,
-                @Nonnull Map<StateHandleID, StreamStateHandle> miscFiles)
+                @Nonnull Map<StateHandleID, StreamStateHandle> miscFiles,
+                @Nonnull CloseableRegistry snapshotCloseableRegistry)
                 throws Exception {
 
             // write state data
@@ -443,10 +437,10 @@ public class RocksIncrementalSnapshotStrategy<K>
 
                 sstFiles.putAll(
                         stateUploader.uploadFilesToCheckpointFs(
-                                sstFilePaths, checkpointStreamFactory, cancelStreamRegistry));
+                                sstFilePaths, checkpointStreamFactory, snapshotCloseableRegistry));
                 miscFiles.putAll(
                         stateUploader.uploadFilesToCheckpointFs(
-                                miscFilePaths, checkpointStreamFactory, cancelStreamRegistry));
+                                miscFilePaths, checkpointStreamFactory, snapshotCloseableRegistry));
             }
         }
 
@@ -478,7 +472,8 @@ public class RocksIncrementalSnapshotStrategy<K>
         }
 
         @Nonnull
-        private SnapshotResult<StreamStateHandle> materializeMetaData() throws Exception {
+        private SnapshotResult<StreamStateHandle> materializeMetaData(
+                @Nonnull CloseableRegistry snapshotCloseableRegistry) throws Exception {
 
             CheckpointStreamWithResultProvider streamWithResultProvider =
                     localRecoveryConfig.isLocalRecoveryEnabled()
@@ -490,7 +485,7 @@ public class RocksIncrementalSnapshotStrategy<K>
                             : CheckpointStreamWithResultProvider.createSimpleStream(
                                     CheckpointedStateScope.EXCLUSIVE, checkpointStreamFactory);
 
-            cancelStreamRegistry.registerCloseable(streamWithResultProvider);
+            snapshotCloseableRegistry.registerCloseable(streamWithResultProvider);
 
             try {
                 // no need for compression scheme support because sst-files are already compressed
@@ -504,7 +499,7 @@ public class RocksIncrementalSnapshotStrategy<K>
 
                 serializationProxy.write(out);
 
-                if (cancelStreamRegistry.unregisterCloseable(streamWithResultProvider)) {
+                if (snapshotCloseableRegistry.unregisterCloseable(streamWithResultProvider)) {
                     SnapshotResult<StreamStateHandle> result =
                             streamWithResultProvider.closeAndFinalizeCheckpointStreamResult();
                     streamWithResultProvider = null;
@@ -514,7 +509,7 @@ public class RocksIncrementalSnapshotStrategy<K>
                 }
             } finally {
                 if (streamWithResultProvider != null) {
-                    if (cancelStreamRegistry.unregisterCloseable(streamWithResultProvider)) {
+                    if (snapshotCloseableRegistry.unregisterCloseable(streamWithResultProvider)) {
                         IOUtils.closeQuietly(streamWithResultProvider);
                     }
                 }

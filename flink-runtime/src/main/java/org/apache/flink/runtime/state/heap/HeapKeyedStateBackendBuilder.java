@@ -92,8 +92,7 @@ public class HeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
         Map<String, HeapPriorityQueueSnapshotRestoreWrapper> registeredPQStates = new HashMap<>();
         CloseableRegistry cancelStreamRegistryForBackend = new CloseableRegistry();
         HeapSnapshotStrategy<K> snapshotStrategy =
-                initSnapshotStrategy(
-                        registeredKVStates, registeredPQStates, cancelStreamRegistryForBackend);
+                initSnapshotStrategy(registeredKVStates, registeredPQStates);
         InternalKeyContext<K> keyContext =
                 new InternalKeyContextImpl<>(keyGroupRange, numberOfKeyGroups);
 
@@ -146,15 +145,13 @@ public class HeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
 
     private HeapSnapshotStrategy<K> initSnapshotStrategy(
             Map<String, StateTable<K, ?, ?>> registeredKVStates,
-            Map<String, HeapPriorityQueueSnapshotRestoreWrapper> registeredPQStates,
-            CloseableRegistry cancelStreamRegistry) {
+            Map<String, HeapPriorityQueueSnapshotRestoreWrapper> registeredPQStates) {
         return new HeapSnapshotStrategy<>(
                 registeredKVStates,
                 registeredPQStates,
                 keyGroupCompressionDecorator,
                 localRecoveryConfig,
                 keyGroupRange,
-                cancelStreamRegistry,
                 keySerializerProvider);
     }
 }

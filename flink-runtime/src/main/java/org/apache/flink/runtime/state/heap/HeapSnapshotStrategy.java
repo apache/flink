@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -67,7 +66,6 @@ class HeapSnapshotStrategy<K>
     private final StreamCompressionDecorator keyGroupCompressionDecorator;
     private final LocalRecoveryConfig localRecoveryConfig;
     private final KeyGroupRange keyGroupRange;
-    private final CloseableRegistry cancelStreamRegistry;
     private final StateSerializerProvider<K> keySerializerProvider;
 
     HeapSnapshotStrategy(
@@ -76,14 +74,12 @@ class HeapSnapshotStrategy<K>
             StreamCompressionDecorator keyGroupCompressionDecorator,
             LocalRecoveryConfig localRecoveryConfig,
             KeyGroupRange keyGroupRange,
-            CloseableRegistry cancelStreamRegistry,
             StateSerializerProvider<K> keySerializerProvider) {
         this.registeredKVStates = registeredKVStates;
         this.registeredPQStates = registeredPQStates;
         this.keyGroupCompressionDecorator = keyGroupCompressionDecorator;
         this.localRecoveryConfig = localRecoveryConfig;
         this.keyGroupRange = keyGroupRange;
-        this.cancelStreamRegistry = cancelStreamRegistry;
         this.keySerializerProvider = keySerializerProvider;
     }
 
@@ -128,17 +124,16 @@ class HeapSnapshotStrategy<K>
     }
 
     @Override
-    public SupplierWithException<SnapshotResult<KeyedStateHandle>, ? extends Exception>
-            asyncSnapshot(
-                    HeapSnapshotResources syncPartResource,
-                    long checkpointId,
-                    long timestamp,
-                    @Nonnull CheckpointStreamFactory streamFactory,
-                    @Nonnull CheckpointOptions checkpointOptions) {
+    public SnapshotResultSupplier<KeyedStateHandle> asyncSnapshot(
+            HeapSnapshotResources syncPartResource,
+            long checkpointId,
+            long timestamp,
+            @Nonnull CheckpointStreamFactory streamFactory,
+            @Nonnull CheckpointOptions checkpointOptions) {
 
         List<StateMetaInfoSnapshot> metaInfoSnapshots = syncPartResource.getMetaInfoSnapshots();
         if (metaInfoSnapshots.isEmpty()) {
-            return SnapshotResult::empty;
+            return snapshotCloseableRegistry -> SnapshotResult.empty();
         }
 
         final KeyedBackendSerializationProxy<K> serializationProxy =
@@ -167,14 +162,14 @@ class HeapSnapshotStrategy<K>
                                         createSimpleStream(
                                                 CheckpointedStateScope.EXCLUSIVE, streamFactory);
 
-        return () -> {
+        return (snapshotCloseableRegistry) -> {
             final Map<StateUID, Integer> stateNamesToId = syncPartResource.getStateNamesToId();
             final Map<StateUID, StateSnapshot> cowStateStableSnapshots =
                     syncPartResource.getCowStateStableSnapshots();
             final CheckpointStreamWithResultProvider streamWithResultProvider =
                     checkpointStreamSupplier.get();
 
-            cancelStreamRegistry.registerCloseable(streamWithResultProvider);
+            snapshotCloseableRegistry.registerCloseable(streamWithResultProvider);
 
             final CheckpointStreamFactory.CheckpointStateOutputStream localStream =
                     streamWithResultProvider.getCheckpointOutputStream();
@@ -206,7 +201,7 @@ class HeapSnapshotStrategy<K>
                 }
             }
 
-            if (cancelStreamRegistry.unregisterCloseable(streamWithResultProvider)) {
+            if (snapshotCloseableRegistry.unregisterCloseable(streamWithResultProvider)) {
                 KeyGroupRangeOffsets kgOffs =
                         new KeyGroupRangeOffsets(keyGroupRange, keyGroupRangeOffsets);
                 SnapshotResult<StreamStateHandle> result =

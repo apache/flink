@@ -20,7 +20,6 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.util.function.SupplierWithException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -81,7 +80,7 @@ public final class SnapshotStrategyRunner<T extends StateObject, SR extends Snap
         long startTime = System.currentTimeMillis();
         SR snapshotResources = snapshotStrategy.syncPrepareResources(checkpointId);
         logCompletedInternal(LOG_SYNC_COMPLETED_TEMPLATE, streamFactory, startTime);
-        SupplierWithException<SnapshotResult<T>, ? extends Exception> asyncSnapshot =
+        SnapshotStrategy.SnapshotResultSupplier<T> asyncSnapshot =
                 snapshotStrategy.asyncSnapshot(
                         snapshotResources,
                         checkpointId,
@@ -91,12 +90,12 @@ public final class SnapshotStrategyRunner<T extends StateObject, SR extends Snap
 
         switch (executionType) {
             case SYNCHRONOUS:
-                return DoneFuture.of(asyncSnapshot.get());
+                return DoneFuture.of(asyncSnapshot.get(cancelStreamRegistry));
             case ASYNCHRONOUS:
                 return new AsyncSnapshotCallable<SnapshotResult<T>>() {
                     @Override
                     protected SnapshotResult<T> callInternal() throws Exception {
-                        return asyncSnapshot.get();
+                        return asyncSnapshot.get(snapshotCloseableRegistry);
                     }
 
                     @Override

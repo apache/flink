@@ -477,7 +477,6 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                         keyGroupRange,
                         keyGroupPrefixBytes,
                         localRecoveryConfig,
-                        cancelStreamRegistry,
                         keyGroupCompressionDecorator);
         RocksDBSnapshotStrategyBase<K, ?> checkpointSnapshotStrategy;
         if (enableIncrementalCheckpointing) {

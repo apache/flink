@@ -18,12 +18,10 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
-import org.apache.flink.util.function.SupplierWithException;
 
 import javax.annotation.Nonnull;
 
@@ -43,17 +41,14 @@ class DefaultOperatorStateBackendSnapshotStrategy
     private final ClassLoader userClassLoader;
     private final Map<String, PartitionableListState<?>> registeredOperatorStates;
     private final Map<String, BackendWritableBroadcastState<?, ?>> registeredBroadcastStates;
-    private final CloseableRegistry closeStreamOnCancelRegistry;
 
     protected DefaultOperatorStateBackendSnapshotStrategy(
             ClassLoader userClassLoader,
             Map<String, PartitionableListState<?>> registeredOperatorStates,
-            Map<String, BackendWritableBroadcastState<?, ?>> registeredBroadcastStates,
-            CloseableRegistry closeStreamOnCancelRegistry) {
+            Map<String, BackendWritableBroadcastState<?, ?>> registeredBroadcastStates) {
         this.userClassLoader = userClassLoader;
         this.registeredOperatorStates = registeredOperatorStates;
         this.registeredBroadcastStates = registeredBroadcastStates;
-        this.closeStreamOnCancelRegistry = closeStreamOnCancelRegistry;
     }
 
     @Override
@@ -104,13 +99,12 @@ class DefaultOperatorStateBackendSnapshotStrategy
     }
 
     @Override
-    public SupplierWithException<SnapshotResult<OperatorStateHandle>, ? extends Exception>
-            asyncSnapshot(
-                    DefaultOperatorStateBackendSnapshotResources syncPartResource,
-                    long checkpointId,
-                    long timestamp,
-                    @Nonnull CheckpointStreamFactory streamFactory,
-                    @Nonnull CheckpointOptions checkpointOptions) {
+    public SnapshotResultSupplier<OperatorStateHandle> asyncSnapshot(
+            DefaultOperatorStateBackendSnapshotResources syncPartResource,
+            long checkpointId,
+            long timestamp,
+            @Nonnull CheckpointStreamFactory streamFactory,
+            @Nonnull CheckpointOptions checkpointOptions) {
 
         Map<String, PartitionableListState<?>> registeredOperatorStatesDeepCopies =
                 syncPartResource.getRegisteredOperatorStatesDeepCopies();
@@ -119,14 +113,14 @@ class DefaultOperatorStateBackendSnapshotStrategy
 
         if (registeredBroadcastStatesDeepCopies.isEmpty()
                 && registeredOperatorStatesDeepCopies.isEmpty()) {
-            return SnapshotResult::empty;
+            return snapshotCloseableRegistry -> SnapshotResult.empty();
         }
 
-        return () -> {
+        return (snapshotCloseableRegistry) -> {
             CheckpointStreamFactory.CheckpointStateOutputStream localOut =
                     streamFactory.createCheckpointStateOutputStream(
                             CheckpointedStateScope.EXCLUSIVE);
-            closeStreamOnCancelRegistry.registerCloseable(localOut);
+            snapshotCloseableRegistry.registerCloseable(localOut);
 
             // get the registered operator state infos ...
             List<StateMetaInfoSnapshot> operatorMetaInfoSnapshots =
@@ -190,7 +184,7 @@ class DefaultOperatorStateBackendSnapshotStrategy
             // ... and, finally, create the state handle.
             OperatorStateHandle retValue = null;
 
-            if (closeStreamOnCancelRegistry.unregisterCloseable(localOut)) {
+            if (snapshotCloseableRegistry.unregisterCloseable(localOut)) {
 
                 StreamStateHandle stateHandle = localOut.closeAndGetHandle();
 

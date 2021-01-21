@@ -92,7 +92,6 @@ public class RocksFullSnapshotStrategy<K>
             @Nonnull KeyGroupRange keyGroupRange,
             @Nonnegative int keyGroupPrefixBytes,
             @Nonnull LocalRecoveryConfig localRecoveryConfig,
-            @Nonnull CloseableRegistry cancelStreamRegistry,
             @Nonnull StreamCompressionDecorator keyGroupCompressionDecorator) {
         super(
                 DESCRIPTION,
@@ -102,8 +101,7 @@ public class RocksFullSnapshotStrategy<K>
                 kvStateInformation,
                 keyGroupRange,
                 keyGroupPrefixBytes,
-                localRecoveryConfig,
-                cancelStreamRegistry);
+                localRecoveryConfig);
 
         this.keyGroupCompressionDecorator = keyGroupCompressionDecorator;
     }
@@ -129,13 +127,12 @@ public class RocksFullSnapshotStrategy<K>
     }
 
     @Override
-    public SupplierWithException<SnapshotResult<KeyedStateHandle>, ? extends Exception>
-            asyncSnapshot(
-                    FullRocksDBSnapshotResources fullRocksDBSnapshotResources,
-                    long checkpointId,
-                    long timestamp,
-                    @Nonnull CheckpointStreamFactory checkpointStreamFactory,
-                    @Nonnull CheckpointOptions checkpointOptions) {
+    public SnapshotResultSupplier<KeyedStateHandle> asyncSnapshot(
+            FullRocksDBSnapshotResources fullRocksDBSnapshotResources,
+            long checkpointId,
+            long timestamp,
+            @Nonnull CheckpointStreamFactory checkpointStreamFactory,
+            @Nonnull CheckpointOptions checkpointOptions) {
 
         final SupplierWithException<CheckpointStreamWithResultProvider, Exception>
                 checkpointStreamSupplier =
@@ -146,8 +143,7 @@ public class RocksFullSnapshotStrategy<K>
                 checkpointStreamSupplier,
                 fullRocksDBSnapshotResources.snapshot,
                 fullRocksDBSnapshotResources.stateMetaInfoSnapshots,
-                fullRocksDBSnapshotResources.metaDataCopy,
-                cancelStreamRegistry);
+                fullRocksDBSnapshotResources.metaDataCopy);
     }
 
     @Override
@@ -181,14 +177,12 @@ public class RocksFullSnapshotStrategy<K>
 
     /** Encapsulates the process to perform a full snapshot of a RocksDBKeyedStateBackend. */
     private class SnapshotAsynchronousPartCallable
-            implements SupplierWithException<SnapshotResult<KeyedStateHandle>, Exception> {
+            implements SnapshotResultSupplier<KeyedStateHandle> {
 
         /** Supplier for the stream into which we write the snapshot. */
         @Nonnull
         private final SupplierWithException<CheckpointStreamWithResultProvider, Exception>
                 checkpointStreamSupplier;
-
-        @Nonnull private final CloseableRegistry cancelStreamRegistry;
 
         /** RocksDB snapshot. */
         @Nonnull private final Snapshot snapshot;
@@ -203,27 +197,26 @@ public class RocksFullSnapshotStrategy<K>
                                 checkpointStreamSupplier,
                 @Nonnull Snapshot snapshot,
                 @Nonnull List<StateMetaInfoSnapshot> stateMetaInfoSnapshots,
-                @Nonnull List<RocksDbKvStateInfo> metaDataCopy,
-                @Nonnull CloseableRegistry cancelStreamRegistry) {
+                @Nonnull List<RocksDbKvStateInfo> metaDataCopy) {
 
             this.checkpointStreamSupplier = checkpointStreamSupplier;
             this.snapshot = snapshot;
             this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
             this.metaData = fillMetaData(metaDataCopy);
-            this.cancelStreamRegistry = cancelStreamRegistry;
         }
 
         @Override
-        public SnapshotResult<KeyedStateHandle> get() throws Exception {
+        public SnapshotResult<KeyedStateHandle> get(CloseableRegistry snapshotCloseableRegistry)
+                throws Exception {
             final KeyGroupRangeOffsets keyGroupRangeOffsets =
                     new KeyGroupRangeOffsets(keyGroupRange);
             final CheckpointStreamWithResultProvider checkpointStreamWithResultProvider =
                     checkpointStreamSupplier.get();
 
-            cancelStreamRegistry.registerCloseable(checkpointStreamWithResultProvider);
+            snapshotCloseableRegistry.registerCloseable(checkpointStreamWithResultProvider);
             writeSnapshotToOutputStream(checkpointStreamWithResultProvider, keyGroupRangeOffsets);
 
-            if (cancelStreamRegistry.unregisterCloseable(checkpointStreamWithResultProvider)) {
+            if (snapshotCloseableRegistry.unregisterCloseable(checkpointStreamWithResultProvider)) {
                 return CheckpointStreamWithResultProvider.toKeyedStateHandleSnapshotResult(
                         checkpointStreamWithResultProvider.closeAndFinalizeCheckpointStreamResult(),
                         keyGroupRangeOffsets);

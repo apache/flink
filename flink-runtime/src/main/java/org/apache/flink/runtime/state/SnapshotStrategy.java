@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.util.function.SupplierWithException;
 
@@ -59,10 +60,28 @@ public interface SnapshotStrategy<S extends StateObject, SR extends SnapshotReso
      * @param checkpointOptions Options for how to perform this checkpoint.
      * @return A supplier that will yield a {@link StateObject}.
      */
-    SupplierWithException<SnapshotResult<S>, ? extends Exception> asyncSnapshot(
+    SnapshotResultSupplier<S> asyncSnapshot(
             SR syncPartResource,
             long checkpointId,
             long timestamp,
             @Nonnull CheckpointStreamFactory streamFactory,
             @Nonnull CheckpointOptions checkpointOptions);
+
+    /**
+     * A supplier for a {@link SnapshotResult} with an access to a {@link CloseableRegistry} for io
+     * tasks that need to be closed when cancelling the async part of the checkpoint.
+     *
+     * @param <S> type of the returned state object that represents the result of the snapshot *
+     *     operation.
+     */
+    @FunctionalInterface
+    interface SnapshotResultSupplier<S extends StateObject> {
+        /**
+         * Performs the asynchronous part of a checkpoint and returns the snapshot result.
+         *
+         * @param snapshotCloseableRegistry A registry for io tasks to close on cancel.
+         * @return A snapshot result
+         */
+        SnapshotResult<S> get(CloseableRegistry snapshotCloseableRegistry) throws Exception;
+    }
 }

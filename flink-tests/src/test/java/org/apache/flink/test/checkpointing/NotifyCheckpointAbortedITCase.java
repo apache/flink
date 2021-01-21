@@ -72,7 +72,6 @@ import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.util.function.SupplierWithException;
 
 import org.junit.After;
 import org.junit.Before;
@@ -328,19 +327,18 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
         }
 
         @Override
-        public SupplierWithException<SnapshotResult<OperatorStateHandle>, ? extends Exception>
-                asyncSnapshot(
-                        SnapshotResources snapshotResources,
-                        long checkpointId,
-                        long timestamp,
-                        @Nonnull CheckpointStreamFactory streamFactory,
-                        @Nonnull CheckpointOptions checkpointOptions) {
+        public SnapshotResultSupplier<OperatorStateHandle> asyncSnapshot(
+                SnapshotResources snapshotResources,
+                long checkpointId,
+                long timestamp,
+                @Nonnull CheckpointStreamFactory streamFactory,
+                @Nonnull CheckpointOptions checkpointOptions) {
             if (checkpointId == DECLINE_CHECKPOINT_ID) {
-                return () -> {
+                return (snapshotCloseableRegistry) -> {
                     throw new ExpectedTestException();
                 };
             } else {
-                return SnapshotResult::empty;
+                return snapshotCloseableRegistry -> SnapshotResult.empty();
             }
         }
     }
