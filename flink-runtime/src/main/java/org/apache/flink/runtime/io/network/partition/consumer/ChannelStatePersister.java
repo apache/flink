@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** Helper class for persisting channel state via {@link ChannelStateWriter}. */
 @NotThreadSafe
@@ -71,6 +72,10 @@ public final class ChannelStatePersister {
         if (checkpointStatus != CheckpointStatus.BARRIER_RECEIVED && lastSeenBarrier < barrierId) {
             checkpointStatus = CheckpointStatus.BARRIER_PENDING;
             lastSeenBarrier = barrierId;
+        } else if (checkpointStatus == CheckpointStatus.BARRIER_RECEIVED) {
+            checkState(
+                    lastSeenBarrier >= barrierId,
+                    "Internal error, #stopPersisting for last checkpoint has not been called.");
         }
         if (knownBuffers.size() > 0) {
             channelStateWriter.addInputData(
@@ -103,7 +108,11 @@ public final class ChannelStatePersister {
         final AbstractEvent event = parseEvent(buffer);
         if (event instanceof CheckpointBarrier) {
             final long barrierId = ((CheckpointBarrier) event).getId();
-            if (barrierId >= lastSeenBarrier) {
+            long expectedBarrierId =
+                    checkpointStatus == CheckpointStatus.COMPLETED
+                            ? lastSeenBarrier + 1
+                            : lastSeenBarrier;
+            if (barrierId >= expectedBarrierId) {
                 logEvent("found barrier", barrierId);
                 checkpointStatus = CheckpointStatus.BARRIER_RECEIVED;
                 lastSeenBarrier = barrierId;
