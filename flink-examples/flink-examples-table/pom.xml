@@ -283,6 +283,30 @@ under the License.
 					</execution>
 
 					<execution>
+						<id>AdvancedFunctionsExample</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+
+						<configuration>
+							<classifier>AdvancedFunctionsExample</classifier>
+
+							<archive>
+								<manifestEntries>
+									<program-class>org.apache.flink.table.examples.java.functions.AdvancedFunctionsExample</program-class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>org/apache/flink/table/examples/java/functions/*</include>
+								<include>META-INF/LICENSE</include>
+								<include>META-INF/NOTICE</include>
+							</includes>
+						</configuration>
+					</execution>
+
+					<execution>
 						<id>StreamTableExample</id>
 						<phase>package</phase>
 						<goals>
