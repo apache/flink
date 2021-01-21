@@ -40,20 +40,20 @@ import java.util.Map;
  * once all ExecNodes' implementation are separated from physical rel, we will use {@link ExecEdge}
  * to replace them.
  */
-public class ExecGraphGenerator {
+public class ExecNodeGraphGenerator {
 
     private final Map<FlinkPhysicalRel, ExecNode<?>> visitedRels;
 
-    public ExecGraphGenerator() {
+    public ExecNodeGraphGenerator() {
         this.visitedRels = new IdentityHashMap<>();
     }
 
-    public List<ExecNode<?>> generate(List<FlinkPhysicalRel> relNodes) {
-        List<ExecNode<?>> execNodes = new ArrayList<>(relNodes.size());
+    public ExecNodeGraph generate(List<FlinkPhysicalRel> relNodes) {
+        List<ExecNode<?>> rootNodes = new ArrayList<>(relNodes.size());
         for (FlinkPhysicalRel relNode : relNodes) {
-            execNodes.add(generate(relNode));
+            rootNodes.add(generate(relNode));
         }
-        return execNodes;
+        return new ExecNodeGraph(rootNodes);
     }
 
     private ExecNode<?> generate(FlinkPhysicalRel rel) {

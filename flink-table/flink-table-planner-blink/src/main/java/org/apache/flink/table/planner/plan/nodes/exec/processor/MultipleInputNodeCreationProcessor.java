@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecBoundedStreamScan;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecMultipleInput;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecExchange;
@@ -64,7 +65,7 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
     }
 
     @Override
-    public List<ExecNode<?>> process(List<ExecNode<?>> roots, DAGProcessContext context) {
+    public ExecNodeGraph process(ExecNodeGraph execGraph, DAGProcessContext context) {
         if (!isStreaming) {
             // As multiple input nodes use function call to deliver records between sub-operators,
             // we cannot rely on network buffers to buffer records not yet ready to be read,
@@ -74,14 +75,14 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
             // into the same multiple input node
             InputPriorityConflictResolver resolver =
                     new InputPriorityConflictResolver(
-                            roots,
+                            execGraph.getRootNodes(),
                             ExecEdge.DamBehavior.BLOCKING,
                             ShuffleMode.PIPELINED,
                             context.getPlanner().getTableConfig().getConfiguration());
             resolver.detectAndResolve();
         }
 
-        List<ExecNodeWrapper> rootWrappers = wrapExecNodes(roots);
+        List<ExecNodeWrapper> rootWrappers = wrapExecNodes(execGraph.getRootNodes());
         // sort all nodes in topological order, sinks come first and sources come last
         List<ExecNodeWrapper> orderedWrappers = topologicalSort(rootWrappers);
         // group nodes into multiple input groups
@@ -90,7 +91,8 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
         optimizeMultipleInputGroups(orderedWrappers, context);
 
         // create the real multiple input nodes
-        return createMultipleInputNodes(rootWrappers);
+        List<ExecNode<?>> newRootNodes = createMultipleInputNodes(rootWrappers);
+        return new ExecNodeGraph(newRootNodes);
     }
 
     // --------------------------------------------------------------------------------

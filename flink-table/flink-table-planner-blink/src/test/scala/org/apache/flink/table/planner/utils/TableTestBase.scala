@@ -860,8 +860,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
 
     // build optimized exec plan if `expectedPlans` contains OPT_EXEC
     val optimizedExecPlan = if (expectedPlans.contains(PlanKind.OPT_EXEC)) {
-      val optimizedExecs = getPlanner.translateToExecNodePlan(optimizedRels)
-      System.lineSeparator + ExecNodePlanDumper.dagToString(optimizedExecs)
+      val execGraph = getPlanner.translateToExecNodeGraph(optimizedRels)
+      System.lineSeparator + ExecNodePlanDumper.dagToString(execGraph)
     } else {
       ""
     }

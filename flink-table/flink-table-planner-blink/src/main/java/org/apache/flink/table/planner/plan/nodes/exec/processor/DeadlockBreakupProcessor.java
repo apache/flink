@@ -21,15 +21,14 @@ package org.apache.flink.table.planner.plan.nodes.exec.processor;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
 import org.apache.flink.table.planner.plan.nodes.exec.LegacyBatchExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.processor.utils.InputPriorityConflictResolver;
 
-import java.util.List;
-
 /**
- * A {@link DAGProcessor} that finds out all deadlocks in the DAG and resolves them.
+ * A {@link DAGProcessor} that finds out all deadlocks in the {@link ExecNodeGraph} and resolves
+ * them.
  *
  * <p>NOTE: This processor can be only applied on {@link LegacyBatchExecNode} DAG or {@link
  * BatchExecNode} DAG.
@@ -37,8 +36,8 @@ import java.util.List;
 public class DeadlockBreakupProcessor implements DAGProcessor {
 
     @Override
-    public List<ExecNode<?>> process(List<ExecNode<?>> rootNodes, DAGProcessContext context) {
-        if (!rootNodes.stream()
+    public ExecNodeGraph process(ExecNodeGraph execGraph, DAGProcessContext context) {
+        if (!execGraph.getRootNodes().stream()
                 .allMatch(r -> r instanceof LegacyBatchExecNode || r instanceof BatchExecNode)) {
             throw new TableException(
                     "Only LegacyBatchExecNode DAG or BatchExecNode DAG are supported now.");
@@ -46,11 +45,11 @@ public class DeadlockBreakupProcessor implements DAGProcessor {
 
         InputPriorityConflictResolver resolver =
                 new InputPriorityConflictResolver(
-                        rootNodes,
+                        execGraph.getRootNodes(),
                         ExecEdge.DamBehavior.END_INPUT,
                         ShuffleMode.BATCH,
                         context.getPlanner().getTableConfig().getConfiguration());
         resolver.detectAndResolve();
-        return rootNodes;
+        return execGraph;
     }
 }
