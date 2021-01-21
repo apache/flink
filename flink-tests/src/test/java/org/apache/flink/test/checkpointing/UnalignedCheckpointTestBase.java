@@ -94,6 +94,9 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
     protected static final String NUM_LOST = "lost";
     public static final int BUFFER_PER_CHANNEL = 1;
 
+    private static final long HEADER = 0xABCDEAFCL << 32;
+    private static final long HEADER_MASK = 0xFFFFFFFFL << 32;
+
     @Rule public final TemporaryFolder temp = new TemporaryFolder();
 
     @Rule public ErrorCollector collector = new ErrorCollector();
@@ -193,7 +196,6 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         }
 
         private static class LongSourceReader implements SourceReader<Long, LongSplit> {
-
             private final long minCheckpoints;
             private final int expectedRestarts;
             private final LongCounter numInputsCounter = new LongCounter();
@@ -216,7 +218,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                     return InputStatus.NOTHING_AVAILABLE;
                 }
 
-                output.collect(split.nextNumber, split.nextNumber);
+                output.collect(withHeader(split.nextNumber), split.nextNumber);
                 split.nextNumber += split.increment;
 
                 if (throttle) {
@@ -664,7 +666,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 
         @Override
         public Long map(Long value) throws Exception {
-            lastValue = value;
+            lastValue = withoutHeader(value);
             checkFail(failDuringMap, "map");
             return value;
         }
@@ -838,6 +840,21 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                     getRuntimeContext().getIndexOfThisSubtask(),
                     getRuntimeContext().getAttemptNumber());
             super.close();
+        }
+    }
+
+    protected static long withHeader(long value) {
+        return value ^ HEADER;
+    }
+
+    protected static long withoutHeader(long value) {
+        checkHeader(value);
+        return value ^ HEADER;
+    }
+
+    protected static void checkHeader(long value) {
+        if ((value & HEADER_MASK) != HEADER) {
+            throw new IllegalArgumentException("Stream corrupted");
         }
     }
 }
