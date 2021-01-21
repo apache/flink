@@ -228,6 +228,7 @@ public class StreamGraphGenerator {
         this.executionConfig = checkNotNull(executionConfig);
         this.checkpointConfig = new CheckpointConfig(checkpointConfig);
         this.configuration = checkNotNull(configuration);
+        this.checkpointStorage = this.checkpointConfig.getCheckpointStorage();
     }
 
     public StreamGraphGenerator setRuntimeExecutionMode(

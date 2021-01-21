@@ -23,10 +23,18 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
+
+import java.net.URI;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureManager.UNLIMITED_TOLERABLE_FAILURE_NUMBER;
@@ -109,6 +117,12 @@ public class CheckpointConfig implements java.io.Serializable {
      * #setTolerableCheckpointFailureNumber(int)}.
      */
     private int tolerableCheckpointFailureNumber = UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER;
+
+    /**
+     * The checkpoint storage for this application. This field is marked as transient because it may
+     * contain user-code.
+     */
+    private transient CheckpointStorage storage;
 
     /**
      * Creates a deep copy of the provided {@link CheckpointConfig}.
@@ -575,6 +589,64 @@ public class CheckpointConfig implements java.io.Serializable {
     @PublicEvolving
     public ExternalizedCheckpointCleanup getExternalizedCheckpointCleanup() {
         return externalizedCheckpointCleanup;
+    }
+
+    /**
+     * Sets the {@link CheckpointStorage} object for the job. This will be used to persist all
+     * checkpoint snapshots.
+     *
+     * @param storage The checkpoint storage policy.
+     */
+    @PublicEvolving
+    public void setCheckpointStorage(CheckpointStorage storage) {
+        Preconditions.checkNotNull(storage, "Checkpoint storage must not be null");
+        this.storage = storage;
+    }
+
+    /**
+     * Configures the application to write out checkpoint snapshots to the configured directory. See
+     * {@link FileSystemCheckpointStorage} for more details on checkpointing to a file system.
+     *
+     * @param checkpointDirectory The path to write checkpoint metadata to.
+     */
+    @PublicEvolving
+    public void setCheckpointStorage(String checkpointDirectory) {
+        Preconditions.checkNotNull(checkpointDirectory, "Checkpoint directory must not be null");
+        this.storage = new FileSystemCheckpointStorage(checkpointDirectory);
+    }
+
+    /**
+     * Configures the application to write out checkpoint snapshots to the configured directory. See
+     * {@link FileSystemCheckpointStorage} for more details on checkpointing to a file system.
+     *
+     * @param checkpointDirectory The path to write checkpoint metadata to.
+     */
+    @PublicEvolving
+    public void setCheckpointStorage(URI checkpointDirectory) {
+        Preconditions.checkNotNull(checkpointDirectory, "Checkpoint directory must not be null");
+        this.storage = new FileSystemCheckpointStorage(checkpointDirectory);
+    }
+
+    /**
+     * Configures the application to write out checkpoint snapshots to the configured directory. See
+     * {@link FileSystemCheckpointStorage} for more details on checkpointing to a file system.
+     *
+     * @param checkpointDirectory The path to write checkpoint metadata to.
+     */
+    @PublicEvolving
+    public void setCheckpointStorage(Path checkpointDirectory) {
+        Preconditions.checkNotNull(checkpointDirectory, "Checkpoint directory must not be null");
+        this.storage = new FileSystemCheckpointStorage(checkpointDirectory);
+    }
+
+    /**
+     * @return The {@link CheckpointStorage} that has been configured for the job. Or {@code null}
+     *     if none has been set.
+     */
+    @Nullable
+    @PublicEvolving
+    public CheckpointStorage getCheckpointStorage() {
+        return this.storage;
     }
 
     /** Cleanup behaviour for externalized checkpoints when the job is cancelled. */

@@ -32,17 +32,15 @@ public class CheckpointingOptions {
     public static final ConfigOption<String> STATE_BACKEND =
             ConfigOptions.key("state.backend")
                     .noDefaultValue()
-                    .withDescription("The state backend to be used to store and checkpoint state.");
+                    .withDescription("The state backend to be used to store state.");
 
     /** The checkpoint storage used to checkpoint state. */
     @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS, position = 2)
-    @Documentation.ExcludeFromDocumentation(
-            "Hidden until FileSystemStorage and JobManagerStorage are implemented")
     public static final ConfigOption<String> CHECKPOINT_STORAGE =
             ConfigOptions.key("state.checkpoint-storage")
                     .stringType()
                     .noDefaultValue()
-                    .withDescription("The state backend to be used to checkpoint state.");
+                    .withDescription("The checkpoint storage to be used to checkpoint state.");
 
     /** The maximum number of completed checkpoints to retain. */
     @Documentation.Section(Documentation.Sections.COMMON_STATE_BACKENDS)
@@ -158,23 +156,26 @@ public class CheckpointingOptions {
      */
     @Documentation.Section(Documentation.Sections.EXPERT_STATE_BACKENDS)
     public static final ConfigOption<MemorySize> FS_SMALL_FILE_THRESHOLD =
-            ConfigOptions.key("state.backend.fs.memory-threshold")
+            ConfigOptions.key("state.snapshot.fs.memory-threshold")
                     .memoryType()
                     .defaultValue(MemorySize.parse("20kb"))
                     .withDescription(
                             "The minimum size of state data files. All state chunks smaller than that are stored"
-                                    + " inline in the root checkpoint metadata file. The max memory threshold for this configuration is 1MB.");
+                                    + " inline in the root checkpoint metadata file. The max memory threshold for this configuration is 1MB.")
+                    .withDeprecatedKeys("state.backend.fs.memory-threshold");
 
     /**
      * The default size of the write buffer for the checkpoint streams that write to file systems.
      */
     @Documentation.Section(Documentation.Sections.EXPERT_STATE_BACKENDS)
     public static final ConfigOption<Integer> FS_WRITE_BUFFER_SIZE =
-            ConfigOptions.key("state.backend.fs.write-buffer-size")
+            ConfigOptions.key("state.snapshot.fs.write-buffer-size")
+                    .intType()
                     .defaultValue(4 * 1024)
                     .withDescription(
                             String.format(
                                     "The default size of the write buffer for the checkpoint streams that write to file systems. "
                                             + "The actual write buffer size is determined to be the maximum of the value of this option and option '%s'.",
-                                    FS_SMALL_FILE_THRESHOLD.key()));
+                                    FS_SMALL_FILE_THRESHOLD.key()))
+                    .withDeprecatedKeys("state.backend.fs.write-buffer-size");
 }
