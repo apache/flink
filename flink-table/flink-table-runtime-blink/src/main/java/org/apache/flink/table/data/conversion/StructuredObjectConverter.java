@@ -30,6 +30,7 @@ import org.apache.flink.table.types.logical.StructuredType;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.types.extraction.ExtractionUtils.getStructuredField;
@@ -104,6 +105,8 @@ public class StructuredObjectConverter<T> implements DataStructureConverter<RowD
     // Factory method
     // --------------------------------------------------------------------------------------------
 
+    private static final AtomicInteger nextUniqueClassId = new AtomicInteger();
+
     public static StructuredObjectConverter<?> create(DataType dataType) {
         try {
             return createOrError(dataType);
@@ -148,7 +151,12 @@ public class StructuredObjectConverter<T> implements DataStructureConverter<RowD
         final Class<?> implementationClass =
                 structuredType.getImplementationClass().orElseThrow(IllegalStateException::new);
 
-        final String converterName = implementationClass.getName().replace('.', '$') + "$Converter";
+        final int uniqueClassId = nextUniqueClassId.getAndIncrement();
+
+        final String converterName =
+                String.format(
+                        "%s$%s$Converter",
+                        implementationClass.getName().replace('.', '$'), uniqueClassId);
         final String converterCode =
                 generateCode(
                         converterName,
