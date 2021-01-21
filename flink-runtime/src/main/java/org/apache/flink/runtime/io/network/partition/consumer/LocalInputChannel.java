@@ -27,6 +27,7 @@ import org.apache.flink.runtime.io.network.TaskEventPublisher;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FileRegionBuffer;
+import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -255,6 +256,12 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
         numBuffersIn.inc();
         channelStatePersister.checkForBarrier(buffer);
         channelStatePersister.maybePersist(buffer);
+        NetworkActionsLogger.traceInput(
+                "LocalInputChannel#getNextBuffer",
+                buffer,
+                channelInfo,
+                channelStatePersister,
+                next.getSequenceNumber());
         return Optional.of(
                 new BufferAndAvailability(
                         buffer,
