@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,49 +20,42 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.util.function.SupplierWithException;
 
 import javax.annotation.Nonnull;
 
+import java.util.concurrent.RunnableFuture;
+
 /**
- * Interface for different snapshot approaches in state backends. Implementing classes should
- * ideally be stateless or at least threadsafe, it can be called in parallel by multiple
- * checkpoints.
- *
- * <p>The interface can be later on executed in a synchronous or asynchronous manner. See {@link
- * SnapshotStrategyRunner}.
+ * Interface for objects that can snapshot its state (state backends currently). Implementing
+ * classes should ideally be stateless or at least threadsafe, i.e. this is a functional interface
+ * and is can be called in parallel by multiple checkpoints.
  *
  * @param <S> type of the returned state object that represents the result of the snapshot
  *     operation.
- * @param <SR> type of produced resources in the synchronous part.
+ * @see SnapshotStrategy
+ * @see SnapshotStrategyRunner
  */
 @Internal
-public interface SnapshotStrategy<S extends StateObject, SR extends SnapshotResources> {
-
-    /**
-     * Performs the synchronous part of the snapshot. It returns resources which can be later on
-     * used in the asynchronous part.
-     *
-     * @param checkpointId The ID of the checkpoint.
-     * @return Resources needed to finish the snapshot.
-     */
-    SR syncPrepareResources(long checkpointId) throws Exception;
+public interface Snapshottable<S extends StateObject> {
 
     /**
      * Operation that writes a snapshot into a stream that is provided by the given {@link
-     * CheckpointStreamFactory} and returns a @{@link SupplierWithException} that gives a state
-     * handle to the snapshot.
+     * CheckpointStreamFactory} and returns a @{@link RunnableFuture} that gives a state handle to
+     * the snapshot. It is up to the implementation if the operation is performed synchronous or
+     * asynchronous. In the later case, the returned Runnable must be executed first before
+     * obtaining the handle.
      *
      * @param checkpointId The ID of the checkpoint.
      * @param timestamp The timestamp of the checkpoint.
      * @param streamFactory The factory that we can use for writing our state to streams.
      * @param checkpointOptions Options for how to perform this checkpoint.
-     * @return A supplier that will yield a {@link StateObject}.
+     * @return A runnable future that will yield a {@link StateObject}.
      */
-    SupplierWithException<SnapshotResult<S>, ? extends Exception> asyncSnapshot(
-            SR syncPartResource,
+    @Nonnull
+    RunnableFuture<S> snapshot(
             long checkpointId,
             long timestamp,
             @Nonnull CheckpointStreamFactory streamFactory,
-            @Nonnull CheckpointOptions checkpointOptions);
+            @Nonnull CheckpointOptions checkpointOptions)
+            throws Exception;
 }

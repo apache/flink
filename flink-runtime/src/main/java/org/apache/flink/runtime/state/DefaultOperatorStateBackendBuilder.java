@@ -62,10 +62,10 @@ public class DefaultOperatorStateBackendBuilder
         Map<String, BackendWritableBroadcastState<?, ?>> registeredBroadcastStates =
                 new HashMap<>();
         CloseableRegistry cancelStreamRegistryForBackend = new CloseableRegistry();
-        AbstractSnapshotStrategy<OperatorStateHandle> snapshotStrategy =
+
+        DefaultOperatorStateBackendSnapshotStrategy snapshotStrategy =
                 new DefaultOperatorStateBackendSnapshotStrategy(
                         userClassloader,
-                        asynchronousSnapshots,
                         registeredOperatorStates,
                         registeredBroadcastStates,
                         cancelStreamRegistryForBackend);
@@ -90,6 +90,10 @@ public class DefaultOperatorStateBackendBuilder
                 registeredBroadcastStates,
                 new HashMap<>(),
                 new HashMap<>(),
-                snapshotStrategy);
+                new SnapshotStrategyRunner<>(
+                        "DefaultOperatorStateBackend snapshot",
+                        snapshotStrategy,
+                        cancelStreamRegistryForBackend,
+                        !asynchronousSnapshots));
     }
 }

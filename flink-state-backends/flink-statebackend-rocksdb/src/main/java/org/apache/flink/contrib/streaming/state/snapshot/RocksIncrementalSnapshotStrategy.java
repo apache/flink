@@ -25,7 +25,6 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.state.AsyncSnapshotCallable;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamWithResultProvider;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
@@ -39,6 +38,7 @@ import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.LocalRecoveryDirectoryProvider;
 import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
 import org.apache.flink.runtime.state.SnapshotDirectory;
+import org.apache.flink.runtime.state.SnapshotResources;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateObject;
@@ -50,6 +50,7 @@ import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ResourceGuard;
+import org.apache.flink.util.function.SupplierWithException;
 
 import org.rocksdb.Checkpoint;
 import org.rocksdb.RocksDB;
@@ -71,7 +72,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.UUID;
-import java.util.concurrent.RunnableFuture;
 
 import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.SST_FILE_SUFFIX;
 
@@ -81,7 +81,9 @@ import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUti
  *
  * @param <K> type of the backend keys.
  */
-public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategyBase<K> {
+public class RocksIncrementalSnapshotStrategy<K>
+        extends RocksDBSnapshotStrategyBase<
+                K, RocksIncrementalSnapshotStrategy.IncrementalRocksDBSnapshotResources> {
 
     private static final Logger LOG =
             LoggerFactory.getLogger(RocksIncrementalSnapshotStrategy.class);
@@ -142,13 +144,8 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
         this.localDirectoryName = backendUID.toString().replaceAll("[\\-]", "");
     }
 
-    @Nonnull
     @Override
-    protected RunnableFuture<SnapshotResult<KeyedStateHandle>> doSnapshot(
-            long checkpointId,
-            long checkpointTimestamp,
-            @Nonnull CheckpointStreamFactory checkpointStreamFactory,
-            @Nonnull CheckpointOptions checkpointOptions)
+    public IncrementalRocksDBSnapshotResources syncPrepareResources(long checkpointId)
             throws Exception {
 
         final SnapshotDirectory snapshotDirectory = prepareLocalSnapshotDirectory(checkpointId);
@@ -161,15 +158,30 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 
         takeDBNativeCheckpoint(snapshotDirectory);
 
-        final RocksDBIncrementalSnapshotOperation snapshotOperation =
-                new RocksDBIncrementalSnapshotOperation(
-                        checkpointId,
-                        checkpointStreamFactory,
-                        snapshotDirectory,
-                        baseSstFiles,
-                        stateMetaInfoSnapshots);
+        return new IncrementalRocksDBSnapshotResources(
+                snapshotDirectory, baseSstFiles, stateMetaInfoSnapshots);
+    }
 
-        return snapshotOperation.toAsyncSnapshotFutureTask(cancelStreamRegistry);
+    @Override
+    public SupplierWithException<SnapshotResult<KeyedStateHandle>, ? extends Exception>
+            asyncSnapshot(
+                    IncrementalRocksDBSnapshotResources snapshotResources,
+                    long checkpointId,
+                    long timestamp,
+                    @Nonnull CheckpointStreamFactory checkpointStreamFactory,
+                    @Nonnull CheckpointOptions checkpointOptions) {
+
+        if (snapshotResources.stateMetaInfoSnapshots.isEmpty()) {
+            return SnapshotResult::empty;
+        }
+
+        return new RocksDBIncrementalSnapshotOperation(
+                checkpointId,
+                checkpointStreamFactory,
+                cancelStreamRegistry,
+                snapshotResources.snapshotDirectory,
+                snapshotResources.baseSstFiles,
+                snapshotResources.stateMetaInfoSnapshots);
     }
 
     @Override
@@ -282,7 +294,7 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
      * Encapsulates the process to perform an incremental snapshot of a RocksDBKeyedStateBackend.
      */
     private final class RocksDBIncrementalSnapshotOperation
-            extends AsyncSnapshotCallable<SnapshotResult<KeyedStateHandle>> {
+            implements SupplierWithException<SnapshotResult<KeyedStateHandle>, Exception> {
 
         /** Id for the current checkpoint. */
         private final long checkpointId;
@@ -299,9 +311,12 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
         /** All sst files that were part of the last previously completed checkpoint. */
         @Nullable private final Set<StateHandleID> baseSstFiles;
 
+        @Nonnull private final CloseableRegistry cancelStreamRegistry;
+
         private RocksDBIncrementalSnapshotOperation(
                 long checkpointId,
                 @Nonnull CheckpointStreamFactory checkpointStreamFactory,
+                @Nonnull CloseableRegistry cancelStreamRegistry,
                 @Nonnull SnapshotDirectory localBackupDirectory,
                 @Nullable Set<StateHandleID> baseSstFiles,
                 @Nonnull List<StateMetaInfoSnapshot> stateMetaInfoSnapshots) {
@@ -311,10 +326,11 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
             this.checkpointId = checkpointId;
             this.localBackupDirectory = localBackupDirectory;
             this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
+            this.cancelStreamRegistry = cancelStreamRegistry;
         }
 
         @Override
-        protected SnapshotResult<KeyedStateHandle> callInternal() throws Exception {
+        public SnapshotResult<KeyedStateHandle> get() throws Exception {
 
             boolean completed = false;
 
@@ -387,29 +403,6 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
             }
         }
 
-        @Override
-        protected void cleanupProvidedResources() {
-            try {
-                if (localBackupDirectory.exists()) {
-                    LOG.trace(
-                            "Running cleanup for local RocksDB backup directory {}.",
-                            localBackupDirectory);
-                    boolean cleanupOk = localBackupDirectory.cleanup();
-
-                    if (!cleanupOk) {
-                        LOG.debug("Could not properly cleanup local RocksDB backup directory.");
-                    }
-                }
-            } catch (IOException e) {
-                LOG.warn("Could not properly cleanup local RocksDB backup directory.", e);
-            }
-        }
-
-        @Override
-        protected void logAsyncSnapshotComplete(long startTime) {
-            logAsyncCompleted(checkpointStreamFactory, startTime);
-        }
-
         private void cleanupIncompleteSnapshot(@Nonnull List<StateObject> statesToDiscard) {
 
             try {
@@ -448,10 +441,10 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 
                 sstFiles.putAll(
                         stateUploader.uploadFilesToCheckpointFs(
-                                sstFilePaths, checkpointStreamFactory, snapshotCloseableRegistry));
+                                sstFilePaths, checkpointStreamFactory, cancelStreamRegistry));
                 miscFiles.putAll(
                         stateUploader.uploadFilesToCheckpointFs(
-                                miscFilePaths, checkpointStreamFactory, snapshotCloseableRegistry));
+                                miscFilePaths, checkpointStreamFactory, cancelStreamRegistry));
             }
         }
 
@@ -495,7 +488,7 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
                             : CheckpointStreamWithResultProvider.createSimpleStream(
                                     CheckpointedStateScope.EXCLUSIVE, checkpointStreamFactory);
 
-            snapshotCloseableRegistry.registerCloseable(streamWithResultProvider);
+            cancelStreamRegistry.registerCloseable(streamWithResultProvider);
 
             try {
                 // no need for compression scheme support because sst-files are already compressed
@@ -509,7 +502,7 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 
                 serializationProxy.write(out);
 
-                if (snapshotCloseableRegistry.unregisterCloseable(streamWithResultProvider)) {
+                if (cancelStreamRegistry.unregisterCloseable(streamWithResultProvider)) {
                     SnapshotResult<StreamStateHandle> result =
                             streamWithResultProvider.closeAndFinalizeCheckpointStreamResult();
                     streamWithResultProvider = null;
@@ -519,10 +512,43 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
                 }
             } finally {
                 if (streamWithResultProvider != null) {
-                    if (snapshotCloseableRegistry.unregisterCloseable(streamWithResultProvider)) {
+                    if (cancelStreamRegistry.unregisterCloseable(streamWithResultProvider)) {
                         IOUtils.closeQuietly(streamWithResultProvider);
                     }
                 }
+            }
+        }
+    }
+
+    static class IncrementalRocksDBSnapshotResources implements SnapshotResources {
+        @Nonnull private final SnapshotDirectory snapshotDirectory;
+        @Nonnull private final Set<StateHandleID> baseSstFiles;
+        @Nonnull private final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots;
+
+        public IncrementalRocksDBSnapshotResources(
+                SnapshotDirectory snapshotDirectory,
+                Set<StateHandleID> baseSstFiles,
+                List<StateMetaInfoSnapshot> stateMetaInfoSnapshots) {
+            this.snapshotDirectory = snapshotDirectory;
+            this.baseSstFiles = baseSstFiles;
+            this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
+        }
+
+        @Override
+        public void release() {
+            try {
+                if (snapshotDirectory.exists()) {
+                    LOG.trace(
+                            "Running cleanup for local RocksDB backup directory {}.",
+                            snapshotDirectory);
+                    boolean cleanupOk = snapshotDirectory.cleanup();
+
+                    if (!cleanupOk) {
+                        LOG.debug("Could not properly cleanup local RocksDB backup directory.");
+                    }
+                }
+            } catch (IOException e) {
+                LOG.warn("Could not properly cleanup local RocksDB backup directory.", e);
             }
         }
     }

@@ -55,7 +55,6 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
-import org.apache.flink.runtime.state.AbstractSnapshotStrategy;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
@@ -64,6 +63,7 @@ import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
+import org.apache.flink.runtime.state.SnapshotStrategyRunner;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -309,7 +309,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
                             new HashMap<>(),
                             new HashMap<>(),
                             new HashMap<>(),
-                            mock(AbstractSnapshotStrategy.class)) {
+                            mock(SnapshotStrategyRunner.class)) {
                         @Nonnull
                         @Override
                         public RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshot(
@@ -361,7 +361,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
                             new HashMap<>(),
                             new HashMap<>(),
                             new HashMap<>(),
-                            mock(AbstractSnapshotStrategy.class)) {
+                            mock(SnapshotStrategyRunner.class)) {
                         @Nonnull
                         @Override
                         public RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshot(

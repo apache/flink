@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,18 +22,14 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 
 /**
- * Interface for synchronicity behavior of heap snapshot strategy.
+ * A factory method for creating a {@link StateTable}.
  *
- * @param <K> The data type that the serializer serializes.
+ * @param <K> The type of key on which a state backend is keyed
  */
-interface SnapshotStrategySynchronicityBehavior<K> {
-
-    default void finalizeSnapshotBeforeReturnHook(Runnable runnable) {}
-
-    boolean isAsynchronous();
-
+@FunctionalInterface
+interface StateTableFactory<K> {
     <N, V> StateTable<K, N, V> newStateTable(
             InternalKeyContext<K> keyContext,
-            RegisteredKeyValueStateBackendMetaInfo<N, V> newMetaInfo,
+            RegisteredKeyValueStateBackendMetaInfo<N, V> keyValueStateMetaInfo,
             TypeSerializer<K> keySerializer);
 }

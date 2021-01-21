@@ -47,17 +47,18 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServicesFactory
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
-import org.apache.flink.runtime.state.AbstractSnapshotStrategy;
 import org.apache.flink.runtime.state.BackendBuildingException;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackendBuilder;
-import org.apache.flink.runtime.state.DoneFuture;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.SnapshotResources;
 import org.apache.flink.runtime.state.SnapshotResult;
+import org.apache.flink.runtime.state.SnapshotStrategy;
+import org.apache.flink.runtime.state.SnapshotStrategyRunner;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
@@ -69,9 +70,9 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.StreamSink;
-import org.apache.flink.streaming.runtime.tasks.ExceptionallyDoneFuture;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.SupplierWithException;
 
 import org.junit.After;
 import org.junit.Before;
@@ -87,7 +88,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.concurrent.Executor;
-import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -319,22 +319,27 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
 
     /** The snapshot strategy to create failing runnable future at the checkpoint to decline. */
     private static class DeclineSinkFailingSnapshotStrategy
-            extends AbstractSnapshotStrategy<OperatorStateHandle> {
+            implements SnapshotStrategy<OperatorStateHandle, SnapshotResources> {
 
-        protected DeclineSinkFailingSnapshotStrategy() {
-            super("StuckAsyncSnapshotStrategy");
+        @Override
+        public SnapshotResources syncPrepareResources(long checkpointId) {
+            return null;
         }
 
         @Override
-        public RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshot(
-                long checkpointId,
-                long timestamp,
-                @Nonnull CheckpointStreamFactory streamFactory,
-                @Nonnull CheckpointOptions checkpointOptions) {
+        public SupplierWithException<SnapshotResult<OperatorStateHandle>, ? extends Exception>
+                asyncSnapshot(
+                        SnapshotResources snapshotResources,
+                        long checkpointId,
+                        long timestamp,
+                        @Nonnull CheckpointStreamFactory streamFactory,
+                        @Nonnull CheckpointOptions checkpointOptions) {
             if (checkpointId == DECLINE_CHECKPOINT_ID) {
-                return ExceptionallyDoneFuture.of(new ExpectedTestException());
+                return () -> {
+                    throw new ExpectedTestException();
+                };
             } else {
-                return DoneFuture.of(SnapshotResult.empty());
+                return SnapshotResult::empty;
             }
         }
     }
@@ -349,7 +354,7 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
         public DeclineSinkFailingOperatorStateBackend(
                 ExecutionConfig executionConfig,
                 CloseableRegistry closeStreamOnCancelRegistry,
-                AbstractSnapshotStrategy<OperatorStateHandle> snapshotStrategy) {
+                SnapshotStrategyRunner<OperatorStateHandle, ?> snapshotStrategy) {
             super(
                     executionConfig,
                     closeStreamOnCancelRegistry,
@@ -389,7 +394,11 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
                 return new DeclineSinkFailingOperatorStateBackend(
                         env.getExecutionConfig(),
                         cancelStreamRegistry,
-                        new DeclineSinkFailingSnapshotStrategy());
+                        new SnapshotStrategyRunner<>(
+                                "StuckAsyncSnapshotStrategy",
+                                new DeclineSinkFailingSnapshotStrategy(),
+                                cancelStreamRegistry,
+                                true));
             } else {
                 return new DefaultOperatorStateBackendBuilder(
                                 env.getUserCodeClassLoader().asClassLoader(),

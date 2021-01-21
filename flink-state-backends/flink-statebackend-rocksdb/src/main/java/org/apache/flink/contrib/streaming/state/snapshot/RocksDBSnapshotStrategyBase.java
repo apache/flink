@@ -22,14 +22,10 @@ import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.RocksDbKvStateInfo;
 import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.state.AbstractSnapshotStrategy;
-import org.apache.flink.runtime.state.CheckpointStreamFactory;
-import org.apache.flink.runtime.state.DoneFuture;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
-import org.apache.flink.runtime.state.SnapshotResult;
+import org.apache.flink.runtime.state.SnapshotResources;
 import org.apache.flink.runtime.state.SnapshotStrategy;
 import org.apache.flink.util.ResourceGuard;
 
@@ -41,18 +37,18 @@ import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
 import java.util.LinkedHashMap;
-import java.util.concurrent.RunnableFuture;
 
 /**
  * Abstract base class for {@link SnapshotStrategy} implementations for RocksDB state backend.
  *
  * @param <K> type of the backend keys.
  */
-public abstract class RocksDBSnapshotStrategyBase<K>
-        extends AbstractSnapshotStrategy<KeyedStateHandle> implements CheckpointListener {
+public abstract class RocksDBSnapshotStrategyBase<K, R extends SnapshotResources>
+        implements CheckpointListener, SnapshotStrategy<KeyedStateHandle, R> {
 
     private static final Logger LOG = LoggerFactory.getLogger(RocksDBSnapshotStrategyBase.class);
 
+    @Nonnull private final String description;
     /** RocksDB instance from the backend. */
     @Nonnull protected RocksDB db;
 
@@ -87,8 +83,6 @@ public abstract class RocksDBSnapshotStrategyBase<K>
             @Nonnegative int keyGroupPrefixBytes,
             @Nonnull LocalRecoveryConfig localRecoveryConfig,
             @Nonnull CloseableRegistry cancelStreamRegistry) {
-
-        super(description);
         this.db = db;
         this.rocksDBResourceGuard = rocksDBResourceGuard;
         this.keySerializer = keySerializer;
@@ -97,35 +91,11 @@ public abstract class RocksDBSnapshotStrategyBase<K>
         this.keyGroupPrefixBytes = keyGroupPrefixBytes;
         this.localRecoveryConfig = localRecoveryConfig;
         this.cancelStreamRegistry = cancelStreamRegistry;
+        this.description = description;
     }
 
     @Nonnull
-    @Override
-    public final RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot(
-            long checkpointId,
-            long timestamp,
-            @Nonnull CheckpointStreamFactory streamFactory,
-            @Nonnull CheckpointOptions checkpointOptions)
-            throws Exception {
-
-        if (kvStateInformation.isEmpty()) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug(
-                        "Asynchronous RocksDB snapshot performed on empty keyed state at {}. Returning null.",
-                        timestamp);
-            }
-            return DoneFuture.of(SnapshotResult.empty());
-        } else {
-            return doSnapshot(checkpointId, timestamp, streamFactory, checkpointOptions);
-        }
+    public String getDescription() {
+        return description;
     }
-
-    /** This method implements the concrete snapshot logic for a non-empty state. */
-    @Nonnull
-    protected abstract RunnableFuture<SnapshotResult<KeyedStateHandle>> doSnapshot(
-            long checkpointId,
-            long timestamp,
-            CheckpointStreamFactory streamFactory,
-            CheckpointOptions checkpointOptions)
-            throws Exception;
 }

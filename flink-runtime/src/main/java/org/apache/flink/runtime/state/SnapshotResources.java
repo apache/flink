@@ -18,23 +18,16 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.api.common.state.CheckpointListener;
-
-import java.io.Closeable;
+import org.apache.flink.annotation.Internal;
 
 /**
- * Interface that combines both, the {@link KeyedStateBackend} interface, which encapsulates methods
- * responsible for keyed state management and the {@link Snapshottable} which tells the system how
- * to snapshot the underlying state.
+ * A set of resources produced in the synchronous part of a snapshot required to finish the
+ * snapshot.
  *
- * <p><b>NOTE:</b> State backends that need to be notified of completed checkpoints can additionally
- * implement the {@link CheckpointListener} interface.
- *
- * @param <K> Type of the key by which state is keyed.
+ * @see SnapshotStrategy
  */
-public interface CheckpointableKeyedStateBackend<K>
-        extends KeyedStateBackend<K>, Snapshottable<SnapshotResult<KeyedStateHandle>>, Closeable {
-
-    /** Returns the key groups which this state backend is responsible for. */
-    KeyGroupRange getKeyGroupRange();
+@Internal
+public interface SnapshotResources {
+    /** Cleans up the resources after the asynchronous part is done. */
+    void release();
 }
