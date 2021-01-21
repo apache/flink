@@ -77,6 +77,22 @@ public class ElasticsearchSinkBaseTest {
                 new NoOpFailureHandler());
     }
 
+    /** Tests that init ElasticsearchSinkBase with onSuccess callbacks. */
+    @Test
+    public void testInitWithSuccessHandler() {
+        ActionRequestSuccessHandler successHandler =
+                action -> {
+                    // do nothing here
+                };
+
+        final DummyElasticsearchSink<String> sink =
+                new DummyElasticsearchSink<>(
+                        new HashMap<String, String>(),
+                        new SimpleSinkFunction<String>(),
+                        new NoOpFailureHandler(),
+                        successHandler);
+    }
+
     /**
      * Tests that any item failure in the listener callbacks is rethrown on an immediately following
      * invoke call.
@@ -501,6 +517,19 @@ public class ElasticsearchSinkBaseTest {
                 ElasticsearchSinkFunction<T> sinkFunction,
                 ActionRequestFailureHandler failureHandler) {
             super(new DummyElasticsearchApiCallBridge(), userConfig, sinkFunction, failureHandler);
+        }
+
+        public DummyElasticsearchSink(
+                Map<String, String> userConfig,
+                ElasticsearchSinkFunction<T> sinkFunction,
+                ActionRequestFailureHandler failureHandler,
+                ActionRequestSuccessHandler successHandler) {
+            super(
+                    new DummyElasticsearchApiCallBridge(),
+                    userConfig,
+                    sinkFunction,
+                    failureHandler,
+                    successHandler);
         }
 
         /**

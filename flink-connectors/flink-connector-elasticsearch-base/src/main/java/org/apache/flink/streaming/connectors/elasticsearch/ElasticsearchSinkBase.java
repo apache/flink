@@ -160,6 +160,9 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
     /** User-provided handler for failed {@link ActionRequest ActionRequests}. */
     private final ActionRequestFailureHandler failureHandler;
 
+    /** User-provided handler for successful {@link ActionRequest ActionRequests}. */
+    private ActionRequestSuccessHandler successHandler = null;
+
     /**
      * If true, the producer will wait until all outstanding action requests have been sent to
      * Elasticsearch.
@@ -301,6 +304,16 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
         this.userConfig = userConfig;
     }
 
+    public ElasticsearchSinkBase(
+            ElasticsearchApiCallBridge<C> callBridge,
+            Map<String, String> userConfig,
+            ElasticsearchSinkFunction<T> elasticsearchSinkFunction,
+            ActionRequestFailureHandler failureHandler,
+            ActionRequestSuccessHandler successHandler) {
+        this(callBridge, userConfig, elasticsearchSinkFunction, failureHandler);
+        this.successHandler = successHandler;
+    }
+
     /**
      * Disable flushing on checkpoint. When disabled, the sink will not wait for all pending action
      * requests to be acknowledged by Elasticsearch on checkpoints.
@@ -430,10 +443,10 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
                 try {
                     for (int i = 0; i < response.getItems().length; i++) {
                         itemResponse = response.getItems()[i];
+                        actionRequest = request.requests().get(i);
                         failure = callBridge.extractFailureCauseFromBulkItemResponse(itemResponse);
                         if (failure != null) {
                             restStatus = itemResponse.getFailure().getStatus();
-                            actionRequest = request.requests().get(i);
                             if (restStatus == null) {
                                 if (actionRequest instanceof ActionRequest) {
                                     failureHandler.onFailure(
@@ -457,12 +470,31 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
                                             "The sink currently only supports ActionRequests");
                                 }
                             }
+                        } else if (successHandler != null) {
+                            if (actionRequest instanceof ActionRequest) {
+                                successHandler.onSuccess((ActionRequest) actionRequest);
+                            } else {
+                                throw new UnsupportedOperationException(
+                                        "The sink currently only supports ActionRequests");
+                            }
                         }
                     }
                 } catch (Throwable t) {
                     // fail the sink and skip the rest of the items
                     // if the failure handler decides to throw an exception
                     failureThrowable.compareAndSet(null, t);
+                }
+            } else {
+                for (int i = 0; i < response.getItems().length; i++) {
+                    DocWriteRequest actionRequest = request.requests().get(i);
+                    if (successHandler != null) {
+                        if (actionRequest instanceof ActionRequest) {
+                            successHandler.onSuccess((ActionRequest) actionRequest);
+                        } else {
+                            throw new UnsupportedOperationException(
+                                    "The sink currently only supports ActionRequests");
+                        }
+                    }
                 }
             }
 
