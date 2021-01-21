@@ -4399,7 +4399,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
         try {
 
-            if (!backend.supportsAsynchronousSnapshots()) {
+            if (!supportsAsynchronousSnapshots()) {
                 return;
             }
 
@@ -4706,7 +4706,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
         try {
 
-            if (!backend.supportsAsynchronousSnapshots()) {
+            if (!supportsAsynchronousSnapshots()) {
                 return;
             }
 

@@ -811,11 +811,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         return instanceBasePath;
     }
 
-    @Override
-    public boolean supportsAsynchronousSnapshots() {
-        return true;
-    }
-
     @VisibleForTesting
     @SuppressWarnings("unchecked")
     @Override
