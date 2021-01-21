@@ -62,7 +62,7 @@ public final class CompileUtils {
         try {
             Cache<ClassLoader, Class> compiledClasses =
                     COMPILED_CACHE.get(
-                            name,
+                            name + code,
                             () ->
                                     CacheBuilder.newBuilder()
                                             .maximumSize(5)
