@@ -56,8 +56,8 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorageAccess;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.memory.NonPersistentMetadataCheckpointStorageLocation;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
@@ -3140,7 +3140,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                         .setCoordinatorsToCheckpoint(
                                 Collections.singleton(coordinatorCheckpointContext))
                         .setCheckpointStorage(
-                                new MemoryStateBackend() {
+                                new JobManagerCheckpointStorage() {
                                     private static final long serialVersionUID =
                                             8134582566514272546L;
 

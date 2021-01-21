@@ -345,7 +345,8 @@ public class Checkpoints {
         CheckpointStorage checkpointStorage = null;
         try {
             checkpointStorage =
-                    CheckpointStorageLoader.load(null, backend, configuration, classLoader, null);
+                    CheckpointStorageLoader.load(
+                            null, null, backend, configuration, classLoader, null);
         } catch (Throwable t) {
             // catches exceptions and errors (like linking errors)
             if (logger != null) {
