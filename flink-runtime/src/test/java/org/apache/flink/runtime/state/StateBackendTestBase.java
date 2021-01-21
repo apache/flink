@@ -179,6 +179,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     protected abstract boolean isSerializerPresenceRequiredOnRestore();
 
+    protected abstract boolean supportsAsynchronousSnapshots();
+
     protected CheckpointStreamFactory createStreamFactory() throws Exception {
         if (checkpointStreamFactory == null) {
             checkpointStreamFactory =
@@ -4409,7 +4411,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
         try {
 
-            if (!backend.supportsAsynchronousSnapshots()) {
+            if (!supportsAsynchronousSnapshots()) {
                 return;
             }
 
@@ -4716,7 +4718,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
         try {
 
-            if (!backend.supportsAsynchronousSnapshots()) {
+            if (!supportsAsynchronousSnapshots()) {
                 return;
             }
 
