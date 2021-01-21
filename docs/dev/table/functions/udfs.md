@@ -1020,7 +1020,7 @@ env
 
 // call registered function in SQL
 env.sqlQuery(
-  "SELECT myField, WeightedAvg(value, weight) FROM MyTable GROUP BY myField"
+  "SELECT myField, WeightedAvg(`value`, weight) FROM MyTable GROUP BY myField"
 );
 {% endhighlight %}
 </div>
@@ -1096,7 +1096,7 @@ env
 
 // call registered function in SQL
 env.sqlQuery(
-  "SELECT myField, WeightedAvg(value, weight) FROM MyTable GROUP BY myField"
+  "SELECT myField, WeightedAvg(`value`, weight) FROM MyTable GROUP BY myField"
 )
 {% endhighlight %}
 </div>
