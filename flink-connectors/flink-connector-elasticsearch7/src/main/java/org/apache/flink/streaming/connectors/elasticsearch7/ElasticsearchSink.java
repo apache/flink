@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.elasticsearch7;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.connectors.elasticsearch.ActionRequestFailureHandler;
+import org.apache.flink.streaming.connectors.elasticsearch.ActionRequestSuccessHandler;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
 import org.apache.flink.streaming.connectors.elasticsearch.util.NoOpFailureHandler;
@@ -69,13 +70,15 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, RestHighLevel
             List<HttpHost> httpHosts,
             ElasticsearchSinkFunction<T> elasticsearchSinkFunction,
             ActionRequestFailureHandler failureHandler,
+            ActionRequestSuccessHandler successHandler,
             RestClientFactory restClientFactory) {
 
         super(
                 new Elasticsearch7ApiCallBridge(httpHosts, restClientFactory),
                 bulkRequestsConfig,
                 elasticsearchSinkFunction,
-                failureHandler);
+                failureHandler,
+                successHandler);
     }
 
     /**
@@ -91,6 +94,7 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, RestHighLevel
 
         private Map<String, String> bulkRequestsConfig = new HashMap<>();
         private ActionRequestFailureHandler failureHandler = new NoOpFailureHandler();
+        private ActionRequestSuccessHandler successHandler = actionRequest -> {};
         private RestClientFactory restClientFactory = restClientBuilder -> {};
 
         /**
@@ -208,6 +212,15 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, RestHighLevel
         }
 
         /**
+         * Sets a success handler for action requests.
+         *
+         * @param successHandler This is used to handle success {@link ActionRequest} if you need.
+         */
+        public void setSuccessHandler(ActionRequestSuccessHandler successHandler) {
+            this.successHandler = Preconditions.checkNotNull(successHandler);
+        }
+
+        /**
          * Sets a REST client factory for custom client configuration.
          *
          * @param restClientFactory the factory that configures the rest client.
@@ -227,6 +240,7 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, RestHighLevel
                     httpHosts,
                     elasticsearchSinkFunction,
                     failureHandler,
+                    successHandler,
                     restClientFactory);
         }
 
