@@ -76,7 +76,7 @@ public class RocksDBStateMisuseOptionTest {
         RocksDBStateBackend rocksDBStateBackend = createStateBackendWithOptimizePointLookup();
         RocksDBKeyedStateBackend<Integer> keyedStateBackend =
                 createKeyedStateBackend(
-                        rocksDBStateBackend,
+                        rocksDBStateBackend.getEmbeddedRocksDBStateBackend(),
                         new MockEnvironmentBuilder().build(),
                         IntSerializer.INSTANCE);
         try {
@@ -122,7 +122,7 @@ public class RocksDBStateMisuseOptionTest {
         RocksDBStateBackend rocksDBStateBackend = createStateBackendWithOptimizePointLookup();
         RocksDBKeyedStateBackend<Integer> keyedStateBackend =
                 createKeyedStateBackend(
-                        rocksDBStateBackend,
+                        rocksDBStateBackend.getEmbeddedRocksDBStateBackend(),
                         new MockEnvironmentBuilder().build(),
                         IntSerializer.INSTANCE);
         try {

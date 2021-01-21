@@ -27,8 +27,8 @@ import java.util.Collection;
 
 /**
  * A factory for {@link DBOptions} and {@link ColumnFamilyOptions} to be passed to the {@link
- * RocksDBStateBackend}. Options have to be created lazily by this factory, because the {@code
- * Options} class is not serializable and holds pointers to native code.
+ * EmbeddedRocksDBStateBackend}. Options have to be created lazily by this factory, because the
+ * {@code Options} class is not serializable and holds pointers to native code.
  *
  * <p>A typical pattern to use this RocksDBOptionsFactory is as follows:
  *

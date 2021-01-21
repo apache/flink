@@ -29,16 +29,20 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 import org.rocksdb.RocksDB;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
 
 import static org.junit.Assert.fail;
 
-/** Tests for {@link RocksDBStateBackend} on initialization. */
+/** Tests for {@link EmbeddedRocksDBStateBackend} on initialization. */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({RocksDB.class})
 public class RocksDBInitTest {
+
+    private static final Logger LOG = LoggerFactory.getLogger(RocksDBInitTest.class);
 
     @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -48,7 +52,7 @@ public class RocksDBInitTest {
      */
     @Test
     public void testResetInitFlag() throws Exception {
-        RocksDBStateBackend.resetRocksDBLoadedFlag();
+        EmbeddedRocksDBStateBackend.resetRocksDBLoadedFlag();
     }
 
     @Test
@@ -58,7 +62,7 @@ public class RocksDBInitTest {
 
         File tempFolder = temporaryFolder.newFolder();
         try {
-            RocksDBStateBackend.ensureRocksDBIsLoaded(tempFolder.getAbsolutePath());
+            EmbeddedRocksDBStateBackend.ensureRocksDBIsLoaded(tempFolder.getAbsolutePath(), LOG);
             fail("Not throwing expected exception.");
         } catch (IOException ignored) {
             // ignored

@@ -140,7 +140,6 @@ public class StreamGraphGenerator {
 
     private final ReadableConfig configuration;
 
-
     // Records the slot sharing groups and their corresponding ResourceProfile
     private final Map<String, ResourceProfile> slotSharingGroupResources = new HashMap<>();
 
