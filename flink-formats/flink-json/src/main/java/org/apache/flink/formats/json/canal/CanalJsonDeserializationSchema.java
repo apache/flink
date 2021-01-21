@@ -247,8 +247,8 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
                     final JsonNode oldField = root.get(FIELD_OLD);
                     for (int f = 0; f < fieldCount; f++) {
                         if (before.isNullAt(f) && oldField.findValue(fieldNames.get(f)) == null) {
-                            // not null fields in "old" (before) means the fields are changed
-                            // null/empty fields in "old" (before) means the fields are not changed
+                            // fields in "old" (before) means the fields are changed
+                            // fields not in "old" (before) means the fields are not changed
                             // so we just copy the not changed fields into before
                             before.setField(f, after.getField(f));
                         }
