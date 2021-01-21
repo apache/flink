@@ -480,7 +480,7 @@ The next sections show examples of configuration files to run Flink.
     $ docker exec -t -i "${JM_CONTAINER}" flink run -d -c ${JOB_CLASS_NAME} /job.jar
     ```
 
-Here, we provide the <a id="app-cluster-yml">docker-compose.yml</a> for *Application Cluster*.
+Here, we provide the <a id="app-cluster-yml">`docker-compose.yml`</a> for *Application Cluster*.
 
 Note: For the Application Mode cluster, the artifacts must be available in the Flink containers, check details [here](#application-mode-on-docker).
 See also [how to specify the JobManager arguments](#jobmanager-additional-command-line-arguments)
@@ -519,7 +519,7 @@ services:
 {% endhighlight %}
 
 
-As well as the <a id="session-cluster-yml">configuration file</a> for *Session Cluster*:
+As well as the <a id="session-cluster-yml">`docker-compose.yml`</a> for *Session Cluster*:
 
 
 {% highlight yaml %}
