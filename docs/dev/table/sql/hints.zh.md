@@ -25,34 +25,25 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-SQL hints can be used with SQL statements to alter execution plans. This chapter explains how to use hints to force various approaches.
+可以将 SQL 提示（hints）与 SQL 语句一起使用改变执行计划（execution plans）。本章介绍如何使用 SQL 提示增强各种方法。
 
-Generally a hint can be used to:
+SQL 提示一般可以用于以下：
 
-- Enforce planner: there's no perfect planner, so it makes sense to implement hints to
-allow user better control the execution;
-- Append meta data(or statistics): some statistics like “table index for scan” and
-“skew info of some shuffle keys” are somewhat dynamic for the query, it would be very
-convenient to config them with hints because our planning metadata from the planner is very
-often not that accurate;
-- Operator resource constraints: for many cases, we would give a default resource
-configuration for the execution operators, i.e. min parallelism or
-managed memory (resource consuming UDF) or special resource requirement (GPU or SSD disk)
-and so on, it would be very flexible to profile the resource with hints per query(instead of the Job).
+- Enforce planner：没有十分契合的 planner，所以实现提示让用户更好地控制执行是十分有意义的；
+- 增加元数据（或者统计信息）：如 "table index for scan" 和 "skew info of some shuffle keys" 的一些统计数据对于查询来说是动态的，用提示来配置它们会非常方便，因为我们从 planner 获得的计划元数据通常不那么准确；
+- 算子（Operator）资源约束：在许多情况下，我们会为执行算子提供默认的资源配置，即最小并行度或托管内存（UDF 资源消耗）或特殊资源需求（GPU 或 SSD 磁盘）等，可以使用 SQL 提示非常灵活地为每个查询（非作业）配置资源。
 
-## Dynamic Table Options
-Dynamic table options allows to specify or override table options dynamically, different with static table options defined with SQL DDL or connect API, 
-these options can be specified flexibly in per-table scope within each query.
+<a name="dynamic-table-options"></a>
+## 动态表（Dynamic Table）选项
+动态表选项允许动态地指定或覆盖表选项，不同于用 SQL DDL 或 连接 API 定义的静态表选项，这些选项可以在每个查询的每个表范围内灵活地指定。
 
-Thus it is very suitable to use for the ad-hoc queries in interactive terminal, for example, in the SQL-CLI,
-you can specify to ignore the parse error for a CSV source just by adding a dynamic option `/*+ OPTIONS('csv.ignore-parse-errors'='true') */`.
+因此，它非常适合用于交互式终端中的特定查询，例如，在 SQL-CLI 中，你可以通过添加动态选项`/*+ OPTIONS('csv.ignore-parse-errors'='true') */`来指定忽略 CSV 源的解析错误。
 
-<b>Note:</b> Dynamic table options default is forbidden to use because it may change the semantics of the query.
-You need to set the config option `table.dynamic-table-options.enabled` to be `true` explicitly (default is false),
-See the <a href="{% link dev/table/config.zh.md %}">Configuration</a> for details on how to set up the config options.
+<b>注意：</b>动态表选项默认值禁止使用，因为它可能会更改查询的语义。你需要将配置项 `table.dynamic-table-options.enabled` 显式设置为 `true`（默认值为 false），请参阅 <a href="{% link dev/table/config.zh.md %}">Configuration</a> 了解有关如何设置配置选项的详细信息。
 
-### Syntax
-In order to not break the SQL compatibility, we use the Oracle style SQL hint syntax:
+<a name="syntax"></a>
+### 语法
+为了不破坏 SQL 兼容性，我们使用 Oracle 风格的 SQL 提示语法：
 {% highlight sql %}
 table_path /*+ OPTIONS(key=val [, key=val]*) */
 
@@ -63,24 +54,25 @@ val:
 
 {% endhighlight %}
 
-### Examples
+<a name="examples"></a>
+### 示例
 
 {% highlight sql %}
 
 CREATE TABLE kafka_table1 (id BIGINT, name STRING, age INT) WITH (...);
 CREATE TABLE kafka_table2 (id BIGINT, name STRING, age INT) WITH (...);
 
--- override table options in query source
+-- 在查询源中覆盖表选项
 select id, name from kafka_table1 /*+ OPTIONS('scan.startup.mode'='earliest-offset') */;
 
--- override table options in join
+-- 在 join 中覆盖表选项
 select * from
     kafka_table1 /*+ OPTIONS('scan.startup.mode'='earliest-offset') */ t1
     join
     kafka_table2 /*+ OPTIONS('scan.startup.mode'='earliest-offset') */ t2
     on t1.id = t2.id;
 
--- override table options for INSERT target table
+-- 对 INSERT 目标表使用覆盖表选项
 insert into kafka_table1 /*+ OPTIONS('sink.partitioner'='round-robin') */ select * from kafka_table2;
 
 {% endhighlight %}
