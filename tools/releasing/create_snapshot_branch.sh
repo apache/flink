@@ -59,6 +59,8 @@ perl -pi -e "s#^is_stable: .*#is_stable: true#" ${config_yml}
 
 perl -pi -e "s#^__version__ = \".*\"#__version__ = \"${RELEASE_VERSION}\"#" ../flink-python/pyflink/version.py
 
+perl -pi -e "s#dev-master#dev-${SHORT_RELEASE_VERSION}#" ../flink-end-to-end-tests/test-scripts/common_docker.sh
+
 git commit -am "Update for ${RELEASE_VERSION}"
 
 echo "Done. Don't forget to push the branch."
