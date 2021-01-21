@@ -55,7 +55,7 @@ public class CheckpointStorageLoaderTest {
         CheckpointStorage storage = new MockStorage();
 
         CheckpointStorage configured =
-                CheckpointStorageLoader.load(storage, legacy, new Configuration(), cl, null);
+                CheckpointStorageLoader.load(storage, null, legacy, new Configuration(), cl, null);
 
         Assert.assertEquals(
                 "Legacy state backends should always take precedence", legacy, configured);
@@ -67,7 +67,7 @@ public class CheckpointStorageLoaderTest {
         CheckpointStorage storage = new MockStorage();
 
         CheckpointStorage configured =
-                CheckpointStorageLoader.load(storage, modern, new Configuration(), cl, null);
+                CheckpointStorageLoader.load(storage, null, modern, new Configuration(), cl, null);
 
         Assert.assertEquals(
                 "Modern state backends should never take precedence", storage, configured);
@@ -79,7 +79,8 @@ public class CheckpointStorageLoaderTest {
 
         config.setString(CheckpointingOptions.CHECKPOINT_STORAGE, WorkingFactory.class.getName());
         CheckpointStorage storage =
-                CheckpointStorageLoader.load(null, new ModernStateBackend(), config, cl, null);
+                CheckpointStorageLoader.load(
+                        null, null, new ModernStateBackend(), config, cl, null);
         Assert.assertThat(storage, Matchers.instanceOf(MockStorage.class));
     }
 
@@ -89,7 +90,7 @@ public class CheckpointStorageLoaderTest {
 
         config.setString(CheckpointingOptions.CHECKPOINT_STORAGE, "does.not.exist");
         try {
-            CheckpointStorageLoader.load(null, new ModernStateBackend(), config, cl, null);
+            CheckpointStorageLoader.load(null, null, new ModernStateBackend(), config, cl, null);
             Assert.fail("should fail with exception");
         } catch (DynamicCodeLoadingException e) {
             // expected
@@ -98,7 +99,7 @@ public class CheckpointStorageLoaderTest {
         // try a class that is not a factory
         config.setString(CheckpointingOptions.CHECKPOINT_STORAGE, java.io.File.class.getName());
         try {
-            CheckpointStorageLoader.load(null, new ModernStateBackend(), config, cl, null);
+            CheckpointStorageLoader.load(null, null, new ModernStateBackend(), config, cl, null);
             Assert.fail("should fail with exception");
         } catch (DynamicCodeLoadingException e) {
             // expected
@@ -107,7 +108,7 @@ public class CheckpointStorageLoaderTest {
         // try a factory that fails
         config.setString(CheckpointingOptions.CHECKPOINT_STORAGE, FailingFactory.class.getName());
         try {
-            CheckpointStorageLoader.load(null, new ModernStateBackend(), config, cl, null);
+            CheckpointStorageLoader.load(null, null, new ModernStateBackend(), config, cl, null);
             Assert.fail("should fail with exception");
         } catch (IllegalConfigurationException e) {
             // expected

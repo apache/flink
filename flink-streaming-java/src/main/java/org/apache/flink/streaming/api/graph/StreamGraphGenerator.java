@@ -28,6 +28,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -139,8 +140,11 @@ public class StreamGraphGenerator {
 
     private final ReadableConfig configuration;
 
+
     // Records the slot sharing groups and their corresponding ResourceProfile
     private final Map<String, ResourceProfile> slotSharingGroupResources = new HashMap<>();
+
+    private Path savepointDir;
 
     private StateBackend stateBackend;
 
@@ -229,6 +233,11 @@ public class StreamGraphGenerator {
     public StreamGraphGenerator setRuntimeExecutionMode(
             final RuntimeExecutionMode runtimeExecutionMode) {
         this.runtimeExecutionMode = checkNotNull(runtimeExecutionMode);
+        return this;
+    }
+
+    public StreamGraphGenerator setSavepointDir(Path savepointDir) {
+        this.savepointDir = savepointDir;
         return this;
     }
 
@@ -326,6 +335,7 @@ public class StreamGraphGenerator {
         } else {
             graph.setStateBackend(stateBackend);
             graph.setCheckpointStorage(checkpointStorage);
+            graph.setSavepointDirectory(savepointDir);
             graph.setScheduleMode(ScheduleMode.EAGER);
 
             if (checkpointConfig.isApproximateLocalRecoveryEnabled()) {

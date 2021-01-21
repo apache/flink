@@ -104,6 +104,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -165,6 +166,9 @@ public class StreamExecutionEnvironment {
 
     /** The state backend used for storing k/v state and state snapshots. */
     private StateBackend defaultStateBackend;
+
+    /** The default savepoint directory used by the job. */
+    private Path defaultSavepointDirectory;
 
     /** The time characteristic used by the data streams. */
     private TimeCharacteristic timeCharacteristic = DEFAULT_TIME_CHARACTERISTIC;
@@ -598,6 +602,56 @@ public class StreamExecutionEnvironment {
     @PublicEvolving
     public StateBackend getStateBackend() {
         return defaultStateBackend;
+    }
+
+    /**
+     * Sets the default savepoint directory, where savepoints will be written to if no is explicitly
+     * provided when triggered.
+     *
+     * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
+     * @see #getDefaultSavepointDirectory()
+     */
+    @PublicEvolving
+    public StreamExecutionEnvironment setDefaultSavepointDirectory(String savepointDirectory) {
+        Preconditions.checkNotNull(savepointDirectory);
+        return setDefaultSavepointDirectory(new Path(savepointDirectory));
+    }
+
+    /**
+     * Sets the default savepoint directory, where savepoints will be written to if no is explicitly
+     * provided when triggered.
+     *
+     * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
+     * @see #getDefaultSavepointDirectory()
+     */
+    @PublicEvolving
+    public StreamExecutionEnvironment setDefaultSavepointDirectory(URI savepointDirectory) {
+        Preconditions.checkNotNull(savepointDirectory);
+        return setDefaultSavepointDirectory(new Path(savepointDirectory));
+    }
+
+    /**
+     * Sets the default savepoint directory, where savepoints will be written to if no is explicitly
+     * provided when triggered.
+     *
+     * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
+     * @see #getDefaultSavepointDirectory()
+     */
+    @PublicEvolving
+    public StreamExecutionEnvironment setDefaultSavepointDirectory(Path savepointDirectory) {
+        this.defaultSavepointDirectory = Preconditions.checkNotNull(savepointDirectory);
+        return this;
+    }
+
+    /**
+     * Gets the default savepoint directory for this Job.
+     *
+     * @see #setDefaultSavepointDirectory(Path)
+     */
+    @Nullable
+    @PublicEvolving
+    public Path getDefaultSavepointDirectory() {
+        return defaultSavepointDirectory;
     }
 
     /**
@@ -1973,6 +2027,7 @@ public class StreamExecutionEnvironment {
         return new StreamGraphGenerator(transformations, config, checkpointCfg, getConfiguration())
                 .setRuntimeExecutionMode(executionMode)
                 .setStateBackend(defaultStateBackend)
+                .setSavepointDir(defaultSavepointDirectory)
                 .setChaining(isChainingEnabled)
                 .setUserArtifacts(cacheFile)
                 .setTimeCharacteristic(timeCharacteristic)
