@@ -171,6 +171,12 @@ public final class SliceAssigners {
                                 "Hopping Window must satisfy slide > 0 and size > 0, but got slide %dms and size %dms.",
                                 slide, size));
             }
+            if (size % slide != 0) {
+                throw new IllegalArgumentException(
+                        String.format(
+                                "Hopping Window requires size must be an integral multiple of slide, but got size %dms and slide %dms.",
+                                size, slide));
+            }
             this.size = size;
             this.slide = slide;
             this.offset = offset;
@@ -337,7 +343,7 @@ public final class SliceAssigners {
 
         @Override
         public long getWindowStart(long windowEnd) {
-            return windowEnd - windowSize;
+            return TimeWindow.getWindowStartWithOffset(windowEnd - 1, 0L, windowSize);
         }
 
         @Override
@@ -389,7 +395,6 @@ public final class SliceAssigners {
     // Private Utilities
     // ------------------------------------------------------------------------------------------
 
-    /** A lazy Iterable which transform {@code List<OuterReocord>} to {@code Iterable<RowData>}. */
     private static final class ReusableListIterable implements IterableIterator<Long> {
         private final List<Long> values = new ArrayList<>();
         private int index = 0;
