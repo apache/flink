@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.api.scala
 
+import java.net.URI
+
 import com.esotericsoftware.kryo.Serializer
 import org.apache.flink.annotation.{Experimental, Internal, Public, PublicEvolving}
 import org.apache.flink.api.common.RuntimeExecutionMode
@@ -32,6 +34,7 @@ import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ClosureCleaner
 import org.apache.flink.configuration.{Configuration, ReadableConfig}
 import org.apache.flink.core.execution.{JobClient, JobListener}
+import org.apache.flink.core.fs.Path
 import org.apache.flink.runtime.state.StateBackend
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
@@ -285,6 +288,53 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    */
   @PublicEvolving
   def getStateBackend: StateBackend = javaEnv.getStateBackend()
+
+  /**
+   * Sets the default savepoint directory, where savepoints will be written to
+   * if no is explicitly provided when triggered.
+   *
+   * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
+   * @see #getDefaultSavepointDirectory()
+   */
+  @PublicEvolving
+  def setDefaultSavepointDirectory(savepointDirectory: String): StreamExecutionEnvironment = {
+    javaEnv.setDefaultSavepointDirectory(savepointDirectory)
+    this
+  }
+
+  /**
+   * Sets the default savepoint directory, where savepoints will be written to
+   * if no is explicitly provided when triggered.
+   *
+   * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
+   * @see #getDefaultSavepointDirectory()
+   */
+  @PublicEvolving
+  def setDefaultSavepointDirectory(savepointDirectory: URI): StreamExecutionEnvironment = {
+    javaEnv.setDefaultSavepointDirectory(savepointDirectory)
+    this
+  }
+
+  /**
+   * Sets the default savepoint directory, where savepoints will be written to
+   * if no is explicitly provided when triggered.
+   *
+   * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
+   * @see #getDefaultSavepointDirectory()
+   */
+  @PublicEvolving
+  def setDefaultSavepointDirectory(savepointDirectory: Path): StreamExecutionEnvironment = {
+    javaEnv.setDefaultSavepointDirectory(savepointDirectory)
+    this
+  }
+
+  /**
+   * Gets the default savepoint directory for this Job.
+   *
+   * @see #setDefaultSavepointDirectory(Path)
+   */
+  @PublicEvolving
+  def getDefaultSavepointDirectory: Path = javaEnv.getDefaultSavepointDirectory
 
   /**
     * Sets the restart strategy configuration. The configuration specifies which restart strategy

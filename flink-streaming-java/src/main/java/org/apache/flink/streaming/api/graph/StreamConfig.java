@@ -24,6 +24,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.util.CorruptConfigurationException;
@@ -95,6 +96,7 @@ public class StreamConfig implements Serializable {
     private static final String CHECKPOINTING_ENABLED = "checkpointing";
     private static final String CHECKPOINT_MODE = "checkpointMode";
 
+    private static final String SAVEPOINT_DIR = "savepointdir";
     private static final String CHECKPOINT_STORAGE = "checkpointstorage";
     private static final String STATE_BACKEND = "statebackend";
     private static final String TIMER_SERVICE_PROVIDER = "timerservice";
@@ -562,6 +564,24 @@ public class StreamConfig implements Serializable {
             return InstantiationUtil.readObjectFromConfig(this.config, STATE_BACKEND, cl);
         } catch (Exception e) {
             throw new StreamTaskException("Could not instantiate statehandle provider.", e);
+        }
+    }
+
+    public void setSavepointDir(Path directory) {
+        if (directory != null) {
+            try {
+                InstantiationUtil.writeObjectToConfig(directory, config, SAVEPOINT_DIR);
+            } catch (Exception e) {
+                throw new StreamTaskException("Could not serialize savepoint directory.", e);
+            }
+        }
+    }
+
+    public Path getSavepointDir(ClassLoader cl) {
+        try {
+            return InstantiationUtil.readObjectFromConfig(this.config, SAVEPOINT_DIR, cl);
+        } catch (Exception e) {
+            throw new StreamTaskException("Could not instantiate savepoint directory.", e);
         }
     }
 

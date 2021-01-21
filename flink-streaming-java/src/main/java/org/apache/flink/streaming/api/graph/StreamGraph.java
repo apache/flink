@@ -32,6 +32,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -118,6 +119,7 @@ public class StreamGraph implements Pipeline {
     protected Map<Integer, Long> vertexIDtoLoopTimeout;
     private StateBackend stateBackend;
     private CheckpointStorage checkpointStorage;
+    private Path savepointDir;
     private Set<Tuple2<StreamNode, StreamNode>> iterationSourceSinkPairs;
     private InternalTimeServiceManager.Provider timerServiceProvider;
     private JobType jobType = JobType.STREAMING;
@@ -190,6 +192,14 @@ public class StreamGraph implements Pipeline {
 
     public CheckpointStorage getCheckpointStorage() {
         return this.checkpointStorage;
+    }
+
+    public void setSavepointDirectory(Path savepointDir) {
+        this.savepointDir = savepointDir;
+    }
+
+    public Path getSavepointDirectory() {
+        return this.savepointDir;
     }
 
     public InternalTimeServiceManager.Provider getTimerServiceProvider() {

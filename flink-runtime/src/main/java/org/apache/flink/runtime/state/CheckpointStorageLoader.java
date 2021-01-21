@@ -23,6 +23,7 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.DynamicCodeLoadingException;
 import org.apache.flink.util.Preconditions;
 
@@ -152,6 +153,7 @@ public class CheckpointStorageLoader {
      */
     public static CheckpointStorage load(
             @Nullable CheckpointStorage fromApplication,
+            @Nullable Path defaultSavepointDirectory,
             StateBackend configuredStateBackend,
             Configuration config,
             ClassLoader classLoader,
@@ -162,6 +164,13 @@ public class CheckpointStorageLoader {
         Preconditions.checkNotNull(classLoader, "classLoader");
         Preconditions.checkNotNull(configuredStateBackend, "statebackend");
 
+        if (defaultSavepointDirectory != null) {
+            config.set(
+                    CheckpointingOptions.SAVEPOINT_DIRECTORY, defaultSavepointDirectory.toString());
+        }
+
+        // Legacy state backends always take precedence
+        // for backwards compatibility.
         if (configuredStateBackend instanceof CheckpointStorage) {
             if (logger != null) {
                 logger.info(

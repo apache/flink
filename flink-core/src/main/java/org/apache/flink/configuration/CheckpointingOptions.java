@@ -93,7 +93,7 @@ public class CheckpointingOptions {
      * deactivated.
      *
      * <p>Local recovery currently only covers keyed state backends. Currently, MemoryStateBackend
-     * does not support local recovery and ignore this option.
+     * and HashMapStateBackend do not support local recovery and ignore this option.
      */
     @Documentation.Section(Documentation.Sections.COMMON_STATE_BACKENDS)
     public static final ConfigOption<Boolean> LOCAL_RECOVERY =
@@ -101,8 +101,8 @@ public class CheckpointingOptions {
                     .defaultValue(false)
                     .withDescription(
                             "This option configures local recovery for this state backend. By default, local recovery is "
-                                    + "deactivated. Local recovery currently only covers keyed state backends. Currently, MemoryStateBackend does "
-                                    + "not support local recovery and ignore this option.");
+                                    + "deactivated. Local recovery currently only covers keyed state backends. Currently, MemoryStateBackend and "
+                                    + "HashMapStateBackend do not support local recovery and ignore this option.");
 
     /**
      * The config parameter defining the root directories for storing file-based state for local
@@ -126,7 +126,7 @@ public class CheckpointingOptions {
 
     /**
      * The default directory for savepoints. Used by the state backends that write savepoints to
-     * file systems (MemoryStateBackend, FsStateBackend, RocksDBStateBackend).
+     * file systems (HashMapStateBackend, EmbeddedRocksDBStateBackend).
      */
     @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS, position = 3)
     public static final ConfigOption<String> SAVEPOINT_DIRECTORY =
@@ -135,7 +135,7 @@ public class CheckpointingOptions {
                     .withDeprecatedKeys("savepoints.state.backend.fs.dir")
                     .withDescription(
                             "The default directory for savepoints. Used by the state backends that write savepoints to"
-                                    + " file systems (MemoryStateBackend, FsStateBackend, RocksDBStateBackend).");
+                                    + " file systems (HashMapStateBackend, EmbeddedRocksDBStateBackend).");
 
     /**
      * The default directory used for storing the data files and meta data of checkpoints in a Flink

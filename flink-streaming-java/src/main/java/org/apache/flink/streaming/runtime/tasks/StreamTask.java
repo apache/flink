@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
@@ -1154,9 +1155,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     private CheckpointStorage createCheckpointStorage(StateBackend backend) throws Exception {
         final CheckpointStorage fromApplication =
                 configuration.getCheckpointStorage(getUserCodeClassLoader());
+        final Path savepointDir = configuration.getSavepointDir(getUserCodeClassLoader());
 
         return CheckpointStorageLoader.load(
                 fromApplication,
+                savepointDir,
                 backend,
                 getEnvironment().getTaskManagerInfo().getConfiguration(),
                 getUserCodeClassLoader(),
