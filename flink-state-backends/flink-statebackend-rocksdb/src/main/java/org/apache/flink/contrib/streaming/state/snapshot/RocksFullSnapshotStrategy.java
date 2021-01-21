@@ -18,7 +18,6 @@
 
 package org.apache.flink.contrib.streaming.state.snapshot;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -30,7 +29,6 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.state.AsyncSnapshotCallable;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamWithResultProvider;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
@@ -40,6 +38,7 @@ import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
+import org.apache.flink.runtime.state.SnapshotResources;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
@@ -54,6 +53,8 @@ import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksIterator;
 import org.rocksdb.Snapshot;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
@@ -64,7 +65,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.RunnableFuture;
 
 import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.END_OF_KEY_GROUP_MARK;
 import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.hasMetaDataFollowsFlag;
@@ -77,7 +77,11 @@ import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUti
  *
  * @param <K> type of the backend keys.
  */
-public class RocksFullSnapshotStrategy<K> extends RocksDBSnapshotStrategyBase<K> {
+public class RocksFullSnapshotStrategy<K>
+        extends RocksDBSnapshotStrategyBase<
+                K, RocksFullSnapshotStrategy.FullRocksDBSnapshotResources> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(RocksFullSnapshotStrategy.class);
 
     private static final String DESCRIPTION = "Asynchronous full RocksDB snapshot";
 
@@ -92,7 +96,6 @@ public class RocksFullSnapshotStrategy<K> extends RocksDBSnapshotStrategyBase<K>
             @Nonnull KeyGroupRange keyGroupRange,
             @Nonnegative int keyGroupPrefixBytes,
             @Nonnull LocalRecoveryConfig localRecoveryConfig,
-            @Nonnull CloseableRegistry cancelStreamRegistry,
             @Nonnull StreamCompressionDecorator keyGroupCompressionDecorator) {
         super(
                 DESCRIPTION,
@@ -102,25 +105,13 @@ public class RocksFullSnapshotStrategy<K> extends RocksDBSnapshotStrategyBase<K>
                 kvStateInformation,
                 keyGroupRange,
                 keyGroupPrefixBytes,
-                localRecoveryConfig,
-                cancelStreamRegistry);
+                localRecoveryConfig);
 
         this.keyGroupCompressionDecorator = keyGroupCompressionDecorator;
     }
 
-    @Nonnull
     @Override
-    public RunnableFuture<SnapshotResult<KeyedStateHandle>> doSnapshot(
-            long checkpointId,
-            long timestamp,
-            @Nonnull CheckpointStreamFactory primaryStreamFactory,
-            @Nonnull CheckpointOptions checkpointOptions)
-            throws Exception {
-
-        final SupplierWithException<CheckpointStreamWithResultProvider, Exception>
-                checkpointStreamSupplier =
-                        createCheckpointStreamSupplier(
-                                checkpointId, primaryStreamFactory, checkpointOptions);
+    public FullRocksDBSnapshotResources syncPrepareResources(long checkpointId) throws Exception {
 
         final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots =
                 new ArrayList<>(kvStateInformation.size());
@@ -135,16 +126,37 @@ public class RocksFullSnapshotStrategy<K> extends RocksDBSnapshotStrategyBase<K>
         final ResourceGuard.Lease lease = rocksDBResourceGuard.acquireResource();
         final Snapshot snapshot = db.getSnapshot();
 
-        final SnapshotAsynchronousPartCallable asyncSnapshotCallable =
-                new SnapshotAsynchronousPartCallable(
-                        checkpointStreamSupplier,
-                        lease,
-                        snapshot,
-                        stateMetaInfoSnapshots,
-                        metaDataCopy,
-                        primaryStreamFactory.toString());
+        return new FullRocksDBSnapshotResources(
+                lease, snapshot, metaDataCopy, stateMetaInfoSnapshots, db);
+    }
 
-        return asyncSnapshotCallable.toAsyncSnapshotFutureTask(cancelStreamRegistry);
+    @Override
+    public SnapshotResultSupplier<KeyedStateHandle> asyncSnapshot(
+            FullRocksDBSnapshotResources fullRocksDBSnapshotResources,
+            long checkpointId,
+            long timestamp,
+            @Nonnull CheckpointStreamFactory checkpointStreamFactory,
+            @Nonnull CheckpointOptions checkpointOptions) {
+
+        if (fullRocksDBSnapshotResources.stateMetaInfoSnapshots.isEmpty()) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug(
+                        "Asynchronous RocksDB snapshot performed on empty keyed state at {}. Returning null.",
+                        timestamp);
+            }
+            return registry -> SnapshotResult.empty();
+        }
+
+        final SupplierWithException<CheckpointStreamWithResultProvider, Exception>
+                checkpointStreamSupplier =
+                        createCheckpointStreamSupplier(
+                                checkpointId, checkpointStreamFactory, checkpointOptions);
+
+        return new SnapshotAsynchronousPartCallable(
+                checkpointStreamSupplier,
+                fullRocksDBSnapshotResources.snapshot,
+                fullRocksDBSnapshotResources.stateMetaInfoSnapshots,
+                fullRocksDBSnapshotResources.metaDataCopy);
     }
 
     @Override
@@ -177,47 +189,38 @@ public class RocksFullSnapshotStrategy<K> extends RocksDBSnapshotStrategyBase<K>
     }
 
     /** Encapsulates the process to perform a full snapshot of a RocksDBKeyedStateBackend. */
-    @VisibleForTesting
     private class SnapshotAsynchronousPartCallable
-            extends AsyncSnapshotCallable<SnapshotResult<KeyedStateHandle>> {
+            implements SnapshotResultSupplier<KeyedStateHandle> {
 
         /** Supplier for the stream into which we write the snapshot. */
         @Nonnull
         private final SupplierWithException<CheckpointStreamWithResultProvider, Exception>
                 checkpointStreamSupplier;
 
-        /** This lease protects the native RocksDB resources. */
-        @Nonnull private final ResourceGuard.Lease dbLease;
-
         /** RocksDB snapshot. */
         @Nonnull private final Snapshot snapshot;
 
-        @Nonnull private List<StateMetaInfoSnapshot> stateMetaInfoSnapshots;
+        @Nonnull private final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots;
 
-        @Nonnull private List<MetaData> metaData;
-
-        @Nonnull private final String logPathString;
+        @Nonnull private final List<MetaData> metaData;
 
         SnapshotAsynchronousPartCallable(
                 @Nonnull
                         SupplierWithException<CheckpointStreamWithResultProvider, Exception>
                                 checkpointStreamSupplier,
-                @Nonnull ResourceGuard.Lease dbLease,
                 @Nonnull Snapshot snapshot,
                 @Nonnull List<StateMetaInfoSnapshot> stateMetaInfoSnapshots,
-                @Nonnull List<RocksDbKvStateInfo> metaDataCopy,
-                @Nonnull String logPathString) {
+                @Nonnull List<RocksDbKvStateInfo> metaDataCopy) {
 
             this.checkpointStreamSupplier = checkpointStreamSupplier;
-            this.dbLease = dbLease;
             this.snapshot = snapshot;
             this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
             this.metaData = fillMetaData(metaDataCopy);
-            this.logPathString = logPathString;
         }
 
         @Override
-        protected SnapshotResult<KeyedStateHandle> callInternal() throws Exception {
+        public SnapshotResult<KeyedStateHandle> get(CloseableRegistry snapshotCloseableRegistry)
+                throws Exception {
             final KeyGroupRangeOffsets keyGroupRangeOffsets =
                     new KeyGroupRangeOffsets(keyGroupRange);
             final CheckpointStreamWithResultProvider checkpointStreamWithResultProvider =
@@ -233,18 +236,6 @@ public class RocksFullSnapshotStrategy<K> extends RocksDBSnapshotStrategyBase<K>
             } else {
                 throw new IOException("Stream is already unregistered/closed.");
             }
-        }
-
-        @Override
-        protected void cleanupProvidedResources() {
-            db.releaseSnapshot(snapshot);
-            IOUtils.closeQuietly(snapshot);
-            IOUtils.closeQuietly(dbLease);
-        }
-
-        @Override
-        protected void logAsyncSnapshotComplete(long startTime) {
-            logAsyncCompleted(logPathString, startTime);
         }
 
         private void writeSnapshotToOutputStream(
@@ -444,7 +435,6 @@ public class RocksFullSnapshotStrategy<K> extends RocksDBSnapshotStrategyBase<K>
         return metaData;
     }
 
-    @SuppressWarnings("unchecked")
     private static RocksIteratorWrapper getRocksIterator(
             RocksDB db,
             ColumnFamilyHandle columnFamilyHandle,
@@ -466,6 +456,34 @@ public class RocksFullSnapshotStrategy<K> extends RocksDBSnapshotStrategyBase<K>
 
             this.rocksDbKvStateInfo = rocksDbKvStateInfo;
             this.stateSnapshotTransformer = stateSnapshotTransformer;
+        }
+    }
+
+    static class FullRocksDBSnapshotResources implements SnapshotResources {
+        private final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots;
+        private final List<RocksDbKvStateInfo> metaDataCopy;
+        private final ResourceGuard.Lease lease;
+        private final Snapshot snapshot;
+        private final RocksDB db;
+
+        public FullRocksDBSnapshotResources(
+                ResourceGuard.Lease lease,
+                Snapshot snapshot,
+                List<RocksDbKvStateInfo> metaDataCopy,
+                List<StateMetaInfoSnapshot> stateMetaInfoSnapshots,
+                RocksDB db) {
+            this.lease = lease;
+            this.snapshot = snapshot;
+            this.metaDataCopy = metaDataCopy;
+            this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
+            this.db = db;
+        }
+
+        @Override
+        public void release() {
+            db.releaseSnapshot(snapshot);
+            IOUtils.closeQuietly(snapshot);
+            IOUtils.closeQuietly(lease);
         }
     }
 }

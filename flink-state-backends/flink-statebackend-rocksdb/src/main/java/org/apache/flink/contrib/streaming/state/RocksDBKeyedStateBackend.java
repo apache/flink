@@ -51,6 +51,7 @@ import org.apache.flink.runtime.state.PriorityQueueSetFactory;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.SnapshotResult;
+import org.apache.flink.runtime.state.SnapshotStrategyRunner;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
@@ -92,6 +93,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static org.apache.flink.contrib.streaming.state.RocksDBSnapshotTransformFactoryAdaptor.wrapStateSnapshotTransformFactory;
+import static org.apache.flink.runtime.state.SnapshotStrategyRunner.ExecutionType.ASYNCHRONOUS;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -196,10 +198,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
      * The checkpoint snapshot strategy, e.g., if we use full or incremental checkpoints, local
      * state, and so on.
      */
-    private final RocksDBSnapshotStrategyBase<K> checkpointSnapshotStrategy;
+    private final RocksDBSnapshotStrategyBase<K, ?> checkpointSnapshotStrategy;
 
     /** The savepoint snapshot strategy. */
-    private final RocksDBSnapshotStrategyBase<K> savepointSnapshotStrategy;
+    private final RocksDBSnapshotStrategyBase<K, ?> savepointSnapshotStrategy;
 
     /** The native metrics monitor. */
     private final RocksDBNativeMetricMonitor nativeMetricMonitor;
@@ -240,8 +242,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             CloseableRegistry cancelStreamRegistry,
             StreamCompressionDecorator keyGroupCompressionDecorator,
             ResourceGuard rocksDBResourceGuard,
-            RocksDBSnapshotStrategyBase<K> checkpointSnapshotStrategy,
-            RocksDBSnapshotStrategyBase<K> savepointSnapshotStrategy,
+            RocksDBSnapshotStrategyBase<K, ?> checkpointSnapshotStrategy,
+            RocksDBSnapshotStrategyBase<K, ?> savepointSnapshotStrategy,
             RocksDBWriteBatchWrapper writeBatchWrapper,
             ColumnFamilyHandle defaultColumnFamilyHandle,
             RocksDBNativeMetricMonitor nativeMetricMonitor,
@@ -521,23 +523,20 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             @Nonnull CheckpointOptions checkpointOptions)
             throws Exception {
 
-        long startTime = System.currentTimeMillis();
-
         // flush everything into db before taking a snapshot
         writeBatchWrapper.flush();
 
-        RocksDBSnapshotStrategyBase<K> chosenSnapshotStrategy =
+        RocksDBSnapshotStrategyBase<K, ?> chosenSnapshotStrategy =
                 checkpointOptions.getCheckpointType().isSavepoint()
                         ? savepointSnapshotStrategy
                         : checkpointSnapshotStrategy;
 
-        RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshotRunner =
-                chosenSnapshotStrategy.snapshot(
-                        checkpointId, timestamp, streamFactory, checkpointOptions);
-
-        chosenSnapshotStrategy.logSyncCompleted(streamFactory, startTime);
-
-        return snapshotRunner;
+        return new SnapshotStrategyRunner<>(
+                        chosenSnapshotStrategy.getDescription(),
+                        chosenSnapshotStrategy,
+                        cancelStreamRegistry,
+                        ASYNCHRONOUS)
+                .snapshot(checkpointId, timestamp, streamFactory, checkpointOptions);
     }
 
     @Override

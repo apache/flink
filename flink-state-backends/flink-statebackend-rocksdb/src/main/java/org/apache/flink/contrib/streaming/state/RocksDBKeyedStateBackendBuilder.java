@@ -468,7 +468,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
             UUID backendUID,
             SortedMap<Long, Set<StateHandleID>> materializedSstFiles,
             long lastCompletedCheckpointId) {
-        RocksDBSnapshotStrategyBase<K> savepointSnapshotStrategy =
+        RocksDBSnapshotStrategyBase<K, ?> savepointSnapshotStrategy =
                 new RocksFullSnapshotStrategy<>(
                         db,
                         rocksDBResourceGuard,
@@ -477,9 +477,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                         keyGroupRange,
                         keyGroupPrefixBytes,
                         localRecoveryConfig,
-                        cancelStreamRegistry,
                         keyGroupCompressionDecorator);
-        RocksDBSnapshotStrategyBase<K> checkpointSnapshotStrategy;
+        RocksDBSnapshotStrategyBase<K, ?> checkpointSnapshotStrategy;
         if (enableIncrementalCheckpointing) {
             // TODO eventually we might want to separate savepoint and snapshot strategy, i.e.
             // having 2 strategies.
@@ -547,12 +546,12 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
     }
 
     static final class SnapshotStrategy<K> {
-        final RocksDBSnapshotStrategyBase<K> checkpointSnapshotStrategy;
-        final RocksDBSnapshotStrategyBase<K> savepointSnapshotStrategy;
+        final RocksDBSnapshotStrategyBase<K, ?> checkpointSnapshotStrategy;
+        final RocksDBSnapshotStrategyBase<K, ?> savepointSnapshotStrategy;
 
         SnapshotStrategy(
-                RocksDBSnapshotStrategyBase<K> checkpointSnapshotStrategy,
-                RocksDBSnapshotStrategyBase<K> savepointSnapshotStrategy) {
+                RocksDBSnapshotStrategyBase<K, ?> checkpointSnapshotStrategy,
+                RocksDBSnapshotStrategyBase<K, ?> savepointSnapshotStrategy) {
             this.checkpointSnapshotStrategy = checkpointSnapshotStrategy;
             this.savepointSnapshotStrategy = savepointSnapshotStrategy;
         }

@@ -26,6 +26,9 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.flink.runtime.state.SnapshotStrategyRunner.ExecutionType.ASYNCHRONOUS;
+import static org.apache.flink.runtime.state.SnapshotStrategyRunner.ExecutionType.SYNCHRONOUS;
+
 /**
  * Builder class for {@link DefaultOperatorStateBackend} which handles all necessary initializations
  * and clean ups.
@@ -62,13 +65,10 @@ public class DefaultOperatorStateBackendBuilder
         Map<String, BackendWritableBroadcastState<?, ?>> registeredBroadcastStates =
                 new HashMap<>();
         CloseableRegistry cancelStreamRegistryForBackend = new CloseableRegistry();
-        AbstractSnapshotStrategy<OperatorStateHandle> snapshotStrategy =
+
+        DefaultOperatorStateBackendSnapshotStrategy snapshotStrategy =
                 new DefaultOperatorStateBackendSnapshotStrategy(
-                        userClassloader,
-                        asynchronousSnapshots,
-                        registeredOperatorStates,
-                        registeredBroadcastStates,
-                        cancelStreamRegistryForBackend);
+                        userClassloader, registeredOperatorStates, registeredBroadcastStates);
         OperatorStateRestoreOperation restoreOperation =
                 new OperatorStateRestoreOperation(
                         cancelStreamRegistry,
@@ -90,6 +90,10 @@ public class DefaultOperatorStateBackendBuilder
                 registeredBroadcastStates,
                 new HashMap<>(),
                 new HashMap<>(),
-                snapshotStrategy);
+                new SnapshotStrategyRunner<>(
+                        "DefaultOperatorStateBackend snapshot",
+                        snapshotStrategy,
+                        cancelStreamRegistryForBackend,
+                        asynchronousSnapshots ? ASYNCHRONOUS : SYNCHRONOUS));
     }
 }

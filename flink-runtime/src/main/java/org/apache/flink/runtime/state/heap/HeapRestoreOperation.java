@@ -78,7 +78,7 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
     private final HeapPriorityQueueSetFactory priorityQueueSetFactory;
     @Nonnull private final KeyGroupRange keyGroupRange;
     @Nonnegative private final int numberOfKeyGroups;
-    private final HeapSnapshotStrategy<K> snapshotStrategy;
+    private final StateTableFactory<K> stateTableFactory;
     private final InternalKeyContext<K> keyContext;
 
     HeapRestoreOperation(
@@ -91,7 +91,7 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
             HeapPriorityQueueSetFactory priorityQueueSetFactory,
             @Nonnull KeyGroupRange keyGroupRange,
             int numberOfKeyGroups,
-            HeapSnapshotStrategy<K> snapshotStrategy,
+            StateTableFactory<K> snapshotStrategy,
             InternalKeyContext<K> keyContext) {
         this.restoreStateHandles = restoreStateHandles;
         this.keySerializerProvider = keySerializerProvider;
@@ -102,7 +102,7 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
         this.priorityQueueSetFactory = priorityQueueSetFactory;
         this.keyGroupRange = keyGroupRange;
         this.numberOfKeyGroups = numberOfKeyGroups;
-        this.snapshotStrategy = snapshotStrategy;
+        this.stateTableFactory = snapshotStrategy;
         this.keyContext = keyContext;
     }
 
@@ -204,7 +204,7 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
                                                 metaInfoSnapshot);
                         registeredKVStates.put(
                                 metaInfoSnapshot.getName(),
-                                snapshotStrategy.newStateTable(
+                                stateTableFactory.newStateTable(
                                         keyContext,
                                         registeredKeyedBackendStateMetaInfo,
                                         keySerializerProvider.currentSchemaSerializer()));
