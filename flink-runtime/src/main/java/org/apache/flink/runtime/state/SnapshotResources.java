@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,24 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.heap;
+package org.apache.flink.runtime.state;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
+import org.apache.flink.annotation.Internal;
 
 /**
- * Interface for synchronicity behavior of heap snapshot strategy.
+ * A set of resources produced in the synchronous part of a snapshot required to finish the
+ * snapshot.
  *
- * @param <K> The data type that the serializer serializes.
+ * @see SnapshotStrategy
  */
-interface SnapshotStrategySynchronicityBehavior<K> {
-
-    default void finalizeSnapshotBeforeReturnHook(Runnable runnable) {}
-
-    boolean isAsynchronous();
-
-    <N, V> StateTable<K, N, V> newStateTable(
-            InternalKeyContext<K> keyContext,
-            RegisteredKeyValueStateBackendMetaInfo<N, V> newMetaInfo,
-            TypeSerializer<K> keySerializer);
+@Internal
+public interface SnapshotResources {
+    /** Cleans up the resources after the asynchronous part is done. */
+    void release();
 }

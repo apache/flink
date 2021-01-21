@@ -25,11 +25,11 @@ import java.io.Closeable;
 
 /**
  * Interface that combines both, the user facing {@link OperatorStateStore} interface and the system
- * interface {@link SnapshotStrategy}
+ * interface {@link Snapshotable}
  */
 public interface OperatorStateBackend
         extends OperatorStateStore,
-                SnapshotStrategy<SnapshotResult<OperatorStateHandle>>,
+                Snapshotable<SnapshotResult<OperatorStateHandle>>,
                 Closeable,
                 Disposable {
 

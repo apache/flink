@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,29 +22,14 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 
 /**
- * Synchronous behavior for heap snapshot strategy.
+ * A factory for {@link StateTable StateTables}.
  *
- * @param <K> The data type that the serializer serializes.
+ * @param <K> The type of key on which a state backend is keyed
  */
-class SyncSnapshotStrategySynchronicityBehavior<K>
-        implements SnapshotStrategySynchronicityBehavior<K> {
-
-    @Override
-    public void finalizeSnapshotBeforeReturnHook(Runnable runnable) {
-        // this triggers a synchronous execution from the main checkpointing thread.
-        runnable.run();
-    }
-
-    @Override
-    public boolean isAsynchronous() {
-        return false;
-    }
-
-    @Override
-    public <N, V> StateTable<K, N, V> newStateTable(
+@FunctionalInterface
+interface StateTableFactory<K> {
+    <N, V> StateTable<K, N, V> newStateTable(
             InternalKeyContext<K> keyContext,
-            RegisteredKeyValueStateBackendMetaInfo<N, V> newMetaInfo,
-            TypeSerializer<K> keySerializer) {
-        return new NestedMapsStateTable<>(keyContext, newMetaInfo, keySerializer);
-    }
+            RegisteredKeyValueStateBackendMetaInfo<N, V> keyValueStateMetaInfo,
+            TypeSerializer<K> keySerializer);
 }
