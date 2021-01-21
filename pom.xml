@@ -524,7 +524,7 @@ under the License.
 				<artifactId>jackson-bom</artifactId>
 				<type>pom</type>
 				<scope>import</scope>
-				<version>${jackson.version}</version>
+				<version>2.12.1</version>
 			</dependency>
 
 			<dependency>
@@ -1656,7 +1656,7 @@ under the License.
 							<rules>
 								<bannedDependencies>
 									<excludes>
-										<exclude>com.fasterxml.jackson*:*:(,2.10.0]</exclude>
+										<exclude>com.fasterxml.jackson*:*:(,2.12.0]</exclude>
 									</excludes>
 								</bannedDependencies>
 							</rules>
