@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,13 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.processor;
+package org.apache.flink.table.planner.plan.nodes.exec;
 
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
+import java.util.List;
 
-/** DAGProcess plugin, use it can set resource of dag or change other node info. */
-public interface DAGProcessor {
+/** The {@link ExecNodeGraph} representing the {@link ExecNode} topology. */
+public class ExecNodeGraph {
+    private final List<ExecNode<?>> rootNodes;
 
-    /** Given an {@link ExecNodeGraph}, process it and return the result {@link ExecNodeGraph}. */
-    ExecNodeGraph process(ExecNodeGraph execGraph, DAGProcessContext context);
+    public ExecNodeGraph(List<ExecNode<?>> rootNodes) {
+        this.rootNodes = rootNodes;
+    }
+
+    public List<ExecNode<?>> getRootNodes() {
+        return rootNodes;
+    }
 }
