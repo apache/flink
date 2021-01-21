@@ -27,7 +27,7 @@ and SQL Client with SQL JAR bundles.</p>
 {% endcomment %}
 
 {% if include.connector.versions == nil %}
-<table>
+<table class="table table-bordered">
 	<thead>
 	<tr>
 		<th style="text-align: left">Maven dependency</th>
@@ -36,7 +36,17 @@ and SQL Client with SQL JAR bundles.</p>
 	</thead>
 	<tbody>
 	<tr>
-		<td style="text-align: left"><code class="highlighter-rouge">{{ include.connector.maven | liquify }}</code></td>
+		
+		<td style="text-align: left">
+			<code class="highlighter-rouge">		
+				&lt;dependency&gt;<br/>
+				    &nbsp;&nbsp;&lt;groupId&gt;org.apache.flink&lt;/groupId&gt;<br/>
+				    &nbsp;&nbsp;&lt;artifactId&gt;{{ include.connector.maven | liquify }}&lt;/artifactId&gt;<br/>
+				    &nbsp;&nbsp;&lt;version&gt;{{site.version}}&lt;/version&gt;<br/>
+				&lt;/dependency&gt;
+			</code>						
+		</td>
+				
 		{% if include.connector.built-in %}
 			<td style="text-align: left">Built-in</td>
 		{% elsif site.is_stable %}
@@ -52,7 +62,7 @@ and SQL Client with SQL JAR bundles.</p>
 	</tbody>
 </table>
 {% else %}
-<table>
+<table class="table table-bordered">
 	<thead>
 	<tr>
 		<th style="text-align: left">{{ include.connector.name }} version</th>
@@ -64,7 +74,18 @@ and SQL Client with SQL JAR bundles.</p>
 	{% for version in include.connector.versions %}
 	<tr>
 		<td style="text-align: left">{{ version.version | liquify }}</td>
-		<td style="text-align: left"><code class="highlighter-rouge">{{ version.maven | liquify }}</code></td>
+		<td style="text-align: left">
+		<code class="highlighter-rouge">
+				
+		&lt;dependency&gt;<br/>
+		    &nbsp;&nbsp;&lt;groupId&gt;org.apache.flink&lt;/groupId&gt;<br/>
+		    &nbsp;&nbsp;&lt;artifactId&gt;{{ version.maven | liquify }}&lt;/artifactId&gt;<br/>
+		    &nbsp;&nbsp;&lt;version&gt;{{site.version}}&lt;/version&gt;<br/>
+		&lt;/dependency&gt;
+		
+		</code>
+		
+		</td>
 		{% if include.connector.built-in %}
 		<td style="text-align: left">Built-in</td>
 		{% elsif include.connector.no-sql-jar %}
