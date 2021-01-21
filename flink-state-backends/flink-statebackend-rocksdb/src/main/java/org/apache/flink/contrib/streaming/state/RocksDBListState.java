@@ -50,7 +50,7 @@ import static org.apache.flink.runtime.state.StateSnapshotTransformer.Collection
 /**
  * {@link ListState} implementation that stores state in RocksDB.
  *
- * <p>{@link RocksDBStateBackend} must ensure that we set the {@link
+ * <p>{@link EmbeddedRocksDBStateBackend} must ensure that we set the {@link
  * org.rocksdb.StringAppendOperator} on the column family that we use for our state since we use the
  * {@code merge()} call.
  *

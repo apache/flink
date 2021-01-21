@@ -19,6 +19,8 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.docs.Documentation;
+import org.apache.flink.configuration.description.Description;
+import org.apache.flink.configuration.description.TextElement;
 
 /** A collection of all configuration options that relate to checkpoints and savepoints. */
 public class CheckpointingOptions {
@@ -27,20 +29,72 @@ public class CheckpointingOptions {
     //  general checkpoint and state backend options
     // ------------------------------------------------------------------------
 
-    /** The state backend to be used to store and checkpoint state. */
+    /**
+     * The checkpoint storage used to store operator state locally within the cluster during
+     * execution.
+     *
+     * <p>The implementation can be specified either via their shortcut name, or via the class name
+     * of a {@code StateBackendFactory}. If a StateBackendFactory class name is specified, the
+     * factory is instantiated (via its zero-argument constructor) and its {@code
+     * StateBackendFactory#createFromConfig(ReadableConfig, ClassLoader)} method is called.
+     *
+     * <p>Recognized shortcut names are 'hashmap' and 'rocksdb'.
+     */
     @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS, position = 1)
     public static final ConfigOption<String> STATE_BACKEND =
             ConfigOptions.key("state.backend")
+                    .stringType()
                     .noDefaultValue()
-                    .withDescription("The state backend to be used to store state.");
+                    .withDescription(
+                            Description.builder()
+                                    .text("The state backend to be used to store state.")
+                                    .linebreak()
+                                    .text(
+                                            "The implementation can be specified either via their shortcut "
+                                                    + " name, or via the class name of a %s. "
+                                                    + "If a factory is specified it is instantiated via its "
+                                                    + "zero argument constructor and its %s "
+                                                    + "method is called.",
+                                            TextElement.code("StateBackendFactory"),
+                                            TextElement.code(
+                                                    "StateBackendFactory#createFromConfig(ReadableConfig, ClassLoader)"))
+                                    .linebreak()
+                                    .text("Recognized shortcut names are 'hashmap' and 'rocksdb'.")
+                                    .build());
 
-    /** The checkpoint storage used to checkpoint state. */
+    /**
+     * The checkpoint storage used to checkpoint state for recovery.
+     *
+     * <p>The implementation can be specified either via their shortcut name, or via the class name
+     * of a {@code CheckpointStorageFactory}. If a CheckpointStorageFactory class name is specified,
+     * the factory is instantiated (via its zero-argument constructor) and its {@code
+     * CheckpointStorageFactory#createFromConfig(ReadableConfig, ClassLoader)} method is called.
+     *
+     * <p>Recognized shortcut names are 'jobmanager' and 'filesystem'.
+     */
     @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS, position = 2)
     public static final ConfigOption<String> CHECKPOINT_STORAGE =
             ConfigOptions.key("state.checkpoint-storage")
                     .stringType()
                     .noDefaultValue()
-                    .withDescription("The checkpoint storage to be used to checkpoint state.");
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The checkpoint storage implementation to be used to checkpoint state.")
+                                    .linebreak()
+                                    .text(
+                                            "The implementation can be specified either via their shortcut "
+                                                    + " name, or via the class name of a %s. "
+                                                    + "If a factory is specified it is instantiated via its "
+                                                    + "zero argument constructor and its %s "
+                                                    + " method is called.",
+                                            TextElement.code("CheckpointStorageFactory"),
+                                            TextElement.code(
+                                                    "CheckpointStorageFactory#createFromConfig(ReadableConfig, ClassLoader)"))
+                                    .linebreak()
+                                    .text(
+                                            "Recognized shortcut names are 'jobmanager' and 'filesystem'.")
+                                    .build());
 
     /** The maximum number of completed checkpoints to retain. */
     @Documentation.Section(Documentation.Sections.COMMON_STATE_BACKENDS)
@@ -143,6 +197,7 @@ public class CheckpointingOptions {
     @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS, position = 2)
     public static final ConfigOption<String> CHECKPOINTS_DIRECTORY =
             ConfigOptions.key("state.checkpoints.dir")
+                    .stringType()
                     .noDefaultValue()
                     .withDeprecatedKeys("state.backend.fs.checkpointdir")
                     .withDescription(
@@ -156,7 +211,7 @@ public class CheckpointingOptions {
      */
     @Documentation.Section(Documentation.Sections.EXPERT_STATE_BACKENDS)
     public static final ConfigOption<MemorySize> FS_SMALL_FILE_THRESHOLD =
-            ConfigOptions.key("state.snapshot.fs.memory-threshold")
+            ConfigOptions.key("state.storage.fs.memory-threshold")
                     .memoryType()
                     .defaultValue(MemorySize.parse("20kb"))
                     .withDescription(
@@ -169,7 +224,7 @@ public class CheckpointingOptions {
      */
     @Documentation.Section(Documentation.Sections.EXPERT_STATE_BACKENDS)
     public static final ConfigOption<Integer> FS_WRITE_BUFFER_SIZE =
-            ConfigOptions.key("state.snapshot.fs.write-buffer-size")
+            ConfigOptions.key("state.storage.fs.write-buffer-size")
                     .intType()
                     .defaultValue(4 * 1024)
                     .withDescription(

@@ -27,6 +27,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
@@ -36,15 +37,17 @@ import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.runtime.util.BlockingCheckpointOutputStream;
 import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.function.SupplierWithException;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.filefilter.IOFileFilter;
 import org.junit.After;
-import org.junit.Rule;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
@@ -86,9 +89,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.internal.verification.VerificationModeFactory.times;
 import static org.powermock.api.mockito.PowerMockito.spy;
 
-/** Tests for the partitioned state part of {@link RocksDBStateBackend}. */
+/** Tests for the partitioned state part of {@link EmbeddedRocksDBStateBackend}. */
 @RunWith(Parameterized.class)
-public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBackend> {
+public class EmbeddedRocksDBStateBackendTest
+        extends StateBackendTestBase<EmbeddedRocksDBStateBackend> {
 
     private OneShotLatch blocker;
     private OneShotLatch waiter;
@@ -98,14 +102,34 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
     private ValueState<Integer> testState1;
     private ValueState<String> testState2;
 
-    @Parameterized.Parameters(name = "Incremental checkpointing: {0}")
-    public static Collection<Boolean> parameters() {
-        return Arrays.asList(false, true);
+    @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
+
+    @Parameterized.Parameters
+    public static List<Object[]> modes() {
+        return Arrays.asList(
+                new Object[][] {
+                    {
+                        true,
+                        (SupplierWithException<CheckpointStorage, IOException>)
+                                JobManagerCheckpointStorage::new
+                    },
+                    {
+                        false,
+                        (SupplierWithException<CheckpointStorage, IOException>)
+                                () -> {
+                                    String checkpointPath =
+                                            TEMP_FOLDER.newFolder().toURI().toString();
+                                    return new FileSystemCheckpointStorage(checkpointPath);
+                                }
+                    }
+                });
     }
 
-    @Parameterized.Parameter public boolean enableIncrementalCheckpointing;
+    @Parameterized.Parameter(value = 0)
+    public boolean enableIncrementalCheckpointing;
 
-    @Rule public final TemporaryFolder tempFolder = new TemporaryFolder();
+    @Parameterized.Parameter(value = 1)
+    public SupplierWithException<CheckpointStorage, IOException> storageSupplier;
 
     // Store it because we need it for the cleanup test.
     private String dbPath;
@@ -114,7 +138,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
     private final RocksDBResourceContainer optionsContainer = new RocksDBResourceContainer();
 
     public void prepareRocksDB() throws Exception {
-        String dbPath = new File(tempFolder.newFolder(), DB_INSTANCE_DIR_STRING).getAbsolutePath();
+        String dbPath = new File(TEMP_FOLDER.newFolder(), DB_INSTANCE_DIR_STRING).getAbsolutePath();
         ColumnFamilyOptions columnOptions = optionsContainer.getColumnOptions();
 
         ArrayList<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>(1);
@@ -129,19 +153,22 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
     }
 
     @Override
-    protected RocksDBStateBackend getStateBackend() throws IOException {
-        dbPath = tempFolder.newFolder().getAbsolutePath();
-        String checkpointPath = tempFolder.newFolder().toURI().toString();
-        RocksDBStateBackend backend =
-                new RocksDBStateBackend(
-                        new FsStateBackend(checkpointPath), enableIncrementalCheckpointing);
+    protected EmbeddedRocksDBStateBackend getStateBackend() throws IOException {
+        dbPath = TEMP_FOLDER.newFolder().getAbsolutePath();
+        EmbeddedRocksDBStateBackend backend =
+                new EmbeddedRocksDBStateBackend(enableIncrementalCheckpointing);
         Configuration configuration = new Configuration();
         configuration.set(
                 RocksDBOptions.TIMER_SERVICE_FACTORY,
-                RocksDBStateBackend.PriorityQueueStateType.ROCKSDB);
+                EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB);
         backend = backend.configure(configuration, Thread.currentThread().getContextClassLoader());
         backend.setDbStoragePath(dbPath);
         return backend;
+    }
+
+    @Override
+    protected CheckpointStorage getCheckpointStorage() throws Exception {
+        return storageSupplier.get();
     }
 
     @Override
@@ -186,7 +213,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 
         keyedStateBackend =
                 RocksDBTestUtils.builderForTestDB(
-                                tempFolder
+                                TEMP_FOLDER
                                         .newFolder(), // this is not used anyways because the DB is
                                 // injected
                                 IntSerializer.INSTANCE,
@@ -271,7 +298,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
         try {
             test =
                     RocksDBTestUtils.builderForTestDB(
-                                    tempFolder.newFolder(),
+                                    TEMP_FOLDER.newFolder(),
                                     IntSerializer.INSTANCE,
                                     db,
                                     defaultCFHandle,

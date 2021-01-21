@@ -40,8 +40,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * The container for RocksDB resources, including predefined options, option factory and shared
  * resource among instances.
  *
- * <p>This should be the only entrance for {@link RocksDBStateBackend} to get RocksDB options, and
- * should be properly (and necessarily) closed to prevent resource leak.
+ * <p>This should be the only entrance for {@link EmbeddedRocksDBStateBackend} to get RocksDB
+ * options, and should be properly (and necessarily) closed to prevent resource leak.
  */
 public final class RocksDBResourceContainer implements AutoCloseable {
 

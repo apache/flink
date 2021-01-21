@@ -27,6 +27,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackendFactory;
 import org.apache.flink.util.DynamicCodeLoadingException;
@@ -65,12 +66,12 @@ public class StateBackendLoadingTest {
     }
 
     @Test
-    public void testInstantiateMemoryBackendByDefault() throws Exception {
+    public void testInstantiateHashMapStateBackendBackendByDefault() throws Exception {
         StateBackend backend =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
                         null, new Configuration(), cl, null);
 
-        assertTrue(backend instanceof MemoryStateBackend);
+        assertTrue(backend instanceof HashMapStateBackend);
     }
 
     @Test
@@ -149,8 +150,8 @@ public class StateBackendLoadingTest {
         assertNotNull(backend2);
 
         assertEquals(expectedCheckpointPath, backend1.getCheckpointPath());
-        assertEquals(expectedCheckpointPath, backend2.getCheckpointPath());
         assertEquals(expectedSavepointPath, backend1.getSavepointPath());
+        assertEquals(expectedCheckpointPath, backend2.getCheckpointPath());
         assertEquals(expectedSavepointPath, backend2.getSavepointPath());
         assertEquals(async, backend1.isUsingAsynchronousSnapshots());
         assertEquals(async, backend2.isUsingAsynchronousSnapshots());
@@ -261,19 +262,15 @@ public class StateBackendLoadingTest {
         StateBackend backend1 = StateBackendLoader.loadStateBackendFromConfig(config1, cl, null);
         StateBackend backend2 = StateBackendLoader.loadStateBackendFromConfig(config2, cl, null);
 
-        assertTrue(backend1 instanceof FsStateBackend);
+        assertTrue(backend1 instanceof HashMapStateBackend);
         assertTrue(backend2 instanceof FsStateBackend);
 
-        FsStateBackend fs1 = (FsStateBackend) backend1;
+        HashMapStateBackend fs1 = (HashMapStateBackend) backend1;
         FsStateBackend fs2 = (FsStateBackend) backend2;
 
-        assertEquals(expectedCheckpointsPath, fs1.getCheckpointPath());
         assertEquals(expectedCheckpointsPath, fs2.getCheckpointPath());
-        assertEquals(expectedSavepointsPath, fs1.getSavepointPath());
         assertEquals(expectedSavepointsPath, fs2.getSavepointPath());
-        assertEquals(threshold.getBytes(), fs1.getMinFileSizeThreshold());
         assertEquals(threshold.getBytes(), fs2.getMinFileSizeThreshold());
-        assertEquals(Math.max(threshold.getBytes(), minWriteBufferSize), fs1.getWriteBufferSize());
         assertEquals(Math.max(threshold.getBytes(), minWriteBufferSize), fs2.getWriteBufferSize());
         assertEquals(async, fs1.isUsingAsynchronousSnapshots());
         assertEquals(async, fs2.isUsingAsynchronousSnapshots());
@@ -426,29 +423,23 @@ public class StateBackendLoadingTest {
                 StateBackendLoader.fromApplicationOrConfigOrDefault(null, config2, cl, null);
 
         assertTrue(loaded1 instanceof MemoryStateBackend);
-        assertTrue(loaded2 instanceof MemoryStateBackend);
+        assertTrue(loaded2 instanceof HashMapStateBackend);
         assertTrue(loaded3 instanceof MemoryStateBackend);
 
         final MemoryStateBackend memBackend1 = (MemoryStateBackend) loaded1;
-        final MemoryStateBackend memBackend2 = (MemoryStateBackend) loaded2;
-        final MemoryStateBackend memBackend3 = (MemoryStateBackend) loaded3;
+        final MemoryStateBackend memBackend2 = (MemoryStateBackend) loaded3;
 
         assertNull(memBackend1.getSavepointPath());
-        assertNull(memBackend2.getSavepointPath());
-        assertNull(memBackend3.getSavepointPath());
 
         if (checkpointPath != null) {
             assertNotNull(memBackend1.getCheckpointPath());
             assertNotNull(memBackend2.getCheckpointPath());
-            assertNotNull(memBackend3.getCheckpointPath());
 
             assertEquals(checkpointPath, memBackend1.getCheckpointPath());
             assertEquals(checkpointPath, memBackend2.getCheckpointPath());
-            assertEquals(checkpointPath, memBackend3.getCheckpointPath());
         } else {
             assertNull(memBackend1.getCheckpointPath());
             assertNull(memBackend2.getCheckpointPath());
-            assertNull(memBackend3.getCheckpointPath());
         }
     }
 
