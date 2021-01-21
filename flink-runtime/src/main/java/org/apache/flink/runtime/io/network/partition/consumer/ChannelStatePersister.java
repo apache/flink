@@ -25,6 +25,9 @@ import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.util.CloseableIterator;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
@@ -36,7 +39,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Helper class for persisting channel state via {@link ChannelStateWriter}. */
 @NotThreadSafe
-final class ChannelStatePersister {
+public final class ChannelStatePersister {
+    private static final Logger LOG = LoggerFactory.getLogger(ChannelStatePersister.class);
+
     private final InputChannelInfo channelInfo;
 
     private enum CheckpointStatus {
@@ -61,6 +66,7 @@ final class ChannelStatePersister {
     }
 
     protected void startPersisting(long barrierId, List<Buffer> knownBuffers) {
+        logEvent("startPersisting", barrierId);
         if (checkpointStatus != CheckpointStatus.BARRIER_RECEIVED && lastSeenBarrier < barrierId) {
             checkpointStatus = CheckpointStatus.BARRIER_PENDING;
             lastSeenBarrier = barrierId;
@@ -75,6 +81,7 @@ final class ChannelStatePersister {
     }
 
     protected void stopPersisting(long id) {
+        logEvent("stopPersisting", id);
         if (id >= lastSeenBarrier) {
             checkpointStatus = CheckpointStatus.COMPLETED;
             lastSeenBarrier = id;
@@ -94,13 +101,29 @@ final class ChannelStatePersister {
     protected Optional<Long> checkForBarrier(Buffer buffer) throws IOException {
         final AbstractEvent priorityEvent = parsePriorityEvent(buffer);
         if (priorityEvent instanceof CheckpointBarrier) {
-            if (((CheckpointBarrier) priorityEvent).getId() >= lastSeenBarrier) {
+            final long barrierId = ((CheckpointBarrier) priorityEvent).getId();
+            if (barrierId >= lastSeenBarrier) {
+                logEvent("found barrier", barrierId);
                 checkpointStatus = CheckpointStatus.BARRIER_RECEIVED;
-                lastSeenBarrier = ((CheckpointBarrier) priorityEvent).getId();
+                lastSeenBarrier = barrierId;
                 return Optional.of(lastSeenBarrier);
+            } else {
+                logEvent("ignoring barrier", barrierId);
             }
         }
         return Optional.empty();
+    }
+
+    private void logEvent(String event, long barrierId) {
+        if (LOG.isDebugEnabled()) {
+            LOG.debug(
+                    "{} {}, lastSeenBarrier = {} ({}) @ {}",
+                    event,
+                    barrierId,
+                    lastSeenBarrier,
+                    checkpointStatus,
+                    channelInfo);
+        }
     }
 
     /**
@@ -123,5 +146,14 @@ final class ChannelStatePersister {
 
     protected boolean hasBarrierReceived() {
         return checkpointStatus == CheckpointStatus.BARRIER_RECEIVED;
+    }
+
+    @Override
+    public String toString() {
+        return "ChannelStatePersister(lastSeenBarrier="
+                + lastSeenBarrier
+                + " ("
+                + checkpointStatus
+                + ")}";
     }
 }

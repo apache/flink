@@ -18,51 +18,72 @@
 
 package org.apache.flink.runtime.io.network.logger;
 
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
+import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+import org.apache.flink.runtime.io.network.partition.consumer.ChannelStatePersister;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Arrays;
-
-import static org.apache.flink.util.Preconditions.checkState;
-
-/** Utility class for logging actions that happened in the network stack for debugging purposes. */
+/**
+ * Utility class for logging actions that happened in the network stack for debugging purposes.
+ *
+ * <p>Action parameter typically includes class and method names.
+ */
 public class NetworkActionsLogger {
     private static final Logger LOG = LoggerFactory.getLogger(NetworkActionsLogger.class);
-
     private static final boolean ENABLED = LOG.isTraceEnabled();
     private static final boolean INCLUDE_HASH = true;
 
-    public static void log(Class<?> clazz, String action, Buffer buffer) {
+    public static void traceInput(
+            String action,
+            Buffer buffer,
+            InputChannelInfo channelInfo,
+            ChannelStatePersister channelStatePersister,
+            int sequenceNumber) {
         if (ENABLED) {
-            LOG.trace("{}#{} buffer = [{}]", clazz.getSimpleName(), action, toPrettyString(buffer));
+            LOG.trace(
+                    "{} {}, seq {}, {} @ {}",
+                    action,
+                    buffer.toDebugString(INCLUDE_HASH),
+                    sequenceNumber,
+                    channelStatePersister,
+                    channelInfo);
         }
     }
 
-    public static void log(Class<?> clazz, String action, BufferConsumer bufferConsumer) {
+    public static void traceOutput(
+            String action, Buffer buffer, ResultSubpartitionInfo channelInfo) {
         if (ENABLED) {
-            Buffer buffer = null;
-            try (BufferConsumer copiedBufferConsumer = bufferConsumer.copy()) {
-                buffer = copiedBufferConsumer.build();
-                log(clazz, action, buffer);
-                checkState(copiedBufferConsumer.isFinished());
-            } finally {
-                if (buffer != null) {
-                    buffer.recycleBuffer();
-                }
-            }
+            LOG.trace("{} {} @ {}", action, buffer.toDebugString(INCLUDE_HASH), channelInfo);
         }
     }
 
-    private static String toPrettyString(Buffer buffer) {
-        StringBuilder prettyString = new StringBuilder("size=").append(buffer.getSize());
-        if (INCLUDE_HASH) {
-            byte[] bytes = new byte[buffer.getSize()];
-            buffer.readOnlySlice().asByteBuf().readBytes(bytes);
-            prettyString.append(", hash=").append(Arrays.hashCode(bytes));
+    public static void traceRecover(String action, Buffer buffer, InputChannelInfo channelInfo) {
+        if (ENABLED) {
+            LOG.trace("{} {} @ {}", action, buffer.toDebugString(INCLUDE_HASH), channelInfo);
         }
-        return prettyString.toString();
+    }
+
+    public static void traceRecover(
+            String action, BufferConsumer bufferConsumer, ResultSubpartitionInfo channelInfo) {
+        if (ENABLED) {
+            LOG.trace(
+                    "{} {} @ {}", action, bufferConsumer.toDebugString(INCLUDE_HASH), channelInfo);
+        }
+    }
+
+    public static void tracePersist(
+            String action, Buffer buffer, Object channelInfo, long checkpointId) {
+        if (ENABLED) {
+            LOG.trace(
+                    "{} {}, checkpoint {} @ {}",
+                    action,
+                    buffer.toDebugString(INCLUDE_HASH),
+                    checkpointId,
+                    channelInfo);
+        }
     }
 }
