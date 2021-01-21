@@ -27,6 +27,7 @@ import org.apache.flink.connectors.hive.ConsumeOrder;
 import org.apache.flink.connectors.hive.HiveTablePartition;
 import org.apache.flink.connectors.hive.HiveTableSource;
 import org.apache.flink.connectors.hive.JobConfWrapper;
+import org.apache.flink.connectors.hive.util.HiveConfUtils;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -182,8 +183,7 @@ public class HiveContinuousMonitoringFunction extends RichSourceFunction<Timesta
                                         new ListSerializer<>(
                                                 new ListSerializer<>(StringSerializer.INSTANCE))));
 
-        this.client =
-                this.hiveShim.getHiveMetastoreClient(new HiveConf(conf.conf(), HiveConf.class));
+        this.client = this.hiveShim.getHiveMetastoreClient(HiveConfUtils.create(conf.conf()));
 
         Table hiveTable = client.getTable(tablePath.getDatabaseName(), tablePath.getObjectName());
         this.tableProps = HiveReflectionUtils.getTableMetadata(hiveShim, hiveTable);
