@@ -59,7 +59,8 @@ interface ChannelStateWriteRequest {
             long checkpointId, InputChannelInfo info, CloseableIterator<Buffer> iterator) {
         return buildWriteRequest(
                 checkpointId,
-                "writeInput",
+                "ChannelStateWriteRequest#writeInput",
+                info,
                 iterator,
                 (writer, buffer) -> writer.writeInput(info, buffer));
     }
@@ -68,7 +69,8 @@ interface ChannelStateWriteRequest {
             long checkpointId, ResultSubpartitionInfo info, Buffer... buffers) {
         return buildWriteRequest(
                 checkpointId,
-                "writeOutput",
+                "ChannelStateWriteRequest#writeOutput",
+                info,
                 ofElements(Buffer::recycleBuffer, buffers),
                 (writer, buffer) -> writer.writeOutput(info, buffer));
     }
@@ -76,6 +78,7 @@ interface ChannelStateWriteRequest {
     static ChannelStateWriteRequest buildWriteRequest(
             long checkpointId,
             String name,
+            Object channelInfo,
             CloseableIterator<Buffer> iterator,
             BiConsumerWithException<ChannelStateCheckpointWriter, Buffer, Exception>
                     bufferConsumer) {
@@ -85,7 +88,7 @@ interface ChannelStateWriteRequest {
                 writer -> {
                     while (iterator.hasNext()) {
                         Buffer buffer = iterator.next();
-                        NetworkActionsLogger.log(ChannelStateWriteRequest.class, name, buffer);
+                        NetworkActionsLogger.tracePersist(name, buffer, channelInfo, checkpointId);
                         try {
                             checkArgument(buffer.isBuffer());
                         } catch (Exception e) {
