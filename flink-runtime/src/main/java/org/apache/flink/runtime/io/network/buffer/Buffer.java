@@ -27,6 +27,7 @@ import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufAllocator;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -52,7 +53,6 @@ import static org.apache.flink.util.Preconditions.checkState;
  * and {@link #setSize(int)}.
  */
 public interface Buffer {
-
     /**
      * Returns whether this buffer represents a buffer or an event.
      *
@@ -226,6 +226,16 @@ public interface Buffer {
 
     /** Sets the type of data this buffer represents. */
     void setDataType(DataType dataType);
+
+    default String toDebugString(boolean includeHash) {
+        StringBuilder prettyString = new StringBuilder("Buffer{size=").append(getSize());
+        if (includeHash) {
+            byte[] bytes = new byte[getSize()];
+            readOnlySlice().asByteBuf().readBytes(bytes);
+            prettyString.append(", hash=").append(Arrays.hashCode(bytes));
+        }
+        return prettyString.append("}").toString();
+    }
 
     /**
      * Used to identify the type of data contained in the {@link Buffer} so that we can get the
