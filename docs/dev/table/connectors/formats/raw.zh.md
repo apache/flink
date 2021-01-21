@@ -33,13 +33,7 @@ Raw format 允许读写原始（基于字节）值作为单个列。
 
 注意: 这种格式将 `null` 值编码成 `byte[]` 类型的 `null`。这样在 `upsert-kafka` 中使用时可能会有限制，因为 `upsert-kafka` 将 `null` 值视为 墓碑消息（在键上删除）。因此，如果该字段可能具有 `null` 值，我们建议避免使用 `upsert-kafka` 连接器和 `raw` format 作为 `value.format`。
 
-依赖
-------------
-
-{% assign connector = site.data.sql-connectors['raw'] %}
-{% include sql-connector-download-table.zh.html
-    connector=connector
-%}
+Raw format 连接器是内置的。
 
 示例
 ----------------

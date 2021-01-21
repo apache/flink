@@ -98,7 +98,7 @@ json:
 
 raw:
     name: RAW
-    maven: flink-raw
+    maven: 
     category: format
     built-in: true
 

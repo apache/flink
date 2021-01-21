@@ -24,7 +24,7 @@ The 'liquify' filter makes it possible to include liquid variables such as e.g. 
 {% endcomment %}
 
 {% if include.connector.versions == nil %}
-<table>
+<table class="table table-bordered">
 	<thead>
 	<tr>
 		<th style="text-align: left">Maven 依赖</th>
@@ -33,7 +33,15 @@ The 'liquify' filter makes it possible to include liquid variables such as e.g. 
 	</thead>
 	<tbody>
 	<tr>
-		<td style="text-align: left"><code class="highlighter-rouge">{{ include.connector.maven | liquify }}</code></td>
+		<td style="text-align: left">
+			<code class="highlighter-rouge">
+				&lt;dependency&gt;<br/>
+				&nbsp;&nbsp;&lt;groupId&gt;org.apache.flink&lt;/groupId&gt;<br/>
+				&nbsp;&nbsp;&lt;artifactId&gt;{{ include.connector.maven | liquify }}&lt;/artifactId&gt;<br/>
+				&nbsp;&nbsp;&lt;version&gt;{{site.version}}&lt;/version&gt;<br/>
+				&lt;/dependency&gt;
+			</code>
+		</td>
 		{% if include.connector.built-in %}
 		<td style="text-align: left">Built-in</td>
 		{% elsif site.is_stable %}
@@ -49,7 +57,7 @@ The 'liquify' filter makes it possible to include liquid variables such as e.g. 
 	</tbody>
 </table>
 {% else %}
-<table>
+<table class="table table-bordered">
 	<thead>
 	<tr>
 		<th style="text-align: left">{{ include.connector.name }} 版本</th>
@@ -61,7 +69,15 @@ The 'liquify' filter makes it possible to include liquid variables such as e.g. 
 	{% for version in include.connector.versions %}
 	<tr>
 		<td style="text-align: left">{{ version.version | liquify }}</td>
-		<td style="text-align: left"><code class="highlighter-rouge">{{ version.maven | liquify }}</code></td>
+		<td style="text-align: left">
+			<code class="highlighter-rouge">
+				&lt;dependency&gt;<br/>
+				&nbsp;&nbsp;&lt;groupId&gt;org.apache.flink&lt;/groupId&gt;<br/>
+				&nbsp;&nbsp;&lt;artifactId&gt;{{ include.connector.maven | liquify }}&lt;/artifactId&gt;<br/>
+				&nbsp;&nbsp;&lt;version&gt;{{site.version}}&lt;/version&gt;<br/>
+				&lt;/dependency&gt;
+			</code>
+		</td>
 		{% if include.connector.built-in %}
 		<td style="text-align: left">内置</td>
 		{% elsif include.connector.no-sql-jar %}
