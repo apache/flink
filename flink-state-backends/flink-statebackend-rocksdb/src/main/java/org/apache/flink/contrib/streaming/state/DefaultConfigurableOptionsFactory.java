@@ -55,7 +55,7 @@ import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOption
 /**
  * An implementation of {@link ConfigurableRocksDBOptionsFactory} using options provided by {@link
  * RocksDBConfigurableOptions}. It acts as the default options factory within {@link
- * RocksDBStateBackend} if the user did not define a {@link RocksDBOptionsFactory}.
+ * EmbeddedRocksDBStateBackend} if the user did not define a {@link RocksDBOptionsFactory}.
  */
 public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOptionsFactory {
 

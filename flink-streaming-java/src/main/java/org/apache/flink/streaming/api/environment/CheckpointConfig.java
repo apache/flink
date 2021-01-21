@@ -25,6 +25,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.util.Preconditions;
@@ -592,8 +593,21 @@ public class CheckpointConfig implements java.io.Serializable {
     }
 
     /**
-     * Sets the {@link CheckpointStorage} object for the job. This will be used to persist all
-     * checkpoint snapshots.
+     * CheckpointStorage defines how {@link StateBackend}'s checkpoint their state for fault
+     * tolerance in streaming applications. Various implementations store their checkpoints in
+     * different fashions and have different requirements and availability guarantees.
+     *
+     * <p>For example, {@link org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage
+     * JobManagerCheckpointStorage} stores checkpoints in the memory of the JobManager. It is
+     * lightweight and without additional dependencies but is not highly available and only supports
+     * small state sizes. This checkpoint storage policy is convenient for local testing and
+     * development.
+     *
+     * <p>{@link org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage
+     * FileSystemCheckpointStorage} stores checkpoints in a filesystem. For systems like HDFS, NFS
+     * Drives, S3, and GCS, this storage policy supports large state size, in the magnitude of many
+     * terabytes while providing a highly available foundation for stateful applications. This
+     * checkpoint storage policy is recommended for most production deployments.
      *
      * @param storage The checkpoint storage policy.
      */
@@ -608,6 +622,7 @@ public class CheckpointConfig implements java.io.Serializable {
      * {@link FileSystemCheckpointStorage} for more details on checkpointing to a file system.
      *
      * @param checkpointDirectory The path to write checkpoint metadata to.
+     * @see #setCheckpointStorage(CheckpointStorage)
      */
     @PublicEvolving
     public void setCheckpointStorage(String checkpointDirectory) {
@@ -620,6 +635,7 @@ public class CheckpointConfig implements java.io.Serializable {
      * {@link FileSystemCheckpointStorage} for more details on checkpointing to a file system.
      *
      * @param checkpointDirectory The path to write checkpoint metadata to.
+     * @see #setCheckpointStorage(CheckpointStorage)
      */
     @PublicEvolving
     public void setCheckpointStorage(URI checkpointDirectory) {
@@ -632,6 +648,7 @@ public class CheckpointConfig implements java.io.Serializable {
      * {@link FileSystemCheckpointStorage} for more details on checkpointing to a file system.
      *
      * @param checkpointDirectory The path to write checkpoint metadata to.
+     * @see #setCheckpointStorage(String)
      */
     @PublicEvolving
     public void setCheckpointStorage(Path checkpointDirectory) {
@@ -642,6 +659,7 @@ public class CheckpointConfig implements java.io.Serializable {
     /**
      * @return The {@link CheckpointStorage} that has been configured for the job. Or {@code null}
      *     if none has been set.
+     * @see #setCheckpointStorage(CheckpointStorage)
      */
     @Nullable
     @PublicEvolving

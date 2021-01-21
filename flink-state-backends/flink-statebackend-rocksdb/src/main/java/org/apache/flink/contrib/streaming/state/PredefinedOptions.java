@@ -29,9 +29,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 
 /**
- * The {@code PredefinedOptions} are configuration settings for the {@link RocksDBStateBackend}. The
- * various pre-defined choices are configurations that have been empirically determined to be
- * beneficial for performance under different settings.
+ * The {@code PredefinedOptions} are configuration settings for the {@link
+ * EmbeddedRocksDBStateBackend}. The various pre-defined choices are configurations that have been
+ * empirically determined to be beneficial for performance under different settings.
  *
  * <p>Some of these settings are based on experiments by the Flink community, some follow guides
  * from the RocksDB project.

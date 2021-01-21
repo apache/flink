@@ -54,7 +54,29 @@ import java.util.Collection;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
- * This state backend holds the working state in the memory (JVM heap) of the TaskManagers. The
+ * <b>IMPORTANT</b> {@link MemoryStateBackend} is deprecated in favor of {@link
+ * org.apache.flink.runtime.state.hashmap.HashMapStateBackend} and {@link
+ * org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage}. This change does not affect
+ * the runtime characteristics of your Jobs and is simply an API change to help better communicate
+ * the ways Flink separates local state storage from fault tolerance. Jobs can be upgraded without
+ * loss of state. If configuring your state backend via the {@code StreamExecutionEnvironment}
+ * please make the following changes.
+ *
+ * <pre>{@code
+ * 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+ * 		env.setStateBackend(new HashMapStateBackend());
+ * 		env.getCheckpointConfig().setCheckpointStorage(new JobManagerCheckpointStorage());
+ * }</pre>
+ *
+ * <p>If you are configuring your state backend via the {@code flink-conf.yaml} please make the
+ * following changes:
+ *
+ * <pre>{@code
+ * state.backend: hashmap
+ * state.checkpoint-storage: jobmanager
+ * }</pre>
+ *
+ * <p>This state backend holds the working state in the memory (JVM heap) of the TaskManagers. The
  * state backend checkpoints state directly to the JobManager's memory (hence the backend's name),
  * but the checkpoints will be persisted to a file system for high-availability setups and
  * savepoints. The MemoryStateBackend is consequently a FileSystem-based backend that can work
@@ -101,6 +123,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * specified in the Flink configuration of the running job/cluster. That behavior is implemented via
  * the {@link #configure(ReadableConfig, ClassLoader)} method.
  */
+@Deprecated
 @PublicEvolving
 public class MemoryStateBackend extends AbstractFileStateBackend
         implements ConfigurableStateBackend {

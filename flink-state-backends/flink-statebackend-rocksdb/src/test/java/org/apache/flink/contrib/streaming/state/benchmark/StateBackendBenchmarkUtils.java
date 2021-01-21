@@ -29,10 +29,10 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackendBuilder;
 import org.apache.flink.contrib.streaming.state.RocksDBResourceContainer;
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
@@ -120,7 +120,7 @@ public class StateBackendBenchmarkUtils {
                                 false,
                                 new LocalRecoveryDirectoryProviderImpl(
                                         recoveryBaseDir, new JobID(), new JobVertexID(), 0)),
-                        RocksDBStateBackend.PriorityQueueStateType.ROCKSDB,
+                        EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB,
                         TtlTimeProvider.DEFAULT,
                         new UnregisteredMetricsGroup(),
                         Collections.emptyList(),

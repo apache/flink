@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 
 import org.junit.Rule;
@@ -36,6 +37,12 @@ public class HeapKeyedStateBackendAsyncByDefaultTest {
     @Test
     public void testConfigOptionDefaultsToAsync() {
         assertTrue(CheckpointingOptions.ASYNC_SNAPSHOTS.defaultValue());
+    }
+
+    @Test
+    public void testHashMapStateBackendDefaultToAsync() {
+        HashMapStateBackend backend = new HashMapStateBackend();
+        assertTrue(backend.isUsingAsynchronousSnapshots());
     }
 
     @Test

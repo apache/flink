@@ -66,7 +66,12 @@ import java.net.URI;
  *
  * <p>A completed checkpoint writes its metadata into a file '{@value
  * AbstractFsCheckpointStorageAccess#METADATA_FILE_NAME}'.
+ *
+ * @deprecated State backends should no longer implement {@link CheckpointStorage} functionality.
+ *     Please inherit {@link AbstractStateBackend} instead. Custom checkpoint storage can be
+ *     additionally implemented as a separate class.
  */
+@Deprecated
 @PublicEvolving
 public abstract class AbstractFileStateBackend extends AbstractStateBackend
         implements CheckpointStorage {
