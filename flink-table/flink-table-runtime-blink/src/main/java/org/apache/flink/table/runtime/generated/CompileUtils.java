@@ -62,7 +62,9 @@ public final class CompileUtils {
         try {
             Cache<ClassLoader, Class> compiledClasses =
                     COMPILED_CACHE.get(
-                            name,
+                            // "code" as a key should be sufficient as the class name
+                            // is part of the Java code
+                            code,
                             () ->
                                     CacheBuilder.newBuilder()
                                             .maximumSize(5)
