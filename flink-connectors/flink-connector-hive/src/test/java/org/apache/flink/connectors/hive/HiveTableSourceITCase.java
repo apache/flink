@@ -483,10 +483,11 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
             int expected, Table table, TableEnvironment tEnv) {
         PlannerBase planner = (PlannerBase) ((TableEnvironmentImpl) tEnv).getPlanner();
         RelNode relNode = planner.optimize(TableTestUtil.toRelNode(table));
-        ExecNode execNode =
-                planner.translateToExecNodePlan(toScala(Collections.singletonList(relNode))).get(0);
-        @SuppressWarnings("unchecked")
-        Transformation transformation = execNode.translateToPlan(planner);
+        ExecNode<?> execNode =
+                planner.translateToExecNodeGraph(toScala(Collections.singletonList(relNode)))
+                        .getRootNodes()
+                        .get(0);
+        Transformation<?> transformation = execNode.translateToPlan(planner);
         Assert.assertEquals(expected, transformation.getParallelism());
     }
 
@@ -518,7 +519,9 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         PlannerBase planner = (PlannerBase) ((TableEnvironmentImpl) tEnv).getPlanner();
         RelNode relNode = planner.optimize(TableTestUtil.toRelNode(table));
         ExecNode<?> execNode =
-                planner.translateToExecNodePlan(toScala(Collections.singletonList(relNode))).get(0);
+                planner.translateToExecNodeGraph(toScala(Collections.singletonList(relNode)))
+                        .getRootNodes()
+                        .get(0);
         Transformation<?> transformation =
                 (execNode.translateToPlan(planner).getInputs().get(0)).getInputs().get(0);
         Assert.assertEquals(1, transformation.getParallelism());

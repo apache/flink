@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.processor.{DAGProcessContext, DAGProcessor, DeadlockBreakupProcessor, MultipleInputNodeCreationProcessor}
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, LegacyBatchExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNodeGraph, LegacyBatchExecNode}
 import org.apache.flink.table.planner.plan.optimize.{BatchCommonSubGraphBasedOptimizer, Optimizer}
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.sinks.{BatchSelectTableSink, SelectTableSinkBase}
@@ -60,9 +60,9 @@ class BatchPlanner(
 
   override protected def getOptimizer: Optimizer = new BatchCommonSubGraphBasedOptimizer(this)
 
-  override private[flink] def translateToExecNodePlan(
-      optimizedRelNodes: Seq[RelNode]): util.List[ExecNode[_]] = {
-    val execNodePlan = super.translateToExecNodePlan(optimizedRelNodes)
+  override private[flink] def translateToExecNodeGraph(
+      optimizedRelNodes: Seq[RelNode]): ExecNodeGraph = {
+    val execGraph = super.translateToExecNodeGraph(optimizedRelNodes)
     val context = new DAGProcessContext(this)
 
     val processors = new util.ArrayList[DAGProcessor]()
@@ -74,16 +74,14 @@ class BatchPlanner(
       processors.add(new MultipleInputNodeCreationProcessor(false))
     }
 
-    processors.foldLeft(execNodePlan)(
-      (sinkNodes, processor) => processor.process(sinkNodes, context))
+    processors.foldLeft(execGraph)((graph, processor) => processor.process(graph, context))
   }
 
-  override protected def translateToPlan(
-      execNodes: util.List[ExecNode[_]]): util.List[Transformation[_]] = {
+  override protected def translateToPlan(execGraph: ExecNodeGraph): util.List[Transformation[_]] = {
     val planner = createDummyPlanner()
     planner.overrideEnvParallelism()
 
-    execNodes.map {
+    execGraph.getRootNodes.map {
       case legacyNode: LegacyBatchExecNode[_] => legacyNode.translateToPlan(planner)
       case node: BatchExecNode[_] => node.translateToPlan(planner)
       case _ =>
@@ -120,9 +118,9 @@ class BatchPlanner(
       case o => throw new TableException(s"Unsupported operation: ${o.getClass.getCanonicalName}")
     }
     val optimizedRelNodes = optimize(sinkRelNodes)
-    val execNodes = translateToExecNodePlan(optimizedRelNodes)
+    val execGraph = translateToExecNodeGraph(optimizedRelNodes)
 
-    val transformations = translateToPlan(execNodes)
+    val transformations = translateToPlan(execGraph)
 
     val execEnv = getExecEnv
     ExecutorUtils.setBatchProperties(execEnv)
@@ -151,7 +149,7 @@ class BatchPlanner(
 
     sb.append("== Optimized Execution Plan ==")
     sb.append(System.lineSeparator)
-    sb.append(ExecNodePlanDumper.dagToString(execNodes))
+    sb.append(ExecNodePlanDumper.dagToString(execGraph))
 
     if (extraDetails.contains(ExplainDetail.JSON_EXECUTION_PLAN)) {
       sb.append(System.lineSeparator)
