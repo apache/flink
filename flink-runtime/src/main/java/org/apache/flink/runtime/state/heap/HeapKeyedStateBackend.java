@@ -423,11 +423,6 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         return sum;
     }
 
-    @Override
-    public boolean supportsAsynchronousSnapshots() {
-        return snapshotStrategy.isAsynchronous();
-    }
-
     @VisibleForTesting
     public LocalRecoveryConfig getLocalRecoveryConfig() {
         return localRecoveryConfig;

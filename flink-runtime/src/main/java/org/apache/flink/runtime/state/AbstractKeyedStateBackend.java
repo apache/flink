@@ -331,11 +331,6 @@ public abstract class AbstractKeyedStateBackend<K>
     }
 
     @VisibleForTesting
-    public boolean supportsAsynchronousSnapshots() {
-        return false;
-    }
-
-    @VisibleForTesting
     public StreamCompressionDecorator getKeyGroupCompressionDecorator() {
         return keyGroupCompressionDecorator;
     }
