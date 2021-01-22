@@ -890,7 +890,7 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
         TableResult tableResult =
                 tEnv.executeSql(
                         "INSERT INTO MySink\n"
-                                + "SELECT `partition_id` as `id`, COUNT(`value`) as cnt\n"
+                                + "SELECT `partition_id` as `id`, COUNT(`value`) as `cnt`\n"
                                 + "FROM kafka\n"
                                 + "GROUP BY `partition_id`, TUMBLE(`timestamp`, INTERVAL '1' HOUR) ");
 
