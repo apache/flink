@@ -22,7 +22,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecCorrelate;
-import org.apache.flink.table.runtime.operators.AbstractProcessStreamOperator;
+import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -47,7 +47,7 @@ public class StreamExecCorrelate extends CommonExecCorrelate implements StreamEx
                 joinType,
                 invocation,
                 condition,
-                AbstractProcessStreamOperator.class,
+                TableStreamOperator.class,
                 true,
                 inputEdge,
                 outputType,

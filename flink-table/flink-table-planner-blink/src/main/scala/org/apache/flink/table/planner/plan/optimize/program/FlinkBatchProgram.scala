@@ -32,6 +32,7 @@ object FlinkBatchProgram {
   val SUBQUERY_REWRITE = "subquery_rewrite"
   val TEMPORAL_JOIN_REWRITE = "temporal_join_rewrite"
   val DECORRELATE = "decorrelate"
+  val TIME_INDICATOR = "time_indicator"
   val DEFAULT_REWRITE = "default_rewrite"
   val PREDICATE_PUSHDOWN = "predicate_pushdown"
   val JOIN_REORDER = "join_reorder"
@@ -95,6 +96,9 @@ object FlinkBatchProgram {
 
     // query decorrelation
     chainedProgram.addLast(DECORRELATE, new FlinkDecorrelateProgram)
+
+    // convert time indicators
+    chainedProgram.addLast(TIME_INDICATOR, new FlinkRelTimeIndicatorProgram)
 
     // default rewrite, includes: predicate simplification, expression reduction, etc.
     chainedProgram.addLast(

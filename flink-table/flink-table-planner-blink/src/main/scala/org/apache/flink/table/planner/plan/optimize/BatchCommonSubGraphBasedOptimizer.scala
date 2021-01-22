@@ -29,6 +29,7 @@ import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rex.RexBuilder
 
 import java.util.Collections
 
@@ -92,6 +93,10 @@ class BatchCommonSubGraphBasedOptimizer(planner: BatchPlanner)
 
       override def getSqlExprToRexConverterFactory: SqlExprToRexConverterFactory =
         context.getSqlExprToRexConverterFactory
+
+      override def getRexBuilder: RexBuilder = planner.getRelBuilder.getRexBuilder
+
+      override def needFinalTimeIndicatorConversion: Boolean = true
     })
   }
 

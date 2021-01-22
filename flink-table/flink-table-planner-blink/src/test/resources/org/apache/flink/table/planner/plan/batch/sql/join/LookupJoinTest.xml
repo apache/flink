@@ -125,9 +125,10 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4], name=[$5], age=[$
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, id, name, age])
-+- Calc(select=[a, b, c, PROCTIME() AS proctime])
-   +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, id, name, age])
+   +- Calc(select=[a, b, c, PROCTIME() AS proctime])
+      +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -148,9 +149,10 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4], name=[$5], age=[$
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, id, name, age])
-+- Calc(select=[a, b, c, PROCTIME() AS proctime])
-   +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, id, name, age])
+   +- Calc(select=[a, b, c, PROCTIME() AS proctime])
+      +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -237,7 +239,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4], name=[$5], age=[$
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, c, proctime, id, name, CAST(10) AS age])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, CAST(10) AS age])
 +- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[age=10, id=a], where=[(age = 10)], select=[a, b, c, proctime, id, name])
    +- Calc(select=[a, b, c, PROCTIME() AS proctime], where=[(c > 1000)])
       +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
@@ -267,7 +269,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4], name=[$5], age=[$
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, c, proctime, id, name, CAST(10) AS age])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, CAST(10) AS age])
 +- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[age=10, id=a], where=[(age = 10)], select=[a, b, c, proctime, id, name])
    +- Calc(select=[a, b, c, PROCTIME() AS proctime], where=[(c > 1000)])
       +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
@@ -293,9 +295,10 @@ LogicalProject(a=[$0], b=[$1], proctime=[$2], id=[$3], name=[$4], age=[$5])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, proctime, id, name, age])
-+- Calc(select=[a, b, PROCTIME() AS proctime], where=[(c > 1000)])
-   +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
+Calc(select=[a, b, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, proctime, id, name, age])
+   +- Calc(select=[a, b, PROCTIME() AS proctime], where=[(c > 1000)])
+      +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -318,9 +321,10 @@ LogicalProject(a=[$0], b=[$1], proctime=[$2], id=[$3], name=[$4], age=[$5])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, proctime, id, name, age])
-+- Calc(select=[a, b, PROCTIME() AS proctime], where=[(c > 1000)])
-   +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
+Calc(select=[a, b, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, proctime, id, name, age])
+   +- Calc(select=[a, b, PROCTIME() AS proctime], where=[(c > 1000)])
+      +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -346,9 +350,10 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, id])
-+- Calc(select=[a, b, c, PROCTIME() AS proctime])
-   +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, id])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, id])
+   +- Calc(select=[a, b, c, PROCTIME() AS proctime])
+      +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -369,9 +374,10 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4], name=[$5], age=[$
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[LeftOuterJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, id, name, age])
-+- Calc(select=[a, b, c, PROCTIME() AS proctime])
-   +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[LeftOuterJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, id, name, age])
+   +- Calc(select=[a, b, c, PROCTIME() AS proctime])
+      +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -397,9 +403,10 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, id])
-+- Calc(select=[a, b, c, PROCTIME() AS proctime])
-   +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, id])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, id])
+   +- Calc(select=[a, b, c, PROCTIME() AS proctime])
+      +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -425,9 +432,10 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4], name=[$5], age=[$
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[], select=[a, b, c, proctime, id, name, age])
-+- Calc(select=[a, b, c, PROCTIME() AS proctime], where=[(c > 1000)])
-   +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[], select=[a, b, c, proctime, id, name, age])
+   +- Calc(select=[a, b, c, PROCTIME() AS proctime], where=[(c > 1000)])
+      +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -448,9 +456,10 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4], name=[$5], age=[$
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[LeftOuterJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, id, name, age])
-+- Calc(select=[a, b, c, PROCTIME() AS proctime])
-   +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[LeftOuterJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, id, name, age])
+   +- Calc(select=[a, b, c, PROCTIME() AS proctime])
+      +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -521,9 +530,10 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4], name=[$5], age=[$
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[], select=[a, b, c, proctime, id, name, age])
-+- Calc(select=[a, b, c, PROCTIME() AS proctime], where=[(c > 1000)])
-   +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[], select=[a, b, c, proctime, id, name, age])
+   +- Calc(select=[a, b, c, PROCTIME() AS proctime], where=[(c > 1000)])
+      +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
