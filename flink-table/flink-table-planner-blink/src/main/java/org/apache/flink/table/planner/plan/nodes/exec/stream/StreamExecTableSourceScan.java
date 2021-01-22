@@ -25,19 +25,34 @@ import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecTableSourceScan;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Stream {@link ExecNode} to read data from an external source defined by a {@link
  * ScanTableSource}.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class StreamExecTableSourceScan extends CommonExecTableSourceScan
         implements StreamExecNode<RowData> {
 
     public StreamExecTableSourceScan(
-            ScanTableSource tableSource, RowType outputType, String description) {
-        super(tableSource, outputType, description);
+            DynamicTableSourceSpec tableSourceSpec, RowType outputType, String description) {
+        super(tableSourceSpec, getNewNodeId(), outputType, description);
+    }
+
+    @JsonCreator
+    public StreamExecTableSourceScan(
+            @JsonProperty(FIELD_NAME_SCAN_TABLE_SOURCE) DynamicTableSourceSpec tableSourceSpec,
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(tableSourceSpec, id, outputType, description);
     }
 
     @Override
