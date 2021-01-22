@@ -372,6 +372,35 @@ public class AnalysisCommitPolicy implements PartitionCommitPolicy {
 
 ```
 
+### Sink Parallelism
+
+The parallelism of writing files into external file system can be configured by the corresponding table option. By default, the parallelism is configured to being the same as the parallelism of its last upstream chained operator.
+
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+        <th class="text-left" style="width: 20%">Key</th>
+        <th class="text-left" style="width: 15%">Default</th>
+        <th class="text-left" style="width: 10%">Type</th>
+        <th class="text-left" style="width: 55%">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+        <td><h5>sink.parallelism</h5></td>
+        <td style="word-wrap: break-word;">(none)</td>
+        <td>Integer</td>
+        <td>Parallelism of writing files into external file system. The value should greater than zero otherwise exception will be thrown.</td>
+    </tr>
+    
+  </tbody>
+</table>
+
+
+</div>
+</div>
+
 ## Full Example
 
 The below shows how the file system connector can be used to write a streaming query to write data from Kafka into a file system and runs a batch query to read that data back out.

@@ -20,6 +20,7 @@ package org.apache.flink.table.filesystem;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.table.factories.FactoryUtil;
 
 import java.time.Duration;
 
@@ -236,4 +237,6 @@ public class FileSystemOptions {
                     .noDefaultValue()
                     .withDescription(
                             "The compaction target file size, the default value is the rolling file size.");
+
+    public static final ConfigOption<Integer> SINK_PARALLELISM = FactoryUtil.SINK_PARALLELISM;
 }

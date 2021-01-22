@@ -250,7 +250,8 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                         conf.get(SINK_ROLLING_POLICY_ROLLOVER_INTERVAL).toMillis());
 
         boolean autoCompaction = conf.getBoolean(FileSystemOptions.AUTO_COMPACTION);
-
+        //todo hive set parallelism
+        int parallelism = dataStream.getParallelism();
         if (autoCompaction) {
             fileNamingBuilder.withPartPrefix(
                     convertToUncompacted(fileNamingBuilder.build().getPartPrefix()));
@@ -304,9 +305,10 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                             fsFactory(),
                             path,
                             createCompactReaderFactory(sd, tableProps),
-                            compactionSize);
+                            compactionSize,
+                            parallelism);
         } else {
-            writerStream = StreamingSink.writer(dataStream, bucketCheckInterval, builder);
+            writerStream = StreamingSink.writer(dataStream, bucketCheckInterval, builder, parallelism);
         }
 
         return StreamingSink.sink(
