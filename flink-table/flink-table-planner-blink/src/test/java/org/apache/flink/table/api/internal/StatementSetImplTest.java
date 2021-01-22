@@ -20,19 +20,19 @@ package org.apache.flink.table.api.internal;
 
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.planner.utils.TableTestUtil;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
+
+import java.io.IOException;
+
+import static org.junit.Assert.assertEquals;
 
 /** Test for {@link StatementSetImpl}. */
 public class StatementSetImplTest {
 
-    @Rule public ExpectedException exception = ExpectedException.none();
-
-    private TableEnvironmentInternal tableEnv;
+    TableEnvironmentInternal tableEnv;
 
     @Before
     public void setup() {
@@ -42,10 +42,7 @@ public class StatementSetImplTest {
     }
 
     @Test
-    public void testGetJsonPlan() {
-        exception.expect(TableException.class);
-        exception.expectMessage("To be implemented");
-
+    public void testGetJsonPlan() throws IOException {
         String srcTableDdl =
                 "CREATE TABLE MyTable (\n"
                         + "  a bigint,\n"
@@ -68,6 +65,12 @@ public class StatementSetImplTest {
 
         StatementSetImpl stmtSet = (StatementSetImpl) tableEnv.createStatementSet();
         stmtSet.addInsertSql("INSERT INTO MySink SELECT * FROM MyTable");
-        stmtSet.getJsonPlan();
+        String jsonPlan = stmtSet.getJsonPlan();
+        String actual = TableTestUtil.readFromResource("/jsonplan/testGetJsonPlan.out");
+        assertEquals(
+                TableTestUtil.replaceExecNodeId(
+                        TableTestUtil.replaceFlinkVersion(
+                                TableTestUtil.getFormattedJson(jsonPlan))),
+                TableTestUtil.replaceExecNodeId(TableTestUtil.getFormattedJson(actual)));
     }
 }
