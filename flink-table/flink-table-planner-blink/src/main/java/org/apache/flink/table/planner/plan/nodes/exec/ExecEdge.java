@@ -22,6 +22,7 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.delegation.Planner;
+import org.apache.flink.table.planner.plan.nodes.exec.serde.ExecNodeGraphJsonPlanGenerator.JsonPlanEdge;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import java.util.Arrays;
@@ -29,7 +30,14 @@ import java.util.Arrays;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/** The representation of an edge connecting two {@link ExecNode}. */
+/**
+ * The representation of an edge connecting two {@link ExecNode}s.
+ *
+ * <p>The edge's json serialization/deserialization will be delegated to {@link JsonPlanEdge}, which
+ * only stores the {@link ExecNode}'s id instead of instance.
+ *
+ * <p>{@link JsonPlanEdge} should also be updated with this class if the fields are added/removed.
+ */
 public class ExecEdge {
     /** The source node of this edge. */
     private final ExecNode<?> source;
@@ -153,7 +161,7 @@ public class ExecEdge {
         }
     }
 
-    /** The shuffle for records when passing this edge. */
+    /** The {@link Shuffle} defines how to exchange the records between {@link ExecNode}s. */
     public abstract static class Shuffle {
         private final Type type;
 
@@ -175,21 +183,21 @@ public class ExecEdge {
             /** Any type of shuffle is OK when passing through this edge. */
             ANY,
 
-            /** Records are shuffle by hash when passing through this edge. */
+            /** Records are shuffled by hash when passing through this edge. */
             HASH,
 
             /** Full records are provided for each parallelism of the target node. */
             BROADCAST,
 
-            /** The parallelism of the target node must be 1. */
+            /** Records are shuffled to one node, the parallelism of the target node must be 1. */
             SINGLETON,
 
-            /** Records are shuffled in same parallelism (function call). */
+            /** Records are shuffled in same parallelism (the shuffle behavior is function call). */
             FORWARD
         }
     }
 
-    /** Records are shuffle by hash when passing through this edge. */
+    /** Records are shuffled by hash when passing through this edge. */
     public static class HashShuffle extends Shuffle {
         private final int[] keys;
 

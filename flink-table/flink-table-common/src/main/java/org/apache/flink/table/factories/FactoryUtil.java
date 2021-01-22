@@ -626,7 +626,7 @@ public final class FactoryUtil {
         }
     }
 
-    /** Default implemention of {@link DynamicTableFactory.Context}. */
+    /** Default implementation of {@link DynamicTableFactory.Context}. */
     public static class DefaultDynamicTableContext implements DynamicTableFactory.Context {
 
         private final ObjectIdentifier objectIdentifier;
