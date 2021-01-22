@@ -1151,7 +1151,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         final CheckpointStorage fromApplication =
                 configuration.getCheckpointStorage(getUserCodeClassLoader());
 
-        return CheckpointStorageLoader.fromApplicationOrConfigOrDefault(
+        return CheckpointStorageLoader.load(
                 fromApplication,
                 backend,
                 getEnvironment().getTaskManagerInfo().getConfiguration(),
