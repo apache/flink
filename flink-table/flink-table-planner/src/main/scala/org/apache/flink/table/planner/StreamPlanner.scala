@@ -351,4 +351,19 @@ class StreamPlanner(
     val executor = new StreamExecutor(dummyExecEnv)
     new StreamPlanner(executor, config, functionCatalog, catalogManager)
   }
+
+  override def getJsonPlan(modifyOperations: util.List[ModifyOperation]): String = {
+    throw new TableException(
+      "This method is not supported for legacy planner, please use Blink planner.")
+  }
+
+  override def explainJsonPlan(jsonPlan: String, extraDetails: ExplainDetail*): String = {
+    throw new TableException(
+      "This method is not supported for legacy planner, please use Blink planner.")
+  }
+
+  override def translateJsonPlan(jsonPlan: String): util.List[Transformation[_]] = {
+    throw new TableException(
+      "This method is not supported for legacy planner, please use Blink planner.")
+  }
 }

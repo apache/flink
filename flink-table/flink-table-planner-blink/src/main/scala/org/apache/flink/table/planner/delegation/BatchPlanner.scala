@@ -166,4 +166,7 @@ class BatchPlanner(
     new BatchPlanner(executor, config, functionCatalog, catalogManager)
   }
 
+  override def explainJsonPlan(jsonPlan: String, extraDetails: ExplainDetail*): String = {
+    throw new TableException("This method is not supported for batch planner now.")
+  }
 }

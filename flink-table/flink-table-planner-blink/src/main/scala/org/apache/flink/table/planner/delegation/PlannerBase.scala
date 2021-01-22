@@ -36,7 +36,7 @@ import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
 import org.apache.flink.table.planner.expressions.PlannerTypeInferenceUtilImpl
 import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalLegacySink
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, ExecNodeGraph, ExecNodeGraphGenerator}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNodeGraph, ExecNodeGraphGenerator}
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.optimize.Optimizer
 import org.apache.flink.table.planner.plan.reuse.SubplanReuser
@@ -413,4 +413,13 @@ abstract class PlannerBase(
       }
     }
   }
+
+  override def getJsonPlan(modifyOperations: util.List[ModifyOperation]): String = {
+    throw new TableException("To be implemented")
+  }
+
+  override def translateJsonPlan(jsonPlan: String): util.List[Transformation[_]] = {
+    throw new TableException("To be implemented")
+  }
+
 }
