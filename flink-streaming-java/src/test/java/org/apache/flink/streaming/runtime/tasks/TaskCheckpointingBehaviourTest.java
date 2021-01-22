@@ -365,8 +365,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
                                     "Failing strategy",
                                     FAILING_STRATEGY,
                                     registryForStateBackend,
-                                    SnapshotStrategyRunner.ExecutionType.ASYNCHRONOUS
-                            ));
+                                    SnapshotStrategyRunner.ExecutionType.ASYNCHRONOUS));
                 }
             }.build();
         }
