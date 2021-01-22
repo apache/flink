@@ -243,32 +243,37 @@ public class RocksFullSnapshotStrategy<K>
                 @Nonnull KeyGroupRangeOffsets keyGroupRangeOffsets)
                 throws IOException, InterruptedException {
 
-            final List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators =
-                    new ArrayList<>(metaData.size());
             final DataOutputView outputView =
                     new DataOutputViewStreamWrapper(
                             checkpointStreamWithResultProvider.getCheckpointOutputStream());
+
+            writeKVStateMetaData(outputView);
+
+            List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators = null;
             final ReadOptions readOptions = new ReadOptions();
+
             try {
                 readOptions.setSnapshot(snapshot);
-                writeKVStateMetaData(kvStateIterators, readOptions, outputView);
+                kvStateIterators = createKVStateIterators(readOptions);
+
                 writeKVStateData(
                         kvStateIterators, checkpointStreamWithResultProvider, keyGroupRangeOffsets);
             } finally {
 
-                for (Tuple2<RocksIteratorWrapper, Integer> kvStateIterator : kvStateIterators) {
-                    IOUtils.closeQuietly(kvStateIterator.f0);
+                if (kvStateIterators != null) {
+                    for (Tuple2<RocksIteratorWrapper, Integer> kvStateIterator : kvStateIterators) {
+                        IOUtils.closeQuietly(kvStateIterator.f0);
+                    }
                 }
 
                 IOUtils.closeQuietly(readOptions);
             }
         }
 
-        private void writeKVStateMetaData(
-                final List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators,
-                final ReadOptions readOptions,
-                final DataOutputView outputView)
-                throws IOException {
+        private List<Tuple2<RocksIteratorWrapper, Integer>> createKVStateIterators(
+                ReadOptions readOptions) {
+            final List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators =
+                    new ArrayList<>(metaData.size());
 
             int kvStateId = 0;
 
@@ -282,6 +287,11 @@ public class RocksFullSnapshotStrategy<K>
                 kvStateIterators.add(Tuple2.of(rocksIteratorWrapper, kvStateId));
                 ++kvStateId;
             }
+
+            return kvStateIterators;
+        }
+
+        private void writeKVStateMetaData(final DataOutputView outputView) throws IOException {
 
             KeyedBackendSerializationProxy<K> serializationProxy =
                     new KeyedBackendSerializationProxy<>(
