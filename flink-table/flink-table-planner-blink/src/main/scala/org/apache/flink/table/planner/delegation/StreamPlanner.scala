@@ -147,4 +147,8 @@ class StreamPlanner(
     val executor = new StreamExecutor(dummyExecEnv)
     new StreamPlanner(executor, config, functionCatalog, catalogManager)
   }
+
+  override def explainJsonPlan(jsonPlan: String, extraDetails: ExplainDetail*): String = {
+    throw new TableException("To be implemented")
+  }
 }
