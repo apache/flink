@@ -29,7 +29,7 @@ import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
-import org.junit.{Ignore, Rule, Test}
+import org.junit.{Rule, Test}
 
 import java.sql.Timestamp
 import java.time.LocalDateTime
