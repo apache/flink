@@ -61,6 +61,7 @@ import static java.lang.String.format;
 public final class CanalJsonDeserializationSchema implements DeserializationSchema<RowData> {
     private static final long serialVersionUID = 1L;
 
+    private static final String FIELD_OLD = "old";
     private static final String OP_INSERT = "INSERT";
     private static final String OP_UPDATE = "UPDATE";
     private static final String OP_DELETE = "DELETE";
@@ -86,6 +87,9 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
 
     /** Flag indicating whether to ignore invalid fields/rows (default: throw an exception). */
     private final boolean ignoreParseErrors;
+
+    /** Names of fields. */
+    private final List<String> fieldNames;
 
     /** Number of fields. */
     private final int fieldCount;
@@ -121,7 +125,9 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
         this.database = database;
         this.table = table;
         this.ignoreParseErrors = ignoreParseErrors;
-        this.fieldCount = ((RowType) physicalDataType.getLogicalType()).getFieldCount();
+        final RowType physicalRowType = ((RowType) physicalDataType.getLogicalType());
+        this.fieldNames = physicalRowType.getFieldNames();
+        this.fieldCount = physicalRowType.getFieldCount();
         this.databasePattern = database == null ? null : Pattern.compile(database);
         this.tablePattern = table == null ? null : Pattern.compile(table);
     }
@@ -238,10 +244,11 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
                     // the underlying JSON deserialization schema always produce GenericRowData.
                     GenericRowData after = (GenericRowData) data.getRow(i, fieldCount);
                     GenericRowData before = (GenericRowData) old.getRow(i, fieldCount);
+                    final JsonNode oldField = root.get(FIELD_OLD);
                     for (int f = 0; f < fieldCount; f++) {
-                        if (before.isNullAt(f)) {
-                            // not null fields in "old" (before) means the fields are changed
-                            // null/empty fields in "old" (before) means the fields are not changed
+                        if (before.isNullAt(f) && oldField.findValue(fieldNames.get(f)) == null) {
+                            // fields in "old" (before) means the fields are changed
+                            // fields not in "old" (before) means the fields are not changed
                             // so we just copy the not changed fields into before
                             before.setField(f, after.getField(f));
                         }
