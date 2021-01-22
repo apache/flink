@@ -44,133 +44,136 @@ import org.junit.Test;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Test for {@link FileSystemTableSink}.
- */
+/** Test for {@link FileSystemTableSink}. */
 public class FileSystemTableSinkTest {
 
-	private static final TableSchema TEST_SCHEMA = TableSchema.builder()
-		.field("f0", DataTypes.STRING())
-		.field("f1", DataTypes.BIGINT())
-		.field("f2", DataTypes.BIGINT())
-		.build();
+    private static final TableSchema TEST_SCHEMA =
+            TableSchema.builder()
+                    .field("f0", DataTypes.STRING())
+                    .field("f1", DataTypes.BIGINT())
+                    .field("f2", DataTypes.BIGINT())
+                    .build();
 
-	@Test
-	public void testFileSystemTableSinkWithParallelismInStreaming() {
+    @Test
+    public void testFileSystemTableSinkWithParallelismInStreaming() {
 
-		int parallelism = 2;
+        int parallelism = 2;
 
-		DescriptorProperties descriptor = new DescriptorProperties();
-		descriptor.putString(FactoryUtil.CONNECTOR.key(), "filesystem");
-		descriptor.putString("path", "/tmp");
-		descriptor.putString("format", "testcsv");
-		descriptor.putString("sink.parallelism", String.valueOf(parallelism));
+        DescriptorProperties descriptor = new DescriptorProperties();
+        descriptor.putString(FactoryUtil.CONNECTOR.key(), "filesystem");
+        descriptor.putString("path", "/tmp");
+        descriptor.putString("format", "testcsv");
+        descriptor.putString("sink.parallelism", String.valueOf(parallelism));
 
-		final DynamicTableSink tableSink = createSink(descriptor);
-		Assert.assertTrue(tableSink instanceof FileSystemTableSink);
+        final DynamicTableSink tableSink = createSink(descriptor);
+        Assert.assertTrue(tableSink instanceof FileSystemTableSink);
 
-		final DynamicTableSink.SinkRuntimeProvider provider = tableSink.getSinkRuntimeProvider
-			(new MockSinkContext(false));
-		Assert.assertTrue(provider instanceof DataStreamSinkProvider);
+        final DynamicTableSink.SinkRuntimeProvider provider =
+                tableSink.getSinkRuntimeProvider(new MockSinkContext(false));
+        Assert.assertTrue(provider instanceof DataStreamSinkProvider);
 
-		final DataStreamSinkProvider dataStreamSinkProvider = (DataStreamSinkProvider) provider;
-		final DataStreamSink<?> dataStreamSink = dataStreamSinkProvider.consumeDataStream(createInputDataStream());
-		final List<Transformation<?>> inputs = dataStreamSink.getTransformation().getInputs();
-		Assert.assertTrue(inputs.get(0).getParallelism() == parallelism);
-	}
+        final DataStreamSinkProvider dataStreamSinkProvider = (DataStreamSinkProvider) provider;
+        final DataStreamSink<?> dataStreamSink =
+                dataStreamSinkProvider.consumeDataStream(createInputDataStream());
+        final List<Transformation<?>> inputs = dataStreamSink.getTransformation().getInputs();
+        Assert.assertTrue(inputs.get(0).getParallelism() == parallelism);
+    }
 
-	@Test
-	public void testFileSystemTableSinkWithParallelismInBatch() {
+    @Test
+    public void testFileSystemTableSinkWithParallelismInBatch() {
 
-		int parallelism = 2;
+        int parallelism = 2;
 
-		DescriptorProperties descriptor = new DescriptorProperties();
-		descriptor.putString(FactoryUtil.CONNECTOR.key(), "filesystem");
-		descriptor.putString("path", "/tmp");
-		descriptor.putString("format", "testcsv");
-		descriptor.putString("sink.parallelism", String.valueOf(parallelism));
+        DescriptorProperties descriptor = new DescriptorProperties();
+        descriptor.putString(FactoryUtil.CONNECTOR.key(), "filesystem");
+        descriptor.putString("path", "/tmp");
+        descriptor.putString("format", "testcsv");
+        descriptor.putString("sink.parallelism", String.valueOf(parallelism));
 
-		final DynamicTableSink tableSink = createSink(descriptor);
-		Assert.assertTrue(tableSink instanceof FileSystemTableSink);
+        final DynamicTableSink tableSink = createSink(descriptor);
+        Assert.assertTrue(tableSink instanceof FileSystemTableSink);
 
-		final DynamicTableSink.SinkRuntimeProvider provider = tableSink.getSinkRuntimeProvider
-			(new MockSinkContext(true));
-		Assert.assertTrue(provider instanceof DataStreamSinkProvider);
+        final DynamicTableSink.SinkRuntimeProvider provider =
+                tableSink.getSinkRuntimeProvider(new MockSinkContext(true));
+        Assert.assertTrue(provider instanceof DataStreamSinkProvider);
 
-		final DataStreamSinkProvider dataStreamSinkProvider = (DataStreamSinkProvider) provider;
-		final DataStreamSink<?> dataStreamSink = dataStreamSinkProvider.consumeDataStream(createInputDataStream());
-		Assert.assertTrue(dataStreamSink.getTransformation().getParallelism() == parallelism);
-	}
+        final DataStreamSinkProvider dataStreamSinkProvider = (DataStreamSinkProvider) provider;
+        final DataStreamSink<?> dataStreamSink =
+                dataStreamSinkProvider.consumeDataStream(createInputDataStream());
+        Assert.assertTrue(dataStreamSink.getTransformation().getParallelism() == parallelism);
+    }
 
-	private static DataStream<RowData> createInputDataStream() {
-		final MockTransformation<RowData> mockTransformation = MockTransformation.createMockTransformation();
-		final DummyStreamExecutionEnvironment mockEnv = new DummyStreamExecutionEnvironment();
+    private static DataStream<RowData> createInputDataStream() {
+        final MockTransformation<RowData> mockTransformation =
+                MockTransformation.createMockTransformation();
+        final DummyStreamExecutionEnvironment mockEnv = new DummyStreamExecutionEnvironment();
 
-		return new DataStream<>(mockEnv, mockTransformation);
-	}
+        return new DataStream<>(mockEnv, mockTransformation);
+    }
 
-	private static DynamicTableSink createSink(DescriptorProperties properties) {
-		return FactoryUtil.createTableSink(
-			null,
-			ObjectIdentifier.of("mycatalog", "mydb", "mytable"),
-			new CatalogTableImpl(TEST_SCHEMA, properties.asMap(), ""),
-			new Configuration(),
-			Thread.currentThread().getContextClassLoader(),
-			false);
-	}
+    private static DynamicTableSink createSink(DescriptorProperties properties) {
+        return FactoryUtil.createTableSink(
+                null,
+                ObjectIdentifier.of("mycatalog", "mydb", "mytable"),
+                new CatalogTableImpl(TEST_SCHEMA, properties.asMap(), ""),
+                new Configuration(),
+                Thread.currentThread().getContextClassLoader(),
+                false);
+    }
 
-	private static class MockSinkContext implements DynamicTableSink.Context {
+    private static class MockSinkContext implements DynamicTableSink.Context {
 
-		private final boolean bounded;
+        private final boolean bounded;
 
-		public MockSinkContext(boolean bounded) {
-			this.bounded = bounded;
-		}
+        public MockSinkContext(boolean bounded) {
+            this.bounded = bounded;
+        }
 
-		@Override
-		public boolean isBounded() {
-			return bounded;
-		}
+        @Override
+        public boolean isBounded() {
+            return bounded;
+        }
 
-		@Override
-		public TypeInformation<?> createTypeInformation(DataType consumedDataType) {
-			return null;
-		}
+        @Override
+        public TypeInformation<?> createTypeInformation(DataType consumedDataType) {
+            return null;
+        }
 
-		@Override
-		public DynamicTableSink.DataStructureConverter createDataStructureConverter(DataType consumedDataType) {
-			return null;
-		}
-	}
+        @Override
+        public DynamicTableSink.DataStructureConverter createDataStructureConverter(
+                DataType consumedDataType) {
+            return null;
+        }
+    }
 
-	private static class MockTransformation<T> extends Transformation<T> {
+    private static class MockTransformation<T> extends Transformation<T> {
 
-		public static MockTransformation<RowData> createMockTransformation() {
-			final InternalTypeInfo<RowData> typeInfo = InternalTypeInfo.of(TEST_SCHEMA.toPhysicalRowDataType().getLogicalType());
-			return new MockTransformation<RowData>(typeInfo);
-		}
+        public static MockTransformation<RowData> createMockTransformation() {
+            final InternalTypeInfo<RowData> typeInfo =
+                    InternalTypeInfo.of(TEST_SCHEMA.toPhysicalRowDataType().getLogicalType());
+            return new MockTransformation<RowData>(typeInfo);
+        }
 
-		public MockTransformation(TypeInformation<T> typeInfo) {
-			super("MockTransform", typeInfo, 1);
-		}
+        public MockTransformation(TypeInformation<T> typeInfo) {
+            super("MockTransform", typeInfo, 1);
+        }
 
-		@Override
-		public List<Transformation<?>> getTransitivePredecessors() {
-			return null;
-		}
+        @Override
+        public List<Transformation<?>> getTransitivePredecessors() {
+            return null;
+        }
 
-		@Override
-		public List<Transformation<?>> getInputs() {
-			return Collections.emptyList();
-		}
-	}
+        @Override
+        public List<Transformation<?>> getInputs() {
+            return Collections.emptyList();
+        }
+    }
 
-	private static class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment {
+    private static class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment {
 
-		@Override
-		public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
-			return null;
-		}
-	}
-
+        @Override
+        public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
+            return null;
+        }
+    }
 }

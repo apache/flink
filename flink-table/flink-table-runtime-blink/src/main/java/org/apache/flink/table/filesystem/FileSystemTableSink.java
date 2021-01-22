@@ -169,11 +169,10 @@ public class FileSystemTableSink extends AbstractFileSystemTable
                 OutputFileConfig.builder()
                         .withPartPrefix("part-" + UUID.randomUUID().toString())
                         .build());
-        int parallelism = Optional.ofNullable(tableOptions.get(FileSystemOptions
-            .SINK_PARALLELISM)).orElse(inputStream.getParallelism());
-        return inputStream
-                .writeUsingOutputFormat(builder.build())
-                .setParallelism(parallelism);
+        int parallelism =
+                Optional.ofNullable(tableOptions.get(FileSystemOptions.SINK_PARALLELISM))
+                        .orElse(inputStream.getParallelism());
+        return inputStream.writeUsingOutputFormat(builder.build()).setParallelism(parallelism);
     }
 
     private DataStreamSink<?> createStreamingSink(
@@ -181,8 +180,9 @@ public class FileSystemTableSink extends AbstractFileSystemTable
         FileSystemFactory fsFactory = FileSystem::get;
         RowDataPartitionComputer computer = partitionComputer();
 
-        int parallelism = Optional.ofNullable(tableOptions.get(FileSystemOptions
-            .SINK_PARALLELISM)).orElse(dataStream.getParallelism());
+        int parallelism =
+                Optional.ofNullable(tableOptions.get(FileSystemOptions.SINK_PARALLELISM))
+                        .orElse(dataStream.getParallelism());
         boolean autoCompaction = tableOptions.getBoolean(FileSystemOptions.AUTO_COMPACTION);
         Object writer = createWriter(sinkContext);
         boolean isEncoder = writer instanceof Encoder;
@@ -252,8 +252,9 @@ public class FileSystemTableSink extends AbstractFileSystemTable
                             compactionSize,
                             parallelism);
         } else {
-            writerStream = StreamingSink.writer(dataStream, bucketCheckInterval, bucketsBuilder,
-                parallelism);
+            writerStream =
+                    StreamingSink.writer(
+                            dataStream, bucketCheckInterval, bucketsBuilder, parallelism);
         }
 
         return StreamingSink.sink(
