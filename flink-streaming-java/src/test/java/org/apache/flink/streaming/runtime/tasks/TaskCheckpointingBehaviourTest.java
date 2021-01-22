@@ -62,7 +62,9 @@ import org.apache.flink.runtime.state.DefaultOperatorStateBackendBuilder;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.SnapshotResources;
 import org.apache.flink.runtime.state.SnapshotResult;
+import org.apache.flink.runtime.state.SnapshotStrategy;
 import org.apache.flink.runtime.state.SnapshotStrategyRunner;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateSnapshotContext;
@@ -96,7 +98,6 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
 
 import static org.junit.Assert.assertEquals;
@@ -335,7 +336,6 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
     }
 
     private static class AsyncFailureInducingStateBackend extends MemoryStateBackend {
-
         private static final long serialVersionUID = -7613628662587098470L;
 
         @Override
@@ -352,34 +352,46 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
                     stateHandles,
                     cancelStreamRegistry) {
                 @Override
-                @SuppressWarnings("unchecked")
                 public DefaultOperatorStateBackend build() {
+                    CloseableRegistry registryForStateBackend = new CloseableRegistry();
                     return new DefaultOperatorStateBackend(
                             executionConfig,
-                            cancelStreamRegistry,
+                            registryForStateBackend,
                             new HashMap<>(),
                             new HashMap<>(),
                             new HashMap<>(),
                             new HashMap<>(),
-                            mock(SnapshotStrategyRunner.class)) {
-                        @Nonnull
-                        @Override
-                        public RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshot(
-                                long checkpointId,
-                                long timestamp,
-                                @Nonnull CheckpointStreamFactory streamFactory,
-                                @Nonnull CheckpointOptions checkpointOptions)
-                                throws Exception {
-
-                            return new FutureTask<>(
-                                    () -> {
-                                        throw new Exception("Async part snapshot exception.");
-                                    });
-                        }
-                    };
+                            new SnapshotStrategyRunner<>(
+                                    "Failing strategy",
+                                    FAILING_STRATEGY,
+                                    registryForStateBackend,
+                                    SnapshotStrategyRunner.ExecutionType.ASYNCHRONOUS
+                            ));
                 }
             }.build();
         }
+
+        public static final SnapshotStrategy<OperatorStateHandle, SnapshotResources>
+                FAILING_STRATEGY =
+                        new SnapshotStrategy<OperatorStateHandle, SnapshotResources>() {
+                            @Override
+                            public SnapshotResources syncPrepareResources(long checkpointId)
+                                    throws Exception {
+                                return null;
+                            }
+
+                            @Override
+                            public SnapshotResultSupplier<OperatorStateHandle> asyncSnapshot(
+                                    SnapshotResources syncPartResource,
+                                    long checkpointId,
+                                    long timestamp,
+                                    @Nonnull CheckpointStreamFactory streamFactory,
+                                    @Nonnull CheckpointOptions checkpointOptions) {
+                                return (snapshotCloseableRegistry) -> {
+                                    throw new Exception("Async part snapshot exception.");
+                                };
+                            }
+                        };
 
         @Override
         public AsyncFailureInducingStateBackend configure(

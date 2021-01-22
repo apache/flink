@@ -90,7 +90,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.apache.flink.runtime.state.SnapshotStrategyRunner.ExecutionType.SYNCHRONOUS;
+import static org.apache.flink.runtime.state.SnapshotStrategyRunner.ExecutionType.ASYNCHRONOUS;
 import static org.junit.Assert.assertEquals;
 
 /** Integrated tests to verify the logic to notify checkpoint aborted via RPC message. */
@@ -390,14 +390,15 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
                 CloseableRegistry cancelStreamRegistry)
                 throws BackendBuildingException {
             if (operatorIdentifier.contains(DECLINE_SINK_NAME)) {
+                CloseableRegistry registryForBackend = new CloseableRegistry();
                 return new DeclineSinkFailingOperatorStateBackend(
                         env.getExecutionConfig(),
-                        cancelStreamRegistry,
+                        registryForBackend,
                         new SnapshotStrategyRunner<>(
                                 "StuckAsyncSnapshotStrategy",
                                 new DeclineSinkFailingSnapshotStrategy(),
-                                cancelStreamRegistry,
-                                SYNCHRONOUS));
+                                registryForBackend,
+                                ASYNCHRONOUS));
             } else {
                 return new DefaultOperatorStateBackendBuilder(
                                 env.getUserCodeClassLoader().asClassLoader(),

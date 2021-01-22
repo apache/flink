@@ -100,7 +100,9 @@ public final class SnapshotStrategyRunner<T extends StateObject, SR extends Snap
 
                     @Override
                     protected void cleanupProvidedResources() {
-                        snapshotResources.release();
+                        if (snapshotResources != null) {
+                            snapshotResources.release();
+                        }
                     }
 
                     @Override
