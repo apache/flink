@@ -22,8 +22,6 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
 
-import java.io.IOException;
-
 /**
  * A factory to create a specific {@link CheckpointStorage}. The storage creation gets a
  * configuration object that can be used to read further config values.
@@ -44,8 +42,7 @@ public interface CheckpointStorageFactory<T extends CheckpointStorage> {
      * @return The created checkpoint storage.
      * @throws IllegalConfigurationException If the configuration misses critical values, or
      *     specifies invalid values
-     * @throws IOException If the checkpoint storage initialization failed due to an I/O exception.
      */
     T createFromConfig(ReadableConfig config, ClassLoader classLoader)
-            throws IllegalConfigurationException, IOException;
+            throws IllegalConfigurationException;
 }

@@ -27,7 +27,7 @@ import org.apache.flink.configuration.ReadableConfig;
  * configuration.
  */
 @Internal
-public interface ConfigurableCheckpointStorage {
+public interface ConfigurableCheckpointStorage extends CheckpointStorage {
 
     /**
      * Creates a variant of the checkpoint storage that applies additional configuration parameters.

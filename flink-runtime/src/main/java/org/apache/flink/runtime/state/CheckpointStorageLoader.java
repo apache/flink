@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -29,14 +30,15 @@ import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
 
-import java.io.IOException;
+import java.util.Optional;
 
 /** This class contains utility methods to load checkpoint storage from configurations. */
+@Internal
 public class CheckpointStorageLoader {
 
-    public static final String JOB_MANAGER_STORAGE_NAME = "jobmanager";
+    private static final String JOB_MANAGER_STORAGE_NAME = "jobmanager";
 
-    public static final String FILE_SYSTEM_STORAGE_NAME = "filesystem";
+    private static final String FILE_SYSTEM_STORAGE_NAME = "filesystem";
 
     /**
      * Loads the checkpoint storage from the configuration, from the parameter
@@ -58,28 +60,35 @@ public class CheckpointStorageLoader {
      *     the factory class was not found or the factory could not be instantiated
      * @throws IllegalConfigurationException May be thrown by the CheckpointStorageFactory when
      *     creating / configuring the checkpoint storage in the factory
-     * @throws IOException May be thrown by the CheckpointStorageFactory when instantiating the
-     *     checkpoint storage
      */
-    public static CheckpointStorage loadCheckpointStorageFromConfig(
+    public static Optional<CheckpointStorage> fromConfig(
             ReadableConfig config, ClassLoader classLoader, @Nullable Logger logger)
-            throws IllegalStateException, DynamicCodeLoadingException, IOException {
+            throws IllegalStateException, DynamicCodeLoadingException {
 
         Preconditions.checkNotNull(config, "config");
         Preconditions.checkNotNull(classLoader, "classLoader");
 
         final String storageName = config.get(CheckpointingOptions.CHECKPOINT_STORAGE);
         if (storageName == null) {
-            return null;
+            if (logger != null) {
+                logger.warn(
+                        "The configuration {} has not be set in the current"
+                                + " sessions flink-conf.yaml. Falling back to a default CheckpointStorage"
+                                + " type. Users are strongly encouraged explicitly set this configuration"
+                                + " so they understand how their applications are checkpointing"
+                                + " snapshots for fault-tolerance.",
+                        CheckpointingOptions.CHECKPOINT_STORAGE.key());
+            }
+            return Optional.empty();
         }
 
         switch (storageName.toLowerCase()) {
             case JOB_MANAGER_STORAGE_NAME:
-                throw new IllegalStateException(
+                throw new UnsupportedOperationException(
                         "JobManagerCheckpointStorage is not yet implemented");
 
             case FILE_SYSTEM_STORAGE_NAME:
-                throw new IllegalStateException(
+                throw new UnsupportedOperationException(
                         "FileSystemCheckpointStorage is not yet implemented");
 
             default:
@@ -109,24 +118,50 @@ public class CheckpointStorageLoader {
                             e);
                 }
 
-                return factory.createFromConfig(config, classLoader);
+                return Optional.of(factory.createFromConfig(config, classLoader));
         }
     }
 
-    public static CheckpointStorage fromApplicationOrConfigOrDefault(
+    /**
+     * Loads the configured {@link CheckpointStorage} for the job based on the following precedent
+     * rules:
+     *
+     * <p>1) If the jobs configured {@link StateBackend} implements {@code CheckpointStorage} it
+     * will always be used. This is to maintain backwards compatibility with older versions of Flink
+     * that intermixed these responsibilities.
+     *
+     * <p>2) Use the {@link CheckpointStorage} instance configured via the {@code
+     * StreamExecutionEnvironment}.
+     *
+     * <p>3) Use the {@link CheckpointStorage} instance configured via the clusters
+     * <b>flink-conf.yaml</b>.
+     *
+     * <p>4) Load a default {@link CheckpointStorage} instance.
+     *
+     * @param fromApplication The checkpoint storage instance passed to the jobs
+     *     StreamExecutionEnvironment. Or null if not was set.
+     * @param configuredStateBackend The jobs configured state backend.
+     * @param config The configuration to load the checkpoint storage from.
+     * @param classLoader The class loader that should be used to load the checkpoint storage.
+     * @param logger Optionally, a logger to log actions to (may be null).
+     * @return The configured checkpoint storage instance.
+     * @throws DynamicCodeLoadingException Thrown if a checkpoint storage factory is configured and
+     *     the factory class was not found or the factory could not be instantiated
+     * @throws IllegalConfigurationException May be thrown by the CheckpointStorageFactory when
+     *     creating / configuring the checkpoint storage in the factory
+     */
+    public static CheckpointStorage load(
             @Nullable CheckpointStorage fromApplication,
             StateBackend configuredStateBackend,
             Configuration config,
             ClassLoader classLoader,
             @Nullable Logger logger)
-            throws IllegalConfigurationException, DynamicCodeLoadingException, IOException {
+            throws IllegalConfigurationException, DynamicCodeLoadingException {
 
         Preconditions.checkNotNull(config, "config");
         Preconditions.checkNotNull(classLoader, "classLoader");
         Preconditions.checkNotNull(configuredStateBackend, "statebackend");
 
-        // (1) Legacy state backends always take precedence
-        // for backwards compatibility.
         if (configuredStateBackend instanceof CheckpointStorage) {
             if (logger != null) {
                 logger.info(
@@ -135,46 +170,27 @@ public class CheckpointStorageLoader {
             }
 
             return (CheckpointStorage) configuredStateBackend;
-        }
-
-        CheckpointStorage storage;
-
-        // (2) Application defined checkpoint storage
-        if (fromApplication != null) {
-            // see if this is supposed to pick up additional configuration parameters
-            if (fromApplication instanceof ConfigurableCheckpointStorage) {
-                // needs to pick up configuration
-                if (logger != null) {
-                    logger.info(
-                            "Using job/cluster config to configure application-defined checkpoint storage: {}",
-                            fromApplication);
-                }
-
-                storage =
-                        ((ConfigurableCheckpointStorage) fromApplication)
-                                .configure(config, classLoader);
-            } else {
-                // keep as is!
-                storage = fromApplication;
-            }
-
+        } else if (fromApplication instanceof ConfigurableCheckpointStorage) {
             if (logger != null) {
-                logger.info("Using application defined checkpoint storage: {}", storage);
+                logger.info(
+                        "Using job/cluster config to configure application-defined checkpoint storage: {}",
+                        fromApplication);
             }
-        } else {
-            // (3) check if the config defines a checkpoint storage instance
-            final CheckpointStorage fromConfig =
-                    loadCheckpointStorageFromConfig(config, classLoader, logger);
-            if (fromConfig != null) {
-                storage = fromConfig;
-            } else {
-                // (4) use the default
-                throw new IllegalStateException(
-                        "No checkpoint storage defined. Flink currently only supports legacy "
-                                + "state backends, this case should never be reached.");
-            }
-        }
 
-        return storage;
+            return ((ConfigurableCheckpointStorage) fromApplication).configure(config, classLoader);
+        } else if (fromApplication != null) {
+            if (logger != null) {
+                logger.info("Using application defined checkpoint storage: {}", fromApplication);
+            }
+
+            return fromApplication;
+        } else {
+            return fromConfig(config, classLoader, logger)
+                    .orElseThrow(
+                            () ->
+                                    new IllegalStateException(
+                                            "No checkpoint storage defined. Flink currently only supports legacy "
+                                                    + "state backends, this case should never be reached."));
+        }
     }
 }

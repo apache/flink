@@ -48,7 +48,7 @@ public class CheckpointStorageLoadingTest {
     @Test
     public void testNoCheckpointStorageDefined() throws Exception {
         assertNull(
-                CheckpointStorageLoader.loadCheckpointStorageFromConfig(
+                CheckpointStorageLoader.fromConfig(
                         new Configuration(), cl, null));
     }
 
@@ -118,7 +118,7 @@ public class CheckpointStorageLoadingTest {
             CheckpointStorageLoader.fromApplicationOrConfigOrDefault(
                     null, new ModernStateBackend(), config, cl, null);
             Assert.fail("should fail with exception");
-        } catch (IOException e) {
+        } catch (IllegalConfigurationException e) {
             // expected
         }
     }
@@ -212,7 +212,7 @@ public class CheckpointStorageLoadingTest {
 
         @Override
         public MockStorage createFromConfig(ReadableConfig config, ClassLoader classLoader)
-                throws IllegalConfigurationException, IOException {
+                throws IllegalConfigurationException {
             return new MockStorage();
         }
     }
@@ -221,8 +221,8 @@ public class CheckpointStorageLoadingTest {
 
         @Override
         public CheckpointStorage createFromConfig(ReadableConfig config, ClassLoader classLoader)
-                throws IllegalConfigurationException, IOException {
-            throw new IOException("fail!");
+                throws IllegalConfigurationException {
+            throw new IllegalConfigurationException("fail!");
         }
     }
 }
