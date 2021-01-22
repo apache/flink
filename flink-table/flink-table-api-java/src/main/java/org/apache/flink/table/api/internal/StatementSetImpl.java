@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.api.internal;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.StatementSet;
@@ -39,7 +40,7 @@ import java.util.stream.Collectors;
 @Internal
 class StatementSetImpl implements StatementSet {
     private final TableEnvironmentInternal tableEnvironment;
-    private List<ModifyOperation> operations = new ArrayList<>();
+    private final List<ModifyOperation> operations = new ArrayList<>();
 
     protected StatementSetImpl(TableEnvironmentInternal tableEnvironment) {
         this.tableEnvironment = tableEnvironment;
@@ -96,6 +97,29 @@ class StatementSetImpl implements StatementSet {
     public TableResult execute() {
         try {
             return tableEnvironment.executeInternal(operations);
+        } finally {
+            operations.clear();
+        }
+    }
+
+    /**
+     * Get the json plan of the all statements and Tables as a batch.
+     *
+     * <p>The json plan is the string json representation of an optimized ExecNode plan for the
+     * statements and Tables. An ExecNode plan can be serialized to json plan, and a json plan can
+     * be deserialized to an ExecNode plan.
+     *
+     * <p>NOTES: Only the Blink planner supports this method.
+     *
+     * <p><b>NOTES:</b>: This is an experimental feature now.
+     *
+     * @return the string json representation of an optimized ExecNode plan for the statements and
+     *     Tables.
+     */
+    @Experimental
+    public String getJsonPlan() {
+        try {
+            return tableEnvironment.getJsonPlan(operations);
         } finally {
             operations.clear();
         }
