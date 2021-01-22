@@ -44,6 +44,8 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.serde.DynamicTableSinkSpecJsonDeserializer;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSinkSpec;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.sinks.TableSinkUtils;
 import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
@@ -57,7 +59,10 @@ import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Preconditions;
 
-import java.util.Collections;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -66,25 +71,26 @@ import java.util.stream.Collectors;
  * Base {@link ExecNode} to write data to an external sink defined by a {@link DynamicTableSink}.
  */
 public abstract class CommonExecSink extends ExecNodeBase<Object> {
-    protected final List<String> qualifiedName;
-    private final TableSchema tableSchema;
-    private final DynamicTableSink tableSink;
-    private final ChangelogMode changelogMode;
-    private final boolean isBounded;
 
-    public CommonExecSink(
-            List<String> qualifiedName,
-            TableSchema tableSchema,
-            DynamicTableSink tableSink,
+    public static final String FIELD_NAME_DYNAMIC_TABLE_SINK = "dynamicTableSink";
+
+    @JsonProperty(FIELD_NAME_DYNAMIC_TABLE_SINK)
+    @JsonDeserialize(using = DynamicTableSinkSpecJsonDeserializer.class)
+    protected final DynamicTableSinkSpec tableSinkSpec;
+
+    @JsonIgnore private final ChangelogMode changelogMode;
+    @JsonIgnore private final boolean isBounded;
+
+    protected CommonExecSink(
+            DynamicTableSinkSpec tableSinkSpec,
             ChangelogMode changelogMode,
             boolean isBounded,
-            InputProperty inputProperty,
+            int id,
+            List<InputProperty> inputProperties,
             LogicalType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
-        this.tableSink = tableSink;
-        this.qualifiedName = qualifiedName;
-        this.tableSchema = tableSchema;
+        super(id, inputProperties, outputType, description);
+        this.tableSinkSpec = tableSinkSpec;
         this.changelogMode = changelogMode;
         this.isBounded = isBounded;
     }
@@ -94,6 +100,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object> {
             TableConfig tableConfig,
             Transformation<RowData> inputTransform,
             int rowtimeFieldIndex) {
+        final DynamicTableSink tableSink = tableSinkSpec.getTableSink();
         final DynamicTableSink.SinkRuntimeProvider runtimeProvider =
                 tableSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(isBounded));
 
@@ -101,6 +108,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object> {
                 tableConfig
                         .getConfiguration()
                         .get(ExecutionConfigOptions.TABLE_EXEC_SINK_NOT_NULL_ENFORCER);
+        final TableSchema tableSchema = tableSinkSpec.getCatalogTable().getSchema();
         final int[] notNullFieldIndices = TableSinkUtils.getNotNullFieldIndices(tableSchema);
         final String[] fieldNames =
                 ((RowType) tableSchema.toPhysicalRowDataType().getLogicalType())
@@ -157,7 +165,8 @@ public abstract class CommonExecSink extends ExecNodeBase<Object> {
                             String.format(
                                     "Table: %s configured sink parallelism: "
                                             + "%s should not be less than zero or equal to zero",
-                                    String.join(".", qualifiedName), parallelism));
+                                    tableSinkSpec.getObjectIdentifier().asSummaryString(),
+                                    parallelism));
                 }
             } else {
                 parallelism = inputParallelism;
@@ -175,7 +184,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object> {
                                 "Table: %s configured sink parallelism is: %s, while the input parallelism is: "
                                         + "%s. Since configured parallelism is different from input parallelism and the changelog mode "
                                         + "contains [%s], which is not INSERT_ONLY mode, primary key is required but no primary key is found",
-                                String.join(".", qualifiedName),
+                                tableSinkSpec.getObjectIdentifier().asSummaryString(),
                                 parallelism,
                                 inputParallelism,
                                 changelogMode.getContainedKinds().stream()
