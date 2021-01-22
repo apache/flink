@@ -21,7 +21,8 @@ package org.apache.flink.table.planner.calcite
 import org.apache.flink.sql.parser.SqlProperty
 import org.apache.flink.sql.parser.dml.RichSqlInsert
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.planner.calcite.PreValidateReWriter.appendPartitionProjects
+import org.apache.flink.table.planner.calcite.PreValidateReWriter.appendPartitionAndNullsProjects
+import org.apache.flink.table.planner.plan.schema.{CatalogSourceTable, FlinkPreparingTableBase, LegacyCatalogSourceTable}
 
 import org.apache.calcite.plan.RelOptTable
 import org.apache.calcite.prepare.CalciteCatalogReader
@@ -47,16 +48,17 @@ class PreValidateReWriter(
     val typeFactory: RelDataTypeFactory) extends SqlBasicVisitor[Unit] {
   override def visit(call: SqlCall): Unit = {
     call match {
-      case r: RichSqlInsert if r.getStaticPartitions.nonEmpty => r.getSource match {
+      case r: RichSqlInsert
+          if r.getStaticPartitions.nonEmpty || r.getTargetColumnList != null => r.getSource match {
         case select: SqlSelect =>
-          appendPartitionProjects(r, validator, typeFactory, select, r.getStaticPartitions)
+          appendPartitionAndNullsProjects(r, validator, typeFactory, select, r.getStaticPartitions)
         case values: SqlCall if values.getKind == SqlKind.VALUES =>
-          val newSource = appendPartitionProjects(r, validator, typeFactory, values,
+          val newSource = appendPartitionAndNullsProjects(r, validator, typeFactory, values,
             r.getStaticPartitions)
           r.setOperand(2, newSource)
         case source =>
           throw new ValidationException(
-            s"INSERT INTO <table> PARTITION statement only support "
+            s"INSERT INTO <table> PARTITION [(COLUMN LIST)] statement only support "
               + s"SELECT and VALUES clause for now, '$source' is not supported yet.")
       }
       case _ =>
@@ -67,8 +69,8 @@ class PreValidateReWriter(
 object PreValidateReWriter {
   //~ Tools ------------------------------------------------------------------
   /**
-    * Append the static partitions to the data source projection list. The columns are appended to
-    * the corresponding positions.
+    * Append the static partitions and unspecified columns to the data source projection list.
+    * The columns are appended to the corresponding positions.
     *
     * <p>If we have a table A with schema (&lt;a&gt;, &lt;b&gt;, &lt;c&gt) whose
     * partition columns are (&lt;a&gt;, &lt;c&gt;), and got a query
@@ -83,13 +85,25 @@ object PreValidateReWriter {
     * </pre></blockquote>
     * Where the "tpe1" and "tpe2" are data types of column a and c of target table A.
     *
+    * <p>If we have a table A with schema (&lt;a&gt;, &lt;b&gt;, &lt;c&gt), and got a query
+    * <blockquote><pre>
+    * insert into A (a, b)
+    * select a, b from B
+    * </pre></blockquote>
+    * The query would be rewritten to:
+    * <blockquote><pre>
+    * insert into A
+    * select a, b, cast(null as tpeC) from B
+    * </pre></blockquote>
+    * Where the "tpeC" is data type of column c for target table A.
+    *
     * @param sqlInsert            RichSqlInsert instance
     * @param validator            Validator
     * @param typeFactory          type factory
     * @param source               Source to rewrite
     * @param partitions           Static partition statements
     */
-  def appendPartitionProjects(sqlInsert: RichSqlInsert,
+  def appendPartitionAndNullsProjects(sqlInsert: RichSqlInsert,
       validator: FlinkCalciteSqlValidator,
       typeFactory: RelDataTypeFactory,
       source: SqlCall,
@@ -103,8 +117,7 @@ object PreValidateReWriter {
       // just skip to let other validation error throw.
       return source
     }
-    val targetRowType = createTargetRowType(typeFactory,
-      calciteCatalogReader, table, sqlInsert.getTargetColumnList)
+    val targetRowType = createTargetRowType(typeFactory, table)
     // validate partition fields first.
     val assignedFields = new util.LinkedHashMap[Integer, SqlNode]
     val relOptTable = table match {
@@ -121,6 +134,47 @@ object PreValidateReWriter {
       assignedFields.put(targetField.getIndex,
         maybeCast(value, value.createSqlType(typeFactory), targetField.getType, typeFactory))
     }
+
+    // validate partial insert columns.
+    if (sqlInsert.getTargetColumnList != null) {
+      val targetFields = new util.HashSet[Integer]
+      val targetColumns =
+        sqlInsert
+          .getTargetColumnList
+          .getList
+          .map(id => {
+            val targetField = SqlValidatorUtil.getTargetField(
+              targetRowType, typeFactory, id.asInstanceOf[SqlIdentifier],
+              calciteCatalogReader, relOptTable)
+            validateField(targetFields.add, id.asInstanceOf[SqlIdentifier], targetField)
+            targetField
+          })
+
+      val partitionColumns =
+        partitions
+          .getList
+          .map(property =>
+            SqlValidatorUtil.getTargetField(
+              targetRowType, typeFactory, property.asInstanceOf[SqlProperty].getKey,
+              calciteCatalogReader, relOptTable))
+
+      for (targetField <- targetRowType.getFieldList) {
+        if (!partitionColumns.contains(targetField) && !targetColumns.contains(targetField)) {
+          val id = new SqlIdentifier(targetField.getName, SqlParserPos.ZERO)
+          if (!targetField.getType.isNullable) {
+            throw newValidationError(id, RESOURCE.columnNotNullable(targetField.getName))
+          }
+          validateField(idx => !assignedFields.contains(idx), id, targetField)
+          assignedFields.put(targetField.getIndex,
+            maybeCast(
+              SqlLiteral.createNull(SqlParserPos.ZERO),
+              typeFactory.createUnknownType(),
+              targetField.getType,
+              typeFactory))
+        }
+      }
+    }
+
     source match {
       case select: SqlSelect =>
         rewriteSelect(validator, select, targetRowType, assignedFields)
@@ -192,7 +246,7 @@ object PreValidateReWriter {
   }
 
   /**
-    * Derives a row-type for INSERT and UPDATE operations.
+    * Derives a physical row-type for INSERT and UPDATE operations.
     *
     * <p>This code snippet is almost inspired by
     * [[org.apache.calcite.sql.validate.SqlValidatorImpl#createTargetRowType]].
@@ -200,32 +254,22 @@ object PreValidateReWriter {
     * but this needs time.
     *
     * @param typeFactory      TypeFactory
-    * @param catalogReader    CalciteCatalogReader
     * @param table            Target table for INSERT/UPDATE
-    * @param targetColumnList List of target columns, or null if not specified
     * @return Rowtype
     */
   private def createTargetRowType(
       typeFactory: RelDataTypeFactory,
-      catalogReader: CalciteCatalogReader,
-      table: SqlValidatorTable,
-      targetColumnList: SqlNodeList): RelDataType = {
-    val rowType = table.getRowType
-    if (targetColumnList == null) return rowType
-    val fields = new util.ArrayList[util.Map.Entry[String, RelDataType]]
-    val assignedFields = new util.HashSet[Integer]
-    val relOptTable = table match {
-      case t: RelOptTable => t
-      case _ => null
+      table: SqlValidatorTable): RelDataType = {
+    table.unwrap(classOf[FlinkPreparingTableBase]) match {
+      case t: CatalogSourceTable =>
+        val schema = t.getCatalogTable.getSchema
+        typeFactory.asInstanceOf[FlinkTypeFactory].buildPhysicalRelNodeRowType(schema)
+      case t: LegacyCatalogSourceTable[_] =>
+        val schema = t.catalogTable.getSchema
+        typeFactory.asInstanceOf[FlinkTypeFactory].buildPhysicalRelNodeRowType(schema)
+      case _ =>
+        table.getRowType
     }
-    for (node <- targetColumnList) {
-      val id = node.asInstanceOf[SqlIdentifier]
-      val targetField = SqlValidatorUtil.getTargetField(rowType,
-        typeFactory, id, catalogReader, relOptTable)
-      validateField(assignedFields.add, id, targetField)
-      fields.add(targetField)
-    }
-    typeFactory.createStructType(fields)
   }
 
   /** Check whether the field is valid. **/
