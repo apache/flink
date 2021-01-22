@@ -41,7 +41,6 @@ public class JsonSerdeCoverageTest {
             Arrays.asList(
                     "StreamExecDataStreamScan",
                     "StreamExecLegacyTableSourceScan",
-                    "StreamExecSink",
                     "StreamExecLegacySink",
                     "StreamExecChangelogNormalize",
                     "StreamExecJoin",

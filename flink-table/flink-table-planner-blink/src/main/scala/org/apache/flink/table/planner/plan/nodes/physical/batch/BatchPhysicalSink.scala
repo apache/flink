@@ -23,7 +23,9 @@ import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.calcite.Sink
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSink
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSinkSpec
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
+import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -50,10 +52,13 @@ class BatchPhysicalSink(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
+    val tableSinkSpec = new DynamicTableSinkSpec(tableIdentifier, catalogTable)
+    tableSinkSpec.setTableSink(tableSink)
+    val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
+    tableSinkSpec.setReadableConfig(tableConfig.getConfiguration)
+
     new BatchExecSink(
-      tableIdentifier.toList,
-      catalogTable.getSchema,
-      tableSink,
+      tableSinkSpec,
       // the input records will not trigger any output of a sink because it has no output,
       // so it's dam behavior is BLOCKING
       InputProperty.builder().damBehavior(InputProperty.DamBehavior.BLOCKING).build(),
