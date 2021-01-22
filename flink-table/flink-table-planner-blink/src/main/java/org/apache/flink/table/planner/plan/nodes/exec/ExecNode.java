@@ -21,10 +21,18 @@ package org.apache.flink.table.planner.plan.nodes.exec;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.delegation.Planner;
+import org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonDeserializer;
+import org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitor;
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeInfo;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import java.util.List;
 
@@ -33,9 +41,20 @@ import java.util.List;
  *
  * @param <T> The type of the elements that result from this node.
  */
+@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.PROPERTY, property = "class")
 public interface ExecNode<T> {
 
+    String FIELD_NAME_ID = "id";
+    String FIELD_NAME_DESCRIPTION = "description";
+    String FIELD_NAME_INPUT_PROPERTIES = "inputProperties";
+    String FIELD_NAME_OUTPUT_TYPE = "outputType";
+
+    /** Gets the ID of this node. */
+    @JsonProperty(value = FIELD_NAME_ID)
+    int getId();
+
     /** Returns a string which describes this node. */
+    @JsonProperty(value = FIELD_NAME_DESCRIPTION)
     String getDescription();
 
     /**
@@ -46,6 +65,9 @@ public interface ExecNode<T> {
      * to the JavaDoc of {@link RowData} for more info about mapping of logical types to internal
      * data structures.
      */
+    @JsonProperty(value = FIELD_NAME_OUTPUT_TYPE)
+    @JsonSerialize(using = LogicalTypeJsonSerializer.class)
+    @JsonDeserialize(using = LogicalTypeJsonDeserializer.class)
     LogicalType getOutputType();
 
     /**
@@ -55,6 +77,7 @@ public interface ExecNode<T> {
      *
      * @return List of this node's input properties.
      */
+    @JsonProperty(value = FIELD_NAME_INPUT_PROPERTIES)
     List<InputProperty> getInputProperties();
 
     /**
@@ -62,6 +85,7 @@ public interface ExecNode<T> {
      *
      * <p>NOTE: If there are no inputs, returns an empty list, not null.
      */
+    @JsonIgnore
     List<ExecEdge> getInputEdges();
 
     /**
@@ -71,6 +95,7 @@ public interface ExecNode<T> {
      *
      * @param inputEdges the input {@link ExecEdge}s.
      */
+    @JsonIgnore
     void setInputEdges(List<ExecEdge> inputEdges);
 
     /**

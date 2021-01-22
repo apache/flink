@@ -26,6 +26,7 @@ import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecTableSourceScan;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -37,8 +38,8 @@ public class BatchExecTableSourceScan extends CommonExecTableSourceScan
         implements BatchExecNode<RowData> {
 
     public BatchExecTableSourceScan(
-            ScanTableSource tableSource, RowType outputType, String description) {
-        super(tableSource, outputType, description);
+            DynamicTableSourceSpec tableSourceSpec, RowType outputType, String description) {
+        super(tableSourceSpec, getNewNodeId(), outputType, description);
     }
 
     @Override

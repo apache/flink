@@ -20,8 +20,18 @@ package org.apache.flink.table.planner.plan.nodes.exec;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.Input;
+import org.apache.flink.table.planner.plan.nodes.exec.serde.RequiredDistributionJsonDeserializer;
+import org.apache.flink.table.planner.plan.nodes.exec.serde.RequiredDistributionJsonSerializer;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import java.util.Arrays;
+import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -32,17 +42,53 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>The input concept is not corresponding to the execution edge, but rather to the {@link Input}.
  */
 @Internal
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class InputProperty {
 
+    /** The input does not require any specific data distribution. */
+    public static final RequiredDistribution ANY_DISTRIBUTION =
+            new RequiredDistribution(DistributionType.ANY) {};
+
+    /**
+     * The input will read all records for each parallelism of the target node. All records appear
+     * in each parallelism.
+     */
+    public static final RequiredDistribution BROADCAST_DISTRIBUTION =
+            new RequiredDistribution(DistributionType.BROADCAST) {};
+
+    /** The input will read all records, and the parallelism of the target node must be 1. */
+    public static final RequiredDistribution SINGLETON_DISTRIBUTION =
+            new RequiredDistribution(DistributionType.SINGLETON) {};
+
+    /**
+     * Returns a place-holder required distribution.
+     *
+     * <p>Currently {@link InputProperty} is only used for deadlock breakup and multi-input in batch
+     * mode, so for {@link ExecNode}s not affecting the algorithm we use this place-holder.
+     *
+     * <p>We should fill out the detailed {@link InputProperty} for each sub-class of {@link
+     * ExecNode} in the future.
+     */
+    public static final RequiredDistribution UNKNOWN_DISTRIBUTION =
+            new RequiredDistribution(DistributionType.UNKNOWN) {};
+
     public static final InputProperty DEFAULT = InputProperty.builder().build();
+
+    public static final String FIELD_NAME_REQUIRED_DISTRIBUTION = "requiredDistribution";
+    public static final String FIELD_NAME_DAM_BEHAVIOR = "damBehavior";
+    public static final String FIELD_NAME_PRIORITY = "priority";
 
     /**
      * The required input data distribution when the target {@link ExecNode} read data in from the
      * corresponding input.
      */
+    @JsonProperty(FIELD_NAME_REQUIRED_DISTRIBUTION)
+    @JsonSerialize(using = RequiredDistributionJsonSerializer.class)
+    @JsonDeserialize(using = RequiredDistributionJsonDeserializer.class)
     private final RequiredDistribution requiredDistribution;
 
     /** How does the input record trigger the output behavior of the target {@link ExecNode}. */
+    @JsonProperty(FIELD_NAME_DAM_BEHAVIOR)
     private final DamBehavior damBehavior;
 
     /**
@@ -51,25 +97,52 @@ public class InputProperty {
      * <p>The smaller the integer, the higher the priority. Same integer indicates the same
      * priority.
      */
+    @JsonProperty(FIELD_NAME_PRIORITY)
     private final int priority;
 
-    private InputProperty(
-            RequiredDistribution requiredDistribution, DamBehavior damBehavior, int priority) {
-        this.requiredDistribution = requiredDistribution;
-        this.damBehavior = damBehavior;
+    @JsonCreator
+    public InputProperty(
+            @JsonProperty(FIELD_NAME_REQUIRED_DISTRIBUTION)
+                    RequiredDistribution requiredDistribution,
+            @JsonProperty(FIELD_NAME_DAM_BEHAVIOR) DamBehavior damBehavior,
+            @JsonProperty(FIELD_NAME_PRIORITY) int priority) {
+        this.requiredDistribution = checkNotNull(requiredDistribution);
+        this.damBehavior = checkNotNull(damBehavior);
         this.priority = priority;
     }
 
+    @JsonIgnore
     public RequiredDistribution getRequiredDistribution() {
         return requiredDistribution;
     }
 
+    @JsonIgnore
     public DamBehavior getDamBehavior() {
         return damBehavior;
     }
 
+    @JsonIgnore
     public int getPriority() {
         return priority;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        InputProperty inputProperty = (InputProperty) o;
+        return priority == inputProperty.priority
+                && requiredDistribution.equals(inputProperty.requiredDistribution)
+                && damBehavior == inputProperty.damBehavior;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(requiredDistribution, damBehavior, priority);
     }
 
     @Override
@@ -133,6 +206,23 @@ public class InputProperty {
         }
 
         @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            RequiredDistribution that = (RequiredDistribution) o;
+            return type == that.type;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(type);
+        }
+
+        @Override
         public String toString() {
             return type.name();
         }
@@ -156,37 +246,32 @@ public class InputProperty {
         }
 
         @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            if (!super.equals(o)) {
+                return false;
+            }
+            HashDistribution that = (HashDistribution) o;
+            return Arrays.equals(keys, that.keys);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = super.hashCode();
+            result = 31 * result + Arrays.hashCode(keys);
+            return result;
+        }
+
+        @Override
         public String toString() {
             return "HASH" + Arrays.toString(keys);
         }
     }
-
-    /** The input does not require any specific data distribution. */
-    public static final RequiredDistribution ANY_DISTRIBUTION =
-            new RequiredDistribution(DistributionType.ANY) {};
-
-    /**
-     * The input will read all records for each parallelism of the target node. All records appear
-     * in each parallelism.
-     */
-    public static final RequiredDistribution BROADCAST_DISTRIBUTION =
-            new RequiredDistribution(DistributionType.BROADCAST) {};
-
-    /** The input will read all records, and the parallelism of the target node must be 1. */
-    public static final RequiredDistribution SINGLETON_DISTRIBUTION =
-            new RequiredDistribution(DistributionType.SINGLETON) {};
-
-    /**
-     * Returns a place-holder required distribution.
-     *
-     * <p>Currently {@link InputProperty} is only used for deadlock breakup and multi-input in batch
-     * mode, so for {@link ExecNode}s not affecting the algorithm we use this place-holder.
-     *
-     * <p>We should fill out the detailed {@link InputProperty} for each sub-class of {@link
-     * ExecNode} in the future.
-     */
-    public static final RequiredDistribution UNKNOWN_DISTRIBUTION =
-            new RequiredDistribution(DistributionType.UNKNOWN) {};
 
     /**
      * The input will read the records whose keys hash to a particular hash value.
