@@ -160,4 +160,8 @@ in-flight data that moves slowly with timeout mechanism. These options will
 decrease the pressure on I/O in the state backends and eventually allow
 unaligned checkpoints to become the default checkpointing. 
 
+<div class="alert alert-warning">
+  <strong>Attention:</strong>Unaligned checkpoints may produce corrupted checkpoints in 1.12.0 and 1.12.1 and we discourage use in production settings.
+</div>
+
 {% top %}
