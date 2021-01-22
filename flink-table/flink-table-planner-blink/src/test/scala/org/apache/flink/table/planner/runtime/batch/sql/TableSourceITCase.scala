@@ -101,15 +101,12 @@ class TableSourceITCase extends BatchTestBase {
 
   @Test
   def testSimpleProjectWithProcTime(): Unit = {
-    val expected = LocalDateTime
-      .now(ZoneId.of("UTC"))
-      .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
     checkResult(
-      "SELECT a, c, DATE_FORMAT(PROCTIME(), 'yyyy-MM-dd HH:mm') FROM MyTable",
+      "SELECT a, c, CHAR_LENGTH(DATE_FORMAT(PROCTIME(), 'yyyy-MM-dd HH:mm')) FROM MyTable",
       Seq(
-        row(1, "Hi", expected),
-        row(2, "Hello", expected),
-        row(3, "Hello world", expected)
+        row(1, "Hi", 16),
+        row(2, "Hello", 16),
+        row(3, "Hello world", 16)
       )
     )
   }

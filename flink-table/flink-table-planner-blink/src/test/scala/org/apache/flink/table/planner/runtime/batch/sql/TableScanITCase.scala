@@ -28,8 +28,6 @@ import org.apache.flink.table.planner.utils.{TestTableSourceWithTime, WithoutTim
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
 import org.junit.Test
 import java.lang.{Integer => JInt}
-import java.time.{LocalDateTime, ZoneId}
-import java.time.format.DateTimeFormatter
 
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 
@@ -56,16 +54,14 @@ class TableScanITCase extends BatchTestBase {
 
     val tableSource = new TestTableSourceWithTime(true, schema, returnType, data, null, "ptime")
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, tableSource)
-    val expected = LocalDateTime
-      .now(ZoneId.of("UTC"))
-      .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+
     checkResult(
-      s"SELECT name, DATE_FORMAT(ptime, 'yyyy-MM-dd HH:mm') FROM $tableName",
+      s"SELECT name, CHAR_LENGTH(DATE_FORMAT(ptime, 'yyyy-MM-dd HH:mm')) FROM $tableName",
       Seq(
-        row("Mary", expected),
-        row("Peter", expected),
-        row("Bob", expected),
-        row("Liz", expected))
+        row("Mary", 16),
+        row("Peter", 16),
+        row("Bob", 16),
+        row("Liz", 16))
     )
   }
 

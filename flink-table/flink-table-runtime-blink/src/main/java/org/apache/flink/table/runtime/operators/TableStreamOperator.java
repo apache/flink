@@ -35,7 +35,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * Table operator to invoke close always. This is a base class for both batch and stream operators
  * without key.
  */
-public class TableStreamOperator<OUT> extends AbstractStreamOperator<OUT> {
+public abstract class TableStreamOperator<OUT> extends AbstractStreamOperator<OUT> {
 
     /** We listen to this ourselves because we don't have an {@link InternalTimerService}. */
     protected long currentWatermark = Long.MIN_VALUE;

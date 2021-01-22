@@ -75,8 +75,6 @@ object FlinkBatchProgram {
           .build(), "convert table references after sub-queries removed")
         .build()
     )
-    // convert time indicators
-    chainedProgram.addLast(TIME_INDICATOR, new FlinkRelTimeIndicatorProgram)
 
     // rewrite special temporal join plan
     chainedProgram.addLast(
@@ -98,6 +96,9 @@ object FlinkBatchProgram {
 
     // query decorrelation
     chainedProgram.addLast(DECORRELATE, new FlinkDecorrelateProgram)
+
+    // convert time indicators
+    chainedProgram.addLast(TIME_INDICATOR, new FlinkRelTimeIndicatorProgram)
 
     // default rewrite, includes: predicate simplification, expression reduction, etc.
     chainedProgram.addLast(
