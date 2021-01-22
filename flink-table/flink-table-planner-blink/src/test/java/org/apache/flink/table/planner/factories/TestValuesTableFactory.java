@@ -679,7 +679,7 @@ public final class TestValuesTableFactory
                     runtimeProviderContext.createDataStructureConverter(producedDataType);
             converter.open(
                     RuntimeConverter.Context.create(TestValuesTableFactory.class.getClassLoader()));
-            Collection<RowData> values = convertToRowDataList(converter);
+            Collection<RowData> values = convertToRowData(converter);
 
             switch (runtimeSource) {
                 case "SourceFunction":
@@ -742,7 +742,7 @@ public final class TestValuesTableFactory
             return Result.of(acceptedFilters, remainingFilters);
         }
 
-        protected Function<String, Comparable<?>> getValueGetter(Row row) {
+        private Function<String, Comparable<?>> getValueGetter(Row row) {
             final List<String> fieldNames = DataTypeUtils.flattenToNames(producedDataType);
             return fieldName -> {
                 int idx = fieldNames.indexOf(fieldName);
@@ -773,16 +773,15 @@ public final class TestValuesTableFactory
             return "TestValues";
         }
 
-        private Collection<RowData> convertToRowDataList(DataStructureConverter converter) {
+        protected Collection<RowData> convertToRowData(DataStructureConverter converter) {
             List<RowData> result = new ArrayList<>();
             List<Map<String, String>> keys =
                     allPartitions.isEmpty()
                             ? Collections.singletonList(Collections.emptyMap())
                             : allPartitions;
-            int num = 0;
             for (Map<String, String> partition : keys) {
                 for (Row row : data.get(partition)) {
-                    if (num >= limit) {
+                    if (result.size() >= limit) {
                         return result;
                     }
                     boolean isRetained =
@@ -794,7 +793,6 @@ public final class TestValuesTableFactory
                         if (rowData != null) {
                             rowData.setRowKind(row.getKind());
                             result.add(rowData);
-                            num++;
                         }
                     }
                 }
@@ -802,7 +800,7 @@ public final class TestValuesTableFactory
             return result;
         }
 
-        protected Row projectRow(Row row) {
+        private Row projectRow(Row row) {
             if (projectedPhysicalFields == null) {
                 return row;
             }
@@ -935,47 +933,15 @@ public final class TestValuesTableFactory
                     runtimeProviderContext.createDataStructureConverter(producedDataType);
             converter.open(
                     RuntimeConverter.Context.create(TestValuesTableFactory.class.getClassLoader()));
-            Map<String, Iterable<RowData>> partitions = convertToRowDataPartitions(converter);
+            Collection<RowData> values = convertToRowData(converter);
             try {
                 return SourceFunctionProvider.of(
                         new TestValuesRuntimeFunctions.FromElementSourceFunctionWithWatermark(
-                                tableName, serializer, partitions, watermarkStrategy),
+                                tableName, serializer, values, watermarkStrategy),
                         false);
-            } catch (Exception e) {
+            } catch (IOException e) {
                 throw new TableException("Fail to init source function", e);
             }
-        }
-
-        Map<String, Iterable<RowData>> convertToRowDataPartitions(
-                DataStructureConverter converter) {
-            Map<String, Iterable<RowData>> result = new HashMap<>();
-            List<Map<String, String>> keys =
-                    allPartitions.isEmpty()
-                            ? Collections.singletonList(Collections.emptyMap())
-                            : allPartitions;
-            int num = 0;
-            for (Map<String, String> partition : keys) {
-                List<RowData> partitionData = new ArrayList<>();
-                for (Row row : data.get(partition)) {
-                    if (num >= limit) {
-                        return result;
-                    }
-                    boolean isRetained =
-                            FilterUtils.isRetainedAfterApplyingFilterPredicates(
-                                    filterPredicates, getValueGetter(row));
-                    if (isRetained) {
-                        final Row projectedRow = projectRow(row);
-                        final RowData rowData = (RowData) converter.toInternal(projectedRow);
-                        if (rowData != null) {
-                            rowData.setRowKind(row.getKind());
-                            partitionData.add(rowData);
-                            num++;
-                        }
-                    }
-                }
-                result.put(partition.toString(), partitionData);
-            }
-            return result;
         }
 
         @Override

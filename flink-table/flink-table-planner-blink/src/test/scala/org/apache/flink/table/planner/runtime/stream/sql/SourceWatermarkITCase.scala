@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.TimestampData
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
@@ -33,7 +32,7 @@ import org.junit.Assert.assertEquals
 import org.junit.{Rule, Test}
 
 import java.sql.Timestamp
-import java.time.{Duration, LocalDateTime}
+import java.time.LocalDateTime
 
 import scala.collection.JavaConverters._
 
@@ -79,7 +78,18 @@ class SourceWatermarkITCase extends StreamingTestBase {
     )
 
     val query = "SELECT a, b, c FROM VirtualTable"
-    validate("VirtualTable", query, expectedWatermarkOutput, expectedData)
+    val result = tEnv.sqlQuery(query).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val actualWatermark = TestValuesTableFactory.getWatermarkOutput("VirtualTable")
+      .asScala
+      .map(x => TimestampData.fromEpochMillis(x.getTimestamp).toLocalDateTime.toString)
+      .toList
+
+    assertEquals(expectedWatermarkOutput, actualWatermark)
+    assertEquals(expectedData.sorted, sink.getAppendResults.sorted)
   }
 
   @Test
@@ -113,7 +123,9 @@ class SourceWatermarkITCase extends StreamingTestBase {
     tEnv.executeSql(ddl)
 
     val expectedWatermarkOutput = Seq(
+      TimestampData.fromEpochMillis(Long.MinValue).toString,
       "2020-11-21T19:00:00.230",
+      "2020-11-21T21:00:00.230",
       "2020-11-21T21:00:00.230")
     val expectedData = Seq(
       "0,0,h2,null",
@@ -123,7 +135,18 @@ class SourceWatermarkITCase extends StreamingTestBase {
     )
 
     val query = "SELECT a, b, c.d FROM NestedTable"
-    validate("NestedTable", query, expectedWatermarkOutput, expectedData)
+    val result = tEnv.sqlQuery(query).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val actualWatermark = TestValuesTableFactory.getWatermarkOutput("NestedTable")
+      .asScala
+      .map(x => TimestampData.fromEpochMillis(x.getTimestamp).toLocalDateTime.toString)
+      .toList
+
+    assertEquals(expectedWatermarkOutput, actualWatermark)
+    assertEquals(expectedData.sorted, sink.getAppendResults.sorted)
   }
 
   @Test
@@ -165,9 +188,21 @@ class SourceWatermarkITCase extends StreamingTestBase {
     )
 
     val query = "SELECT a, b, d FROM UdfTable WHERE b > 2"
-    validate("UdfTable", query, expectedWatermarkOutput, expectedData)
+    val result = tEnv.sqlQuery(query).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val actualWatermark = TestValuesTableFactory.getWatermarkOutput("UdfTable")
+      .asScala
+      .map(x => TimestampData.fromEpochMillis(x.getTimestamp).toLocalDateTime.toString)
+      .toList
+
+    assertEquals(expectedWatermarkOutput, actualWatermark)
+    assertEquals(expectedData.sorted, sink.getAppendResults.sorted)
   }
 
+  @Test
   def testWatermarkWithMetadata(): Unit = {
     val data = Seq(
       row(1, 2L, Timestamp.valueOf("2020-11-21 19:00:05.23").toInstant.toEpochMilli),
@@ -196,70 +231,19 @@ class SourceWatermarkITCase extends StreamingTestBase {
 
     tEnv.executeSql(ddl)
 
-    val expectedWatermarkOutput = Seq(
+    val expectedWatermarkOutput = List(
       "2020-11-21T19:00:05",
       "2020-11-21T21:00:05"
     )
     val expectedData = Seq("1")
 
     val query = "SELECT a FROM MetadataTable WHERE b > 2"
-    validate("MetadataTable", query, expectedWatermarkOutput, expectedData)
-  }
-
-  @Test
-  def testWatermarkWithIdleSource(): Unit = {
-    tEnv.getConfig.getConfiguration
-      .set(ExecutionConfigOptions.TABLE_EXEC_SOURCE_IDLE_TIMEOUT, Duration.ofMillis(1))
-    TestValuesTableFactory.clearAllData()
-    val data = Seq(
-      row(1, 2L, LocalDateTime.parse("2020-11-21T19:00:05.23")),
-      row(1, 3L, LocalDateTime.parse("2020-11-21T21:00:05.23"))
-    )
-
-    val dataId = TestValuesTableFactory.registerData(data)
-
-    val ddl =
-      s"""
-         | CREATE Table PartitionedTable (
-         |   a INT,
-         |   b BIGINT,
-         |   c TIMESTAMP(3),
-         |   d as c - INTERVAL '5' second,
-         |   WATERMARK FOR d as d + INTERVAL '5' second
-         | ) PARTITIONED BY (a)
-         | WITH (
-         |   'connector' = 'values',
-         |   'bounded' = 'false',
-         |   'enable-watermark-push-down' = 'true',
-         |   'disable-lookup' = 'true',
-         |   'data-id' = '$dataId',
-         |   'partition-list' = 'a:1;a:2'
-         | )
-         |""".stripMargin
-
-    tEnv.executeSql(ddl)
-
-    val expectedWatermarkOutput = List(
-      "2020-11-21T19:00:05.230",
-      "2020-11-21T21:00:05.230"
-    )
-    val expectedData = Seq("1,2", "1,3")
-
-    val query = "SELECT a, b FROM PartitionedTable"
-    validate("PartitionedTable", query, expectedWatermarkOutput, expectedData)
-  }
-
-  private def validate(
-      tableName: String,
-      query: String,
-      expectedWatermarkOutput: Seq[String],
-      expectedData: Seq[String]): Unit = {
     val result = tEnv.sqlQuery(query).toAppendStream[Row]
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
 
-    val actualWatermark = TestValuesTableFactory.getWatermarkOutput(tableName)
+    val actualWatermark = TestValuesTableFactory.getWatermarkOutput("MetadataTable")
       .asScala
       .map(x => TimestampData.fromEpochMillis(x.getTimestamp).toLocalDateTime.toString).toList
 

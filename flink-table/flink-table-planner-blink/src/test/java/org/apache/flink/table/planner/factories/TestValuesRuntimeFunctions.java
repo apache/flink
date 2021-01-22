@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.factories;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
-import org.apache.flink.api.common.eventtime.WatermarkOutputMultiplexer;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.api.common.state.ListState;
@@ -55,13 +54,11 @@ import org.apache.flink.types.RowUtils;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -69,7 +66,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.table.planner.factories.TestValuesTableFactory.RESOURCE_COUNTER;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -126,7 +122,6 @@ final class TestValuesRuntimeFunctions {
             globalRawResult.clear();
             globalUpsertResult.clear();
             globalRetractResult.clear();
-            watermarkHistory.clear();
         }
     }
 
@@ -163,143 +158,82 @@ final class TestValuesRuntimeFunctions {
         private final TypeSerializer<RowData> serializer;
 
         /** The actual data elements, in serialized form. */
-        private final List<TestPartitionTransformer> serializedPartitions;
+        private final byte[] elementsSerialized;
+
+        /** The number of serialized elements. */
+        private final int numElements;
+
+        /** The number of elements emitted already. */
+        private volatile int numElementsEmitted;
 
         /** WatermarkStrategy to generate watermark generator. */
         private final WatermarkStrategy<RowData> watermarkStrategy;
 
         private volatile boolean isRunning = true;
 
-        private final String tableName;
+        private String tableName;
 
         public FromElementSourceFunctionWithWatermark(
                 String tableName,
                 TypeSerializer<RowData> serializer,
-                Map<String, Iterable<RowData>> partitions,
+                Iterable<RowData> elements,
                 WatermarkStrategy<RowData> watermarkStrategy)
-                throws Exception {
+                throws IOException {
             this.tableName = tableName;
-            this.serializer = serializer;
-            this.watermarkStrategy = watermarkStrategy;
-            this.serializedPartitions = new ArrayList<>();
-            for (String name : partitions.keySet()) {
-                serializedPartitions.add(new TestPartitionTransformer(name, partitions.get(name)));
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            DataOutputViewStreamWrapper wrapper = new DataOutputViewStreamWrapper(baos);
+
+            int count = 0;
+            try {
+                for (RowData element : elements) {
+                    serializer.serialize(element, wrapper);
+                    count++;
+                }
+            } catch (Exception e) {
+                throw new IOException(
+                        "Serializing the source elements failed: " + e.getMessage(), e);
             }
+
+            this.numElements = count;
+            this.elementsSerialized = baos.toByteArray();
+            this.watermarkStrategy = watermarkStrategy;
+            this.serializer = serializer;
         }
 
         @Override
         public void run(SourceContext<RowData> ctx) throws Exception {
+            ByteArrayInputStream bais = new ByteArrayInputStream(elementsSerialized);
+            final DataInputView input = new DataInputViewStreamWrapper(bais);
+            WatermarkGenerator<RowData> generator =
+                    watermarkStrategy.createWatermarkGenerator(() -> null);
             WatermarkOutput output = new TestValuesWatermarkOutput(ctx);
+            final Object lock = ctx.getCheckpointLock();
 
-            WatermarkOutputMultiplexer multiplexer = new WatermarkOutputMultiplexer(output);
-            for (TestPartitionTransformer partition : serializedPartitions) {
-                multiplexer.registerNewOutput(partition.partitionName);
-                partition.registerPartitionState(
-                        multiplexer.getDeferredOutput(partition.partitionName));
-                partition.registerWatermarkGenerator(
-                        watermarkStrategy.createWatermarkGenerator(() -> null));
-            }
-            List<Iterator<RowData>> iterators =
-                    serializedPartitions.stream()
-                            .map(TestPartitionTransformer::iterator)
-                            .collect(Collectors.toList());
-
-            boolean finish = false;
-            while (isRunning && !finish) {
+            while (isRunning && numElementsEmitted < numElements) {
                 RowData next;
-                finish = true;
-
-                for (Iterator<RowData> iterator : iterators) {
-                    if (iterator.hasNext()) {
-                        finish = false;
-                        next = iterator.next();
-
-                        synchronized (ctx.getCheckpointLock()) {
-                            ctx.collect(next);
-                        }
-                    }
+                try {
+                    next = serializer.deserialize(input);
+                    generator.onEvent(next, Long.MIN_VALUE, output);
+                    generator.onPeriodicEmit(output);
+                } catch (Exception e) {
+                    throw new IOException(
+                            "Failed to deserialize an element from the source. "
+                                    + "If you are using user-defined serialization (Value and Writable types), check the "
+                                    + "serialization functions.\nSerializer is "
+                                    + serializer,
+                            e);
                 }
-                multiplexer.onPeriodicEmit();
+
+                synchronized (lock) {
+                    ctx.collect(next);
+                    numElementsEmitted++;
+                }
             }
         }
 
         @Override
         public void cancel() {
             isRunning = false;
-        }
-
-        private class TestPartitionTransformer implements Serializable {
-
-            private final byte[] records;
-
-            private final int numRecords;
-
-            private final String partitionName;
-
-            private transient WatermarkGenerator<RowData> generator;
-
-            private transient WatermarkOutput output;
-
-            TestPartitionTransformer(String name, Iterable<RowData> elements) throws IOException {
-                this.partitionName = name;
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                DataOutputViewStreamWrapper wrapper = new DataOutputViewStreamWrapper(baos);
-                int count = 0;
-                for (RowData element : elements) {
-                    serializer.serialize(element, wrapper);
-                    count++;
-                }
-                numRecords = count;
-                records = baos.toByteArray();
-            }
-
-            void registerWatermarkGenerator(WatermarkGenerator<RowData> generator) {
-                this.generator = generator;
-            }
-
-            void registerPartitionState(WatermarkOutput output) {
-                this.output = output;
-            }
-
-            Iterator<RowData> iterator() {
-                checkArgument(generator != null, "Please register watermark generator.");
-                checkArgument(output != null, "Please register watermark output");
-
-                return new Iterator<RowData>() {
-                    int count = 0;
-                    ByteArrayInputStream bais = new ByteArrayInputStream(records);
-                    DataInputView input = new DataInputViewStreamWrapper(bais);
-
-                    @Override
-                    public boolean hasNext() {
-                        if (numRecords == 0) {
-                            // trigger idle timer
-                            try {
-                                Thread.sleep(100);
-                            } catch (InterruptedException e) {
-                                throw new RuntimeException("Get exception when sleep", e);
-                            }
-                        }
-                        generator.onPeriodicEmit(output);
-                        return count < numRecords;
-                    }
-
-                    @Override
-                    public RowData next() {
-                        if (count >= numRecords) {
-                            return null;
-                        }
-                        count++;
-                        try {
-                            RowData row = serializer.deserialize(input);
-                            generator.onEvent(row, Long.MIN_VALUE, output);
-                            return row;
-                        } catch (IOException iox) {
-                            throw new RuntimeException("Failed to deserialize record", iox);
-                        }
-                    }
-                };
-            }
         }
 
         private class TestValuesWatermarkOutput implements WatermarkOutput {
