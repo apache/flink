@@ -22,7 +22,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecCalc;
-import org.apache.flink.table.runtime.operators.AbstractProcessStreamOperator;
+import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.calcite.rex.RexProgram;
@@ -32,12 +32,6 @@ public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<Row
 
     public StreamExecCalc(
             RexProgram calcProgram, ExecEdge inputEdge, RowType outputType, String description) {
-        super(
-                calcProgram,
-                AbstractProcessStreamOperator.class,
-                true,
-                inputEdge,
-                outputType,
-                description);
+        super(calcProgram, TableStreamOperator.class, true, inputEdge, outputType, description);
     }
 }

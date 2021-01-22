@@ -31,6 +31,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
@@ -251,6 +252,7 @@ public class BufferDataOverWindowOperatorTest {
                         return mock(StreamingRuntimeContext.class);
                     }
                 };
+        operator.setProcessingTimeService(new TestProcessingTimeService());
         operator.open();
         addRow(0, 1L, 4L); /* 1 **/
         addRow(0, 1L, 1L); /* 2 **/

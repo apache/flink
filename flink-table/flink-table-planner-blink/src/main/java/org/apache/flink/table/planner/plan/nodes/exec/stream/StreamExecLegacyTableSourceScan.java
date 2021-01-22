@@ -39,7 +39,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecLegacyTab
 import org.apache.flink.table.planner.plan.utils.ScanUtil;
 import org.apache.flink.table.planner.sources.TableSourceUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
-import org.apache.flink.table.runtime.operators.AbstractProcessStreamOperator;
+import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
@@ -97,7 +97,7 @@ public class StreamExecLegacyTableSourceScan extends CommonExecLegacyTableSource
 
             CodeGeneratorContext ctx =
                     new CodeGeneratorContext(planner.getTableConfig())
-                            .setOperatorBaseClass(AbstractProcessStreamOperator.class);
+                            .setOperatorBaseClass(TableStreamOperator.class);
             // the produced type may not carry the correct precision user defined in DDL, because
             // it may be converted from legacy type. Fix precision using logical schema from DDL.
             // Code generation requires the correct precision of input fields.

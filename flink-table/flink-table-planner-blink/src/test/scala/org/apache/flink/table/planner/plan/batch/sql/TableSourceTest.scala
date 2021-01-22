@@ -81,6 +81,11 @@ class TableSourceTest extends TableTestBase {
   }
 
   @Test
+  def testSimpleProjectWithProctime(): Unit = {
+    util.verifyExecPlan("SELECT a, c, PROCTIME() FROM ProjectableTable")
+  }
+
+  @Test
   def testProjectWithoutInputRef(): Unit = {
     util.verifyExecPlan("SELECT COUNT(1) FROM ProjectableTable")
   }
