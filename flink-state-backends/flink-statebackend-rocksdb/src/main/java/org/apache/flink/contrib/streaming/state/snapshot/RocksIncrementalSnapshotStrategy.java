@@ -168,6 +168,15 @@ public class RocksIncrementalSnapshotStrategy<K>
             @Nonnull CheckpointStreamFactory checkpointStreamFactory,
             @Nonnull CheckpointOptions checkpointOptions) {
 
+        if (snapshotResources.stateMetaInfoSnapshots.isEmpty()) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug(
+                        "Asynchronous RocksDB snapshot performed on empty keyed state at {}. Returning null.",
+                        timestamp);
+            }
+            return registry -> SnapshotResult.empty();
+        }
+
         List<StateMetaInfoSnapshot> stateMetaInfoSnapshots =
                 snapshotResources.stateMetaInfoSnapshots;
         if (stateMetaInfoSnapshots.isEmpty()) {

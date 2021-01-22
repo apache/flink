@@ -53,6 +53,8 @@ import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksIterator;
 import org.rocksdb.Snapshot;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
@@ -78,6 +80,8 @@ import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUti
 public class RocksFullSnapshotStrategy<K>
         extends RocksDBSnapshotStrategyBase<
                 K, RocksFullSnapshotStrategy.FullRocksDBSnapshotResources> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(RocksFullSnapshotStrategy.class);
 
     private static final String DESCRIPTION = "Asynchronous full RocksDB snapshot";
 
@@ -133,6 +137,15 @@ public class RocksFullSnapshotStrategy<K>
             long timestamp,
             @Nonnull CheckpointStreamFactory checkpointStreamFactory,
             @Nonnull CheckpointOptions checkpointOptions) {
+
+        if (fullRocksDBSnapshotResources.stateMetaInfoSnapshots.isEmpty()) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug(
+                        "Asynchronous RocksDB snapshot performed on empty keyed state at {}. Returning null.",
+                        timestamp);
+            }
+            return registry -> SnapshotResult.empty();
+        }
 
         final SupplierWithException<CheckpointStreamWithResultProvider, Exception>
                 checkpointStreamSupplier =
