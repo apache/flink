@@ -69,8 +69,6 @@ class StreamPhysicalSort(
       .item("orderBy", RelExplainUtil.collationToString(sortCollation, getRowType))
   }
 
-  //~ ExecNode methods -----------------------------------------------------------
-
   override def translateToExecNode(): ExecNode[_] = {
     new StreamExecSort(
       SortUtil.getSortSpec(sortCollation.getFieldCollations),

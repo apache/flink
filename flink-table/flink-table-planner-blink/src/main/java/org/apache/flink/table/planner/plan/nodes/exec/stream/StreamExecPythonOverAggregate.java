@@ -52,7 +52,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
 import java.util.Collections;
 
-/** Stream [[ExecNode]] for python time-based over operator. */
+/** Stream {@link ExecNode} for python time-based over operator. */
 public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData> {
     private static final Logger LOG = LoggerFactory.getLogger(StreamExecPythonOverAggregate.class);
@@ -82,6 +82,7 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
         this.overSpec = overSpec;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
         if (overSpec.getGroups().size() > 1) {
@@ -230,9 +231,9 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
                 className =
                         ARROW_PYTHON_OVER_WINDOW_ROWS_PROC_TIME_AGGREGATE_FUNCTION_OPERATOR_NAME;
             }
-            Class clazz = CommonPythonUtil.loadClass(className);
+            Class<?> clazz = CommonPythonUtil.loadClass(className);
             try {
-                Constructor ctor =
+                Constructor<?> ctor =
                         clazz.getConstructor(
                                 Configuration.class,
                                 long.class,
@@ -272,9 +273,9 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
                 className =
                         ARROW_PYTHON_OVER_WINDOW_RANGE_PROC_TIME_AGGREGATE_FUNCTION_OPERATOR_NAME;
             }
-            Class clazz = CommonPythonUtil.loadClass(className);
+            Class<?> clazz = CommonPythonUtil.loadClass(className);
             try {
-                Constructor ctor =
+                Constructor<?> ctor =
                         clazz.getConstructor(
                                 Configuration.class,
                                 PythonFunctionInfo[].class,

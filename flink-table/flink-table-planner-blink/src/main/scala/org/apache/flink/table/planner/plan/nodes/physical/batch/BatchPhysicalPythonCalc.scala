@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecPythonCalc
-import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecPythonCalc
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}

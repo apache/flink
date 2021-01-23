@@ -46,7 +46,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Batch [[ExecNode]] for sort-based over window aggregate (Python user defined aggregate function).
+ * Batch {@link ExecNode} for sort-based over window aggregate (Python user defined aggregate
+ * function).
  */
 public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
 
@@ -54,10 +55,10 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
             "org.apache.flink.table.runtime.operators.python.aggregate.arrow.batch."
                     + "BatchArrowPythonOverWindowAggregateFunctionOperator";
 
-    private List<Long> lowerBoundary;
-    private List<Long> upperBoundary;
-    private List<AggregateCall> aggCalls;
-    private List<Integer> aggWindowIndex;
+    private final List<Long> lowerBoundary;
+    private final List<Long> upperBoundary;
+    private final List<AggregateCall> aggCalls;
+    private final List<Integer> aggWindowIndex;
 
     public BatchExecPythonOverAggregate(
             OverSpec over, ExecEdge inputEdge, RowType outputType, String description) {
@@ -179,11 +180,11 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
             boolean[] isRangeWindows,
             int[] udafInputOffsets,
             PythonFunctionInfo[] pythonFunctionInfos) {
-        Class clazz =
+        Class<?> clazz =
                 CommonPythonUtil.loadClass(
                         ARROW_PYTHON_OVER_WINDOW_AGGREGATE_FUNCTION_OPERATOR_NAME);
         try {
-            Constructor ctor =
+            Constructor<?> ctor =
                     clazz.getConstructor(
                             Configuration.class,
                             PythonFunctionInfo[].class,

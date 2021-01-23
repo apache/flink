@@ -77,7 +77,7 @@ import static org.apache.flink.table.planner.plan.utils.AggregateUtil.timeFieldI
 import static org.apache.flink.table.planner.plan.utils.AggregateUtil.toDuration;
 import static org.apache.flink.table.planner.plan.utils.AggregateUtil.toLong;
 
-/** Stream [[ExecNode]] for group widow aggregate (Python user defined aggregate function). */
+/** Stream {@link ExecNode} for group widow aggregate (Python user defined aggregate function). */
 public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData> {
     private static final Logger LOGGER =
@@ -110,6 +110,7 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
         this.emitStrategy = emitStrategy;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
         final boolean isCountWindow;
@@ -289,7 +290,7 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                 inputTransform.getParallelism());
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private OneInputStreamOperator<RowData, RowData>
             getPythonStreamGroupWindowAggregateFunctionOperator(
                     Configuration config,
