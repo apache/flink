@@ -20,32 +20,32 @@ package org.apache.flink.runtime.executiongraph;
 
 public class ExecutionEdge {
 
-	private final IntermediateResultPartition source;
+    private final IntermediateResultPartition source;
 
-	private final ExecutionVertex target;
+    private final ExecutionVertex target;
 
-	private final int inputNum;
+    private final int inputNum;
 
-	public ExecutionEdge(IntermediateResultPartition source, ExecutionVertex target, int inputNum) {
-		this.source = source;
-		this.target = target;
-		this.inputNum = inputNum;
-	}
+    public ExecutionEdge(IntermediateResultPartition source, ExecutionVertex target, int inputNum) {
+        this.source = source;
+        this.target = target;
+        this.inputNum = inputNum;
+    }
 
-	public IntermediateResultPartition getSource() {
-		return source;
-	}
+    public IntermediateResultPartition getSource() {
+        return source;
+    }
 
-	public ExecutionVertex getTarget() {
-		return target;
-	}
+    public ExecutionVertex getTarget() {
+        return target;
+    }
 
-	public int getInputNum() {
-		return inputNum;
-	}
+    public int getInputNum() {
+        return inputNum;
+    }
 
-	@Override
-	public String toString() {
-		return "ExecutionEdge [" + source + " <=> " + target + "]";
-	}
+    @Override
+    public String toString() {
+        return "ExecutionEdge [" + source + " <=> " + target + "]";
+    }
 }

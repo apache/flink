@@ -21,18 +21,15 @@ package org.apache.flink.api.java.typeutils;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
-/**
- * Test for {@link MultisetTypeInfo}.
- */
+/** Test for {@link MultisetTypeInfo}. */
 public class MultisetTypeInfoTest extends TypeInformationTestBase<MultisetTypeInfo<?>> {
 
-  @Override
-  protected MultisetTypeInfo<?>[] getTestData() {
-    return new MultisetTypeInfo<?>[] {
-        new MultisetTypeInfo<>(BasicTypeInfo.STRING_TYPE_INFO),
-        new MultisetTypeInfo<>(BasicTypeInfo.INT_TYPE_INFO),
-        new MultisetTypeInfo<>(Long.class)
-    };
-  }
+    @Override
+    protected MultisetTypeInfo<?>[] getTestData() {
+        return new MultisetTypeInfo<?>[] {
+            new MultisetTypeInfo<>(BasicTypeInfo.STRING_TYPE_INFO),
+            new MultisetTypeInfo<>(BasicTypeInfo.INT_TYPE_INFO),
+            new MultisetTypeInfo<>(Long.class)
+        };
+    }
 }
-

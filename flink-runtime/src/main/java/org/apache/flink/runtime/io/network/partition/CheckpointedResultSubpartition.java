@@ -18,21 +18,24 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 
 import java.io.IOException;
-import java.util.List;
 
 /**
- * Interface for subpartitions that are checkpointed, meaning they store data as part of unaligned checkpoints.
+ * Interface for subpartitions that are checkpointed, meaning they store data as part of unaligned
+ * checkpoints.
  */
 public interface CheckpointedResultSubpartition {
 
-	ResultSubpartitionInfo getSubpartitionInfo();
+    ResultSubpartitionInfo getSubpartitionInfo();
 
-	List<Buffer> requestInflightBufferSnapshot();
+    BufferBuilder requestBufferBuilderBlocking()
+            throws IOException, RuntimeException, InterruptedException;
 
-	void readRecoveredState(ChannelStateReader stateReader) throws IOException, InterruptedException;
+    boolean add(BufferConsumer bufferConsumer, int partialRecordLength) throws IOException;
+
+    void finishReadRecoveredState(boolean notifyAndBlockOnCompletion) throws IOException;
 }

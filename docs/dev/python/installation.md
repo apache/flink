@@ -33,12 +33,37 @@ $ python --version
 # the version printed here must be 3.5, 3.6, 3.7 or 3.8
 {% endhighlight %}
 
-## Installation of PyFlink
+## Environment Setup
 
-PyFlink has already been deployed to PyPi and can be installed as following:
+Your system may include multiple Python versions, and thus also include multiple Python binary executables. You can run the following
+`ls` command to find out what Python binary executables are available in your system:
 
 {% highlight bash %}
+$ ls /usr/bin/python*
+{% endhighlight %}
+
+To satisfy the PyFlink requirement regarding the Python environment version, you can choose to soft link `python` to point to your `python3` interpreter:
+
+{% highlight bash %}
+ln -s /usr/bin/python3 python
+{% endhighlight %}
+
+In addition to creating a soft link, you can also choose to create a Python virtual environment (`venv`). You can refer to the [Preparing Python Virtual Environment]({% link dev/python/faq.md %}#preparing-python-virtual-environment) documentation page for details on how to achieve that setup.
+
+If you don’t want to use a soft link to change the system's `python` interpreter point to, you can use the configuration way to specify the Python interpreter.
+For specifying the Python interpreter used to compile the jobs, you can refer to the [python client executable]({% link dev/python/python_config.md %}#python-client-executable)
+For specifying the Python interpreter used to execute the python UDF worker, you can refer to the [python.executable]({% link dev/python/python_config.md %}#python-executable)
+
+## Installation of PyFlink
+
+PyFlink is available through [PyPi](https://pypi.org/project/apache-flink/) as a regular Python package and can be installed as follows:
+
+{% highlight bash %}
+{% if site.is_stable %}
+$ python -m pip install apache-flink {{ site.version }}
+{% else %}
 $ python -m pip install apache-flink
+{% endif %}
 {% endhighlight %}
 
 You can also build PyFlink from source by following the [development guide]({% link flinkDev/building.md %}#build-pyflink).

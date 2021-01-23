@@ -2,7 +2,7 @@
 title: "Parquet Format"
 nav-title: Parquet
 nav-parent_id: sql-formats
-nav-pos: 5
+nav-pos: 7
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -34,12 +34,10 @@ The [Apache Parquet](https://parquet.apache.org/) format allows to read and writ
 Dependencies
 ------------
 
-In order to setup the Parquet format, the following table provides dependency information for both
-projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
-
-| Maven dependency   | SQL Client JAR         |
-| :----------------- | :----------------------|
-| flink-parquet{{site.scala_version_suffix}}  |{% if site.is_stable %}[Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-parquet{{site.scala_version_suffix}}/{{site.version}}/flink-sql-parquet{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for stable releases {% endif %}|
+{% assign connector = site.data.sql-connectors['parquet'] %}
+{% include sql-connector-download-table.html
+    connector=connector
+%}
 
 How to create a table with Parquet format
 ----------------

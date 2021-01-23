@@ -17,16 +17,34 @@
 # limitations under the License.
 ################################################################################
 
-CACHE_DIR=$HOME/gem_cache ./docs/build_docs.sh -p &
+gem update --system
+gem install bundler -v 1.17.2
 
-for i in `seq 1 30`;
+# build the docs w/o any additional arguments, to build both the en and zh variant
+JEKYLL_BUILD_CONFIG="--baseurl=" CACHE_DIR=$HOME/gem_cache ./docs/build_docs.sh
+
+if [ $? -ne 0 ]; then
+	echo "Error building the docs"
+	exit 1
+fi
+
+# serve the docs
+cd docs/content
+python -m SimpleHTTPServer 4000 &
+cd ../..
+
+
+for i in `seq 1 90`;
 do
 	echo "Waiting for server..."
 	curl -Is http://localhost:4000 --fail
 	if [ $? -eq 0 ]; then
-		break
+		./docs/check_links.sh
+		EXIT_CODE=$?
+		exit $EXIT_CODE
 	fi
 	sleep 10
 done
 
-./docs/check_links.sh
+echo "Jekyll server wasn't started within 15 minutes"
+exit 1

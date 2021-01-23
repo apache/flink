@@ -30,17 +30,17 @@ import org.apache.flink.configuration.Configuration;
 @Public
 public class DiscardingOutputFormat<T> implements OutputFormat<T> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public void configure(Configuration parameters) {}
+    @Override
+    public void configure(Configuration parameters) {}
 
-	@Override
-	public void open(int taskNumber, int numTasks) {}
+    @Override
+    public void open(int taskNumber, int numTasks) {}
 
-	@Override
-	public void writeRecord(T record) {}
+    @Override
+    public void writeRecord(T record) {}
 
-	@Override
-	public void close() {}
+    @Override
+    public void close() {}
 }

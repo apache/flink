@@ -23,24 +23,22 @@ import org.apache.flink.types.Row;
 
 import org.apache.arrow.vector.BitVector;
 
-/**
- * {@link ArrowFieldWriter} for Boolean.
- */
+/** {@link ArrowFieldWriter} for Boolean. */
 @Internal
 public final class RowBooleanWriter extends ArrowFieldWriter<Row> {
 
-	public RowBooleanWriter(BitVector bitVector) {
-		super(bitVector);
-	}
+    public RowBooleanWriter(BitVector bitVector) {
+        super(bitVector);
+    }
 
-	@Override
-	public void doWrite(Row value, int ordinal) {
-		if (value.getField(ordinal) == null) {
-			((BitVector) getValueVector()).setNull(getCount());
-		} else if ((boolean) value.getField(ordinal)) {
-			((BitVector) getValueVector()).setSafe(getCount(), 1);
-		} else {
-			((BitVector) getValueVector()).setSafe(getCount(), 0);
-		}
-	}
+    @Override
+    public void doWrite(Row value, int ordinal) {
+        if (value.getField(ordinal) == null) {
+            ((BitVector) getValueVector()).setNull(getCount());
+        } else if ((boolean) value.getField(ordinal)) {
+            ((BitVector) getValueVector()).setSafe(getCount(), 1);
+        } else {
+            ((BitVector) getValueVector()).setSafe(getCount(), 0);
+        }
+    }
 }

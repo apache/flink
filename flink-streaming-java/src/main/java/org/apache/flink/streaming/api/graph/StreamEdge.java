@@ -23,190 +23,171 @@ import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.util.OutputTag;
 
 import java.io.Serializable;
-import java.util.List;
 import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * An edge in the streaming topology. One edge like this does not necessarily
- * gets converted to a connection between two job vertices (due to
- * chaining/optimization).
+ * An edge in the streaming topology. One edge like this does not necessarily gets converted to a
+ * connection between two job vertices (due to chaining/optimization).
  */
 @Internal
 public class StreamEdge implements Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private static final long ALWAYS_FLUSH_BUFFER_TIMEOUT = 0L;
+    private static final long ALWAYS_FLUSH_BUFFER_TIMEOUT = 0L;
 
-	private final String edgeId;
+    private final String edgeId;
 
-	private final int sourceId;
-	private final int targetId;
+    private final int sourceId;
+    private final int targetId;
 
-	/**
-	 * The type number of the input for co-tasks.
-	 */
-	private final int typeNumber;
+    /** The type number of the input for co-tasks. */
+    private final int typeNumber;
+    /** The side-output tag (if any) of this {@link StreamEdge}. */
+    private final OutputTag outputTag;
 
-	/**
-	 * A list of output names that the target vertex listens to (if there is
-	 * output selection).
-	 */
-	private final List<String> selectedNames;
+    /** The {@link StreamPartitioner} on this {@link StreamEdge}. */
+    private StreamPartitioner<?> outputPartitioner;
 
-	/**
-	 * The side-output tag (if any) of this {@link StreamEdge}.
-	 */
-	private final OutputTag outputTag;
+    /** The name of the operator in the source vertex. */
+    private final String sourceOperatorName;
 
-	/**
-	 * The {@link StreamPartitioner} on this {@link StreamEdge}.
-	 */
-	private StreamPartitioner<?> outputPartitioner;
+    /** The name of the operator in the target vertex. */
+    private final String targetOperatorName;
 
-	/**
-	 * The name of the operator in the source vertex.
-	 */
-	private final String sourceOperatorName;
+    private final ShuffleMode shuffleMode;
 
-	/**
-	 * The name of the operator in the target vertex.
-	 */
-	private final String targetOperatorName;
+    private long bufferTimeout;
 
-	private final ShuffleMode shuffleMode;
+    public StreamEdge(
+            StreamNode sourceVertex,
+            StreamNode targetVertex,
+            int typeNumber,
+            StreamPartitioner<?> outputPartitioner,
+            OutputTag outputTag) {
 
-	private long bufferTimeout;
+        this(
+                sourceVertex,
+                targetVertex,
+                typeNumber,
+                ALWAYS_FLUSH_BUFFER_TIMEOUT,
+                outputPartitioner,
+                outputTag,
+                ShuffleMode.UNDEFINED);
+    }
 
-	public StreamEdge(
-		StreamNode sourceVertex,
-		StreamNode targetVertex,
-		int typeNumber,
-		List<String> selectedNames,
-		StreamPartitioner<?> outputPartitioner,
-		OutputTag outputTag) {
+    public StreamEdge(
+            StreamNode sourceVertex,
+            StreamNode targetVertex,
+            int typeNumber,
+            StreamPartitioner<?> outputPartitioner,
+            OutputTag outputTag,
+            ShuffleMode shuffleMode) {
 
-		this(
-			sourceVertex,
-			targetVertex,
-			typeNumber,
-			ALWAYS_FLUSH_BUFFER_TIMEOUT,
-			selectedNames,
-			outputPartitioner,
-			outputTag,
-			ShuffleMode.UNDEFINED);
-	}
+        this(
+                sourceVertex,
+                targetVertex,
+                typeNumber,
+                sourceVertex.getBufferTimeout(),
+                outputPartitioner,
+                outputTag,
+                shuffleMode);
+    }
 
-	public StreamEdge(
-		StreamNode sourceVertex,
-		StreamNode targetVertex,
-		int typeNumber,
-		List<String> selectedNames,
-		StreamPartitioner<?> outputPartitioner,
-		OutputTag outputTag,
-		ShuffleMode shuffleMode) {
+    public StreamEdge(
+            StreamNode sourceVertex,
+            StreamNode targetVertex,
+            int typeNumber,
+            long bufferTimeout,
+            StreamPartitioner<?> outputPartitioner,
+            OutputTag outputTag,
+            ShuffleMode shuffleMode) {
 
-		this(
-			sourceVertex,
-			targetVertex,
-			typeNumber,
-			sourceVertex.getBufferTimeout(),
-			selectedNames,
-			outputPartitioner,
-			outputTag,
-			shuffleMode);
-	}
+        this.sourceId = sourceVertex.getId();
+        this.targetId = targetVertex.getId();
+        this.typeNumber = typeNumber;
+        this.bufferTimeout = bufferTimeout;
+        this.outputPartitioner = outputPartitioner;
+        this.outputTag = outputTag;
+        this.sourceOperatorName = sourceVertex.getOperatorName();
+        this.targetOperatorName = targetVertex.getOperatorName();
+        this.shuffleMode = checkNotNull(shuffleMode);
+        this.edgeId =
+                sourceVertex + "_" + targetVertex + "_" + typeNumber + "_" + outputPartitioner;
+    }
 
-	public StreamEdge(
-		StreamNode sourceVertex,
-		StreamNode targetVertex,
-		int typeNumber,
-		long bufferTimeout,
-		List<String> selectedNames,
-		StreamPartitioner<?> outputPartitioner,
-		OutputTag outputTag,
-		ShuffleMode shuffleMode) {
+    public int getSourceId() {
+        return sourceId;
+    }
 
-		this.sourceId = sourceVertex.getId();
-		this.targetId = targetVertex.getId();
-		this.typeNumber = typeNumber;
-		this.bufferTimeout = bufferTimeout;
-		this.selectedNames = selectedNames;
-		this.outputPartitioner = outputPartitioner;
-		this.outputTag = outputTag;
-		this.sourceOperatorName = sourceVertex.getOperatorName();
-		this.targetOperatorName = targetVertex.getOperatorName();
-		this.shuffleMode = checkNotNull(shuffleMode);
-		this.edgeId = sourceVertex + "_" + targetVertex + "_" + typeNumber + "_" + selectedNames + "_" + outputPartitioner;
-	}
+    public int getTargetId() {
+        return targetId;
+    }
 
-	public int getSourceId() {
-		return sourceId;
-	}
+    public int getTypeNumber() {
+        return typeNumber;
+    }
 
-	public int getTargetId() {
-		return targetId;
-	}
+    public OutputTag getOutputTag() {
+        return this.outputTag;
+    }
 
-	public int getTypeNumber() {
-		return typeNumber;
-	}
+    public StreamPartitioner<?> getPartitioner() {
+        return outputPartitioner;
+    }
 
-	public List<String> getSelectedNames() {
-		return selectedNames;
-	}
+    public ShuffleMode getShuffleMode() {
+        return shuffleMode;
+    }
 
-	public OutputTag getOutputTag() {
-		return this.outputTag;
-	}
+    public void setPartitioner(StreamPartitioner<?> partitioner) {
+        this.outputPartitioner = partitioner;
+    }
 
-	public StreamPartitioner<?> getPartitioner() {
-		return outputPartitioner;
-	}
+    public void setBufferTimeout(long bufferTimeout) {
+        checkArgument(bufferTimeout >= -1);
+        this.bufferTimeout = bufferTimeout;
+    }
 
-	public ShuffleMode getShuffleMode() {
-		return shuffleMode;
-	}
+    public long getBufferTimeout() {
+        return bufferTimeout;
+    }
 
-	public void setPartitioner(StreamPartitioner<?> partitioner) {
-		this.outputPartitioner = partitioner;
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(edgeId, outputTag);
+    }
 
-	public void setBufferTimeout(long bufferTimeout) {
-		checkArgument(bufferTimeout >= -1);
-		this.bufferTimeout = bufferTimeout;
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
-	public long getBufferTimeout() {
-		return bufferTimeout;
-	}
+        StreamEdge that = (StreamEdge) o;
+        return Objects.equals(edgeId, that.edgeId) && Objects.equals(outputTag, that.outputTag);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(edgeId, outputTag);
-	}
-
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-
-		StreamEdge that = (StreamEdge) o;
-		return Objects.equals(edgeId, that.edgeId) &&
-			Objects.equals(outputTag, that.outputTag);
-	}
-
-	@Override
-	public String toString() {
-		return "(" + (sourceOperatorName + "-" + sourceId) + " -> " + (targetOperatorName + "-" + targetId)
-			+ ", typeNumber=" + typeNumber + ", selectedNames=" + selectedNames + ", outputPartitioner=" + outputPartitioner
-			+ ", bufferTimeout=" + bufferTimeout + ", outputTag=" + outputTag + ')';
-	}
+    @Override
+    public String toString() {
+        return "("
+                + (sourceOperatorName + "-" + sourceId)
+                + " -> "
+                + (targetOperatorName + "-" + targetId)
+                + ", typeNumber="
+                + typeNumber
+                + ", outputPartitioner="
+                + outputPartitioner
+                + ", bufferTimeout="
+                + bufferTimeout
+                + ", outputTag="
+                + outputTag
+                + ')';
+    }
 }

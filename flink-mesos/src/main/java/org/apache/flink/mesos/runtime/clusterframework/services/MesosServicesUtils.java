@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.mesos.configuration.MesosOptions;
 import org.apache.flink.mesos.util.MesosArtifactServer;
+import org.apache.flink.mesos.util.MesosArtifactServerImpl;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.zookeeper.ZooKeeperUtilityFactory;
@@ -30,52 +31,57 @@ import akka.actor.ActorSystem;
 
 import java.util.UUID;
 
-/**
- * Utilities for the {@link MesosServices}.
- */
+/** Utilities for the {@link MesosServices}. */
 public class MesosServicesUtils {
 
-	/**
-	 * Creates a {@link MesosServices} instance depending on the high availability settings.
-	 *
-	 * @param configuration containing the high availability settings
-	 * @param hostname the hostname to advertise to remote clients
-	 * @return a mesos services instance
-	 * @throws Exception if the mesos services instance could not be created
-	 */
-	public static MesosServices createMesosServices(Configuration configuration, String hostname) throws Exception {
+    /**
+     * Creates a {@link MesosServices} instance depending on the high availability settings.
+     *
+     * @param configuration containing the high availability settings
+     * @param hostname the hostname to advertise to remote clients
+     * @return a mesos services instance
+     * @throws Exception if the mesos services instance could not be created
+     */
+    public static MesosServices createMesosServices(Configuration configuration, String hostname)
+            throws Exception {
 
-		ActorSystem localActorSystem = AkkaUtils.createLocalActorSystem(configuration);
+        ActorSystem localActorSystem = AkkaUtils.createLocalActorSystem(configuration);
 
-		MesosArtifactServer artifactServer = createArtifactServer(configuration, hostname);
+        MesosArtifactServer artifactServer = createArtifactServer(configuration, hostname);
 
-		HighAvailabilityMode highAvailabilityMode = HighAvailabilityMode.fromConfig(configuration);
+        HighAvailabilityMode highAvailabilityMode = HighAvailabilityMode.fromConfig(configuration);
 
-		switch (highAvailabilityMode) {
-			case NONE:
-				return new StandaloneMesosServices(localActorSystem, artifactServer);
+        switch (highAvailabilityMode) {
+            case NONE:
+                return new StandaloneMesosServices(localActorSystem, artifactServer);
 
-			case ZOOKEEPER:
-				final String zkMesosRootPath = configuration.getString(
-					HighAvailabilityOptions.HA_ZOOKEEPER_MESOS_WORKERS_PATH);
+            case ZOOKEEPER:
+                final String zkMesosRootPath =
+                        configuration.getString(
+                                HighAvailabilityOptions.HA_ZOOKEEPER_MESOS_WORKERS_PATH);
 
-				ZooKeeperUtilityFactory zooKeeperUtilityFactory = new ZooKeeperUtilityFactory(
-					configuration,
-					zkMesosRootPath);
+                ZooKeeperUtilityFactory zooKeeperUtilityFactory =
+                        new ZooKeeperUtilityFactory(configuration, zkMesosRootPath);
 
-				return new ZooKeeperMesosServices(localActorSystem, artifactServer, zooKeeperUtilityFactory);
+                return new ZooKeeperMesosServices(
+                        localActorSystem, artifactServer, zooKeeperUtilityFactory);
 
-			default:
-				throw new Exception("High availability mode " + highAvailabilityMode + " is not supported.");
-		}
-	}
+            default:
+                throw new Exception(
+                        "High availability mode " + highAvailabilityMode + " is not supported.");
+        }
+    }
 
-	private static MesosArtifactServer createArtifactServer(Configuration configuration, String hostname) throws Exception {
-		final int artifactServerPort = configuration.getInteger(MesosOptions.ARTIFACT_SERVER_PORT, 0);
+    private static MesosArtifactServer createArtifactServer(
+            Configuration configuration, String hostname) throws Exception {
+        final int artifactServerPort =
+                configuration.getInteger(MesosOptions.ARTIFACT_SERVER_PORT, 0);
 
-		// a random prefix is affixed to artifact URLs to ensure uniqueness in the Mesos fetcher cache
-		final String artifactServerPrefix = UUID.randomUUID().toString();
+        // a random prefix is affixed to artifact URLs to ensure uniqueness in the Mesos fetcher
+        // cache
+        final String artifactServerPrefix = UUID.randomUUID().toString();
 
-		return new MesosArtifactServer(artifactServerPrefix, hostname, artifactServerPort, configuration);
-	}
+        return new MesosArtifactServerImpl(
+                artifactServerPrefix, hostname, artifactServerPort, configuration);
+    }
 }

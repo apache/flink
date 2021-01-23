@@ -18,11 +18,14 @@
 
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.calcite.rex.{RexCall, RexNode}
+import org.apache.calcite.rel.core.AggregateCall
+import org.apache.calcite.rex.{RexCall, RexFieldAccess, RexNode}
 import org.apache.flink.table.functions.FunctionDefinition
 import org.apache.flink.table.functions.python.{PythonFunction, PythonFunctionKind}
-import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
-import org.apache.flink.table.planner.functions.utils.{ScalarSqlFunction, TableSqlFunction}
+import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
+import org.apache.flink.table.planner.functions.bridging.{BridgingSqlAggFunction, BridgingSqlFunction}
+import org.apache.flink.table.planner.functions.utils.{AggSqlFunction, ScalarSqlFunction, TableSqlFunction}
+import org.apache.flink.table.runtime.functions.aggregate.BuiltInAggregateFunction
 
 import scala.collection.JavaConversions._
 
@@ -70,6 +73,55 @@ object PythonUtil {
   def isNonPythonCall(node: RexNode): Boolean = node.accept(new FunctionFinder(false, None, false))
 
   /**
+    * Checks whether the specified aggregate is the specified kind of Python function Aggregate.
+    *
+    * @param call the AggregateCall to check
+    * @param pythonFunctionKind the kind of the python function
+    * @return true if the specified call is a Python function Aggregate.
+    */
+  def isPythonAggregate(
+      call: AggregateCall,
+      pythonFunctionKind: PythonFunctionKind = null): Boolean = {
+    val aggregation = call.getAggregation
+    aggregation match {
+      case function: AggSqlFunction =>
+        isPythonFunction(function.aggregateFunction, pythonFunctionKind)
+      case function: BridgingSqlAggFunction =>
+        isPythonFunction(function.getDefinition, pythonFunctionKind)
+      case _ => false
+    }
+  }
+
+  def isBuiltInAggregate(call: AggregateCall): Boolean = {
+    val aggregation = call.getAggregation
+    aggregation match {
+      case function: AggSqlFunction =>
+        function.aggregateFunction.isInstanceOf[BuiltInAggregateFunction[_, _]]
+      case function: BridgingSqlAggFunction =>
+        function.getDefinition.isInstanceOf[DeclarativeAggregateFunction]
+      case _ => true
+    }
+  }
+
+  def takesRowAsInput(call: RexCall): Boolean = {
+    (call.getOperator match {
+      case sfc: ScalarSqlFunction => sfc.scalarFunction
+      case tfc: TableSqlFunction => tfc.udtf
+      case bsf: BridgingSqlFunction => bsf.getDefinition
+    }).asInstanceOf[PythonFunction].takesRowAsInput()
+  }
+
+  private[this] def isPythonFunction(
+      function: FunctionDefinition,
+      pythonFunctionKind: PythonFunctionKind): Boolean = {
+    function match {
+      case pythonFunction: PythonFunction =>
+        pythonFunctionKind == null || pythonFunction.getPythonFunctionKind == pythonFunctionKind
+      case _ => false
+    }
+  }
+
+  /**
     * Checks whether it contains the specified kind of function in a RexNode.
     *
     * @param findPythonFunction true to find python function, false to find non-python function
@@ -106,6 +158,10 @@ object PythonUtil {
     override def visitCall(call: RexCall): Boolean = {
       findPythonFunction == isPythonRexCall(call) ||
         (recursive && call.getOperands.exists(_.accept(this)))
+    }
+
+    override def visitFieldAccess(fieldAccess: RexFieldAccess): Boolean = {
+      fieldAccess.getReferenceExpr.accept(this)
     }
 
     override def visitNode(rexNode: RexNode): Boolean = false

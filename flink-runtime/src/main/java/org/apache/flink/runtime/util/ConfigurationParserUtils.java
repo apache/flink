@@ -36,98 +36,112 @@ import org.slf4j.LoggerFactory;
 import static org.apache.flink.util.MathUtils.checkedDownCast;
 
 /**
- * Utility class to extract related parameters from {@link Configuration} and to
- * sanity check them.
+ * Utility class to extract related parameters from {@link Configuration} and to sanity check them.
  */
 public class ConfigurationParserUtils {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ConfigurationParserUtils.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ConfigurationParserUtils.class);
 
-	/**
-	 * Parses the configuration to get the number of slots and validates the value.
-	 *
-	 * @param configuration configuration object
-	 * @return the number of slots in task manager
-	 */
-	public static int getSlot(Configuration configuration) {
-		int slots = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1);
-		// we need this because many configs have been written with a "-1" entry
-		if (slots == -1) {
-			slots = 1;
-		}
+    /**
+     * Parses the configuration to get the number of slots and validates the value.
+     *
+     * @param configuration configuration object
+     * @return the number of slots in task manager
+     */
+    public static int getSlot(Configuration configuration) {
+        int slots = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1);
+        // we need this because many configs have been written with a "-1" entry
+        if (slots == -1) {
+            slots = 1;
+        }
 
-		ConfigurationParserUtils.checkConfigParameter(slots >= 1, slots, TaskManagerOptions.NUM_TASK_SLOTS.key(),
-			"Number of task slots must be at least one.");
+        ConfigurationParserUtils.checkConfigParameter(
+                slots >= 1,
+                slots,
+                TaskManagerOptions.NUM_TASK_SLOTS.key(),
+                "Number of task slots must be at least one.");
 
-		return slots;
-	}
+        return slots;
+    }
 
-	/**
-	 * Validates a condition for a config parameter and displays a standard exception, if the
-	 * the condition does not hold.
-	 *
-	 * @param condition             The condition that must hold. If the condition is false, an exception is thrown.
-	 * @param parameter         The parameter value. Will be shown in the exception message.
-	 * @param name              The name of the config parameter. Will be shown in the exception message.
-	 * @param errorMessage  The optional custom error message to append to the exception message.
-	 *
-	 * @throws IllegalConfigurationException if the condition does not hold
-	 */
-	public static void checkConfigParameter(boolean condition, Object parameter, String name, String errorMessage)
-		throws IllegalConfigurationException {
-		if (!condition) {
-			throw new IllegalConfigurationException("Invalid configuration value for " +
-				name + " : " + parameter + " - " + errorMessage);
-		}
-	}
+    /**
+     * Validates a condition for a config parameter and displays a standard exception, if the the
+     * condition does not hold.
+     *
+     * @param condition The condition that must hold. If the condition is false, an exception is
+     *     thrown.
+     * @param parameter The parameter value. Will be shown in the exception message.
+     * @param name The name of the config parameter. Will be shown in the exception message.
+     * @param errorMessage The optional custom error message to append to the exception message.
+     * @throws IllegalConfigurationException if the condition does not hold
+     */
+    public static void checkConfigParameter(
+            boolean condition, Object parameter, String name, String errorMessage)
+            throws IllegalConfigurationException {
+        if (!condition) {
+            throw new IllegalConfigurationException(
+                    "Invalid configuration value for "
+                            + name
+                            + " : "
+                            + parameter
+                            + " - "
+                            + errorMessage);
+        }
+    }
 
-	/**
-	 * Parses the configuration to get the page size and validates the value.
-	 *
-	 * @param configuration configuration object
-	 * @return size of memory segment
-	 */
-	public static int getPageSize(Configuration configuration) {
-		final int pageSize = checkedDownCast(
-			configuration.get(TaskManagerOptions.MEMORY_SEGMENT_SIZE).getBytes());
+    /**
+     * Parses the configuration to get the page size and validates the value.
+     *
+     * @param configuration configuration object
+     * @return size of memory segment
+     */
+    public static int getPageSize(Configuration configuration) {
+        final int pageSize =
+                checkedDownCast(
+                        configuration.get(TaskManagerOptions.MEMORY_SEGMENT_SIZE).getBytes());
 
-		// check page size of for minimum size
-		checkConfigParameter(
-			pageSize >= MemoryManager.MIN_PAGE_SIZE,
-			pageSize,
-			TaskManagerOptions.MEMORY_SEGMENT_SIZE.key(),
-			"Minimum memory segment size is " + MemoryManager.MIN_PAGE_SIZE);
-		// check page size for power of two
-		checkConfigParameter(
-			MathUtils.isPowerOf2(pageSize),
-			pageSize,
-			TaskManagerOptions.MEMORY_SEGMENT_SIZE.key(),
-			"Memory segment size must be a power of 2.");
+        // check page size of for minimum size
+        checkConfigParameter(
+                pageSize >= MemoryManager.MIN_PAGE_SIZE,
+                pageSize,
+                TaskManagerOptions.MEMORY_SEGMENT_SIZE.key(),
+                "Minimum memory segment size is " + MemoryManager.MIN_PAGE_SIZE);
+        // check page size for power of two
+        checkConfigParameter(
+                MathUtils.isPowerOf2(pageSize),
+                pageSize,
+                TaskManagerOptions.MEMORY_SEGMENT_SIZE.key(),
+                "Memory segment size must be a power of 2.");
 
-		return pageSize;
-	}
+        return pageSize;
+    }
 
-	/**
-	 * Generate configuration from only the config file and dynamic properties.
-	 * @param args the commandline arguments
-	 * @param cmdLineSyntax the syntax for this application
-	 * @return generated configuration
-	 * @throws FlinkParseException if the configuration cannot be generated
-	 */
-	public static Configuration loadCommonConfiguration(String[] args, String cmdLineSyntax) throws FlinkParseException {
-		final CommandLineParser<ClusterConfiguration> commandLineParser = new CommandLineParser<>(new ClusterConfigurationParserFactory());
+    /**
+     * Generate configuration from only the config file and dynamic properties.
+     *
+     * @param args the commandline arguments
+     * @param cmdLineSyntax the syntax for this application
+     * @return generated configuration
+     * @throws FlinkParseException if the configuration cannot be generated
+     */
+    public static Configuration loadCommonConfiguration(String[] args, String cmdLineSyntax)
+            throws FlinkParseException {
+        final CommandLineParser<ClusterConfiguration> commandLineParser =
+                new CommandLineParser<>(new ClusterConfigurationParserFactory());
 
-		final ClusterConfiguration clusterConfiguration;
+        final ClusterConfiguration clusterConfiguration;
 
-		try {
-			clusterConfiguration = commandLineParser.parse(args);
-		} catch (FlinkParseException e) {
-			LOG.error("Could not parse the command line options.", e);
-			commandLineParser.printHelp(cmdLineSyntax);
-			throw e;
-		}
+        try {
+            clusterConfiguration = commandLineParser.parse(args);
+        } catch (FlinkParseException e) {
+            LOG.error("Could not parse the command line options.", e);
+            commandLineParser.printHelp(cmdLineSyntax);
+            throw e;
+        }
 
-		final Configuration dynamicProperties = ConfigurationUtils.createConfiguration(clusterConfiguration.getDynamicProperties());
-		return GlobalConfiguration.loadConfiguration(clusterConfiguration.getConfigDir(), dynamicProperties);
-	}
+        final Configuration dynamicProperties =
+                ConfigurationUtils.createConfiguration(clusterConfiguration.getDynamicProperties());
+        return GlobalConfiguration.loadConfiguration(
+                clusterConfiguration.getConfigDir(), dynamicProperties);
+    }
 }

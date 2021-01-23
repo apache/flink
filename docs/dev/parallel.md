@@ -27,7 +27,7 @@ program consists of multiple tasks (transformations/operators, data sources, and
 several parallel instances for execution and each parallel instance processes a subset of the task's
 input data. The number of parallel instances of a task is called its *parallelism*.
 
-If you want to use [savepoints]({{ site.baseurl }}/ops/state/savepoints.html) you should also consider
+If you want to use [savepoints]({% link ops/state/savepoints.md %}) you should also consider
 setting a maximum parallelism (or `max parallelism`). When restoring from a savepoint you can
 change the parallelism of specific operators or the whole program and this setting specifies
 an upper bound on the parallelism. This is required because Flink internally partitions state
@@ -55,7 +55,7 @@ DataStream<String> text = [...]
 DataStream<Tuple2<String, Integer>> wordCounts = text
     .flatMap(new LineSplitter())
     .keyBy(value -> value.f0)
-    .timeWindow(Time.seconds(5))
+    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
     .sum(1).setParallelism(5);
 
 wordCounts.print();
@@ -71,7 +71,7 @@ val text = [...]
 val wordCounts = text
     .flatMap{ _.split(" ") map { (_, 1) } }
     .keyBy(_._1)
-    .timeWindow(Time.seconds(5))
+    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
     .sum(1).setParallelism(5)
 wordCounts.print()
 
@@ -114,7 +114,7 @@ val text = [...]
 val wordCounts = text
     .flatMap{ _.split(" ") map { (_, 1) } }
     .keyBy(_._1)
-    .timeWindow(Time.seconds(5))
+    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
     .sum(1)
 wordCounts.print()
 
@@ -181,7 +181,7 @@ try {
 
 A system-wide default parallelism for all execution environments can be defined by setting the
 `parallelism.default` property in `./conf/flink-conf.yaml`. See the
-[Configuration]({{ site.baseurl }}/ops/config.html) documentation for details.
+[Configuration]({% link deployment/config.md %}) documentation for details.
 
 ## Setting the Maximum Parallelism
 

@@ -24,14 +24,16 @@ import org.apache.flink.connector.base.source.reader.RecordEmitter;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * A mock {@link RecordEmitter} that works with the {@link MockSplitReader} and {@link MockSourceReader}.
+ * A mock {@link RecordEmitter} that works with the {@link MockSplitReader} and {@link
+ * MockSourceReader}.
  */
 public class MockRecordEmitter implements RecordEmitter<int[], Integer, AtomicInteger> {
-	@Override
-	public void emitRecord(int[] record, SourceOutput<Integer> output, AtomicInteger splitState) throws Exception {
-		// The value is the first element.
-		output.collect(record[0]);
-		// The state will be next index.
-		splitState.set(record[1] + 1);
-	}
+    @Override
+    public void emitRecord(int[] record, SourceOutput<Integer> output, AtomicInteger splitState)
+            throws Exception {
+        // The value is the first element.
+        output.collect(record[0]);
+        // The state will be next index.
+        splitState.set(record[1] + 1);
+    }
 }

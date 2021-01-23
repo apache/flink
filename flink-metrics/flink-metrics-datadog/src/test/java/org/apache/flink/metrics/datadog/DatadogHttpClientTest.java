@@ -18,11 +18,14 @@
 
 package org.apache.flink.metrics.datadog;
 
-import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Gauge;
-import org.apache.flink.metrics.Meter;
+import org.apache.flink.metrics.util.TestCounter;
+import org.apache.flink.metrics.util.TestHistogram;
+import org.apache.flink.metrics.util.TestMeter;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.MapperFeature;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.junit.Test;
 
@@ -30,178 +33,188 @@ import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for the DatadogHttpClient.
- */
+/** Tests for the DatadogHttpClient. */
 public class DatadogHttpClientTest {
 
-	private static List<String> tags = Arrays.asList("tag1", "tag2");
+    private static final List<String> tags = Arrays.asList("tag1", "tag2");
+    private static final String TAGS_AS_JSON =
+            tags.stream().collect(Collectors.joining("\",\"", "[\"", "\"]"));
+    private static final String HOST = "localhost";
+    private static final String METRIC = "testMetric";
 
-	private static final long MOCKED_SYSTEM_MILLIS = 123L;
+    private static final ObjectMapper MAPPER;
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testClientWithEmptyKey() {
-		new DatadogHttpClient("", null, 123, DataCenter.US, false);
-	}
+    static {
+        MAPPER = new ObjectMapper();
+        MAPPER.configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true);
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testClientWithNullKey() {
-		new DatadogHttpClient(null, null, 123, DataCenter.US, false);
-	}
+    private static final long MOCKED_SYSTEM_MILLIS = 123L;
 
-	@Test
-	public void testGetProxyWithNullProxyHost() {
-		DatadogHttpClient client = new DatadogHttpClient("anApiKey", null, 123, DataCenter.US, false);
-		assert(client.getProxy() == Proxy.NO_PROXY);
-	}
+    @Test(expected = IllegalArgumentException.class)
+    public void testClientWithEmptyKey() {
+        new DatadogHttpClient("", null, 123, DataCenter.US, false);
+    }
 
-	@Test
-	public void testGetProxy() {
-		DatadogHttpClient client = new DatadogHttpClient("anApiKey", "localhost", 123, DataCenter.US, false);
+    @Test(expected = IllegalArgumentException.class)
+    public void testClientWithNullKey() {
+        new DatadogHttpClient(null, null, 123, DataCenter.US, false);
+    }
 
-		assertTrue(client.getProxy().address() instanceof InetSocketAddress);
+    @Test
+    public void testGetProxyWithNullProxyHost() {
+        DatadogHttpClient client =
+                new DatadogHttpClient("anApiKey", null, 123, DataCenter.US, false);
+        assert (client.getProxy() == Proxy.NO_PROXY);
+    }
 
-		InetSocketAddress proxyAddress = (InetSocketAddress) client.getProxy().address();
+    @Test
+    public void testGetProxy() {
+        DatadogHttpClient client =
+                new DatadogHttpClient("anApiKey", "localhost", 123, DataCenter.US, false);
 
-		assertEquals(123, proxyAddress.getPort());
-		assertEquals("localhost", proxyAddress.getHostString());
-	}
+        assertTrue(client.getProxy().address() instanceof InetSocketAddress);
 
-	@Test
-	public void serializeGauge() throws JsonProcessingException {
+        InetSocketAddress proxyAddress = (InetSocketAddress) client.getProxy().address();
 
-		DGauge g = new DGauge(new Gauge<Number>() {
-			@Override
-			public Number getValue() {
-				return 1;
-			}
-		}, "testCounter", "localhost", tags, () -> MOCKED_SYSTEM_MILLIS);
+        assertEquals(123, proxyAddress.getPort());
+        assertEquals("localhost", proxyAddress.getHostString());
+    }
 
-		assertEquals(
-			"{\"metric\":\"testCounter\",\"type\":\"gauge\",\"host\":\"localhost\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1]]}",
-			DatadogHttpClient.serialize(g));
-	}
+    @Test
+    public void serializeGauge() throws JsonProcessingException {
+        DSeries series = new DSeries();
+        series.add(new DGauge(() -> 1, METRIC, HOST, tags, () -> MOCKED_SYSTEM_MILLIS));
 
-	@Test
-	public void serializeGaugeWithoutHost() throws JsonProcessingException {
+        assertSerialization(
+                DatadogHttpClient.serialize(series),
+                new MetricAssertion(MetricType.gauge, true, "1"));
+    }
 
-		DGauge g = new DGauge(new Gauge<Number>() {
-			@Override
-			public Number getValue() {
-				return 1;
-			}
-		}, "testCounter", null, tags, () -> MOCKED_SYSTEM_MILLIS);
+    @Test
+    public void serializeGaugeWithoutHost() throws JsonProcessingException {
+        DSeries series = new DSeries();
+        series.add(new DGauge(() -> 1, METRIC, null, tags, () -> MOCKED_SYSTEM_MILLIS));
 
-		assertEquals(
-			"{\"metric\":\"testCounter\",\"type\":\"gauge\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1]]}",
-			DatadogHttpClient.serialize(g));
-	}
+        assertSerialization(
+                DatadogHttpClient.serialize(series),
+                new MetricAssertion(MetricType.gauge, false, "1"));
+    }
 
-	@Test
-	public void serializeCounter() throws JsonProcessingException {
-		DCounter c = new DCounter(new Counter() {
-			@Override
-			public void inc() {}
+    @Test
+    public void serializeCounter() throws JsonProcessingException {
+        DSeries series = new DSeries();
+        series.add(
+                new DCounter(new TestCounter(1), METRIC, HOST, tags, () -> MOCKED_SYSTEM_MILLIS));
 
-			@Override
-			public void inc(long n) {}
+        assertSerialization(
+                DatadogHttpClient.serialize(series),
+                new MetricAssertion(MetricType.count, true, "1"));
+    }
 
-			@Override
-			public void dec() {}
+    @Test
+    public void serializeCounterWithoutHost() throws JsonProcessingException {
+        DSeries series = new DSeries();
+        series.add(
+                new DCounter(new TestCounter(1), METRIC, null, tags, () -> MOCKED_SYSTEM_MILLIS));
 
-			@Override
-			public void dec(long n) {}
+        assertSerialization(
+                DatadogHttpClient.serialize(series),
+                new MetricAssertion(MetricType.count, false, "1"));
+    }
 
-			@Override
-			public long getCount() {
-				return 1;
-			}
-		}, "testCounter", "localhost", tags, () -> MOCKED_SYSTEM_MILLIS);
+    @Test
+    public void serializeMeter() throws JsonProcessingException {
+        DSeries series = new DSeries();
+        series.add(new DMeter(new TestMeter(0, 1), METRIC, HOST, tags, () -> MOCKED_SYSTEM_MILLIS));
 
-		assertEquals(
-			"{\"metric\":\"testCounter\",\"type\":\"count\",\"host\":\"localhost\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1]]}",
-			DatadogHttpClient.serialize(c));
-	}
+        assertSerialization(
+                DatadogHttpClient.serialize(series),
+                new MetricAssertion(MetricType.gauge, true, "1.0"));
+    }
 
-	@Test
-	public void serializeCounterWithoutHost() throws JsonProcessingException {
-		DCounter c = new DCounter(new Counter() {
-			@Override
-			public void inc() {}
+    @Test
+    public void serializeMeterWithoutHost() throws JsonProcessingException {
+        DSeries series = new DSeries();
+        series.add(new DMeter(new TestMeter(0, 1), METRIC, null, tags, () -> MOCKED_SYSTEM_MILLIS));
 
-			@Override
-			public void inc(long n) {}
+        assertSerialization(
+                DatadogHttpClient.serialize(series),
+                new MetricAssertion(MetricType.gauge, false, "1.0"));
+    }
 
-			@Override
-			public void dec() {}
+    @Test
+    public void serializeHistogram() throws JsonProcessingException {
+        DHistogram h =
+                new DHistogram(new TestHistogram(), METRIC, HOST, tags, () -> MOCKED_SYSTEM_MILLIS);
 
-			@Override
-			public void dec(long n) {}
+        DSeries series = new DSeries();
+        h.addTo(series);
 
-			@Override
-			public long getCount() {
-				return 1;
-			}
-		}, "testCounter", null, tags, () -> MOCKED_SYSTEM_MILLIS);
+        assertSerialization(
+                DatadogHttpClient.serialize(series),
+                new MetricAssertion(MetricType.gauge, true, "4.0", DHistogram.SUFFIX_AVG),
+                new MetricAssertion(MetricType.gauge, true, "1", DHistogram.SUFFIX_COUNT),
+                new MetricAssertion(MetricType.gauge, true, "0.5", DHistogram.SUFFIX_MEDIAN),
+                new MetricAssertion(
+                        MetricType.gauge, true, "0.95", DHistogram.SUFFIX_95_PERCENTILE),
+                new MetricAssertion(MetricType.gauge, true, "7", DHistogram.SUFFIX_MIN),
+                new MetricAssertion(MetricType.gauge, true, "6", DHistogram.SUFFIX_MAX));
+    }
 
-		assertEquals(
-			"{\"metric\":\"testCounter\",\"type\":\"count\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1]]}",
-			DatadogHttpClient.serialize(c));
-	}
+    private static void assertSerialization(String json, MetricAssertion... metricAssertions)
+            throws JsonProcessingException {
+        final JsonNode series = MAPPER.readTree(json).get(DSeries.FIELD_NAME_SERIES);
 
-	@Test
-	public void serializeMeter() throws JsonProcessingException {
+        for (int i = 0; i < metricAssertions.length; i++) {
+            final JsonNode parsedJson = series.get(i);
+            final MetricAssertion metricAssertion = metricAssertions[i];
 
-		DMeter m = new DMeter(new Meter() {
-			@Override
-			public void markEvent() {}
+            if (metricAssertion.expectHost) {
+                assertThat(parsedJson.get(DMetric.FIELD_NAME_HOST).asText(), is(HOST));
+            } else {
+                assertThat(parsedJson.get(DMetric.FIELD_NAME_HOST), nullValue());
+            }
+            assertThat(
+                    parsedJson.get(DMetric.FIELD_NAME_METRIC).asText(),
+                    is(METRIC + metricAssertion.metricNameSuffix));
+            assertThat(
+                    parsedJson.get(DMetric.FIELD_NAME_TYPE).asText(),
+                    is(metricAssertion.expectedType.name()));
+            assertThat(
+                    parsedJson.get(DMetric.FIELD_NAME_POINTS).toString(),
+                    is(String.format("[[123,%s]]", metricAssertion.expectedValue)));
+            assertThat(parsedJson.get(DMetric.FIELD_NAME_TAGS).toString(), is(TAGS_AS_JSON));
+        }
+    }
 
-			@Override
-			public void markEvent(long n) {}
+    private static final class MetricAssertion {
+        final MetricType expectedType;
+        final boolean expectHost;
+        final String expectedValue;
+        final String metricNameSuffix;
 
-			@Override
-			public double getRate() {
-				return 1;
-			}
+        private MetricAssertion(MetricType expectedType, boolean expectHost, String expectedValue) {
+            this(expectedType, expectHost, expectedValue, "");
+        }
 
-			@Override
-			public long getCount() {
-				return 0;
-			}
-		}, "testMeter", "localhost", tags, () -> MOCKED_SYSTEM_MILLIS);
-
-		assertEquals(
-			"{\"metric\":\"testMeter\",\"type\":\"gauge\",\"host\":\"localhost\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1.0]]}",
-			DatadogHttpClient.serialize(m));
-	}
-
-	@Test
-	public void serializeMeterWithoutHost() throws JsonProcessingException {
-
-		DMeter m = new DMeter(new Meter() {
-			@Override
-			public void markEvent() {}
-
-			@Override
-			public void markEvent(long n) {}
-
-			@Override
-			public double getRate() {
-				return 1;
-			}
-
-			@Override
-			public long getCount() {
-				return 0;
-			}
-		}, "testMeter", null, tags, () -> MOCKED_SYSTEM_MILLIS);
-
-		assertEquals(
-			"{\"metric\":\"testMeter\",\"type\":\"gauge\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1.0]]}",
-			DatadogHttpClient.serialize(m));
-	}
+        private MetricAssertion(
+                MetricType expectedType,
+                boolean expectHost,
+                String expectedValue,
+                String metricNameSuffix) {
+            this.expectedType = expectedType;
+            this.expectHost = expectHost;
+            this.expectedValue = expectedValue;
+            this.metricNameSuffix = metricNameSuffix;
+        }
+    }
 }

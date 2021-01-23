@@ -235,7 +235,7 @@ Flink 支持多种不同的故障恢复策略，该策略需要通过 Flink 配�
 此处 Region 指以 Pipelined 形式进行数据交换的 Task 集合。也就是说，Batch 形式的数据交换会构成 Region 的边界。
 - DataStream 和 流式 Table/SQL 作业的所有数据交换都是 Pipelined 形式的。
 - 批处理式 Table/SQL 作业的所有数据交换默认都是 Batch 形式的。
-- DataSet 作业中的数据交换形式会根据 [ExecutionConfig]({{ site.baseurl }}/zh/dev/execution_configuration.html) 
+- DataSet 作业中的数据交换形式会根据 [ExecutionConfig]({% link dev/execution_configuration.zh.md %}) 
   中配置的 [ExecutionMode]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/api/common/ExecutionMode.html)
   决定。
 

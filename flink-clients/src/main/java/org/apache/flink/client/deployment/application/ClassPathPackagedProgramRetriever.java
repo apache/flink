@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramRetriever;
+import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
@@ -52,229 +53,236 @@ import java.util.stream.Collectors;
 import static java.util.Objects.requireNonNull;
 
 /**
- * A {@link org.apache.flink.client.program.PackagedProgramRetriever PackagedProgramRetriever}
- * which creates the {@link org.apache.flink.client.program.PackagedProgram PackagedProgram} containing
+ * A {@link org.apache.flink.client.program.PackagedProgramRetriever PackagedProgramRetriever} which
+ * creates the {@link org.apache.flink.client.program.PackagedProgram PackagedProgram} containing
  * the user's {@code main()} from a class on the class path.
  */
 @Internal
 public class ClassPathPackagedProgramRetriever implements PackagedProgramRetriever {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ClassPathPackagedProgramRetriever.class);
+    private static final Logger LOG =
+            LoggerFactory.getLogger(ClassPathPackagedProgramRetriever.class);
 
-	/** User classpaths in relative form to the working directory. */
-	@Nonnull
-	private final Collection<URL> userClassPaths;
+    /** User classpaths in relative form to the working directory. */
+    @Nonnull private final Collection<URL> userClassPaths;
 
-	@Nonnull
-	private final String[] programArguments;
+    @Nonnull private final String[] programArguments;
 
-	@Nullable
-	private final String jobClassName;
+    @Nullable private final String jobClassName;
 
-	@Nonnull
-	private final Supplier<Iterable<File>> jarsOnClassPath;
+    @Nonnull private final Supplier<Iterable<File>> jarsOnClassPath;
 
-	@Nullable
-	private final File userLibDirectory;
+    @Nullable private final File userLibDirectory;
 
-	@Nullable
-	private final File jarFile;
+    @Nullable private final File jarFile;
 
-	private ClassPathPackagedProgramRetriever(
-		@Nonnull String[] programArguments,
-		@Nullable String jobClassName,
-		@Nonnull Supplier<Iterable<File>> jarsOnClassPath,
-		@Nullable File userLibDirectory,
-		@Nullable File jarFile) throws IOException {
-		this.userLibDirectory = userLibDirectory;
-		this.programArguments = requireNonNull(programArguments, "programArguments");
-		this.jobClassName = jobClassName;
-		this.jarsOnClassPath = requireNonNull(jarsOnClassPath);
-		this.userClassPaths = discoverUserClassPaths(userLibDirectory);
-		this.jarFile = jarFile;
-	}
+    private ClassPathPackagedProgramRetriever(
+            @Nonnull String[] programArguments,
+            @Nullable String jobClassName,
+            @Nonnull Supplier<Iterable<File>> jarsOnClassPath,
+            @Nullable File userLibDirectory,
+            @Nullable File jarFile)
+            throws IOException {
+        this.userLibDirectory = userLibDirectory;
+        this.programArguments = requireNonNull(programArguments, "programArguments");
+        this.jobClassName = jobClassName;
+        this.jarsOnClassPath = requireNonNull(jarsOnClassPath);
+        this.userClassPaths = discoverUserClassPaths(userLibDirectory);
+        this.jarFile = jarFile;
+    }
 
-	private Collection<URL> discoverUserClassPaths(@Nullable File jobDir) throws IOException {
-		if (jobDir == null) {
-			return Collections.emptyList();
-		}
+    private Collection<URL> discoverUserClassPaths(@Nullable File jobDir) throws IOException {
+        if (jobDir == null) {
+            return Collections.emptyList();
+        }
 
-		final Path workingDirectory = FileUtils.getCurrentWorkingDirectory();
-		final Collection<URL> relativeJarURLs = FileUtils.listFilesInDirectory(jobDir.toPath(), FileUtils::isJarFile)
-				.stream()
-				.map(path -> FileUtils.relativizePath(workingDirectory, path))
-				.map(FunctionUtils.uncheckedFunction(FileUtils::toURL))
-				.collect(Collectors.toList());
-		return Collections.unmodifiableCollection(relativeJarURLs);
-	}
+        final Path workingDirectory = FileUtils.getCurrentWorkingDirectory();
+        final Collection<URL> relativeJarURLs =
+                FileUtils.listFilesInDirectory(jobDir.toPath(), FileUtils::isJarFile).stream()
+                        .map(path -> FileUtils.relativizePath(workingDirectory, path))
+                        .map(FunctionUtils.uncheckedFunction(FileUtils::toURL))
+                        .collect(Collectors.toList());
+        return Collections.unmodifiableCollection(relativeJarURLs);
+    }
 
-	@Override
-	public PackagedProgram getPackagedProgram() throws FlinkException {
-		try {
-			if (jarFile != null) {
-				return PackagedProgram.newBuilder()
-					.setUserClassPaths(new ArrayList<>(userClassPaths))
-					.setArguments(programArguments)
-					.setJarFile(jarFile)
-					.setEntryPointClassName(jobClassName)
-					.build();
-			}
+    @Override
+    public PackagedProgram getPackagedProgram() throws FlinkException {
+        try {
+            // It is Python job if program arguments contain "-py"/--python" or "-pym/--pyModule",
+            // set the fixed
+            // jobClassName and jarFile path.
+            if (PackagedProgramUtils.isPython(jobClassName)
+                    || PackagedProgramUtils.isPython(programArguments)) {
+                String pythonJobClassName = PackagedProgramUtils.getPythonDriverClassName();
+                File pythonJarFile = new File(PackagedProgramUtils.getPythonJar().getPath());
+                return PackagedProgram.newBuilder()
+                        .setUserClassPaths(new ArrayList<>(userClassPaths))
+                        .setArguments(programArguments)
+                        .setJarFile(pythonJarFile)
+                        .setEntryPointClassName(pythonJobClassName)
+                        .build();
+            }
 
-			final String entryClass = getJobClassNameOrScanClassPath();
-			return PackagedProgram.newBuilder()
-				.setUserClassPaths(new ArrayList<>(userClassPaths))
-				.setEntryPointClassName(entryClass)
-				.setArguments(programArguments)
-				.build();
-		} catch (ProgramInvocationException e) {
-			throw new FlinkException("Could not load the provided entrypoint class.", e);
-		}
-	}
+            if (jarFile != null) {
+                return PackagedProgram.newBuilder()
+                        .setUserClassPaths(new ArrayList<>(userClassPaths))
+                        .setArguments(programArguments)
+                        .setJarFile(jarFile)
+                        .setEntryPointClassName(jobClassName)
+                        .build();
+            }
 
-	private String getJobClassNameOrScanClassPath() throws FlinkException {
-		if (jobClassName != null) {
-			if (userLibDirectory != null) {
-				// check that we find the entrypoint class in the user lib directory.
-				if (!userClassPathContainsJobClass(jobClassName)) {
-					throw new FlinkException(
-						String.format(
-							"Could not find the provided job class (%s) in the user lib directory (%s).",
-							jobClassName,
-							userLibDirectory));
-				}
-			}
-			return jobClassName;
-		}
+            final String entryClass = getJobClassNameOrScanClassPath();
+            return PackagedProgram.newBuilder()
+                    .setUserClassPaths(new ArrayList<>(userClassPaths))
+                    .setEntryPointClassName(entryClass)
+                    .setArguments(programArguments)
+                    .build();
+        } catch (ProgramInvocationException e) {
+            throw new FlinkException("Could not load the provided entrypoint class.", e);
+        }
+    }
 
-		try {
-			return scanClassPathForJobJar();
-		} catch (IOException | NoSuchElementException | IllegalArgumentException e) {
-			throw new FlinkException("Failed to find job JAR on class path. Please provide the job class name explicitly.", e);
-		}
-	}
+    private String getJobClassNameOrScanClassPath() throws FlinkException {
+        if (jobClassName != null) {
+            if (userLibDirectory != null) {
+                // check that we find the entrypoint class in the user lib directory.
+                if (!userClassPathContainsJobClass(jobClassName)) {
+                    throw new FlinkException(
+                            String.format(
+                                    "Could not find the provided job class (%s) in the user lib directory (%s).",
+                                    jobClassName, userLibDirectory));
+                }
+            }
+            return jobClassName;
+        }
 
-	private boolean userClassPathContainsJobClass(String jobClassName) {
-		for (URL userClassPath : userClassPaths) {
-			try (final JarFile jarFile = new JarFile(userClassPath.getFile())) {
-				if (jarContainsJobClass(jobClassName, jarFile)) {
-					return true;
-				}
-			} catch (IOException e) {
-				ExceptionUtils.rethrow(
-					e,
-					String.format(
-						"Failed to open user class path %s. Make sure that all files on the user class path can be accessed.",
-						userClassPath));
-			}
-		}
-		return false;
-	}
+        try {
+            return scanClassPathForJobJar();
+        } catch (IOException | NoSuchElementException | IllegalArgumentException e) {
+            throw new FlinkException(
+                    "Failed to find job JAR on class path. Please provide the job class name explicitly.",
+                    e);
+        }
+    }
 
-	private boolean jarContainsJobClass(String jobClassName, JarFile jarFile) {
-		return jarFile
-			.stream()
-			.map(JarEntry::getName)
-			.filter(fileName -> fileName.endsWith(FileUtils.CLASS_FILE_EXTENSION))
-			.map(FileUtils::stripFileExtension)
-			.map(fileName -> fileName.replaceAll(Pattern.quote(File.separator), FileUtils.PACKAGE_SEPARATOR))
-			.anyMatch(name -> name.equals(jobClassName));
-	}
+    private boolean userClassPathContainsJobClass(String jobClassName) {
+        for (URL userClassPath : userClassPaths) {
+            try (final JarFile jarFile = new JarFile(userClassPath.getFile())) {
+                if (jarContainsJobClass(jobClassName, jarFile)) {
+                    return true;
+                }
+            } catch (IOException e) {
+                ExceptionUtils.rethrow(
+                        e,
+                        String.format(
+                                "Failed to open user class path %s. Make sure that all files on the user class path can be accessed.",
+                                userClassPath));
+            }
+        }
+        return false;
+    }
 
-	private String scanClassPathForJobJar() throws IOException {
-		final Iterable<File> jars;
-		if (userLibDirectory == null) {
-			LOG.info("Scanning system class path for job JAR");
-			jars = jarsOnClassPath.get();
-		} else {
-			LOG.info("Scanning user class path for job JAR");
-			jars = userClassPaths
-				.stream()
-				.map(url -> new File(url.getFile()))
-				.collect(Collectors.toList());
-		}
+    private boolean jarContainsJobClass(String jobClassName, JarFile jarFile) {
+        return jarFile.stream()
+                .map(JarEntry::getName)
+                .filter(fileName -> fileName.endsWith(FileUtils.CLASS_FILE_EXTENSION))
+                .map(FileUtils::stripFileExtension)
+                .map(
+                        fileName ->
+                                fileName.replaceAll(
+                                        Pattern.quote(File.separator), FileUtils.PACKAGE_SEPARATOR))
+                .anyMatch(name -> name.equals(jobClassName));
+    }
 
-		final JarManifestParser.JarFileWithEntryClass jobJar = JarManifestParser.findOnlyEntryClass(jars);
-		LOG.info("Using {} as job jar", jobJar);
-		return jobJar.getEntryClass();
-	}
+    private String scanClassPathForJobJar() throws IOException {
+        final Iterable<File> jars;
+        if (userLibDirectory == null) {
+            LOG.info("Scanning system class path for job JAR");
+            jars = jarsOnClassPath.get();
+        } else {
+            LOG.info("Scanning user class path for job JAR");
+            jars =
+                    userClassPaths.stream()
+                            .map(url -> new File(url.getFile()))
+                            .collect(Collectors.toList());
+        }
 
-	@VisibleForTesting
-	enum JarsOnClassPath implements Supplier<Iterable<File>> {
-		INSTANCE;
+        final JarManifestParser.JarFileWithEntryClass jobJar =
+                JarManifestParser.findOnlyEntryClass(jars);
+        LOG.info("Using {} as job jar", jobJar);
+        return jobJar.getEntryClass();
+    }
 
-		static final String JAVA_CLASS_PATH = "java.class.path";
-		static final String PATH_SEPARATOR = "path.separator";
-		static final String DEFAULT_PATH_SEPARATOR = ":";
+    @VisibleForTesting
+    enum JarsOnClassPath implements Supplier<Iterable<File>> {
+        INSTANCE;
 
-		@Override
-		public Iterable<File> get() {
-			String classPath = System.getProperty(JAVA_CLASS_PATH, "");
-			String pathSeparator = System.getProperty(PATH_SEPARATOR, DEFAULT_PATH_SEPARATOR);
+        static final String JAVA_CLASS_PATH = "java.class.path";
+        static final String PATH_SEPARATOR = "path.separator";
+        static final String DEFAULT_PATH_SEPARATOR = ":";
 
-			return Arrays.stream(classPath.split(pathSeparator))
-				.filter(JarsOnClassPath::notNullAndNotEmpty)
-				.map(File::new)
-				.filter(File::isFile)
-				.collect(Collectors.toList());
-		}
+        @Override
+        public Iterable<File> get() {
+            String classPath = System.getProperty(JAVA_CLASS_PATH, "");
+            String pathSeparator = System.getProperty(PATH_SEPARATOR, DEFAULT_PATH_SEPARATOR);
 
-		private static boolean notNullAndNotEmpty(String string) {
-			return string != null && !string.equals("");
-		}
-	}
+            return Arrays.stream(classPath.split(pathSeparator))
+                    .filter(JarsOnClassPath::notNullAndNotEmpty)
+                    .map(File::new)
+                    .filter(File::isFile)
+                    .collect(Collectors.toList());
+        }
 
-	/**
-	 * A builder for the {@link ClassPathPackagedProgramRetriever}.
-	 */
-	public static class Builder {
+        private static boolean notNullAndNotEmpty(String string) {
+            return string != null && !string.equals("");
+        }
+    }
 
-		private final String[] programArguments;
+    /** A builder for the {@link ClassPathPackagedProgramRetriever}. */
+    public static class Builder {
 
-		@Nullable
-		private String jobClassName;
+        private final String[] programArguments;
 
-		@Nullable
-		private File userLibDirectory;
+        @Nullable private String jobClassName;
 
-		private Supplier<Iterable<File>> jarsOnClassPath = JarsOnClassPath.INSTANCE;
+        @Nullable private File userLibDirectory;
 
-		private File jarFile;
+        private Supplier<Iterable<File>> jarsOnClassPath = JarsOnClassPath.INSTANCE;
 
-		private Builder(String[] programArguments) {
-			this.programArguments = requireNonNull(programArguments);
-		}
+        private File jarFile;
 
-		public Builder setJobClassName(@Nullable String jobClassName) {
-			this.jobClassName = jobClassName;
-			return this;
-		}
+        private Builder(String[] programArguments) {
+            this.programArguments = requireNonNull(programArguments);
+        }
 
-		public Builder setUserLibDirectory(File userLibDirectory) {
-			this.userLibDirectory = userLibDirectory;
-			return this;
-		}
+        public Builder setJobClassName(@Nullable String jobClassName) {
+            this.jobClassName = jobClassName;
+            return this;
+        }
 
-		public Builder setJarsOnClassPath(Supplier<Iterable<File>> jarsOnClassPath) {
-			this.jarsOnClassPath = jarsOnClassPath;
-			return this;
-		}
+        public Builder setUserLibDirectory(File userLibDirectory) {
+            this.userLibDirectory = userLibDirectory;
+            return this;
+        }
 
-		public Builder setJarFile(File file) {
-			this.jarFile = file;
-			return this;
-		}
+        public Builder setJarsOnClassPath(Supplier<Iterable<File>> jarsOnClassPath) {
+            this.jarsOnClassPath = jarsOnClassPath;
+            return this;
+        }
 
-		public ClassPathPackagedProgramRetriever build() throws IOException {
-			return new ClassPathPackagedProgramRetriever(
-				programArguments,
-				jobClassName,
-				jarsOnClassPath,
-				userLibDirectory,
-				jarFile);
-		}
-	}
+        public Builder setJarFile(File file) {
+            this.jarFile = file;
+            return this;
+        }
 
-	public static Builder newBuilder(String[] programArguments) {
-		return new Builder(programArguments);
-	}
+        public ClassPathPackagedProgramRetriever build() throws IOException {
+            return new ClassPathPackagedProgramRetriever(
+                    programArguments, jobClassName, jarsOnClassPath, userLibDirectory, jarFile);
+        }
+    }
+
+    public static Builder newBuilder(String[] programArguments) {
+        return new Builder(programArguments);
+    }
 }

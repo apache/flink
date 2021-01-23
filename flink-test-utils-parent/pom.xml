@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.12-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -38,6 +38,7 @@ under the License.
 	<modules>
 		<module>flink-test-utils-junit</module>
 		<module>flink-test-utils</module>
+		<module>flink-connector-test-utils</module>
 	</modules>
 
 </project>

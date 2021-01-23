@@ -45,49 +45,57 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
-/**
- * REST handler which returns the details for a checkpoint.
- */
-public class CheckpointStatisticDetailsHandler extends AbstractCheckpointHandler<CheckpointStatistics, CheckpointMessageParameters> implements JsonArchivist {
+/** REST handler which returns the details for a checkpoint. */
+public class CheckpointStatisticDetailsHandler
+        extends AbstractCheckpointHandler<CheckpointStatistics, CheckpointMessageParameters>
+        implements JsonArchivist {
 
-	public CheckpointStatisticDetailsHandler(
-			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			Time timeout,
-			Map<String, String> responseHeaders,
-			MessageHeaders<EmptyRequestBody, CheckpointStatistics, CheckpointMessageParameters> messageHeaders,
-			ExecutionGraphCache executionGraphCache,
-			Executor executor,
-			CheckpointStatsCache checkpointStatsCache) {
-		super(
-			leaderRetriever,
-			timeout,
-			responseHeaders,
-			messageHeaders,
-			executionGraphCache,
-			executor,
-			checkpointStatsCache);
-	}
+    public CheckpointStatisticDetailsHandler(
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> responseHeaders,
+            MessageHeaders<EmptyRequestBody, CheckpointStatistics, CheckpointMessageParameters>
+                    messageHeaders,
+            ExecutionGraphCache executionGraphCache,
+            Executor executor,
+            CheckpointStatsCache checkpointStatsCache) {
+        super(
+                leaderRetriever,
+                timeout,
+                responseHeaders,
+                messageHeaders,
+                executionGraphCache,
+                executor,
+                checkpointStatsCache);
+    }
 
-	@Override
-	protected CheckpointStatistics handleCheckpointRequest(HandlerRequest<EmptyRequestBody, CheckpointMessageParameters> ignored, AbstractCheckpointStats checkpointStats) {
-		return CheckpointStatistics.generateCheckpointStatistics(checkpointStats, true);
-	}
+    @Override
+    protected CheckpointStatistics handleCheckpointRequest(
+            HandlerRequest<EmptyRequestBody, CheckpointMessageParameters> ignored,
+            AbstractCheckpointStats checkpointStats) {
+        return CheckpointStatistics.generateCheckpointStatistics(checkpointStats, true);
+    }
 
-	@Override
-	public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
-		CheckpointStatsSnapshot stats = graph.getCheckpointStatsSnapshot();
-		if (stats == null) {
-			return Collections.emptyList();
-		}
-		CheckpointStatsHistory history = stats.getHistory();
-		List<ArchivedJson> archive = new ArrayList<>(history.getCheckpoints().size());
-		for (AbstractCheckpointStats checkpoint : history.getCheckpoints()) {
-			ResponseBody json = CheckpointStatistics.generateCheckpointStatistics(checkpoint, true);
-			String path = getMessageHeaders().getTargetRestEndpointURL()
-				.replace(':' + JobIDPathParameter.KEY, graph.getJobID().toString())
-				.replace(':' + CheckpointIdPathParameter.KEY, String.valueOf(checkpoint.getCheckpointId()));
-			archive.add(new ArchivedJson(path, json));
-		}
-		return archive;
-	}
+    @Override
+    public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph)
+            throws IOException {
+        CheckpointStatsSnapshot stats = graph.getCheckpointStatsSnapshot();
+        if (stats == null) {
+            return Collections.emptyList();
+        }
+        CheckpointStatsHistory history = stats.getHistory();
+        List<ArchivedJson> archive = new ArrayList<>(history.getCheckpoints().size());
+        for (AbstractCheckpointStats checkpoint : history.getCheckpoints()) {
+            ResponseBody json = CheckpointStatistics.generateCheckpointStatistics(checkpoint, true);
+            String path =
+                    getMessageHeaders()
+                            .getTargetRestEndpointURL()
+                            .replace(':' + JobIDPathParameter.KEY, graph.getJobID().toString())
+                            .replace(
+                                    ':' + CheckpointIdPathParameter.KEY,
+                                    String.valueOf(checkpoint.getCheckpointId()));
+            archive.add(new ArchivedJson(path, json));
+        }
+        return archive;
+    }
 }

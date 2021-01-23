@@ -23,7 +23,7 @@ under the License.
 -->
 
 Flink Table API & SQL provides users with a set of built-in functions for data transformations. This page gives a brief overview of them.
-If a function that you need is not supported yet, you can implement a <a href="udfs.html">user-defined function</a>.
+If a function that you need is not supported yet, you can implement a [user-defined function]({% link dev/table/functions/udfs.md %}).
 If you think that the function is general enough, please <a href="https://issues.apache.org/jira/secure/CreateIssue!default.jspa">open a Jira issue</a> for it with a detailed description.
 
 * This will be replaced by the TOC
@@ -285,7 +285,7 @@ EXISTS (sub-query)
       </td>
       <td>
         <p>Returns TRUE if <i>sub-query</i> returns at least one row. Only supported if the operation can be rewritten in a join and group operation.</p>
-        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{{ site.baseurl }}/dev/table/streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
 
@@ -297,7 +297,7 @@ value IN (sub-query)
       </td>
       <td>
         <p>Returns TRUE if <i>value</i> is equal to a row returned by sub-query.</p>
-        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{{ site.baseurl }}/dev/table/streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
 
@@ -309,7 +309,7 @@ value NOT IN (sub-query)
       </td>
       <td>
         <p>Returns TRUE if <i>value</i> is not equal to every row returned by <i>sub-query</i>.</p>
-        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{{ site.baseurl }}/dev/table/streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
     </tbody>
@@ -459,7 +459,7 @@ ANY.in(TABLE)
       </td>
       <td>
         <p>Returns TRUE if <i>ANY</i> is equal to a row returned by sub-query <i>TABLE</i>.</p>
-        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{{ site.baseurl }}/dev/table/streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
 
@@ -639,7 +639,7 @@ ANY.in(TABLE)
       </td>
       <td>
         <p>Returns TRUE if <i>ANY</i> is equal to a row returned by sub-query <i>TABLE</i>.</p>
-        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{{ site.baseurl }}/dev/table/streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
 
@@ -1438,6 +1438,7 @@ UUID()
      </td>
     <td>
       <p>Returns an UUID (Universally Unique Identifier) string (e.g., "3d3c68f7-f608-473f-b60c-b0c44ad4cc4e") according to RFC 4122 type 4 (pseudo randomly generated) UUID. The UUID is generated using a cryptographically strong pseudo random number generator.</p>
+      <p><b>Note:</b> This function is not deterministic which means the value would be recalculated for each record.</p>
     </td>
    </tr>
     
@@ -1486,7 +1487,6 @@ PI()
       </td>
       <td>
       <p>Returns the value of π (pi).</p>
-      <p>Only supported in blink planner.</p>
       </td>
     </tr> 
         
@@ -2721,7 +2721,6 @@ ASCII(string)
       </td>
       <td>
         <p>Returns the numeric value of the first character of <i>string</i>. Returns NULL if <i>string</i> is NULL.</p>
-        <p>Only supported in blink planner.</p>
         <p>E.g., <code>ascii('abc')</code> returns 97, and <code>ascii(CAST(NULL AS VARCHAR))</code> returns NULL.</p>
       </td>
     </tr>
@@ -2734,7 +2733,6 @@ CHR(integer)
       </td>
       <td>
         <p>Returns the ASCII character having the binary equivalent to <i>integer</i>. If <i>integer</i> is larger than 255, we will get the modulus of <i>integer</i> divided by 255 first, and returns <i>CHR</i> of the modulus. Returns NULL if <i>integer</i> is NULL.</p>
-        <p>Only supported in blink planner.</p>
         <p>E.g., <code>chr(97)</code> returns a, <code>chr(353)</code> returns a, and <code>ascii(CAST(NULL AS VARCHAR))</code> returns NULL.</p>
       </td>
     </tr>
@@ -2747,7 +2745,6 @@ DECODE(binary, string)
       </td>
       <td>
         <p>Decodes the first argument into a String using the provided character set (one of 'US-ASCII', 'ISO-8859-1', 'UTF-8', 'UTF-16BE', 'UTF-16LE', 'UTF-16'). If either argument is null, the result will also be null.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
     
@@ -2759,7 +2756,6 @@ ENCODE(string1, string2)
       </td>
       <td>
         <p>Encodes the <i>string1</i> into a BINARY using the provided <i>string2</i> character set (one of 'US-ASCII', 'ISO-8859-1', 'UTF-8', 'UTF-16BE', 'UTF-16LE', 'UTF-16'). If either argument is null, the result will also be null.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
     
@@ -2771,7 +2767,6 @@ INSTR(string1, string2)
       </td>
       <td>
         Returns the position of the first occurrence of <i>string2</i> in <i>string1</i>. Returns NULL if any of arguments is NULL.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
 
@@ -2783,7 +2778,6 @@ LEFT(string, integer)
       </td>
       <td>
         <p>Returns the leftmost <i>integer</i> characters from the <i>string</i>. Returns EMPTY String if <i>integer</i> is negative. Returns NULL if any argument is NULL.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
 
@@ -2795,7 +2789,6 @@ RIGHT(string, integer)
       </td>
       <td>
         <p>Returns the rightmost <i>integer</i> characters from the <i>string</i>. Returns EMPTY String if <i>integer</i> is negative. Returns NULL if any argument is NULL.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
 
@@ -2807,7 +2800,6 @@ LOCATE(string1, string2[, integer])
       </td>
       <td>
         <p>Returns the position of the first occurrence of <i>string1</i> in <i>string2</i> after position <i>integer</i>. Returns 0 if not found. Returns NULL if any of arguments is NULL.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
 
@@ -2822,7 +2814,6 @@ PARSE_URL(string1, string2[, string3])
         <p>E.g., <code>parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'HOST')</code>, returns 'facebook.com'.</p>
         <p>Also a value of a particular key in QUERY can be extracted by providing the key as the third argument <i>string3</i>.</p>
         <p>E.g., <code>parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'QUERY', 'k1')</code> returns 'v1'. </p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
 
@@ -2834,7 +2825,6 @@ REGEXP(string1, string2)
       </td>
       <td>
         <p>Returns TRUE if any (possibly empty) substring of <i>string1</i> matches the Java regular expression <i>string2</i>, otherwise FALSE. Returns NULL if any of arguments is NULL.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
 
@@ -2846,7 +2836,6 @@ REVERSE(string)
       </td>
       <td>
         <p>Returns the reversed string. Returns NULL if <i>string</i> is NULL.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
 
@@ -2858,7 +2847,6 @@ SPLIT_INDEX(string1, string2, integer1)
       </td>
       <td>
         <p>Splits <i>string1</i> by the delimiter <i>string2</i>, returns the <i>integer</i>th (zero-based) string of the split strings. Returns NULL if <i>integer</i> is negative. Returns NULL if any of arguments is NULL.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
 
@@ -2870,7 +2858,6 @@ STR_TO_MAP(string1[, string2, string3]])
       </td>
       <td>
         <p>Returns a map after splitting the <i>string1</i> into key/value pairs using delimiters. <i>string2</i> is the pair delimiter, default is ','. And <i>string3</i> is the key-value delimiter, default is '='.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
     
@@ -2882,7 +2869,6 @@ SUBSTR(string[, integer1[, integer2]])
       </td>
       <td>
         <p>Returns a substring of string starting from position integer1 with length integer2 (to the end by default).</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
         
@@ -3710,8 +3696,7 @@ DATE_FORMAT(timestamp, string)
 {% endhighlight %}
       </td>
       <td>
-        <p><span class="label label-danger">Attention for old planner</span> This function has serious bugs and should not be used for now. Please implement a custom UDF instead or use EXTRACT as a workaround.</p>
-        <p>For blink planner, this converts <i>timestamp</i> to a value of string in the format specified by the date format <i>string</i>. The format string is compatible with Java's <a href="https://docs.oracle.com/javase/8/docs/api/java/text/SimpleDateFormat.html">SimpleDateFormat</a>.</p>
+        <p>Converts <i>timestamp</i> to a value of string in the format specified by the date format <i>string</i>. The format string is compatible with Java's <a href="https://docs.oracle.com/javase/8/docs/api/java/text/SimpleDateFormat.html">SimpleDateFormat</a>.</p>
       </td>
     </tr>
 
@@ -3747,8 +3732,7 @@ CONVERT_TZ(string1, string2, string3)
       </td>
       <td>
         <p>Converts a datetime <i>string1</i> (with default ISO timestamp format 'yyyy-MM-dd HH:mm:ss') from time zone <i>string2</i> to time zone <i>string3</i>. The format of time zone should be either an abbreviation such as "PST", a full name such as "America/Los_Angeles", or a custom ID such as "GMT-8:00".</p>
-        <p>E.g., <code>CONVERT('1970-01-01 00:00:00', 'UTC', 'America/Los_Angeles')</code> returns '1969-12-31 16:00:00'.</p>
-        <p>Only supported in blink planner.</p>
+        <p>E.g., <code>CONVERT_TZ('1970-01-01 00:00:00', 'UTC', 'America/Los_Angeles')</code> returns '1969-12-31 16:00:00'.</p>
       </td>
     </tr>
         
@@ -3759,9 +3743,8 @@ FROM_UNIXTIME(numeric[, string])
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a representation of the <i>numeric</i> argument as a value in <i>string</i> format (default is 'YYYY-MM-DD hh:mm:ss'). <i>numeric</i> is an internal timestamp value representing seconds since '1970-01-01 00:00:00' UTC, such as produced by the UNIX_TIMESTAMP() function. The return value is expressed in the session time zone (specified in TableConfig).</p>
-        <p>E.g., <code>FROM_UNIXTIME(44)</code> returns '1970-01-01 09:00:44' if in UTC time zone, but returns '1970-01-01 09:00:44' if in 'Asia/Tokyo' time zone.</p>
-        <p>Only supported in blink planner.</p>
+        <p>Returns a representation of the <i>numeric</i> argument as a value in <i>string</i> format (default is 'yyyy-MM-dd HH:mm:ss'). <i>numeric</i> is an internal timestamp value representing seconds since '1970-01-01 00:00:00' UTC, such as produced by the UNIX_TIMESTAMP() function. The return value is expressed in the session time zone (specified in TableConfig).</p>
+        <p>E.g., <code>FROM_UNIXTIME(44)</code> returns '1970-01-01 00:00:44' if in UTC time zone, but returns '1970-01-01 09:00:44' if in 'Asia/Tokyo' time zone.</p>
       </td>
     </tr>
     
@@ -3772,8 +3755,8 @@ UNIX_TIMESTAMP()
 {% endhighlight %}
       </td>
       <td>
-        <p>Gets current Unix timestamp in seconds. This function is not deterministic.</p>
-        <p>Only supported in blink planner.</p>
+        <p>Gets current Unix timestamp in seconds.</p>
+        <p><b>Note:</b> This function is not deterministic which means the value would be recalculated for each record.</p>
       </td>
     </tr>
     
@@ -3785,7 +3768,6 @@ UNIX_TIMESTAMP(string1[, string2])
       </td>
       <td>
         <p>Converts date time string <i>string1</i> in format <i>string2</i> (by default: yyyy-MM-dd HH:mm:ss if not specified) to Unix timestamp (in seconds), using the specified timezone in table config.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
         
@@ -3797,7 +3779,6 @@ TO_DATE(string1[, string2])
       </td>
       <td>
         <p>Converts a date string <i>string1</i> with format <i>string2</i> (by default 'yyyy-MM-dd') to a date.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr> 
        
@@ -3809,7 +3790,6 @@ TO_TIMESTAMP(string1[, string2])
       </td>
       <td>
         <p>Converts date time string <i>string1</i> with format <i>string2</i> (by default: 'yyyy-MM-dd HH:mm:ss') under the session time zone (specified by TableConfig) to a timestamp.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
         
@@ -3820,8 +3800,8 @@ NOW()
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the current SQL timestamp in the UTC time zone. This function is not deterministic.</p>
-        <p>Only supported in blink planner.</p>
+        <p>Returns the current SQL timestamp in the UTC time zone.</p>
+        <p><b>Note:</b> This function is not deterministic which means the value would be recalculated for each record.</p>
       </td>
     </tr>
 
@@ -4474,10 +4454,26 @@ IF(condition, true_value, false_value)
       </td>
       <td>
         <p>Returns the <i>true_value</i> if <i>condition</i> is met, otherwise <i>false_value</i>.</p>
-        <p>Only supported in blink planner.</p>
         <p>E.g., <code>IF(5 > 3, 5, 3)</code> returns 5.</p>
       </td>
-    </tr>    
+    </tr>
+
+    <tr>
+      <td>
+{% highlight text %}
+IFNULL(input, null_replacement)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns <i>null_replacement</i> if <i>input</i> is NULL; otherwise <i>input</i> is returned.</p>
+        <p>Compared to <code>COALESCE</code> or <code>CASE WHEN</code>, this function returns a data
+          type that is very specific in terms of nullability. The returned type is the common type of
+          both arguments but only nullable if the <i>null_replacement</i> is nullable.</p>
+        <p>The function allows to pass nullable columns into a function or table that is declared with
+          a NOT NULL constraint.</p>
+        <p>E.g., <code>IFNULL(nullable_column, 5)</code> returns never NULL.</p>
+      </td>
+    </tr>
 
     <tr>
       <td>
@@ -4487,7 +4483,6 @@ IS_ALPHA(string)
       </td>
       <td>
         <p>Returns true if all characters in <i>string</i> are letter, otherwise false.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>    
 
@@ -4499,7 +4494,6 @@ IS_DECIMAL(string)
       </td>
       <td>
         <p>Returns true if <i>string</i> can be parsed to a valid numeric, otherwise false.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>    
 
@@ -4511,7 +4505,6 @@ IS_DIGIT(string)
       </td>
       <td>
         <p>Returns true if all characters in <i>string</i> are digit, otherwise false.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
     
@@ -4540,6 +4533,23 @@ BOOLEAN.?(VALUE1, VALUE2)
         <p>E.g., <code>(42 > 5).?('A', 'B')</code> returns "A".</p>
       </td>
     </tr>
+
+    <tr>
+      <td>
+{% highlight java %}
+input.ifNull(nullReplacement)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns <i>nullReplacement</i> if <i>input</i> is NULL; otherwise <i>input</i> is returned.</p>
+        <p>This function returns a data type that is very specific in terms of nullability. The returned
+          type is the common type of both arguments but only nullable if the <i>nullReplacement</i> is
+          nullable.</p>
+        <p>The function allows to pass nullable columns into a function or table that is declared with
+          a NOT NULL constraint.</p>
+        <p>E.g., <code>$("nullable_column").ifNull(5)</code> returns never NULL.</p>
+      </td>
+    </tr>
     </tbody>
 </table>
 </div>
@@ -4563,6 +4573,23 @@ BOOLEAN.?(VALUE1, VALUE2)
       <td>
         <p>Returns <i>VALUE1</i> if <i>BOOLEAN</i> evaluates to TRUE; returns <i>VALUE2</i> otherwise.</p> 
         <p>E.g., <code>(42 > 5).?("A", "B")</code> returns "A".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+{% highlight scala %}
+input.ifNull(nullReplacement)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns <i>nullReplacement</i> if <i>input</i> is NULL; otherwise <i>input</i> is returned.</p>
+        <p>This function returns a data type that is very specific in terms of nullability. The returned
+          type is the common type of both arguments but only nullable if the <i>nullReplacement</i> is
+          nullable.</p>
+        <p>The function allows to pass nullable columns into a function or table that is declared with
+          a NOT NULL constraint.</p>
+        <p>E.g., <code>$("nullable_column").ifNull(5)</code> returns never NULL.</p>
       </td>
     </tr>
     </tbody>
@@ -4593,8 +4620,24 @@ CAST(value AS type)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a new <i>value</i> being cast to type <i>type</i>. See the supported types <a href="{{ site.baseurl }}/dev/table/types.html">here</a>.</p>
+        <p>Returns a new <i>value</i> being cast to type <i>type</i>. See the supported types <a href="{% link dev/table/types.md %}">here</a>.</p>
         <p>E.g., <code>CAST('42' AS INT)</code> returns 42; <code>CAST(NULL AS VARCHAR)</code> returns NULL of type VARCHAR.</p>
+      </td>
+    </tr>
+    <tr>
+      <td>
+{% highlight text %}
+TYPEOF(input)
+TYPEOF(input, force_serializable)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the string representation of the input expression's data type. By default, the
+          returned string is a summary string that might omit certain details for readability. If
+          <code>force_serializable</code> is set to TRUE, the string represents a full data type
+          that could be persisted in a catalog. Note that especially anonymous, inline data types
+          have no serializable string representation. In this case, NULL is returned.</p>
+        <p>E.g., <code>TYPEOF(12)</code> returns 'INT NOT NULL'.</p>
       </td>
     </tr>
   </tbody>
@@ -4618,8 +4661,24 @@ ANY.cast(TYPE)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a new <i>ANY</i> being cast to type <i>TYPE</i>. See the supported types <a href="{{ site.baseurl }}/dev/table/tableApi.html#data-types">here</a>.</p>
+        <p>Returns a new <i>ANY</i> being cast to type <i>TYPE</i>. See the supported types <a href="{% link dev/table/tableApi.md %}#data-types">here</a>.</p>
         <p>E.g., <code>'42'.cast(INT)</code> returns 42; <code>Null(STRING)</code> returns NULL of type STRING.</p>
+      </td>
+    </tr>
+    <tr>
+      <td>
+{% highlight java %}
+call("TYPEOF", input)
+call("TYPEOF", input, force_serializable)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the string representation of the input expression's data type. By default, the
+          returned string is a summary string that might omit certain details for readability. If
+          <code>force_serializable</code> is set to TRUE, the string represents a full data type
+          that could be persisted in a catalog. Note that especially anonymous, inline data types
+          have no serializable string representation. In this case, NULL is returned.</p>
+        <p>E.g., <code>call("TYPEOF", 12)</code> returns 'INT NOT NULL'.</p>
       </td>
     </tr>
     </tbody>
@@ -4643,8 +4702,24 @@ ANY.cast(TYPE)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a new <i>ANY</i> being cast to type <i>TYPE</i>. See the supported types <a href="{{ site.baseurl }}/dev/table/tableApi.html#data-types">here</a>.</p>
+        <p>Returns a new <i>ANY</i> being cast to type <i>TYPE</i>. See the supported types <a href="{% link dev/table/tableApi.md %}#data-types">here</a>.</p>
         <p>E.g., <code>"42".cast(Types.INT)</code> returns 42; <code>Null(Types.STRING)</code> returns NULL of type STRING.</p>
+      </td>
+    </tr>
+    <tr>
+      <td>
+{% highlight scala %}
+call("TYPEOF", input)
+call("TYPEOF", input, force_serializable)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the string representation of the input expression's data type. By default, the
+          returned string is a summary string that might omit certain details for readability. If
+          <code>force_serializable</code> is set to TRUE, the string represents a full data type
+          that could be persisted in a catalog. Note that especially anonymous, inline data types
+          have no serializable string representation. In this case, NULL is returned.</p>
+        <p>E.g., <code>call("TYPEOF", 12)</code> returns 'INT NOT NULL'.</p>
       </td>
     </tr>
   </tbody>
@@ -4881,12 +4956,19 @@ MAP.at(ANY)
     <tr>
       <td>
 {% highlight text %}
-ROW(value1, [, value2]*)
-(value1, [, value2]*)
+-- implicit constructor with parenthesis
+(value1 [, value2]*)
+
+-- explicit ROW constructor
+ROW(value1 [, value2]*)
 {% endhighlight %}
       </td>
       <td>
         <p>Returns a row created from a list of values (<i>value1, value2,</i>...).</p>
+        <p>Note: The implicit row constructor supports arbitrary expressions as fields but requires
+        at least two fields. The explicit row constructor can deal with an arbitrary number of fields
+        but does not support all kinds of field expressions well currently.
+        See also <a href="https://issues.apache.org/jira/browse/FLINK-18027">FLINK-18027</a>.</p>
       </td>
     </tr>
 
@@ -5527,6 +5609,21 @@ STRING.sha2(INT)
     <tr>
       <td>
 {% highlight java %}
+callSql(STRING)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>A call to a SQL expression.</p>
+        <p>The given string is parsed and translated into a Table API expression during planning. Only
+        the translated expression is evaluated during runtime.</p>
+        <p>Note: Currently, calls are limited to simple scalar expressions. Calls to aggregate or
+        table-valued functions are not supported. Sub-queries are also not allowed.</p>
+        <p>Example: <code>table.select(callSql("UPPER(myColumn)").substring(3))</code></p>
+      </td>
+    </tr>
+    <tr>
+      <td>
+{% highlight java %}
 ANY.as(NAME1, NAME2, ...)
 {% endhighlight %}
       </td>
@@ -5549,6 +5646,21 @@ ANY.as(NAME1, NAME2, ...)
   </thead>
 
   <tbody>
+    <tr>
+      <td>
+{% highlight scala %}
+callSql(STRING)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>A call to a SQL expression.</p>
+        <p>The given string is parsed and translated into an Table API expression during planning. Only
+        the translated expression is evaluated during runtime.</p>
+        <p>Note: Currently, calls are limited to simple scalar expressions. Calls to aggregate or
+        table-valued functions are not supported. Sub-queries are also not allowed.</p>
+        <p>Example: <code>table.select(callSql("UPPER(myColumn)").substring(3))</code></p>
+      </td>
+    </tr>
     <tr>
       <td>
 {% highlight scala %}
@@ -5710,7 +5822,6 @@ VARIANCE([ ALL | DISTINCT ] expression)
       </td>
       <td>
         <p>Synonyms for VAR_SAMP().</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
 
@@ -5722,7 +5833,6 @@ RANK()
       </td>
       <td>
         <p>Returns the rank of a value in a group of values. The result is one plus the number of rows preceding or equal to the current row in the ordering of the partition. The values will produce gaps in the sequence.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
 
@@ -5734,7 +5844,6 @@ DENSE_RANK()
       </td>
       <td>
         <p>Returns the rank of a value in a group of values. The result is one plus the previously assigned rank value. Unlike the function rank, dense_rank will not produce gaps in the ranking sequence.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
 
@@ -5747,7 +5856,6 @@ ROW_NUMBER()
       <td>
         <p>Assigns a unique, sequential number to each row, starting with one, according to the ordering of rows within the window partition.</p>
         <p>ROW_NUMBER and RANK are similar. ROW_NUMBER numbers all rows sequentially (for example 1, 2, 3, 4, 5). RANK provides the same numeric value for ties (for example 1, 2, 2, 4, 5).</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
 
@@ -5758,8 +5866,7 @@ LEAD(expression [, offset] [, default] )
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the value of <i>expression</i> at the <i>offset</i>th row after the current row in the window. The default value of <i>offset</i> is 1 and the default value of <i>default</i> is NULL.</p>
-        <p>Only supported in blink planner.</p>
+        <p>Returns the value of <i>expression</i> at the <i>offset</i>th row before the current row in the window. The default value of <i>offset</i> is 1 and the default value of <i>default</i> is NULL.</p>
       </td>
     </tr>
 
@@ -5771,7 +5878,6 @@ LAG(expression [, offset] [, default])
       </td>
       <td>
         <p>Returns the value of <i>expression</i> at the <i>offset</i>th row after the current row in the window. The default value of <i>offset</i> is 1 and the default value of <i>default</i> is NULL.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
         
@@ -5783,7 +5889,6 @@ FIRST_VALUE(expression)
       </td>
       <td>
         <p>Returns the first value in an ordered set of values.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
 
@@ -5795,7 +5900,6 @@ LAST_VALUE(expression)
       </td>
       <td>
         <p>Returns the last value in an ordered set of values.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
 
@@ -5807,7 +5911,6 @@ LISTAGG(expression [, separator])
       </td>
       <td>
         <p>Concatenates the values of string expressions and places separator values between them. The separator is not added at the end of string. The default value of <i>separator</i> is ','.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
            

@@ -151,7 +151,7 @@ execution. Each parallel slice of your job will be executed in a *task slot*.
 
 Note that if you don't call execute(), your application won't be run.
 
-<img src="{{ site.baseurl }}/fig/distributed-runtime.svg" alt="Flink runtime: client, job manager, task managers" class="offset" width="80%" />
+<img src="{% link /fig/distributed-runtime.svg %}" alt="Flink runtime: client, job manager, task managers" class="offset" width="80%" />
 
 This distributed runtime depends on your application being serializable. It also requires that all
 dependencies are available to each node in the cluster.

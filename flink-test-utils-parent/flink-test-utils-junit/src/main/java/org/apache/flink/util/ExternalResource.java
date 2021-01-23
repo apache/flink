@@ -25,37 +25,37 @@ import org.junit.runners.model.Statement;
 /**
  * Modified version of the jUnit {@link org.junit.rules.ExternalResource}.
  *
- *<p>This version is an interface instead of an abstract class and allows resources to differentiate between successful
- * and failed tests in their {@code After} methods.
+ * <p>This version is an interface instead of an abstract class and allows resources to
+ * differentiate between successful and failed tests in their {@code After} methods.
  */
 public interface ExternalResource extends TestRule {
 
-	void before() throws Exception;
+    void before() throws Exception;
 
-	void afterTestSuccess();
+    void afterTestSuccess();
 
-	default void afterTestFailure() {
-		afterTestSuccess();
-	}
+    default void afterTestFailure() {
+        afterTestSuccess();
+    }
 
-	@Override
-	default Statement apply(final Statement base, final Description description) {
-		return new Statement() {
-			@Override
-			public void evaluate() throws Throwable {
-				before();
-				try {
-					base.evaluate();
-				} catch (final Throwable testThrowable) {
-					try {
-						afterTestFailure();
-					} catch (final Throwable afterFailureThrowable) {
-						testThrowable.addSuppressed(afterFailureThrowable);
-					}
-					throw testThrowable;
-				}
-				afterTestSuccess();
-			}
-		};
-	}
+    @Override
+    default Statement apply(final Statement base, final Description description) {
+        return new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                before();
+                try {
+                    base.evaluate();
+                } catch (final Throwable testThrowable) {
+                    try {
+                        afterTestFailure();
+                    } catch (final Throwable afterFailureThrowable) {
+                        testThrowable.addSuppressed(afterFailureThrowable);
+                    }
+                    throw testThrowable;
+                }
+                afterTestSuccess();
+            }
+        };
+    }
 }

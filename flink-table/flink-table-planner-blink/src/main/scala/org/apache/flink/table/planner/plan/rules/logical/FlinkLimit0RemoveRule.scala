@@ -41,7 +41,7 @@ class FlinkLimit0RemoveRule extends RelOptRule(
     call.transformTo(emptyValues)
 
     // New plan is absolutely better than old plan.
-    call.getPlanner.setImportance(sort, 0.0)
+    call.getPlanner.prune(sort)
   }
 }
 

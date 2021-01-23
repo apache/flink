@@ -18,88 +18,88 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 
 import javax.annotation.Nullable;
 
-import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * View over a pipelined in-memory only subpartition.
- */
+/** View over a pipelined in-memory only subpartition. */
 public class PipelinedSubpartitionView implements ResultSubpartitionView {
 
-	/** The subpartition this view belongs to. */
-	private final PipelinedSubpartition parent;
+    /** The subpartition this view belongs to. */
+    private final PipelinedSubpartition parent;
 
-	private final BufferAvailabilityListener availabilityListener;
+    private final BufferAvailabilityListener availabilityListener;
 
-	/** Flag indicating whether this view has been released. */
-	private final AtomicBoolean isReleased;
+    /** Flag indicating whether this view has been released. */
+    final AtomicBoolean isReleased;
 
-	public PipelinedSubpartitionView(PipelinedSubpartition parent, BufferAvailabilityListener listener) {
-		this.parent = checkNotNull(parent);
-		this.availabilityListener = checkNotNull(listener);
-		this.isReleased = new AtomicBoolean();
-	}
+    public PipelinedSubpartitionView(
+            PipelinedSubpartition parent, BufferAvailabilityListener listener) {
+        this.parent = checkNotNull(parent);
+        this.availabilityListener = checkNotNull(listener);
+        this.isReleased = new AtomicBoolean();
+    }
 
-	@Nullable
-	@Override
-	public BufferAndBacklog getNextBuffer() {
-		return parent.pollBuffer();
-	}
+    @Nullable
+    @Override
+    public BufferAndBacklog getNextBuffer() {
+        return parent.pollBuffer();
+    }
 
-	@Override
-	public void notifyDataAvailable() {
-		availabilityListener.notifyDataAvailable();
-	}
+    @Override
+    public void notifyDataAvailable() {
+        availabilityListener.notifyDataAvailable();
+    }
 
-	@Override
-	public void releaseAllResources() {
-		if (isReleased.compareAndSet(false, true)) {
-			// The view doesn't hold any resources and the parent cannot be restarted. Therefore,
-			// it's OK to notify about consumption as well.
-			parent.onConsumedSubpartition();
-		}
-	}
+    @Override
+    public void notifyPriorityEvent(int priorityBufferNumber) {
+        availabilityListener.notifyPriorityEvent(priorityBufferNumber);
+    }
 
-	@Override
-	public boolean isReleased() {
-		return isReleased.get() || parent.isReleased();
-	}
+    @Override
+    public void releaseAllResources() {
+        if (isReleased.compareAndSet(false, true)) {
+            // The view doesn't hold any resources and the parent cannot be restarted. Therefore,
+            // it's OK to notify about consumption as well.
+            parent.onConsumedSubpartition();
+        }
+    }
 
-	@Override
-	public void resumeConsumption() {
-		parent.resumeConsumption();
-	}
+    @Override
+    public boolean isReleased() {
+        return isReleased.get() || parent.isReleased();
+    }
 
-	@Override
-	public boolean isAvailable(int numCreditsAvailable) {
-		return parent.isAvailable(numCreditsAvailable);
-	}
+    @Override
+    public void resumeConsumption() {
+        parent.resumeConsumption();
+    }
 
-	@Override
-	public Throwable getFailureCause() {
-		return parent.getFailureCause();
-	}
+    @Override
+    public boolean isAvailable(int numCreditsAvailable) {
+        return parent.isAvailable(numCreditsAvailable);
+    }
 
-	@Override
-	public int unsynchronizedGetNumberOfQueuedBuffers() {
-		return parent.unsynchronizedGetNumberOfQueuedBuffers();
-	}
+    @Override
+    public Throwable getFailureCause() {
+        return parent.getFailureCause();
+    }
 
-	@Override
-	public String toString() {
-		return String.format("PipelinedSubpartitionView(index: %d) of ResultPartition %s",
-				parent.getSubPartitionIndex(),
-				parent.parent.getPartitionId());
-	}
+    @Override
+    public int unsynchronizedGetNumberOfQueuedBuffers() {
+        return parent.unsynchronizedGetNumberOfQueuedBuffers();
+    }
 
-	public boolean notifyPriorityEvent(BufferConsumer eventBufferConsumer) throws IOException {
-		return availabilityListener.notifyPriorityEvent(eventBufferConsumer);
-	}
+    @Override
+    public String toString() {
+        return String.format(
+                "%s(index: %d) of ResultPartition %s",
+                this.getClass().getSimpleName(),
+                parent.getSubPartitionIndex(),
+                parent.parent.getPartitionId());
+    }
 }

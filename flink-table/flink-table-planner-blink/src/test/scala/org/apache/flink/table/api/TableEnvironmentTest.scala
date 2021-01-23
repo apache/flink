@@ -24,7 +24,6 @@ import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment, _}
 import org.apache.flink.table.catalog.{GenericInMemoryCatalog, ObjectPath}
-import org.apache.flink.table.planner.operations.SqlConversionException
 import org.apache.flink.table.planner.runtime.stream.sql.FunctionITCase.TestUDF
 import org.apache.flink.table.planner.runtime.stream.table.FunctionITCase.SimpleScalarFunction
 import org.apache.flink.table.planner.utils.TableTestUtil.replaceStageId
@@ -102,6 +101,49 @@ class TableEnvironmentTest {
     val expected = TableTestUtil.readFromResource("/explain/testStreamTableEnvironmentExplain.out")
     val actual = tEnv.explainSql("insert into MySink select first from MyTable")
     assertEquals(TableTestUtil.replaceStageId(expected), TableTestUtil.replaceStageId(actual))
+  }
+
+  @Test
+  def testStreamTableEnvironmentExecutionExplain(): Unit = {
+    val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
+    execEnv.setParallelism(1)
+    val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
+    val tEnv = StreamTableEnvironment.create(execEnv, settings)
+
+    TestTableSourceSinks.createPersonCsvTemporaryTable(tEnv, "MyTable")
+
+    TestTableSourceSinks.createCsvTemporarySinkTable(
+      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink", -1)
+
+    val expected =
+      TableTestUtil.readFromResource("/explain/testStreamTableEnvironmentExecutionExplain.out")
+    val actual = tEnv.explainSql("insert into MySink select first from MyTable",
+      ExplainDetail.JSON_EXECUTION_PLAN)
+
+    assertEquals(TableTestUtil.replaceStreamNodeId(expected),
+      TableTestUtil.replaceStreamNodeId(actual))
+  }
+
+  @Test
+  def testStatementSetExecutionExplain(): Unit = {
+    val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
+    execEnv.setParallelism(1)
+    val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
+    val tEnv = StreamTableEnvironment.create(execEnv, settings)
+
+    TestTableSourceSinks.createPersonCsvTemporaryTable(tEnv, "MyTable")
+
+    TestTableSourceSinks.createCsvTemporarySinkTable(
+      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink", -1)
+
+    val expected =
+      TableTestUtil.readFromResource("/explain/testStatementSetExecutionExplain.out")
+    val statementSet = tEnv.createStatementSet()
+    statementSet.addInsertSql("insert into MySink select last from MyTable")
+    val actual = statementSet.explain(ExplainDetail.JSON_EXECUTION_PLAN)
+
+    assertEquals(TableTestUtil.replaceStreamNodeId(expected),
+      TableTestUtil.replaceStreamNodeId(actual))
   }
 
   @Test
@@ -499,7 +541,7 @@ class TableEnvironmentTest {
 
   @Test
   def testCreateViewWithWrongFieldList(): Unit = {
-    thrown.expect(classOf[SqlConversionException])
+    thrown.expect(classOf[ValidationException])
     thrown.expectMessage("VIEW definition and input fields not match:\n" +
       "\tDef fields: [d].\n" +
       "\tInput fields: [a, b, c].")
@@ -1124,7 +1166,7 @@ class TableEnvironmentTest {
         Row.of("f25", "STRING", Boolean.box(false), null, null, null),
         Row.of("f26", "ROW<`f0` INT NOT NULL, `f1` INT>", Boolean.box(false),
           "PRI(f24, f26)", null, null),
-        Row.of("ts", "TIMESTAMP(3) *ROWTIME*", Boolean.box(true), null, "TO_TIMESTAMP(`f25`)",
+        Row.of("ts", "TIMESTAMP(3) *ROWTIME*", Boolean.box(true), null, "AS TO_TIMESTAMP(`f25`)",
           "`ts` - INTERVAL '1' SECOND")
       ).iterator(),
       tableResult1.collect())

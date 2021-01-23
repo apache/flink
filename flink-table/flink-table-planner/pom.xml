@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-table</artifactId>
-		<version>1.12-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -125,13 +125,14 @@ under the License.
 			<version>${calcite.version}</version>
 			<exclusions>
 				<!--
-				"mvn dependency:tree" as of Calcite 1.22.0:
+				"mvn dependency:tree" as of Calcite 1.26.0:
 
-				[INFO] +- org.apache.calcite:calcite-core:jar:1.22.0:compile
-				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.22.0:compile
+				[INFO] +- org.apache.calcite:calcite-core:jar:1.26.0:compile
+				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.26.0:compile
 				[INFO] |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.10.1:compile
-				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.16.0:compile
+				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.17.0:compile
 				[INFO] |  +- org.apiguardian:apiguardian-api:jar:1.1.0:compile
+				[INFO] |  +- com.esri.geometry:esri-geometry-api:jar:2.2.0:runtime
 				[INFO] |  +- com.fasterxml.jackson.core:jackson-core:jar:2.10.1:compile
 				[INFO] |  +- com.fasterxml.jackson.core:jackson-databind:jar:2.10.1:compile
 				[INFO] |  +- com.jayway.jsonpath:json-path:jar:2.4.0:runtime
@@ -157,6 +158,10 @@ under the License.
 					<artifactId>protobuf-java</artifactId>
 				</exclusion>
 				<exclusion>
+					<groupId>com.google.uzaygezen</groupId>
+					<artifactId>uzaygezen-core</artifactId>
+				</exclusion>
+				<exclusion>
 					<groupId>org.apache.httpcomponents</groupId>
 					<artifactId>httpclient</artifactId>
 				</exclusion>
@@ -167,10 +172,6 @@ under the License.
 				<exclusion>
 					<groupId>org.apache.commons</groupId>
 					<artifactId>commons-dbcp2</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.esri.geometry</groupId>
-					<artifactId>esri-geometry-api</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.fasterxml.jackson.dataformat</groupId>
@@ -197,7 +198,7 @@ under the License.
 		<dependency>
 			<groupId>com.ibm.icu</groupId>
 			<artifactId>icu4j</artifactId>
-			<version>65.1</version>
+			<version>67.1</version>
 		</dependency>
 
 		<!-- test dependencies -->
@@ -311,6 +312,8 @@ under the License.
 										<exclude>META-INF/services/java.sql.Driver</exclude>
 										<!-- not relocated for now, because it is needed by Calcite -->
 										<!--<exclude>org.codehaus.commons.compiler.properties</exclude>-->
+										<!-- com.ibm.icu:icu4j includes a LICENSE file in its root folder -->
+										<exclude>LICENSE</exclude>
 									</excludes>
 								</filter>
 							</filters>
@@ -320,7 +323,9 @@ under the License.
 									<include>org.apache.calcite.avatica:*</include>
 
 									<!-- Calcite's dependencies -->
+									<include>com.esri.geometry:esri-geometry-api</include>
 									<include>com.google.guava:guava</include>
+									<include>com.google.guava:failureaccess</include>
 									<include>com.jayway.jsonpath:json-path</include>
 									<include>com.fasterxml.jackson.core:jackson-core</include>
 									<include>com.fasterxml.jackson.core:jackson-databind</include>

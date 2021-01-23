@@ -20,16 +20,14 @@ package org.apache.flink.runtime.state;
 
 import java.util.concurrent.Executor;
 
-/**
- * Simple factory to produce {@link SharedStateRegistry} objects.
- */
+/** Simple factory to produce {@link SharedStateRegistry} objects. */
 public interface SharedStateRegistryFactory {
 
-	/**
-	 * Factory method for {@link SharedStateRegistry}.
-	 *
-	 * @param deleteExecutor executor used to run (async) deletes.
-	 * @return a SharedStateRegistry object
-	 */
-	SharedStateRegistry create(Executor deleteExecutor);
+    /**
+     * Factory method for {@link SharedStateRegistry}.
+     *
+     * @param deleteExecutor executor used to run (async) deletes.
+     * @return a SharedStateRegistry object
+     */
+    SharedStateRegistry create(Executor deleteExecutor);
 }

@@ -22,11 +22,11 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-<a name="java-dependency"/>
+<a name="java-dependency-in-python-program"/>
 
 # Java 依赖管理
 
-如果应用了第三方 Java 依赖， 用户可以通过以下 Python DataStream API进行配置，或者在提交作业时直接通过[命令行参数]({% link ops/cli.zh.md %}#usage)配置。
+如果应用了第三方 Java 依赖， 用户可以通过以下 Python DataStream API进行配置，或者在提交作业时直接通过[命令行参数]({% link deployment/cli.zh.md %}#usage)配置。
 
 {% highlight python %}
 # 通过 add_jars() 添加本地 jar 包依赖，这些 jar 包最终会被上传到集群中。
@@ -39,10 +39,10 @@ stream_execution_environment.add_classpaths("file:///my/jar/path/connector.jar",
 {% endhighlight %}
 **注意：** 这些 API 能被多次调用。
 
-<a name="python-dependency"/>
+<a name="python-dependency-in-python-program"/>
 
 # Python 依赖管理
-如果 Python DataStream 程序中应用到了 Python 第三方依赖，用户可以使用以下 API 配置依赖信息，或在提交作业时直接通过[命令行参数]({% link ops/cli.zh.md %}#usage)配置。
+如果 Python DataStream 程序中应用到了 Python 第三方依赖，用户可以使用以下 API 配置依赖信息，或在提交作业时直接通过[命令行参数]({% link deployment/cli.zh.md %}#usage)配置。
 
 <table class="table table-bordered">
   <thead>
@@ -72,7 +72,7 @@ echo numpy==1.16.5 > requirements.txt
 pip download -d cached_dir -r requirements.txt --no-binary :all:
 
 # Python 代码
-stream_execution_environment.set_python_requirements("requirements.txt", "cached_dir")
+stream_execution_environment.set_python_requirements("/path/to/requirements.txt", "cached_dir")
 {% endhighlight %}
         <p>请确保这些依赖安装包和集群运行环境所使用的 Python 版本相匹配。此外，这些依赖将通过 Pip 安装， 请确保 Pip 的版本（version >= 7.1.0） 和 Setuptools 的版本（version >= 37.0.0）符合要求。</p>
       </td>
@@ -87,9 +87,9 @@ stream_execution_environment.set_python_requirements("requirements.txt", "cached
 zip -r py_env.zip py_env
 
 # python 代码
-stream_execution_environment.add_python_archive("py_env.zip")
+stream_execution_environment.add_python_archive("/path/to/py_env.zip")
 # 或者
-stream_execution_environment.add_python_archive("py_env.zip", "myenv")
+stream_execution_environment.add_python_archive("/path/to/py_env.zip", "myenv")
 
 # 归档文件中的文件可以被 Python 函数读取
 def my_func():
@@ -104,9 +104,10 @@ def my_func():
       <td>
         <p>配置用于执行 Python Worker 的 Python 解释器路径，如 "/usr/local/bin/python3"。</p>
 {% highlight python %}
-stream_execution_environment.add_python_archive("py_env.zip")
+stream_execution_environment.add_python_archive("/path/to/py_env.zip")
 stream_execution_environment.get_config().set_python_executable("py_env.zip/py_env/bin/python")
 {% endhighlight %}
+        <p>如果 Python 解释器的路径指向上传的 Python 归档文件，那么通过 set_python_executable 设置的 Python 解释器的路径必须是相对路径。</p>
         <p>请确保配置的 Python 环境和集群运行环境匹配。</p>
       </td>
     </tr>

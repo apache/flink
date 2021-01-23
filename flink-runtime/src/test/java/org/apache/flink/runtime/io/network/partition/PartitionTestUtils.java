@@ -21,7 +21,6 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
-import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.PartitionDescriptorBuilder;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
@@ -31,106 +30,103 @@ import org.hamcrest.Matchers;
 
 import java.io.IOException;
 
-import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledFinishedBufferConsumer;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /**
- * This class should consolidate all mocking logic for ResultPartitions.
- * While using Mockito internally (for now), the use of Mockito should not
- * leak out of this class.
+ * This class should consolidate all mocking logic for ResultPartitions. While using Mockito
+ * internally (for now), the use of Mockito should not leak out of this class.
  */
 public enum PartitionTestUtils {
-	;
+    ;
 
-	public static ResultPartition createPartition() {
-		return createPartition(ResultPartitionType.PIPELINED_BOUNDED);
-	}
+    public static ResultPartition createPartition() {
+        return createPartition(ResultPartitionType.PIPELINED_BOUNDED);
+    }
 
-	public static ResultPartition createPartition(ResultPartitionType type) {
-		return new ResultPartitionBuilder().setResultPartitionType(type).build();
-	}
+    public static ResultPartition createPartition(ResultPartitionType type) {
+        return new ResultPartitionBuilder().setResultPartitionType(type).build();
+    }
 
-	public static ResultPartition createPartition(ResultPartitionType type, FileChannelManager channelManager) {
-		return new ResultPartitionBuilder()
-			.setResultPartitionType(type)
-			.setFileChannelManager(channelManager)
-			.build();
-	}
+    public static ResultPartition createPartition(
+            ResultPartitionType type, FileChannelManager channelManager) {
+        return new ResultPartitionBuilder()
+                .setResultPartitionType(type)
+                .setFileChannelManager(channelManager)
+                .build();
+    }
 
-	public static ResultPartition createPartition(
-			ResultPartitionType type,
-			FileChannelManager channelManager,
-			boolean compressionEnabled,
-			int networkBufferSize) {
-		return new ResultPartitionBuilder()
-			.setResultPartitionType(type)
-			.setFileChannelManager(channelManager)
-			.setBlockingShuffleCompressionEnabled(compressionEnabled)
-			.setNetworkBufferSize(networkBufferSize)
-			.build();
-	}
+    public static ResultPartition createPartition(
+            ResultPartitionType type,
+            FileChannelManager channelManager,
+            boolean compressionEnabled,
+            int networkBufferSize) {
+        return new ResultPartitionBuilder()
+                .setResultPartitionType(type)
+                .setFileChannelManager(channelManager)
+                .setBlockingShuffleCompressionEnabled(compressionEnabled)
+                .setNetworkBufferSize(networkBufferSize)
+                .build();
+    }
 
-	public static ResultPartition createPartition(
-			NettyShuffleEnvironment environment,
-			ResultPartitionType partitionType,
-			int numChannels) {
-		return new ResultPartitionBuilder()
-			.setResultPartitionManager(environment.getResultPartitionManager())
-			.setupBufferPoolFactoryFromNettyShuffleEnvironment(environment)
-			.setResultPartitionType(partitionType)
-			.setNumberOfSubpartitions(numChannels)
-			.build();
-	}
+    public static ResultPartition createPartition(
+            NettyShuffleEnvironment environment,
+            ResultPartitionType partitionType,
+            int numChannels) {
+        return new ResultPartitionBuilder()
+                .setResultPartitionManager(environment.getResultPartitionManager())
+                .setupBufferPoolFactoryFromNettyShuffleEnvironment(environment)
+                .setResultPartitionType(partitionType)
+                .setNumberOfSubpartitions(numChannels)
+                .build();
+    }
 
-	public static ResultPartition createPartition(
-			NettyShuffleEnvironment environment,
-			FileChannelManager channelManager,
-			ResultPartitionType partitionType,
-			int numChannels) {
-		return new ResultPartitionBuilder()
-			.setResultPartitionManager(environment.getResultPartitionManager())
-			.setupBufferPoolFactoryFromNettyShuffleEnvironment(environment)
-			.setFileChannelManager(channelManager)
-			.setResultPartitionType(partitionType)
-			.setNumberOfSubpartitions(numChannels)
-			.build();
-	}
+    public static ResultPartition createPartition(
+            NettyShuffleEnvironment environment,
+            FileChannelManager channelManager,
+            ResultPartitionType partitionType,
+            int numChannels) {
+        return new ResultPartitionBuilder()
+                .setResultPartitionManager(environment.getResultPartitionManager())
+                .setupBufferPoolFactoryFromNettyShuffleEnvironment(environment)
+                .setFileChannelManager(channelManager)
+                .setResultPartitionType(partitionType)
+                .setNumberOfSubpartitions(numChannels)
+                .build();
+    }
 
-	static void verifyCreateSubpartitionViewThrowsException(
-			ResultPartitionProvider partitionManager,
-			ResultPartitionID partitionId) throws IOException {
-		try {
-			partitionManager.createSubpartitionView(partitionId, 0, new NoOpBufferAvailablityListener());
+    public static ResultSubpartitionView createView(
+            ResultSubpartition subpartition, BufferAvailabilityListener listener)
+            throws IOException {
+        final ResultPartitionManager partitionManager = new ResultPartitionManager();
+        final ResultPartition parent = subpartition.parent;
+        partitionManager.registerResultPartition(parent);
+        return partitionManager.createSubpartitionView(parent.partitionId, 0, listener);
+    }
 
-			fail("Should throw a PartitionNotFoundException.");
-		} catch (PartitionNotFoundException notFound) {
-			assertThat(partitionId, Matchers.is(notFound.getPartitionId()));
-		}
-	}
+    static void verifyCreateSubpartitionViewThrowsException(
+            ResultPartitionProvider partitionManager, ResultPartitionID partitionId)
+            throws IOException {
+        try {
+            partitionManager.createSubpartitionView(
+                    partitionId, 0, new NoOpBufferAvailablityListener());
 
-	public static ResultPartitionDeploymentDescriptor createPartitionDeploymentDescriptor(
-		ResultPartitionType partitionType) {
-		ShuffleDescriptor shuffleDescriptor = NettyShuffleDescriptorBuilder.newBuilder().buildLocal();
-		PartitionDescriptor partitionDescriptor = PartitionDescriptorBuilder
-			.newBuilder()
-			.setPartitionId(shuffleDescriptor.getResultPartitionID().getPartitionId())
-			.setPartitionType(partitionType)
-			.build();
-		return new ResultPartitionDeploymentDescriptor(
-			partitionDescriptor,
-			shuffleDescriptor,
-			1,
-			true);
-	}
+            fail("Should throw a PartitionNotFoundException.");
+        } catch (PartitionNotFoundException notFound) {
+            assertThat(partitionId, Matchers.is(notFound.getPartitionId()));
+        }
+    }
 
-	public static void writeBuffers(
-			ResultPartitionWriter partition,
-			int numberOfBuffers,
-			int bufferSize) throws IOException {
-		for (int i = 0; i < numberOfBuffers; i++) {
-			partition.addBufferConsumer(createFilledFinishedBufferConsumer(bufferSize), 0);
-		}
-		partition.finish();
-	}
+    public static ResultPartitionDeploymentDescriptor createPartitionDeploymentDescriptor(
+            ResultPartitionType partitionType) {
+        ShuffleDescriptor shuffleDescriptor =
+                NettyShuffleDescriptorBuilder.newBuilder().buildLocal();
+        PartitionDescriptor partitionDescriptor =
+                PartitionDescriptorBuilder.newBuilder()
+                        .setPartitionId(shuffleDescriptor.getResultPartitionID().getPartitionId())
+                        .setPartitionType(partitionType)
+                        .build();
+        return new ResultPartitionDeploymentDescriptor(
+                partitionDescriptor, shuffleDescriptor, 1, true);
+    }
 }

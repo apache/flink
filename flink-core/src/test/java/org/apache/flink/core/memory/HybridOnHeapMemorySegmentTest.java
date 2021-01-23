@@ -29,85 +29,82 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for the {@link HybridMemorySegment} in on-heap mode.
- */
+/** Tests for the {@link HybridMemorySegment} in on-heap mode. */
 @RunWith(Parameterized.class)
 public class HybridOnHeapMemorySegmentTest extends MemorySegmentTestBase {
 
-	public HybridOnHeapMemorySegmentTest(int pageSize) {
-		super(pageSize);
-	}
+    public HybridOnHeapMemorySegmentTest(int pageSize) {
+        super(pageSize);
+    }
 
-	@Override
-	MemorySegment createSegment(int size) {
-		return MemorySegmentFactory.allocateUnpooledSegment(size);
-	}
+    @Override
+    MemorySegment createSegment(int size) {
+        return MemorySegmentFactory.allocateUnpooledSegment(size);
+    }
 
-	@Override
-	MemorySegment createSegment(int size, Object owner) {
-		return MemorySegmentFactory.allocateUnpooledSegment(size, owner);
-	}
+    @Override
+    MemorySegment createSegment(int size, Object owner) {
+        return MemorySegmentFactory.allocateUnpooledSegment(size, owner);
+    }
 
-	@Test
-	public void testHybridHeapSegmentSpecifics() {
-		final byte[] buffer = new byte[411];
-		HybridMemorySegment seg = new HybridMemorySegment(buffer, null);
+    @Test
+    public void testHybridHeapSegmentSpecifics() {
+        final byte[] buffer = new byte[411];
+        HybridMemorySegment seg = new HybridMemorySegment(buffer, null);
 
-		assertFalse(seg.isFreed());
-		assertFalse(seg.isOffHeap());
-		assertEquals(buffer.length, seg.size());
-		assertTrue(buffer == seg.getArray());
+        assertFalse(seg.isFreed());
+        assertFalse(seg.isOffHeap());
+        assertEquals(buffer.length, seg.size());
+        assertTrue(buffer == seg.getArray());
 
-		try {
-			//noinspection ResultOfMethodCallIgnored
-			seg.getOffHeapBuffer();
-			fail("should throw an exception");
-		}
-		catch (IllegalStateException e) {
-			// expected
-		}
+        try {
+            //noinspection ResultOfMethodCallIgnored
+            seg.getOffHeapBuffer();
+            fail("should throw an exception");
+        } catch (IllegalStateException e) {
+            // expected
+        }
 
-		ByteBuffer buf1 = seg.wrap(1, 2);
-		ByteBuffer buf2 = seg.wrap(3, 4);
+        ByteBuffer buf1 = seg.wrap(1, 2);
+        ByteBuffer buf2 = seg.wrap(3, 4);
 
-		assertTrue(buf1 != buf2);
-		assertEquals(1, buf1.position());
-		assertEquals(3, buf1.limit());
-		assertEquals(3, buf2.position());
-		assertEquals(7, buf2.limit());
-	}
+        assertTrue(buf1 != buf2);
+        assertEquals(1, buf1.position());
+        assertEquals(3, buf1.limit());
+        assertEquals(3, buf2.position());
+        assertEquals(7, buf2.limit());
+    }
 
-	@Test
-	public void testReadOnlyByteBufferPut() {
-		final byte[] buffer = new byte[100];
-		HybridMemorySegment seg = new HybridMemorySegment(buffer, null);
+    @Test
+    public void testReadOnlyByteBufferPut() {
+        final byte[] buffer = new byte[100];
+        HybridMemorySegment seg = new HybridMemorySegment(buffer, null);
 
-		String content = "hello world";
-		ByteBuffer bb = ByteBuffer.allocate(20);
-		bb.put(content.getBytes());
-		bb.rewind();
+        String content = "hello world";
+        ByteBuffer bb = ByteBuffer.allocate(20);
+        bb.put(content.getBytes());
+        bb.rewind();
 
-		int offset = 10;
-		int numBytes = 5;
+        int offset = 10;
+        int numBytes = 5;
 
-		ByteBuffer readOnlyBuf = bb.asReadOnlyBuffer();
-		assertFalse(readOnlyBuf.isDirect());
-		assertFalse(readOnlyBuf.hasArray());
+        ByteBuffer readOnlyBuf = bb.asReadOnlyBuffer();
+        assertFalse(readOnlyBuf.isDirect());
+        assertFalse(readOnlyBuf.hasArray());
 
-		seg.put(offset, readOnlyBuf, numBytes);
+        seg.put(offset, readOnlyBuf, numBytes);
 
-		// verify the area before the written region.
-		for (int i = 0; i < offset; i++) {
-			assertEquals(0, buffer[i]);
-		}
+        // verify the area before the written region.
+        for (int i = 0; i < offset; i++) {
+            assertEquals(0, buffer[i]);
+        }
 
-		// verify the region that is written.
-		assertEquals("hello", new String(buffer, offset, numBytes));
+        // verify the region that is written.
+        assertEquals("hello", new String(buffer, offset, numBytes));
 
-		// verify the area after the written region.
-		for (int i = offset + numBytes; i < buffer.length; i++) {
-			assertEquals(0, buffer[i]);
-		}
-	}
+        // verify the area after the written region.
+        for (int i = offset + numBytes; i < buffer.length; i++) {
+            assertEquals(0, buffer[i]);
+        }
+    }
 }

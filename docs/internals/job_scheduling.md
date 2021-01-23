@@ -43,7 +43,7 @@ parallelism of 3. A pipeline consists of the sequence Source - Map - Reduce. On 
 3 slots each, the program will be executed as described below.
 
 <div style="text-align: center;">
-<img src="{{ site.baseurl }}/fig/slots.svg" alt="Assigning Pipelines of Tasks to Slots" height="250px" style="text-align: center;"/>
+<img src="{% link /fig/slots.svg %}" alt="Assigning Pipelines of Tasks to Slots" height="250px" style="text-align: center;"/>
 </div>
 
 Internally, Flink defines through {% gh_link /flink-runtime/src/main/java/org/apache/flink/runtime/jobmanager/scheduler/SlotSharingGroup.java "SlotSharingGroup" %}
@@ -70,7 +70,7 @@ which tracks the status of the operator as a whole.
 Besides the vertices, the ExecutionGraph also contains the {% gh_link /flink-runtime/src/main/java/org/apache/flink/runtime/executiongraph/IntermediateResult.java "IntermediateResult" %} and the {% gh_link /flink-runtime/src/main/java/org/apache/flink/runtime/executiongraph/IntermediateResultPartition.java "IntermediateResultPartition" %}. The former tracks the state of the *IntermediateDataSet*, the latter the state of each of its partitions.
 
 <div style="text-align: center;">
-<img src="{{ site.baseurl }}/fig/job_and_execution_graph.svg" alt="JobGraph and ExecutionGraph" height="400px" style="text-align: center;"/>
+<img src="{% link /fig/job_and_execution_graph.svg %}" alt="JobGraph and ExecutionGraph" height="400px" style="text-align: center;"/>
 </div>
 
 Each ExecutionGraph has a job status associated with it.
@@ -91,7 +91,7 @@ Locally terminal means that the execution of the job has been terminated on the 
 Consequently, a job which reaches the *suspended* state won't be completely cleaned up.
 
 <div style="text-align: center;">
-<img src="{{ site.baseurl }}/fig/job_status.svg" alt="States and Transitions of Flink job" height="500px" style="text-align: center;"/>
+<img src="{% link /fig/job_status.svg %}" alt="States and Transitions of Flink job" height="500px" style="text-align: center;"/>
 </div>
 
 During the execution of the ExecutionGraph, each parallel task goes through multiple stages, from *created* to *finished* or *failed*. The diagram below illustrates the
@@ -99,7 +99,7 @@ states and possible transitions between them. A task may be executed multiple ti
 For that reason, the execution of an ExecutionVertex is tracked in an {% gh_link /flink-runtime/src/main/java/org/apache/flink/runtime/executiongraph/Execution.java "Execution" %}. Each ExecutionVertex has a current Execution, and prior Executions.
 
 <div style="text-align: center;">
-<img src="{{ site.baseurl }}/fig/state_machine.svg" alt="States and Transitions of Task Executions" height="300px" style="text-align: center;"/>
+<img src="{% link /fig/state_machine.svg %}" alt="States and Transitions of Task Executions" height="300px" style="text-align: center;"/>
 </div>
 
 {% top %}

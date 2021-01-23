@@ -34,11 +34,10 @@ under the License.
 依赖
 ------------
 
-为了使用 JSON format，下表列出了利用自动化构建工具（例如，Maven 或者 SBT ）构建项目以及 SQL Client 所需要的依赖。
-
-| Maven 依赖          | SQL Client JAR         |
-| :----------------- | :----------------------|
-| `flink-json`       | 内置                    |
+{% assign connector = site.data.sql-connectors['json'] %} 
+{% include sql-connector-download-table.zh.html 
+    connector=connector
+%}
 
 如何创建一张基于 JSON Format 的表
 ----------------
@@ -115,6 +114,33 @@ Format 参数
         以 "yyyy-MM-ddTHH:mm:ss.s{precision}'Z'" 的格式解析 TIMESTAMP WITH LOCAL TIME ZONE, 例如 "2020-12-30T12:13:14.123Z" 且会以相同的格式输出。</li>
       </ul>
       </td>
+    </tr>
+    <tr>
+       <td><h5>json.map-null-key.mode</h5></td>
+       <td>选填</td>
+       <td style="word-wrap: break-word;"><code>'FAIL'</code></td>
+       <td>String</td>
+       <td>指定处理 Map 中 key 值为空的方法. 当前支持的值有 <code>'FAIL'</code>, <code>'DROP'</code> 和 <code>'LITERAL'</code>:
+       <ul>
+         <li>Option <code>'FAIL'</code> 将抛出异常，如果遇到 Map 中 key 值为空的数据。</li>
+         <li>Option <code>'DROP'</code> 将丢弃 Map 中 key 值为空的数据项。</li> 
+         <li>Option <code>'LITERAL'</code> 将使用字符串常量来替换 Map 中的空 key 值。字符串常量的值由 <code>'json.map-null-key.literal'</code> 定义。</li>
+       </ul>
+       </td>
+    </tr>
+    <tr>
+      <td><h5>json.map-null-key.literal</h5></td>
+      <td>选填</td>
+      <td style="word-wrap: break-word;">'null'</td>
+      <td>String</td>
+      <td>当 <code>'json.map-null-key.mode'</code> 是 LITERAL 的时候，指定字符串常量替换 Map 中的空 key 值。</td>
+    </tr>        
+    <tr>
+      <td><h5>json.encode.decimal-as-plain-number</h5></td>
+      <td>选填</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>将所有 DECIMAL 类型的数据保持原状，不使用科学计数法表示。例：<code>0.000000027</code> 默认会表示为 <code>2.7E-8</code>。当此选项设为 true 时，则会表示为 <code>0.000000027</code>。</td>
     </tr>
     </tbody>
 </table>

@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-table</artifactId>
-		<version>1.12-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -44,6 +44,12 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-files</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
 		<!-- Used for structured types extraction. -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -55,7 +61,7 @@ under the License.
 		<dependency>
 			<groupId>com.ibm.icu</groupId>
 			<artifactId>icu4j</artifactId>
-			<version>65.1</version>
+			<version>67.1</version>
 			<!-- set provided here, and will package it into planner jar -->
 			<scope>provided</scope>
 		</dependency>

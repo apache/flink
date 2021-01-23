@@ -24,78 +24,72 @@ import org.apache.flink.table.data.RowData;
 
 import org.apache.arrow.vector.VarBinaryVector;
 
-/**
- * {@link ArrowFieldWriter} for VarBinary.
- */
+/** {@link ArrowFieldWriter} for VarBinary. */
 @Internal
 public abstract class VarBinaryWriter<T> extends ArrowFieldWriter<T> {
 
-	public static VarBinaryWriter<RowData> forRow(VarBinaryVector varBinaryVector) {
-		return new VarBinaryWriterForRow(varBinaryVector);
-	}
+    public static VarBinaryWriter<RowData> forRow(VarBinaryVector varBinaryVector) {
+        return new VarBinaryWriterForRow(varBinaryVector);
+    }
 
-	public static VarBinaryWriter<ArrayData> forArray(VarBinaryVector varBinaryVector) {
-		return new VarBinaryWriterForArray(varBinaryVector);
-	}
+    public static VarBinaryWriter<ArrayData> forArray(VarBinaryVector varBinaryVector) {
+        return new VarBinaryWriterForArray(varBinaryVector);
+    }
 
-	// ------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------
 
-	private VarBinaryWriter(VarBinaryVector varBinaryVector) {
-		super(varBinaryVector);
-	}
+    private VarBinaryWriter(VarBinaryVector varBinaryVector) {
+        super(varBinaryVector);
+    }
 
-	abstract boolean isNullAt(T in, int ordinal);
+    abstract boolean isNullAt(T in, int ordinal);
 
-	abstract byte[] readBinary(T in, int ordinal);
+    abstract byte[] readBinary(T in, int ordinal);
 
-	@Override
-	public void doWrite(T in, int ordinal) {
-		if (isNullAt(in, ordinal)) {
-			((VarBinaryVector) getValueVector()).setNull(getCount());
-		} else {
-			((VarBinaryVector) getValueVector()).setSafe(getCount(), readBinary(in, ordinal));
-		}
-	}
+    @Override
+    public void doWrite(T in, int ordinal) {
+        if (isNullAt(in, ordinal)) {
+            ((VarBinaryVector) getValueVector()).setNull(getCount());
+        } else {
+            ((VarBinaryVector) getValueVector()).setSafe(getCount(), readBinary(in, ordinal));
+        }
+    }
 
-	// ------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------
 
-	/**
-	 * {@link VarBinaryWriter} for {@link RowData} input.
-	 */
-	public static final class VarBinaryWriterForRow extends VarBinaryWriter<RowData> {
+    /** {@link VarBinaryWriter} for {@link RowData} input. */
+    public static final class VarBinaryWriterForRow extends VarBinaryWriter<RowData> {
 
-		private VarBinaryWriterForRow(VarBinaryVector varBinaryVector) {
-			super(varBinaryVector);
-		}
+        private VarBinaryWriterForRow(VarBinaryVector varBinaryVector) {
+            super(varBinaryVector);
+        }
 
-		@Override
-		boolean isNullAt(RowData in, int ordinal) {
-			return in.isNullAt(ordinal);
-		}
+        @Override
+        boolean isNullAt(RowData in, int ordinal) {
+            return in.isNullAt(ordinal);
+        }
 
-		@Override
-		byte[] readBinary(RowData in, int ordinal) {
-			return in.getBinary(ordinal);
-		}
-	}
+        @Override
+        byte[] readBinary(RowData in, int ordinal) {
+            return in.getBinary(ordinal);
+        }
+    }
 
-	/**
-	 * {@link VarBinaryWriter} for {@link ArrayData} input.
-	 */
-	public static final class VarBinaryWriterForArray extends VarBinaryWriter<ArrayData> {
+    /** {@link VarBinaryWriter} for {@link ArrayData} input. */
+    public static final class VarBinaryWriterForArray extends VarBinaryWriter<ArrayData> {
 
-		private VarBinaryWriterForArray(VarBinaryVector varBinaryVector) {
-			super(varBinaryVector);
-		}
+        private VarBinaryWriterForArray(VarBinaryVector varBinaryVector) {
+            super(varBinaryVector);
+        }
 
-		@Override
-		boolean isNullAt(ArrayData in, int ordinal) {
-			return in.isNullAt(ordinal);
-		}
+        @Override
+        boolean isNullAt(ArrayData in, int ordinal) {
+            return in.isNullAt(ordinal);
+        }
 
-		@Override
-		byte[] readBinary(ArrayData in, int ordinal) {
-			return in.getBinary(ordinal);
-		}
-	}
+        @Override
+        byte[] readBinary(ArrayData in, int ordinal) {
+            return in.getBinary(ordinal);
+        }
+    }
 }

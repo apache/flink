@@ -45,118 +45,128 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
-/**
- * Tests for {@link RegisterApplicationMasterResponseReflector}.
- */
+/** Tests for {@link RegisterApplicationMasterResponseReflector}. */
 public class RegisterApplicationMasterResponseReflectorTest extends TestLogger {
 
-	private static final Logger LOG = LoggerFactory.getLogger(RegisterApplicationMasterResponseReflectorTest.class);
+    private static final Logger LOG =
+            LoggerFactory.getLogger(RegisterApplicationMasterResponseReflectorTest.class);
 
-	@Mock
-	private Container mockContainer;
+    @Mock private Container mockContainer;
 
-	@Before
-	public void setUp() {
-		MockitoAnnotations.initMocks(this);
-	}
+    @Before
+    public void setUp() {
+        MockitoAnnotations.initMocks(this);
+    }
 
-	@Test
-	public void testCallsGetContainersFromPreviousAttemptsMethodIfPresent() {
-		final RegisterApplicationMasterResponseReflector registerApplicationMasterResponseReflector =
-			new RegisterApplicationMasterResponseReflector(LOG, HasMethod.class);
+    @Test
+    public void testCallsGetContainersFromPreviousAttemptsMethodIfPresent() {
+        final RegisterApplicationMasterResponseReflector
+                registerApplicationMasterResponseReflector =
+                        new RegisterApplicationMasterResponseReflector(LOG, HasMethod.class);
 
-		final List<Container> containersFromPreviousAttemptsUnsafe =
-			registerApplicationMasterResponseReflector.getContainersFromPreviousAttemptsUnsafe(new HasMethod());
+        final List<Container> containersFromPreviousAttemptsUnsafe =
+                registerApplicationMasterResponseReflector.getContainersFromPreviousAttemptsUnsafe(
+                        new HasMethod());
 
-		assertThat(containersFromPreviousAttemptsUnsafe, hasSize(1));
-	}
+        assertThat(containersFromPreviousAttemptsUnsafe, hasSize(1));
+    }
 
-	@Test
-	public void testDoesntCallGetContainersFromPreviousAttemptsMethodIfAbsent() {
-		final RegisterApplicationMasterResponseReflector registerApplicationMasterResponseReflector =
-			new RegisterApplicationMasterResponseReflector(LOG, HasMethod.class);
+    @Test
+    public void testDoesntCallGetContainersFromPreviousAttemptsMethodIfAbsent() {
+        final RegisterApplicationMasterResponseReflector
+                registerApplicationMasterResponseReflector =
+                        new RegisterApplicationMasterResponseReflector(LOG, HasMethod.class);
 
-		final List<Container> containersFromPreviousAttemptsUnsafe =
-			registerApplicationMasterResponseReflector.getContainersFromPreviousAttemptsUnsafe(new Object());
+        final List<Container> containersFromPreviousAttemptsUnsafe =
+                registerApplicationMasterResponseReflector.getContainersFromPreviousAttemptsUnsafe(
+                        new Object());
 
-		assertThat(containersFromPreviousAttemptsUnsafe, empty());
-	}
+        assertThat(containersFromPreviousAttemptsUnsafe, empty());
+    }
 
-	@Test
-	public void testGetContainersFromPreviousAttemptsMethodReflectiveHadoop22() {
-		assumeTrue(
-			"Method getContainersFromPreviousAttempts is not supported by Hadoop: " +
-				VersionInfo.getVersion(),
-			isHadoopVersionGreaterThanOrEquals(2, 2));
+    @Test
+    public void testGetContainersFromPreviousAttemptsMethodReflectiveHadoop22() {
+        assumeTrue(
+                "Method getContainersFromPreviousAttempts is not supported by Hadoop: "
+                        + VersionInfo.getVersion(),
+                isHadoopVersionGreaterThanOrEquals(2, 2));
 
-		final RegisterApplicationMasterResponseReflector registerApplicationMasterResponseReflector =
-			new RegisterApplicationMasterResponseReflector(LOG);
+        final RegisterApplicationMasterResponseReflector
+                registerApplicationMasterResponseReflector =
+                        new RegisterApplicationMasterResponseReflector(LOG);
 
-		assertTrue(registerApplicationMasterResponseReflector.getGetContainersFromPreviousAttemptsMethod().isPresent());
-	}
+        assertTrue(
+                registerApplicationMasterResponseReflector
+                        .getGetContainersFromPreviousAttemptsMethod()
+                        .isPresent());
+    }
 
-	@Test
-	public void testCallsGetSchedulerResourceTypesMethodIfPresent() {
-		final RegisterApplicationMasterResponseReflector registerApplicationMasterResponseReflector =
-			new RegisterApplicationMasterResponseReflector(LOG, HasMethod.class);
+    @Test
+    public void testCallsGetSchedulerResourceTypesMethodIfPresent() {
+        final RegisterApplicationMasterResponseReflector
+                registerApplicationMasterResponseReflector =
+                        new RegisterApplicationMasterResponseReflector(LOG, HasMethod.class);
 
-		final Optional<Set<String>> schedulerResourceTypeNames =
-			registerApplicationMasterResponseReflector.getSchedulerResourceTypeNamesUnsafe(new HasMethod());
+        final Optional<Set<String>> schedulerResourceTypeNames =
+                registerApplicationMasterResponseReflector.getSchedulerResourceTypeNamesUnsafe(
+                        new HasMethod());
 
-		assertTrue(schedulerResourceTypeNames.isPresent());
-		assertThat(schedulerResourceTypeNames.get(), containsInAnyOrder("MEMORY", "CPU"));
-	}
+        assertTrue(schedulerResourceTypeNames.isPresent());
+        assertThat(schedulerResourceTypeNames.get(), containsInAnyOrder("MEMORY", "CPU"));
+    }
 
-	@Test
-	public void testDoesntCallGetSchedulerResourceTypesMethodIfAbsent() {
-		final RegisterApplicationMasterResponseReflector registerApplicationMasterResponseReflector =
-			new RegisterApplicationMasterResponseReflector(LOG, HasMethod.class);
+    @Test
+    public void testDoesntCallGetSchedulerResourceTypesMethodIfAbsent() {
+        final RegisterApplicationMasterResponseReflector
+                registerApplicationMasterResponseReflector =
+                        new RegisterApplicationMasterResponseReflector(LOG, HasMethod.class);
 
-		final Optional<Set<String>> schedulerResourceTypeNames =
-			registerApplicationMasterResponseReflector.getSchedulerResourceTypeNamesUnsafe(new Object());
+        final Optional<Set<String>> schedulerResourceTypeNames =
+                registerApplicationMasterResponseReflector.getSchedulerResourceTypeNamesUnsafe(
+                        new Object());
 
-		assertFalse(schedulerResourceTypeNames.isPresent());
-	}
+        assertFalse(schedulerResourceTypeNames.isPresent());
+    }
 
-	@Test
-	public void testGetSchedulerResourceTypesMethodReflectiveHadoop26() {
-		assumeTrue(
-			"Method getSchedulerResourceTypes is not supported by Hadoop: " +
-				VersionInfo.getVersion(),
-			isHadoopVersionGreaterThanOrEquals(2, 6));
+    @Test
+    public void testGetSchedulerResourceTypesMethodReflectiveHadoop26() {
+        assumeTrue(
+                "Method getSchedulerResourceTypes is not supported by Hadoop: "
+                        + VersionInfo.getVersion(),
+                isHadoopVersionGreaterThanOrEquals(2, 6));
 
-		final RegisterApplicationMasterResponseReflector registerApplicationMasterResponseReflector =
-			new RegisterApplicationMasterResponseReflector(LOG);
+        final RegisterApplicationMasterResponseReflector
+                registerApplicationMasterResponseReflector =
+                        new RegisterApplicationMasterResponseReflector(LOG);
 
-		assertTrue(registerApplicationMasterResponseReflector.getGetSchedulerResourceTypesMethod().isPresent());
-	}
+        assertTrue(
+                registerApplicationMasterResponseReflector
+                        .getGetSchedulerResourceTypesMethod()
+                        .isPresent());
+    }
 
-	/**
-	 * Class which has a method with the same signature as
-	 * {@link RegisterApplicationMasterResponse#getContainersFromPreviousAttempts()}.
-	 */
-	private class HasMethod {
+    /**
+     * Class which has a method with the same signature as {@link
+     * RegisterApplicationMasterResponse#getContainersFromPreviousAttempts()}.
+     */
+    private class HasMethod {
 
-		/**
-		 * Called from {@link #testCallsGetContainersFromPreviousAttemptsMethodIfPresent()}.
-		 */
-		@SuppressWarnings("unused")
-		public List<Container> getContainersFromPreviousAttempts() {
-			return Collections.singletonList(mockContainer);
-		}
+        /** Called from {@link #testCallsGetContainersFromPreviousAttemptsMethodIfPresent()}. */
+        @SuppressWarnings("unused")
+        public List<Container> getContainersFromPreviousAttempts() {
+            return Collections.singletonList(mockContainer);
+        }
 
-		/**
-		 * Called from {@link #testCallsGetSchedulerResourceTypesMethodIfPresent()}.
-		 */
-		@SuppressWarnings("unused")
-		public EnumSet<MockSchedulerResourceTypes> getSchedulerResourceTypes() {
-			return EnumSet.allOf(MockSchedulerResourceTypes.class);
-		}
-	}
+        /** Called from {@link #testCallsGetSchedulerResourceTypesMethodIfPresent()}. */
+        @SuppressWarnings("unused")
+        public EnumSet<MockSchedulerResourceTypes> getSchedulerResourceTypes() {
+            return EnumSet.allOf(MockSchedulerResourceTypes.class);
+        }
+    }
 
-	@SuppressWarnings("unused")
-	private enum MockSchedulerResourceTypes {
-		MEMORY,
-		CPU
-	}
+    @SuppressWarnings("unused")
+    private enum MockSchedulerResourceTypes {
+        MEMORY,
+        CPU
+    }
 }

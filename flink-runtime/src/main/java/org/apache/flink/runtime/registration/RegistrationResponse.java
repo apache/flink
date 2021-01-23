@@ -20,65 +20,52 @@ package org.apache.flink.runtime.registration;
 
 import java.io.Serializable;
 
-/**
- * Base class for responses given to registration attempts from {@link RetryingRegistration}.
- */
+/** Base class for responses given to registration attempts from {@link RetryingRegistration}. */
 public abstract class RegistrationResponse implements Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	// ----------------------------------------------------------------------------
+    // ----------------------------------------------------------------------------
 
-	/**
-	 * Base class for a successful registration. Concrete registration implementations
-	 * will typically extend this class to attach more information.
-	 */
-	public static class Success extends RegistrationResponse {
-		private static final long serialVersionUID = 1L;
+    /**
+     * Base class for a successful registration. Concrete registration implementations will
+     * typically extend this class to attach more information.
+     */
+    public static class Success extends RegistrationResponse {
+        private static final long serialVersionUID = 1L;
 
-		@Override
-		public String toString() {
-			return "Registration Successful";
-		}
-	}
+        @Override
+        public String toString() {
+            return "Registration Successful";
+        }
+    }
 
-	// ----------------------------------------------------------------------------
+    // ----------------------------------------------------------------------------
 
-	/**
-	 * A rejected (declined) registration.
-	 */
-	public static final class Decline extends RegistrationResponse {
-		private static final long serialVersionUID = 1L;
+    /** A rejected (declined) registration. */
+    public static final class Decline extends RegistrationResponse {
+        private static final long serialVersionUID = 1L;
 
-		/** The rejection reason. */
-		private final String reason;
+        /** The rejection reason. */
+        private final String reason;
 
-		/**
-		 * Creates a new rejection message.
-		 *
-		 * @param reason The reason for the rejection.
-		 */
-		public Decline(String reason) {
-			this.reason = reason != null ? reason : "(unknown)";
-		}
+        /**
+         * Creates a new rejection message.
+         *
+         * @param reason The reason for the rejection.
+         */
+        public Decline(String reason) {
+            this.reason = reason != null ? reason : "(unknown)";
+        }
 
-		/**
-		 * Gets the reason for the rejection.
-		 */
-		public String getReason() {
-			return reason;
-		}
+        /** Gets the reason for the rejection. */
+        public String getReason() {
+            return reason;
+        }
 
-		@Override
-		public String toString() {
-			return "Registration Declined (" + reason + ')';
-		}
-	}
+        @Override
+        public String toString() {
+            return "Registration Declined (" + reason + ')';
+        }
+    }
 }
-
-
-
-
-
-
-

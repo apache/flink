@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.plan.stream.table.validation
 
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
@@ -50,7 +49,6 @@ class LegacyTableSinkValidationTest extends TableTestBase {
   @Test(expected = classOf[TableException])
   def testUpsertSinkOnUpdatingTableWithoutFullKey(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val t = env.fromCollection(TestData.tupleData3)
@@ -89,10 +87,11 @@ class LegacyTableSinkValidationTest extends TableTestBase {
   def testValidateSink(): Unit = {
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage(
-      "Field types of query result and registered TableSink default_catalog." +
-      "default_database.testSink do not match.\n" +
+      "Column types of query result and sink for registered table " +
+      "'default_catalog.default_database.testSink' do not match.\n" +
+      "Cause: Incompatible types for sink column 'd' at position 3.\n\n" +
       "Query schema: [a: INT, b: BIGINT, c: STRING, d: BIGINT]\n" +
-      "Sink schema: [a: INT, b: BIGINT, c: STRING, d: INT]")
+      "Sink schema:  [a: INT, b: BIGINT, c: STRING, d: INT]")
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)

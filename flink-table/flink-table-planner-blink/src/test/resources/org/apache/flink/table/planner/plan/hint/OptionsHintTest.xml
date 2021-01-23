@@ -20,15 +20,15 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[select * from t1/*+ OPTIONS(k5='v5', 'a.b.c'='fakeVal') */]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[+($0, 1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=v1, k2=v2, a.b.c=fakeVal, k5=v5})], dynamic options: {a.b.c=fakeVal, k5=v5}]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, +(a, 1) AS c])
+Calc(select=[a, b, (a + 1) AS c])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=v1, k2=v2, a.b.c=fakeVal, k5=v5})], dynamic options: {a.b.c=fakeVal, k5=v5}]], fields=[a, b])
 ]]>
     </Resource>
@@ -37,15 +37,15 @@ Calc(select=[a, b, +(a, 1) AS c])
     <Resource name="sql">
       <![CDATA[select * from t1/*+ OPTIONS(k5='v5', 'a.b.c'='fakeVal') */]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[+($0, 1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=v1, k2=v2, a.b.c=fakeVal, k5=v5})], dynamic options: {a.b.c=fakeVal, k5=v5}]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, +(a, 1) AS c])
+Calc(select=[a, b, (a + 1) AS c])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=v1, k2=v2, a.b.c=fakeVal, k5=v5})], dynamic options: {a.b.c=fakeVal, k5=v5}]], fields=[a, b])
 ]]>
     </Resource>
@@ -54,7 +54,7 @@ Calc(select=[a, b, +(a, 1) AS c])
     <Resource name="sql">
       <![CDATA[select * from view1/*+ OPTIONS(k1='#v1', k2='#v2', k3='#v3', k4='#v4') */]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
@@ -63,14 +63,13 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
    +- LogicalTableScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={k3=v3, k4=v4})]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], build=[right])
-:- Calc(select=[a, b, +(a, 1) AS c])
-:  +- Exchange(distribution=[hash[a]])
-:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=v1, k2=v2})]]], fields=[a, b])
-+- Exchange(distribution=[hash[d]])
-   +- LegacyTableSourceScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={k3=v3, k4=v4})]]], fields=[d, e, f])
+MultipleInput(readOrder=[0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], build=[right])\n:- Calc(select=[a, b, (a + 1) AS c])\n:  +- [#2] Exchange(distribution=[hash[a]])\n+- [#1] Exchange(distribution=[hash[d]])\n])
+:- Exchange(distribution=[hash[d]])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={k3=v3, k4=v4})]]], fields=[d, e, f])
++- Exchange(distribution=[hash[a]])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=v1, k2=v2})]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -84,7 +83,7 @@ t2 /*+ OPTIONS(k6='v6', 'd.e.f'='fakeVal') */
 on t1.a = t2.d
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
@@ -93,14 +92,13 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
    +- LogicalTableScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={d.e.f=fakeVal, k3=v3, k4=v4, k6=v6})], dynamic options: {d.e.f=fakeVal, k6=v6}]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], build=[right])
-:- Calc(select=[a, b, +(a, 1) AS c])
-:  +- Exchange(distribution=[hash[a]])
-:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=v1, k2=v2, a.b.c=fakeVal, k5=v5})], dynamic options: {a.b.c=fakeVal, k5=v5}]], fields=[a, b])
-+- Exchange(distribution=[hash[d]])
-   +- LegacyTableSourceScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={d.e.f=fakeVal, k3=v3, k4=v4, k6=v6})], dynamic options: {d.e.f=fakeVal, k6=v6}]], fields=[d, e, f])
+MultipleInput(readOrder=[0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], build=[right])\n:- Calc(select=[a, b, (a + 1) AS c])\n:  +- [#2] Exchange(distribution=[hash[a]])\n+- [#1] Exchange(distribution=[hash[d]])\n])
+:- Exchange(distribution=[hash[d]])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={d.e.f=fakeVal, k3=v3, k4=v4, k6=v6})], dynamic options: {d.e.f=fakeVal, k6=v6}]], fields=[d, e, f])
++- Exchange(distribution=[hash[a]])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=v1, k2=v2, a.b.c=fakeVal, k5=v5})], dynamic options: {a.b.c=fakeVal, k5=v5}]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -114,7 +112,7 @@ t2 /*+ OPTIONS(k6='v6', 'd.e.f'='fakeVal') */
 on t1.a = t2.d
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
@@ -123,11 +121,11 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
    +- LogicalTableScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={d.e.f=fakeVal, k3=v3, k4=v4, k6=v6})], dynamic options: {d.e.f=fakeVal, k6=v6}]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a]])
-:  +- Calc(select=[a, b, +(a, 1) AS c])
+:  +- Calc(select=[a, b, (a + 1) AS c])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=v1, k2=v2, a.b.c=fakeVal, k5=v5})], dynamic options: {a.b.c=fakeVal, k5=v5}]], fields=[a, b])
 +- Exchange(distribution=[hash[d]])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={d.e.f=fakeVal, k3=v3, k4=v4, k6=v6})], dynamic options: {d.e.f=fakeVal, k6=v6}]], fields=[d, e, f])
@@ -144,7 +142,7 @@ t2 /*+ OPTIONS(k3='#v3', k4='#v4') */
 on t1.a = t2.d
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
@@ -153,14 +151,13 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
    +- LogicalTableScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={k3=#v3, k4=#v4})], dynamic options: {k3=#v3, k4=#v4}]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], build=[right])
-:- Calc(select=[a, b, +(a, 1) AS c])
-:  +- Exchange(distribution=[hash[a]])
-:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=#v1, k2=#v2})], dynamic options: {k1=#v1, k2=#v2}]], fields=[a, b])
-+- Exchange(distribution=[hash[d]])
-   +- LegacyTableSourceScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={k3=#v3, k4=#v4})], dynamic options: {k3=#v3, k4=#v4}]], fields=[d, e, f])
+MultipleInput(readOrder=[0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], build=[right])\n:- Calc(select=[a, b, (a + 1) AS c])\n:  +- [#2] Exchange(distribution=[hash[a]])\n+- [#1] Exchange(distribution=[hash[d]])\n])
+:- Exchange(distribution=[hash[d]])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={k3=#v3, k4=#v4})], dynamic options: {k3=#v3, k4=#v4}]], fields=[d, e, f])
++- Exchange(distribution=[hash[a]])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=#v1, k2=#v2})], dynamic options: {k1=#v1, k2=#v2}]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -174,7 +171,7 @@ t2 /*+ OPTIONS(k3='#v3', k4='#v4') */
 on t1.a = t2.d
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
@@ -183,11 +180,11 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
    +- LogicalTableScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={k3=#v3, k4=#v4})], dynamic options: {k3=#v3, k4=#v4}]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a]])
-:  +- Calc(select=[a, b, +(a, 1) AS c])
+:  +- Calc(select=[a, b, (a + 1) AS c])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=#v1, k2=#v2})], dynamic options: {k1=#v1, k2=#v2}]], fields=[a, b])
 +- Exchange(distribution=[hash[d]])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={k3=#v3, k4=#v4})], dynamic options: {k3=#v3, k4=#v4}]], fields=[d, e, f])
@@ -198,7 +195,7 @@ Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], leftInput
     <Resource name="sql">
       <![CDATA[select * from view1/*+ OPTIONS(k1='#v1', k2='#v2', k3='#v3', k4='#v4') */]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
@@ -207,11 +204,11 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
    +- LogicalTableScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={k3=v3, k4=v4})]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a]])
-:  +- Calc(select=[a, b, +(a, 1) AS c])
+:  +- Calc(select=[a, b, (a + 1) AS c])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=v1, k2=v2})]]], fields=[a, b])
 +- Exchange(distribution=[hash[d]])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={k3=v3, k4=v4})]]], fields=[d, e, f])
@@ -222,15 +219,15 @@ Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], leftInput
     <Resource name="sql">
       <![CDATA[select * from t1/*+ OPTIONS(k1='#v1', k2='#v2') */]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[+($0, 1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=#v1, k2=#v2})], dynamic options: {k1=#v1, k2=#v2}]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, +(a, 1) AS c])
+Calc(select=[a, b, (a + 1) AS c])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=#v1, k2=#v2})], dynamic options: {k1=#v1, k2=#v2}]], fields=[a, b])
 ]]>
     </Resource>
@@ -239,7 +236,7 @@ Calc(select=[a, b, +(a, 1) AS c])
     <Resource name="sql">
       <![CDATA[select * from view1/*+ OPTIONS(k1='#v1', k2='#v2', k3='#v3', k4='#v4') */]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
@@ -248,14 +245,13 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
    +- LogicalTableScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={k3=v3, k4=v4})]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], build=[right])
-:- Calc(select=[a, b, +(a, 1) AS c])
-:  +- Exchange(distribution=[hash[a]])
-:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=v1, k2=v2})]]], fields=[a, b])
-+- Exchange(distribution=[hash[d]])
-   +- LegacyTableSourceScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={k3=v3, k4=v4})]]], fields=[d, e, f])
+MultipleInput(readOrder=[0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], build=[right])\n:- Calc(select=[a, b, (a + 1) AS c])\n:  +- [#2] Exchange(distribution=[hash[a]])\n+- [#1] Exchange(distribution=[hash[d]])\n])
+:- Exchange(distribution=[hash[d]])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={k3=v3, k4=v4})]]], fields=[d, e, f])
++- Exchange(distribution=[hash[a]])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=v1, k2=v2})]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -263,7 +259,7 @@ HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], build
     <Resource name="sql">
       <![CDATA[select * from view1/*+ OPTIONS(k1='#v1', k2='#v2', k3='#v3', k4='#v4') */]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
@@ -272,11 +268,11 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
    +- LogicalTableScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={k3=v3, k4=v4})]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a]])
-:  +- Calc(select=[a, b, +(a, 1) AS c])
+:  +- Calc(select=[a, b, (a + 1) AS c])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=v1, k2=v2})]]], fields=[a, b])
 +- Exchange(distribution=[hash[d]])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={k3=v3, k4=v4})]]], fields=[d, e, f])
@@ -287,15 +283,15 @@ Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], leftInput
     <Resource name="sql">
       <![CDATA[select * from t1/*+ OPTIONS(k1='#v1', k2='#v2') */]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[+($0, 1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=#v1, k2=#v2})], dynamic options: {k1=#v1, k2=#v2}]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, +(a, 1) AS c])
+Calc(select=[a, b, (a + 1) AS c])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=#v1, k2=#v2})], dynamic options: {k1=#v1, k2=#v2}]], fields=[a, b])
 ]]>
     </Resource>

@@ -18,15 +18,16 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.core.fs.FileSystemSafetyNet;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
-import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFinalizer;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,230 +38,284 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * This runnable executes the asynchronous parts of all involved backend snapshots for the subtask.
  */
 final class AsyncCheckpointRunnable implements Runnable, Closeable {
 
-	public static final Logger LOG = LoggerFactory.getLogger(AsyncCheckpointRunnable.class);
-	private final String taskName;
-	private final Consumer<AsyncCheckpointRunnable> registerConsumer;
-	private final Consumer<AsyncCheckpointRunnable> unregisterConsumer;
-	private final Environment taskEnvironment;
+    public static final Logger LOG = LoggerFactory.getLogger(AsyncCheckpointRunnable.class);
+    private final String taskName;
+    private final Consumer<AsyncCheckpointRunnable> registerConsumer;
+    private final Consumer<AsyncCheckpointRunnable> unregisterConsumer;
+    private final Environment taskEnvironment;
 
-	public boolean isRunning() {
-		return asyncCheckpointState.get() == AsyncCheckpointState.RUNNING;
-	}
+    public boolean isRunning() {
+        return asyncCheckpointState.get() == AsyncCheckpointState.RUNNING;
+    }
 
-	enum AsyncCheckpointState {
-		RUNNING,
-		DISCARDED,
-		COMPLETED
-	}
+    enum AsyncCheckpointState {
+        RUNNING,
+        DISCARDED,
+        COMPLETED
+    }
 
-	private final AsyncExceptionHandler asyncExceptionHandler;
-	private final Map<OperatorID, OperatorSnapshotFutures> operatorSnapshotsInProgress;
-	private final CheckpointMetaData checkpointMetaData;
-	private final CheckpointMetrics checkpointMetrics;
-	private final long asyncStartNanos;
-	private final AtomicReference<AsyncCheckpointState> asyncCheckpointState = new AtomicReference<>(AsyncCheckpointState.RUNNING);
+    private final AsyncExceptionHandler asyncExceptionHandler;
+    private final Map<OperatorID, OperatorSnapshotFutures> operatorSnapshotsInProgress;
+    private final CheckpointMetaData checkpointMetaData;
+    private final CheckpointMetricsBuilder checkpointMetrics;
+    private final long asyncConstructionNanos;
+    private final AtomicReference<AsyncCheckpointState> asyncCheckpointState =
+            new AtomicReference<>(AsyncCheckpointState.RUNNING);
 
-	AsyncCheckpointRunnable(
-			Map<OperatorID, OperatorSnapshotFutures> operatorSnapshotsInProgress,
-			CheckpointMetaData checkpointMetaData,
-			CheckpointMetrics checkpointMetrics,
-			long asyncStartNanos,
-			String taskName,
-			Consumer<AsyncCheckpointRunnable> register,
-			Consumer<AsyncCheckpointRunnable> unregister,
-			Environment taskEnvironment,
-			AsyncExceptionHandler asyncExceptionHandler) {
+    AsyncCheckpointRunnable(
+            Map<OperatorID, OperatorSnapshotFutures> operatorSnapshotsInProgress,
+            CheckpointMetaData checkpointMetaData,
+            CheckpointMetricsBuilder checkpointMetrics,
+            long asyncConstructionNanos,
+            String taskName,
+            Consumer<AsyncCheckpointRunnable> register,
+            Consumer<AsyncCheckpointRunnable> unregister,
+            Environment taskEnvironment,
+            AsyncExceptionHandler asyncExceptionHandler) {
 
-		this.operatorSnapshotsInProgress = checkNotNull(operatorSnapshotsInProgress);
-		this.checkpointMetaData = checkNotNull(checkpointMetaData);
-		this.checkpointMetrics = checkNotNull(checkpointMetrics);
-		this.asyncStartNanos = asyncStartNanos;
-		this.taskName = checkNotNull(taskName);
-		this.registerConsumer = register;
-		this.unregisterConsumer = unregister;
-		this.taskEnvironment = checkNotNull(taskEnvironment);
-		this.asyncExceptionHandler = checkNotNull(asyncExceptionHandler);
-	}
+        this.operatorSnapshotsInProgress = checkNotNull(operatorSnapshotsInProgress);
+        this.checkpointMetaData = checkNotNull(checkpointMetaData);
+        this.checkpointMetrics = checkNotNull(checkpointMetrics);
+        this.asyncConstructionNanos = asyncConstructionNanos;
+        this.taskName = checkNotNull(taskName);
+        this.registerConsumer = register;
+        this.unregisterConsumer = unregister;
+        this.taskEnvironment = checkNotNull(taskEnvironment);
+        this.asyncExceptionHandler = checkNotNull(asyncExceptionHandler);
+    }
 
-	@Override
-	public void run() {
-		FileSystemSafetyNet.initializeSafetyNetForThread();
-		try {
-			registerConsumer.accept(this);
+    @Override
+    public void run() {
+        final long asyncStartNanos = System.nanoTime();
+        final long asyncStartDelayMillis = (asyncStartNanos - asyncConstructionNanos) / 1_000_000L;
+        LOG.debug(
+                "{} - started executing asynchronous part of checkpoint {}. Asynchronous start delay: {} ms",
+                taskName,
+                checkpointMetaData.getCheckpointId(),
+                asyncStartDelayMillis);
 
-			TaskStateSnapshot jobManagerTaskOperatorSubtaskStates = new TaskStateSnapshot(operatorSnapshotsInProgress.size());
-			TaskStateSnapshot localTaskOperatorSubtaskStates = new TaskStateSnapshot(operatorSnapshotsInProgress.size());
+        FileSystemSafetyNet.initializeSafetyNetForThread();
+        try {
 
-			for (Map.Entry<OperatorID, OperatorSnapshotFutures> entry : operatorSnapshotsInProgress.entrySet()) {
+            registerConsumer.accept(this);
 
-				OperatorID operatorID = entry.getKey();
-				OperatorSnapshotFutures snapshotInProgress = entry.getValue();
+            TaskStateSnapshot jobManagerTaskOperatorSubtaskStates =
+                    new TaskStateSnapshot(operatorSnapshotsInProgress.size());
+            TaskStateSnapshot localTaskOperatorSubtaskStates =
+                    new TaskStateSnapshot(operatorSnapshotsInProgress.size());
 
-				// finalize the async part of all by executing all snapshot runnables
-				OperatorSnapshotFinalizer finalizedSnapshots =
-					new OperatorSnapshotFinalizer(snapshotInProgress);
+            long bytesPersistedDuringAlignment = 0;
+            for (Map.Entry<OperatorID, OperatorSnapshotFutures> entry :
+                    operatorSnapshotsInProgress.entrySet()) {
 
-				jobManagerTaskOperatorSubtaskStates.putSubtaskStateByOperatorID(
-					operatorID,
-					finalizedSnapshots.getJobManagerOwnedState());
+                OperatorID operatorID = entry.getKey();
+                OperatorSnapshotFutures snapshotInProgress = entry.getValue();
 
-				localTaskOperatorSubtaskStates.putSubtaskStateByOperatorID(
-					operatorID,
-					finalizedSnapshots.getTaskLocalState());
-			}
+                // finalize the async part of all by executing all snapshot runnables
+                OperatorSnapshotFinalizer finalizedSnapshots =
+                        new OperatorSnapshotFinalizer(snapshotInProgress);
 
-			final long asyncEndNanos = System.nanoTime();
-			final long asyncDurationMillis = (asyncEndNanos - asyncStartNanos) / 1_000_000L;
+                jobManagerTaskOperatorSubtaskStates.putSubtaskStateByOperatorID(
+                        operatorID, finalizedSnapshots.getJobManagerOwnedState());
 
-			checkpointMetrics.setAsyncDurationMillis(asyncDurationMillis);
+                localTaskOperatorSubtaskStates.putSubtaskStateByOperatorID(
+                        operatorID, finalizedSnapshots.getTaskLocalState());
 
-			if (asyncCheckpointState.compareAndSet(AsyncCheckpointState.RUNNING, AsyncCheckpointState.COMPLETED)) {
+                bytesPersistedDuringAlignment +=
+                        finalizedSnapshots
+                                .getJobManagerOwnedState()
+                                .getResultSubpartitionState()
+                                .getStateSize();
+                bytesPersistedDuringAlignment +=
+                        finalizedSnapshots
+                                .getJobManagerOwnedState()
+                                .getInputChannelState()
+                                .getStateSize();
+            }
 
-				reportCompletedSnapshotStates(
-					jobManagerTaskOperatorSubtaskStates,
-					localTaskOperatorSubtaskStates,
-					asyncDurationMillis);
+            final long asyncEndNanos = System.nanoTime();
+            final long asyncDurationMillis = (asyncEndNanos - asyncConstructionNanos) / 1_000_000L;
 
-			} else {
-				LOG.debug("{} - asynchronous part of checkpoint {} could not be completed because it was closed before.",
-					taskName,
-					checkpointMetaData.getCheckpointId());
-			}
-		} catch (Exception e) {
-			LOG.info("{} - asynchronous part of checkpoint {} could not be completed.",
-				taskName,
-				checkpointMetaData.getCheckpointId(),
-				e);
-			handleExecutionException(e);
-		} finally {
-			unregisterConsumer.accept(this);
-			FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
-		}
-	}
+            checkpointMetrics.setBytesPersistedDuringAlignment(bytesPersistedDuringAlignment);
+            checkpointMetrics.setAsyncDurationMillis(asyncDurationMillis);
 
-	private void reportCompletedSnapshotStates(
-		TaskStateSnapshot acknowledgedTaskStateSnapshot,
-		TaskStateSnapshot localTaskStateSnapshot,
-		long asyncDurationMillis) {
+            if (asyncCheckpointState.compareAndSet(
+                    AsyncCheckpointState.RUNNING, AsyncCheckpointState.COMPLETED)) {
 
-		boolean hasAckState = acknowledgedTaskStateSnapshot.hasState();
-		boolean hasLocalState = localTaskStateSnapshot.hasState();
+                reportCompletedSnapshotStates(
+                        jobManagerTaskOperatorSubtaskStates,
+                        localTaskOperatorSubtaskStates,
+                        asyncDurationMillis);
 
-		Preconditions.checkState(hasAckState || !hasLocalState,
-			"Found cached state but no corresponding primary state is reported to the job " +
-				"manager. This indicates a problem.");
+            } else {
+                LOG.debug(
+                        "{} - asynchronous part of checkpoint {} could not be completed because it was closed before.",
+                        taskName,
+                        checkpointMetaData.getCheckpointId());
+            }
+        } catch (Exception e) {
+            LOG.info(
+                    "{} - asynchronous part of checkpoint {} could not be completed.",
+                    taskName,
+                    checkpointMetaData.getCheckpointId(),
+                    e);
+            handleExecutionException(e);
+        } finally {
+            unregisterConsumer.accept(this);
+            FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
+        }
+    }
 
-		// we signal stateless tasks by reporting null, so that there are no attempts to assign empty state
-		// to stateless tasks on restore. This enables simple job modifications that only concern
-		// stateless without the need to assign them uids to match their (always empty) states.
-		taskEnvironment.getTaskStateManager().reportTaskStateSnapshots(
-			checkpointMetaData,
-			checkpointMetrics,
-			hasAckState ? acknowledgedTaskStateSnapshot : null,
-			hasLocalState ? localTaskStateSnapshot : null);
+    private void reportCompletedSnapshotStates(
+            TaskStateSnapshot acknowledgedTaskStateSnapshot,
+            TaskStateSnapshot localTaskStateSnapshot,
+            long asyncDurationMillis) {
 
-		LOG.debug("{} - finished asynchronous part of checkpoint {}. Asynchronous duration: {} ms",
-			taskName, checkpointMetaData.getCheckpointId(), asyncDurationMillis);
+        boolean hasAckState = acknowledgedTaskStateSnapshot.hasState();
+        boolean hasLocalState = localTaskStateSnapshot.hasState();
 
-		LOG.trace("{} - reported the following states in snapshot for checkpoint {}: {}.",
-			taskName, checkpointMetaData.getCheckpointId(), acknowledgedTaskStateSnapshot);
-	}
+        checkState(
+                hasAckState || !hasLocalState,
+                "Found cached state but no corresponding primary state is reported to the job "
+                        + "manager. This indicates a problem.");
 
-	private void handleExecutionException(Exception e) {
+        // we signal stateless tasks by reporting null, so that there are no attempts to assign
+        // empty state
+        // to stateless tasks on restore. This enables simple job modifications that only concern
+        // stateless without the need to assign them uids to match their (always empty) states.
+        taskEnvironment
+                .getTaskStateManager()
+                .reportTaskStateSnapshots(
+                        checkpointMetaData,
+                        checkpointMetrics.build(),
+                        hasAckState ? acknowledgedTaskStateSnapshot : null,
+                        hasLocalState ? localTaskStateSnapshot : null);
 
-		boolean didCleanup = false;
-		AsyncCheckpointState currentState = asyncCheckpointState.get();
+        LOG.debug(
+                "{} - finished asynchronous part of checkpoint {}. Asynchronous duration: {} ms",
+                taskName,
+                checkpointMetaData.getCheckpointId(),
+                asyncDurationMillis);
 
-		while (AsyncCheckpointState.DISCARDED != currentState) {
+        LOG.trace(
+                "{} - reported the following states in snapshot for checkpoint {}: {}.",
+                taskName,
+                checkpointMetaData.getCheckpointId(),
+                acknowledgedTaskStateSnapshot);
+    }
 
-			if (asyncCheckpointState.compareAndSet(currentState, AsyncCheckpointState.DISCARDED)) {
+    private void handleExecutionException(Exception e) {
 
-				didCleanup = true;
+        boolean didCleanup = false;
+        AsyncCheckpointState currentState = asyncCheckpointState.get();
 
-				try {
-					cleanup();
-				} catch (Exception cleanupException) {
-					e.addSuppressed(cleanupException);
-				}
+        while (AsyncCheckpointState.DISCARDED != currentState) {
 
-				Exception checkpointException = new Exception(
-					"Could not materialize checkpoint " + checkpointMetaData.getCheckpointId() + " for operator " +
-						taskName + '.',
-					e);
+            if (asyncCheckpointState.compareAndSet(currentState, AsyncCheckpointState.DISCARDED)) {
 
-				// We only report the exception for the original cause of fail and cleanup.
-				// Otherwise this followup exception could race the original exception in failing the task.
-				try {
-					taskEnvironment.declineCheckpoint(checkpointMetaData.getCheckpointId(), checkpointException);
-				} catch (Exception unhandled) {
-					AsynchronousException asyncException = new AsynchronousException(unhandled);
-					asyncExceptionHandler.handleAsyncException("Failure in asynchronous checkpoint materialization", asyncException);
-				}
+                didCleanup = true;
 
-				currentState = AsyncCheckpointState.DISCARDED;
-			} else {
-				currentState = asyncCheckpointState.get();
-			}
-		}
+                try {
+                    cleanup();
+                } catch (Exception cleanupException) {
+                    e.addSuppressed(cleanupException);
+                }
 
-		if (!didCleanup) {
-			LOG.trace("Caught followup exception from a failed checkpoint thread. This can be ignored.", e);
-		}
-	}
+                Exception checkpointException =
+                        new Exception(
+                                "Could not materialize checkpoint "
+                                        + checkpointMetaData.getCheckpointId()
+                                        + " for operator "
+                                        + taskName
+                                        + '.',
+                                e);
 
-	@Override
-	public void close() {
-		if (asyncCheckpointState.compareAndSet(AsyncCheckpointState.RUNNING, AsyncCheckpointState.DISCARDED)) {
+                // We only report the exception for the original cause of fail and cleanup.
+                // Otherwise this followup exception could race the original exception in failing
+                // the task.
+                try {
+                    taskEnvironment.declineCheckpoint(
+                            checkpointMetaData.getCheckpointId(),
+                            new CheckpointException(
+                                    CheckpointFailureReason.CHECKPOINT_ASYNC_EXCEPTION,
+                                    checkpointException));
+                } catch (Exception unhandled) {
+                    AsynchronousException asyncException = new AsynchronousException(unhandled);
+                    asyncExceptionHandler.handleAsyncException(
+                            "Failure in asynchronous checkpoint materialization", asyncException);
+                }
 
-			try {
-				cleanup();
-			} catch (Exception cleanupException) {
-				LOG.warn("Could not properly clean up the async checkpoint runnable.", cleanupException);
-			}
-		} else {
-			logFailedCleanupAttempt();
-		}
-	}
+                currentState = AsyncCheckpointState.DISCARDED;
+            } else {
+                currentState = asyncCheckpointState.get();
+            }
+        }
 
-	long getCheckpointId() {
-		return checkpointMetaData.getCheckpointId();
-	}
+        if (!didCleanup) {
+            LOG.trace(
+                    "Caught followup exception from a failed checkpoint thread. This can be ignored.",
+                    e);
+        }
+    }
 
-	private void cleanup() throws Exception {
-		LOG.debug(
-			"Cleanup AsyncCheckpointRunnable for checkpoint {} of {}.",
-			checkpointMetaData.getCheckpointId(),
-			taskName);
+    @Override
+    public void close() {
+        if (asyncCheckpointState.compareAndSet(
+                AsyncCheckpointState.RUNNING, AsyncCheckpointState.DISCARDED)) {
 
-		Exception exception = null;
+            try {
+                cleanup();
+            } catch (Exception cleanupException) {
+                LOG.warn(
+                        "Could not properly clean up the async checkpoint runnable.",
+                        cleanupException);
+            }
+        } else {
+            logFailedCleanupAttempt();
+        }
+    }
 
-		// clean up ongoing operator snapshot results and non partitioned state handles
-		for (OperatorSnapshotFutures operatorSnapshotResult : operatorSnapshotsInProgress.values()) {
-			if (operatorSnapshotResult != null) {
-				try {
-					operatorSnapshotResult.cancel();
-				} catch (Exception cancelException) {
-					exception = ExceptionUtils.firstOrSuppressed(cancelException, exception);
-				}
-			}
-		}
+    long getCheckpointId() {
+        return checkpointMetaData.getCheckpointId();
+    }
 
-		if (null != exception) {
-			throw exception;
-		}
-	}
+    private void cleanup() throws Exception {
+        LOG.debug(
+                "Cleanup AsyncCheckpointRunnable for checkpoint {} of {}.",
+                checkpointMetaData.getCheckpointId(),
+                taskName);
 
-	private void logFailedCleanupAttempt() {
-		LOG.debug("{} - asynchronous checkpointing operation for checkpoint {} has " +
-				"already been completed. Thus, the state handles are not cleaned up.",
-			taskName,
-			checkpointMetaData.getCheckpointId());
-	}
+        Exception exception = null;
 
+        // clean up ongoing operator snapshot results and non partitioned state handles
+        for (OperatorSnapshotFutures operatorSnapshotResult :
+                operatorSnapshotsInProgress.values()) {
+            if (operatorSnapshotResult != null) {
+                try {
+                    operatorSnapshotResult.cancel();
+                } catch (Exception cancelException) {
+                    exception = ExceptionUtils.firstOrSuppressed(cancelException, exception);
+                }
+            }
+        }
+
+        if (null != exception) {
+            throw exception;
+        }
+    }
+
+    private void logFailedCleanupAttempt() {
+        LOG.debug(
+                "{} - asynchronous checkpointing operation for checkpoint {} has "
+                        + "already been completed. Thus, the state handles are not cleaned up.",
+                taskName,
+                checkpointMetaData.getCheckpointId());
+    }
 }

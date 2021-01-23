@@ -32,17 +32,18 @@ import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.
  * Factory base for creating configured instances of {@link CsvTableSink} in a stream environment.
  */
 @PublicEvolving
-public class CsvAppendTableSinkFactory extends CsvTableSinkFactoryBase implements StreamTableSinkFactory<Row> {
+public class CsvAppendTableSinkFactory extends CsvTableSinkFactoryBase
+        implements StreamTableSinkFactory<Row> {
 
-	@Override
-	public Map<String, String> requiredContext() {
-		Map<String, String> context = new HashMap<>(super.requiredContext());
-		context.put(UPDATE_MODE, UPDATE_MODE_VALUE_APPEND);
-		return context;
-	}
+    @Override
+    public Map<String, String> requiredContext() {
+        Map<String, String> context = new HashMap<>(super.requiredContext());
+        context.put(UPDATE_MODE, UPDATE_MODE_VALUE_APPEND);
+        return context;
+    }
 
-	@Override
-	public StreamTableSink<Row> createStreamTableSink(Map<String, String> properties) {
-		return createTableSink(true, properties);
-	}
+    @Override
+    public StreamTableSink<Row> createStreamTableSink(Map<String, String> properties) {
+        return createTableSink(true, properties);
+    }
 }

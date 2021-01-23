@@ -57,11 +57,18 @@ Important classes of Flink Table API:
       user-defined function is executed, such as the metric group, and global job parameters, etc.
     - :class:`pyflink.table.ScalarFunction`
       Base interface for user-defined scalar function.
+    - :class:`pyflink.table.TableFunction`
+      Base interface for user-defined table function.
+    - :class:`pyflink.table.AggregateFunction`
+      Base interface for user-defined aggregate function.
+    - :class:`pyflink.table.TableAggregateFunction`
+      Base interface for user-defined table aggregate function.
     - :class:`pyflink.table.StatementSet`
       Base interface accepts DML statements or Tables.
 """
 from __future__ import absolute_import
 
+from pyflink.table.data_view import DataView, ListView, MapView
 from pyflink.table.environment_settings import EnvironmentSettings
 from pyflink.table.explain_detail import ExplainDetail
 from pyflink.table.expression import Expression
@@ -78,24 +85,30 @@ from pyflink.table.table_environment import (TableEnvironment, StreamTableEnviro
                                              BatchTableEnvironment)
 from pyflink.table.table_result import TableResult
 from pyflink.table.table_schema import TableSchema
-from pyflink.table.types import DataTypes, UserDefinedType, Row
-from pyflink.table.udf import FunctionContext, ScalarFunction
+from pyflink.table.types import DataTypes, UserDefinedType, Row, RowKind
+from pyflink.table.udf import FunctionContext, ScalarFunction, TableFunction, AggregateFunction, \
+    TableAggregateFunction
 
 __all__ = [
+    'AggregateFunction',
     'BatchTableEnvironment',
     'CsvTableSink',
     'CsvTableSource',
     'DataTypes',
+    'DataView',
     'EnvironmentSettings',
     'ExplainDetail',
     'Expression',
     'FunctionContext',
     'GroupWindowedTable',
     'GroupedTable',
+    'ListView',
+    'MapView',
     'Module',
     'OverWindowedTable',
     'ResultKind',
     'Row',
+    'RowKind',
     'ScalarFunction',
     'SqlDialect',
     'StatementSet',
@@ -103,10 +116,12 @@ __all__ = [
     'Table',
     'TableConfig',
     'TableEnvironment',
+    'TableFunction',
     'TableResult',
     'TableSchema',
     'TableSink',
     'TableSource',
+    'TableAggregateFunction',
     'UserDefinedType',
     'WindowGroupedTable',
     'WriteMode'

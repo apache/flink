@@ -25,7 +25,7 @@ under the License.
 # Java Dependency
 
 If third-party Java dependencies are used, you can specify the dependencies with the following Python DataStream APIs or 
-through [command line arguments]({% link ops/cli.md %}#usage) directly when submitting the job.
+through [command line arguments]({% link deployment/cli.md %}#usage) directly when submitting the job.
 
 {% highlight python %}
 # Use the add_jars() to add local jars and the jars will be uploaded to the cluster.
@@ -41,7 +41,7 @@ stream_execution_environment.add_classpaths("file:///my/jar/path/connector.jar",
 # Python Dependency
 
 If third-party Python dependencies are used, you can specify the dependencies with the following Python DataStream 
-APIs or through [command line arguments]({% link ops/cli.md %}#usage) directly when submitting the job.
+APIs or through [command line arguments]({% link deployment/cli.md %}#usage) directly when submitting the job.
 
 <table class="table table-bordered">
   <thead>
@@ -71,7 +71,7 @@ echo numpy==1.16.5 > requirements.txt
 pip download -d cached_dir -r requirements.txt --no-binary :all:
 
 # python code
-stream_execution_environment.set_python_requirements("requirements.txt", "cached_dir")
+stream_execution_environment.set_python_requirements("/path/to/requirements.txt", "cached_dir")
 {% endhighlight %}
         <p>Please make sure the installation packages matches the platform of the cluster and the python version used. These packages will be installed using pip, so also make sure the version of Pip (version >= 7.1.0) and the version of Setuptools (version >= 37.0.0).</p>
       </td>
@@ -86,9 +86,9 @@ stream_execution_environment.set_python_requirements("requirements.txt", "cached
 zip -r py_env.zip py_env
 
 # python code
-stream_execution_environment.add_python_archive("py_env.zip")
+stream_execution_environment.add_python_archive("/path/to/py_env.zip")
 # or
-stream_execution_environment.add_python_archive("py_env.zip", "myenv")
+stream_execution_environment.add_python_archive("/path/to/py_env.zip", "myenv")
 
 # the files contained in the archive file can be accessed in UDF
 def my_func():
@@ -103,9 +103,10 @@ def my_func():
       <td>
         <p>Sets the path of the python interpreter which is used to execute the python udf workers, e.g., "/usr/local/bin/python3".</p>
 {% highlight python %}
-stream_execution_environment.add_python_archive("py_env.zip")
+stream_execution_environment.add_python_archive("/path/to/py_env.zip")
 stream_execution_environment.get_config().set_python_executable("py_env.zip/py_env/bin/python")
 {% endhighlight %}
+        <p>Please note that if the path of the python interpreter comes from the uploaded python archive, the path specified in set_python_executable should be a relative path.</p>
         <p>Please make sure that the specified environment matches the platform that the cluster is running on.</p>
       </td>
     </tr>

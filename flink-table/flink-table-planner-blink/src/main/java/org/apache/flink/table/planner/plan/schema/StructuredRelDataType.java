@@ -40,107 +40,112 @@ import java.util.stream.Collectors;
 /**
  * The {@link RelDataType} representation of a {@link StructuredType}.
  *
- * <p>It extends {@link ObjectSqlType} for preserving the original logical type (including an optional
- * implementation class) and supporting anonymous/unregistered structured types from Table API.
+ * <p>It extends {@link ObjectSqlType} for preserving the original logical type (including an
+ * optional implementation class) and supporting anonymous/unregistered structured types from Table
+ * API.
  */
 @Internal
 public final class StructuredRelDataType extends ObjectSqlType {
 
-	private final StructuredType structuredType;
+    private final StructuredType structuredType;
 
-	private StructuredRelDataType(StructuredType structuredType, List<RelDataTypeField> fields) {
-		super(
-			SqlTypeName.STRUCTURED,
-			createSqlIdentifier(structuredType),
-			structuredType.isNullable(),
-			fields,
-			createRelDataTypeComparability(structuredType));
-		this.structuredType = structuredType;
-		computeDigest(); // recompute digest
-	}
+    private StructuredRelDataType(StructuredType structuredType, List<RelDataTypeField> fields) {
+        super(
+                SqlTypeName.STRUCTURED,
+                createSqlIdentifier(structuredType),
+                structuredType.isNullable(),
+                fields,
+                createRelDataTypeComparability(structuredType));
+        this.structuredType = structuredType;
+        computeDigest(); // recompute digest
+    }
 
-	public static StructuredRelDataType create(FlinkTypeFactory factory, StructuredType structuredType) {
-		final List<RelDataTypeField> fields = new ArrayList<>();
-		for (int i = 0; i < structuredType.getAttributes().size(); i++) {
-			final StructuredAttribute attribute = structuredType.getAttributes().get(i);
-			final RelDataTypeField field = new RelDataTypeFieldImpl(
-				attribute.getName(),
-				i,
-				factory.createFieldTypeFromLogicalType(attribute.getType()));
-			fields.add(field);
-		}
-		return new StructuredRelDataType(structuredType, fields);
-	}
+    public static StructuredRelDataType create(
+            FlinkTypeFactory factory, StructuredType structuredType) {
+        final List<RelDataTypeField> fields = new ArrayList<>();
+        for (int i = 0; i < structuredType.getAttributes().size(); i++) {
+            final StructuredAttribute attribute = structuredType.getAttributes().get(i);
+            final RelDataTypeField field =
+                    new RelDataTypeFieldImpl(
+                            attribute.getName(),
+                            i,
+                            factory.createFieldTypeFromLogicalType(attribute.getType()));
+            fields.add(field);
+        }
+        return new StructuredRelDataType(structuredType, fields);
+    }
 
-	public StructuredType getStructuredType() {
-		return structuredType;
-	}
+    public StructuredType getStructuredType() {
+        return structuredType;
+    }
 
-	public StructuredRelDataType createWithNullability(boolean nullable) {
-		if (nullable == isNullable()) {
-			return this;
-		}
-		return new StructuredRelDataType((StructuredType) structuredType.copy(nullable), fieldList);
-	}
+    public StructuredRelDataType createWithNullability(boolean nullable) {
+        if (nullable == isNullable()) {
+            return this;
+        }
+        return new StructuredRelDataType((StructuredType) structuredType.copy(nullable), fieldList);
+    }
 
-	@Override
-	public RelDataTypeFamily getFamily() {
-		return this; // every user-defined type is its own family
-	}
+    @Override
+    public RelDataTypeFamily getFamily() {
+        return this; // every user-defined type is its own family
+    }
 
-	@Override
-	protected void generateTypeString(StringBuilder sb, boolean withDetail) {
-		// called by super constructor
-		if (structuredType == null) {
-			return;
-		}
-		if (withDetail) {
-			if (structuredType.getObjectIdentifier().isPresent()) {
-				sb.append(structuredType.asSerializableString());
-			}
-			// in case of inline structured type we are using a temporary identifier
-			// that includes both the implementation class plus its children for cases with classes
-			// that use generics
-			else {
-				sb.append(structuredType.asSummaryString());
-				sb.append("(");
-				sb.append(
-					fieldList.stream()
-						.map(field -> field.getType().getFullTypeString())
-						.collect(Collectors.joining(", ")));
-				sb.append(")");
-				if (!structuredType.isNullable()) {
-					sb.append(" NOT NULL");
-				}
-			}
-		} else {
-			sb.append(structuredType.asSummaryString());
-		}
-	}
+    @Override
+    protected void generateTypeString(StringBuilder sb, boolean withDetail) {
+        // called by super constructor
+        if (structuredType == null) {
+            return;
+        }
+        if (withDetail) {
+            if (structuredType.getObjectIdentifier().isPresent()) {
+                sb.append(structuredType.asSerializableString());
+            }
+            // in case of inline structured type we are using a temporary identifier
+            // that includes both the implementation class plus its children for cases with classes
+            // that use generics
+            else {
+                sb.append(structuredType.asSummaryString());
+                sb.append("(");
+                sb.append(
+                        fieldList.stream()
+                                .map(field -> field.getType().getFullTypeString())
+                                .collect(Collectors.joining(", ")));
+                sb.append(")");
+            }
+        } else {
+            sb.append(structuredType.asSummaryString());
+        }
+    }
 
-	@Override
-	protected void computeDigest() {
-		final StringBuilder sb = new StringBuilder();
-		generateTypeString(sb, true);
-		digest = sb.toString();
-	}
+    @Override
+    protected void computeDigest() {
+        final StringBuilder sb = new StringBuilder();
+        generateTypeString(sb, true);
+        digest = sb.toString();
+    }
 
-	private static SqlIdentifier createSqlIdentifier(StructuredType structuredType) {
-		return structuredType.getObjectIdentifier()
-			.map(i -> new SqlIdentifier(i.toList(), SqlParserPos.ZERO))
-			.orElseGet(() -> new SqlIdentifier(structuredType.asSummaryString(), SqlParserPos.ZERO));
-	}
+    private static SqlIdentifier createSqlIdentifier(StructuredType structuredType) {
+        return structuredType
+                .getObjectIdentifier()
+                .map(i -> new SqlIdentifier(i.toList(), SqlParserPos.ZERO))
+                .orElseGet(
+                        () ->
+                                new SqlIdentifier(
+                                        structuredType.asSummaryString(), SqlParserPos.ZERO));
+    }
 
-	private static RelDataTypeComparability createRelDataTypeComparability(StructuredType structuredType) {
-		switch (structuredType.getComparision()) {
-			case EQUALS:
-				return RelDataTypeComparability.UNORDERED;
-			case FULL:
-				return RelDataTypeComparability.ALL;
-			case NONE:
-				return RelDataTypeComparability.NONE;
-			default:
-				throw new IllegalArgumentException("Unsupported structured type comparision.");
-		}
-	}
+    private static RelDataTypeComparability createRelDataTypeComparability(
+            StructuredType structuredType) {
+        switch (structuredType.getComparision()) {
+            case EQUALS:
+                return RelDataTypeComparability.UNORDERED;
+            case FULL:
+                return RelDataTypeComparability.ALL;
+            case NONE:
+                return RelDataTypeComparability.NONE;
+            default:
+                throw new IllegalArgumentException("Unsupported structured type comparision.");
+        }
+    }
 }

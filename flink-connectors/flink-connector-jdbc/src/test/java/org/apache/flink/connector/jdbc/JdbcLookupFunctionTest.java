@@ -36,89 +36,89 @@ import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Test suite for {@link JdbcLookupFunction}.
- */
+/** Test suite for {@link JdbcLookupFunction}. */
 public class JdbcLookupFunctionTest extends JdbcLookupTestBase {
 
-	public static final String DB_URL = "jdbc:derby:memory:lookup";
-	public static final String LOOKUP_TABLE = "lookup_table";
-	public static final String DB_DRIVER = "org.apache.derby.jdbc.EmbeddedDriver";
+    public static final String DB_URL = "jdbc:derby:memory:lookup";
+    public static final String LOOKUP_TABLE = "lookup_table";
+    public static final String DB_DRIVER = "org.apache.derby.jdbc.EmbeddedDriver";
 
-	private static String[] fieldNames = new String[] {"id1", "id2", "comment1", "comment2"};
-	private static TypeInformation[] fieldTypes = new TypeInformation[] {
-		BasicTypeInfo.INT_TYPE_INFO,
-		BasicTypeInfo.STRING_TYPE_INFO,
-		BasicTypeInfo.STRING_TYPE_INFO,
-		BasicTypeInfo.STRING_TYPE_INFO
-	};
+    private static String[] fieldNames = new String[] {"id1", "id2", "comment1", "comment2"};
+    private static TypeInformation[] fieldTypes =
+            new TypeInformation[] {
+                BasicTypeInfo.INT_TYPE_INFO,
+                BasicTypeInfo.STRING_TYPE_INFO,
+                BasicTypeInfo.STRING_TYPE_INFO,
+                BasicTypeInfo.STRING_TYPE_INFO
+            };
 
-	private static String[] lookupKeys = new String[] {"id1", "id2"};
+    private static String[] lookupKeys = new String[] {"id1", "id2"};
 
-	@Test
-	public void testEval() throws Exception {
+    @Test
+    public void testEval() throws Exception {
 
-		JdbcLookupFunction lookupFunction = buildLookupFunction();
-		ListOutputCollector collector = new ListOutputCollector();
-		lookupFunction.setCollector(collector);
+        JdbcLookupFunction lookupFunction = buildLookupFunction();
+        ListOutputCollector collector = new ListOutputCollector();
+        lookupFunction.setCollector(collector);
 
-		lookupFunction.open(null);
+        lookupFunction.open(null);
 
-		lookupFunction.eval(1, "1");
+        lookupFunction.eval(1, "1");
 
-		// close connection
-		lookupFunction.getDbConnection().close();
+        // close connection
+        lookupFunction.getDbConnection().close();
 
-		lookupFunction.eval(2, "3");
+        lookupFunction.eval(2, "3");
 
-		List<String> result = new ArrayList<>(collector.getOutputs()).stream()
-			.map(Row::toString)
-			.sorted()
-			.collect(Collectors.toList());
+        List<String> result =
+                new ArrayList<>(collector.getOutputs())
+                        .stream().map(Row::toString).sorted().collect(Collectors.toList());
 
-		List<String> expected = new ArrayList<>();
-		expected.add("1,1,11-c1-v1,11-c2-v1");
-		expected.add("1,1,11-c1-v2,11-c2-v2");
-		expected.add("2,3,null,23-c2");
-		Collections.sort(expected);
+        List<String> expected = new ArrayList<>();
+        expected.add("+I[1, 1, 11-c1-v1, 11-c2-v1]");
+        expected.add("+I[1, 1, 11-c1-v2, 11-c2-v2]");
+        expected.add("+I[2, 3, null, 23-c2]");
+        Collections.sort(expected);
 
-		assertEquals(expected, result);
-	}
+        assertEquals(expected, result);
+    }
 
-	private JdbcLookupFunction buildLookupFunction() {
-		JdbcOptions jdbcOptions = JdbcOptions.builder()
-			.setDriverName(DB_DRIVER)
-			.setDBUrl(DB_URL)
-			.setTableName(LOOKUP_TABLE)
-			.build();
+    private JdbcLookupFunction buildLookupFunction() {
+        JdbcOptions jdbcOptions =
+                JdbcOptions.builder()
+                        .setDriverName(DB_DRIVER)
+                        .setDBUrl(DB_URL)
+                        .setTableName(LOOKUP_TABLE)
+                        .build();
 
-		JdbcLookupOptions lookupOptions = JdbcLookupOptions.builder().build();
+        JdbcLookupOptions lookupOptions = JdbcLookupOptions.builder().build();
 
-		JdbcLookupFunction lookupFunction = JdbcLookupFunction.builder()
-			.setOptions(jdbcOptions)
-			.setLookupOptions(lookupOptions)
-			.setFieldTypes(fieldTypes)
-			.setFieldNames(fieldNames)
-			.setKeyNames(lookupKeys)
-			.build();
+        JdbcLookupFunction lookupFunction =
+                JdbcLookupFunction.builder()
+                        .setOptions(jdbcOptions)
+                        .setLookupOptions(lookupOptions)
+                        .setFieldTypes(fieldTypes)
+                        .setFieldNames(fieldNames)
+                        .setKeyNames(lookupKeys)
+                        .build();
 
-		return lookupFunction;
-	}
+        return lookupFunction;
+    }
 
-	private static final class ListOutputCollector implements Collector<Row> {
+    private static final class ListOutputCollector implements Collector<Row> {
 
-		private final List<Row> output = new ArrayList<>();
+        private final List<Row> output = new ArrayList<>();
 
-		@Override
-		public void collect(Row row) {
-			this.output.add(row);
-		}
+        @Override
+        public void collect(Row row) {
+            this.output.add(row);
+        }
 
-		@Override
-		public void close() {}
+        @Override
+        public void close() {}
 
-		public List<Row> getOutputs() {
-			return output;
-		}
-	}
+        public List<Row> getOutputs() {
+            return output;
+        }
+    }
 }

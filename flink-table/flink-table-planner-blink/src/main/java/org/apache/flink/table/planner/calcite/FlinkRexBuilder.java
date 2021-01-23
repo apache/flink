@@ -22,47 +22,45 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 
-/**
- * A slim extension over a {@link RexBuilder}.
- * See the overridden methods for more explanation.
- */
+/** A slim extension over a {@link RexBuilder}. See the overridden methods for more explanation. */
 public final class FlinkRexBuilder extends RexBuilder {
-	public FlinkRexBuilder(RelDataTypeFactory typeFactory) {
-		super(typeFactory);
-	}
+    public FlinkRexBuilder(RelDataTypeFactory typeFactory) {
+        super(typeFactory);
+    }
 
-	/**
-	 * Compared to the original method we adjust the nullability of the nested column based on
-	 * the nullability of the enclosing type.
-	 *
-	 * <p>If the fields type is NOT NULL, but the enclosing ROW is nullable we still can produce nulls.
-	 */
-	@Override
-	public RexNode makeFieldAccess(
-			RexNode expr,
-			String fieldName,
-			boolean caseSensitive) {
-		RexNode field = super.makeFieldAccess(expr, fieldName, caseSensitive);
-		if (expr.getType().isNullable() && !field.getType().isNullable()) {
-			return makeCast(typeFactory.createTypeWithNullability(field.getType(), true), field, true);
-		}
+    /**
+     * Compared to the original method we adjust the nullability of the nested column based on the
+     * nullability of the enclosing type.
+     *
+     * <p>If the fields type is NOT NULL, but the enclosing ROW is nullable we still can produce
+     * nulls.
+     */
+    @Override
+    public RexNode makeFieldAccess(RexNode expr, String fieldName, boolean caseSensitive) {
+        RexNode field = super.makeFieldAccess(expr, fieldName, caseSensitive);
+        if (expr.getType().isNullable() && !field.getType().isNullable()) {
+            return makeCast(
+                    typeFactory.createTypeWithNullability(field.getType(), true), field, true);
+        }
 
-		return field;
-	}
+        return field;
+    }
 
-	/**
-	 * Compared to the original method we adjust the nullability of the nested column based on
-	 * the nullability of the enclosing type.
-	 *
-	 * <p>If the fields type is NOT NULL, but the enclosing ROW is nullable we still can produce nulls.
-	 */
-	@Override
-	public RexNode makeFieldAccess(RexNode expr, int i) {
-		RexNode field = super.makeFieldAccess(expr, i);
-		if (expr.getType().isNullable() && !field.getType().isNullable()) {
-			return makeCast(typeFactory.createTypeWithNullability(field.getType(), true), field, true);
-		}
+    /**
+     * Compared to the original method we adjust the nullability of the nested column based on the
+     * nullability of the enclosing type.
+     *
+     * <p>If the fields type is NOT NULL, but the enclosing ROW is nullable we still can produce
+     * nulls.
+     */
+    @Override
+    public RexNode makeFieldAccess(RexNode expr, int i) {
+        RexNode field = super.makeFieldAccess(expr, i);
+        if (expr.getType().isNullable() && !field.getType().isNullable()) {
+            return makeCast(
+                    typeFactory.createTypeWithNullability(field.getType(), true), field, true);
+        }
 
-		return field;
-	}
+        return field;
+    }
 }

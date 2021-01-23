@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,50 +27,50 @@ import org.apache.nifi.remote.client.SiteToSiteClient;
 import org.apache.nifi.remote.client.SiteToSiteClientConfig;
 
 /**
- * A sink that delivers data to Apache NiFi using the NiFi Site-to-Site client. The sink requires
- * a NiFiDataPacketBuilder which can create instances of NiFiDataPacket from the incoming data.
+ * A sink that delivers data to Apache NiFi using the NiFi Site-to-Site client. The sink requires a
+ * NiFiDataPacketBuilder which can create instances of NiFiDataPacket from the incoming data.
  */
 public class NiFiSink<T> extends RichSinkFunction<T> {
 
-	private SiteToSiteClient client;
-	private SiteToSiteClientConfig clientConfig;
-	private NiFiDataPacketBuilder<T> builder;
+    private SiteToSiteClient client;
+    private SiteToSiteClientConfig clientConfig;
+    private NiFiDataPacketBuilder<T> builder;
 
-	/**
-	 * Construct a new NiFiSink with the given client config and NiFiDataPacketBuilder.
-	 *
-	 * @param clientConfig the configuration for building a NiFi SiteToSiteClient
-	 * @param builder a builder to produce NiFiDataPackets from incoming data
-	 */
-	public NiFiSink(SiteToSiteClientConfig clientConfig, NiFiDataPacketBuilder<T> builder) {
-		this.clientConfig = clientConfig;
-		this.builder = builder;
-	}
+    /**
+     * Construct a new NiFiSink with the given client config and NiFiDataPacketBuilder.
+     *
+     * @param clientConfig the configuration for building a NiFi SiteToSiteClient
+     * @param builder a builder to produce NiFiDataPackets from incoming data
+     */
+    public NiFiSink(SiteToSiteClientConfig clientConfig, NiFiDataPacketBuilder<T> builder) {
+        this.clientConfig = clientConfig;
+        this.builder = builder;
+    }
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
-		this.client = new SiteToSiteClient.Builder().fromConfig(clientConfig).build();
-	}
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        super.open(parameters);
+        this.client = new SiteToSiteClient.Builder().fromConfig(clientConfig).build();
+    }
 
-	@Override
-	public void invoke(T value) throws Exception {
-		final NiFiDataPacket niFiDataPacket = builder.createNiFiDataPacket(value, getRuntimeContext());
+    @Override
+    public void invoke(T value) throws Exception {
+        final NiFiDataPacket niFiDataPacket =
+                builder.createNiFiDataPacket(value, getRuntimeContext());
 
-		final Transaction transaction = client.createTransaction(TransferDirection.SEND);
-		if (transaction == null) {
-			throw new IllegalStateException("Unable to create a NiFi Transaction to send data");
-		}
+        final Transaction transaction = client.createTransaction(TransferDirection.SEND);
+        if (transaction == null) {
+            throw new IllegalStateException("Unable to create a NiFi Transaction to send data");
+        }
 
-		transaction.send(niFiDataPacket.getContent(), niFiDataPacket.getAttributes());
-		transaction.confirm();
-		transaction.complete();
-	}
+        transaction.send(niFiDataPacket.getContent(), niFiDataPacket.getAttributes());
+        transaction.confirm();
+        transaction.complete();
+    }
 
-	@Override
-	public void close() throws Exception {
-		super.close();
-		client.close();
-	}
-
+    @Override
+    public void close() throws Exception {
+        super.close();
+        client.close();
+    }
 }

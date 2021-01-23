@@ -18,7 +18,7 @@
             <td><h5>kubernetes.cluster-id</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>The cluster-id, which should be no more than 45 characters, is used for identifying a unique Flink cluster. If not set, the client will automatically generate it with a random ID.</td>
+            <td>The cluster-id, which should be no more than 45 characters, is used for identifying a unique Flink cluster. The id must only contain lowercase alphanumeric characters and "-". The required format is <span markdown="span">`[a-z]([-a-z0-9]*[a-z0-9])`</span>. If not set, the client will automatically generate it with a random ID.</td>
         </tr>
         <tr>
             <td><h5>kubernetes.config.file</h5></td>
@@ -36,7 +36,7 @@
             <td><h5>kubernetes.container.image</h5></td>
             <td style="word-wrap: break-word;">The default value depends on the actually running version. In general it looks like "flink:&lt;FLINK_VERSION&gt;-scala_&lt;SCALA_VERSION&gt;"</td>
             <td>String</td>
-            <td>Image to use for Flink containers. The specified image must be based upon the same Apache Flink and Scala versions as used by the application. Visit https://hub.docker.com/_/flink?tab=tags for the images provided by the Flink project.</td>
+            <td>Image to use for Flink containers. The specified image must be based upon the same Apache Flink and Scala versions as used by the application. Visit <a href="https://hub.docker.com/_/flink?tab=tags">here</a> for the official docker images provided by the Flink project. The Flink project also publishes docker images to <a href="https://hub.docker.com/r/apache/flink/tags">apache/flink DockerHub repository</a>.</td>
         </tr>
         <tr>
             <td><h5>kubernetes.container.image.pull-policy</h5></td>
@@ -61,6 +61,12 @@
             <td style="word-wrap: break-word;">"/docker-entrypoint.sh"</td>
             <td>String</td>
             <td>The entrypoint script of kubernetes in the image. It will be used as command for jobmanager and taskmanager container.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.env.secretKeyRef</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>List&lt;Map&gt;</td>
+            <td>The user-specified secrets to set env variables in Flink container. The value should be in the form of <span markdown="span">`env:FOO_ENV,secret:foo_secret,key:foo_key;env:BAR_ENV,secret:bar_secret,key:bar_key`</span>.</td>
         </tr>
         <tr>
             <td><h5>kubernetes.flink.conf.dir</h5></td>
@@ -106,9 +112,9 @@
         </tr>
         <tr>
             <td><h5>kubernetes.jobmanager.service-account</h5></td>
-            <td style="word-wrap: break-word;">"default"</td>
+            <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>Service account that is used by jobmanager within kubernetes cluster. The job manager uses this service account when requesting taskmanager pods from the API server.</td>
+            <td>Service account that is used by jobmanager within kubernetes cluster. The job manager uses this service account when requesting taskmanager pods from the API server. If not explicitly configured, config option 'kubernetes.service-account' will be used.</td>
         </tr>
         <tr>
             <td><h5>kubernetes.jobmanager.tolerations</h5></td>
@@ -132,7 +138,19 @@
             <td><h5>kubernetes.rest-service.exposed.type</h5></td>
             <td style="word-wrap: break-word;">LoadBalancer</td>
             <td><p>Enum</p>Possible values: [ClusterIP, NodePort, LoadBalancer]</td>
-            <td>The type of the rest service (ClusterIP or NodePort or LoadBalancer). When set to ClusterIP, the rest service will not be created.</td>
+            <td>The exposed type of the rest service (ClusterIP or NodePort or LoadBalancer). The exposed rest service could be used to access the Flink’s Web UI and REST endpoint.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.secrets</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Map</td>
+            <td>The user-specified secrets that will be mounted into Flink container. The value should be in the form of <span markdown="span">`foo:/opt/secrets-foo,bar:/opt/secrets-bar`</span>.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.service-account</h5></td>
+            <td style="word-wrap: break-word;">"default"</td>
+            <td>String</td>
+            <td>Service account that is used by jobmanager and taskmanager within kubernetes cluster. Notice that this can be overwritten by config options 'kubernetes.jobmanager.service-account' and 'kubernetes.taskmanager.service-account' for jobmanager and taskmanager respectively.</td>
         </tr>
         <tr>
             <td><h5>kubernetes.taskmanager.annotations</h5></td>
@@ -159,22 +177,22 @@
             <td>The node selector to be set for TaskManager pods. Specified as key:value pairs separated by commas. For example, environment:production,disk:ssd.</td>
         </tr>
         <tr>
+            <td><h5>kubernetes.taskmanager.service-account</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Service account that is used by taskmanager within kubernetes cluster. The task manager uses this service account when watching config maps on the API server to retrieve leader address of jobmanager and resourcemanager. If not explicitly configured, config option 'kubernetes.service-account' will be used.</td>
+        </tr>
+        <tr>
             <td><h5>kubernetes.taskmanager.tolerations</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>List&lt;Map&gt;</td>
             <td>The user-specified tolerations to be set to the TaskManager pod. The value should be in the form of key:key1,operator:Equal,value:value1,effect:NoSchedule;key:key2,operator:Exists,effect:NoExecute,tolerationSeconds:6000</td>
         </tr>
         <tr>
-            <td><h5>kubernetes.secrets</h5></td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>Map</td>
-            <td>The user-specified secrets that will be mounted into Flink container. The value should be in the form of <span markdown="span">`foo:/opt/secrets-foo,bar:/opt/secrets-bar`</span>.</td>
-        </tr>
-        <tr>
-            <td><h5>kubernetes.env.secretKeyRef</h5></td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>List&lt;Map&gt;</td>
-            <td>The user-specified secrets to set env variables in Flink container. The value should be in the form of <span markdown="span">`env:FOO_ENV,secret:foo_secret,key:foo_key;env:BAR_ENV,secret:bar_secret,key:bar_key`</span>.</td>
+            <td><h5>kubernetes.transactional-operation.max-retries</h5></td>
+            <td style="word-wrap: break-word;">5</td>
+            <td>Integer</td>
+            <td>Defines the number of Kubernetes transactional operation retries before the client gives up. For example, <span markdown="span">`FlinkKubeClient#checkAndUpdateConfigMap`</span>.</td>
         </tr>
     </tbody>
 </table>

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest.messages.taskmanager;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.rest.messages.ResourceProfileInfo;
@@ -32,77 +33,85 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotatio
 
 import java.util.Objects;
 
-/**
- * Message containing base information about a {@link TaskExecutor} and more
- * detailed metrics.
- */
+/** Message containing base information about a {@link TaskExecutor} and more detailed metrics. */
 public class TaskManagerDetailsInfo extends TaskManagerInfo {
 
-	public static final String FIELD_NAME_METRICS = "metrics";
+    public static final String FIELD_NAME_METRICS = "metrics";
 
-	@JsonProperty(FIELD_NAME_METRICS)
-	private final TaskManagerMetricsInfo taskManagerMetrics;
+    private final TaskManagerMetricsInfo taskManagerMetrics;
 
-	@JsonCreator
-	public TaskManagerDetailsInfo(
-			@JsonDeserialize(using = ResourceIDDeserializer.class) @JsonProperty(FIELD_NAME_RESOURCE_ID) ResourceID resourceId,
-			@JsonProperty(FIELD_NAME_ADDRESS) String address,
-			@JsonProperty(FIELD_NAME_DATA_PORT) int dataPort,
-			@JsonProperty(FIELD_NAME_LAST_HEARTBEAT) long lastHeartbeat,
-			@JsonProperty(FIELD_NAME_NUMBER_SLOTS) int numberSlots,
-			@JsonProperty(FIELD_NAME_NUMBER_AVAILABLE_SLOTS) int numberAvailableSlots,
-			@JsonProperty(FIELD_NAME_TOTAL_RESOURCE) ResourceProfileInfo totalResource,
-			@JsonProperty(FIELD_NAME_AVAILABLE_RESOURCE) ResourceProfileInfo freeResource,
-			@JsonProperty(FIELD_NAME_HARDWARE) HardwareDescription hardwareDescription,
-			@JsonProperty(FIELD_NAME_MEMORY) TaskExecutorMemoryConfiguration memoryConfiguration,
-			@JsonProperty(FIELD_NAME_METRICS) TaskManagerMetricsInfo taskManagerMetrics) {
-		super(
-			resourceId,
-			address,
-			dataPort,
-			lastHeartbeat,
-			numberSlots,
-			numberAvailableSlots,
-			totalResource,
-			freeResource,
-			hardwareDescription,
-			memoryConfiguration);
+    @JsonCreator
+    public TaskManagerDetailsInfo(
+            @JsonDeserialize(using = ResourceIDDeserializer.class)
+                    @JsonProperty(FIELD_NAME_RESOURCE_ID)
+                    ResourceID resourceId,
+            @JsonProperty(FIELD_NAME_ADDRESS) String address,
+            @JsonProperty(FIELD_NAME_DATA_PORT) int dataPort,
+            @JsonProperty(FIELD_NAME_JMX_PORT) int jmxPort,
+            @JsonProperty(FIELD_NAME_LAST_HEARTBEAT) long lastHeartbeat,
+            @JsonProperty(FIELD_NAME_NUMBER_SLOTS) int numberSlots,
+            @JsonProperty(FIELD_NAME_NUMBER_AVAILABLE_SLOTS) int numberAvailableSlots,
+            @JsonProperty(FIELD_NAME_TOTAL_RESOURCE) ResourceProfileInfo totalResource,
+            @JsonProperty(FIELD_NAME_AVAILABLE_RESOURCE) ResourceProfileInfo freeResource,
+            @JsonProperty(FIELD_NAME_HARDWARE) HardwareDescription hardwareDescription,
+            @JsonProperty(FIELD_NAME_MEMORY) TaskExecutorMemoryConfiguration memoryConfiguration,
+            @JsonProperty(FIELD_NAME_METRICS) TaskManagerMetricsInfo taskManagerMetrics) {
+        super(
+                resourceId,
+                address,
+                dataPort,
+                jmxPort,
+                lastHeartbeat,
+                numberSlots,
+                numberAvailableSlots,
+                totalResource,
+                freeResource,
+                hardwareDescription,
+                memoryConfiguration);
 
-		this.taskManagerMetrics = Preconditions.checkNotNull(taskManagerMetrics);
-	}
+        this.taskManagerMetrics = Preconditions.checkNotNull(taskManagerMetrics);
+    }
 
-	public TaskManagerDetailsInfo(TaskManagerInfo taskManagerInfo, TaskManagerMetricsInfo taskManagerMetrics) {
-		this(
-			taskManagerInfo.getResourceId(),
-			taskManagerInfo.getAddress(),
-			taskManagerInfo.getDataPort(),
-			taskManagerInfo.getLastHeartbeat(),
-			taskManagerInfo.getNumberSlots(),
-			taskManagerInfo.getNumberAvailableSlots(),
-			taskManagerInfo.getTotalResource(),
-			taskManagerInfo.getFreeResource(),
-			taskManagerInfo.getHardwareDescription(),
-			taskManagerInfo.getMemoryConfiguration(),
-			taskManagerMetrics);
-	}
+    public TaskManagerDetailsInfo(
+            TaskManagerInfo taskManagerInfo, TaskManagerMetricsInfo taskManagerMetrics) {
+        this(
+                taskManagerInfo.getResourceId(),
+                taskManagerInfo.getAddress(),
+                taskManagerInfo.getDataPort(),
+                taskManagerInfo.getJmxPort(),
+                taskManagerInfo.getLastHeartbeat(),
+                taskManagerInfo.getNumberSlots(),
+                taskManagerInfo.getNumberAvailableSlots(),
+                taskManagerInfo.getTotalResource(),
+                taskManagerInfo.getFreeResource(),
+                taskManagerInfo.getHardwareDescription(),
+                taskManagerInfo.getMemoryConfiguration(),
+                taskManagerMetrics);
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		if (!super.equals(o)) {
-			return false;
-		}
-		TaskManagerDetailsInfo that = (TaskManagerDetailsInfo) o;
-		return Objects.equals(taskManagerMetrics, that.taskManagerMetrics);
-	}
+    @JsonProperty(FIELD_NAME_METRICS)
+    @VisibleForTesting
+    public final TaskManagerMetricsInfo getTaskManagerMetricsInfo() {
+        return this.taskManagerMetrics;
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(super.hashCode(), taskManagerMetrics);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+        TaskManagerDetailsInfo that = (TaskManagerDetailsInfo) o;
+        return Objects.equals(taskManagerMetrics, that.taskManagerMetrics);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), taskManagerMetrics);
+    }
 }

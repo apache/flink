@@ -37,68 +37,73 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * An initializer for the TaskManager {@link org.apache.flink.kubernetes.kubeclient.FlinkPod}.
- */
+/** An initializer for the TaskManager {@link org.apache.flink.kubernetes.kubeclient.FlinkPod}. */
 public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
 
-	private final KubernetesTaskManagerParameters kubernetesTaskManagerParameters;
+    private final KubernetesTaskManagerParameters kubernetesTaskManagerParameters;
 
-	public InitTaskManagerDecorator(KubernetesTaskManagerParameters kubernetesTaskManagerParameters) {
-		this.kubernetesTaskManagerParameters = checkNotNull(kubernetesTaskManagerParameters);
-	}
+    public InitTaskManagerDecorator(
+            KubernetesTaskManagerParameters kubernetesTaskManagerParameters) {
+        this.kubernetesTaskManagerParameters = checkNotNull(kubernetesTaskManagerParameters);
+    }
 
-	@Override
-	public FlinkPod decorateFlinkPod(FlinkPod flinkPod) {
-		final Pod basicPod = new PodBuilder(flinkPod.getPod())
-			.withApiVersion(Constants.API_VERSION)
-			.editOrNewMetadata()
-				.withName(kubernetesTaskManagerParameters.getPodName())
-				.withLabels(kubernetesTaskManagerParameters.getLabels())
-				.withAnnotations(kubernetesTaskManagerParameters.getAnnotations())
-				.endMetadata()
-			.editOrNewSpec()
-				.withRestartPolicy(Constants.RESTART_POLICY_OF_NEVER)
-				.withImagePullSecrets(kubernetesTaskManagerParameters.getImagePullSecrets())
-				.withNodeSelector(kubernetesTaskManagerParameters.getNodeSelector())
-				.withTolerations(kubernetesTaskManagerParameters.getTolerations().stream()
-					.map(e -> KubernetesToleration.fromMap(e).getInternalResource())
-					.collect(Collectors.toList()))
-				.endSpec()
-			.build();
+    @Override
+    public FlinkPod decorateFlinkPod(FlinkPod flinkPod) {
+        final Pod basicPod =
+                new PodBuilder(flinkPod.getPod())
+                        .withApiVersion(Constants.API_VERSION)
+                        .editOrNewMetadata()
+                        .withName(kubernetesTaskManagerParameters.getPodName())
+                        .withLabels(kubernetesTaskManagerParameters.getLabels())
+                        .withAnnotations(kubernetesTaskManagerParameters.getAnnotations())
+                        .endMetadata()
+                        .editOrNewSpec()
+                        .withServiceAccountName(kubernetesTaskManagerParameters.getServiceAccount())
+                        .withRestartPolicy(Constants.RESTART_POLICY_OF_NEVER)
+                        .withImagePullSecrets(kubernetesTaskManagerParameters.getImagePullSecrets())
+                        .withNodeSelector(kubernetesTaskManagerParameters.getNodeSelector())
+                        .withTolerations(
+                                kubernetesTaskManagerParameters.getTolerations().stream()
+                                        .map(
+                                                e ->
+                                                        KubernetesToleration.fromMap(e)
+                                                                .getInternalResource())
+                                        .collect(Collectors.toList()))
+                        .endSpec()
+                        .build();
 
-		final Container basicMainContainer = decorateMainContainer(flinkPod.getMainContainer());
+        final Container basicMainContainer = decorateMainContainer(flinkPod.getMainContainer());
 
-		return new FlinkPod.Builder(flinkPod)
-			.withPod(basicPod)
-			.withMainContainer(basicMainContainer)
-			.build();
-	}
+        return new FlinkPod.Builder(flinkPod)
+                .withPod(basicPod)
+                .withMainContainer(basicMainContainer)
+                .build();
+    }
 
-	private Container decorateMainContainer(Container container) {
-		final ResourceRequirements resourceRequirements = KubernetesUtils.getResourceRequirements(
-				kubernetesTaskManagerParameters.getTaskManagerMemoryMB(),
-				kubernetesTaskManagerParameters.getTaskManagerCPU(),
-				kubernetesTaskManagerParameters.getTaskManagerExternalResources());
+    private Container decorateMainContainer(Container container) {
+        final ResourceRequirements resourceRequirements =
+                KubernetesUtils.getResourceRequirements(
+                        kubernetesTaskManagerParameters.getTaskManagerMemoryMB(),
+                        kubernetesTaskManagerParameters.getTaskManagerCPU(),
+                        kubernetesTaskManagerParameters.getTaskManagerExternalResources());
 
-		return new ContainerBuilder(container)
-				.withName(kubernetesTaskManagerParameters.getTaskManagerMainContainerName())
-				.withImage(kubernetesTaskManagerParameters.getImage())
-				.withImagePullPolicy(kubernetesTaskManagerParameters.getImagePullPolicy().name())
-				.withResources(resourceRequirements)
-				.withPorts(new ContainerPortBuilder()
-					.withName(Constants.TASK_MANAGER_RPC_PORT_NAME)
-					.withContainerPort(kubernetesTaskManagerParameters.getRPCPort())
-					.build())
-				.withEnv(getCustomizedEnvs())
-				.build();
-	}
+        return new ContainerBuilder(container)
+                .withName(kubernetesTaskManagerParameters.getTaskManagerMainContainerName())
+                .withImage(kubernetesTaskManagerParameters.getImage())
+                .withImagePullPolicy(kubernetesTaskManagerParameters.getImagePullPolicy().name())
+                .withResources(resourceRequirements)
+                .withPorts(
+                        new ContainerPortBuilder()
+                                .withName(Constants.TASK_MANAGER_RPC_PORT_NAME)
+                                .withContainerPort(kubernetesTaskManagerParameters.getRPCPort())
+                                .build())
+                .withEnv(getCustomizedEnvs())
+                .build();
+    }
 
-	private List<EnvVar> getCustomizedEnvs() {
-		return kubernetesTaskManagerParameters.getEnvironments()
-			.entrySet()
-			.stream()
-			.map(kv -> new EnvVar(kv.getKey(), kv.getValue(), null))
-			.collect(Collectors.toList());
-	}
+    private List<EnvVar> getCustomizedEnvs() {
+        return kubernetesTaskManagerParameters.getEnvironments().entrySet().stream()
+                .map(kv -> new EnvVar(kv.getKey(), kv.getValue(), null))
+                .collect(Collectors.toList());
+    }
 }

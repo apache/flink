@@ -21,65 +21,77 @@ package org.apache.flink.test.util;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 
 /**
- * Mirror of {@link org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration} which has been
- * introduced to avoid breaking changes with FLINK-10637.
+ * Mirror of {@link org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration} which has
+ * been introduced to avoid breaking changes with FLINK-10637.
  *
- * @deprecated This class should be replaced with {@link org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration}.
+ * @deprecated This class should be replaced with {@link
+ *     org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration}.
  */
 @Deprecated
-public class MiniClusterResourceConfiguration extends org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration {
+public class MiniClusterResourceConfiguration
+        extends org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration {
 
-	MiniClusterResourceConfiguration(
-			Configuration configuration,
-			int numberTaskManagers,
-			int numberSlotsPerTaskManager,
-			Time shutdownTimeout,
-			RpcServiceSharing rpcServiceSharing) {
-		super(configuration, numberTaskManagers, numberSlotsPerTaskManager, shutdownTimeout, rpcServiceSharing);
-	}
+    MiniClusterResourceConfiguration(
+            Configuration configuration,
+            int numberTaskManagers,
+            int numberSlotsPerTaskManager,
+            Time shutdownTimeout,
+            RpcServiceSharing rpcServiceSharing) {
+        super(
+                configuration,
+                numberTaskManagers,
+                numberSlotsPerTaskManager,
+                shutdownTimeout,
+                rpcServiceSharing,
+                MiniCluster.HaServices.CONFIGURED);
+    }
 
-	/**
-	 * Builder for {@link org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration}.
-	 */
-	public static final class Builder {
+    /** Builder for {@link org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration}. */
+    public static final class Builder {
 
-		private Configuration configuration = new Configuration();
-		private int numberTaskManagers = 1;
-		private int numberSlotsPerTaskManager = 1;
-		private Time shutdownTimeout = AkkaUtils.getTimeoutAsTime(configuration);
+        private Configuration configuration = new Configuration();
+        private int numberTaskManagers = 1;
+        private int numberSlotsPerTaskManager = 1;
+        private Time shutdownTimeout = AkkaUtils.getTimeoutAsTime(configuration);
 
-		private RpcServiceSharing rpcServiceSharing = RpcServiceSharing.SHARED;
+        private RpcServiceSharing rpcServiceSharing = RpcServiceSharing.SHARED;
 
-		public Builder setConfiguration(Configuration configuration) {
-			this.configuration = configuration;
-			return this;
-		}
+        public Builder setConfiguration(Configuration configuration) {
+            this.configuration = configuration;
+            return this;
+        }
 
-		public Builder setNumberTaskManagers(int numberTaskManagers) {
-			this.numberTaskManagers = numberTaskManagers;
-			return this;
-		}
+        public Builder setNumberTaskManagers(int numberTaskManagers) {
+            this.numberTaskManagers = numberTaskManagers;
+            return this;
+        }
 
-		public Builder setNumberSlotsPerTaskManager(int numberSlotsPerTaskManager) {
-			this.numberSlotsPerTaskManager = numberSlotsPerTaskManager;
-			return this;
-		}
+        public Builder setNumberSlotsPerTaskManager(int numberSlotsPerTaskManager) {
+            this.numberSlotsPerTaskManager = numberSlotsPerTaskManager;
+            return this;
+        }
 
-		public Builder setShutdownTimeout(Time shutdownTimeout) {
-			this.shutdownTimeout = shutdownTimeout;
-			return this;
-		}
+        public Builder setShutdownTimeout(Time shutdownTimeout) {
+            this.shutdownTimeout = shutdownTimeout;
+            return this;
+        }
 
-		public Builder setRpcServiceSharing(RpcServiceSharing rpcServiceSharing) {
-			this.rpcServiceSharing = rpcServiceSharing;
-			return this;
-		}
+        public Builder setRpcServiceSharing(RpcServiceSharing rpcServiceSharing) {
+            this.rpcServiceSharing = rpcServiceSharing;
+            return this;
+        }
 
-		public MiniClusterResourceConfiguration build() {
-			return new MiniClusterResourceConfiguration(configuration, numberTaskManagers, numberSlotsPerTaskManager, shutdownTimeout, rpcServiceSharing);
-		}
-	}
+        public MiniClusterResourceConfiguration build() {
+            return new MiniClusterResourceConfiguration(
+                    configuration,
+                    numberTaskManagers,
+                    numberSlotsPerTaskManager,
+                    shutdownTimeout,
+                    rpcServiceSharing);
+        }
+    }
 }

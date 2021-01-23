@@ -23,26 +23,31 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class AsynchronousBufferFileReader extends AsynchronousFileIOChannel<Buffer, ReadRequest> implements BufferFileReader {
+public class AsynchronousBufferFileReader extends AsynchronousFileIOChannel<Buffer, ReadRequest>
+        implements BufferFileReader {
 
-	private final AtomicBoolean hasReachedEndOfFile = new AtomicBoolean();
+    private final AtomicBoolean hasReachedEndOfFile = new AtomicBoolean();
 
-	protected AsynchronousBufferFileReader(ID channelID, RequestQueue<ReadRequest> requestQueue, RequestDoneCallback<Buffer> callback) throws IOException {
-		super(channelID, requestQueue, callback, false);
-	}
+    protected AsynchronousBufferFileReader(
+            ID channelID,
+            RequestQueue<ReadRequest> requestQueue,
+            RequestDoneCallback<Buffer> callback)
+            throws IOException {
+        super(channelID, requestQueue, callback, false);
+    }
 
-	@Override
-	public void readInto(Buffer buffer) throws IOException {
-		addRequest(new BufferReadRequest(this, buffer, hasReachedEndOfFile));
-	}
+    @Override
+    public void readInto(Buffer buffer) throws IOException {
+        addRequest(new BufferReadRequest(this, buffer, hasReachedEndOfFile));
+    }
 
-	@Override
-	public void seekToPosition(long position) throws IOException {
-		requestQueue.add(new SeekRequest(this, position));
-	}
+    @Override
+    public void seekToPosition(long position) throws IOException {
+        requestQueue.add(new SeekRequest(this, position));
+    }
 
-	@Override
-	public boolean hasReachedEndOfFile() {
-		return hasReachedEndOfFile.get();
-	}
+    @Override
+    public boolean hasReachedEndOfFile() {
+        return hasReachedEndOfFile.get();
+    }
 }

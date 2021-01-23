@@ -20,7 +20,7 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[SELECT MIN(proctime) FROM MyTable2 GROUP BY long]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[MIN($1)])
@@ -28,7 +28,7 @@ LogicalProject(EXPR$0=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- GroupAggregate(groupBy=[long], select=[long, MIN(proctime) AS EXPR$0])
@@ -42,7 +42,7 @@ Calc(select=[EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT MIN(rowtime) FROM MyTable1 GROUP BY long]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[MIN($1)])
@@ -50,7 +50,7 @@ LogicalProject(EXPR$0=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- GroupAggregate(groupBy=[long], select=[long, MIN(rowtime) AS EXPR$0])
@@ -64,16 +64,16 @@ Calc(select=[EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT rowtime FROM MyTable1 WHERE rowtime > CAST('1990-12-02 12:11:11' AS TIMESTAMP(3))]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(rowtime=[$0])
 +- LogicalFilter(condition=[>($0, CAST(_UTF-16LE'1990-12-02 12:11:11'):TIMESTAMP(3) NOT NULL)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[rowtime], where=[>(CAST(rowtime), 1990-12-02 12:11:11:TIMESTAMP(3))])
+Calc(select=[rowtime], where=[(CAST(rowtime) > 1990-12-02 12:11:11:TIMESTAMP(3))])
 +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[rowtime, long, int])
 ]]>
     </Resource>
@@ -82,7 +82,7 @@ Calc(select=[rowtime], where=[>(CAST(rowtime), 1990-12-02 12:11:11:TIMESTAMP(3))
     <Resource name="sql">
       <![CDATA[SELECT COUNT(long) FROM MyTable2 GROUP BY proctime]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT($1)])
@@ -90,7 +90,7 @@ LogicalProject(EXPR$0=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- GroupAggregate(groupBy=[proctime], select=[proctime, COUNT(long) AS EXPR$0])
@@ -104,7 +104,7 @@ Calc(select=[EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT COUNT(long) FROM MyTable GROUP BY rowtime]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT($1)])
@@ -112,13 +112,44 @@ LogicalProject(EXPR$0=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- GroupAggregate(groupBy=[rowtime], select=[rowtime, COUNT(long) AS EXPR$0])
    +- Exchange(distribution=[hash[rowtime]])
       +- Calc(select=[CAST(rowtime) AS rowtime, long])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[rowtime, long, int, proctime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testKeepProcessTimeAttrAfterSubGraphOptimize">
+    <Resource name="ast">
+      <![CDATA[
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[long, sum])
++- LogicalProject(long=[$1], sum=[CAST($2):BIGINT])
+   +- LogicalAggregate(group=[{0, 1}], EXPR$1=[SUM($2)])
+      +- LogicalProject($f0=[$TUMBLE($2, 10000:INTERVAL SECOND)], long=[$0], int=[$1])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[long, sum])
++- LogicalProject(long=[$1], sum=[CAST($2):BIGINT])
+   +- LogicalAggregate(group=[{0, 1}], EXPR$1=[SUM($2)])
+      +- LogicalProject($f0=[$TUMBLE($2, 10000:INTERVAL SECOND)], long=[$0], int=[$1])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[long, CAST(EXPR$1) AS sum])(reuse_id=[1])
++- GroupWindowAggregate(groupBy=[long], window=[TumblingGroupWindow('w$, proctime, 10000)], select=[long, SUM(int) AS EXPR$1])
+   +- Exchange(distribution=[hash[long]])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[long, int, proctime])
+
+LegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[long, sum])
++- Reused(reference_id=[1])
+
+LegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[long, sum])
++- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -135,7 +166,7 @@ SELECT TUMBLE_END(newrowtime, INTERVAL '30' SECOND), long, sum(`int`) FROM (
 ) t GROUP BY TUMBLE(newrowtime, INTERVAL '30' SECOND), long
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[TUMBLE_END($0)], long=[$1], EXPR$2=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$2=[SUM($2)])
@@ -145,7 +176,7 @@ LogicalProject(EXPR$0=[TUMBLE_END($0)], long=[$1], EXPR$2=[$2])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[w$end AS EXPR$0, long, EXPR$2])
 +- GroupWindowAggregate(groupBy=[long], window=[TumblingGroupWindow('w$, $f0, 30000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[long, SUM(int) AS EXPR$2, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
@@ -161,13 +192,13 @@ Calc(select=[w$end AS EXPR$0, long, EXPR$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(rowtime=[$0], long=[$1], int=[$2], proctime=[$3])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[rowtime, long, int, PROCTIME_MATERIALIZE(proctime) AS proctime])
 +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[rowtime, long, int, proctime])
@@ -181,16 +212,16 @@ SELECT rowtime FROM
     (SELECT FLOOR(rowtime TO DAY) AS rowtime, long FROM MyTable WHERE long > 0) t
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(rowtime=[FLOOR($0, FLAG(DAY))])
 +- LogicalFilter(condition=[>($1, 0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[FLOOR(CAST(rowtime), FLAG(DAY)) AS rowtime], where=[>(long, 0)])
+Calc(select=[FLOOR(CAST(rowtime), FLAG(DAY)) AS rowtime], where=[(long > 0)])
 +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[rowtime, long, int, proctime])
 ]]>
     </Resource>
@@ -202,7 +233,7 @@ SELECT rowtime, proctime, s
 FROM MyTable, LATERAL TABLE(tableFunc(rowtime, proctime, '')) AS T(s)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(rowtime=[$0], proctime=[$3], s=[$4])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
@@ -210,7 +241,7 @@ LogicalProject(rowtime=[$0], proctime=[$3], s=[$4])
    +- LogicalTableFunctionScan(invocation=[tableFunc($cor0.rowtime, $cor0.proctime, _UTF-16LE'')], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, f0 AS s])
 +- Correlate(invocation=[tableFunc(CAST($cor0.rowtime):TIMESTAMP(3), PROCTIME_MATERIALIZE($cor0.proctime), _UTF-16LE'')], correlate=[table(tableFunc(CAST($cor0.rowtime),PROCTIME_MATERIALIZE($cor0.proctime),_UTF-16LE''))], select=[rowtime,long,int,proctime,f0], rowType=[RecordType(TIME ATTRIBUTE(ROWTIME) rowtime, BIGINT long, INTEGER int, TIME ATTRIBUTE(PROCTIME) proctime, VARCHAR(2147483647) f0)], joinType=[INNER])
@@ -225,7 +256,7 @@ SELECT MIN(rowtime), long FROM MyTable1
 GROUP BY long, TUMBLE(rowtime, INTERVAL '0.1' SECOND)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$2], long=[$0])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[MIN($2)])
@@ -233,7 +264,7 @@ LogicalProject(EXPR$0=[$2], long=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0, long])
 +- GroupWindowAggregate(groupBy=[long], window=[TumblingGroupWindow('w$, rowtime, 100)], select=[long, MIN(rowtime0) AS EXPR$0])
@@ -247,7 +278,7 @@ Calc(select=[EXPR$0, long])
     <Resource name="sql">
       <![CDATA[SELECT rowtime FROM MyTable1 UNION ALL SELECT rowtime FROM MyTable1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(rowtime=[$0])
@@ -256,10 +287,10 @@ LogicalUnion(all=[true])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Union(all=[true], union=[rowtime])
-:- Calc(select=[rowtime], reuse_id=[1])
+:- Calc(select=[rowtime])(reuse_id=[1])
 :  +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[rowtime, long, int])
 +- Reused(reference_id=[1])
 ]]>
@@ -275,7 +306,7 @@ FROM MyTable1
     GROUP BY TUMBLE(rowtime, INTERVAL '10' SECOND), long
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[TUMBLE_END($0)], long=[$1], EXPR$2=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$2=[SUM($2)])
@@ -283,7 +314,7 @@ LogicalProject(EXPR$0=[TUMBLE_END($0)], long=[$1], EXPR$2=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[w$end AS EXPR$0, long, EXPR$2])
 +- GroupWindowAggregate(groupBy=[long], window=[TumblingGroupWindow('w$, rowtime, 10000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[long, SUM(int) AS EXPR$2, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
@@ -300,7 +331,7 @@ GROUP BY long, TUMBLE(rowtime, INTERVAL '1' SECOND)
 HAVING QUARTER(TUMBLE_END(rowtime, INTERVAL '1' SECOND)) = 1
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$2], long=[$0])
 +- LogicalFilter(condition=[=(EXTRACT(FLAG(QUARTER), TUMBLE_END($1)), 1)])
@@ -309,9 +340,9 @@ LogicalProject(EXPR$0=[$2], long=[$0])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[EXPR$0, long], where=[=(EXTRACT(FLAG(QUARTER), w$end), 1:BIGINT)])
+Calc(select=[EXPR$0, long], where=[(EXTRACT(FLAG(QUARTER), w$end) = 1:BIGINT)])
 +- GroupWindowAggregate(groupBy=[long], window=[TumblingGroupWindow('w$, rowtime, 1000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[long, MIN(rowtime0) AS EXPR$0, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[hash[long]])
       +- Calc(select=[long, rowtime, CAST(rowtime) AS rowtime0])
@@ -330,7 +361,7 @@ FROM MyTable1
 
         ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(rowtime=[TUMBLE_END($1)], long=[$0], EXPR$2=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$2=[SUM($2)])
@@ -338,7 +369,7 @@ LogicalProject(rowtime=[TUMBLE_END($1)], long=[$0], EXPR$2=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[w$end AS rowtime, long, EXPR$2])
 +- GroupWindowAggregate(groupBy=[long], window=[TumblingGroupWindow('w$, rowtime, 100)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[long, SUM(int) AS EXPR$2, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])

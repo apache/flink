@@ -24,7 +24,7 @@ under the License.
 
 本节描述了在 Flink 中配置程序的并行执行。一个 Flink 程序由多个任务 task 组成（转换/算子、数据源和数据接收器）。一个 task 包括多个并行执行的实例，且每一个实例都处理 task 输入数据的一个子集。一个 task 的并行实例数被称为该 task 的 *并行度* (parallelism)。
 
-使用 [savepoints]({{ site.baseurl }}/zh/ops/state/savepoints.html) 时，应该考虑设置最大并行度。当作业从一个 savepoint 恢复时，你可以改变特定算子或着整个程序的并行度，并且此设置会限定整个程序的并行度的上限。由于在 Flink 内部将状态划分为了 key-groups，且性能所限不能无限制地增加 key-groups，因此设定最大并行度是有必要的。
+使用 [savepoints]({% link ops/state/savepoints.zh.md %}) 时，应该考虑设置最大并行度。当作业从一个 savepoint 恢复时，你可以改变特定算子或着整个程序的并行度，并且此设置会限定整个程序的并行度的上限。由于在 Flink 内部将状态划分为了 key-groups，且性能所限不能无限制地增加 key-groups，因此设定最大并行度是有必要的。
 
 * toc
 {:toc}
@@ -46,7 +46,7 @@ DataStream<String> text = [...]
 DataStream<Tuple2<String, Integer>> wordCounts = text
     .flatMap(new LineSplitter())
     .keyBy(value -> value.f0)
-    .timeWindow(Time.seconds(5))
+    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
     .sum(1).setParallelism(5);
 
 wordCounts.print();
@@ -62,7 +62,7 @@ val text = [...]
 val wordCounts = text
     .flatMap{ _.split(" ") map { (_, 1) } }
     .keyBy(_._1)
-    .timeWindow(Time.seconds(5))
+    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
     .sum(1).setParallelism(5)
 wordCounts.print()
 
@@ -73,7 +73,7 @@ env.execute("Word Count Example")
 
 ### 执行环境层次
 
-如[此节]({{ site.baseurl }}{% link dev/datastream_api.zh.md %}#anatomy-of-a-flink-program)所描述，Flink 程序运行在执行环境的上下文中。执行环境为所有执行的算子、数据源、数据接收器 (data sink) 定义了一个默认的并行度。可以显式配置算子层次的并行度去覆盖执行环境的并行度。
+如[此节]({% link dev/datastream_api.zh.md %}#anatomy-of-a-flink-program)所描述，Flink 程序运行在执行环境的上下文中。执行环境为所有执行的算子、数据源、数据接收器 (data sink) 定义了一个默认的并行度。可以显式配置算子层次的并行度去覆盖执行环境的并行度。
 
 可以通过调用 `setParallelism()` 方法指定执行环境的默认并行度。如果想以并行度`3`来执行所有的算子、数据源和数据接收器。可以在执行环境上设置默认并行度，如下所示：
 
@@ -99,7 +99,7 @@ val text = [...]
 val wordCounts = text
     .flatMap{ _.split(" ") map { (_, 1) } }
     .keyBy(_._1)
-    .timeWindow(Time.seconds(5))
+    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
     .sum(1)
 wordCounts.print()
 
@@ -161,7 +161,7 @@ try {
 
 ### 系统层次
 
-可以通过设置 `./conf/flink-conf.yaml` 文件中的 `parallelism.default` 参数，在系统层次来指定所有执行环境的默认并行度。你可以通过查阅[配置文档]({{ site.baseurl }}/zh/ops/config.html)获取更多细节。
+可以通过设置 `./conf/flink-conf.yaml` 文件中的 `parallelism.default` 参数，在系统层次来指定所有执行环境的默认并行度。你可以通过查阅[配置文档]({% link deployment/config.zh.md %})获取更多细节。
 
 
 ## 设置最大并行度

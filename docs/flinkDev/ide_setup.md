@@ -27,8 +27,8 @@ under the License.
 
 The sections below describe how to import the Flink project into an IDE
 for the development of Flink itself. For writing Flink programs, please
-refer to the [Java API]({{ site.baseurl }}/dev/project-configuration.html)
-and the [Scala API]({{ site.baseurl }}/dev/project-configuration)
+refer to the [Java API]({% link dev/project-configuration.md %})
+and the [Scala API]({% link dev/project-configuration.md %})
 quickstart guides.
 
 **NOTE:** Whenever something is not working in your IDE, try with the Maven
@@ -43,6 +43,14 @@ e.g.
 {% highlight bash %}
 git clone https://github.com/apache/flink.git
 {% endhighlight %}
+
+## Ignoring Refactoring Commits
+
+We keep a list of big refactoring commits in `.git-blame-ignore-revs`. When looking at change annotations using `git blame` it's helpful to ignore these. You can configure git and your IDE to do so using:
+
+```bash
+git config blame.ignoreRevsFile .git-blame-ignore-revs
+```
 
 ## IntelliJ IDEA
 
@@ -81,6 +89,24 @@ to enable support for Scala projects and files:
    Alternatively, `mvn clean package -DskipTests` also creates the files necessary
    for the IDE to work but without installing the libraries.
 8. Build the Project (Build -> Make Project)
+
+### Code Formatting
+
+We use the [Spotless
+plugin](https://github.com/diffplug/spotless/tree/main/plugin-maven) together
+with [google-java-format](https://github.com/google/google-java-format) to
+format our Java code. You can configure your IDE to automatically apply
+formatting on saving with these steps:
+
+1. Download the [google-java-format
+   plugin v1.7.0.5](https://plugins.jetbrains.com/plugin/8527-google-java-format/versions/stable/83169)
+2. Install the plugin from disk (Plugins -> little gear icon -> "Install plugin from disk" -> Navigate to downloaded zip file)
+3. In the plugin settings, enable the plugin and change the code style to "AOSP" (4-space indents)
+4. Remember to never update this plugin to a later version!
+5. Install the [Save Actions
+   plugin](https://plugins.jetbrains.com/plugin/7642-save-actions)
+6. Enable the plugin, along with "Optimize imports" and "Reformat file"
+7. In the "Save Actions" settings page, setup a "File Path Inclusion" for `.*\.java`. Otherwise you will get unintended reformatting in other files you edit.
 
 ### Checkstyle For Java
 IntelliJ supports checkstyle within the IDE using the Checkstyle-IDEA plugin.

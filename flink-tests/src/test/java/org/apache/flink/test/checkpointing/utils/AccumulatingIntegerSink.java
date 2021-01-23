@@ -18,8 +18,8 @@
 package org.apache.flink.test.checkpointing.utils;
 
 import org.apache.flink.api.common.accumulators.ListAccumulator;
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -31,57 +31,56 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A sink that emits received elements into an accumulator once the corresponding checkpoint is completed.
+ * A sink that emits received elements into an accumulator once the corresponding checkpoint is
+ * completed.
  */
-public class AccumulatingIntegerSink extends RichSinkFunction<Integer> implements CheckpointListener, CheckpointedFunction {
-	private static final String ACCUMULATOR_NAME = "output";
+public class AccumulatingIntegerSink extends RichSinkFunction<Integer>
+        implements CheckpointListener, CheckpointedFunction {
+    private static final String ACCUMULATOR_NAME = "output";
 
-	private List<Integer> current = new ArrayList<>();
-	private final Map<Long, List<Integer>> pendingForAccumulator = new HashMap<>();
-	private final ListAccumulator<Integer> accumulator = new ListAccumulator<>();
-	private final int delayMillis;
+    private List<Integer> current = new ArrayList<>();
+    private final Map<Long, List<Integer>> pendingForAccumulator = new HashMap<>();
+    private final ListAccumulator<Integer> accumulator = new ListAccumulator<>();
+    private final int delayMillis;
 
-	public AccumulatingIntegerSink(int delayMillis) {
-		this.delayMillis = delayMillis;
-	}
+    public AccumulatingIntegerSink(int delayMillis) {
+        this.delayMillis = delayMillis;
+    }
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
-		getRuntimeContext().addAccumulator(ACCUMULATOR_NAME, accumulator);
-	}
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        super.open(parameters);
+        getRuntimeContext().addAccumulator(ACCUMULATOR_NAME, accumulator);
+    }
 
-	@Override
-	@SuppressWarnings("rawtypes")
-	public void invoke(Integer value, Context context) throws InterruptedException {
-		current.add(value);
-		if (delayMillis > 0) {
-			Thread.sleep(delayMillis);
-		}
-	}
+    @Override
+    @SuppressWarnings("rawtypes")
+    public void invoke(Integer value, Context context) throws InterruptedException {
+        current.add(value);
+        if (delayMillis > 0) {
+            Thread.sleep(delayMillis);
+        }
+    }
 
-	@Override
-	public void initializeState(FunctionInitializationContext context) throws Exception {
-	}
+    @Override
+    public void initializeState(FunctionInitializationContext context) throws Exception {}
 
-	@Override
-	public void snapshotState(FunctionSnapshotContext context) throws Exception {
-		pendingForAccumulator.put(context.getCheckpointId(), current);
-		current = new ArrayList<>();
-	}
+    @Override
+    public void snapshotState(FunctionSnapshotContext context) throws Exception {
+        pendingForAccumulator.put(context.getCheckpointId(), current);
+        current = new ArrayList<>();
+    }
 
-	@Override
-	public void notifyCheckpointComplete(long checkpointId) {
-		pendingForAccumulator.remove(checkpointId).forEach(accumulator::add);
-	}
+    @Override
+    public void notifyCheckpointComplete(long checkpointId) {
+        pendingForAccumulator.remove(checkpointId).forEach(accumulator::add);
+    }
 
-	@Override
-	public void notifyCheckpointAborted(long checkpointId) {
-	}
+    @Override
+    public void notifyCheckpointAborted(long checkpointId) {}
 
-	@SuppressWarnings("unchecked")
-	public static List<Integer> getOutput(Map<String, Object> accumulators) {
-		return (List<Integer>) accumulators.get(ACCUMULATOR_NAME);
-	}
-
+    @SuppressWarnings("unchecked")
+    public static List<Integer> getOutput(Map<String, Object> accumulators) {
+        return (List<Integer>) accumulators.get(ACCUMULATOR_NAME);
+    }
 }

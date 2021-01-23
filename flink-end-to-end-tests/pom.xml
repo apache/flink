@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.12-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -57,7 +57,6 @@ under the License.
 		<module>flink-datastream-allround-test</module>
 		<module>flink-batch-sql-test</module>
 		<module>flink-stream-sql-test</module>
-		<module>flink-bucketing-sink-test</module>
 		<module>flink-distributed-cache-via-blob-test</module>
 		<module>flink-high-parallelism-iterations-test</module>
 		<module>flink-stream-stateful-job-upgrade-test</module>
@@ -69,7 +68,7 @@ under the License.
 		<module>flink-confluent-schema-registry</module>
 		<module>flink-stream-state-ttl-test</module>
 		<module>flink-sql-client-test</module>
-		<module>flink-streaming-file-sink-test</module>
+		<module>flink-file-sink-test</module>
 		<module>flink-state-evolution-test</module>
 		<module>flink-rocksdb-state-memory-control-test</module>
 		<module>flink-end-to-end-tests-common</module>
@@ -79,8 +78,6 @@ under the License.
 		<module>flink-connector-gcp-pubsub-emulator-tests</module>
 		<module>flink-streaming-kafka-test-base</module>
 		<module>flink-streaming-kafka-test</module>
-		<module>flink-streaming-kafka011-test</module>
-		<module>flink-streaming-kafka010-test</module>
 		<module>flink-plugins-test</module>
 		<module>flink-tpch-test</module>
 		<module>flink-streaming-kinesis-test</module>
@@ -91,6 +88,19 @@ under the License.
 		<module>flink-python-test</module>
 		<module>flink-end-to-end-tests-hbase</module>
 	</modules>
+
+	<dependencyManagement>
+		<dependencies>
+			<!-- We pick an arbitrary version of net.java.dev.jna:jna to satisfy dependency
+				 convergence for org.testcontainers:testcontainers which transitively depends on
+				 two different versions.-->
+			<dependency>
+				<groupId>net.java.dev.jna</groupId>
+				<artifactId>jna</artifactId>
+				<version>5.5.0</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 
 	<dependencies>
 		<dependency>

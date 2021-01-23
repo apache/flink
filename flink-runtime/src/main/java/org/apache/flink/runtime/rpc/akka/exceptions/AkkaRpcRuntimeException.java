@@ -20,19 +20,17 @@ package org.apache.flink.runtime.rpc.akka.exceptions;
 
 import org.apache.flink.runtime.rpc.exceptions.RpcRuntimeException;
 
-/**
- *  Base class for Akka RPC related runtime exceptions.
- */
+/** Base class for Akka RPC related runtime exceptions. */
 public class AkkaRpcRuntimeException extends RpcRuntimeException {
-	public AkkaRpcRuntimeException(String message) {
-		super(message);
-	}
+    public AkkaRpcRuntimeException(String message) {
+        super(message);
+    }
 
-	public AkkaRpcRuntimeException(Throwable cause) {
-		super(cause);
-	}
+    public AkkaRpcRuntimeException(Throwable cause) {
+        super(cause);
+    }
 
-	public AkkaRpcRuntimeException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    public AkkaRpcRuntimeException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

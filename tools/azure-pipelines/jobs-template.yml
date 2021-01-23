@@ -103,6 +103,8 @@ jobs:
         module: tests
       misc:
         module: misc
+      legacy_slot_management:
+        module: legacy_slot_management
   steps:
   # if on Azure, free up disk space
   - script: ./tools/azure-pipelines/free_disk_space.sh
@@ -170,7 +172,7 @@ jobs:
   #condition: or(eq(variables['MODE'], 'e2e'), eq(${{parameters.run_end_to_end}}, 'true'))
   # We are running this in a separate pool
   pool: ${{parameters.e2e_pool_definition}}
-  timeoutInMinutes: 260
+  timeoutInMinutes: 310
   cancelTimeoutInMinutes: 1
   workspace:
     clean: all
@@ -216,19 +218,20 @@ jobs:
         ./tools/azure-pipelines/free_disk_space.sh
 
         echo "Installing required software"
-        sudo apt-get install -y bc
+        sudo apt-get install -y bc moreutils
       displayName: Prepare E2E run
       condition: not(eq(variables['SKIP'], '1'))
     - script: ${{parameters.environment}} ./tools/ci/compile.sh
       displayName: Build Flink
       condition: not(eq(variables['SKIP'], '1'))
-    - script: ${{parameters.environment}} FLINK_DIR=`pwd`/build-target flink-end-to-end-tests/run-nightly-tests.sh
+    - script: ${{parameters.environment}} FLINK_DIR=`pwd`/build-target ./tools/azure-pipelines/e2e_uploading_watchdog.sh flink-end-to-end-tests/run-nightly-tests.sh
+      timeoutInMinutes: 250
       displayName: Run e2e tests
       env:
         IT_CASE_S3_BUCKET: $(SECRET_S3_BUCKET)
         IT_CASE_S3_ACCESS_KEY: $(SECRET_S3_ACCESS_KEY)
         IT_CASE_S3_SECRET_KEY: $(SECRET_S3_SECRET_KEY)
-      condition: not(eq(variables['SKIP'], '1'))
+      condition: and(succeeded(),not(eq(variables['SKIP'], '1')))
       # upload debug artifacts
     - task: PublishPipelineArtifact@1
       condition: and(succeededOrFailed(), not(eq(variables['SKIP'], '1')), not(eq(variables['ARTIFACT_DIR'], '')))

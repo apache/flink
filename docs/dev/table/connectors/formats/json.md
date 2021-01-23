@@ -34,11 +34,10 @@ The [JSON](https://www.json.org/json-en.html) format allows to read and write JS
 Dependencies
 ------------
 
-In order to setup the JSON format, the following table provides dependency information for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
-
-| Maven dependency   | SQL Client JAR         |
-| :----------------- | :----------------------|
-| `flink-json`       | Built-in               |
+{% assign connector = site.data.sql-connectors['json'] %} 
+{% include sql-connector-download-table.html 
+    connector=connector
+%}
 
 How to create a table with JSON format
 ----------------
@@ -116,6 +115,33 @@ Format Options
         parse input TIMESTAMP WITH LOCAL TIME ZONE in "yyyy-MM-ddTHH:mm:ss.s{precision}'Z'" format, e.g "2020-12-30T12:13:14.123Z" and output timestamp in the same format.</li>
       </ul>
       </td>
+    </tr>
+    <tr>
+      <td><h5>json.map-null-key.mode</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;"><code>'FAIL'</code></td>
+      <td>String</td>
+      <td>Specify the handling mode when serializing null keys for map data. Currently supported values are <code>'FAIL'</code>, <code>'DROP'</code> and <code>'LITERAL'</code>:
+      <ul>
+        <li>Option <code>'FAIL'</code> will throw exception when encountering map with null key.</li>
+        <li>Option <code>'DROP'</code> will drop null key entries for map data.</li>
+        <li>Option <code>'LITERAL'</code> will replace null key with string literal. The string literal is defined by <code>json.map-null-key.literal</code> option.</li>
+      </ul>
+      </td>
+    </tr>
+    <tr>
+      <td><h5>json.map-null-key.literal</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">'null'</td>
+      <td>String</td>
+      <td>Specify string literal to replace null key when <code>'json.map-null-key.mode'</code> is LITERAL.</td>
+    </tr>     
+    <tr>
+      <td><h5>json.encode.decimal-as-plain-number</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>Encode all decimals as plain numbers instead of possible scientific notations. By default, decimals may be written using scientific notation. For example, <code>0.000000027</code> is encoded as <code>2.7E-8</code> by default, and will be written as <code>0.000000027</code> if set this option to true.</td>
     </tr>
     </tbody>
 </table>

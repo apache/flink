@@ -30,80 +30,142 @@ import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Simple test case for conversion between Parquet schema and Flink date types.
- */
-public class ParquetSchemaConverterTest extends TestUtil {
+/** Simple test case for conversion between Parquet schema and Flink date types. */
+public class ParquetSchemaConverterTest {
 
-	private final Type[] simpleStandardTypes = {
-		org.apache.parquet.schema.Types.primitive(PrimitiveType.PrimitiveTypeName.INT64, Type.Repetition.OPTIONAL)
-			.as(OriginalType.INT_64).named("foo"),
-		org.apache.parquet.schema.Types.primitive(PrimitiveType.PrimitiveTypeName.BINARY, Type.Repetition.OPTIONAL)
-			.as(OriginalType.UTF8).named("bar"),
-		org.apache.parquet.schema.Types.optionalGroup()
-			.addField(org.apache.parquet.schema.Types.repeatedGroup().addField(
-				org.apache.parquet.schema.Types.primitive(PrimitiveType.PrimitiveTypeName.INT64, Type.Repetition.REQUIRED)
-					.as(OriginalType.INT_64).named("element")).named("list")).as(OriginalType.LIST)
-			.named("arr")};
+    private final Type[] simpleStandardTypes = {
+        org.apache.parquet.schema.Types.primitive(
+                        PrimitiveType.PrimitiveTypeName.INT64, Type.Repetition.OPTIONAL)
+                .as(OriginalType.INT_64)
+                .named("foo"),
+        org.apache.parquet.schema.Types.primitive(
+                        PrimitiveType.PrimitiveTypeName.BINARY, Type.Repetition.OPTIONAL)
+                .as(OriginalType.UTF8)
+                .named("bar"),
+        org.apache.parquet.schema.Types.optionalGroup()
+                .addField(
+                        org.apache.parquet.schema.Types.repeatedGroup()
+                                .addField(
+                                        org.apache.parquet.schema.Types.primitive(
+                                                        PrimitiveType.PrimitiveTypeName.INT64,
+                                                        Type.Repetition.REQUIRED)
+                                                .as(OriginalType.INT_64)
+                                                .named("element"))
+                                .named("list"))
+                .as(OriginalType.LIST)
+                .named("arr")
+    };
 
-	private final Type[] nestedTypes = {
-		org.apache.parquet.schema.Types.primitive(PrimitiveType.PrimitiveTypeName.INT64, Type.Repetition.OPTIONAL)
-			.as(OriginalType.INT_64).named("foo"),
-		org.apache.parquet.schema.Types.optionalMap().value(PrimitiveType.PrimitiveTypeName.BINARY, Type.Repetition.OPTIONAL)
-			.as(OriginalType.UTF8)
-			.named("spamMap"),
-		org.apache.parquet.schema.Types.optionalGroup().addField(
-			org.apache.parquet.schema.Types.primitive(PrimitiveType.PrimitiveTypeName.INT64, Type.Repetition.OPTIONAL).as(OriginalType.INT_64)
-				.named("spam")).named("bar"),
-		org.apache.parquet.schema.Types.optionalGroup()
-			.addField(org.apache.parquet.schema.Types.repeatedGroup().addField(
-				org.apache.parquet.schema.Types.primitive(PrimitiveType.PrimitiveTypeName.INT64, Type.Repetition.REQUIRED).as(OriginalType.INT_64)
-					.named("element")).named("list")).as(OriginalType.LIST)
-			.named("arr"),
-		org.apache.parquet.schema.Types.optionalGroup()
-			.addField(org.apache.parquet.schema.Types.repeatedGroup().addField(
-				org.apache.parquet.schema.Types.primitive(PrimitiveType.PrimitiveTypeName.BINARY, Type.Repetition.REQUIRED).as(OriginalType.UTF8)
-					.named("element")).named("list")).as(OriginalType.LIST)
-			.named("strArray"),
-		org.apache.parquet.schema.Types.optionalMap().value(org.apache.parquet.schema.Types.optionalGroup()
-			.addField(org.apache.parquet.schema.Types.primitive(PrimitiveType.PrimitiveTypeName.BINARY, Type.Repetition.OPTIONAL)
-				.as(OriginalType.UTF8).named("type"))
-			.addField(org.apache.parquet.schema.Types.primitive(PrimitiveType.PrimitiveTypeName.BINARY, Type.Repetition.OPTIONAL)
-				.as(OriginalType.UTF8).named("value"))
-			.named("value"))
-			.named("nestedMap"),
-		org.apache.parquet.schema.Types.optionalGroup().addField(org.apache.parquet.schema.Types.repeatedGroup()
-			.addField(org.apache.parquet.schema.Types.primitive(PrimitiveType.PrimitiveTypeName.BINARY, Type.Repetition.REQUIRED)
-				.as(OriginalType.UTF8).named("type"))
-			.addField(org.apache.parquet.schema.Types.primitive(PrimitiveType.PrimitiveTypeName.INT64, Type.Repetition.REQUIRED)
-				.as(OriginalType.INT_64).named("value"))
-			.named("element")).as(OriginalType.LIST)
-			.named("nestedArray")
-	};
+    private final Type[] nestedTypes = {
+        org.apache.parquet.schema.Types.primitive(
+                        PrimitiveType.PrimitiveTypeName.INT64, Type.Repetition.OPTIONAL)
+                .as(OriginalType.INT_64)
+                .named("foo"),
+        org.apache.parquet.schema.Types.optionalMap()
+                .value(PrimitiveType.PrimitiveTypeName.BINARY, Type.Repetition.OPTIONAL)
+                .as(OriginalType.UTF8)
+                .named("spamMap"),
+        org.apache.parquet.schema.Types.optionalGroup()
+                .addField(
+                        org.apache.parquet.schema.Types.primitive(
+                                        PrimitiveType.PrimitiveTypeName.INT64,
+                                        Type.Repetition.OPTIONAL)
+                                .as(OriginalType.INT_64)
+                                .named("spam"))
+                .named("bar"),
+        org.apache.parquet.schema.Types.optionalGroup()
+                .addField(
+                        org.apache.parquet.schema.Types.repeatedGroup()
+                                .addField(
+                                        org.apache.parquet.schema.Types.primitive(
+                                                        PrimitiveType.PrimitiveTypeName.INT64,
+                                                        Type.Repetition.REQUIRED)
+                                                .as(OriginalType.INT_64)
+                                                .named("element"))
+                                .named("list"))
+                .as(OriginalType.LIST)
+                .named("arr"),
+        org.apache.parquet.schema.Types.optionalGroup()
+                .addField(
+                        org.apache.parquet.schema.Types.repeatedGroup()
+                                .addField(
+                                        org.apache.parquet.schema.Types.primitive(
+                                                        PrimitiveType.PrimitiveTypeName.BINARY,
+                                                        Type.Repetition.REQUIRED)
+                                                .as(OriginalType.UTF8)
+                                                .named("element"))
+                                .named("list"))
+                .as(OriginalType.LIST)
+                .named("strArray"),
+        org.apache.parquet.schema.Types.optionalMap()
+                .value(
+                        org.apache.parquet.schema.Types.optionalGroup()
+                                .addField(
+                                        org.apache.parquet.schema.Types.primitive(
+                                                        PrimitiveType.PrimitiveTypeName.BINARY,
+                                                        Type.Repetition.OPTIONAL)
+                                                .as(OriginalType.UTF8)
+                                                .named("type"))
+                                .addField(
+                                        org.apache.parquet.schema.Types.primitive(
+                                                        PrimitiveType.PrimitiveTypeName.BINARY,
+                                                        Type.Repetition.OPTIONAL)
+                                                .as(OriginalType.UTF8)
+                                                .named("value"))
+                                .named("value"))
+                .named("nestedMap"),
+        org.apache.parquet.schema.Types.optionalGroup()
+                .addField(
+                        org.apache.parquet.schema.Types.repeatedGroup()
+                                .addField(
+                                        org.apache.parquet.schema.Types.requiredGroup()
+                                                .addField(
+                                                        org.apache.parquet.schema.Types.primitive(
+                                                                        PrimitiveType
+                                                                                .PrimitiveTypeName
+                                                                                .BINARY,
+                                                                        Type.Repetition.REQUIRED)
+                                                                .as(OriginalType.UTF8)
+                                                                .named("type"))
+                                                .addField(
+                                                        org.apache.parquet.schema.Types.primitive(
+                                                                        PrimitiveType
+                                                                                .PrimitiveTypeName
+                                                                                .INT64,
+                                                                        Type.Repetition.REQUIRED)
+                                                                .as(OriginalType.INT_64)
+                                                                .named("value"))
+                                                .named("element"))
+                                .named("list"))
+                .as(OriginalType.LIST)
+                .named("nestedArray")
+    };
 
-	@Test
-	public void testSimpleSchemaConversion() {
-		MessageType simpleType = new MessageType("simple", simpleStandardTypes);
-		RowTypeInfo rowTypeInfo = (RowTypeInfo) ParquetSchemaConverter.fromParquetType(simpleType);
-		assertEquals(SIMPLE_ROW_TYPE, rowTypeInfo);
-	}
+    @Test
+    public void testSimpleSchemaConversion() {
+        MessageType simpleType = new MessageType("simple", simpleStandardTypes);
+        RowTypeInfo rowTypeInfo = (RowTypeInfo) ParquetSchemaConverter.fromParquetType(simpleType);
+        assertEquals(TestUtil.SIMPLE_ROW_TYPE, rowTypeInfo);
+    }
 
-	@Test
-	public void testNestedSchemaConversion() {
-		MessageType nestedTypes = new MessageType("nested", this.nestedTypes);
-		RowTypeInfo rowTypeInfo = (RowTypeInfo) ParquetSchemaConverter.fromParquetType(nestedTypes);
-		assertEquals(NESTED_ROW_TYPE, rowTypeInfo);
-	}
+    @Test
+    public void testNestedSchemaConversion() {
+        MessageType nestedTypes = new MessageType("nested", this.nestedTypes);
+        RowTypeInfo rowTypeInfo = (RowTypeInfo) ParquetSchemaConverter.fromParquetType(nestedTypes);
+        assertEquals(TestUtil.NESTED_ROW_TYPE, rowTypeInfo);
+    }
 
-	@Test
-	public void testSimpleRowTypeConversion() {
-		MessageType simpleSchema = ParquetSchemaConverter.toParquetType(SIMPLE_ROW_TYPE, true);
-		assertEquals(Arrays.asList(simpleStandardTypes), simpleSchema.getFields());
-	}
+    @Test
+    public void testSimpleRowTypeConversion() {
+        MessageType simpleSchema =
+                ParquetSchemaConverter.toParquetType(TestUtil.SIMPLE_ROW_TYPE, false);
+        assertEquals(Arrays.asList(simpleStandardTypes), simpleSchema.getFields());
+    }
 
-	@Test
-	public void testNestedRowTypeConversion() {
-		MessageType nestedSchema = ParquetSchemaConverter.toParquetType(NESTED_ROW_TYPE, true);
-		assertEquals(Arrays.asList(nestedTypes), nestedSchema.getFields());
-	}
+    @Test
+    public void testNestedRowTypeConversion() {
+        MessageType nestedSchema =
+                ParquetSchemaConverter.toParquetType(TestUtil.NESTED_ROW_TYPE, false);
+        assertEquals(Arrays.asList(nestedTypes), nestedSchema.getFields());
+    }
 }

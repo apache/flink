@@ -31,24 +31,24 @@ import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * A Parquet {@link ReadSupport} implementation for reading Parquet record as {@link Row}.
- */
+/** A Parquet {@link ReadSupport} implementation for reading Parquet record as {@link Row}. */
 public class RowReadSupport extends ReadSupport<Row> {
 
-	private TypeInformation<?> returnTypeInfo;
+    private TypeInformation<?> returnTypeInfo;
 
-	@Override
-	public ReadContext init(InitContext initContext) {
-		checkNotNull(initContext, "initContext");
-		returnTypeInfo = ParquetSchemaConverter.fromParquetType(initContext.getFileSchema());
-		return new ReadContext(initContext.getFileSchema());
-	}
+    @Override
+    public ReadContext init(InitContext initContext) {
+        checkNotNull(initContext, "initContext");
+        returnTypeInfo = ParquetSchemaConverter.fromParquetType(initContext.getFileSchema());
+        return new ReadContext(initContext.getFileSchema());
+    }
 
-	@Override
-	public RecordMaterializer<Row> prepareForRead(
-		Configuration configuration, Map<String, String> keyValueMetaData,
-		MessageType fileSchema, ReadContext readContext) {
-		return new RowMaterializer(readContext.getRequestedSchema(), returnTypeInfo);
-	}
+    @Override
+    public RecordMaterializer<Row> prepareForRead(
+            Configuration configuration,
+            Map<String, String> keyValueMetaData,
+            MessageType fileSchema,
+            ReadContext readContext) {
+        return new RowMaterializer(readContext.getRequestedSchema(), returnTypeInfo);
+    }
 }

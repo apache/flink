@@ -23,19 +23,17 @@ import org.apache.flink.table.data.RowData;
 
 import javax.annotation.Nullable;
 
-/**
- * The {@link WatermarkGenerator} is used to generate watermark based the input elements.
- */
+/** The {@link WatermarkGenerator} is used to generate watermark based the input elements. */
 public abstract class WatermarkGenerator extends AbstractRichFunction {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/**
-	 * Returns the watermark for the current row or null if no watermark should be generated.
-	 *
-	 * @param row The current row.
-	 * @return The watermark for this row or null if no watermark should be generated.
-	 */
-	@Nullable
-	public abstract Long currentWatermark(RowData row) throws Exception;
+    /**
+     * Returns the watermark for the current row or null if no watermark should be generated.
+     *
+     * @param row The current row.
+     * @return The watermark for this row or null if no watermark should be generated.
+     */
+    @Nullable
+    public abstract Long currentWatermark(RowData row) throws Exception;
 }

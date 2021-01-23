@@ -36,94 +36,94 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ProxyMetricGroup<P extends MetricGroup> implements MetricGroup {
 
-	protected final P parentMetricGroup;
+    protected final P parentMetricGroup;
 
-	public ProxyMetricGroup(P parentMetricGroup) {
-		this.parentMetricGroup = checkNotNull(parentMetricGroup);
-	}
+    public ProxyMetricGroup(P parentMetricGroup) {
+        this.parentMetricGroup = checkNotNull(parentMetricGroup);
+    }
 
-	@Override
-	public final Counter counter(int name) {
-		return parentMetricGroup.counter(name);
-	}
+    @Override
+    public final Counter counter(int name) {
+        return parentMetricGroup.counter(name);
+    }
 
-	@Override
-	public final Counter counter(String name) {
-		return parentMetricGroup.counter(name);
-	}
+    @Override
+    public final Counter counter(String name) {
+        return parentMetricGroup.counter(name);
+    }
 
-	@Override
-	public final <C extends Counter> C counter(int name, C counter) {
-		return parentMetricGroup.counter(name, counter);
-	}
+    @Override
+    public final <C extends Counter> C counter(int name, C counter) {
+        return parentMetricGroup.counter(name, counter);
+    }
 
-	@Override
-	public final <C extends Counter> C counter(String name, C counter) {
-		return parentMetricGroup.counter(name, counter);
-	}
+    @Override
+    public final <C extends Counter> C counter(String name, C counter) {
+        return parentMetricGroup.counter(name, counter);
+    }
 
-	@Override
-	public final <T, G extends Gauge<T>> G gauge(int name, G gauge) {
-		return parentMetricGroup.gauge(name, gauge);
-	}
+    @Override
+    public final <T, G extends Gauge<T>> G gauge(int name, G gauge) {
+        return parentMetricGroup.gauge(name, gauge);
+    }
 
-	@Override
-	public final <T, G extends Gauge<T>> G gauge(String name, G gauge) {
-		return parentMetricGroup.gauge(name, gauge);
-	}
+    @Override
+    public final <T, G extends Gauge<T>> G gauge(String name, G gauge) {
+        return parentMetricGroup.gauge(name, gauge);
+    }
 
-	@Override
-	public final <H extends Histogram> H histogram(String name, H histogram) {
-		return parentMetricGroup.histogram(name, histogram);
-	}
+    @Override
+    public final <H extends Histogram> H histogram(String name, H histogram) {
+        return parentMetricGroup.histogram(name, histogram);
+    }
 
-	@Override
-	public final <H extends Histogram> H histogram(int name, H histogram) {
-		return parentMetricGroup.histogram(name, histogram);
-	}
+    @Override
+    public final <H extends Histogram> H histogram(int name, H histogram) {
+        return parentMetricGroup.histogram(name, histogram);
+    }
 
-	@Override
-	public <M extends Meter> M meter(String name, M meter) {
-		return parentMetricGroup.meter(name, meter);
-	}
+    @Override
+    public <M extends Meter> M meter(String name, M meter) {
+        return parentMetricGroup.meter(name, meter);
+    }
 
-	@Override
-	public <M extends Meter> M meter(int name, M meter) {
-		return parentMetricGroup.meter(name, meter);
-	}
+    @Override
+    public <M extends Meter> M meter(int name, M meter) {
+        return parentMetricGroup.meter(name, meter);
+    }
 
-	@Override
-	public final MetricGroup addGroup(int name) {
-		return parentMetricGroup.addGroup(name);
-	}
+    @Override
+    public final MetricGroup addGroup(int name) {
+        return parentMetricGroup.addGroup(name);
+    }
 
-	@Override
-	public final MetricGroup addGroup(String name) {
-		return parentMetricGroup.addGroup(name);
-	}
+    @Override
+    public final MetricGroup addGroup(String name) {
+        return parentMetricGroup.addGroup(name);
+    }
 
-	@Override
-	public final MetricGroup addGroup(String key, String value) {
-		return parentMetricGroup.addGroup(key, value);
-	}
+    @Override
+    public final MetricGroup addGroup(String key, String value) {
+        return parentMetricGroup.addGroup(key, value);
+    }
 
-	@Override
-	public String[] getScopeComponents() {
-		return parentMetricGroup.getScopeComponents();
-	}
+    @Override
+    public String[] getScopeComponents() {
+        return parentMetricGroup.getScopeComponents();
+    }
 
-	@Override
-	public Map<String, String> getAllVariables() {
-		return parentMetricGroup.getAllVariables();
-	}
+    @Override
+    public Map<String, String> getAllVariables() {
+        return parentMetricGroup.getAllVariables();
+    }
 
-	@Override
-	public String getMetricIdentifier(String metricName) {
-		return parentMetricGroup.getMetricIdentifier(metricName);
-	}
+    @Override
+    public String getMetricIdentifier(String metricName) {
+        return parentMetricGroup.getMetricIdentifier(metricName);
+    }
 
-	@Override
-	public String getMetricIdentifier(String metricName, CharacterFilter filter) {
-		return parentMetricGroup.getMetricIdentifier(metricName, filter);
-	}
+    @Override
+    public String getMetricIdentifier(String metricName, CharacterFilter filter) {
+        return parentMetricGroup.getMetricIdentifier(metricName, filter);
+    }
 }

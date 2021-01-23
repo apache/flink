@@ -32,9 +32,9 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.data.util.DataFormatConverters
 import org.apache.flink.table.data.{GenericRowData, RowData}
-import org.apache.flink.table.planner.utils.RowDataTestUtil
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
+import org.apache.flink.table.runtime.util.RowDataTestUtil
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.types.Row

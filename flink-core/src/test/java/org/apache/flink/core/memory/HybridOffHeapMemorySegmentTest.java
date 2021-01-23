@@ -29,43 +29,40 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for the {@link HybridMemorySegment} in off-heap mode.
- */
+/** Tests for the {@link HybridMemorySegment} in off-heap mode. */
 public abstract class HybridOffHeapMemorySegmentTest extends MemorySegmentTestBase {
 
-	HybridOffHeapMemorySegmentTest(int pageSize) {
-		super(pageSize);
-	}
+    HybridOffHeapMemorySegmentTest(int pageSize) {
+        super(pageSize);
+    }
 
-	@Test
-	public void testHybridHeapSegmentSpecifics() {
-		HybridMemorySegment seg = (HybridMemorySegment) createSegment(411);
-		ByteBuffer buffer = seg.getOffHeapBuffer();
+    @Test
+    public void testHybridHeapSegmentSpecifics() {
+        HybridMemorySegment seg = (HybridMemorySegment) createSegment(411);
+        ByteBuffer buffer = seg.getOffHeapBuffer();
 
-		assertFalse(seg.isFreed());
-		assertTrue(seg.isOffHeap());
-		assertEquals(buffer.capacity(), seg.size());
-		assertSame(buffer, seg.getOffHeapBuffer());
+        assertFalse(seg.isFreed());
+        assertTrue(seg.isOffHeap());
+        assertEquals(buffer.capacity(), seg.size());
+        assertSame(buffer, seg.getOffHeapBuffer());
 
-		try {
-			//noinspection ResultOfMethodCallIgnored
-			seg.getArray();
-			fail("should throw an exception");
-		}
-		catch (IllegalStateException e) {
-			// expected
-		}
+        try {
+            //noinspection ResultOfMethodCallIgnored
+            seg.getArray();
+            fail("should throw an exception");
+        } catch (IllegalStateException e) {
+            // expected
+        }
 
-		ByteBuffer buf1 = seg.wrap(1, 2);
-		ByteBuffer buf2 = seg.wrap(3, 4);
+        ByteBuffer buf1 = seg.wrap(1, 2);
+        ByteBuffer buf2 = seg.wrap(3, 4);
 
-		assertNotSame(buf1, buffer);
-		assertNotSame(buf2, buffer);
-		assertNotSame(buf1, buf2);
-		assertEquals(1, buf1.position());
-		assertEquals(3, buf1.limit());
-		assertEquals(3, buf2.position());
-		assertEquals(7, buf2.limit());
-	}
+        assertNotSame(buf1, buffer);
+        assertNotSame(buf2, buffer);
+        assertNotSame(buf1, buf2);
+        assertEquals(1, buf1.position());
+        assertEquals(3, buf1.limit());
+        assertEquals(3, buf2.position());
+        assertEquals(7, buf2.limit());
+    }
 }

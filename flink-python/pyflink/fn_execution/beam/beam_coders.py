@@ -17,16 +17,19 @@
 ################################################################################
 
 import os
+import pickle
+from typing import Any
+
 import pyarrow as pa
 import pytz
-from apache_beam.coders import Coder
+from apache_beam.coders import Coder, coder_impl
 from apache_beam.coders.coders import FastCoder, LengthPrefixCoder
 from apache_beam.portability import common_urns
 from apache_beam.typehints import typehints
 
 from pyflink.fn_execution.beam import beam_coder_impl_slow
-from pyflink.fn_execution.coders import FLINK_MAP_FUNCTION_DATA_STREAM_CODER_URN, \
-    FLINK_FLAT_MAP_FUNCTION_DATA_STREAM_CODER_URN
+from pyflink.fn_execution.coders import FLINK_MAP_CODER_URN, \
+    FLINK_FLAT_MAP_CODER_URN, FLINK_CO_FLAT_MAP_CODER_URN
 
 try:
     from pyflink.fn_execution.beam import beam_coder_impl_fast as beam_coder_impl
@@ -97,6 +100,43 @@ class BeamTableFunctionRowCoder(FastCoder):
         return hash(self._table_function_row_coder)
 
 
+class BeamAggregateFunctionRowCoder(FastCoder):
+    """
+    Coder for Aggregate Function input row.
+    """
+
+    def __init__(self, aggregate_function_row_coder):
+        self._aggregate_function_row_coder = aggregate_function_row_coder
+
+    def _create_impl(self):
+        return self._aggregate_function_row_coder.get_impl()
+
+    def get_impl(self):
+        return BeamCoderImpl(self._create_impl())
+
+    def to_type_hint(self):
+        return typehints.List
+
+    @Coder.register_urn(coders.FLINK_AGGREGATE_FUNCTION_SCHEMA_CODER_URN,
+                        flink_fn_execution_pb2.Schema)
+    def _pickle_from_runner_api_parameter(schema_proto, unused_components, unused_context):
+        return BeamAggregateFunctionRowCoder(
+            coders.AggregateFunctionRowCoder.from_schema_proto(schema_proto))
+
+    def __repr__(self):
+        return 'BeamAggregateFunctionRowCoder[%s]' % repr(self._aggregate_function_row_coder)
+
+    def __eq__(self, other):
+        return (self.__class__ == other.__class__
+                and self._aggregate_function_row_coder == other._aggregate_function_row_coder)
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __hash__(self):
+        return hash(self._aggregate_function_row_coder)
+
+
 class BeamFlattenRowCoder(FastCoder):
     """
     Coder for Row. The decoded result will be flattened as a list of column values of a row instead
@@ -151,6 +191,8 @@ class ArrowCoder(FastCoder):
         import pandas as pd
         return pd.Series
 
+    @Coder.register_urn(coders.FLINK_SCHEMA_ARROW_CODER_URN,
+                        flink_fn_execution_pb2.Schema)
     @Coder.register_urn(coders.FLINK_SCALAR_FUNCTION_SCHEMA_ARROW_CODER_URN,
                         flink_fn_execution_pb2.Schema)
     def _pickle_from_runner_api_parameter(schema_proto, unused_components, unused_context):
@@ -192,7 +234,7 @@ class ArrowCoder(FastCoder):
                                                field_type.nullable)
             elif field_type.type_name == flink_fn_execution_pb2.Schema.TIMESTAMP:
                 return TimestampType(field_type.timestamp_info.precision, field_type.nullable)
-            elif field_type.type_name == flink_fn_execution_pb2.Schema.ARRAY:
+            elif field_type.type_name == flink_fn_execution_pb2.Schema.BASIC_ARRAY:
                 return ArrayType(_to_data_type(field_type.collection_element_type),
                                  field_type.nullable)
             elif field_type.type_name == flink_fn_execution_pb2.Schema.TypeName.ROW:
@@ -213,7 +255,31 @@ class ArrowCoder(FastCoder):
         return 'ArrowCoder[%s]' % self._schema
 
 
-class BeamDataStreamStatelessMapCoder(FastCoder):
+class OverWindowArrowCoder(FastCoder):
+    """
+    Coder for batch pandas over window aggregation.
+    """
+    def __init__(self, arrow_coder):
+        self._arrow_coder = arrow_coder
+
+    def _create_impl(self):
+        return beam_coder_impl_slow.OverWindowArrowCoderImpl(
+            self._arrow_coder._create_impl())
+
+    def to_type_hint(self):
+        return typehints.List
+
+    @Coder.register_urn(coders.FLINK_OVER_WINDOW_ARROW_CODER_URN, flink_fn_execution_pb2.Schema)
+    def _pickle_from_runner_api_parameter(schema_proto, unused_components, unused_context):
+        return OverWindowArrowCoder(
+            ArrowCoder._pickle_from_runner_api_parameter(
+                schema_proto, unused_components, unused_context))
+
+    def __repr__(self):
+        return 'OverWindowArrowCoder[%s]' % self._arrow_coder
+
+
+class BeamDataStreamMapCoder(FastCoder):
 
     def __init__(self, field_coder):
         self._field_coder = field_coder
@@ -227,19 +293,19 @@ class BeamDataStreamStatelessMapCoder(FastCoder):
     def is_deterministic(self):  # type: () -> bool
         return all(c.is_deterministic() for c in self._field_coder)
 
-    @Coder.register_urn(FLINK_MAP_FUNCTION_DATA_STREAM_CODER_URN, flink_fn_execution_pb2.TypeInfo)
+    @Coder.register_urn(FLINK_MAP_CODER_URN, flink_fn_execution_pb2.TypeInfo)
     def _pickled_from_runner_api_parameter(type_info_proto, unused_components, unused_context):
-        return BeamDataStreamStatelessMapCoder(
-            coders.DataStreamStatelessMapCoder.from_type_info_proto(type_info_proto))
+        return BeamDataStreamMapCoder(
+            coders.DataStreamMapCoder.from_type_info_proto(type_info_proto))
 
     def to_type_hint(self):
         return typehints.Any
 
     def __repr__(self):
-        return 'BeamDataStreamStatelessMapCoder[%s]' % repr(self._field_coder)
+        return 'BeamDataStreamMapCoder[%s]' % repr(self._field_coder)
 
 
-class BeamDataStreamStatelessFlatMapCoder(FastCoder):
+class BeamDataStreamFlatMapCoder(FastCoder):
 
     def __init__(self, field_coder):
         self._field_coder = field_coder
@@ -253,14 +319,65 @@ class BeamDataStreamStatelessFlatMapCoder(FastCoder):
     def is_deterministic(self):  # type: () -> bool
         return all(c.is_deterministic() for c in self._field_coder)
 
-    @Coder.register_urn(FLINK_FLAT_MAP_FUNCTION_DATA_STREAM_CODER_URN,
+    @Coder.register_urn(FLINK_FLAT_MAP_CODER_URN,
                         flink_fn_execution_pb2.TypeInfo)
     def _pickled_from_runner_api_parameter(type_info_proto, unused_components, unused_context):
-        return BeamDataStreamStatelessFlatMapCoder(
-            coders.DataStreamStatelessFlatMapCoder.from_type_info_proto(type_info_proto))
+        return BeamDataStreamFlatMapCoder(
+            coders.DataStreamFlatMapCoder.from_type_info_proto(type_info_proto))
 
     def to_type_hint(self):
         return typehints.Generator
 
     def __repr__(self):
-        return 'BeamDataStreamStatelessFlatMapCoder[%s]' % repr(self._field_coder)
+        return 'BeamDataStreamFlatMapCoder[%s]' % repr(self._field_coder)
+
+
+class BeamDataStreamCoFlatMapCoder(FastCoder):
+
+    def __init__(self, field_coder):
+        self._field_coder = field_coder
+
+    def _create_impl(self):
+        return self._field_coder.get_impl()
+
+    def get_impl(self):
+        return BeamCoderImpl(self._create_impl())
+
+    def is_deterministic(self):  # type: () -> bool
+        return all(c.is_deterministic() for c in self._field_coder)
+
+    @Coder.register_urn(FLINK_CO_FLAT_MAP_CODER_URN,
+                        flink_fn_execution_pb2.TypeInfo)
+    def _pickled_from_runner_api_parameter(type_info_proto, unused_components, unused_context):
+        return BeamDataStreamCoFlatMapCoder(
+            coders.DataStreamCoFlatMapCoder.from_type_info_proto(type_info_proto))
+
+    def to_type_hint(self):
+        return typehints.Generator
+
+    def __repr__(self):
+        return 'BeamDataStreamFlatMapCoder[%s]' % repr(self._field_coder)
+
+
+class DataViewFilterCoder(FastCoder):
+
+    def to_type_hint(self):
+        return Any
+
+    def __init__(self, udf_data_view_specs):
+        self._udf_data_view_specs = udf_data_view_specs
+
+    def filter_data_views(self, row):
+        i = 0
+        for specs in self._udf_data_view_specs:
+            for spec in specs:
+                row[i][spec.field_index] = None
+            i += 1
+        return row
+
+    def _create_impl(self):
+        filter_data_views = self.filter_data_views
+        dumps = pickle.dumps
+        HIGHEST_PROTOCOL = pickle.HIGHEST_PROTOCOL
+        return coder_impl.CallbackCoderImpl(
+            lambda x: dumps(filter_data_views(x), HIGHEST_PROTOCOL), pickle.loads)

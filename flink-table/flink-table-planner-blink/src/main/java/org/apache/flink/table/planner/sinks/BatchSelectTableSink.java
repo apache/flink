@@ -24,24 +24,22 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.sinks.StreamTableSink;
 import org.apache.flink.types.Row;
 
+/** A {@link StreamTableSink} for batch select job to collect the result to local. */
+public class BatchSelectTableSink extends SelectTableSinkBase<RowData>
+        implements StreamTableSink<RowData> {
 
-/**
- * A {@link StreamTableSink} for batch select job to collect the result to local.
- */
-public class BatchSelectTableSink extends SelectTableSinkBase<RowData> implements StreamTableSink<RowData> {
+    public BatchSelectTableSink(TableSchema tableSchema) {
+        super(tableSchema, createTypeInfo(tableSchema).toRowSerializer());
+    }
 
-	public BatchSelectTableSink(TableSchema tableSchema) {
-		super(tableSchema, createTypeInfo(tableSchema).toRowSerializer());
-	}
+    @Override
+    public TypeInformation<RowData> getOutputType() {
+        return createTypeInfo(getTableSchema());
+    }
 
-	@Override
-	public TypeInformation<RowData> getOutputType() {
-		return createTypeInfo(getTableSchema());
-	}
-
-	@Override
-	protected Row convertToRow(RowData element) {
-		// convert RowData to Row
-		return converter.toExternal(element);
-	}
+    @Override
+    protected Row convertToRow(RowData element) {
+        // convert RowData to Row
+        return converter.toExternal(element);
+    }
 }

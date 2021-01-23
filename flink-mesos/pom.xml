@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.12-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 	
@@ -32,7 +32,7 @@ under the License.
 	<packaging>jar</packaging>
 	
 	<properties>
-		<mesos.version>1.0.1</mesos.version>
+		<mesos.version>1.7.0</mesos.version>
 	</properties>
 
 	<dependencies>

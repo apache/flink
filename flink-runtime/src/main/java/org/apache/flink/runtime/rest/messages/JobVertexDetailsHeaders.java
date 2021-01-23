@@ -23,51 +23,52 @@ import org.apache.flink.runtime.rest.handler.job.JobVertexDetailsHandler;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * Message headers for the {@link JobVertexDetailsHandler}.
- */
-public class JobVertexDetailsHeaders implements MessageHeaders<EmptyRequestBody, JobVertexDetailsInfo, JobVertexMessageParameters> {
+/** Message headers for the {@link JobVertexDetailsHandler}. */
+public class JobVertexDetailsHeaders
+        implements MessageHeaders<
+                EmptyRequestBody, JobVertexDetailsInfo, JobVertexMessageParameters> {
 
-	private static final JobVertexDetailsHeaders INSTANCE = new JobVertexDetailsHeaders();
+    private static final JobVertexDetailsHeaders INSTANCE = new JobVertexDetailsHeaders();
 
-	public static final String URL = "/jobs/:" + JobIDPathParameter.KEY + "/vertices/:" + JobVertexIdPathParameter.KEY;
+    public static final String URL =
+            "/jobs/:" + JobIDPathParameter.KEY + "/vertices/:" + JobVertexIdPathParameter.KEY;
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public Class<JobVertexDetailsInfo> getResponseClass() {
-		return JobVertexDetailsInfo.class;
-	}
+    @Override
+    public Class<JobVertexDetailsInfo> getResponseClass() {
+        return JobVertexDetailsInfo.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public JobVertexMessageParameters getUnresolvedMessageParameters() {
-		return new JobVertexMessageParameters();
-	}
+    @Override
+    public JobVertexMessageParameters getUnresolvedMessageParameters() {
+        return new JobVertexMessageParameters();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static JobVertexDetailsHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static JobVertexDetailsHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Returns details for a task, with a summary for each of its subtasks.";
-	}
+    @Override
+    public String getDescription() {
+        return "Returns details for a task, with a summary for each of its subtasks.";
+    }
 }

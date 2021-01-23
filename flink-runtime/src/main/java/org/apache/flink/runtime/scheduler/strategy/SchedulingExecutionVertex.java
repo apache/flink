@@ -18,29 +18,23 @@
 
 package org.apache.flink.runtime.scheduler.strategy;
 
-import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.topology.Vertex;
 
-/**
- * Scheduling representation of {@link ExecutionVertex}.
- */
+/** Scheduling representation of {@link ExecutionVertex}. */
 public interface SchedulingExecutionVertex
-	extends Vertex<ExecutionVertexID, IntermediateResultPartitionID, SchedulingExecutionVertex, SchedulingResultPartition> {
+        extends Vertex<
+                ExecutionVertexID,
+                IntermediateResultPartitionID,
+                SchedulingExecutionVertex,
+                SchedulingResultPartition> {
 
-	/**
-	 * Gets the state of the execution vertex.
-	 *
-	 * @return state of the execution vertex
-	 */
-	ExecutionState getState();
-
-	/**
-	 * Get {@link InputDependencyConstraint}.
-	 *
-	 * @return input dependency constraint
-	 */
-	InputDependencyConstraint getInputDependencyConstraint();
+    /**
+     * Gets the state of the execution vertex.
+     *
+     * @return state of the execution vertex
+     */
+    ExecutionState getState();
 }

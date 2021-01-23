@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.metadata
 
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecCorrelate, BatchExecGroupAggregateBase}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalCorrelate, BatchPhysicalGroupAggregateBase}
 
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{Aggregate, Correlate}
@@ -42,11 +42,11 @@ import scala.collection.mutable
   * for Aggregate and Correlate.
   * This test ensure two points.
   * 1. all subclasses of [[MetadataHandler]] have explicit metadata estimation
-  * for [[Aggregate]] and [[BatchExecGroupAggregateBase]] or have no metadata estimation for
-  * [[Aggregate]] and [[BatchExecGroupAggregateBase]] either.
+  * for [[Aggregate]] and [[BatchPhysicalGroupAggregateBase]] or have no metadata estimation for
+  * [[Aggregate]] and [[BatchPhysicalGroupAggregateBase]] either.
   * 2. all subclasses of [[MetadataHandler]] have explicit metadata estimation
-  * for [[Correlate]] and  [[BatchExecGroupAggregateBase]] or have no metadata estimation for
-  * [[Correlate]] and  [[BatchExecGroupAggregateBase]] either.
+  * for [[Correlate]] and  [[BatchPhysicalGroupAggregateBase]] or have no metadata estimation for
+  * [[Correlate]] and  [[BatchPhysicalGroupAggregateBase]] either.
   * Be cautious that if logical Aggregate and physical Aggregate or logical Correlate and physical
   * Correlate both are present in a MetadataHandler class, their metadata estimation should be same.
   * This test does not check this point because every MetadataHandler could have different
@@ -144,7 +144,7 @@ object MetadataHandlerConsistencyTest {
   @Parameterized.Parameters(name = "logicalNodeClass={0}, physicalNodeClass={1}")
   def parameters(): util.Collection[Array[Any]] = {
     Seq[Array[Any]](
-      Array(classOf[Aggregate], classOf[BatchExecGroupAggregateBase]),
-      Array(classOf[Correlate], classOf[BatchExecCorrelate]))
+      Array(classOf[Aggregate], classOf[BatchPhysicalGroupAggregateBase]),
+      Array(classOf[Correlate], classOf[BatchPhysicalCorrelate]))
   }
 }

@@ -29,38 +29,39 @@ import java.util.List;
  *
  * @see BaseExpressions
  */
-public final class ApiExpression extends BaseExpressions<Object, ApiExpression> implements Expression {
-	private final Expression wrappedExpression;
+public final class ApiExpression extends BaseExpressions<Object, ApiExpression>
+        implements Expression {
+    private final Expression wrappedExpression;
 
-	@Override
-	public String asSummaryString() {
-		return wrappedExpression.asSummaryString();
-	}
+    @Override
+    public String asSummaryString() {
+        return wrappedExpression.asSummaryString();
+    }
 
-	ApiExpression(Expression wrappedExpression) {
-		if (wrappedExpression instanceof ApiExpression) {
-			throw new UnsupportedOperationException("This is a bug. Please file an issue.");
-		}
-		this.wrappedExpression = wrappedExpression;
-	}
+    ApiExpression(Expression wrappedExpression) {
+        if (wrappedExpression instanceof ApiExpression) {
+            throw new UnsupportedOperationException("This is a bug. Please file an issue.");
+        }
+        this.wrappedExpression = wrappedExpression;
+    }
 
-	@Override
-	public Expression toExpr() {
-		return wrappedExpression;
-	}
+    @Override
+    public Expression toExpr() {
+        return wrappedExpression;
+    }
 
-	@Override
-	protected ApiExpression toApiSpecificExpression(Expression expression) {
-		return new ApiExpression(expression);
-	}
+    @Override
+    protected ApiExpression toApiSpecificExpression(Expression expression) {
+        return new ApiExpression(expression);
+    }
 
-	@Override
-	public List<Expression> getChildren() {
-		return wrappedExpression.getChildren();
-	}
+    @Override
+    public List<Expression> getChildren() {
+        return wrappedExpression.getChildren();
+    }
 
-	@Override
-	public <R> R accept(ExpressionVisitor<R> visitor) {
-		return wrappedExpression.accept(visitor);
-	}
+    @Override
+    public <R> R accept(ExpressionVisitor<R> visitor) {
+        return wrappedExpression.accept(visitor);
+    }
 }

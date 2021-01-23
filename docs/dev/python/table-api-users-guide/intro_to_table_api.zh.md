@@ -1,5 +1,5 @@
 ---
-title: "Python Table API简介"
+title: "Python Table API 简介"
 nav-parent_id: python_tableapi
 nav-pos: 25
 ---
@@ -22,26 +22,26 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-This document is a short introduction to the PyFlink Table API, which is used to help novice users quickly understand the basic usage of PyFlink Table API.
-For advanced usage, please refer to other documents in this User Guide.
+本文档是对 PyFlink Table API 的简要介绍，用于帮助新手用户快速理解 PyFlink Table API 的基本用法。
+关于高级用法，请参阅用户指南中的其他文档。
 
 * This will be replaced by the TOC
 {:toc}
 
-Common Structure of Python Table API Program 
+Python Table API 程序的基本结构 
 --------------------------------------------
 
-All Table API and SQL programs, both batch and streaming, follow the same pattern. The following code example shows the common structure of Table API and SQL programs.
+所有的 Table API 和 SQL 程序，不管批模式，还是流模式，都遵循相同的结构。下面代码示例展示了 Table API 和 SQL 程序的基本结构。
 
 {% highlight python %}
 
 from pyflink.table import EnvironmentSettings, StreamTableEnvironment
 
-# 1. create a TableEnvironment
+# 1. 创建 TableEnvironment
 env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
 table_env = StreamTableEnvironment.create(environment_settings=env_settings) 
 
-# 2. create source Table
+# 2. 创建 source 表
 table_env.execute_sql("""
     CREATE TABLE datagen (
         id INT,
@@ -54,7 +54,7 @@ table_env.execute_sql("""
     )
 """)
 
-# 3. create sink Table
+# 3. 创建 sink 表
 table_env.execute_sql("""
     CREATE TABLE print (
         id INT,
@@ -64,84 +64,83 @@ table_env.execute_sql("""
     )
 """)
 
-# 4. query from source table and perform caculations
-# create a Table from a Table API query:
+# 4. 查询 source 表，同时执行计算
+# 通过 Table API 创建一张表：
 source_table = table_env.from_path("datagen")
-# or create a Table from a SQL query:
+# 或者通过 SQL 查询语句创建一张表：
 source_table = table_env.sql_query("SELECT * FROM datagen")
 
 result_table = source_table.select(source_table.id + 1, source_table.data)
 
-# 5. emit query result to sink table
-# emit a Table API result Table to a sink table:
+# 5. 将计算结果写入给 sink 表
+# 将 Table API 结果表数据写入 sink 表：
 result_table.execute_insert("print").wait()
-# or emit results via SQL query:
+# 或者通过 SQL 查询语句来写入 sink 表：
 table_env.execute_sql("INSERT INTO print SELECT * FROM datagen").wait()
 
 {% endhighlight %}
 
 {% top %}
 
-Create a TableEnvironment
+创建 TableEnvironment
 ---------------------------
 
-The `TableEnvironment` is a central concept of the Table API and SQL integration. The following code example shows how to create a TableEnvironment:
+`TableEnvironment` 是 Table API 和 SQL 集成的核心概念。下面代码示例展示了如何创建一个 `TableEnvironment`:
 
 {% highlight python %}
 
 from pyflink.table import EnvironmentSettings, StreamTableEnvironment, BatchTableEnvironment
 
-# create a blink streaming TableEnvironment
+# 创建 blink 流 TableEnvironment
 env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
 table_env = StreamTableEnvironment.create(environment_settings=env_settings)
 
-# create a blink batch TableEnvironment
+# 创建 blink 批 TableEnvironment
 env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
 table_env = BatchTableEnvironment.create(environment_settings=env_settings)
 
-# create a flink streaming TableEnvironment
+# 创建 flink 流 TableEnvironment
 env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_old_planner().build()
 table_env = StreamTableEnvironment.create(environment_settings=env_settings)
 
-# create a flink batch TableEnvironment
+# 创建 flink 批 TableEnvironment
 env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_old_planner().build()
 table_env = BatchTableEnvironment.create(environment_settings=env_settings)
 
 {% endhighlight %}
 
-For more details about the different ways to create a `TableEnvironment`, please refer to the [TableEnvironment Documentation]({% link dev/python/table-api-users-guide/table_environment.zh.md %}#create-a-tableenvironment).
+关于创建 `TableEnvironment` 的更多细节，请查阅 [TableEnvironment 文档]({% link dev/python/table-api-users-guide/table_environment.zh.md %}#create-a-tableenvironment)。
 
-The `TableEnvironment` is responsible for:
+`TableEnvironment` 可以用来:
 
-* Creating `Table`s
-* Registering `Table`s as a temporary view
-* Executing SQL queries, see [SQL]({% link dev/table/sql/index.zh.md %}) for more details
-* Registering user-defined (scalar, table, or aggregation) functions, see [General User-defined Functions]({% link dev/python/table-api-users-guide/udfs/python_udfs.zh.md %}) and [Vectorized User-defined Functions]({% link dev/python/table-api-users-guide/udfs/vectorized_python_udfs.zh.md %}) for more details
-* Configuring the job, see [Python Configuration]({% link dev/python/table-api-users-guide/python_config.zh.md %}) for more details
-* Managing Python dependencies, see [Dependency Management]({% link dev/python/table-api-users-guide/dependency_management.zh.md %}) for more details
-* Submitting the jobs for execution
+* 创建 `Table`
+* 将 `Table` 注册成临时表
+* 执行 SQL 查询，更多细节可查阅 [SQL]({% link dev/table/sql/index.zh.md %})
+* 注册用户自定义的 (标量，表值，或者聚合) 函数, 更多细节可查阅 [普通的用户自定义函数]({% link dev/python/table-api-users-guide/udfs/python_udfs.zh.md %}) 和 [向量化的用户自定义函数]({% link dev/python/table-api-users-guide/udfs/vectorized_python_udfs.zh.md %})
+* 配置作业，更多细节可查阅 [Python 配置]({% link dev/python/python_config.zh.md %})
+* 管理 Python 依赖，更多细节可查阅 [依赖管理]({% link dev/python/table-api-users-guide/dependency_management.zh.md %})
+* 提交作业执行
 
-Currently there are 2 planners available: flink planner and blink planner.
+目前有2个可用的执行器 : flink 执行器 和 blink 执行器。
 
-You should explicitly set which planner to use in the current program.
-We recommend using the blink planner as much as possible. 
+你应该在当前程序中显式地设置使用哪个执行器，建议尽可能使用 blink 执行器。
 
 {% top %}
 
-Create Tables
+创建表
 ---------------
 
-`Table` is a core component of the Python Table API. A `Table` is a logical representation of the intermediate result of a Table API Job.
+`Table` 是 Python Table API 的核心组件。`Table` 是 Table API 作业中间结果的逻辑表示。
 
-A `Table` is always bound to a specific `TableEnvironment`. It is not possible to combine tables from different TableEnvironments in same query, e.g., to join or union them.
+一个 `Table` 实例总是与一个特定的 `TableEnvironment` 相绑定。不支持在同一个查询中合并来自不同 TableEnvironments 的表，例如 join 或者 union 它们。
 
-### Create using a List Object
+### 通过列表类型的对象创建
 
-You can create a Table from a list object:
+你可以使用一个列表对象创建一张表：
 
 {% highlight python %}
 
-# create a blink batch TableEnvironment
+# 创建 blink 批 TableEnvironment
 from pyflink.table import EnvironmentSettings, BatchTableEnvironment
 
 env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
@@ -152,7 +151,7 @@ table.to_pandas()
 
 {% endhighlight %}
 
-The result is:
+结果为：
 
 {% highlight text %}
    _1     _2
@@ -160,7 +159,7 @@ The result is:
 1   2  Hello
 {% endhighlight %}
 
-You can also create the Table with specified column names:
+你也可以创建具有指定列名的表：
 
 {% highlight python %}
 
@@ -169,7 +168,7 @@ table.to_pandas()
 
 {% endhighlight %}
 
-The result is:
+结果为：
 
 {% highlight text %}
    id   data
@@ -177,14 +176,14 @@ The result is:
 1   2  Hello
 {% endhighlight %}
 
-By default the table schema is extracted from the data automatically. 
+默认情况下，表结构是从数据中自动提取的。
 
-If the automatically generated table schema isn't satisfactory, you can specify it manually:
+如果自动生成的表模式不符合你的要求，你也可以手动指定：
 
 {% highlight python %}
 
 table_without_schema = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
-# by default the type of the "id" column is 64 bit int
+# 默认情况下，“id” 列的类型是 64 位整型
 default_type = table_without_schema.to_pandas()["id"].dtype
 print('By default the type of the "id" column is %s.' % default_type)
 
@@ -192,25 +191,25 @@ from pyflink.table import DataTypes
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')],
                                 DataTypes.ROW([DataTypes.FIELD("id", DataTypes.TINYINT()),
                                                DataTypes.FIELD("data", DataTypes.STRING())]))
-# now the type of the "id" column is 8 bit int
+# 现在 “id” 列的类型是 8 位整型
 type = table.to_pandas()["id"].dtype
 print('Now the type of the "id" column is %s.' % type)
 
 {% endhighlight %}
 
-The result is:
+结果为：
 
 {% highlight text %}
-By default the type of the "id" column is int64.
-Now the type of the "id" column is int8.
+默认情况下，“id” 列的类型是 64 位整型。
+现在 “id” 列的类型是 8 位整型。
 {% endhighlight %}
 
-### Create using a Connector
+### 通过 DDL 创建
 
-You can create a Table using connector DDL:
+你可以通过 DDL 创建一张表：
 
 {% highlight python %}
-# create a blink stream TableEnvironment
+# 创建 blink 流 TableEnvironment
 from pyflink.table import EnvironmentSettings, StreamTableEnvironment
 
 env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
@@ -235,7 +234,7 @@ table.to_pandas()
 
 {% endhighlight %}
 
-The result is:
+结果为：
 
 {% highlight text %}
    id  data
@@ -244,32 +243,32 @@ The result is:
 2   3     6
 {% endhighlight %}
 
-### Create using a Catalog
+### 通过 Catalog 创建
 
-A `TableEnvironment` maintains a map of catalogs of tables which are created with an identifier.
+`TableEnvironment` 维护了一个使用标识符创建的表的 catalogs 映射。
 
-The tables in a catalog may either be temporary, and tied to the lifecycle of a single Flink session, or permanent, and visible across multiple Flink sessions.
+Catalog 中的表既可以是临时的，并与单个 Flink 会话生命周期相关联，也可以是永久的，跨多个 Flink 会话可见。
 
-The tables and views created via SQL DDL, e.g. "create table ..." and "create view ..." are also stored in a catalog.
+通过 SQL DDL 创建的表和视图， 例如 "create table ..." 和 "create view ..."，都存储在 catalog 中。
 
-You can directly access the tables in a catalog via SQL.
+你可以通过 SQL 直接访问 catalog 中的表。
 
-If you want to use tables from a catalog with the Table API, you can use the "from_path" method to create the Table API objects:
+如果你要用 Table API 来使用 catalog 中的表，可以使用 "from_path" 方法来创建 Table API 对象：
 
 {% highlight python %}
 
-# prepare the catalog
-# register Table API tables in the catalog
+# 准备 catalog
+# 将 Table API 表注册到 catalog 中
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
 table_env.create_temporary_view('source_table', table)
 
-# create Table API table from catalog
+# 从 catalog 中获取 Table API 表
 new_table = table_env.from_path('source_table')
 new_table.to_pandas()
 
 {% endhighlight %}
 
-The result is:
+结果为：
 
 {% highlight text %}
    id   data
@@ -279,22 +278,22 @@ The result is:
 
 {% top %}
 
-Write Queries
+查询
 ---------------
 
-### Write Table API Queries
+### Table API 查询
 
-The `Table` object offers many methods for applying relational operations. 
-These methods return new `Table` objects representing the result of applying the relational operations on the input `Table`. 
-These relational operations may be composed of multiple method calls, such as `table.group_by(...).select(...)`.
+`Table` 对象有许多方法，可以用于进行关系操作。
+这些方法返回新的 `Table` 对象，表示对输入 `Table` 应用关系操作之后的结果。
+这些关系操作可以由多个方法调用组成，例如 `table.group_by(...).select(...)`。
 
-The [Table API]({% link dev/table/tableApi.zh.md %}?code_tab=python) documentation describes all Table API operations that are supported on streaming and batch tables.
+[Table API]({% link dev/table/tableApi.zh.md %}?code_tab=python) 文档描述了流和批处理上所有支持的 Table API 操作。
 
-The following example shows a simple Table API aggregation query:
+以下示例展示了一个简单的 Table API 聚合查询：
 
 {% highlight python %}
 
-# using batch table environment to execute the queries
+# 通过 batch table environment 来执行查询
 from pyflink.table import EnvironmentSettings, BatchTableEnvironment
 
 env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
@@ -303,7 +302,7 @@ table_env = BatchTableEnvironment.create(environment_settings=env_settings)
 orders = table_env.from_elements([('Jack', 'FRANCE', 10), ('Rose', 'ENGLAND', 30), ('Jack', 'FRANCE', 20)],
                                  ['name', 'country', 'revenue'])
 
-# compute revenue for all customers from France
+# 计算所有来自法国客户的收入
 revenue = orders \
     .select(orders.name, orders.country, orders.revenue) \
     .where(orders.country == 'FRANCE') \
@@ -314,24 +313,24 @@ revenue.to_pandas()
 
 {% endhighlight %}
 
-The result is:
+结果为：
 
 {% highlight text %}
    name  rev_sum
 0  Jack       30
 {% endhighlight %}
 
-### Write SQL Queries
+### SQL 查询
 
-Flink's SQL integration is based on [Apache Calcite](https://calcite.apache.org), which implements the SQL standard. SQL queries are specified as Strings.
+Flink 的 SQL 基于 [Apache Calcite](https://calcite.apache.org)，它实现了标准的 SQL。SQL 查询语句使用字符串来表达。
 
-The [SQL]({% link dev/table/sql/index.zh.md %}) documentation describes Flink's SQL support for streaming and batch tables.
+[SQL]({% link dev/table/sql/index.zh.md %}) 文档描述了 Flink 对流和批处理所支持的 SQL。
 
-The following example shows a simple SQL aggregation query:
+下面示例展示了一个简单的 SQL 聚合查询：
 
 {% highlight python %}
 
-# use a StreamTableEnvironment to execute the queries
+# 通过 StreamTableEnvironment 来执行查询
 from pyflink.table import EnvironmentSettings, StreamTableEnvironment
 
 env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
@@ -372,7 +371,7 @@ table_env.execute_sql("""
 
 {% endhighlight %}
 
-The result is:
+结果为：
 
 {% highlight text %}
 2> +I(4,11)
@@ -384,16 +383,16 @@ The result is:
 8> +U(3,19)
 {% endhighlight %}
 
-In fact, this shows the change logs received by the print sink.
-The output format of a change log is:
+实际上，上述输出展示了 print 结果表所接收到的 change log。
+change log 的格式为:
 {% highlight text %}
-{subtask id}> {message type}{string format of the value}
+{subtask id}> {消息类型}{值的字符串格式}
 {% endhighlight %}
-For example, "2> +I(4,11)" means this message comes from the 2nd subtask, and "+I" means it is an insert message. "(4, 11)" is the content of the message.
-In addition, "-U" means a retract record (i.e. update-before), which means this message should be deleted or retracted from the sink. 
-"+U" means this is an update record (i.e. update-after), which means this message should be updated or inserted by the sink.
+例如，"2> +I(4,11)" 表示这条消息来自第二个 subtask，其中 "+I" 表示这是一条插入的消息，"(4, 11)" 是这条消息的内容。
+另外，"-U" 表示这是一条撤回消息 (即更新前)，这意味着应该在 sink 中删除或撤回该消息。 
+"+U" 表示这是一条更新的记录 (即更新后)，这意味着应该在 sink 中更新或插入该消息。
 
-So, we get this result from the change logs above:
+所以，从上面的 change log，我们可以得到如下结果：
 
 {% highlight text %}
 (4, 11)
@@ -401,15 +400,15 @@ So, we get this result from the change logs above:
 (3, 19)
 {% endhighlight %}
 
-### Mix the Table API and SQL
+### Table API 和 SQL 的混合使用
 
-The `Table` objects used in Table API and the tables used in SQL can be freely converted to each other.
+Table API 中的 `Table` 对象和 SQL 中的 Table 可以自由地相互转换。
 
-The following example shows how to use a `Table` object in SQL:
+下面例子展示了如何在 SQL 中使用 `Table` 对象：
 
 {% highlight python %}
 
-# create a sink table to emit results
+# 创建一张 sink 表来接收结果数据
 table_env.execute_sql("""
     CREATE TABLE table_sink (
         id BIGINT, 
@@ -419,27 +418,27 @@ table_env.execute_sql("""
     )
 """)
 
-# convert the Table API table to a SQL view
+# 将 Table API 表转换成 SQL 中的视图
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
 table_env.create_temporary_view('table_api_table', table)
 
-# emit the Table API table
+# 将 Table API 表的数据写入结果表
 table_env.execute_sql("INSERT INTO table_sink SELECT * FROM table_api_table").wait()
 
 {% endhighlight %}
 
-The result is:
+结果为：
 
 {% highlight text %}
 6> +I(1,Hi)
 6> +I(2,Hello)
 {% endhighlight %}
 
-And the following example shows how to use SQL tables in the Table API:
+下面例子展示了如何在 Table API 中使用 SQL 表：
 
 {% highlight python %}
 
-# create a sql source table
+# 创建一张 SQL source 表
 table_env.execute_sql("""
     CREATE TABLE sql_source (
         id BIGINT, 
@@ -455,18 +454,18 @@ table_env.execute_sql("""
     )
 """)
 
-# convert the sql table to Table API table
+# 将 SQL 表转换成 Table API 表
 table = table_env.from_path("sql_source")
 
-# or create the table from a sql query
+# 或者通过 SQL 查询语句创建表
 table = table_env.sql_query("SELECT * FROM sql_source")
 
-# emit the table
+# 将表中的数据写出
 table.to_pandas()
 
 {% endhighlight %}
 
-The result is:
+结果为：
 
 {% highlight text %}
    id  data
@@ -478,12 +477,12 @@ The result is:
 
 {% top %}
 
-Emit Results
+将结果写出
 ----------------
 
-### Collect Results to Client
+### 将结果数据收集到客户端
 
-You can call the "to_pandas" method to [convert a `Table` object to a pandas DataFrame]({% link dev/python/table-api-users-guide/conversion_of_pandas.zh.md %}#convert-pyflink-table-to-pandas-dataframe):
+你可以调用 "to_pandas" 方法来 [将一个 `Table` 对象转化成 pandas DataFrame]({% link dev/python/table-api-users-guide/conversion_of_pandas.zh.md %}#convert-pyflink-table-to-pandas-dataframe):
 
 {% highlight python %}
 
@@ -492,7 +491,7 @@ table.to_pandas()
 
 {% endhighlight %}
 
-The result is:
+结果为：
 
 {% highlight text %}
    id   data
@@ -500,12 +499,12 @@ The result is:
 1   2  Hello
 {% endhighlight %}
 
-<span class="label label-info">Note</span> "to_pandas" will trigger the materialization of the table and collect table content to the memory of the client, it's good practice to limit the number of rows collected via <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.Table.limit">Table.limit</a>.
-<span class="label label-info">Note</span> "to_pandas" is not supported by the flink planner, and not all data types can be emitted to pandas DataFrames.
+<span class="label label-info">Note</span> "to_pandas" 会触发表的物化，同时将表的内容收集到客户端内存中，所以通过 <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.Table.limit">Table.limit</a> 来限制收集数据的条数是一种很好的做法。
+<span class="label label-info">Note</span> flink planner 不支持 "to_pandas"，并且，并不是所有的数据类型都可以转换为 pandas DataFrames。
 
-### Emit Results to One Sink Table
+### 将结果写入到一张 Sink 表中
 
-You can call the "execute_insert" method to emit the data in a `Table` object to a sink table:
+你可以调用 "execute_insert" 方法来将 `Table` 对象中的数据写入到一张 sink 表中：
 
 {% highlight python %}
 
@@ -523,14 +522,14 @@ table.execute_insert("sink_table").wait()
 
 {% endhighlight %}
 
-The result is:
+结果为：
 
 {% highlight text %}
 6> +I(1,Hi)
 6> +I(2,Hello)
 {% endhighlight %}
 
-This could also be done using SQL:
+也可以通过 SQL 来完成:
 
 {% highlight python %}
 
@@ -539,13 +538,13 @@ table_env.execute_sql("INSERT INTO sink_table SELECT * FROM table_source").wait(
 
 {% endhighlight %}
 
-### Emit Results to Multiple Sink Tables
+### 将结果写入多张 Sink 表中
 
-You can use a `StatementSet` to emit the `Table`s to multiple sink tables in one job:
+你也可以使用 `StatementSet` 在一个作业中将 `Table` 中的数据写入到多张 sink 表中：
 
 {% highlight python %}
 
-# prepare source tables and sink tables
+# 准备 source 表和 sink 表
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
 table_env.create_temporary_view("simple_source", table)
 table_env.execute_sql("""
@@ -565,21 +564,21 @@ table_env.execute_sql("""
     )
 """)
 
-# create a statement set
+# 创建 statement set
 statement_set = table_env.create_statement_set()
 
-# emit the "table" object to the "first_sink_table"
+# 将 "table" 的数据写入 "first_sink_table"
 statement_set.add_insert("first_sink_table", table)
 
-# emit the "simple_source" to the "second_sink_table" via a insert sql query
+# 通过一条 sql 插入语句将数据从 "simple_source" 写入到 "second_sink_table"
 statement_set.add_insert_sql("INSERT INTO second_sink_table SELECT * FROM simple_source")
 
-# execute the statement set
+# 执行 statement set
 statement_set.execute().wait()
 
 {% endhighlight %}
 
-The result is:
+结果为：
 
 {% highlight text %}
 7> +I(1,Hi)
@@ -588,23 +587,23 @@ The result is:
 7> +I(2,Hello)
 {% endhighlight %}
 
-Explain Tables
+Explain 表
 -----------------
 
-The Table API provides a mechanism to explain the logical and optimized query plans used to compute a `Table`. 
-This is done through the `Table.explain()` or `StatementSet.explain()` methods. `Table.explain()`returns the plan of a `Table`. `StatementSet.explain()` returns the plan for multiple sinks. These methods return a string describing three things:
+Table API 提供了一种机制来查看 `Table` 的逻辑查询计划和优化后的查询计划。 
+这是通过 `Table.explain()` 或者 `StatementSet.explain()` 方法来完成的。`Table.explain()` 可以返回一个 `Table` 的执行计划。`StatementSet.explain()` 则可以返回含有多个 sink 的作业的执行计划。这些方法会返回一个字符串，字符串描述了以下三个方面的信息：
 
-1. the Abstract Syntax Tree of the relational query, i.e., the unoptimized logical query plan,
-2. the optimized logical query plan, and
-3. the physical execution plan.
+1. 关系查询的抽象语法树，即未经优化的逻辑查询计划，
+2. 优化后的逻辑查询计划，
+3. 物理执行计划。
 
-`TableEnvironment.explain_sql()` and `TableEnvironment.execute_sql()` support executing an `EXPLAIN` statement to get the plans. Please refer to the [EXPLAIN]({% link dev/table/sql/explain.zh.md %}) page for more details.
+`TableEnvironment.explain_sql()` 和 `TableEnvironment.execute_sql()` 支持执行 `EXPLAIN` 语句获得执行计划。更多细节请查阅 [EXPLAIN]({% link dev/table/sql/explain.zh.md %})。
 
-The following code shows how to use the `Table.explain()` method:
+以下代码展示了如何使用 `Table.explain()` 方法：
 
 {% highlight python %}
 
-# using a StreamTableEnvironment
+# 使用 StreamTableEnvironment
 from pyflink.table import EnvironmentSettings, StreamTableEnvironment
 
 env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
@@ -619,22 +618,22 @@ print(table.explain())
 
 {% endhighlight %}
 
-The result is:
+结果为：
 
 {% highlight text %}
-== Abstract Syntax Tree ==
+== 抽象语法树 ==
 LogicalUnion(all=[true])
 :- LogicalFilter(condition=[LIKE($1, _UTF-16LE'H%')])
 :  +- LogicalTableScan(table=[[default_catalog, default_database, Unregistered_TableSource_201907291, source: [PythonInputFormatTableSource(id, data)]]])
 +- LogicalTableScan(table=[[default_catalog, default_database, Unregistered_TableSource_1709623525, source: [PythonInputFormatTableSource(id, data)]]])
 
-== Optimized Logical Plan ==
+== 优化后的逻辑计划 ==
 Union(all=[true], union=[id, data])
 :- Calc(select=[id, data], where=[LIKE(data, _UTF-16LE'H%')])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, Unregistered_TableSource_201907291, source: [PythonInputFormatTableSource(id, data)]]], fields=[id, data])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, Unregistered_TableSource_1709623525, source: [PythonInputFormatTableSource(id, data)]]], fields=[id, data])
 
-== Physical Execution Plan ==
+== 物理执行计划 ==
 Stage 133 : Data Source
         content : Source: PythonInputFormatTableSource(id, data)
 
@@ -655,11 +654,11 @@ Stage 136 : Data Source
 
 {% endhighlight %}
 
-The following code shows how to use the `StatementSet.explain()` method:
+以下代码展示了如何使用 `StatementSet.explain()` 方法：
 
 {% highlight python %}
 
-# using a StreamTableEnvironment
+# 使用 StreamTableEnvironment
 from pyflink.table import EnvironmentSettings, StreamTableEnvironment
 
 env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
@@ -693,10 +692,10 @@ print(statement_set.explain())
 
 {% endhighlight %}
 
-The result is:
+结果为
 
 {% highlight text %}
-== Abstract Syntax Tree ==
+== 抽象语法树 ==
 LogicalSink(table=[default_catalog.default_database.print_sink_table], fields=[id, data])
 +- LogicalFilter(condition=[LIKE($1, _UTF-16LE'H%')])
    +- LogicalTableScan(table=[[default_catalog, default_database, Unregistered_TableSource_541737614, source: [PythonInputFormatTableSource(id, data)]]])
@@ -704,7 +703,7 @@ LogicalSink(table=[default_catalog.default_database.print_sink_table], fields=[i
 LogicalSink(table=[default_catalog.default_database.black_hole_sink_table], fields=[id, data])
 +- LogicalTableScan(table=[[default_catalog, default_database, Unregistered_TableSource_1437429083, source: [PythonInputFormatTableSource(id, data)]]])
 
-== Optimized Logical Plan ==
+== 优化后的逻辑计划 ==
 Sink(table=[default_catalog.default_database.print_sink_table], fields=[id, data])
 +- Calc(select=[id, data], where=[LIKE(data, _UTF-16LE'H%')])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, Unregistered_TableSource_541737614, source: [PythonInputFormatTableSource(id, data)]]], fields=[id, data])
@@ -712,7 +711,7 @@ Sink(table=[default_catalog.default_database.print_sink_table], fields=[id, data
 Sink(table=[default_catalog.default_database.black_hole_sink_table], fields=[id, data])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, Unregistered_TableSource_1437429083, source: [PythonInputFormatTableSource(id, data)]]], fields=[id, data])
 
-== Physical Execution Plan ==
+== 物理执行计划 ==
 Stage 139 : Data Source
         content : Source: PythonInputFormatTableSource(id, data)
 

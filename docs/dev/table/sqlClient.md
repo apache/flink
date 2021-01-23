@@ -27,7 +27,7 @@ Flink’s Table & SQL API makes it possible to work with queries written in the 
 
 The *SQL Client* aims to provide an easy way of writing, debugging, and submitting table programs to a Flink cluster without a single line of Java or Scala code. The *SQL Client CLI* allows for retrieving and visualizing real-time results from the running distributed application on the command line.
 
-<a href="{{ site.baseurl }}/fig/sql_client_demo.gif"><img class="offset" src="{{ site.baseurl }}/fig/sql_client_demo.gif" alt="Animated demo of the Flink SQL Client CLI running table programs on a cluster" width="80%" /></a>
+<a href="{% link /fig/sql_client_demo.gif %}"><img class="offset" src="{% link /fig/sql_client_demo.gif %}" alt="Animated demo of the Flink SQL Client CLI running table programs on a cluster" width="80%" /></a>
 
 * This will be replaced by the TOC
 {:toc}
@@ -37,7 +37,7 @@ Getting Started
 
 This section describes how to setup and run your first Flink SQL program from the command-line.
 
-The SQL Client is bundled in the regular Flink distribution and thus runnable out-of-the-box. It requires only a running Flink cluster where table programs can be executed. For more information about setting up a Flink cluster see the [Cluster & Deployment]({{ site.baseurl }}/ops/deployment/cluster_setup.html) part. If you simply want to try out the SQL Client, you can also start a local cluster with one worker using the following command:
+The SQL Client is bundled in the regular Flink distribution and thus runnable out-of-the-box. It requires only a running Flink cluster where table programs can be executed. For more information about setting up a Flink cluster see the [Cluster & Deployment]({% link deployment/resource-providers/standalone/index.md %}) part. If you simply want to try out the SQL Client, you can also start a local cluster with one worker using the following command:
 
 {% highlight bash %}
 ./bin/start-cluster.sh
@@ -380,7 +380,7 @@ CLI commands > session environment file > defaults environment file
 
 #### Restart Strategies
 
-Restart strategies control how Flink jobs are restarted in case of a failure. Similar to [global restart strategies]({{ site.baseurl }}/dev/restart_strategies.html) for a Flink cluster, a more fine-grained restart configuration can be declared in an environment file.
+Restart strategies control how Flink jobs are restarted in case of a failure. Similar to [global restart strategies]({% link dev/task_failure_recovery.md %}#restart-strategies) for a Flink cluster, a more fine-grained restart configuration can be declared in an environment file.
 
 The following strategies are supported:
 
@@ -467,9 +467,9 @@ Both `connector` and `format` allow to define a property version (which is curre
 
 The SQL Client allows users to create custom, user-defined functions to be used in SQL queries. Currently, these functions are restricted to be defined programmatically in Java/Scala classes or Python files.
 
-In order to provide a Java/Scala user-defined function, you need to first implement and compile a function class that extends `ScalarFunction`, `AggregateFunction` or `TableFunction` (see [User-defined Functions]({{ site.baseurl }}/dev/table/functions/udfs.html)). One or more functions can then be packaged into a dependency JAR for the SQL Client.
+In order to provide a Java/Scala user-defined function, you need to first implement and compile a function class that extends `ScalarFunction`, `AggregateFunction` or `TableFunction` (see [User-defined Functions]({% link dev/table/functions/udfs.md %})). One or more functions can then be packaged into a dependency JAR for the SQL Client.
 
-In order to provide a Python user-defined function, you need to write a Python function and decorate it with the `pyflink.table.udf.udf` or `pyflink.table.udf.udtf` decorator (see [Python UDFs]({% link dev/python/table-api-users-guide/udfs/python_udfs.md %})). One or more functions can then be placed into a Python file. The Python file and related dependencies need to be specified via the configuration (see [Python Configuration]({% link dev/python/table-api-users-guide/python_config.md %})) in environment file or the command line options (see [Command Line Usage]({{ site.baseurl }}/ops/cli.html#usage)).
+In order to provide a Python user-defined function, you need to write a Python function and decorate it with the `pyflink.table.udf.udf` or `pyflink.table.udf.udtf` decorator (see [Python UDFs]({% link dev/python/table-api-users-guide/udfs/python_udfs.md %})). One or more functions can then be placed into a Python file. The Python file and related dependencies need to be specified via the configuration (see [Python Configuration]({% link dev/python/python_config.md %})) in environment file or the command line options (see [Command Line Usage]({% link deployment/cli.md %}#usage)).
 
 All functions must be declared in an environment file before being called. For each item in the list of `functions`, one must specify
 
@@ -583,7 +583,7 @@ execution:
    current-database: mydb1
 {% endhighlight %}
 
-For more information about catalogs, see [Catalogs]({{ site.baseurl }}/dev/table/catalogs.html).
+For more information about catalogs, see [Catalogs]({% link dev/table/catalogs.md %}).
 
 Detached SQL Queries
 --------------------
@@ -633,7 +633,7 @@ Job ID: 6f922fe5cba87406ff23ae4a7bb79044
 Web interface: http://localhost:8081
 {% endhighlight %}
 
-<span class="label label-danger">Attention</span> The SQL Client does not track the status of the running Flink job after submission. The CLI process can be shutdown after the submission without affecting the detached query. Flink's [restart strategy]({{ site.baseurl }}/dev/restart_strategies.html) takes care of the fault-tolerance. A query can be cancelled using Flink's web interface, command-line, or REST API.
+<span class="label label-danger">Attention</span> The SQL Client does not track the status of the running Flink job after submission. The CLI process can be shutdown after the submission without affecting the detached query. Flink's [restart strategy]({% link dev/task_failure_recovery.md %}#restart-strategies) takes care of the fault-tolerance. A query can be cancelled using Flink's web interface, command-line, or REST API.
 
 {% top %}
 

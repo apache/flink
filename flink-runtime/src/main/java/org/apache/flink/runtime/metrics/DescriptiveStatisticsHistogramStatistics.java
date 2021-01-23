@@ -30,173 +30,174 @@ import org.apache.commons.math3.stat.ranking.NaNStrategy;
 import java.util.Arrays;
 
 /**
- * DescriptiveStatistics histogram statistics implementation returned by {@link DescriptiveStatisticsHistogram}.
+ * DescriptiveStatistics histogram statistics implementation returned by {@link
+ * DescriptiveStatisticsHistogram}.
  *
  * <p>The statistics takes a point-in-time snapshot of a {@link DescriptiveStatistics} instance and
  * allows optimised metrics retrieval from this.
  */
 public class DescriptiveStatisticsHistogramStatistics extends HistogramStatistics {
-	private final CommonMetricsSnapshot statisticsSummary = new CommonMetricsSnapshot();
+    private final CommonMetricsSnapshot statisticsSummary = new CommonMetricsSnapshot();
 
-	public DescriptiveStatisticsHistogramStatistics(
-			DescriptiveStatisticsHistogram.CircularDoubleArray histogramValues) {
-		statisticsSummary.evaluate(histogramValues.toUnsortedArray());
-	}
+    public DescriptiveStatisticsHistogramStatistics(
+            DescriptiveStatisticsHistogram.CircularDoubleArray histogramValues) {
+        statisticsSummary.evaluate(histogramValues.toUnsortedArray());
+    }
 
-	@Override
-	public double getQuantile(double quantile) {
-		return statisticsSummary.getPercentile(quantile * 100);
-	}
+    @Override
+    public double getQuantile(double quantile) {
+        return statisticsSummary.getPercentile(quantile * 100);
+    }
 
-	@Override
-	public long[] getValues() {
-		return Arrays.stream(statisticsSummary.getValues()).mapToLong(i -> (long) i).toArray();
-	}
+    @Override
+    public long[] getValues() {
+        return Arrays.stream(statisticsSummary.getValues()).mapToLong(i -> (long) i).toArray();
+    }
 
-	@Override
-	public int size() {
-		return (int) statisticsSummary.getCount();
-	}
+    @Override
+    public int size() {
+        return (int) statisticsSummary.getCount();
+    }
 
-	@Override
-	public double getMean() {
-		return statisticsSummary.getMean();
-	}
+    @Override
+    public double getMean() {
+        return statisticsSummary.getMean();
+    }
 
-	@Override
-	public double getStdDev() {
-		return statisticsSummary.getStandardDeviation();
-	}
+    @Override
+    public double getStdDev() {
+        return statisticsSummary.getStandardDeviation();
+    }
 
-	@Override
-	public long getMax() {
-		return (long) statisticsSummary.getMax();
-	}
+    @Override
+    public long getMax() {
+        return (long) statisticsSummary.getMax();
+    }
 
-	@Override
-	public long getMin() {
-		return (long) statisticsSummary.getMin();
-	}
+    @Override
+    public long getMin() {
+        return (long) statisticsSummary.getMin();
+    }
 
-	/**
-	 * Function to extract several commonly used metrics in an optimised way, i.e. with as few runs
-	 * over the data / calculations as possible.
-	 *
-	 * <p>Note that calls to {@link #evaluate(double[])} or {@link #evaluate(double[], int, int)}
-	 * will not return a value but instead populate this class so that further values can be
-	 * retrieved from it.
-	 */
-	private static class CommonMetricsSnapshot implements UnivariateStatistic {
-		private long count = 0;
-		private double min = Double.NaN;
-		private double max = Double.NaN;
-		private double mean = Double.NaN;
-		private double stddev = Double.NaN;
-		private Percentile percentilesImpl = new Percentile().withNaNStrategy(NaNStrategy.FIXED);
+    /**
+     * Function to extract several commonly used metrics in an optimised way, i.e. with as few runs
+     * over the data / calculations as possible.
+     *
+     * <p>Note that calls to {@link #evaluate(double[])} or {@link #evaluate(double[], int, int)}
+     * will not return a value but instead populate this class so that further values can be
+     * retrieved from it.
+     */
+    private static class CommonMetricsSnapshot implements UnivariateStatistic {
+        private long count = 0;
+        private double min = Double.NaN;
+        private double max = Double.NaN;
+        private double mean = Double.NaN;
+        private double stddev = Double.NaN;
+        private Percentile percentilesImpl = new Percentile().withNaNStrategy(NaNStrategy.FIXED);
 
-		@Override
-		public double evaluate(final double[] values) throws MathIllegalArgumentException {
-			return evaluate(values, 0, values.length);
-		}
+        @Override
+        public double evaluate(final double[] values) throws MathIllegalArgumentException {
+            return evaluate(values, 0, values.length);
+        }
 
-		@Override
-		public double evaluate(double[] values, int begin, int length)
-				throws MathIllegalArgumentException {
-			this.count = length;
-			percentilesImpl.setData(values, begin, length);
+        @Override
+        public double evaluate(double[] values, int begin, int length)
+                throws MathIllegalArgumentException {
+            this.count = length;
+            percentilesImpl.setData(values, begin, length);
 
-			SimpleStats secondMoment = new SimpleStats();
-			secondMoment.evaluate(values, begin, length);
-			this.mean = secondMoment.getMean();
-			this.min = secondMoment.getMin();
-			this.max = secondMoment.getMax();
+            SimpleStats secondMoment = new SimpleStats();
+            secondMoment.evaluate(values, begin, length);
+            this.mean = secondMoment.getMean();
+            this.min = secondMoment.getMin();
+            this.max = secondMoment.getMax();
 
-			this.stddev = new StandardDeviation(secondMoment).getResult();
+            this.stddev = new StandardDeviation(secondMoment).getResult();
 
-			return Double.NaN;
-		}
+            return Double.NaN;
+        }
 
-		@Override
-		public CommonMetricsSnapshot copy() {
-			CommonMetricsSnapshot result = new CommonMetricsSnapshot();
-			result.count = count;
-			result.min = min;
-			result.max = max;
-			result.mean = mean;
-			result.stddev = stddev;
-			result.percentilesImpl = percentilesImpl.copy();
-			return result;
-		}
+        @Override
+        public CommonMetricsSnapshot copy() {
+            CommonMetricsSnapshot result = new CommonMetricsSnapshot();
+            result.count = count;
+            result.min = min;
+            result.max = max;
+            result.mean = mean;
+            result.stddev = stddev;
+            result.percentilesImpl = percentilesImpl.copy();
+            return result;
+        }
 
-		long getCount() {
-			return count;
-		}
+        long getCount() {
+            return count;
+        }
 
-		double getMin() {
-			return min;
-		}
+        double getMin() {
+            return min;
+        }
 
-		double getMax() {
-			return max;
-		}
+        double getMax() {
+            return max;
+        }
 
-		double getMean() {
-			return mean;
-		}
+        double getMean() {
+            return mean;
+        }
 
-		double getStandardDeviation() {
-			return stddev;
-		}
+        double getStandardDeviation() {
+            return stddev;
+        }
 
-		double getPercentile(double p) {
-			return percentilesImpl.evaluate(p);
-		}
+        double getPercentile(double p) {
+            return percentilesImpl.evaluate(p);
+        }
 
-		double[] getValues() {
-			return percentilesImpl.getData();
-		}
-	}
+        double[] getValues() {
+            return percentilesImpl.getData();
+        }
+    }
 
-	/**
-	 * Calculates min, max, mean (first moment), as well as the second moment in one go over
-	 * the value array.
-	 */
-	private static class SimpleStats extends SecondMoment {
-		private static final long serialVersionUID = 1L;
+    /**
+     * Calculates min, max, mean (first moment), as well as the second moment in one go over the
+     * value array.
+     */
+    private static class SimpleStats extends SecondMoment {
+        private static final long serialVersionUID = 1L;
 
-		private double min = Double.NaN;
-		private double max = Double.NaN;
+        private double min = Double.NaN;
+        private double max = Double.NaN;
 
-		@Override
-		public void increment(double d) {
-			if (d < min || Double.isNaN(min)) {
-				min = d;
-			}
-			if (d > max || Double.isNaN(max)) {
-				max = d;
-			}
-			super.increment(d);
-		}
+        @Override
+        public void increment(double d) {
+            if (d < min || Double.isNaN(min)) {
+                min = d;
+            }
+            if (d > max || Double.isNaN(max)) {
+                max = d;
+            }
+            super.increment(d);
+        }
 
-		@Override
-		public SecondMoment copy() {
-			SimpleStats result = new SimpleStats();
-			SecondMoment.copy(this, result);
-			result.min = min;
-			result.max = max;
-			return result;
-		}
+        @Override
+        public SecondMoment copy() {
+            SimpleStats result = new SimpleStats();
+            SecondMoment.copy(this, result);
+            result.min = min;
+            result.max = max;
+            return result;
+        }
 
-		public double getMin() {
-			return min;
-		}
+        public double getMin() {
+            return min;
+        }
 
-		public double getMax() {
-			return max;
-		}
+        public double getMax() {
+            return max;
+        }
 
-		public double getMean() {
-			return m1;
-		}
-	}
+        public double getMean() {
+            return m1;
+        }
+    }
 }

@@ -18,8 +18,8 @@ specific language governing permissions and limitations
 under the License.
 -->
 <!DOCTYPE module PUBLIC
-          "-//Puppy Crawl//DTD Check Configuration 1.3//EN"
-          "http://www.puppycrawl.com/dtds/configuration_1_3.dtd">
+	"-//Puppy Crawl//DTD Check Configuration 1.3//EN"
+	"http://www.puppycrawl.com/dtds/configuration_1_3.dtd">
 
 <!--
 This is a checkstyle configuration file. For descriptions of
@@ -31,542 +31,532 @@ This file is based on the checkstyle file of Apache Beam.
 
 <module name="Checker">
 
-  <!--<module name="FileTabCharacter">-->
-    <!--&lt;!&ndash; Checks that there are no tab characters in the file. &ndash;&gt;-->
-  <!--</module>-->
-
-  <module name="NewlineAtEndOfFile">
-    <!-- windows can use \r\n vs \n, so enforce the most used one ie UNIx style -->
-    <property name="lineSeparator" value="lf" />
-  </module>
-
-  <module name="RegexpSingleline">
-    <!-- Checks that TODOs don't have stuff in parenthesis, e.g., username. -->
-    <property name="format" value="((//.*)|(\*.*))TODO\(" />
-    <property name="message" value="TODO comments must not include usernames." />
-    <property name="severity" value="error" />
-  </module>
-
-  <module name="RegexpSingleline">
-    <property name="format" value="\s+$"/>
-    <property name="message" value="Trailing whitespace"/>
-    <property name="severity" value="error"/>
-  </module>
-
-  <module name="RegexpSingleline">
-    <property name="format" value="Throwables.propagate\("/>
-    <property name="message" value="Throwables.propagate is deprecated"/>
-    <property name="severity" value="error"/>
-  </module>
-
-  <!-- Prevent *Tests.java as tools may not pick them up -->
-  <!--<module name="RegexpOnFilename">-->
-    <!--<property name="fileNamePattern" value=".*Tests\.java$" />-->
-  <!--</module>-->
-
-  <module name="SuppressionFilter">
-    <property name="file" value="${checkstyle.suppressions.file}" default="suppressions.xml" />
-  </module>
-
-  <!-- Check that every module has a package-info.java -->
-  <!--<module name="JavadocPackage"/>-->
-
-  <!--
-
-  FLINK CUSTOM CHECKS
-
-  -->
-
-  <module name="FileLength">
-    <property name="max" value="3000"/>
-  </module>
-
-  <!-- All Java AST specific tests live under TreeWalker module. -->
-  <module name="TreeWalker">
-
-    <!-- Allow use of comment to suppress javadocstyle -->
-    <module name="SuppressionCommentFilter">
-      <property name="offCommentFormat" value="CHECKSTYLE.OFF\: ([\w\|]+)"/>
-      <property name="onCommentFormat" value="CHECKSTYLE.ON\: ([\w\|]+)"/>
-      <property name="checkFormat" value="$1"/>
-    </module>
-
-    <!--
-
-    FLINK CUSTOM CHECKS
-
-    -->
-
-    <module name="RegexpSinglelineJava">
-      <property name="format" value="^\t* +\t*\S" />
-      <property name="message"
-                value="Line has leading space characters; indentation should be performed with tabs only." />
-      <property name="ignoreComments" value="true" />
-    </module>
-
-    <!-- Prohibit T.getT() methods for standard boxed types -->
-    <module name="Regexp">
-      <property name="format" value="Boolean\.getBoolean"/>
-      <property name="illegalPattern" value="true"/>
-      <property name="message" value="Use System.getProperties() to get system properties."/>
-    </module>
-
-    <module name="Regexp">
-      <property name="format" value="Integer\.getInteger"/>
-      <property name="illegalPattern" value="true"/>
-      <property name="message" value="Use System.getProperties() to get system properties."/>
-    </module>
-
-    <module name="Regexp">
-      <property name="format" value="Long\.getLong"/>
-      <property name="illegalPattern" value="true"/>
-      <property name="message" value="Use System.getProperties() to get system properties."/>
-    </module>
-
-    <!--
-
-    IllegalImport cannot blacklist classes so we have to fall back to Regexp.
-
-    -->
-
-    <!-- forbid use of commons lang validate -->
-    <module name="Regexp">
-      <property name="format" value="org\.apache\.commons\.lang3\.Validate"/>
-      <property name="illegalPattern" value="true"/>
-      <property name="message" value="Use Guava Checks instead of Commons Validate. Please refer to the coding guidelines."/>
-    </module>
-    <!-- forbid the use of google.common.base.Preconditions -->
-    <module name="Regexp">
-      <property name="format" value="import com\.google\.common\.base\.Preconditions"/>
-      <property name="illegalPattern" value="true"/>
-      <property name="message" value="Use Flink's Preconditions instead of Guava's Preconditions"/>
-    </module>
-    <!-- forbid the use of com.google.common.annotations.VisibleForTesting -->
-    <module name="Regexp">
-      <property name="format" value="import com\.google\.common\.annotations\.VisibleForTesting"/>
-      <property name="illegalPattern" value="true"/>
-      <property name="message" value="Use Flink's VisibleForTesting instead of Guava's VisibleForTesting"/>
-    </module>
-    <module name="Regexp">
-      <property name="format" value="import static com\.google\.common\.base\.Preconditions"/>
-      <property name="illegalPattern" value="true"/>
-      <property name="message" value="Use Flink's Preconditions instead of Guava's Preconditions"/>
-    </module>
-    <!-- forbid the use of org.apache.commons.lang.SerializationUtils -->
-    <module name="Regexp">
-      <property name="format" value="org\.apache\.commons\.lang\.SerializationUtils"/>
-      <property name="illegalPattern" value="true"/>
-      <property name="message" value="Use Flink's InstantiationUtil instead of common's SerializationUtils"/>
-    </module>
-    <module name="Regexp">
-      <property name="format" value="org\.apache\.commons\.lang3\.SerializationUtils"/>
-      <property name="illegalPattern" value="true"/>
-      <property name="message" value="Use Flink's InstantiationUtil instead of common's SerializationUtils"/>
-    </module>
-    <module name="Regexp">
-      <property name="format" value="org\.apache\.commons\.lang\."/>
-      <property name="illegalPattern" value="true"/>
-      <property name="message" value="Use commons-lang3 instead of commons-lang."/>
-    </module>
-    <module name="Regexp">
-      <property name="format" value="org\.codehaus\.jettison"/>
-      <property name="illegalPattern" value="true"/>
-      <property name="message" value="Use com.fasterxml.jackson instead of jettison."/>
-    </module>
-
-    <!-- Enforce Java-style array declarations -->
-    <module name="ArrayTypeStyle" />
-
-    <module name="TodoComment">
-      <!-- Checks that disallowed strings are not used in comments.  -->
-      <property name="format" value="(FIXME)|(XXX)|(@author)" />
-    </module>
-
-    <!--
-
-    IMPORT CHECKS
-
-    -->
-
-    <module name="RedundantImport">
-      <!-- Checks for redundant import statements. -->
-      <property name="severity" value="error"/>
-      <message key="import.redundancy"
-               value="Redundant import {0}."/>
-    </module>
-
-    <module name="ImportOrder">
-      <!-- Checks for out of order import statements. -->
-      <property name="severity" value="error"/>
-      <property name="groups" value="org.apache.flink,org.apache.flink.shaded,*,javax,java,scala"/>
-      <property name="separated" value="true"/>
-      <property name="sortStaticImportsAlphabetically" value="true"/>
-      <property name="option" value="bottom"/>
-      <property name="tokens" value="STATIC_IMPORT, IMPORT"/>
-      <message key="import.ordering"
-               value="Import {0} appears after other imports that it should precede"/>
-    </module>
-
-    <module name="AvoidStarImport">
-      <property name="severity" value="error"/>
-    </module>
-
-    <module name="IllegalImport">
-      <property name="illegalPkgs" value="autovalue.shaded, avro.shaded, com.google.api.client.repackaged, com.google.appengine.repackaged, org.codehaus.jackson, io.netty, org.objectweb.asm, com.google.common"/>
-    </module>
-
-    <module name="RedundantModifier">
-      <!-- Checks for redundant modifiers on various symbol definitions.
-        See: http://checkstyle.sourceforge.net/config_modifier.html#RedundantModifier
-        
-        We exclude METHOD_DEF to allow final methods in final classes to make them more future-proof.
-      -->
-      <property name="tokens" value="VARIABLE_DEF, ANNOTATION_FIELD_DEF, INTERFACE_DEF, CLASS_DEF, ENUM_DEF"/>
-    </module>
-
-    <!--
-        IllegalImport cannot blacklist classes, and c.g.api.client.util is used for some shaded
-        code and some useful code. So we need to fall back to Regexp.
-    -->
-    <!--<module name="RegexpSinglelineJava">-->
-      <!--<property name="format" value="com\.google\.api\.client\.util\.(ByteStreams|Charsets|Collections2|Joiner|Lists|Maps|Objects|Preconditions|Sets|Strings|Throwables)"/>-->
-    <!--</module>-->
-
-    <!--
-         Require static importing from Preconditions.
-    -->
-    <module name="RegexpSinglelineJava">
-      <property name="format" value="^import com.google.common.base.Preconditions;$"/>
-      <property name="message" value="Static import functions from Guava Preconditions"/>
-    </module>
-
-    <module name="UnusedImports">
-      <property name="severity" value="error"/>
-      <property name="processJavadoc" value="true"/>
-      <message key="import.unused"
-               value="Unused import: {0}."/>
-    </module>
-
-    <!--
-
-    JAVADOC CHECKS
-
-    -->
-
-    <!-- Checks for Javadoc comments.                     -->
-    <!-- See http://checkstyle.sf.net/config_javadoc.html -->
-    <module name="JavadocMethod">
-      <property name="scope" value="protected"/>
-      <property name="severity" value="error"/>
-      <property name="allowMissingJavadoc" value="true"/>
-      <property name="allowMissingParamTags" value="true"/>
-      <property name="allowMissingReturnTag" value="true"/>
-      <property name="allowMissingThrowsTags" value="true"/>
-      <property name="allowThrowsTagsForSubclasses" value="true"/>
-      <property name="allowUndeclaredRTE" value="true"/>
-      <!-- This check sometimes failed for with "Unable to get class information for @throws tag" for custom exceptions -->
-      <property name="suppressLoadErrors" value="true"/>
-    </module>
-
-    <!-- Check that paragraph tags are used correctly in Javadoc. -->
-    <module name="JavadocParagraph"/>
-
-    <module name="JavadocType">
-      <property name="scope" value="protected"/>
-      <property name="severity" value="error"/>
-      <property name="allowMissingParamTags" value="true"/>
-    </module>
-
-    <module name="JavadocStyle">
-      <property name="severity" value="error"/>
-      <property name="checkHtml" value="true"/>
-    </module>
-
-    <!--
-
-    NAMING CHECKS
-
-    -->
-
-    <!-- Item 38 - Adhere to generally accepted naming conventions -->
-
-    <module name="PackageName">
-      <!-- Validates identifiers for package names against the
-        supplied expression. -->
-      <!-- Here the default checkstyle rule restricts package name parts to
-        seven characters, this is not in line with common practice at Google.
-      -->
-      <property name="format" value="^[a-z]+(\.[a-z][a-z0-9]{1,})*$"/>
-      <property name="severity" value="error"/>
-    </module>
-
-    <module name="TypeNameCheck">
-      <!-- Validates static, final fields against the
-      expression "^[A-Z][a-zA-Z0-9]*$". -->
-      <metadata name="altname" value="TypeName"/>
-      <property name="severity" value="error"/>
-    </module>
-
-    <module name="ConstantNameCheck">
-      <!-- Validates non-private, static, final fields against the supplied
-      public/package final fields "^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$". -->
-      <metadata name="altname" value="ConstantName"/>
-      <property name="applyToPublic" value="true"/>
-      <property name="applyToProtected" value="true"/>
-      <property name="applyToPackage" value="true"/>
-      <property name="applyToPrivate" value="false"/>
-      <property name="format" value="^([A-Z][A-Z0-9]*(_[A-Z0-9]+)*|FLAG_.*)$"/>
-      <message key="name.invalidPattern"
-               value="Variable ''{0}'' should be in ALL_CAPS (if it is a constant) or be private (otherwise)."/>
-      <property name="severity" value="error"/>
-    </module>
-
-    <module name="StaticVariableNameCheck">
-      <!-- Validates static, non-final fields against the supplied
-      expression "^[a-z][a-zA-Z0-9]*_?$". -->
-      <metadata name="altname" value="StaticVariableName"/>
-      <property name="applyToPublic" value="true"/>
-      <property name="applyToProtected" value="true"/>
-      <property name="applyToPackage" value="true"/>
-      <property name="applyToPrivate" value="true"/>
-      <property name="format" value="^[a-z][a-zA-Z0-9]*_?$"/>
-      <property name="severity" value="error"/>
-    </module>
-
-    <module name="MemberNameCheck">
-      <!-- Validates non-static members against the supplied expression. -->
-      <metadata name="altname" value="MemberName"/>
-      <property name="applyToPublic" value="true"/>
-      <property name="applyToProtected" value="true"/>
-      <property name="applyToPackage" value="true"/>
-      <property name="applyToPrivate" value="true"/>
-      <property name="format" value="^[a-z][a-zA-Z0-9]*$"/>
-      <property name="severity" value="error"/>
-    </module>
-
-    <module name="MethodNameCheck">
-      <!-- Validates identifiers for method names. -->
-      <metadata name="altname" value="MethodName"/>
-      <property name="format" value="^[a-z][a-zA-Z0-9]*(_[a-zA-Z0-9]+)*$"/>
-      <property name="severity" value="error"/>
-    </module>
-
-    <module name="ParameterName">
-      <!-- Validates identifiers for method parameters against the
-        expression "^[a-z][a-zA-Z0-9]*$". -->
-      <property name="severity" value="error"/>
-    </module>
-
-    <module name="LocalFinalVariableName">
-      <!-- Validates identifiers for local final variables against the
-        expression "^[a-z][a-zA-Z0-9]*$". -->
-      <property name="severity" value="error"/>
-    </module>
-
-    <module name="LocalVariableName">
-      <!-- Validates identifiers for local variables against the
-        expression "^[a-z][a-zA-Z0-9]*$". -->
-      <property name="severity" value="error"/>
-    </module>
-
-    <!-- Type parameters must be either one of the four blessed letters
-    T, K, V, W, X or else be capital-case terminated with a T,
-    such as MyGenericParameterT -->
-    <!--<module name="ClassTypeParameterName">-->
-      <!--<property name="format" value="^(((T|K|V|W|X)[0-9]*)|([A-Z][a-z][a-zA-Z]*T))$"/>-->
-      <!--<property name="severity" value="error"/>-->
-    <!--</module>-->
-
-    <!--<module name="MethodTypeParameterName">-->
-      <!--<property name="format" value="^(((T|K|V|W|X)[0-9]*)|([A-Z][a-z][a-zA-Z]*T))$"/>-->
-      <!--<property name="severity" value="error"/>-->
-    <!--</module>-->
-
-    <!--<module name="InterfaceTypeParameterName">-->
-      <!--<property name="format" value="^(((T|K|V|W|X)[0-9]*)|([A-Z][a-z][a-zA-Z]*T))$"/>-->
-      <!--<property name="severity" value="error"/>-->
-    <!--</module>-->
-
-    <!--
-
-    LENGTH and CODING CHECKS
-
-    -->
-
-    <!--<module name="LineLength">-->
-      <!--&lt;!&ndash; Checks if a line is too long. &ndash;&gt;-->
-      <!--<property name="max" value="100"/>-->
-      <!--<property name="severity" value="error"/>-->
-
-      <!--&lt;!&ndash;-->
-        <!--The default ignore pattern exempts the following elements:-->
-          <!-- - import statements-->
-          <!-- - long URLs inside comments-->
-      <!--&ndash;&gt;-->
-
-      <!--<property name="ignorePattern"-->
-          <!--value="^(package .*;\s*)|(import .*;\s*)|( *\* .*https?://.*)$"/>-->
-    <!--</module>-->
-
-    <module name="LeftCurly">
-      <!-- Checks for placement of the left curly brace ('{'). -->
-      <property name="severity" value="error"/>
-    </module>
-
-    <!--<module name="RightCurly">-->
-      <!--&lt;!&ndash; Checks right curlies on CATCH, ELSE, and TRY blocks are on-->
-      <!--the same line. e.g., the following example is fine:-->
-      <!--<pre>-->
-        <!--if {-->
-          <!--...-->
-        <!--} else-->
-      <!--</pre>-->
-      <!--&ndash;&gt;-->
-      <!--&lt;!&ndash; This next example is not fine:-->
-      <!--<pre>-->
-        <!--if {-->
-          <!--...-->
-        <!--}-->
-        <!--else-->
-      <!--</pre>-->
-      <!--&ndash;&gt;-->
-      <!--<property name="option" value="same"/>-->
-      <!--<property name="severity" value="error"/>-->
-    <!--</module>-->
-
-    <!-- Checks for braces around if and else blocks -->
-    <module name="NeedBraces">
-      <property name="severity" value="error"/>
-      <property name="tokens" value="LITERAL_IF, LITERAL_ELSE, LITERAL_FOR, LITERAL_WHILE, LITERAL_DO"/>
-    </module>
-
-    <module name="UpperEll">
-      <!-- Checks that long constants are defined with an upper ell.-->
-      <property name="severity" value="error"/>
-    </module>
-
-    <module name="FallThrough">
-      <!-- Warn about falling through to the next case statement.  Similar to
-      javac -Xlint:fallthrough, but the check is suppressed if a single-line comment
-      on the last non-blank line preceding the fallen-into case contains 'fall through' (or
-      some other variants that we don't publicized to promote consistency).
-      -->
-      <property name="reliefPattern"
-       value="fall through|Fall through|fallthru|Fallthru|falls through|Falls through|fallthrough|Fallthrough|No break|NO break|no break|continue on"/>
-      <property name="severity" value="error"/>
-    </module>
-
-    <!-- Checks for over-complicated boolean expressions. -->
-    <module name="SimplifyBooleanExpression"/>
-
-    <!-- Detects empty statements (standalone ";" semicolon). -->
-    <module name="EmptyStatement"/>
-
-	<!-- Detect multiple consecutive semicolons (e.g. ";;"). -->
-	<module name="RegexpSinglelineJava">
-	  <property name="format" value=";{2,}"/>
-	  <property name="message" value="Use one semicolon"/>
-	  <property name="ignoreComments" value="true"/>
+	<module name="NewlineAtEndOfFile">
+		<!-- windows can use \r\n vs \n, so enforce the most used one ie UNIx style -->
+		<property name="lineSeparator" value="lf"/>
 	</module>
 
-    <!--
+	<module name="RegexpSingleline">
+		<!-- Checks that TODOs don't have stuff in parenthesis, e.g., username. -->
+		<property name="format" value="((//.*)|(\*.*))TODO\("/>
+		<property name="message" value="TODO comments must not include usernames."/>
+		<property name="severity" value="error"/>
+	</module>
 
-    MODIFIERS CHECKS
+	<module name="RegexpSingleline">
+		<property name="format" value="\s+$"/>
+		<property name="message" value="Trailing whitespace"/>
+		<property name="severity" value="error"/>
+	</module>
 
-    -->
+	<module name="RegexpSingleline">
+		<property name="format" value="Throwables.propagate\("/>
+		<property name="message" value="Throwables.propagate is deprecated"/>
+		<property name="severity" value="error"/>
+	</module>
 
-    <module name="ModifierOrder">
-      <!-- Warn if modifier order is inconsistent with JLS3 8.1.1, 8.3.1, and
-           8.4.3.  The prescribed order is:
-           public, protected, private, abstract, static, final, transient, volatile,
-           synchronized, native, strictfp
-        -->
-      <property name="severity" value="error"/>
-    </module>
+	<!-- Prevent *Tests.java as tools may not pick them up -->
+	<!--<module name="RegexpOnFilename">-->
+	<!--<property name="fileNamePattern" value=".*Tests\.java$" />-->
+	<!--</module>-->
+
+	<module name="SuppressionFilter">
+		<property name="file" value="${checkstyle.suppressions.file}" default="suppressions.xml"/>
+	</module>
+
+	<!-- Check that every module has a package-info.java -->
+	<!--<module name="JavadocPackage"/>-->
+
+	<!--
+
+	FLINK CUSTOM CHECKS
+
+	-->
+
+	<module name="FileLength">
+		<property name="max" value="3000"/>
+	</module>
+
+	<!-- All Java AST specific tests live under TreeWalker module. -->
+	<module name="TreeWalker">
+
+		<!-- Allow use of comment to suppress javadocstyle -->
+		<module name="SuppressionCommentFilter">
+			<property name="offCommentFormat" value="CHECKSTYLE.OFF\: ([\w\|]+)"/>
+			<property name="onCommentFormat" value="CHECKSTYLE.ON\: ([\w\|]+)"/>
+			<property name="checkFormat" value="$1"/>
+		</module>
+
+		<!--
+
+		FLINK CUSTOM CHECKS
+
+		-->
+
+		<!-- Prohibit T.getT() methods for standard boxed types -->
+		<module name="Regexp">
+			<property name="format" value="Boolean\.getBoolean"/>
+			<property name="illegalPattern" value="true"/>
+			<property name="message" value="Use System.getProperties() to get system properties."/>
+		</module>
+
+		<module name="Regexp">
+			<property name="format" value="Integer\.getInteger"/>
+			<property name="illegalPattern" value="true"/>
+			<property name="message" value="Use System.getProperties() to get system properties."/>
+		</module>
+
+		<module name="Regexp">
+			<property name="format" value="Long\.getLong"/>
+			<property name="illegalPattern" value="true"/>
+			<property name="message" value="Use System.getProperties() to get system properties."/>
+		</module>
+
+		<!--
+
+		IllegalImport cannot blacklist classes so we have to fall back to Regexp.
+
+		-->
+
+		<!-- forbid use of commons lang validate -->
+		<module name="Regexp">
+			<property name="format" value="org\.apache\.commons\.lang3\.Validate"/>
+			<property name="illegalPattern" value="true"/>
+			<property name="message"
+					  value="Use Guava Checks instead of Commons Validate. Please refer to the coding guidelines."/>
+		</module>
+		<!-- forbid the use of google.common.base.Preconditions -->
+		<module name="Regexp">
+			<property name="format" value="import com\.google\.common\.base\.Preconditions"/>
+			<property name="illegalPattern" value="true"/>
+			<property name="message"
+					  value="Use Flink's Preconditions instead of Guava's Preconditions"/>
+		</module>
+		<!-- forbid the use of com.google.common.annotations.VisibleForTesting -->
+		<module name="Regexp">
+			<property name="format"
+					  value="import com\.google\.common\.annotations\.VisibleForTesting"/>
+			<property name="illegalPattern" value="true"/>
+			<property name="message"
+					  value="Use Flink's VisibleForTesting instead of Guava's VisibleForTesting"/>
+		</module>
+		<module name="Regexp">
+			<property name="format" value="import static com\.google\.common\.base\.Preconditions"/>
+			<property name="illegalPattern" value="true"/>
+			<property name="message"
+					  value="Use Flink's Preconditions instead of Guava's Preconditions"/>
+		</module>
+		<!-- forbid the use of org.apache.commons.lang.SerializationUtils -->
+		<module name="Regexp">
+			<property name="format" value="org\.apache\.commons\.lang\.SerializationUtils"/>
+			<property name="illegalPattern" value="true"/>
+			<property name="message"
+					  value="Use Flink's InstantiationUtil instead of common's SerializationUtils"/>
+		</module>
+		<module name="Regexp">
+			<property name="format" value="org\.apache\.commons\.lang3\.SerializationUtils"/>
+			<property name="illegalPattern" value="true"/>
+			<property name="message"
+					  value="Use Flink's InstantiationUtil instead of common's SerializationUtils"/>
+		</module>
+		<module name="Regexp">
+			<property name="format" value="org\.apache\.commons\.lang\."/>
+			<property name="illegalPattern" value="true"/>
+			<property name="message" value="Use commons-lang3 instead of commons-lang."/>
+		</module>
+		<module name="Regexp">
+			<property name="format" value="org\.codehaus\.jettison"/>
+			<property name="illegalPattern" value="true"/>
+			<property name="message" value="Use com.fasterxml.jackson instead of jettison."/>
+		</module>
+
+		<!-- Enforce Java-style array declarations -->
+		<module name="ArrayTypeStyle"/>
+
+		<module name="TodoComment">
+			<!-- Checks that disallowed strings are not used in comments.  -->
+			<property name="format" value="(FIXME)|(XXX)|(@author)"/>
+		</module>
+
+		<!--
+
+		IMPORT CHECKS
+
+		-->
+
+		<module name="RedundantImport">
+			<!-- Checks for redundant import statements. -->
+			<property name="severity" value="error"/>
+			<message key="import.redundancy"
+					 value="Redundant import {0}."/>
+		</module>
+
+		<module name="ImportOrder">
+			<!-- Checks for out of order import statements. -->
+			<property name="severity" value="error"/>
+			<property name="groups"
+					  value="org.apache.flink,org.apache.flink.shaded,*,javax,java,scala"/>
+			<property name="separated" value="true"/>
+			<property name="sortStaticImportsAlphabetically" value="true"/>
+			<property name="option" value="bottom"/>
+			<property name="tokens" value="STATIC_IMPORT, IMPORT"/>
+			<message key="import.ordering"
+					 value="Import {0} appears after other imports that it should precede"/>
+		</module>
+
+		<module name="AvoidStarImport">
+			<property name="severity" value="error"/>
+		</module>
+
+		<module name="IllegalImport">
+			<property name="illegalPkgs"
+					  value="autovalue.shaded, avro.shaded, com.google.api.client.repackaged, com.google.appengine.repackaged"/>
+		</module>
+		<module name="IllegalImport">
+			<property name="illegalPkgs" value="org.codehaus.jackson"/>
+			<message key="import.illegal" value="{0}; Use flink-shaded-jackson instead."/>
+		</module>
+		<module name="IllegalImport">
+			<property name="illegalPkgs" value="org.objectweb.asm"/>
+			<message key="import.illegal" value="{0}; Use flink-shaded-asm instead."/>
+		</module>
+		<module name="IllegalImport">
+			<property name="illegalPkgs" value="io.netty"/>
+			<message key="import.illegal" value="{0}; Use flink-shaded-netty instead."/>
+		</module>
+		<module name="IllegalImport">
+			<property name="illegalPkgs" value="com.google.common"/>
+			<message key="import.illegal" value="{0}; Use flink-shaded-guava instead."/>
+		</module>
+
+		<module name="RedundantModifier">
+			<!-- Checks for redundant modifiers on various symbol definitions.
+			  See: http://checkstyle.sourceforge.net/config_modifier.html#RedundantModifier
+
+			  We exclude METHOD_DEF to allow final methods in final classes to make them more future-proof.
+			-->
+			<property name="tokens"
+					  value="VARIABLE_DEF, ANNOTATION_FIELD_DEF, INTERFACE_DEF, CLASS_DEF, ENUM_DEF"/>
+		</module>
+
+		<!--
+			IllegalImport cannot blacklist classes, and c.g.api.client.util is used for some shaded
+			code and some useful code. So we need to fall back to Regexp.
+		-->
+		<!--<module name="RegexpSinglelineJava">-->
+		<!--<property name="format" value="com\.google\.api\.client\.util\.(ByteStreams|Charsets|Collections2|Joiner|Lists|Maps|Objects|Preconditions|Sets|Strings|Throwables)"/>-->
+		<!--</module>-->
+
+		<!--
+			 Require static importing from Preconditions.
+		-->
+		<module name="RegexpSinglelineJava">
+			<property name="format" value="^import com.google.common.base.Preconditions;$"/>
+			<property name="message" value="Static import functions from Guava Preconditions"/>
+		</module>
+
+		<module name="UnusedImports">
+			<property name="severity" value="error"/>
+			<property name="processJavadoc" value="true"/>
+			<message key="import.unused"
+					 value="Unused import: {0}."/>
+		</module>
+
+		<!--
+
+		JAVADOC CHECKS
+
+		-->
+
+		<!-- Checks for Javadoc comments.                     -->
+		<!-- See http://checkstyle.sf.net/config_javadoc.html -->
+		<module name="JavadocMethod">
+			<property name="scope" value="protected"/>
+			<property name="severity" value="error"/>
+			<property name="allowMissingJavadoc" value="true"/>
+			<property name="allowMissingParamTags" value="true"/>
+			<property name="allowMissingReturnTag" value="true"/>
+			<property name="allowMissingThrowsTags" value="true"/>
+			<property name="allowThrowsTagsForSubclasses" value="true"/>
+			<property name="allowUndeclaredRTE" value="true"/>
+			<!-- This check sometimes failed for with "Unable to get class information for @throws tag" for custom exceptions -->
+			<property name="suppressLoadErrors" value="true"/>
+		</module>
+
+		<!-- Check that paragraph tags are used correctly in Javadoc. -->
+		<module name="JavadocParagraph"/>
+
+		<module name="JavadocType">
+			<property name="scope" value="protected"/>
+			<property name="severity" value="error"/>
+			<property name="allowMissingParamTags" value="true"/>
+		</module>
+
+		<module name="JavadocStyle">
+			<property name="severity" value="error"/>
+			<property name="checkHtml" value="true"/>
+		</module>
+
+		<!--
+
+		NAMING CHECKS
+
+		-->
+
+		<!-- Item 38 - Adhere to generally accepted naming conventions -->
+
+		<module name="PackageName">
+			<!-- Validates identifiers for package names against the
+			  supplied expression. -->
+			<!-- Here the default checkstyle rule restricts package name parts to
+			  seven characters, this is not in line with common practice at Google.
+			-->
+			<property name="format" value="^[a-z]+(\.[a-z][a-z0-9]{1,})*$"/>
+			<property name="severity" value="error"/>
+		</module>
+
+		<module name="TypeNameCheck">
+			<!-- Validates static, final fields against the
+			expression "^[A-Z][a-zA-Z0-9]*$". -->
+			<metadata name="altname" value="TypeName"/>
+			<property name="severity" value="error"/>
+		</module>
+
+		<module name="ConstantNameCheck">
+			<!-- Validates non-private, static, final fields against the supplied
+			public/package final fields "^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$". -->
+			<metadata name="altname" value="ConstantName"/>
+			<property name="applyToPublic" value="true"/>
+			<property name="applyToProtected" value="true"/>
+			<property name="applyToPackage" value="true"/>
+			<property name="applyToPrivate" value="false"/>
+			<property name="format" value="^([A-Z][A-Z0-9]*(_[A-Z0-9]+)*|FLAG_.*)$"/>
+			<message key="name.invalidPattern"
+					 value="Variable ''{0}'' should be in ALL_CAPS (if it is a constant) or be private (otherwise)."/>
+			<property name="severity" value="error"/>
+		</module>
+
+		<module name="StaticVariableNameCheck">
+			<!-- Validates static, non-final fields against the supplied
+			expression "^[a-z][a-zA-Z0-9]*_?$". -->
+			<metadata name="altname" value="StaticVariableName"/>
+			<property name="applyToPublic" value="true"/>
+			<property name="applyToProtected" value="true"/>
+			<property name="applyToPackage" value="true"/>
+			<property name="applyToPrivate" value="true"/>
+			<property name="format" value="^[a-z][a-zA-Z0-9]*_?$"/>
+			<property name="severity" value="error"/>
+		</module>
+
+		<module name="MemberNameCheck">
+			<!-- Validates non-static members against the supplied expression. -->
+			<metadata name="altname" value="MemberName"/>
+			<property name="applyToPublic" value="true"/>
+			<property name="applyToProtected" value="true"/>
+			<property name="applyToPackage" value="true"/>
+			<property name="applyToPrivate" value="true"/>
+			<property name="format" value="^[a-z][a-zA-Z0-9]*$"/>
+			<property name="severity" value="error"/>
+		</module>
+
+		<module name="MethodNameCheck">
+			<!-- Validates identifiers for method names. -->
+			<metadata name="altname" value="MethodName"/>
+			<property name="format" value="^[a-z][a-zA-Z0-9]*(_[a-zA-Z0-9]+)*$"/>
+			<property name="severity" value="error"/>
+		</module>
+
+		<module name="ParameterName">
+			<!-- Validates identifiers for method parameters against the
+			  expression "^[a-z][a-zA-Z0-9]*$". -->
+			<property name="severity" value="error"/>
+		</module>
+
+		<module name="LocalFinalVariableName">
+			<!-- Validates identifiers for local final variables against the
+			  expression "^[a-z][a-zA-Z0-9]*$". -->
+			<property name="severity" value="error"/>
+		</module>
+
+		<module name="LocalVariableName">
+			<!-- Validates identifiers for local variables against the
+			  expression "^[a-z][a-zA-Z0-9]*$". -->
+			<property name="severity" value="error"/>
+		</module>
+
+		<!-- Type parameters must be either one of the four blessed letters
+		T, K, V, W, X or else be capital-case terminated with a T,
+		such as MyGenericParameterT -->
+		<!--<module name="ClassTypeParameterName">-->
+		<!--<property name="format" value="^(((T|K|V|W|X)[0-9]*)|([A-Z][a-z][a-zA-Z]*T))$"/>-->
+		<!--<property name="severity" value="error"/>-->
+		<!--</module>-->
+
+		<!--<module name="MethodTypeParameterName">-->
+		<!--<property name="format" value="^(((T|K|V|W|X)[0-9]*)|([A-Z][a-z][a-zA-Z]*T))$"/>-->
+		<!--<property name="severity" value="error"/>-->
+		<!--</module>-->
+
+		<!--<module name="InterfaceTypeParameterName">-->
+		<!--<property name="format" value="^(((T|K|V|W|X)[0-9]*)|([A-Z][a-z][a-zA-Z]*T))$"/>-->
+		<!--<property name="severity" value="error"/>-->
+		<!--</module>-->
+
+		<!--
+
+		LENGTH and CODING CHECKS
+
+		-->
+
+		<!--<module name="LineLength">-->
+		<!--&lt;!&ndash; Checks if a line is too long. &ndash;&gt;-->
+		<!--<property name="max" value="100"/>-->
+		<!--<property name="severity" value="error"/>-->
+
+		<!--&lt;!&ndash;-->
+		<!--The default ignore pattern exempts the following elements:-->
+		<!-- - import statements-->
+		<!-- - long URLs inside comments-->
+		<!--&ndash;&gt;-->
+
+		<!--<property name="ignorePattern"-->
+		<!--value="^(package .*;\s*)|(import .*;\s*)|( *\* .*https?://.*)$"/>-->
+		<!--</module>-->
+
+		<!-- Checks for braces around if and else blocks -->
+		<module name="NeedBraces">
+			<property name="severity" value="error"/>
+			<property name="tokens"
+					  value="LITERAL_IF, LITERAL_ELSE, LITERAL_FOR, LITERAL_WHILE, LITERAL_DO"/>
+		</module>
+
+		<module name="UpperEll">
+			<!-- Checks that long constants are defined with an upper ell.-->
+			<property name="severity" value="error"/>
+		</module>
+
+		<module name="FallThrough">
+			<!-- Warn about falling through to the next case statement.  Similar to
+			javac -Xlint:fallthrough, but the check is suppressed if a single-line comment
+			on the last non-blank line preceding the fallen-into case contains 'fall through' (or
+			some other variants that we don't publicized to promote consistency).
+			-->
+			<property name="reliefPattern"
+					  value="fall through|Fall through|fallthru|Fallthru|falls through|Falls through|fallthrough|Fallthrough|No break|NO break|no break|continue on"/>
+			<property name="severity" value="error"/>
+		</module>
+
+		<!-- Checks for over-complicated boolean expressions. -->
+		<module name="SimplifyBooleanExpression"/>
+
+		<!-- Detects empty statements (standalone ";" semicolon). -->
+		<module name="EmptyStatement"/>
+
+		<!-- Detect multiple consecutive semicolons (e.g. ";;"). -->
+		<module name="RegexpSinglelineJava">
+			<property name="format" value=";{2,}"/>
+			<property name="message" value="Use one semicolon"/>
+			<property name="ignoreComments" value="true"/>
+		</module>
+
+		<!--
+
+		MODIFIERS CHECKS
+
+		-->
+
+		<module name="ModifierOrder">
+			<!-- Warn if modifier order is inconsistent with JLS3 8.1.1, 8.3.1, and
+				 8.4.3.  The prescribed order is:
+				 public, protected, private, abstract, static, final, transient, volatile,
+				 synchronized, native, strictfp
+			  -->
+			<property name="severity" value="error"/>
+		</module>
 
 
-    <!--
+		<!--
 
-    WHITESPACE CHECKS
+		WHITESPACE CHECKS
 
-    -->
+		-->
 
-    <module name="EmptyLineSeparator">
-      <!-- Checks for empty line separator between tokens. The only
-           excluded token is VARIABLE_DEF, allowing class fields to
-           be declared on consecutive lines.
-      -->
-      <property name="allowMultipleEmptyLines" value="false"/>
-      <property name="allowMultipleEmptyLinesInsideClassMembers" value="false"/>
-      <property name="tokens" value="PACKAGE_DEF, IMPORT, STATIC_IMPORT, CLASS_DEF,
+		<module name="EmptyLineSeparator">
+			<!-- Checks for empty line separator between tokens. The only
+				 excluded token is VARIABLE_DEF, allowing class fields to
+				 be declared on consecutive lines.
+			-->
+			<property name="allowMultipleEmptyLines" value="false"/>
+			<property name="allowMultipleEmptyLinesInsideClassMembers" value="false"/>
+			<property name="tokens" value="PACKAGE_DEF, IMPORT, STATIC_IMPORT, CLASS_DEF,
         INTERFACE_DEF, ENUM_DEF, STATIC_INIT, INSTANCE_INIT, METHOD_DEF,
         CTOR_DEF"/>
-    </module>
+		</module>
 
-    <module name="WhitespaceAround">
-      <!-- Checks that various tokens are surrounded by whitespace.
-           This includes most binary operators and keywords followed
-           by regular or curly braces.
-      -->
-      <property name="tokens" value="ASSIGN, BAND, BAND_ASSIGN, BOR,
+		<module name="WhitespaceAround">
+			<!-- Checks that various tokens are surrounded by whitespace.
+				 This includes most binary operators and keywords followed
+				 by regular or curly braces.
+			-->
+			<property name="tokens" value="ASSIGN, BAND, BAND_ASSIGN, BOR,
         BOR_ASSIGN, BSR, BSR_ASSIGN, BXOR, BXOR_ASSIGN, COLON, DIV, DIV_ASSIGN,
         EQUAL, GE, GT, LAMBDA, LAND, LE, LITERAL_CATCH, LITERAL_DO, LITERAL_ELSE,
         LITERAL_FINALLY, LITERAL_FOR, LITERAL_IF, LITERAL_RETURN,
         LITERAL_SYNCHRONIZED, LITERAL_TRY, LITERAL_WHILE, LOR, LT, MINUS,
         MINUS_ASSIGN, MOD, MOD_ASSIGN, NOT_EQUAL, PLUS, PLUS_ASSIGN, QUESTION,
         SL, SL_ASSIGN, SR_ASSIGN, STAR, STAR_ASSIGN, TYPE_EXTENSION_AND"/>
-      <property name="severity" value="error"/>
-    </module>
+			<property name="severity" value="error"/>
+		</module>
 
-    <module name="WhitespaceAfter">
-      <!-- Checks that commas, semicolons and typecasts are followed by
-           whitespace.
-      -->
-      <property name="tokens" value="COMMA, SEMI, TYPECAST"/>
-    </module>
+		<module name="WhitespaceAfter">
+			<!-- Checks that commas, semicolons and typecasts are followed by
+				 whitespace.
+			-->
+			<property name="tokens" value="COMMA, SEMI, TYPECAST"/>
+		</module>
 
-    <module name="NoWhitespaceAfter">
-      <!-- Checks that there is no whitespace after various unary operators.
-           Linebreaks are allowed.
-      -->
-      <property name="tokens" value="BNOT, DEC, DOT, INC, LNOT, UNARY_MINUS,
+		<module name="NoWhitespaceAfter">
+			<!-- Checks that there is no whitespace after various unary operators.
+				 Linebreaks are allowed.
+			-->
+			<property name="tokens" value="BNOT, DEC, DOT, INC, LNOT, UNARY_MINUS,
         UNARY_PLUS"/>
-      <property name="allowLineBreaks" value="true"/>
-      <property name="severity" value="error"/>
-    </module>
+			<property name="allowLineBreaks" value="true"/>
+			<property name="severity" value="error"/>
+		</module>
 
-    <module name="NoWhitespaceBefore">
-      <!-- Checks that there is no whitespace before various unary operators.
-           Linebreaks are allowed.
-      -->
-      <property name="tokens" value="SEMI, DOT, POST_DEC, POST_INC"/>
-      <property name="allowLineBreaks" value="true"/>
-      <property name="severity" value="error"/>
-    </module>
+		<module name="NoWhitespaceBefore">
+			<!-- Checks that there is no whitespace before various unary operators.
+				 Linebreaks are allowed.
+			-->
+			<property name="tokens" value="SEMI, DOT, POST_DEC, POST_INC"/>
+			<property name="allowLineBreaks" value="true"/>
+			<property name="severity" value="error"/>
+		</module>
 
-    <!--<module name="OperatorWrap">-->
-      <!--&lt;!&ndash; Checks that operators like + and ? appear at newlines rather than-->
-           <!--at the end of the previous line.-->
-      <!--&ndash;&gt;-->
-      <!--<property name="option" value="NL"/>-->
-      <!--<property name="tokens" value="BAND, BOR, BSR, BXOR, DIV, EQUAL,-->
-        <!--GE, GT, LAND, LE, LITERAL_INSTANCEOF, LOR, LT, MINUS, MOD,-->
-        <!--NOT_EQUAL, PLUS, QUESTION, SL, SR, STAR "/>-->
-    <!--</module>-->
+		<!--<module name="OperatorWrap">-->
+		<!--&lt;!&ndash; Checks that operators like + and ? appear at newlines rather than-->
+		<!--at the end of the previous line.-->
+		<!--&ndash;&gt;-->
+		<!--<property name="option" value="NL"/>-->
+		<!--<property name="tokens" value="BAND, BOR, BSR, BXOR, DIV, EQUAL,-->
+		<!--GE, GT, LAND, LE, LITERAL_INSTANCEOF, LOR, LT, MINUS, MOD,-->
+		<!--NOT_EQUAL, PLUS, QUESTION, SL, SR, STAR "/>-->
+		<!--</module>-->
 
-    <module name="OperatorWrap">
-      <!-- Checks that assignment operators are at the end of the line. -->
-      <property name="option" value="eol"/>
-      <property name="tokens" value="ASSIGN"/>
-    </module>
+		<module name="OperatorWrap">
+			<!-- Checks that assignment operators are at the end of the line. -->
+			<property name="option" value="eol"/>
+			<property name="tokens" value="ASSIGN"/>
+		</module>
 
-    <module name="ParenPad">
-      <!-- Checks that there is no whitespace before close parens or after
-           open parens.
-      -->
-      <property name="severity" value="error"/>
-    </module>
+		<module name="ParenPad">
+			<!-- Checks that there is no whitespace before close parens or after
+				 open parens.
+			-->
+			<property name="severity" value="error"/>
+		</module>
 
-  </module>
+	</module>
 </module>
 

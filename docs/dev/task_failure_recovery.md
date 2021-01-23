@@ -125,6 +125,60 @@ env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
 </div>
 
 
+### Exponential Delay Restart Strategy
+
+The exponential delay restart strategy attempts to restart the job infinitely, with increasing delay up to the maximum delay.
+The job never fails.
+In-between two consecutive restart attempts, the restart strategy keeps exponentially increasing until the maximum number is reached.
+Then, it keeps the delay at the maximum number.
+
+When the job executes correctly, the exponential delay value resets after some time; this threshold is configurable.
+
+{% highlight yaml %}
+restart-strategy: exponential-delay
+{% endhighlight %}
+
+{% include generated/exponential_delay_restart_strategy_configuration.html %}
+
+For example:
+
+{% highlight yaml %}
+restart-strategy.exponential-delay.initial-backoff: 10 s
+restart-strategy.exponential-delay.max-backoff: 2 min
+restart-strategy.exponential-delay.backoff-multiplier: 2.0
+restart-strategy.exponential-delay.reset-backoff-threshold: 10 min
+restart-strategy.exponential-delay.jitter-factor: 0.1
+{% endhighlight %}
+
+The exponential delay restart strategy can also be set programmatically:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+env.setRestartStrategy(RestartStrategies.exponentialDelayRestart(
+  Time.milliseconds(1),
+  Time.milliseconds(1000),
+  1.1, // exponential multiplier
+  Time.milliseconds(2000), // threshold duration to reset delay to its initial value
+  0.1 // jitter
+));
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val env = ExecutionEnvironment.getExecutionEnvironment()
+env.setRestartStrategy(RestartStrategies.exponentialDelayRestart(
+  Time.of(1, TimeUnit.MILLISECONDS), // initial delay between restarts
+  Time.of(1000, TimeUnit.MILLISECONDS), // maximum delay between restarts
+  1.1, // exponential multiplier
+  Time.of(2, TimeUnit.SECONDS), // threshold duration to reset delay to its initial value
+  0.1 // jitter
+))
+{% endhighlight %}
+</div>
+</div>
+
 ### Failure Rate Restart Strategy
 
 The failure rate restart strategy restarts job after failure, but when `failure rate` (failures per time interval) is exceeded, the job eventually fails.
@@ -241,7 +295,7 @@ That is, batch data exchanges denote the boundaries of a region.
 - All data exchanges in a Batch Table/SQL job are batched by default.
 - The data exchange types in a DataSet job are determined by the 
   [ExecutionMode]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/api/common/ExecutionMode.html) 
-  which can be set through [ExecutionConfig]({{ site.baseurl }}/dev/execution_configuration.html).
+  which can be set through [ExecutionConfig]({% link dev/execution_configuration.md %}).
 
 The regions to restart are decided as below:
 1. The region containing the failed task will be restarted.

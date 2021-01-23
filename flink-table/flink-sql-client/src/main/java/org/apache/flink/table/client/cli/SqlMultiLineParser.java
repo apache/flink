@@ -31,63 +31,60 @@ import java.util.List;
  */
 public class SqlMultiLineParser extends DefaultParser {
 
-	private static final String EOF_CHARACTER = ";";
-	private static final String NEW_LINE_PROMPT = ""; // results in simple '>' output
+    private static final String EOF_CHARACTER = ";";
+    private static final String NEW_LINE_PROMPT = ""; // results in simple '>' output
 
-	public SqlMultiLineParser() {
-		setEscapeChars(null);
-		setQuoteChars(null);
-	}
+    public SqlMultiLineParser() {
+        setEscapeChars(null);
+        setQuoteChars(null);
+    }
 
-	@Override
-	public ParsedLine parse(String line, int cursor, ParseContext context) {
-		if (!line.trim().endsWith(EOF_CHARACTER) && context != ParseContext.COMPLETE) {
-			throw new EOFError(
-				-1,
-				-1,
-				"New line without EOF character.",
-				NEW_LINE_PROMPT);
-		}
-		final ArgumentList parsedLine = (ArgumentList) super.parse(line, cursor, context);
-		return new SqlArgumentList(
-			parsedLine.line(),
-			parsedLine.words(),
-			parsedLine.wordIndex(),
-			parsedLine.wordCursor(),
-			parsedLine.cursor(),
-			null,
-			parsedLine.rawWordCursor(),
-			parsedLine.rawWordLength());
-	}
+    @Override
+    public ParsedLine parse(String line, int cursor, ParseContext context) {
+        if (!line.trim().endsWith(EOF_CHARACTER) && context != ParseContext.COMPLETE) {
+            throw new EOFError(-1, -1, "New line without EOF character.", NEW_LINE_PROMPT);
+        }
+        final ArgumentList parsedLine = (ArgumentList) super.parse(line, cursor, context);
+        return new SqlArgumentList(
+                parsedLine.line(),
+                parsedLine.words(),
+                parsedLine.wordIndex(),
+                parsedLine.wordCursor(),
+                parsedLine.cursor(),
+                null,
+                parsedLine.rawWordCursor(),
+                parsedLine.rawWordLength());
+    }
 
-	private class SqlArgumentList extends DefaultParser.ArgumentList {
+    private class SqlArgumentList extends DefaultParser.ArgumentList {
 
-		public SqlArgumentList(
-				String line,
-				List<String> words,
-				int wordIndex,
-				int wordCursor,
-				int cursor,
-				String openingQuote,
-				int rawWordCursor,
-				int rawWordLength) {
+        public SqlArgumentList(
+                String line,
+                List<String> words,
+                int wordIndex,
+                int wordCursor,
+                int cursor,
+                String openingQuote,
+                int rawWordCursor,
+                int rawWordLength) {
 
-			super(
-				line,
-				words,
-				wordIndex,
-				wordCursor,
-				cursor,
-				openingQuote,
-				rawWordCursor,
-				rawWordLength);
-		}
+            super(
+                    line,
+                    words,
+                    wordIndex,
+                    wordCursor,
+                    cursor,
+                    openingQuote,
+                    rawWordCursor,
+                    rawWordLength);
+        }
 
-		@Override
-		public CharSequence escape(CharSequence candidate, boolean complete) {
-			// escaping is skipped for now because it highly depends on the context in the SQL statement
-			// e.g. 'INS(ERT INTO)' should not be quoted but 'SELECT * FROM T(axi Rides)' should
-			return candidate;
-		}
-	}
+        @Override
+        public CharSequence escape(CharSequence candidate, boolean complete) {
+            // escaping is skipped for now because it highly depends on the context in the SQL
+            // statement
+            // e.g. 'INS(ERT INTO)' should not be quoted but 'SELECT * FROM T(axi Rides)' should
+            return candidate;
+        }
+    }
 }

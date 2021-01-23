@@ -28,93 +28,99 @@ import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedInput;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandler;
 
 /**
- * A {@link ByteBuf} instance to be consumed in chunks by {@link ChunkedWriteHandler},
- * respecting the high and low watermarks.
+ * A {@link ByteBuf} instance to be consumed in chunks by {@link ChunkedWriteHandler}, respecting
+ * the high and low watermarks.
  *
- * @see <a href="http://normanmaurer.me/presentations/2014-facebook-eng-netty/slides.html#10.0">Low/High Watermarks</a>
+ * @see <a
+ *     href="http://normanmaurer.me/presentations/2014-facebook-eng-netty/slides.html#10.0">Low/High
+ *     Watermarks</a>
  */
 @Internal
 public class ChunkedByteBuf implements ChunkedInput<ByteBuf> {
 
-	/** The buffer to chunk. */
-	private final ByteBuf buf;
+    /** The buffer to chunk. */
+    private final ByteBuf buf;
 
-	/** Size of chunks. */
-	private final int chunkSize;
+    /** Size of chunks. */
+    private final int chunkSize;
 
-	/** Closed flag. */
-	private boolean isClosed;
+    /** Closed flag. */
+    private boolean isClosed;
 
-	/** End of input flag. */
-	private boolean isEndOfInput;
+    /** End of input flag. */
+    private boolean isEndOfInput;
 
-	public ChunkedByteBuf(ByteBuf buf, int chunkSize) {
-		this.buf = Preconditions.checkNotNull(buf, "Buffer");
-		Preconditions.checkArgument(chunkSize > 0, "Non-positive chunk size");
-		this.chunkSize = chunkSize;
-	}
+    public ChunkedByteBuf(ByteBuf buf, int chunkSize) {
+        this.buf = Preconditions.checkNotNull(buf, "Buffer");
+        Preconditions.checkArgument(chunkSize > 0, "Non-positive chunk size");
+        this.chunkSize = chunkSize;
+    }
 
-	@Override
-	public boolean isEndOfInput() throws Exception {
-		return isClosed || isEndOfInput;
-	}
+    @Override
+    public boolean isEndOfInput() throws Exception {
+        return isClosed || isEndOfInput;
+    }
 
-	@Override
-	public void close() throws Exception {
-		if (!isClosed) {
-			// If we did not consume the whole buffer yet, we have to release
-			// it here. Otherwise, it's the responsibility of the consumer.
-			if (!isEndOfInput) {
-				buf.release();
-			}
+    @Override
+    public void close() throws Exception {
+        if (!isClosed) {
+            // If we did not consume the whole buffer yet, we have to release
+            // it here. Otherwise, it's the responsibility of the consumer.
+            if (!isEndOfInput) {
+                buf.release();
+            }
 
-			isClosed = true;
-		}
-	}
+            isClosed = true;
+        }
+    }
 
-	@Override
-	public ByteBuf readChunk(ChannelHandlerContext ctx) throws Exception {
-		return readChunk();
-	}
+    @Override
+    public ByteBuf readChunk(ChannelHandlerContext ctx) throws Exception {
+        return readChunk();
+    }
 
-	@Override
-	public ByteBuf readChunk(ByteBufAllocator byteBufAllocator) throws Exception {
-		return readChunk();
-	}
+    @Override
+    public ByteBuf readChunk(ByteBufAllocator byteBufAllocator) throws Exception {
+        return readChunk();
+    }
 
-	private ByteBuf readChunk() {
-		if (isClosed) {
-			return null;
-		} else if (buf.readableBytes() <= chunkSize) {
-			isEndOfInput = true;
+    private ByteBuf readChunk() {
+        if (isClosed) {
+            return null;
+        } else if (buf.readableBytes() <= chunkSize) {
+            isEndOfInput = true;
 
-			// Don't retain as the consumer is responsible to release it
-			return buf.slice();
-		} else {
-			// Return a chunk sized slice of the buffer. The ref count is
-			// shared with the original buffer. That's why we need to retain
-			// a reference here.
-			return buf.readSlice(chunkSize).retain();
-		}
-	}
+            // Don't retain as the consumer is responsible to release it
+            return buf.slice();
+        } else {
+            // Return a chunk sized slice of the buffer. The ref count is
+            // shared with the original buffer. That's why we need to retain
+            // a reference here.
+            return buf.readSlice(chunkSize).retain();
+        }
+    }
 
-	@Override
-	public long length() {
-		return -1;
-	}
+    @Override
+    public long length() {
+        return -1;
+    }
 
-	@Override
-	public long progress() {
-		return buf.readerIndex();
-	}
+    @Override
+    public long progress() {
+        return buf.readerIndex();
+    }
 
-	@Override
-	public String toString() {
-		return "ChunkedByteBuf{" +
-				"buf=" + buf +
-				", chunkSize=" + chunkSize +
-				", isClosed=" + isClosed +
-				", isEndOfInput=" + isEndOfInput +
-				'}';
-	}
+    @Override
+    public String toString() {
+        return "ChunkedByteBuf{"
+                + "buf="
+                + buf
+                + ", chunkSize="
+                + chunkSize
+                + ", isClosed="
+                + isClosed
+                + ", isEndOfInput="
+                + isEndOfInput
+                + '}';
+    }
 }

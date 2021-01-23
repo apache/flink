@@ -32,93 +32,100 @@ import org.apache.arrow.vector.TimeStampVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 
-/**
- * {@link ArrowFieldWriter} for Timestamp.
- */
+/** {@link ArrowFieldWriter} for Timestamp. */
 @Internal
 public abstract class TimestampWriter<T> extends ArrowFieldWriter<T> {
 
-	public static TimestampWriter<RowData> forRow(ValueVector valueVector, int precision) {
-		return new TimestampWriterForRow(valueVector, precision);
-	}
+    public static TimestampWriter<RowData> forRow(ValueVector valueVector, int precision) {
+        return new TimestampWriterForRow(valueVector, precision);
+    }
 
-	public static TimestampWriter<ArrayData> forArray(ValueVector valueVector, int precision) {
-		return new TimestampWriterForArray(valueVector, precision);
-	}
+    public static TimestampWriter<ArrayData> forArray(ValueVector valueVector, int precision) {
+        return new TimestampWriterForArray(valueVector, precision);
+    }
 
-	// ------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------
 
-	protected final int precision;
+    protected final int precision;
 
-	private TimestampWriter(ValueVector valueVector, int precision) {
-		super(valueVector);
-		Preconditions.checkState(valueVector instanceof TimeStampVector && ((ArrowType.Timestamp) valueVector.getField().getType()).getTimezone() == null);
-		this.precision = precision;
-	}
+    private TimestampWriter(ValueVector valueVector, int precision) {
+        super(valueVector);
+        Preconditions.checkState(
+                valueVector instanceof TimeStampVector
+                        && ((ArrowType.Timestamp) valueVector.getField().getType()).getTimezone()
+                                == null);
+        this.precision = precision;
+    }
 
-	abstract boolean isNullAt(T in, int ordinal);
+    abstract boolean isNullAt(T in, int ordinal);
 
-	abstract TimestampData readTimestamp(T in, int ordinal);
+    abstract TimestampData readTimestamp(T in, int ordinal);
 
-	@Override
-	public void doWrite(T in, int ordinal) {
-		ValueVector valueVector = getValueVector();
-		if (isNullAt(in, ordinal)) {
-			((TimeStampVector) valueVector).setNull(getCount());
-		} else {
-			TimestampData timestamp = readTimestamp(in, ordinal);
+    @Override
+    public void doWrite(T in, int ordinal) {
+        ValueVector valueVector = getValueVector();
+        if (isNullAt(in, ordinal)) {
+            ((TimeStampVector) valueVector).setNull(getCount());
+        } else {
+            TimestampData timestamp = readTimestamp(in, ordinal);
 
-			if (valueVector instanceof TimeStampSecVector) {
-				((TimeStampSecVector) valueVector).setSafe(getCount(), timestamp.getMillisecond() / 1000);
-			} else if (valueVector instanceof TimeStampMilliVector) {
-				((TimeStampMilliVector) valueVector).setSafe(getCount(), timestamp.getMillisecond());
-			} else if (valueVector instanceof TimeStampMicroVector) {
-				((TimeStampMicroVector) valueVector).setSafe(getCount(), timestamp.getMillisecond() * 1000 + timestamp.getNanoOfMillisecond() / 1000);
-			} else {
-				((TimeStampNanoVector) valueVector).setSafe(getCount(), timestamp.getMillisecond() * 1_000_000 + timestamp.getNanoOfMillisecond());
-			}
-		}
-	}
+            if (valueVector instanceof TimeStampSecVector) {
+                ((TimeStampSecVector) valueVector)
+                        .setSafe(getCount(), timestamp.getMillisecond() / 1000);
+            } else if (valueVector instanceof TimeStampMilliVector) {
+                ((TimeStampMilliVector) valueVector)
+                        .setSafe(getCount(), timestamp.getMillisecond());
+            } else if (valueVector instanceof TimeStampMicroVector) {
+                ((TimeStampMicroVector) valueVector)
+                        .setSafe(
+                                getCount(),
+                                timestamp.getMillisecond() * 1000
+                                        + timestamp.getNanoOfMillisecond() / 1000);
+            } else {
+                ((TimeStampNanoVector) valueVector)
+                        .setSafe(
+                                getCount(),
+                                timestamp.getMillisecond() * 1_000_000
+                                        + timestamp.getNanoOfMillisecond());
+            }
+        }
+    }
 
-	// ------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------
 
-	/**
-	 * {@link TimestampWriter} for {@link RowData} input.
-	 */
-	public static final class TimestampWriterForRow extends TimestampWriter<RowData> {
+    /** {@link TimestampWriter} for {@link RowData} input. */
+    public static final class TimestampWriterForRow extends TimestampWriter<RowData> {
 
-		private TimestampWriterForRow(ValueVector valueVector, int precision) {
-			super(valueVector, precision);
-		}
+        private TimestampWriterForRow(ValueVector valueVector, int precision) {
+            super(valueVector, precision);
+        }
 
-		@Override
-		boolean isNullAt(RowData in, int ordinal) {
-			return in.isNullAt(ordinal);
-		}
+        @Override
+        boolean isNullAt(RowData in, int ordinal) {
+            return in.isNullAt(ordinal);
+        }
 
-		@Override
-		TimestampData readTimestamp(RowData in, int ordinal) {
-			return in.getTimestamp(ordinal, precision);
-		}
-	}
+        @Override
+        TimestampData readTimestamp(RowData in, int ordinal) {
+            return in.getTimestamp(ordinal, precision);
+        }
+    }
 
-	/**
-	 * {@link TimestampWriter} for {@link ArrayData} input.
-	 */
-	public static final class TimestampWriterForArray extends TimestampWriter<ArrayData> {
+    /** {@link TimestampWriter} for {@link ArrayData} input. */
+    public static final class TimestampWriterForArray extends TimestampWriter<ArrayData> {
 
-		private TimestampWriterForArray(ValueVector valueVector, int precision) {
-			super(valueVector, precision);
-		}
+        private TimestampWriterForArray(ValueVector valueVector, int precision) {
+            super(valueVector, precision);
+        }
 
-		@Override
-		boolean isNullAt(ArrayData in, int ordinal) {
-			return in.isNullAt(ordinal);
-		}
+        @Override
+        boolean isNullAt(ArrayData in, int ordinal) {
+            return in.isNullAt(ordinal);
+        }
 
-		@Override
-		TimestampData readTimestamp(ArrayData in, int ordinal) {
-			return in.getTimestamp(ordinal, precision);
-		}
-	}
+        @Override
+        TimestampData readTimestamp(ArrayData in, int ordinal) {
+            return in.getTimestamp(ordinal, precision);
+        }
+    }
 }

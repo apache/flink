@@ -27,16 +27,16 @@ import org.apache.flink.util.Collector;
  */
 public class GeneratedCollector<C extends Collector<?>> extends GeneratedClass<C> {
 
-	private static final long serialVersionUID = -7355875544905245676L;
+    private static final long serialVersionUID = -7355875544905245676L;
 
-	/**
-	 * Creates a GeneratedCollector.
-	 *
-	 * @param className class name of the generated Collector.
-	 * @param code code of the generated Collector.
-	 * @param references referenced objects of the generated Collector.
-	 */
-	public GeneratedCollector(String className, String code, Object[] references) {
-		super(className, code, references);
-	}
+    /**
+     * Creates a GeneratedCollector.
+     *
+     * @param className class name of the generated Collector.
+     * @param code code of the generated Collector.
+     * @param references referenced objects of the generated Collector.
+     */
+    public GeneratedCollector(String className, String code, Object[] references) {
+        super(className, code, references);
+    }
 }

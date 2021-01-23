@@ -149,39 +149,13 @@ this would mean doing some sort of GROUP BY with the `startCell`, while in Flink
 {% highlight java %}
 rides
     .flatMap(new NYCEnrichment())
-    .keyBy(value -> value.startCell)
+    .keyBy(enrichedRide -> enrichedRide.startCell)
 {% endhighlight %}
 
 Every `keyBy` causes a network shuffle that repartitions the stream. In general this is pretty
 expensive, since it involves network communication along with serialization and deserialization.
 
-<img src="{{ site.baseurl }}/fig/keyBy.png" alt="keyBy and network shuffle" class="offset" width="45%" />
-
-In the example above, the key has been specified by a field name, "startCell". This style of key
-selection has the drawback that the compiler is unable to infer the type of the field being used for
-keying, and so Flink will pass around the key values as Tuples, which can be awkward. It is
-better to use a properly typed KeySelector, e.g.,
-
-{% highlight java %}
-rides
-    .flatMap(new NYCEnrichment())
-    .keyBy(
-        new KeySelector<EnrichedRide, int>() {
-
-            @Override
-            public int getKey(EnrichedRide enrichedRide) throws Exception {
-                return enrichedRide.startCell;
-            }
-        })
-{% endhighlight %}
-
-which can be more succinctly expressed with a lambda:
-
-{% highlight java %}
-rides
-    .flatMap(new NYCEnrichment())
-    .keyBy(enrichedRide -> enrichedRide.startCell)
-{% endhighlight %}
+<img src="{% link /fig/keyBy.png %}" alt="keyBy and network shuffle" class="offset" width="45%" />
 
 ### Keys are computed
 
@@ -431,13 +405,13 @@ of sources and sinks.
 
 Sometimes instead of applying a pre-defined transformation like this:
 
-<img src="{{ site.baseurl }}/fig/transformation.svg" alt="simple transformation" class="offset" width="45%" />
+<img src="{% link /fig/transformation.svg %}" alt="simple transformation" class="offset" width="45%" />
 
 you want to be able to dynamically alter some aspects of the transformation -- by streaming in
 thresholds, or rules, or other parameters. The pattern in Flink that supports this is something
 called _connected streams_, wherein a single operator has two input streams, like this:
 
-<img src="{{ site.baseurl }}/fig/connected-streams.svg" alt="connected streams" class="offset" width="45%" />
+<img src="{% link /fig/connected-streams.svg %}" alt="connected streams" class="offset" width="45%" />
 
 Connected streams can also be used to implement streaming joins.
 

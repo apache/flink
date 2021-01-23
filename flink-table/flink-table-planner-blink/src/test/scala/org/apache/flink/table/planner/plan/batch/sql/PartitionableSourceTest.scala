@@ -83,23 +83,23 @@ class PartitionableSourceTest(
 
   @Test
   def testSimplePartitionFieldPredicate1(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE part1 = 'A'")
+    util.verifyExecPlan("SELECT * FROM MyTable WHERE part1 = 'A'")
   }
 
   @Test
   def testPartialPartitionFieldPredicatePushDown(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE (id > 2 OR part1 = 'A') AND part2 > 1")
+    util.verifyExecPlan("SELECT * FROM MyTable WHERE (id > 2 OR part1 = 'A') AND part2 > 1")
   }
 
   @Test
   def testWithUdfAndVirtualColumn(): Unit = {
     util.addFunction("MyUdf", Func1)
-    util.verifyPlan("SELECT * FROM MyTable WHERE id > 2 AND MyUdf(part2) < 3")
+    util.verifyExecPlan("SELECT * FROM MyTable WHERE id > 2 AND MyUdf(part2) < 3")
   }
 
   @Test
   def testUnconvertedExpression(): Unit = {
-    util.verifyPlan("select * from MyTable where trim(part1) = 'A' and part2 > 1")
+    util.verifyExecPlan("select * from MyTable where trim(part1) = 'A' and part2 > 1")
   }
 }
 

@@ -38,7 +38,7 @@ resources:
   containers:
   # Container with Maven 3.2.5, SSL to have the same environment everywhere.
   - container: flink-build-container
-    image: rmetzger/flink-ci:ubuntu-amd64-bcef226
+    image: rmetzger/flink-ci:ubuntu-amd64-f009d96
     # On AZP provided machines, set this flag to allow writing coredumps in docker
     options: --privileged
 
@@ -58,15 +58,44 @@ variables:
   SECRET_S3_SECRET_KEY: $[variables.IT_CASE_S3_SECRET_KEY]
 
 
-jobs:
-  - template: tools/azure-pipelines/jobs-template.yml
-    parameters: # see template file for a definition of the parameters.
-      stage_name: ci_build
-      test_pool_definition:
-        vmImage: 'ubuntu-16.04'
-      e2e_pool_definition:
-        vmImage: 'ubuntu-16.04'
-      environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
-      run_end_to_end: false
-      container: flink-build-container
-      jdk: jdk8
+stages:
+  # CI / PR triggered stage:
+  - stage: ci
+    displayName: "CI build (custom builders)"
+    condition: not(eq(variables['MODE'], 'release'))
+    jobs:
+      - template: tools/azure-pipelines/jobs-template.yml
+        parameters: # see template file for a definition of the parameters.
+          stage_name: ci_build
+          test_pool_definition:
+            vmImage: 'ubuntu-16.04'
+          e2e_pool_definition:
+            vmImage: 'ubuntu-16.04'
+          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
+          run_end_to_end: false
+          container: flink-build-container
+          jdk: jdk8
+      - job: docs_404_check # run on a MSFT provided machine
+        pool:
+          vmImage: 'ubuntu-16.04'
+        steps:
+          - task: UseRubyVersion@0
+            inputs:
+              versionSpec: '= 2.4'
+              addToPath: true
+          - script: ./tools/ci/docs.sh
+          # upload spider.log for debugging
+          - task: PublishPipelineArtifact@1
+            inputs:
+              targetPath: ./docs/spider.log
+              artifact: spider.log
+  # CI / Special stage for release, e.g. building PyFlink wheel packages, etc:
+  - stage: ci_release
+    displayName: "CI build (release)"
+    condition: and(eq(variables['Build.Reason'], 'Manual'), eq(variables['MODE'], 'release'))
+    jobs:
+      - template: tools/azure-pipelines/build-python-wheels.yml
+        parameters:
+          stage_name: cron_python_wheels
+          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
+          container: flink-build-container

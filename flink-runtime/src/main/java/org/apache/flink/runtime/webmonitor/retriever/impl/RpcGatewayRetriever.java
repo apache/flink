@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.webmonitor.retriever.impl;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.concurrent.RetryStrategy;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
@@ -37,43 +37,37 @@ import java.util.function.Function;
  * @param <F> type of the fencing token
  * @param <T> type of the fenced gateway to retrieve
  */
-public class RpcGatewayRetriever<F extends Serializable, T extends FencedRpcGateway<F>> extends LeaderGatewayRetriever<T> {
+public class RpcGatewayRetriever<F extends Serializable, T extends FencedRpcGateway<F>>
+        extends LeaderGatewayRetriever<T> {
 
-	private final RpcService rpcService;
-	private final Class<T> gatewayType;
-	private final Function<UUID, F> fencingTokenMapper;
+    private final RpcService rpcService;
+    private final Class<T> gatewayType;
+    private final Function<UUID, F> fencingTokenMapper;
+    private final RetryStrategy retryStrategy;
 
-	private final int retries;
-	private final Time retryDelay;
+    public RpcGatewayRetriever(
+            RpcService rpcService,
+            Class<T> gatewayType,
+            Function<UUID, F> fencingTokenMapper,
+            RetryStrategy retryStrategy) {
+        this.rpcService = Preconditions.checkNotNull(rpcService);
+        this.gatewayType = Preconditions.checkNotNull(gatewayType);
+        this.fencingTokenMapper = Preconditions.checkNotNull(fencingTokenMapper);
+        this.retryStrategy = Preconditions.checkNotNull(retryStrategy);
+    }
 
-	public RpcGatewayRetriever(
-			RpcService rpcService,
-			Class<T> gatewayType,
-			Function<UUID, F> fencingTokenMapper,
-			int retries,
-			Time retryDelay) {
-		this.rpcService = Preconditions.checkNotNull(rpcService);
-
-		this.gatewayType = Preconditions.checkNotNull(gatewayType);
-		this.fencingTokenMapper = Preconditions.checkNotNull(fencingTokenMapper);
-
-		Preconditions.checkArgument(retries >= 0, "The number of retries must be greater or equal to 0.");
-		this.retries = retries;
-		this.retryDelay = Preconditions.checkNotNull(retryDelay);
-	}
-
-	@Override
-	protected CompletableFuture<T> createGateway(CompletableFuture<Tuple2<String, UUID>> leaderFuture) {
-		return FutureUtils.retryWithDelay(
-			() ->
-				leaderFuture.thenCompose(
-					(Tuple2<String, UUID> addressLeaderTuple) ->
-						rpcService.connect(
-							addressLeaderTuple.f0,
-							fencingTokenMapper.apply(addressLeaderTuple.f1),
-							gatewayType)),
-			retries,
-			retryDelay,
-			rpcService.getScheduledExecutor());
-	}
+    @Override
+    protected CompletableFuture<T> createGateway(
+            CompletableFuture<Tuple2<String, UUID>> leaderFuture) {
+        return FutureUtils.retryWithDelay(
+                () ->
+                        leaderFuture.thenCompose(
+                                (Tuple2<String, UUID> addressLeaderTuple) ->
+                                        rpcService.connect(
+                                                addressLeaderTuple.f0,
+                                                fencingTokenMapper.apply(addressLeaderTuple.f1),
+                                                gatewayType)),
+                retryStrategy,
+                rpcService.getScheduledExecutor());
+    }
 }

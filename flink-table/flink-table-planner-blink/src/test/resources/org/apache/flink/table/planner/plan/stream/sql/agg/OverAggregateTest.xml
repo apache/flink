@@ -27,15 +27,15 @@ SELECT c,
 FROM MyTable
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], cnt1=[COUNT(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)], sum1=[CASE(>(COUNT(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), 0), $SUM0(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), null:INTEGER)])
+LogicalProject(c=[$2], cnt1=[COUNT(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)], sum1=[CASE(>(COUNT(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING), 0), $SUM0(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING), null:INTEGER)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS cnt1, CASE(>(w0$o0, 0:BIGINT), w0$o1, null:INTEGER) AS sum1])
+Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0:BIGINT), w0$o1, null:INTEGER) AS sum1])
 +- OverAggregate(partitionBy=[c], orderBy=[proctime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(DISTINCT a) AS w0$o0, $SUM0(DISTINCT a) AS w0$o1])
    +- Exchange(distribution=[hash[c]])
       +- Calc(select=[a, c, proctime])
@@ -58,15 +58,15 @@ SELECT b,
 FROM MyTable
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], cnt1=[COUNT($0) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)], sum1=[CASE(>(COUNT($0) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), 0), $SUM0($0) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), null:INTEGER)], cnt2=[COUNT(DISTINCT $0) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)], sum2=[CASE(>(COUNT(DISTINCT $2) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), 0), $SUM0(DISTINCT $2) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), null:BIGINT)])
+LogicalProject(b=[$1], cnt1=[COUNT($0) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)], sum1=[CASE(>(COUNT($0) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING), 0), $SUM0($0) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING), null:INTEGER)], cnt2=[COUNT(DISTINCT $0) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)], sum2=[CASE(>(COUNT(DISTINCT $2) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING), 0), $SUM0(DISTINCT $2) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING), null:BIGINT)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[b, w0$o0 AS cnt1, CASE(>(w0$o0, 0:BIGINT), w0$o1, null:INTEGER) AS sum1, w0$o2 AS cnt2, CASE(>(w0$o3, 0:BIGINT), w0$o4, null:BIGINT) AS sum2])
+Calc(select=[b, w0$o0 AS cnt1, CASE((w0$o0 > 0:BIGINT), w0$o1, null:INTEGER) AS sum1, w0$o2 AS cnt2, CASE((w0$o3 > 0:BIGINT), w0$o4, null:BIGINT) AS sum2])
 +- OverAggregate(partitionBy=[b], orderBy=[proctime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, c, proctime, COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1, COUNT(DISTINCT a) AS w0$o2, COUNT(DISTINCT c) AS w0$o3, $SUM0(DISTINCT c) AS w0$o4])
    +- Exchange(distribution=[hash[b]])
       +- Calc(select=[a, b, c, proctime])
@@ -83,13 +83,13 @@ SELECT a,
  FROM MyTable
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], EXPR$1=[COUNT($2) OVER (ORDER BY $3 NULLS FIRST RANGE BETWEEN 10000:INTERVAL SECOND PRECEDING AND CURRENT ROW)])
+LogicalProject(a=[$0], EXPR$1=[COUNT($2) OVER (ORDER BY $3 NULLS FIRST RANGE 10000:INTERVAL SECOND PRECEDING)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, w0$o0 AS $1])
 +- OverAggregate(orderBy=[proctime ASC], window=[ RANG BETWEEN 10000 PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(c) AS w0$o0])
@@ -107,13 +107,13 @@ SELECT c,
 FROM MyTable
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], EXPR$1=[COUNT($0) OVER (ORDER BY $3 NULLS FIRST ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)])
+LogicalProject(c=[$2], EXPR$1=[COUNT($0) OVER (ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, w0$o0 AS $1])
 +- OverAggregate(orderBy=[proctime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(a) AS w0$o0])
@@ -132,15 +132,15 @@ SELECT a,
 FROM MyTable
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], avgA=[/(CASE(>(COUNT($2) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST RANGE BETWEEN 7200000:INTERVAL HOUR PRECEDING AND CURRENT ROW), 0), $SUM0($2) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST RANGE BETWEEN 7200000:INTERVAL HOUR PRECEDING AND CURRENT ROW), null:BIGINT), COUNT($2) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST RANGE BETWEEN 7200000:INTERVAL HOUR PRECEDING AND CURRENT ROW))])
+LogicalProject(a=[$0], avgA=[/(CASE(>(COUNT($2) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST RANGE 7200000:INTERVAL HOUR PRECEDING), 0), $SUM0($2) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST RANGE 7200000:INTERVAL HOUR PRECEDING), null:BIGINT), COUNT($2) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST RANGE 7200000:INTERVAL HOUR PRECEDING))])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, /(CASE(>(w0$o0, 0:BIGINT), w0$o1, null:BIGINT), w0$o0) AS avgA])
+Calc(select=[a, (CASE((w0$o0 > 0:BIGINT), w0$o1, null:BIGINT) / w0$o0) AS avgA])
 +- OverAggregate(partitionBy=[a], orderBy=[proctime ASC], window=[ RANG BETWEEN 7200000 PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(c) AS w0$o0, $SUM0(c) AS w0$o1])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, c, proctime])
@@ -159,36 +159,35 @@ SELECT c,
 FROM MyTable
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)], sum1=[CASE(>(COUNT($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), 0), $SUM0($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), null:INTEGER)])
+LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)], sum1=[CASE(>(COUNT($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING), 0), $SUM0($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING), null:INTEGER)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS cnt1, CASE(>(w0$o0, 0:BIGINT), w0$o1, null:INTEGER) AS sum1])
+Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0:BIGINT), w0$o1, null:INTEGER) AS sum1])
 +- OverAggregate(partitionBy=[c], orderBy=[proctime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1])
    +- Exchange(distribution=[hash[c]])
       +- Calc(select=[a, c, proctime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
-
     </Resource>
   </TestCase>
   <TestCase name="testProcTimeBoundedPartitionedRowsOverWithBuiltinProctime">
     <Resource name="sql">
       <![CDATA[SELECT a,   SUM(c) OVER (    PARTITION BY a ORDER BY proctime() ROWS BETWEEN 4 PRECEDING AND CURRENT ROW),   MIN(c) OVER (    PARTITION BY a ORDER BY proctime() ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], EXPR$1=[CASE(>(COUNT($2) OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST ROWS BETWEEN 4 PRECEDING AND CURRENT ROW), 0), $SUM0($2) OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST ROWS BETWEEN 4 PRECEDING AND CURRENT ROW), null:BIGINT)], EXPR$2=[MIN($2) OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST ROWS BETWEEN 4 PRECEDING AND CURRENT ROW)])
+LogicalProject(a=[$0], EXPR$1=[CASE(>(COUNT($2) OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST ROWS 4 PRECEDING), 0), $SUM0($2) OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST ROWS 4 PRECEDING), null:BIGINT)], EXPR$2=[MIN($2) OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST ROWS 4 PRECEDING)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, CASE(>(w0$o0, 0:BIGINT), w0$o1, null:BIGINT) AS EXPR$1, w0$o2 AS EXPR$2])
+Calc(select=[a, CASE((w0$o0 > 0:BIGINT), w0$o1, null:BIGINT) AS EXPR$1, w0$o2 AS EXPR$2])
 +- OverAggregate(partitionBy=[a], orderBy=[$2 ASC], window=[ ROWS BETWEEN 4 PRECEDING AND CURRENT ROW], select=[a, c, $2, COUNT(c) AS w0$o0, $SUM0(c) AS w0$o1, MIN(c) AS w0$o2])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, c, PROCTIME() AS $2])
@@ -205,15 +204,15 @@ SELECT c,
 FROM MyTable
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (ORDER BY $3 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)], cnt2=[CASE(>(COUNT($0) OVER (ORDER BY $3 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), 0), $SUM0($0) OVER (ORDER BY $3 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), null:INTEGER)])
+LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (ORDER BY $3 NULLS FIRST)], cnt2=[CASE(>(COUNT($0) OVER (ORDER BY $3 NULLS FIRST), 0), $SUM0($0) OVER (ORDER BY $3 NULLS FIRST), null:INTEGER)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS cnt1, CASE(>(w0$o0, 0:BIGINT), w0$o1, null:INTEGER) AS cnt2])
+Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0:BIGINT), w0$o1, null:INTEGER) AS cnt2])
 +- OverAggregate(orderBy=[proctime ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1])
    +- Exchange(distribution=[single])
       +- Calc(select=[a, c, proctime])
@@ -229,13 +228,13 @@ SELECT c,
 FROM MyTable
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], EXPR$1=[COUNT($0) OVER (ORDER BY $3 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+LogicalProject(c=[$2], EXPR$1=[COUNT($0) OVER (ORDER BY $3 NULLS FIRST ROWS UNBOUNDED PRECEDING)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, w0$o0 AS $1])
 +- OverAggregate(orderBy=[proctime ASC], window=[ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, proctime, rowtime, COUNT(a) AS w0$o0])
@@ -253,15 +252,15 @@ SELECT c,
 FROM MyTable
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)], cnt2=[CASE(>(COUNT($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), 0), $SUM0($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), null:INTEGER)])
+LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST)], cnt2=[CASE(>(COUNT($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST), 0), $SUM0($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST), null:INTEGER)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS cnt1, CASE(>(w0$o0, 0:BIGINT), w0$o1, null:INTEGER) AS cnt2])
+Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0:BIGINT), w0$o1, null:INTEGER) AS cnt2])
 +- OverAggregate(partitionBy=[c], orderBy=[proctime ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1])
    +- Exchange(distribution=[hash[c]])
       +- Calc(select=[a, c, proctime])
@@ -278,13 +277,13 @@ SELECT c,
 FROM MyTable
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], EXPR$1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+LogicalProject(c=[$2], EXPR$1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS UNBOUNDED PRECEDING)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, w0$o0 AS $1])
 +- OverAggregate(partitionBy=[c], orderBy=[proctime ASC], window=[ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, proctime, rowtime, COUNT(a) AS w0$o0])
@@ -302,13 +301,13 @@ SELECT c,
 FROM MyTable
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (ORDER BY $4 NULLS FIRST RANGE BETWEEN 1000:INTERVAL SECOND PRECEDING AND CURRENT ROW)])
+LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (ORDER BY $4 NULLS FIRST RANGE 1000:INTERVAL SECOND PRECEDING)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, w0$o0 AS $1])
 +- OverAggregate(orderBy=[rowtime ASC], window=[ RANG BETWEEN 1000 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0])
@@ -327,13 +326,13 @@ SELECT c,
     FROM MyTable
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], EXPR$1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST RANGE BETWEEN 1000:INTERVAL SECOND PRECEDING AND CURRENT ROW)])
+LogicalProject(c=[$2], EXPR$1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST RANGE 1000:INTERVAL SECOND PRECEDING)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, w0$o0 AS $1])
 +- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ RANG BETWEEN 1000 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0])
@@ -351,13 +350,13 @@ SELECT c,
 FROM MyTable
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], EXPR$1=[COUNT($0) OVER (ORDER BY $4 NULLS FIRST ROWS BETWEEN 5 PRECEDING AND CURRENT ROW)])
+LogicalProject(c=[$2], EXPR$1=[COUNT($0) OVER (ORDER BY $4 NULLS FIRST ROWS 5 PRECEDING)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, w0$o0 AS $1])
 +- OverAggregate(orderBy=[rowtime ASC], window=[ ROWS BETWEEN 5 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0])
@@ -376,13 +375,13 @@ SELECT c,
 FROM MyTable
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], EXPR$1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS BETWEEN 5 PRECEDING AND CURRENT ROW)])
+LogicalProject(c=[$2], EXPR$1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS 5 PRECEDING)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, w0$o0 AS $1])
 +- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 5 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0])
@@ -401,15 +400,15 @@ SELECT c,
 FROM MyTable
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (ORDER BY $4 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)], cnt2=[CASE(>(COUNT($0) OVER (ORDER BY $4 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), 0), $SUM0($0) OVER (ORDER BY $4 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), null:INTEGER)])
+LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (ORDER BY $4 NULLS FIRST)], cnt2=[CASE(>(COUNT($0) OVER (ORDER BY $4 NULLS FIRST), 0), $SUM0($0) OVER (ORDER BY $4 NULLS FIRST), null:INTEGER)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS cnt1, CASE(>(w0$o0, 0:BIGINT), w0$o1, null:INTEGER) AS cnt2])
+Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0:BIGINT), w0$o1, null:INTEGER) AS cnt2])
 +- OverAggregate(orderBy=[rowtime ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1])
    +- Exchange(distribution=[single])
       +- Calc(select=[a, c, rowtime])
@@ -426,15 +425,15 @@ SELECT c,
 FROM MyTable
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (ORDER BY $4 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)], cnt2=[CASE(>(COUNT($0) OVER (ORDER BY $4 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), 0), $SUM0($0) OVER (ORDER BY $4 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), null:INTEGER)])
+LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (ORDER BY $4 NULLS FIRST ROWS UNBOUNDED PRECEDING)], cnt2=[CASE(>(COUNT($0) OVER (ORDER BY $4 NULLS FIRST ROWS UNBOUNDED PRECEDING), 0), $SUM0($0) OVER (ORDER BY $4 NULLS FIRST ROWS UNBOUNDED PRECEDING), null:INTEGER)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS cnt1, CASE(>(w0$o0, 0:BIGINT), w0$o1, null:INTEGER) AS cnt2])
+Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0:BIGINT), w0$o1, null:INTEGER) AS cnt2])
 +- OverAggregate(orderBy=[rowtime ASC], window=[ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1])
    +- Exchange(distribution=[single])
       +- Calc(select=[a, c, rowtime])
@@ -451,15 +450,15 @@ SELECT c,
 FROM MyTable
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)], cnt2=[CASE(>(COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), 0), $SUM0($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), null:INTEGER)])
+LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS UNBOUNDED PRECEDING)], cnt2=[CASE(>(COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS UNBOUNDED PRECEDING), 0), $SUM0($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS UNBOUNDED PRECEDING), null:INTEGER)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS cnt1, CASE(>(w0$o0, 0:BIGINT), w0$o1, null:INTEGER) AS cnt2])
+Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0:BIGINT), w0$o1, null:INTEGER) AS cnt2])
 +- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1])
    +- Exchange(distribution=[hash[c]])
       +- Calc(select=[a, c, rowtime])
@@ -476,15 +475,15 @@ SELECT c,
 FROM MyTable
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)], cnt2=[CASE(>(COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), 0), $SUM0($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), null:INTEGER)])
+LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST)], cnt2=[CASE(>(COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST), 0), $SUM0($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST), null:INTEGER)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS cnt1, CASE(>(w0$o0, 0:BIGINT), w0$o1, null:INTEGER) AS cnt2])
+Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0:BIGINT), w0$o1, null:INTEGER) AS cnt2])
 +- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1])
    +- Exchange(distribution=[hash[c]])
       +- Calc(select=[a, c, rowtime])

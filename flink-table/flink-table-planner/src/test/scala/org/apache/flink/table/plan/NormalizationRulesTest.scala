@@ -24,7 +24,7 @@ import org.apache.flink.table.calcite.CalciteConfigBuilder
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
 
-import org.apache.calcite.rel.rules.AggregateExpandDistinctAggregatesRule
+import org.apache.calcite.rel.rules.CoreRules
 import org.apache.calcite.tools.RuleSets
 import org.junit.Test
 
@@ -36,7 +36,8 @@ class NormalizationRulesTest extends TableTestBase {
 
     // rewrite distinct aggregate
     val cc: PlannerConfig = new CalciteConfigBuilder()
-        .replaceNormRuleSet(RuleSets.ofList(AggregateExpandDistinctAggregatesRule.JOIN))
+        .replaceNormRuleSet(
+          RuleSets.ofList(CoreRules.AGGREGATE_EXPAND_DISTINCT_AGGREGATES_TO_JOIN))
         .replaceLogicalOptRuleSet(RuleSets.ofList())
         .replacePhysicalOptRuleSet(RuleSets.ofList())
         .build()
@@ -72,7 +73,8 @@ class NormalizationRulesTest extends TableTestBase {
 
     // rewrite distinct aggregate
     val cc: PlannerConfig = new CalciteConfigBuilder()
-        .replaceNormRuleSet(RuleSets.ofList(AggregateExpandDistinctAggregatesRule.JOIN))
+        .replaceNormRuleSet(
+          RuleSets.ofList(CoreRules.AGGREGATE_EXPAND_DISTINCT_AGGREGATES_TO_JOIN))
         .replaceLogicalOptRuleSet(RuleSets.ofList())
         .replacePhysicalOptRuleSet(RuleSets.ofList())
         .build()

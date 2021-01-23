@@ -33,79 +33,78 @@ import java.util.Objects;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
-/**
- * {@link TypeSerializerSnapshot} for {@link ScalaCaseClassSerializer}.
- */
+/** {@link TypeSerializerSnapshot} for {@link ScalaCaseClassSerializer}. */
 @Internal
 public final class ScalaCaseClassSerializerSnapshot<T extends scala.Product>
-	extends CompositeTypeSerializerSnapshot<T, ScalaCaseClassSerializer<T>> {
+        extends CompositeTypeSerializerSnapshot<T, ScalaCaseClassSerializer<T>> {
 
-	private static final int VERSION = 2;
+    private static final int VERSION = 2;
 
-	private Class<T> type;
+    private Class<T> type;
 
-	/**
-	 * Used via reflection.
-	 */
-	@SuppressWarnings("unused")
-	public ScalaCaseClassSerializerSnapshot() {
-		super(ScalaCaseClassSerializer.class);
-	}
+    /** Used via reflection. */
+    @SuppressWarnings("unused")
+    public ScalaCaseClassSerializerSnapshot() {
+        super(ScalaCaseClassSerializer.class);
+    }
 
-	/**
-	 * Used for delegating schema compatibility checks from serializers that were previously using
-	 * {@code TupleSerializerConfigSnapshot}.
-	 * Type is the {@code outerSnapshot} information, that is required to perform
-	 * {@link #internalResolveSchemaCompatibility(TypeSerializer, TypeSerializerSnapshot[])}.
-	 *
-	 * <p>This is used in
-	 * {@link ScalaCaseClassSerializer#resolveSchemaCompatibilityViaRedirectingToNewSnapshotClass(TypeSerializerConfigSnapshot)}.
-	 */
-	@Internal
-	ScalaCaseClassSerializerSnapshot(Class<T> type) {
-		super(ScalaCaseClassSerializer.class);
-		this.type = checkNotNull(type, "type can not be NULL");
-	}
+    /**
+     * Used for delegating schema compatibility checks from serializers that were previously using
+     * {@code TupleSerializerConfigSnapshot}. Type is the {@code outerSnapshot} information, that is
+     * required to perform {@link #internalResolveSchemaCompatibility(TypeSerializer,
+     * TypeSerializerSnapshot[])}.
+     *
+     * <p>This is used in {@link
+     * ScalaCaseClassSerializer#resolveSchemaCompatibilityViaRedirectingToNewSnapshotClass(TypeSerializerConfigSnapshot)}.
+     */
+    @Internal
+    ScalaCaseClassSerializerSnapshot(Class<T> type) {
+        super(ScalaCaseClassSerializer.class);
+        this.type = checkNotNull(type, "type can not be NULL");
+    }
 
-	/**
-	 * Used for the snapshot path.
-	 */
-	public ScalaCaseClassSerializerSnapshot(ScalaCaseClassSerializer<T> serializerInstance) {
-		super(serializerInstance);
-		this.type = checkNotNull(serializerInstance.getTupleClass(), "tuple class can not be NULL");
-	}
+    /** Used for the snapshot path. */
+    public ScalaCaseClassSerializerSnapshot(ScalaCaseClassSerializer<T> serializerInstance) {
+        super(serializerInstance);
+        this.type = checkNotNull(serializerInstance.getTupleClass(), "tuple class can not be NULL");
+    }
 
-	@Override
-	protected int getCurrentOuterSnapshotVersion() {
-		return VERSION;
-	}
+    @Override
+    protected int getCurrentOuterSnapshotVersion() {
+        return VERSION;
+    }
 
-	@Override
-	protected TypeSerializer<?>[] getNestedSerializers(ScalaCaseClassSerializer<T> outerSerializer) {
-		return outerSerializer.getFieldSerializers();
-	}
+    @Override
+    protected TypeSerializer<?>[] getNestedSerializers(
+            ScalaCaseClassSerializer<T> outerSerializer) {
+        return outerSerializer.getFieldSerializers();
+    }
 
-	@Override
-	protected ScalaCaseClassSerializer<T> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
-			checkState(type != null, "type can not be NULL");
-		return new ScalaCaseClassSerializer<>(type, nestedSerializers);
-	}
+    @Override
+    protected ScalaCaseClassSerializer<T> createOuterSerializerWithNestedSerializers(
+            TypeSerializer<?>[] nestedSerializers) {
+        checkState(type != null, "type can not be NULL");
+        return new ScalaCaseClassSerializer<>(type, nestedSerializers);
+    }
 
-	@Override
-	protected void writeOuterSnapshot(DataOutputView out) throws IOException {
-		checkState(type != null, "type can not be NULL");
-		out.writeUTF(type.getName());
-	}
+    @Override
+    protected void writeOuterSnapshot(DataOutputView out) throws IOException {
+        checkState(type != null, "type can not be NULL");
+        out.writeUTF(type.getName());
+    }
 
-	@Override
-	protected void readOuterSnapshot(int readOuterSnapshotVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
-		this.type = InstantiationUtil.resolveClassByName(in, userCodeClassLoader);
-	}
+    @Override
+    protected void readOuterSnapshot(
+            int readOuterSnapshotVersion, DataInputView in, ClassLoader userCodeClassLoader)
+            throws IOException {
+        this.type = InstantiationUtil.resolveClassByName(in, userCodeClassLoader);
+    }
 
-	@Override
-	protected CompositeTypeSerializerSnapshot.OuterSchemaCompatibility resolveOuterSchemaCompatibility(ScalaCaseClassSerializer<T> newSerializer) {
-		return (Objects.equals(type, newSerializer.getTupleClass()))
-			? OuterSchemaCompatibility.COMPATIBLE_AS_IS
-			: OuterSchemaCompatibility.INCOMPATIBLE;
-	}
+    @Override
+    protected CompositeTypeSerializerSnapshot.OuterSchemaCompatibility
+            resolveOuterSchemaCompatibility(ScalaCaseClassSerializer<T> newSerializer) {
+        return (Objects.equals(type, newSerializer.getTupleClass()))
+                ? OuterSchemaCompatibility.COMPATIBLE_AS_IS
+                : OuterSchemaCompatibility.INCOMPATIBLE;
+    }
 }

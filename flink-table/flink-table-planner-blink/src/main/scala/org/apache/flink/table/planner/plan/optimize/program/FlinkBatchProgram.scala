@@ -32,10 +32,12 @@ object FlinkBatchProgram {
   val SUBQUERY_REWRITE = "subquery_rewrite"
   val TEMPORAL_JOIN_REWRITE = "temporal_join_rewrite"
   val DECORRELATE = "decorrelate"
+  val TIME_INDICATOR = "time_indicator"
   val DEFAULT_REWRITE = "default_rewrite"
   val PREDICATE_PUSHDOWN = "predicate_pushdown"
   val JOIN_REORDER = "join_reorder"
   val JOIN_REWRITE = "join_rewrite"
+  val PROJECT_REWRITE = "project_rewrite"
   val WINDOW = "window"
   val LOGICAL = "logical"
   val LOGICAL_REWRITE = "logical_rewrite"
@@ -94,6 +96,9 @@ object FlinkBatchProgram {
 
     // query decorrelation
     chainedProgram.addLast(DECORRELATE, new FlinkDecorrelateProgram)
+
+    // convert time indicators
+    chainedProgram.addLast(TIME_INDICATOR, new FlinkRelTimeIndicatorProgram)
 
     // default rewrite, includes: predicate simplification, expression reduction, etc.
     chainedProgram.addLast(
@@ -158,28 +163,26 @@ object FlinkBatchProgram {
     // join rewrite
     chainedProgram.addLast(
       JOIN_REWRITE,
-      FlinkHepRuleSetProgramBuilder.newBuilder
-        .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
-        .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-        .add(FlinkBatchRuleSets.JOIN_COND_EQUAL_TRANSFER_RULES)
+      FlinkGroupProgramBuilder.newBuilder[BatchOptimizeContext]
+        .addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
+          .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
+          .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+          .add(FlinkBatchRuleSets.JOIN_COND_EQUAL_TRANSFER_RULES)
+          .build(), "simplify and push down join predicates")
+        .addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
+          .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
+          .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+          .add(FlinkBatchRuleSets.JOIN_NULL_FILTER_RULES)
+          .build(), "deal with possible null join keys")
         .build())
 
     // window rewrite
     chainedProgram.addLast(
-      WINDOW,
-      FlinkGroupProgramBuilder.newBuilder[BatchOptimizeContext]
-        .addProgram(
-          FlinkHepRuleSetProgramBuilder.newBuilder
-            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
-            .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-            .add(FlinkBatchRuleSets.PROJECT_RULES)
-            .build(), "project rules")
-        .addProgram(
-          FlinkHepRuleSetProgramBuilder.newBuilder
-            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
-            .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-            .add(FlinkBatchRuleSets.WINDOW_RULES)
-            .build(), "window")
+      PROJECT_REWRITE,
+      FlinkHepRuleSetProgramBuilder.newBuilder
+        .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
+        .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+        .add(FlinkBatchRuleSets.PROJECT_RULES)
         .build())
 
     // optimize the logical plan

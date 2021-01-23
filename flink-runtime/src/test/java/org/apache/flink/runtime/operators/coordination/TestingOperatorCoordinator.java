@@ -24,144 +24,196 @@ import org.apache.flink.runtime.util.SerializableFunction;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 
-/**
- * A simple testing implementation of the {@link OperatorCoordinator}.
- */
+/** A simple testing implementation of the {@link OperatorCoordinator}. */
 class TestingOperatorCoordinator implements OperatorCoordinator {
 
-	private final OperatorCoordinator.Context context;
+    public static final byte[] NULL_RESTORE_VALUE = new byte[0];
 
-	private final ArrayList<Integer> failedTasks = new ArrayList<>();
+    private final OperatorCoordinator.Context context;
 
-	@Nullable
-	private byte[] lastRestoredCheckpointState;
+    private final ArrayList<Integer> failedTasks = new ArrayList<>();
+    private final ArrayList<SubtaskAndCheckpoint> restoredTasks = new ArrayList<>();
 
-	private BlockingQueue<CompletableFuture<byte[]>> triggeredCheckpoints;
+    private final CountDownLatch blockOnCloseLatch;
 
-	private BlockingQueue<Long> lastCheckpointComplete;
+    @Nullable private byte[] lastRestoredCheckpointState;
+    private long lastRestoredCheckpointId;
 
-	private boolean started;
-	private boolean closed;
+    private BlockingQueue<CompletableFuture<byte[]>> triggeredCheckpoints;
 
-	public TestingOperatorCoordinator(OperatorCoordinator.Context context) {
-		this.context = context;
-		this.triggeredCheckpoints = new LinkedBlockingQueue<>();
-		this.lastCheckpointComplete = new LinkedBlockingQueue<>();
-	}
+    private BlockingQueue<Long> lastCheckpointComplete;
 
-	// ------------------------------------------------------------------------
+    private BlockingQueue<OperatorEvent> receivedOperatorEvents;
 
-	@Override
-	public void start() throws Exception {
-		started = true;
-	}
+    private boolean started;
+    private boolean closed;
 
-	@Override
-	public void close() {
-		closed = true;
-	}
+    public TestingOperatorCoordinator(OperatorCoordinator.Context context) {
+        this(context, null);
+    }
 
-	@Override
-	public void handleEventFromOperator(int subtask, OperatorEvent event) {}
+    public TestingOperatorCoordinator(
+            OperatorCoordinator.Context context, CountDownLatch blockOnCloseLatch) {
+        this.context = context;
+        this.triggeredCheckpoints = new LinkedBlockingQueue<>();
+        this.lastCheckpointComplete = new LinkedBlockingQueue<>();
+        this.receivedOperatorEvents = new LinkedBlockingQueue<>();
+        this.blockOnCloseLatch = blockOnCloseLatch;
+    }
 
-	@Override
-	public void subtaskFailed(int subtask, @Nullable Throwable reason) {
-		failedTasks.add(subtask);
-	}
+    // ------------------------------------------------------------------------
 
-	@Override
-	public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) {
-		boolean added = triggeredCheckpoints.offer(result);
-		assert added; // guard the test assumptions
-	}
+    @Override
+    public void start() throws Exception {
+        started = true;
+    }
 
-	@Override
-	public void checkpointComplete(long checkpointId) {
-		lastCheckpointComplete.offer(checkpointId);
-	}
+    @Override
+    public void close() throws InterruptedException {
+        closed = true;
+        if (blockOnCloseLatch != null) {
+            blockOnCloseLatch.await();
+        }
+    }
 
-	@Override
-	public void resetToCheckpoint(byte[] checkpointData) {
-		lastRestoredCheckpointState = checkpointData;
-	}
+    @Override
+    public void handleEventFromOperator(int subtask, OperatorEvent event) {
+        receivedOperatorEvents.add(event);
+    }
 
-	// ------------------------------------------------------------------------
+    @Override
+    public void subtaskFailed(int subtask, @Nullable Throwable reason) {
+        failedTasks.add(subtask);
+    }
 
-	public OperatorCoordinator.Context getContext() {
-		return context;
-	}
+    @Override
+    public void subtaskReset(int subtask, long checkpointId) {
+        restoredTasks.add(new SubtaskAndCheckpoint(subtask, checkpointId));
+    }
 
-	public boolean isStarted() {
-		return started;
-	}
+    @Override
+    public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) {
+        boolean added = triggeredCheckpoints.offer(result);
+        assert added; // guard the test assumptions
+    }
 
-	public boolean isClosed() {
-		return closed;
-	}
+    @Override
+    public void notifyCheckpointComplete(long checkpointId) {
+        lastCheckpointComplete.offer(checkpointId);
+    }
 
-	public Collection<Integer> getFailedTasks() {
-		return failedTasks;
-	}
+    @Override
+    public void resetToCheckpoint(long checkpointId, @Nullable byte[] checkpointData) {
+        lastRestoredCheckpointId = checkpointId;
+        lastRestoredCheckpointState = checkpointData == null ? NULL_RESTORE_VALUE : checkpointData;
+    }
 
-	@Nullable
-	public byte[] getLastRestoredCheckpointState() {
-		return lastRestoredCheckpointState;
-	}
+    // ------------------------------------------------------------------------
 
-	public CompletableFuture<byte[]> getLastTriggeredCheckpoint() throws InterruptedException {
-		return triggeredCheckpoints.take();
-	}
+    public OperatorCoordinator.Context getContext() {
+        return context;
+    }
 
-	public boolean hasTriggeredCheckpoint() {
-		return !triggeredCheckpoints.isEmpty();
-	}
+    public boolean isStarted() {
+        return started;
+    }
 
-	public long getLastCheckpointComplete() throws InterruptedException {
-		return lastCheckpointComplete.take();
-	}
+    public boolean isClosed() {
+        return closed;
+    }
 
-	public boolean hasCompleteCheckpoint() throws InterruptedException {
-		return !lastCheckpointComplete.isEmpty();
-	}
+    public List<Integer> getFailedTasks() {
+        return failedTasks;
+    }
 
-	// ------------------------------------------------------------------------
-	//  The provider for this coordinator implementation
-	// ------------------------------------------------------------------------
+    public List<SubtaskAndCheckpoint> getRestoredTasks() {
+        return restoredTasks;
+    }
 
-	/**
-	 * A testing stub for an {@link OperatorCoordinator.Provider} that creates a
-	 * {@link TestingOperatorCoordinator}.
-	 */
-	public static final class Provider implements OperatorCoordinator.Provider {
+    @Nullable
+    public byte[] getLastRestoredCheckpointState() {
+        return lastRestoredCheckpointState;
+    }
 
-		private static final long serialVersionUID = 1L;
+    public long getLastRestoredCheckpointId() {
+        return lastRestoredCheckpointId;
+    }
 
-		private final OperatorID operatorId;
+    public CompletableFuture<byte[]> getLastTriggeredCheckpoint() throws InterruptedException {
+        return triggeredCheckpoints.take();
+    }
 
-		private final SerializableFunction<Context, TestingOperatorCoordinator> factory;
+    public boolean hasTriggeredCheckpoint() {
+        return !triggeredCheckpoints.isEmpty();
+    }
 
-		public Provider(OperatorID operatorId) {
-			this(operatorId, TestingOperatorCoordinator::new);
-		}
+    public long getLastCheckpointComplete() throws InterruptedException {
+        return lastCheckpointComplete.take();
+    }
 
-		public Provider(OperatorID operatorId, SerializableFunction<Context, TestingOperatorCoordinator> factory) {
-			this.operatorId = operatorId;
-			this.factory = factory;
-		}
+    @Nullable
+    public OperatorEvent getNextReceivedOperatorEvent() {
+        return receivedOperatorEvents.poll();
+    }
 
-		@Override
-		public OperatorID getOperatorId() {
-			return operatorId;
-		}
+    public boolean hasCompleteCheckpoint() throws InterruptedException {
+        return !lastCheckpointComplete.isEmpty();
+    }
 
-		@Override
-		public OperatorCoordinator create(OperatorCoordinator.Context context) {
-			return factory.apply(context);
-		}
-	}
+    // ------------------------------------------------------------------------
+
+    public static final class SubtaskAndCheckpoint {
+
+        public final int subtaskIndex;
+        public final long checkpointId;
+
+        public SubtaskAndCheckpoint(int subtaskIndex, long checkpointId) {
+            this.subtaskIndex = subtaskIndex;
+            this.checkpointId = checkpointId;
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    //  The provider for this coordinator implementation
+    // ------------------------------------------------------------------------
+
+    /**
+     * A testing stub for an {@link OperatorCoordinator.Provider} that creates a {@link
+     * TestingOperatorCoordinator}.
+     */
+    public static final class Provider implements OperatorCoordinator.Provider {
+
+        private static final long serialVersionUID = 1L;
+
+        private final OperatorID operatorId;
+
+        private final SerializableFunction<Context, TestingOperatorCoordinator> factory;
+
+        public Provider(OperatorID operatorId) {
+            this(operatorId, TestingOperatorCoordinator::new);
+        }
+
+        public Provider(
+                OperatorID operatorId,
+                SerializableFunction<Context, TestingOperatorCoordinator> factory) {
+            this.operatorId = operatorId;
+            this.factory = factory;
+        }
+
+        @Override
+        public OperatorID getOperatorId() {
+            return operatorId;
+        }
+
+        @Override
+        public OperatorCoordinator create(OperatorCoordinator.Context context) {
+            return factory.apply(context);
+        }
+    }
 }

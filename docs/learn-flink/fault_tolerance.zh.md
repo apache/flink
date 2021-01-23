@@ -159,7 +159,7 @@ Barrier 只有在需要提供精确一次的语义保证时需要进行对齐（
 - [Checkpoints]({% link ops/state/checkpoints.zh.md %})
 - [Savepoints]({% link ops/state/savepoints.zh.md %})
 - [大状态与 Checkpoint 调优]({% link ops/state/large_state_tuning.zh.md %})
-- [监控 Checkpoint]({% link monitoring/checkpoint_monitoring.zh.md %})
+- [监控 Checkpoint]({% link ops/monitoring/checkpoint_monitoring.zh.md %})
 - [Task 故障恢复]({% link dev/task_failure_recovery.zh.md %})
 
 {% top %}

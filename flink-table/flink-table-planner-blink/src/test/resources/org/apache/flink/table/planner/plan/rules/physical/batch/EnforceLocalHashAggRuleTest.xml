@@ -20,7 +20,7 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[SELECT AVG(d) FROM t GROUP BY CUBE (a, c)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], EXPR$0=[AVG($2)])
@@ -28,7 +28,7 @@ LogicalProject(EXPR$0=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- HashAggregate(isMerge=[true], groupBy=[a, c, $e], select=[a, c, $e, Final_AVG(sum$0, count$1) AS EXPR$0])
@@ -44,7 +44,7 @@ Calc(select=[EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT COUNT(a) FROM t GROUP BY CUBE (b, c)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], EXPR$0=[COUNT($2)])
@@ -52,7 +52,7 @@ LogicalProject(EXPR$0=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- HashAggregate(isMerge=[true], groupBy=[b, c, $e], select=[b, c, $e, Final_COUNT(count$0) AS EXPR$0])
@@ -68,7 +68,7 @@ Calc(select=[EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT AVG(a) FROM t GROUP BY GROUPING SETS ((b, c), (b, d))]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$3])
 +- LogicalAggregate(group=[{0, 1, 2}], groups=[[{0, 1}, {0, 2}]], EXPR$0=[AVG($3)])
@@ -76,7 +76,7 @@ LogicalProject(EXPR$0=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- HashAggregate(isMerge=[false], groupBy=[b, c, d, $e], select=[b, c, d, $e, AVG(a) AS EXPR$0])
@@ -90,7 +90,7 @@ Calc(select=[EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT COUNT(*) FROM t GROUP BY GROUPING SETS ((b, c), (b, d))]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$3])
 +- LogicalAggregate(group=[{0, 1, 2}], groups=[[{0, 1}, {0, 2}]], EXPR$0=[COUNT()])
@@ -98,7 +98,7 @@ LogicalProject(EXPR$0=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- HashAggregate(isMerge=[false], groupBy=[b, c, d, $e], select=[b, c, d, $e, COUNT(*) AS EXPR$0])
@@ -113,7 +113,7 @@ Calc(select=[EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT AVG(a) FROM t GROUP BY ROLLUP (b, c)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], EXPR$0=[AVG($2)])
@@ -121,7 +121,7 @@ LogicalProject(EXPR$0=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- HashAggregate(isMerge=[true], groupBy=[b, c, $e], select=[b, c, $e, Final_AVG(sum$0, count$1) AS EXPR$0])
@@ -137,7 +137,7 @@ Calc(select=[EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT COUNT(*) FROM t GROUP BY ROLLUP (b, c)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], EXPR$0=[COUNT()])
@@ -145,7 +145,7 @@ LogicalProject(EXPR$0=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- HashAggregate(isMerge=[true], groupBy=[b, c, $e], select=[b, c, $e, Final_COUNT(count1$0) AS EXPR$0])

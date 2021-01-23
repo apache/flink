@@ -39,26 +39,44 @@ Flink 支持以下格式：
         <tr>
           <td><a href="{% link dev/table/connectors/formats/csv.zh.md %}">CSV</a></td>
           <td><a href="{% link dev/table/connectors/kafka.zh.md %}">Apache Kafka</a>,
+          <a href="{% link dev/table/connectors/upsert-kafka.zh.md %}">Upsert Kafka</a>,
+          <a href="{% link dev/table/connectors/kinesis.zh.md %}">Amazon Kinesis Data Streams</a>,
           <a href="{% link dev/table/connectors/filesystem.zh.md %}">Filesystem</a></td>
         </tr>
         <tr>
          <td><a href="{% link dev/table/connectors/formats/json.zh.md %}">JSON</a></td>
          <td><a href="{% link dev/table/connectors/kafka.zh.md %}">Apache Kafka</a>,
+          <a href="{% link dev/table/connectors/upsert-kafka.zh.md %}">Upsert Kafka</a>,
+          <a href="{% link dev/table/connectors/kinesis.zh.md %}">Amazon Kinesis Data Streams</a>,
           <a href="{% link dev/table/connectors/filesystem.zh.md %}">Filesystem</a>,
           <a href="{% link dev/table/connectors/elasticsearch.zh.md %}">Elasticsearch</a></td>
-       </tr>
+        </tr>
         <tr>
           <td><a href="{% link dev/table/connectors/formats/avro.zh.md %}">Apache Avro</a></td>
+          <td><a href="{% link dev/table/connectors/kafka.zh.md %}">Apache Kafka</a>,
+           <a href="{% link dev/table/connectors/upsert-kafka.zh.md %}">Upsert Kafka</a>,
+           <a href="{% link dev/table/connectors/kinesis.zh.md %}">Amazon Kinesis Data Streams</a>,
+           <a href="{% link dev/table/connectors/filesystem.zh.md %}">Filesystem</a></td>
+        </tr>
+        <tr>
+          <td><a href="{% link dev/table/connectors/formats/avro-confluent.zh.md %}">Confluent Avro</a></td>
+          <td><a href="{% link dev/table/connectors/kafka.zh.md %}">Apache Kafka</a>,
+           <a href="{% link dev/table/connectors/upsert-kafka.zh.md %}">Upsert Kafka</a></td>
+        </tr>
+        <tr>
+         <td><a href="{% link dev/table/connectors/formats/debezium.zh.md %}">Debezium CDC</a></td>
           <td><a href="{% link dev/table/connectors/kafka.zh.md %}">Apache Kafka</a>,
            <a href="{% link dev/table/connectors/filesystem.zh.md %}">Filesystem</a></td>
         </tr>
         <tr>
-         <td><a href="{% link dev/table/connectors/formats/debezium.zh.md %}">Debezium CDC</a></td>
-         <td><a href="{% link dev/table/connectors/kafka.zh.md %}">Apache Kafka</a></td>
+         <td><a href="{% link dev/table/connectors/formats/canal.zh.md %}">Canal CDC</a></td>
+          <td><a href="{% link dev/table/connectors/kafka.zh.md %}">Apache Kafka</a>,
+           <a href="{% link dev/table/connectors/filesystem.zh.md %}">Filesystem</a></td>
         </tr>
         <tr>
-         <td><a href="{% link dev/table/connectors/formats/canal.zh.md %}">Canal CDC</a></td>
-         <td><a href="{% link dev/table/connectors/kafka.zh.md %}">Apache Kafka</a></td>
+         <td><a href="{% link dev/table/connectors/formats/maxwell.zh.md %}">Maxwell CDC</a></td>
+          <td><a href="{% link dev/table/connectors/kafka.zh.md %}">Apache Kafka</a>,
+           <a href="{% link dev/table/connectors/filesystem.zh.md %}">Filesystem</a></td>
         </tr>
         <tr>
          <td><a href="{% link dev/table/connectors/formats/parquet.zh.md %}">Apache Parquet</a></td>
@@ -67,6 +85,13 @@ Flink 支持以下格式：
         <tr>
          <td><a href="{% link dev/table/connectors/formats/orc.zh.md %}">Apache ORC</a></td>
          <td><a href="{% link dev/table/connectors/filesystem.zh.md %}">Filesystem</a></td>
+        </tr>
+        <tr>
+        <td><a href="{% link dev/table/connectors/formats/raw.zh.md %}">Raw</a></td>
+        <td><a href="{% link dev/table/connectors/kafka.zh.md %}">Apache Kafka</a>,
+          <a href="{% link dev/table/connectors/upsert-kafka.zh.md %}">Upsert Kafka</a>,
+          <a href="{% link dev/table/connectors/kinesis.zh.md %}">Amazon Kinesis Data Streams</a>,
+          <a href="{% link dev/table/connectors/filesystem.zh.md %}">Filesystem</a></td>
         </tr>
     </tbody>
 </table>

@@ -24,66 +24,74 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * ZooKeeper test utilities.
- */
+/** ZooKeeper test utilities. */
 public class ZooKeeperTestUtils {
 
-	/**
-	 * Creates a configuration to operate in {@link HighAvailabilityMode#ZOOKEEPER}.
-	 *
-	 * @param zooKeeperQuorum   ZooKeeper quorum to connect to
-	 * @param fsStateHandlePath Base path for file system state backend (for checkpoints and
-	 *                          recovery)
-	 * @return A new configuration to operate in {@link HighAvailabilityMode#ZOOKEEPER}.
-	 */
-	public static Configuration createZooKeeperHAConfig(
-			String zooKeeperQuorum, String fsStateHandlePath) {
+    private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperTestUtils.class);
 
-		return configureZooKeeperHA(new Configuration(), zooKeeperQuorum, fsStateHandlePath);
-	}
+    /**
+     * Creates a configuration to operate in {@link HighAvailabilityMode#ZOOKEEPER}.
+     *
+     * @param zooKeeperQuorum ZooKeeper quorum to connect to
+     * @param fsStateHandlePath Base path for file system state backend (for checkpoints and
+     *     recovery)
+     * @return A new configuration to operate in {@link HighAvailabilityMode#ZOOKEEPER}.
+     */
+    public static Configuration createZooKeeperHAConfig(
+            String zooKeeperQuorum, String fsStateHandlePath) {
 
-	/**
-	 * Sets all necessary configuration keys to operate in {@link HighAvailabilityMode#ZOOKEEPER}.
-	 *
-	 * @param config            Configuration to use
-	 * @param zooKeeperQuorum   ZooKeeper quorum to connect to
-	 * @param fsStateHandlePath Base path for file system state backend (for checkpoints and
-	 *                          recovery)
-	 * @return The modified configuration to operate in {@link HighAvailabilityMode#ZOOKEEPER}.
-	 */
-	public static Configuration configureZooKeeperHA(
-			Configuration config,
-			String zooKeeperQuorum,
-			String fsStateHandlePath) {
+        return configureZooKeeperHA(new Configuration(), zooKeeperQuorum, fsStateHandlePath);
+    }
 
-		checkNotNull(config, "Configuration");
-		checkNotNull(zooKeeperQuorum, "ZooKeeper quorum");
-		checkNotNull(fsStateHandlePath, "File state handle backend path");
+    /**
+     * Sets all necessary configuration keys to operate in {@link HighAvailabilityMode#ZOOKEEPER}.
+     *
+     * @param config Configuration to use
+     * @param zooKeeperQuorum ZooKeeper quorum to connect to
+     * @param fsStateHandlePath Base path for file system state backend (for checkpoints and
+     *     recovery)
+     * @return The modified configuration to operate in {@link HighAvailabilityMode#ZOOKEEPER}.
+     */
+    public static Configuration configureZooKeeperHA(
+            Configuration config, String zooKeeperQuorum, String fsStateHandlePath) {
 
-		// ZooKeeper recovery mode
-		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-		config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperQuorum);
+        checkNotNull(config, "Configuration");
+        checkNotNull(zooKeeperQuorum, "ZooKeeper quorum");
+        checkNotNull(fsStateHandlePath, "File state handle backend path");
 
-		int connTimeout = 5000;
-		if (System.getenv().containsKey("CI")) {
-			// The regular timeout is to aggressive for Travis and connections are often lost.
-			connTimeout = 30000;
-		}
+        // ZooKeeper recovery mode
+        config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+        config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperQuorum);
 
-		config.setInteger(HighAvailabilityOptions.ZOOKEEPER_CONNECTION_TIMEOUT, connTimeout);
-		config.setInteger(HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT, connTimeout);
+        int connTimeout = 5000;
+        if (runsOnCIInfrastructure()) {
+            // The regular timeout is to aggressive for Travis and connections are often lost.
+            LOG.info(
+                    "Detected CI environment: Configuring connection and session timeout of 30 seconds");
+            connTimeout = 30000;
+        }
 
-		// File system state backend
-		config.setString(CheckpointingOptions.STATE_BACKEND, "FILESYSTEM");
-		config.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, fsStateHandlePath + "/checkpoints");
-		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, fsStateHandlePath + "/recovery");
+        config.setInteger(HighAvailabilityOptions.ZOOKEEPER_CONNECTION_TIMEOUT, connTimeout);
+        config.setInteger(HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT, connTimeout);
 
-		config.setString(AkkaOptions.ASK_TIMEOUT, "100 s");
+        // File system state backend
+        config.setString(CheckpointingOptions.STATE_BACKEND, "FILESYSTEM");
+        config.setString(
+                CheckpointingOptions.CHECKPOINTS_DIRECTORY, fsStateHandlePath + "/checkpoints");
+        config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, fsStateHandlePath + "/recovery");
 
-		return config;
-	}
+        config.setString(AkkaOptions.ASK_TIMEOUT, "100 s");
 
+        return config;
+    }
+
+    /** @return true, if a CI environment is detected. */
+    public static boolean runsOnCIInfrastructure() {
+        return System.getenv().containsKey("CI") || System.getenv().containsKey("TF_BUILD");
+    }
 }

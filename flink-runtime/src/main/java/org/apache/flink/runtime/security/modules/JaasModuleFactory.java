@@ -20,13 +20,11 @@ package org.apache.flink.runtime.security.modules;
 
 import org.apache.flink.runtime.security.SecurityConfiguration;
 
-/**
- * A {@link SecurityModuleFactory} for {@link JaasModule}.
- */
+/** A {@link SecurityModuleFactory} for {@link JaasModule}. */
 public class JaasModuleFactory implements SecurityModuleFactory {
 
-	@Override
-	public SecurityModule createModule(SecurityConfiguration securityConfig) {
-		return new JaasModule(securityConfig);
-	}
+    @Override
+    public SecurityModule createModule(SecurityConfiguration securityConfig) {
+        return new JaasModule(securityConfig);
+    }
 }

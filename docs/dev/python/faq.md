@@ -29,7 +29,7 @@ This page describes the solutions to some common questions for PyFlink users.
 
 ## Preparing Python Virtual Environment
 
-You can download a [convenience script]({{ site.baseurl }}/downloads/setup-pyflink-virtual-env.sh) to prepare a Python virtual env zip which can be used on Mac OS and most Linux distributions.
+You can download a [convenience script]({% link downloads/setup-pyflink-virtual-env.sh %}) to prepare a Python virtual env zip which can be used on Mac OS and most Linux distributions.
 You can specify the PyFlink version to generate a Python virtual environment required for the corresponding PyFlink version, otherwise the most recent version will be installed.
 
 {% highlight bash %}
@@ -66,7 +66,7 @@ For details on the usage of `add_python_archive` and `set_python_executable`, yo
 ## Adding Jar Files
 
 A PyFlink job may depend on jar files, i.e. connectors, Java UDFs, etc.
-You can specify the dependencies with the following Python Table APIs or through [command-line arguments]({% link ops/cli.md %}#usage) directly when submitting the job.
+You can specify the dependencies with the following Python Table APIs or through [command-line arguments]({% link deployment/cli.md %}#usage) directly when submitting the job.
 
 {% highlight python %}
 # NOTE: Only local file URLs (start with "file:") are supported.
@@ -76,7 +76,7 @@ table_env.get_config().get_configuration().set_string("pipeline.jars", "file:///
 table_env.get_config().get_configuration().set_string("pipeline.classpaths", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
 {% endhighlight %}
 
-For details about the APIs of adding Java dependency, you can refer to [the relevant documentation]({% link dev/python/table-api-users-guide/dependency_management.md %}#java-dependency)
+For details about the APIs of adding Java dependency, you can refer to [the relevant documentation]({% link dev/python/table-api-users-guide/dependency_management.md %}#java-dependency-in-python-program)
 
 ## Adding Python Files
 You can use the command-line arguments `pyfs` or the API `add_python_file` of `TableEnvironment` to add python file dependencies which could be python files, python packages or local directories.

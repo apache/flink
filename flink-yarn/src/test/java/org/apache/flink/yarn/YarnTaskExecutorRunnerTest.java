@@ -41,71 +41,95 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for the {@link YarnTaskExecutorRunner}.
- */
+/** Tests for the {@link YarnTaskExecutorRunner}. */
 public class YarnTaskExecutorRunnerTest extends TestLogger {
 
-	@Test
-	public void testDefaultKerberosKeytabConfiguration() throws Exception {
-		final String resourceDirPath = Paths.get("src", "test", "resources").toAbsolutePath().toString();
+    @Test
+    public void testDefaultKerberosKeytabConfiguration() throws Exception {
+        final String resourceDirPath =
+                Paths.get("src", "test", "resources").toAbsolutePath().toString();
 
-		final Map<String, String> envs = new HashMap<>(2);
-		envs.put(YarnConfigKeys.KEYTAB_PRINCIPAL, "testuser1@domain");
-		envs.put(YarnConfigKeys.REMOTE_KEYTAB_PATH, resourceDirPath);
-		// Local keytab path will be populated from default YarnConfigOptions.LOCALIZED_KEYTAB_PATH
-		envs.put(YarnConfigKeys.LOCAL_KEYTAB_PATH, YarnConfigOptions.LOCALIZED_KEYTAB_PATH.defaultValue());
+        final Map<String, String> envs = new HashMap<>(2);
+        envs.put(YarnConfigKeys.KEYTAB_PRINCIPAL, "testuser1@domain");
+        envs.put(YarnConfigKeys.REMOTE_KEYTAB_PATH, resourceDirPath);
+        // Local keytab path will be populated from default YarnConfigOptions.LOCALIZED_KEYTAB_PATH
+        envs.put(
+                YarnConfigKeys.LOCAL_KEYTAB_PATH,
+                YarnConfigOptions.LOCALIZED_KEYTAB_PATH.defaultValue());
 
-		Configuration configuration = new Configuration();
-		YarnTaskExecutorRunner.setupAndModifyConfiguration(configuration, resourceDirPath, envs);
+        Configuration configuration = new Configuration();
+        YarnTaskExecutorRunner.setupAndModifyConfiguration(configuration, resourceDirPath, envs);
 
-		// the SecurityContext is installed on TaskManager startup
-		SecurityUtils.install(new SecurityConfiguration(configuration));
+        // the SecurityContext is installed on TaskManager startup
+        SecurityUtils.install(new SecurityConfiguration(configuration));
 
-		final List<SecurityModule> modules = SecurityUtils.getInstalledModules();
-		Optional<SecurityModule> moduleOpt = modules.stream().filter(module -> module instanceof HadoopModule).findFirst();
+        final List<SecurityModule> modules = SecurityUtils.getInstalledModules();
+        Optional<SecurityModule> moduleOpt =
+                modules.stream().filter(module -> module instanceof HadoopModule).findFirst();
 
-		if (moduleOpt.isPresent()) {
-			HadoopModule hadoopModule = (HadoopModule) moduleOpt.get();
-			assertThat(hadoopModule.getSecurityConfig().getPrincipal(), is("testuser1@domain"));
-			assertThat(hadoopModule.getSecurityConfig().getKeytab(), is(new File(resourceDirPath, YarnConfigOptions.LOCALIZED_KEYTAB_PATH.defaultValue()).getAbsolutePath()));
-		} else {
-			fail("Can not find HadoopModule!");
-		}
+        if (moduleOpt.isPresent()) {
+            HadoopModule hadoopModule = (HadoopModule) moduleOpt.get();
+            assertThat(hadoopModule.getSecurityConfig().getPrincipal(), is("testuser1@domain"));
+            assertThat(
+                    hadoopModule.getSecurityConfig().getKeytab(),
+                    is(
+                            new File(
+                                            resourceDirPath,
+                                            YarnConfigOptions.LOCALIZED_KEYTAB_PATH.defaultValue())
+                                    .getAbsolutePath()));
+        } else {
+            fail("Can not find HadoopModule!");
+        }
 
-		assertThat(configuration.getString(SecurityOptions.KERBEROS_LOGIN_KEYTAB), is(new File(resourceDirPath, YarnConfigOptions.LOCALIZED_KEYTAB_PATH.defaultValue()).getAbsolutePath()));
-		assertThat(configuration.getString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL), is("testuser1@domain"));
-	}
+        assertThat(
+                configuration.getString(SecurityOptions.KERBEROS_LOGIN_KEYTAB),
+                is(
+                        new File(
+                                        resourceDirPath,
+                                        YarnConfigOptions.LOCALIZED_KEYTAB_PATH.defaultValue())
+                                .getAbsolutePath()));
+        assertThat(
+                configuration.getString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL),
+                is("testuser1@domain"));
+    }
 
-	@Test
-	public void testPreInstallKerberosKeytabConfiguration() throws Exception {
-		final String resourceDirPath = Paths.get("src", "test", "resources").toAbsolutePath().toString();
+    @Test
+    public void testPreInstallKerberosKeytabConfiguration() throws Exception {
+        final String resourceDirPath =
+                Paths.get("src", "test", "resources").toAbsolutePath().toString();
 
-		final Map<String, String> envs = new HashMap<>(2);
-		envs.put(YarnConfigKeys.KEYTAB_PRINCIPAL, "testuser1@domain");
-		// Try directly resolving local path when no remote keytab path is provided.
-		envs.put(YarnConfigKeys.LOCAL_KEYTAB_PATH, "src/test/resources/krb5.keytab");
+        final Map<String, String> envs = new HashMap<>(2);
+        envs.put(YarnConfigKeys.KEYTAB_PRINCIPAL, "testuser1@domain");
+        // Try directly resolving local path when no remote keytab path is provided.
+        envs.put(YarnConfigKeys.LOCAL_KEYTAB_PATH, "src/test/resources/krb5.keytab");
 
-		Configuration configuration = new Configuration();
-		YarnTaskExecutorRunner.setupAndModifyConfiguration(configuration, resourceDirPath, envs);
+        Configuration configuration = new Configuration();
+        YarnTaskExecutorRunner.setupAndModifyConfiguration(configuration, resourceDirPath, envs);
 
-		// the SecurityContext is installed on TaskManager startup
-		SecurityUtils.install(new SecurityConfiguration(configuration));
+        // the SecurityContext is installed on TaskManager startup
+        SecurityUtils.install(new SecurityConfiguration(configuration));
 
-		final List<SecurityModule> modules = SecurityUtils.getInstalledModules();
-		Optional<SecurityModule> moduleOpt = modules.stream().filter(module -> module instanceof HadoopModule).findFirst();
+        final List<SecurityModule> modules = SecurityUtils.getInstalledModules();
+        Optional<SecurityModule> moduleOpt =
+                modules.stream().filter(module -> module instanceof HadoopModule).findFirst();
 
-		if (moduleOpt.isPresent()) {
-			HadoopModule hadoopModule = (HadoopModule) moduleOpt.get();
-			assertThat(hadoopModule.getSecurityConfig().getPrincipal(), is("testuser1@domain"));
-			// Using containString verification as the absolute path varies depending on runtime environment
-			assertThat(hadoopModule.getSecurityConfig().getKeytab(), containsString("src/test/resources/krb5.keytab"));
-		} else {
-			fail("Can not find HadoopModule!");
-		}
+        if (moduleOpt.isPresent()) {
+            HadoopModule hadoopModule = (HadoopModule) moduleOpt.get();
+            assertThat(hadoopModule.getSecurityConfig().getPrincipal(), is("testuser1@domain"));
+            // Using containString verification as the absolute path varies depending on runtime
+            // environment
+            assertThat(
+                    hadoopModule.getSecurityConfig().getKeytab(),
+                    containsString("src/test/resources/krb5.keytab"));
+        } else {
+            fail("Can not find HadoopModule!");
+        }
 
-		assertThat(configuration.getString(SecurityOptions.KERBEROS_LOGIN_KEYTAB), containsString("src/test/resources/krb5.keytab"));
-		assertThat(configuration.getString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL), is("testuser1@domain"));
-
-	}
+        assertThat(
+                configuration.getString(SecurityOptions.KERBEROS_LOGIN_KEYTAB),
+                containsString("src/test/resources/krb5.keytab"));
+        assertThat(
+                configuration.getString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL),
+                is("testuser1@domain"));
+    }
 }

@@ -26,24 +26,25 @@ import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
  *
  * @param <K> The data type that the serializer serializes.
  */
-class SyncSnapshotStrategySynchronicityBehavior<K> implements SnapshotStrategySynchronicityBehavior<K> {
+class SyncSnapshotStrategySynchronicityBehavior<K>
+        implements SnapshotStrategySynchronicityBehavior<K> {
 
-	@Override
-	public void finalizeSnapshotBeforeReturnHook(Runnable runnable) {
-		// this triggers a synchronous execution from the main checkpointing thread.
-		runnable.run();
-	}
+    @Override
+    public void finalizeSnapshotBeforeReturnHook(Runnable runnable) {
+        // this triggers a synchronous execution from the main checkpointing thread.
+        runnable.run();
+    }
 
-	@Override
-	public boolean isAsynchronous() {
-		return false;
-	}
+    @Override
+    public boolean isAsynchronous() {
+        return false;
+    }
 
-	@Override
-	public <N, V> StateTable<K, N, V> newStateTable(
-		InternalKeyContext<K> keyContext,
-		RegisteredKeyValueStateBackendMetaInfo<N, V> newMetaInfo,
-		TypeSerializer<K> keySerializer) {
-		return new NestedMapsStateTable<>(keyContext, newMetaInfo, keySerializer);
-	}
+    @Override
+    public <N, V> StateTable<K, N, V> newStateTable(
+            InternalKeyContext<K> keyContext,
+            RegisteredKeyValueStateBackendMetaInfo<N, V> newMetaInfo,
+            TypeSerializer<K> keySerializer) {
+        return new NestedMapsStateTable<>(keyContext, newMetaInfo, keySerializer);
+    }
 }

@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.rules.logical
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
 
 import org.apache.calcite.plan.hep.HepMatchOrder
-import org.apache.calcite.rel.rules.{FilterCalcMergeRule, FilterToCalcRule, ProjectCalcMergeRule, ProjectToCalcRule}
+import org.apache.calcite.rel.rules.CoreRules
 import org.apache.calcite.tools.RuleSets
 
 /**
@@ -38,10 +38,10 @@ class CalcPruneAggregateCallRuleTest extends PruneAggregateCallRuleTestBase {
       .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
       .add(RuleSets.ofList(
         AggregateReduceGroupingRule.INSTANCE,
-        FilterCalcMergeRule.INSTANCE,
-        ProjectCalcMergeRule.INSTANCE,
-        FilterToCalcRule.INSTANCE,
-        ProjectToCalcRule.INSTANCE,
+        CoreRules.FILTER_CALC_MERGE,
+        CoreRules.PROJECT_CALC_MERGE,
+        CoreRules.FILTER_TO_CALC,
+        CoreRules.PROJECT_TO_CALC,
         FlinkCalcMergeRule.INSTANCE,
         PruneAggregateCallRule.CALC_ON_AGGREGATE)
       ).build())

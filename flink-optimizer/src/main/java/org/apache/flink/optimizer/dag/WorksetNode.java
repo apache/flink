@@ -16,11 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.dag;
-
-import java.util.Collections;
-import java.util.List;
 
 import org.apache.flink.api.common.operators.base.DeltaIterationBase.WorksetPlaceHolder;
 import org.apache.flink.optimizer.DataStatistics;
@@ -30,75 +26,88 @@ import org.apache.flink.optimizer.plan.Channel;
 import org.apache.flink.optimizer.plan.PlanNode;
 import org.apache.flink.optimizer.plan.WorksetPlanNode;
 
+import java.util.Collections;
+import java.util.List;
+
 /**
- * The optimizer's internal representation of the partial solution that is input to a bulk iteration.
+ * The optimizer's internal representation of the partial solution that is input to a bulk
+ * iteration.
  */
 public class WorksetNode extends AbstractPartialSolutionNode {
-	
-	private final WorksetIterationNode iterationNode;
-	
-	
-	public WorksetNode(WorksetPlaceHolder<?> psph, WorksetIterationNode iterationNode) {
-		super(psph);
-		this.iterationNode = iterationNode;
-	}
 
-	// --------------------------------------------------------------------------------------------
-	
-	public void setCandidateProperties(GlobalProperties gProps, LocalProperties lProps, Channel initialInput) {
-		if (this.cachedPlans != null) {
-			throw new IllegalStateException();
-		} else {
-			WorksetPlanNode wspn = new WorksetPlanNode(this, "Workset ("+this.getOperator().getName()+")", gProps, lProps, initialInput);
-			this.cachedPlans = Collections.<PlanNode>singletonList(wspn);
-		}
-	}
-	
-	public WorksetPlanNode getCurrentWorksetPlanNode() {
-		if (this.cachedPlans != null) {
-			return (WorksetPlanNode) this.cachedPlans.get(0);
-		} else {
-			throw new IllegalStateException();
-		}
-	}
-	
-	public WorksetIterationNode getIterationNode() {
-		return this.iterationNode;
-	}
-	
-	@Override
-	public void computeOutputEstimates(DataStatistics statistics) {
-		copyEstimates(this.iterationNode.getInitialWorksetPredecessorNode());
-	}
-	
-	// --------------------------------------------------------------------------------------------
+    private final WorksetIterationNode iterationNode;
 
-	/**
-	 * Gets the contract object for this data source node.
-	 * 
-	 * @return The contract.
-	 */
-	@Override
-	public WorksetPlaceHolder<?> getOperator() {
-		return (WorksetPlaceHolder<?>) super.getOperator();
-	}
+    public WorksetNode(WorksetPlaceHolder<?> psph, WorksetIterationNode iterationNode) {
+        super(psph);
+        this.iterationNode = iterationNode;
+    }
 
-	@Override
-	public String getOperatorName() {
-		return "Workset";
-	}
-	
-	@Override
-	public void computeUnclosedBranchStack() {
-		if (this.openBranches != null) {
-			return;
-		}
+    // --------------------------------------------------------------------------------------------
 
-		DagConnection worksetInput = this.iterationNode.getSecondIncomingConnection();
-		OptimizerNode worksetSource = worksetInput.getSource();
-		
-		addClosedBranches(worksetSource.closedBranchingNodes);
-		List<UnclosedBranchDescriptor> fromInput = worksetSource.getBranchesForParent(worksetInput);
-		this.openBranches = (fromInput == null || fromInput.isEmpty()) ? Collections.<UnclosedBranchDescriptor>emptyList() : fromInput;
-	}
+    public void setCandidateProperties(
+            GlobalProperties gProps, LocalProperties lProps, Channel initialInput) {
+        if (this.cachedPlans != null) {
+            throw new IllegalStateException();
+        } else {
+            WorksetPlanNode wspn =
+                    new WorksetPlanNode(
+                            this,
+                            "Workset (" + this.getOperator().getName() + ")",
+                            gProps,
+                            lProps,
+                            initialInput);
+            this.cachedPlans = Collections.<PlanNode>singletonList(wspn);
+        }
+    }
+
+    public WorksetPlanNode getCurrentWorksetPlanNode() {
+        if (this.cachedPlans != null) {
+            return (WorksetPlanNode) this.cachedPlans.get(0);
+        } else {
+            throw new IllegalStateException();
+        }
+    }
+
+    public WorksetIterationNode getIterationNode() {
+        return this.iterationNode;
+    }
+
+    @Override
+    public void computeOutputEstimates(DataStatistics statistics) {
+        copyEstimates(this.iterationNode.getInitialWorksetPredecessorNode());
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Gets the contract object for this data source node.
+     *
+     * @return The contract.
+     */
+    @Override
+    public WorksetPlaceHolder<?> getOperator() {
+        return (WorksetPlaceHolder<?>) super.getOperator();
+    }
+
+    @Override
+    public String getOperatorName() {
+        return "Workset";
+    }
+
+    @Override
+    public void computeUnclosedBranchStack() {
+        if (this.openBranches != null) {
+            return;
+        }
+
+        DagConnection worksetInput = this.iterationNode.getSecondIncomingConnection();
+        OptimizerNode worksetSource = worksetInput.getSource();
+
+        addClosedBranches(worksetSource.closedBranchingNodes);
+        List<UnclosedBranchDescriptor> fromInput = worksetSource.getBranchesForParent(worksetInput);
+        this.openBranches =
+                (fromInput == null || fromInput.isEmpty())
+                        ? Collections.<UnclosedBranchDescriptor>emptyList()
+                        : fromInput;
+    }
 }

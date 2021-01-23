@@ -38,157 +38,160 @@ import java.time.LocalDateTime;
 
 import static org.apache.flink.table.runtime.functions.SqlDateTimeUtils.dateToInternal;
 
-/**
- * This column vector is used to adapt hive's ColumnVector to Flink's ColumnVector.
- */
-public abstract class AbstractOrcNoHiveVector implements
-		org.apache.flink.table.data.vector.ColumnVector {
+/** This column vector is used to adapt hive's ColumnVector to Flink's ColumnVector. */
+public abstract class AbstractOrcNoHiveVector
+        implements org.apache.flink.table.data.vector.ColumnVector {
 
-	private ColumnVector orcVector;
+    private ColumnVector orcVector;
 
-	AbstractOrcNoHiveVector(ColumnVector orcVector) {
-		this.orcVector = orcVector;
-	}
+    AbstractOrcNoHiveVector(ColumnVector orcVector) {
+        this.orcVector = orcVector;
+    }
 
-	@Override
-	public boolean isNullAt(int i) {
-		return !orcVector.noNulls && orcVector.isNull[orcVector.isRepeating ? 0 : i];
-	}
+    @Override
+    public boolean isNullAt(int i) {
+        return !orcVector.noNulls && orcVector.isNull[orcVector.isRepeating ? 0 : i];
+    }
 
-	public static org.apache.flink.table.data.vector.ColumnVector createFlinkVector(
-			ColumnVector vector) {
-		if (vector instanceof LongColumnVector) {
-			return new OrcNoHiveLongVector((LongColumnVector) vector);
-		} else if (vector instanceof DoubleColumnVector) {
-			return new OrcNoHiveDoubleVector((DoubleColumnVector) vector);
-		} else if (vector instanceof BytesColumnVector) {
-			return new OrcNoHiveBytesVector((BytesColumnVector) vector);
-		} else if (vector instanceof DecimalColumnVector) {
-			return new OrcNoHiveDecimalVector((DecimalColumnVector) vector);
-		} else if (vector instanceof TimestampColumnVector) {
-			return new OrcNoHiveTimestampVector((TimestampColumnVector) vector);
-		} else {
-			throw new UnsupportedOperationException("Unsupport vector: " + vector.getClass().getName());
-		}
-	}
+    public static org.apache.flink.table.data.vector.ColumnVector createFlinkVector(
+            ColumnVector vector) {
+        if (vector instanceof LongColumnVector) {
+            return new OrcNoHiveLongVector((LongColumnVector) vector);
+        } else if (vector instanceof DoubleColumnVector) {
+            return new OrcNoHiveDoubleVector((DoubleColumnVector) vector);
+        } else if (vector instanceof BytesColumnVector) {
+            return new OrcNoHiveBytesVector((BytesColumnVector) vector);
+        } else if (vector instanceof DecimalColumnVector) {
+            return new OrcNoHiveDecimalVector((DecimalColumnVector) vector);
+        } else if (vector instanceof TimestampColumnVector) {
+            return new OrcNoHiveTimestampVector((TimestampColumnVector) vector);
+        } else {
+            throw new UnsupportedOperationException(
+                    "Unsupport vector: " + vector.getClass().getName());
+        }
+    }
 
-	/**
-	 * Create flink vector by hive vector from constant.
-	 */
-	public static org.apache.flink.table.data.vector.ColumnVector createFlinkVectorFromConstant(
-			LogicalType type, Object value, int batchSize) {
-		return createFlinkVector(createHiveVectorFromConstant(type, value, batchSize));
-	}
+    /** Create flink vector by hive vector from constant. */
+    public static org.apache.flink.table.data.vector.ColumnVector createFlinkVectorFromConstant(
+            LogicalType type, Object value, int batchSize) {
+        return createFlinkVector(createHiveVectorFromConstant(type, value, batchSize));
+    }
 
-	/**
-	 * Create a orc vector from partition spec value.
-	 * See hive {@code VectorizedRowBatchCtx#addPartitionColsToBatch}.
-	 */
-	private static ColumnVector createHiveVectorFromConstant(
-			LogicalType type, Object value, int batchSize) {
-		switch (type.getTypeRoot()) {
-			case CHAR:
-			case VARCHAR:
-			case BINARY:
-			case VARBINARY:
-				return createBytesVector(batchSize, value);
-			case BOOLEAN:
-				return createLongVector(batchSize, (Boolean) value ? 1 : 0);
-			case TINYINT:
-			case SMALLINT:
-			case INTEGER:
-			case BIGINT:
-				return createLongVector(batchSize, value);
-			case DECIMAL:
-				DecimalType decimalType = (DecimalType) type;
-				return createDecimalVector(
-						batchSize, decimalType.getPrecision(), decimalType.getScale(), value);
-			case FLOAT:
-			case DOUBLE:
-				return createDoubleVector(batchSize, value);
-			case DATE:
-				if (value instanceof LocalDate) {
-					value = Date.valueOf((LocalDate) value);
-				}
-				return createLongVector(batchSize, dateToInternal((Date) value));
-			case TIMESTAMP_WITHOUT_TIME_ZONE:
-				return createTimestampVector(batchSize, value);
-			default:
-				throw new UnsupportedOperationException("Unsupported type: " + type);
-		}
-	}
+    /**
+     * Create a orc vector from partition spec value. See hive {@code
+     * VectorizedRowBatchCtx#addPartitionColsToBatch}.
+     */
+    private static ColumnVector createHiveVectorFromConstant(
+            LogicalType type, Object value, int batchSize) {
+        switch (type.getTypeRoot()) {
+            case CHAR:
+            case VARCHAR:
+            case BINARY:
+            case VARBINARY:
+                return createBytesVector(batchSize, value);
+            case BOOLEAN:
+                return createLongVector(batchSize, (Boolean) value ? 1 : 0);
+            case TINYINT:
+            case SMALLINT:
+            case INTEGER:
+            case BIGINT:
+                return createLongVector(batchSize, value);
+            case DECIMAL:
+                DecimalType decimalType = (DecimalType) type;
+                return createDecimalVector(
+                        batchSize, decimalType.getPrecision(), decimalType.getScale(), value);
+            case FLOAT:
+            case DOUBLE:
+                return createDoubleVector(batchSize, value);
+            case DATE:
+                if (value instanceof LocalDate) {
+                    value = Date.valueOf((LocalDate) value);
+                }
+                return createLongVector(batchSize, dateToInternal((Date) value));
+            case TIMESTAMP_WITHOUT_TIME_ZONE:
+                return createTimestampVector(batchSize, value);
+            default:
+                throw new UnsupportedOperationException("Unsupported type: " + type);
+        }
+    }
 
-	private static LongColumnVector createLongVector(int batchSize, Object value) {
-		LongColumnVector lcv = new LongColumnVector(batchSize);
-		if (value == null) {
-			lcv.noNulls = false;
-			lcv.isNull[0] = true;
-			lcv.isRepeating = true;
-		} else {
-			lcv.fill(((Number) value).longValue());
-			lcv.isNull[0] = false;
-		}
-		return lcv;
-	}
+    private static LongColumnVector createLongVector(int batchSize, Object value) {
+        LongColumnVector lcv = new LongColumnVector(batchSize);
+        if (value == null) {
+            lcv.noNulls = false;
+            lcv.isNull[0] = true;
+            lcv.isRepeating = true;
+        } else {
+            lcv.fill(((Number) value).longValue());
+            lcv.isNull[0] = false;
+        }
+        return lcv;
+    }
 
-	private static BytesColumnVector createBytesVector(int batchSize, Object value) {
-		BytesColumnVector bcv = new BytesColumnVector(batchSize);
-		if (value == null) {
-			bcv.noNulls = false;
-			bcv.isNull[0] = true;
-			bcv.isRepeating = true;
-		} else {
-			byte[] bytes = value instanceof byte[] ?
-				(byte[]) value :
-				value.toString().getBytes(StandardCharsets.UTF_8);
-			bcv.initBuffer(bytes.length);
-			bcv.fill(bytes);
-			bcv.isNull[0] = false;
-		}
-		return bcv;
-	}
+    private static BytesColumnVector createBytesVector(int batchSize, Object value) {
+        BytesColumnVector bcv = new BytesColumnVector(batchSize);
+        if (value == null) {
+            bcv.noNulls = false;
+            bcv.isNull[0] = true;
+            bcv.isRepeating = true;
+        } else {
+            byte[] bytes =
+                    value instanceof byte[]
+                            ? (byte[]) value
+                            : value.toString().getBytes(StandardCharsets.UTF_8);
+            bcv.initBuffer(bytes.length);
+            bcv.fill(bytes);
+            bcv.isNull[0] = false;
+        }
+        return bcv;
+    }
 
-	private static DecimalColumnVector createDecimalVector(int batchSize, int precision, int scale, Object value) {
-		DecimalColumnVector dv = new DecimalColumnVector(batchSize, precision, scale);
-		if (value == null) {
-			dv.noNulls = false;
-			dv.isNull[0] = true;
-			dv.isRepeating = true;
-		} else {
-			dv.set(0, value instanceof HiveDecimal ?
-					(HiveDecimal) value :
-					HiveDecimal.create((BigDecimal) value));
-			dv.isRepeating = true;
-			dv.isNull[0] = false;
-		}
-		return dv;
-	}
+    private static DecimalColumnVector createDecimalVector(
+            int batchSize, int precision, int scale, Object value) {
+        DecimalColumnVector dv = new DecimalColumnVector(batchSize, precision, scale);
+        if (value == null) {
+            dv.noNulls = false;
+            dv.isNull[0] = true;
+            dv.isRepeating = true;
+        } else {
+            dv.set(
+                    0,
+                    value instanceof HiveDecimal
+                            ? (HiveDecimal) value
+                            : HiveDecimal.create((BigDecimal) value));
+            dv.isRepeating = true;
+            dv.isNull[0] = false;
+        }
+        return dv;
+    }
 
-	private static DoubleColumnVector createDoubleVector(int batchSize, Object value) {
-		DoubleColumnVector dcv = new DoubleColumnVector(batchSize);
-		if (value == null) {
-			dcv.noNulls = false;
-			dcv.isNull[0] = true;
-			dcv.isRepeating = true;
-		} else {
-			dcv.fill(((Number) value).doubleValue());
-			dcv.isNull[0] = false;
-		}
-		return dcv;
-	}
+    private static DoubleColumnVector createDoubleVector(int batchSize, Object value) {
+        DoubleColumnVector dcv = new DoubleColumnVector(batchSize);
+        if (value == null) {
+            dcv.noNulls = false;
+            dcv.isNull[0] = true;
+            dcv.isRepeating = true;
+        } else {
+            dcv.fill(((Number) value).doubleValue());
+            dcv.isNull[0] = false;
+        }
+        return dcv;
+    }
 
-	private static TimestampColumnVector createTimestampVector(int batchSize, Object value) {
-		TimestampColumnVector lcv = new TimestampColumnVector(batchSize);
-		if (value == null) {
-			lcv.noNulls = false;
-			lcv.isNull[0] = true;
-			lcv.isRepeating = true;
-		} else {
-			Timestamp timestamp = value instanceof LocalDateTime ?
-					Timestamp.valueOf((LocalDateTime) value) : (Timestamp) value;
-			lcv.fill(timestamp);
-			lcv.isNull[0] = false;
-		}
-		return lcv;
-	}
+    private static TimestampColumnVector createTimestampVector(int batchSize, Object value) {
+        TimestampColumnVector lcv = new TimestampColumnVector(batchSize);
+        if (value == null) {
+            lcv.noNulls = false;
+            lcv.isNull[0] = true;
+            lcv.isRepeating = true;
+        } else {
+            Timestamp timestamp =
+                    value instanceof LocalDateTime
+                            ? Timestamp.valueOf((LocalDateTime) value)
+                            : (Timestamp) value;
+            lcv.fill(timestamp);
+            lcv.isNull[0] = false;
+        }
+        return lcv;
+    }
 }

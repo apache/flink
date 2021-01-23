@@ -121,9 +121,6 @@ mvn clean install
 
 {% top %}
 
-## Hadoop Versions
-
-Please see the [Hadoop integration section]({{ site.baseurl }}/ops/deployment/hadoop.html) on how to handle Hadoop classes and versions.
 
 ## Scala Versions
 

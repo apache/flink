@@ -30,6 +30,8 @@ import org.apache.parquet.schema.MessageType;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -40,68 +42,84 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-/**
- * Test cases for reading Map from Parquet files.
- */
-public class ParquetMapInputFormatTest {
-	private static final AvroSchemaConverter SCHEMA_CONVERTER = new AvroSchemaConverter();
+/** Test cases for reading Map from Parquet files. */
+@RunWith(Parameterized.class)
+public class ParquetMapInputFormatTest extends TestUtil {
+    private static final AvroSchemaConverter SCHEMA_CONVERTER = new AvroSchemaConverter();
 
-	@ClassRule
-	public static TemporaryFolder tempRoot = new TemporaryFolder();
+    @ClassRule public static TemporaryFolder tempRoot = new TemporaryFolder();
 
-	@Test
-	@SuppressWarnings("unchecked")
-	public void testReadMapFromNestedRecord() throws IOException {
-		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> nested = TestUtil.getNestedRecordTestData();
-		Path path = TestUtil.createTempParquetFile(tempRoot.getRoot(), TestUtil.NESTED_SCHEMA, Collections.singletonList(nested.f1));
-		MessageType nestedType = SCHEMA_CONVERTER.convert(TestUtil.NESTED_SCHEMA);
+    public ParquetMapInputFormatTest(boolean useLegacyMode) {
+        super(useLegacyMode);
+    }
 
-		ParquetMapInputFormat inputFormat = new ParquetMapInputFormat(path, nestedType);
-		inputFormat.setRuntimeContext(TestUtil.getMockRuntimeContext());
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testReadMapFromNestedRecord() throws IOException {
+        Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> nested =
+                TestUtil.getNestedRecordTestData();
+        Path path =
+                createTempParquetFile(
+                        tempRoot.getRoot(),
+                        NESTED_SCHEMA,
+                        Collections.singletonList(nested.f1),
+                        getConfiguration());
+        MessageType nestedType = getSchemaConverter().convert(NESTED_SCHEMA);
 
-		FileInputSplit[] splits = inputFormat.createInputSplits(1);
-		assertEquals(1, splits.length);
-		inputFormat.open(splits[0]);
+        ParquetMapInputFormat inputFormat = new ParquetMapInputFormat(path, nestedType);
+        inputFormat.setRuntimeContext(getMockRuntimeContext());
 
-		Map map = inputFormat.nextRecord(null);
-		assertNotNull(map);
-		assertEquals(5, map.size());
-		assertArrayEquals((Long[]) nested.f2.getField(3), (Long[]) map.get("arr"));
-		assertArrayEquals((String[]) nested.f2.getField(4), (String[]) map.get("strArray"));
+        FileInputSplit[] splits = inputFormat.createInputSplits(1);
+        assertEquals(1, splits.length);
+        inputFormat.open(splits[0]);
 
-		Map<String, String> mapItem = (Map<String, String>) ((Map) map.get("nestedMap")).get("mapItem");
-		assertEquals(2, mapItem.size());
-		assertEquals("map", mapItem.get("type"));
-		assertEquals("hashMap", mapItem.get("value"));
+        Map map = inputFormat.nextRecord(null);
+        assertNotNull(map);
+        assertEquals(5, map.size());
+        assertArrayEquals((Long[]) nested.f2.getField(3), (Long[]) map.get("arr"));
+        assertArrayEquals((String[]) nested.f2.getField(4), (String[]) map.get("strArray"));
 
-		List<Map<String, String>> nestedArray = (List<Map<String, String>>) map.get("nestedArray");
-		assertEquals(1, nestedArray.size());
-		assertEquals("color", nestedArray.get(0).get("type"));
-		assertEquals(1L, nestedArray.get(0).get("value"));
-	}
+        Map<String, String> mapItem =
+                (Map<String, String>) ((Map) map.get("nestedMap")).get("mapItem");
+        assertEquals(2, mapItem.size());
+        assertEquals("map", mapItem.get("type"));
+        assertEquals("hashMap", mapItem.get("value"));
 
-	@Test
-	@SuppressWarnings("unchecked")
-	public void testProjectedReadMapFromNestedRecord() throws IOException {
-		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> nested = TestUtil.getNestedRecordTestData();
-		Path path = TestUtil.createTempParquetFile(tempRoot.getRoot(), TestUtil.NESTED_SCHEMA, Collections.singletonList(nested.f1));
-		MessageType nestedType = SCHEMA_CONVERTER.convert(TestUtil.NESTED_SCHEMA);
-		ParquetMapInputFormat inputFormat = new ParquetMapInputFormat(path, nestedType);
+        List<Map<String, String>> nestedArray = (List<Map<String, String>>) map.get("nestedArray");
+        assertEquals(1, nestedArray.size());
+        assertEquals("color", nestedArray.get(0).get("type"));
+        assertEquals(1L, nestedArray.get(0).get("value"));
+    }
 
-		inputFormat.selectFields(Collections.singletonList("nestedMap").toArray(new String[0]));
-		inputFormat.setRuntimeContext(TestUtil.getMockRuntimeContext());
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testProjectedReadMapFromNestedRecord() throws IOException {
+        Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> nested =
+                TestUtil.getNestedRecordTestData();
+        Path path =
+                createTempParquetFile(
+                        tempRoot.getRoot(),
+                        NESTED_SCHEMA,
+                        Collections.singletonList(nested.f1),
+                        getConfiguration());
+        MessageType nestedType = getSchemaConverter().convert(NESTED_SCHEMA);
+        ParquetMapInputFormat inputFormat = new ParquetMapInputFormat(path, nestedType);
 
-		FileInputSplit[] splits = inputFormat.createInputSplits(1);
-		assertEquals(1, splits.length);
-		inputFormat.open(splits[0]);
+        inputFormat.selectFields(Collections.singletonList("nestedMap").toArray(new String[0]));
+        inputFormat.setRuntimeContext(getMockRuntimeContext());
 
-		Map map = inputFormat.nextRecord(null);
-		assertNotNull(map);
-		assertEquals(1, map.size());
+        FileInputSplit[] splits = inputFormat.createInputSplits(1);
+        assertEquals(1, splits.length);
+        inputFormat.open(splits[0]);
 
-		Map<String, String> mapItem = (Map<String, String>) ((Map) map.get("nestedMap")).get("mapItem");
-		assertEquals(2, mapItem.size());
-		assertEquals("map", mapItem.get("type"));
-		assertEquals("hashMap", mapItem.get("value"));
-	}
+        Map map = inputFormat.nextRecord(null);
+        assertNotNull(map);
+        assertEquals(1, map.size());
+
+        Map<String, String> mapItem =
+                (Map<String, String>) ((Map) map.get("nestedMap")).get("mapItem");
+        assertEquals(2, mapItem.size());
+        assertEquals("map", mapItem.get("type"));
+        assertEquals("hashMap", mapItem.get("value"));
+    }
 }

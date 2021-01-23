@@ -25,41 +25,39 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-/**
- * Test utils for {@link ExecutionSlotAllocator}.
- */
+/** Test utils for {@link ExecutionSlotAllocator}. */
 class ExecutionSlotAllocatorTestUtils {
 
-	static List<ExecutionVertexSchedulingRequirements> createSchedulingRequirements(
-			final ExecutionVertexID... executionVertexIds) {
+    static List<ExecutionVertexSchedulingRequirements> createSchedulingRequirements(
+            final ExecutionVertexID... executionVertexIds) {
 
-		final List<ExecutionVertexSchedulingRequirements> schedulingRequirements =
-			new ArrayList<>(executionVertexIds.length);
+        final List<ExecutionVertexSchedulingRequirements> schedulingRequirements =
+                new ArrayList<>(executionVertexIds.length);
 
-		for (ExecutionVertexID executionVertexId : executionVertexIds) {
-			schedulingRequirements.add(
-				new ExecutionVertexSchedulingRequirements.Builder()
-					.withExecutionVertexId(executionVertexId)
-					.withSlotSharingGroupId(new SlotSharingGroupId())
-					.build());
-		}
-		return schedulingRequirements;
-	}
+        for (ExecutionVertexID executionVertexId : executionVertexIds) {
+            schedulingRequirements.add(
+                    new ExecutionVertexSchedulingRequirements.Builder()
+                            .withExecutionVertexId(executionVertexId)
+                            .withSlotSharingGroupId(new SlotSharingGroupId())
+                            .build());
+        }
+        return schedulingRequirements;
+    }
 
-	static SlotExecutionVertexAssignment findSlotAssignmentByExecutionVertexId(
-			final ExecutionVertexID executionVertexId,
-			final Collection<SlotExecutionVertexAssignment> slotExecutionVertexAssignments) {
+    static SlotExecutionVertexAssignment findSlotAssignmentByExecutionVertexId(
+            final ExecutionVertexID executionVertexId,
+            final Collection<SlotExecutionVertexAssignment> slotExecutionVertexAssignments) {
 
-		return slotExecutionVertexAssignments.stream()
-				.filter(assignment -> assignment.getExecutionVertexId().equals(executionVertexId))
-				.findFirst()
-				.orElseThrow(
-					() ->
-						new IllegalArgumentException(String.format(
-							"SlotExecutionVertexAssignment with execution vertex id %s not found",
-							executionVertexId)));
-	}
+        return slotExecutionVertexAssignments.stream()
+                .filter(assignment -> assignment.getExecutionVertexId().equals(executionVertexId))
+                .findFirst()
+                .orElseThrow(
+                        () ->
+                                new IllegalArgumentException(
+                                        String.format(
+                                                "SlotExecutionVertexAssignment with execution vertex id %s not found",
+                                                executionVertexId)));
+    }
 
-	private ExecutionSlotAllocatorTestUtils() {
-	}
+    private ExecutionSlotAllocatorTestUtils() {}
 }

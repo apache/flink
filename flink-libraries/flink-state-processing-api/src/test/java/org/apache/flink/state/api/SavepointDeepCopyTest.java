@@ -53,145 +53,151 @@ import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.isIn;
 import static org.junit.Assert.assertThat;
 
-/**
- * Test the savepoint deep copy.
- */
+/** Test the savepoint deep copy. */
 @RunWith(value = Parameterized.class)
 public class SavepointDeepCopyTest extends AbstractTestBase {
 
-	private static final String TEXT = "The quick brown fox jumps over the lazy dog";
-	private static final String RANDOM_VALUE = RandomStringUtils.randomAlphanumeric(120);
-	private static final int FILE_STATE_SIZE_THRESHOLD = 1;
+    private static final String TEXT = "The quick brown fox jumps over the lazy dog";
+    private static final String RANDOM_VALUE = RandomStringUtils.randomAlphanumeric(120);
+    private static final int FILE_STATE_SIZE_THRESHOLD = 1;
 
-	private final StateBackend backend;
+    private final StateBackend backend;
 
-	public SavepointDeepCopyTest(StateBackend backend) throws Exception {
-		this.backend = backend;
-	}
+    public SavepointDeepCopyTest(StateBackend backend) throws Exception {
+        this.backend = backend;
+    }
 
-	@Parameterized.Parameters(name = "State Backend: {0}")
-	public static Collection<StateBackend> data() {
-		return Arrays.asList(
-			new FsStateBackend(new Path("file:///tmp").toUri(), FILE_STATE_SIZE_THRESHOLD),
-			new RocksDBStateBackend(new FsStateBackend(new Path("file:///tmp").toUri(), FILE_STATE_SIZE_THRESHOLD)));
-	}
+    @Parameterized.Parameters(name = "State Backend: {0}")
+    public static Collection<StateBackend> data() {
+        return Arrays.asList(
+                new FsStateBackend(new Path("file:///tmp").toUri(), FILE_STATE_SIZE_THRESHOLD),
+                new RocksDBStateBackend(
+                        new FsStateBackend(
+                                new Path("file:///tmp").toUri(), FILE_STATE_SIZE_THRESHOLD)));
+    }
 
-	/**
-	 * To bootstrapper a savepoint for testing.
-	 */
-	static class WordMapBootstrapper extends KeyedStateBootstrapFunction<String, String> {
-		private ValueState<Tuple2<String, String>> state;
+    /** To bootstrapper a savepoint for testing. */
+    static class WordMapBootstrapper extends KeyedStateBootstrapFunction<String, String> {
+        private ValueState<Tuple2<String, String>> state;
 
-		@Override
-		public void open(Configuration parameters) {
-			ValueStateDescriptor<Tuple2<String, String>> descriptor = new ValueStateDescriptor<>(
-				"state", Types.TUPLE(Types.STRING, Types.STRING));
-			state = getRuntimeContext().getState(descriptor);
-		}
+        @Override
+        public void open(Configuration parameters) {
+            ValueStateDescriptor<Tuple2<String, String>> descriptor =
+                    new ValueStateDescriptor<>("state", Types.TUPLE(Types.STRING, Types.STRING));
+            state = getRuntimeContext().getState(descriptor);
+        }
 
-		@Override
-		public void processElement(String value, Context ctx) throws Exception {
-			if (state.value() == null) {
-				state.update(new Tuple2<>(value, RANDOM_VALUE));
-			}
-		}
-	}
+        @Override
+        public void processElement(String value, Context ctx) throws Exception {
+            if (state.value() == null) {
+                state.update(new Tuple2<>(value, RANDOM_VALUE));
+            }
+        }
+    }
 
-	/**
-	 * To read the state back from the newly created savepoint.
-	 */
-	static class ReadFunction extends KeyedStateReaderFunction<String, Tuple2<String, String>> {
+    /** To read the state back from the newly created savepoint. */
+    static class ReadFunction extends KeyedStateReaderFunction<String, Tuple2<String, String>> {
 
-		private ValueState<Tuple2<String, String>> state;
+        private ValueState<Tuple2<String, String>> state;
 
-		@Override
-		public void open(Configuration parameters) {
-			ValueStateDescriptor<Tuple2<String, String>> stateDescriptor = new ValueStateDescriptor<>(
-				"state", Types.TUPLE(Types.STRING, Types.STRING));
-			state = getRuntimeContext().getState(stateDescriptor);
-		}
+        @Override
+        public void open(Configuration parameters) {
+            ValueStateDescriptor<Tuple2<String, String>> stateDescriptor =
+                    new ValueStateDescriptor<>("state", Types.TUPLE(Types.STRING, Types.STRING));
+            state = getRuntimeContext().getState(stateDescriptor);
+        }
 
-		@Override
-		public void readKey(
-			String key,
-			Context ctx,
-			Collector<Tuple2<String, String>> out) throws Exception {
-			out.collect(state.value());
-		}
-	}
+        @Override
+        public void readKey(String key, Context ctx, Collector<Tuple2<String, String>> out)
+                throws Exception {
+            out.collect(state.value());
+        }
+    }
 
-	/**
-	 * Test savepoint deep copy. This method tests the savepoint deep copy by:
-	 * <ul>
-	 * <li>create {@code savepoint1} with operator {@code Operator1}, make sure it has more state files in addition to
-	 * _metadata
-	 * <li>create {@code savepoint2} from {@code savepoint1} by adding a new operator {@code Operator2}
-	 * <li>check all state files in {@code savepoint1}'s directory are copied over to {@code savepoint2}'s directory
-	 * <li>read the state of {@code Operator1} from {@code savepoint2} and make sure the number of the keys remain same
-	 * </ul>
-	 * @throws Exception throw exceptions when anything goes wrong
-	 */
-	@Test
-	public void testSavepointDeepCopy() throws Exception {
+    /**
+     * Test savepoint deep copy. This method tests the savepoint deep copy by:
+     *
+     * <ul>
+     *   <li>create {@code savepoint1} with operator {@code Operator1}, make sure it has more state
+     *       files in addition to _metadata
+     *   <li>create {@code savepoint2} from {@code savepoint1} by adding a new operator {@code
+     *       Operator2}
+     *   <li>check all state files in {@code savepoint1}'s directory are copied over to {@code
+     *       savepoint2}'s directory
+     *   <li>read the state of {@code Operator1} from {@code savepoint2} and make sure the number of
+     *       the keys remain same
+     * </ul>
+     *
+     * @throws Exception throw exceptions when anything goes wrong
+     */
+    @Test
+    public void testSavepointDeepCopy() throws Exception {
 
         // set up the execution environment
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		// construct DataSet
-		DataSet<String> words = env.fromElements(TEXT.split(" "));
+        // construct DataSet
+        DataSet<String> words = env.fromElements(TEXT.split(" "));
 
-		// create BootstrapTransformation
-		BootstrapTransformation<String> transformation = OperatorTransformation
-			.bootstrapWith(words)
-			.keyBy(e -> e)
-			.transform(new WordMapBootstrapper());
+        // create BootstrapTransformation
+        BootstrapTransformation<String> transformation =
+                OperatorTransformation.bootstrapWith(words)
+                        .keyBy(e -> e)
+                        .transform(new WordMapBootstrapper());
 
-		File savepointUrl1 = createAndRegisterTempFile(new AbstractID().toHexString());
-		String savepointPath1 = savepointUrl1.getPath();
+        File savepointUrl1 = createAndRegisterTempFile(new AbstractID().toHexString());
+        String savepointPath1 = savepointUrl1.getPath();
 
-		// create a savepoint with BootstrapTransformations (one per operator)
-		// write the created savepoint to a given path
-		Savepoint.create(backend, 128)
-			.withOperator("Operator1", transformation)
-			.write(savepointPath1);
+        // create a savepoint with BootstrapTransformations (one per operator)
+        // write the created savepoint to a given path
+        Savepoint.create(backend, 128)
+                .withOperator("Operator1", transformation)
+                .write(savepointPath1);
 
-		env.execute("bootstrap savepoint1");
+        env.execute("bootstrap savepoint1");
 
-		Assert.assertTrue(
-			"Failed to bootstrap savepoint1 with additional state files",
-			Files.list(Paths.get(savepointPath1)).count() > 1);
+        Assert.assertTrue(
+                "Failed to bootstrap savepoint1 with additional state files",
+                Files.list(Paths.get(savepointPath1)).count() > 1);
 
-		Set<String> stateFiles1 = Files.list(Paths.get(savepointPath1))
-			.map(path -> path.getFileName().toString())
-			.collect(Collectors.toSet());
+        Set<String> stateFiles1 =
+                Files.list(Paths.get(savepointPath1))
+                        .map(path -> path.getFileName().toString())
+                        .collect(Collectors.toSet());
 
-		// create savepoint2 from savepoint1 created above
-		File savepointUrl2 = createAndRegisterTempFile(new AbstractID().toHexString());
-		String savepointPath2 = savepointUrl2.getPath();
+        // create savepoint2 from savepoint1 created above
+        File savepointUrl2 = createAndRegisterTempFile(new AbstractID().toHexString());
+        String savepointPath2 = savepointUrl2.getPath();
 
-		ExistingSavepoint savepoint2 = Savepoint.load(env, savepointPath1, backend);
-		savepoint2
-			.withOperator("Operator2", transformation)
-			.write(savepointPath2);
-		env.execute("create savepoint2");
+        ExistingSavepoint savepoint2 = Savepoint.load(env, savepointPath1, backend);
+        savepoint2.withOperator("Operator2", transformation).write(savepointPath2);
+        env.execute("create savepoint2");
 
-		Assert.assertTrue("Failed to create savepoint2 from savepoint1 with additional state files",
-			Files.list(Paths.get(savepointPath2)).count() > 1);
+        Assert.assertTrue(
+                "Failed to create savepoint2 from savepoint1 with additional state files",
+                Files.list(Paths.get(savepointPath2)).count() > 1);
 
-		Set<String> stateFiles2 = Files.list(Paths.get(savepointPath2))
-			.map(path -> path.getFileName().toString())
-			.collect(Collectors.toSet());
+        Set<String> stateFiles2 =
+                Files.list(Paths.get(savepointPath2))
+                        .map(path -> path.getFileName().toString())
+                        .collect(Collectors.toSet());
 
-		assertThat("At least one state file in savepoint1 are not in savepoint2",
-			stateFiles1, everyItem(isIn(stateFiles2)));
+        assertThat(
+                "At least one state file in savepoint1 are not in savepoint2",
+                stateFiles1,
+                everyItem(isIn(stateFiles2)));
 
-		// Try to load savepoint2 and read the state of "Operator1" (which has not been touched/changed when savepoint2
-		// was created) and make sure the number of keys remain same
-		long actuallyKeyNum = Savepoint.load(env, savepointPath2, backend)
-			.readKeyedState("Operator1", new ReadFunction()).count();
-		long expectedKeyNum = Arrays.stream(TEXT.split(" ")).distinct().count();
-		Assert.assertEquals(
-			"Unexpected number of keys in the state of Operator1",
-			expectedKeyNum, actuallyKeyNum);
-	}
+        // Try to load savepoint2 and read the state of "Operator1" (which has not been
+        // touched/changed when savepoint2
+        // was created) and make sure the number of keys remain same
+        long actuallyKeyNum =
+                Savepoint.load(env, savepointPath2, backend)
+                        .readKeyedState("Operator1", new ReadFunction())
+                        .count();
+        long expectedKeyNum = Arrays.stream(TEXT.split(" ")).distinct().count();
+        Assert.assertEquals(
+                "Unexpected number of keys in the state of Operator1",
+                expectedKeyNum,
+                actuallyKeyNum);
+    }
 }

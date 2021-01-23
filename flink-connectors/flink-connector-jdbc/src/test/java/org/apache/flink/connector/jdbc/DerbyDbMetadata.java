@@ -21,44 +21,41 @@ import org.apache.derby.jdbc.EmbeddedXADataSource;
 
 import javax.sql.XADataSource;
 
-/**
- * DerbyDbMetadata.
- */
+/** DerbyDbMetadata. */
 public class DerbyDbMetadata implements DbMetadata {
-	private final String dbName;
-	private final String dbInitUrl;
-	private final String url;
+    private final String dbName;
+    private final String dbInitUrl;
+    private final String url;
 
-	public DerbyDbMetadata(String schemaName) {
-		dbName = "memory:" + schemaName;
-		url = "jdbc:derby:" + dbName;
-		dbInitUrl = url + ";create=true";
-	}
+    public DerbyDbMetadata(String schemaName) {
+        dbName = "memory:" + schemaName;
+        url = "jdbc:derby:" + dbName;
+        dbInitUrl = url + ";create=true";
+    }
 
-	public String getDbName() {
-		return dbName;
-	}
+    public String getDbName() {
+        return dbName;
+    }
 
-	@Override
-	public String getInitUrl() {
-		return dbInitUrl;
-	}
+    @Override
+    public String getInitUrl() {
+        return dbInitUrl;
+    }
 
-	@Override
-	public XADataSource buildXaDataSource() {
-		EmbeddedXADataSource ds = new EmbeddedXADataSource();
-		ds.setDatabaseName(dbName);
-		return ds;
-	}
+    @Override
+    public XADataSource buildXaDataSource() {
+        EmbeddedXADataSource ds = new EmbeddedXADataSource();
+        ds.setDatabaseName(dbName);
+        return ds;
+    }
 
-	@Override
-	public String getDriverClass() {
-		return "org.apache.derby.jdbc.EmbeddedDriver";
-	}
+    @Override
+    public String getDriverClass() {
+        return "org.apache.derby.jdbc.EmbeddedDriver";
+    }
 
-	@Override
-	public String getUrl() {
-		return url;
-	}
-
+    @Override
+    public String getUrl() {
+        return url;
+    }
 }

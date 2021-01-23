@@ -143,7 +143,7 @@ class MyUDF(ScalarFunction):
 
 ## 范围（Scope）
 
-您可以参考Java指标文档以获取有关[范围定义]({% link monitoring/metrics.zh.md %}#Scope)的更多详细信息。
+您可以参考Java指标文档以获取有关[范围定义]({% link ops/metrics.zh.md %}#Scope)的更多详细信息。
 
 ### 用户范围（User Scope）
 
@@ -171,11 +171,11 @@ function_context
 
 ### 系统范围（System Scope）
 
-您可以参考Java指标文档以获取有关[系统范围]({% link monitoring/metrics.zh.md %}#system-scope)的更多详细信息。
+您可以参考Java指标文档以获取有关[系统范围]({% link ops/metrics.zh.md %}#system-scope)的更多详细信息。
 
 ### 所有变量列表
 
-您可以参考Java指标文档以获取有关[“所有变量列表”的]({% link monitoring/metrics.zh.md %}#list-of-all-variables)更多详细信息。
+您可以参考Java指标文档以获取有关[“所有变量列表”的]({% link ops/metrics.zh.md %}#list-of-all-variables)更多详细信息。
 
 ### 用户变量（User Variables）
 
@@ -199,11 +199,11 @@ function_context
 
 您可以参考Java的指标文档，以获取关于以下部分的更多详细信息：
 
-*    [Reporter]({% link monitoring/metrics.zh.md %}#reporter) 。
-*    [系统指标]({% link monitoring/metrics.zh.md %}#system-metrics) 。
-*    [延迟跟踪]({% link monitoring/metrics.zh.md %}#latency-tracking) 。
-*    [REST API集成]({% link monitoring/metrics.zh.md %}#rest-api-integration) 。
-*    [仪表板集成]({% link monitoring/metrics.zh.md %}#dashboard-integration) 。
+*    [Reporter]({% link deployment/metric_reporters.zh.md %}) 。
+*    [系统指标]({% link ops/metrics.zh.md %}#system-metrics) 。
+*    [延迟跟踪]({% link ops/metrics.zh.md %}#latency-tracking) 。
+*    [REST API集成]({% link ops/metrics.zh.md %}#rest-api-integration) 。
+*    [仪表板集成]({% link ops/metrics.zh.md %}#dashboard-integration) 。
 
 
 {% top %}

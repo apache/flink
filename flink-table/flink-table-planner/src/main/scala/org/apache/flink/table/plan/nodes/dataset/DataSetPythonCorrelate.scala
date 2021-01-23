@@ -87,7 +87,7 @@ class DataSetPythonCorrelate(
     val sqlFunction = pythonTableFuncRexCall.getOperator.asInstanceOf[TableSqlFunction]
 
     val flatMapFunction = getPythonTableFunctionFlatMap(
-      getConfig(tableEnv.execEnv, tableEnv.getConfig),
+      getMergedConfig(tableEnv.execEnv, tableEnv.getConfig),
       pythonOperatorInputRowType,
       pythonOperatorOutputRowType,
       pythonFunctionInfo,

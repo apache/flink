@@ -26,12 +26,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.12-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<properties>
-		<flink.format.parquet.version>1.10.0</flink.format.parquet.version>
+		<flink.format.parquet.version>1.11.1</flink.format.parquet.version>
 	</properties>
 
 	<artifactId>flink-formats</artifactId>
@@ -81,6 +81,8 @@ under the License.
 			<modules>
 				<module>flink-sql-orc</module>
 				<module>flink-sql-parquet</module>
+				<module>flink-sql-avro</module>
+				<module>flink-sql-avro-confluent-registry</module>
 			</modules>
 		</profile>
 	</profiles>

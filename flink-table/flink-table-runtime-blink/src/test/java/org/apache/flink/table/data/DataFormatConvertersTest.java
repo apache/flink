@@ -60,197 +60,203 @@ import java.util.HashMap;
 
 import static org.apache.flink.table.data.util.DataFormatConverters.getConverterForDataType;
 
-/**
- * Test for {@link DataFormatConverters}.
- */
+/** Test for {@link DataFormatConverters}. */
 public class DataFormatConvertersTest {
 
-	private TypeInformation[] simpleTypes = new TypeInformation[] {
-		BasicTypeInfo.STRING_TYPE_INFO,
-		BasicTypeInfo.BOOLEAN_TYPE_INFO,
-		BasicTypeInfo.INT_TYPE_INFO,
-		BasicTypeInfo.LONG_TYPE_INFO,
-		BasicTypeInfo.FLOAT_TYPE_INFO,
-		BasicTypeInfo.DOUBLE_TYPE_INFO,
-		BasicTypeInfo.SHORT_TYPE_INFO,
-		BasicTypeInfo.BYTE_TYPE_INFO,
-		BasicTypeInfo.CHAR_TYPE_INFO,
+    private TypeInformation[] simpleTypes =
+            new TypeInformation[] {
+                BasicTypeInfo.STRING_TYPE_INFO,
+                BasicTypeInfo.BOOLEAN_TYPE_INFO,
+                BasicTypeInfo.INT_TYPE_INFO,
+                BasicTypeInfo.LONG_TYPE_INFO,
+                BasicTypeInfo.FLOAT_TYPE_INFO,
+                BasicTypeInfo.DOUBLE_TYPE_INFO,
+                BasicTypeInfo.SHORT_TYPE_INFO,
+                BasicTypeInfo.BYTE_TYPE_INFO,
+                BasicTypeInfo.CHAR_TYPE_INFO,
+                PrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO,
+                PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO,
+                PrimitiveArrayTypeInfo.LONG_PRIMITIVE_ARRAY_TYPE_INFO,
+                PrimitiveArrayTypeInfo.FLOAT_PRIMITIVE_ARRAY_TYPE_INFO,
+                PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO,
+                PrimitiveArrayTypeInfo.SHORT_PRIMITIVE_ARRAY_TYPE_INFO,
+                PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO,
+                PrimitiveArrayTypeInfo.CHAR_PRIMITIVE_ARRAY_TYPE_INFO,
+                LocalTimeTypeInfo.LOCAL_DATE,
+                LocalTimeTypeInfo.LOCAL_TIME,
+                LocalTimeTypeInfo.LOCAL_DATE_TIME,
+                StringDataTypeInfo.INSTANCE
+            };
 
-		PrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO,
-		PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO,
-		PrimitiveArrayTypeInfo.LONG_PRIMITIVE_ARRAY_TYPE_INFO,
-		PrimitiveArrayTypeInfo.FLOAT_PRIMITIVE_ARRAY_TYPE_INFO,
-		PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO,
-		PrimitiveArrayTypeInfo.SHORT_PRIMITIVE_ARRAY_TYPE_INFO,
-		PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO,
-		PrimitiveArrayTypeInfo.CHAR_PRIMITIVE_ARRAY_TYPE_INFO,
+    private Object[] simpleValues =
+            new Object[] {
+                "haha",
+                true,
+                22,
+                1111L,
+                0.5f,
+                0.5d,
+                (short) 1,
+                (byte) 1,
+                (char) 1,
+                new boolean[] {true, false},
+                new int[] {5, 1},
+                new long[] {5, 1},
+                new float[] {5, 1},
+                new double[] {5, 1},
+                new short[] {5, 1},
+                new byte[] {5, 1},
+                new char[] {5, 1},
+                SqlDateTimeUtils.unixDateToLocalDate(5),
+                SqlDateTimeUtils.unixTimeToLocalTime(11),
+                SqlDateTimeUtils.unixTimestampToLocalDateTime(11),
+                StringData.fromString("hahah")
+            };
 
-		LocalTimeTypeInfo.LOCAL_DATE,
-		LocalTimeTypeInfo.LOCAL_TIME,
-		LocalTimeTypeInfo.LOCAL_DATE_TIME,
+    private DataType[] dataTypes =
+            new DataType[] {
+                DataTypes.TIMESTAMP(9).bridgedTo(LocalDateTime.class),
+                DataTypes.TIMESTAMP(9).bridgedTo(Timestamp.class),
+                DataTypes.TIMESTAMP(3),
+                new AtomicDataType(
+                        new LegacyTypeInformationType<>(
+                                LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE,
+                                SqlTimeTypeInfo.TIMESTAMP)),
+                new AtomicDataType(
+                        new LegacyTypeInformationType<>(
+                                LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE,
+                                new LegacyTimestampTypeInfo(7))),
+                DataTypes.TIMESTAMP(3).bridgedTo(TimestampData.class)
+            };
 
-		StringDataTypeInfo.INSTANCE
-	};
+    private Object[] dataValues =
+            new Object[] {
+                LocalDateTime.of(1970, 1, 1, 0, 0, 0, 123456789),
+                Timestamp.valueOf("1970-01-01 00:00:00.123456789"),
+                LocalDateTime.of(1970, 1, 1, 0, 0, 0, 123),
+                Timestamp.valueOf("1970-01-01 00:00:00.123"),
+                Timestamp.valueOf("1970-01-01 00:00:00.1234567"),
+                TimestampData.fromEpochMillis(1000L)
+            };
 
-	private Object[] simpleValues = new Object[] {
-			"haha",
-			true,
-			22,
-			1111L,
-			0.5f,
-			0.5d,
-			(short) 1,
-			(byte) 1,
-			(char) 1,
+    private static DataFormatConverter getConverter(TypeInformation typeInfo) {
+        return getConverterForDataType(TypeConversions.fromLegacyInfoToDataType(typeInfo));
+    }
 
-			new boolean[] {true, false},
-			new int[] {5, 1},
-			new long[] {5, 1},
-			new float[] {5, 1},
-			new double[] {5, 1},
-			new short[] {5, 1},
-			new byte[] {5, 1},
-			new char[] {5, 1},
+    private static void test(TypeInformation typeInfo, Object value) {
+        test(typeInfo, value, null);
+    }
 
-			SqlDateTimeUtils.unixDateToLocalDate(5),
-			SqlDateTimeUtils.unixTimeToLocalTime(11),
-			SqlDateTimeUtils.unixTimestampToLocalDateTime(11),
+    private static void test(TypeInformation typeInfo, Object value, Object anotherValue) {
+        DataFormatConverter converter = getConverter(typeInfo);
+        final Object innerValue = converter.toInternal(value);
+        if (anotherValue != null) {
+            converter.toInternal(anotherValue);
+        }
 
-			StringData.fromString("hahah")
-	};
+        Assert.assertTrue(
+                Arrays.deepEquals(
+                        new Object[] {converter.toExternal(innerValue)}, new Object[] {value}));
+    }
 
-	private DataType[] dataTypes = new DataType[] {
-		DataTypes.TIMESTAMP(9).bridgedTo(LocalDateTime.class),
-		DataTypes.TIMESTAMP(9).bridgedTo(Timestamp.class),
-		DataTypes.TIMESTAMP(3),
-		new AtomicDataType(
-			new LegacyTypeInformationType<>(
-				LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE,
-				SqlTimeTypeInfo.TIMESTAMP)),
-		new AtomicDataType(
-			new LegacyTypeInformationType<>(
-				LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE,
-				new LegacyTimestampTypeInfo(7))),
-		DataTypes.TIMESTAMP(3).bridgedTo(TimestampData.class)
-	};
+    private static DataFormatConverter getConverter(DataType dataType) {
+        return getConverterForDataType(dataType);
+    }
 
-	private Object[] dataValues = new Object[] {
-		LocalDateTime.of(1970, 1, 1, 0, 0, 0, 123456789),
-		Timestamp.valueOf("1970-01-01 00:00:00.123456789"),
-		LocalDateTime.of(1970, 1, 1, 0, 0, 0, 123),
-		Timestamp.valueOf("1970-01-01 00:00:00.123"),
-		Timestamp.valueOf("1970-01-01 00:00:00.1234567"),
-		TimestampData.fromEpochMillis(1000L)
-	};
+    private static void testDataType(DataType dataType, Object value) {
+        DataFormatConverter converter = getConverter(dataType);
+        Assert.assertTrue(
+                Arrays.deepEquals(
+                        new Object[] {converter.toExternal(converter.toInternal(value))},
+                        new Object[] {value}));
+    }
 
-	private static DataFormatConverter getConverter(TypeInformation typeInfo) {
-		return getConverterForDataType(TypeConversions.fromLegacyInfoToDataType(typeInfo));
-	}
+    @Test
+    public void testTypes() {
+        for (int i = 0; i < simpleTypes.length; i++) {
+            test(simpleTypes[i], simpleValues[i]);
+        }
+        test(new RowTypeInfo(simpleTypes), new Row(simpleTypes.length));
+        test(new RowTypeInfo(simpleTypes), Row.ofKind(RowKind.DELETE, simpleValues));
+        test(
+                InternalTypeInfo.ofFields(new VarCharType(VarCharType.MAX_LENGTH), new IntType()),
+                GenericRowData.of(StringData.fromString("hehe"), 111));
+        test(
+                InternalTypeInfo.ofFields(new VarCharType(VarCharType.MAX_LENGTH), new IntType()),
+                GenericRowData.of(null, null));
 
-	private static void test(TypeInformation typeInfo, Object value) {
-		test(typeInfo, value, null);
-	}
+        test(new DecimalDataTypeInfo(10, 5), null);
+        test(new DecimalDataTypeInfo(10, 5), DecimalDataUtils.castFrom(5.555, 10, 5));
 
-	private static void test(TypeInformation typeInfo, Object value, Object anotherValue) {
-		DataFormatConverter converter = getConverter(typeInfo);
-		final Object innerValue = converter.toInternal(value);
-		if (anotherValue != null) {
-			converter.toInternal(anotherValue);
-		}
+        test(Types.BIG_DEC, null);
+        {
+            DataFormatConverter converter = getConverter(Types.BIG_DEC);
+            Assert.assertTrue(
+                    Arrays.deepEquals(
+                            new Object[] {
+                                converter.toInternal(
+                                        converter.toExternal(DecimalDataUtils.castFrom(5, 19, 18)))
+                            },
+                            new Object[] {DecimalDataUtils.castFrom(5, 19, 18)}));
+        }
 
-		Assert.assertTrue(Arrays.deepEquals(
-			new Object[] {converter.toExternal(innerValue)}, new Object[]{value}));
-	}
+        test(new ListTypeInfo<>(Types.STRING), null);
+        test(new ListTypeInfo<>(Types.STRING), Arrays.asList("ahah", "xx"));
 
-	private static DataFormatConverter getConverter(DataType dataType) {
-		return getConverterForDataType(dataType);
-	}
+        test(BasicArrayTypeInfo.DOUBLE_ARRAY_TYPE_INFO, new Double[] {1D, 5D});
+        test(BasicArrayTypeInfo.DOUBLE_ARRAY_TYPE_INFO, new Double[] {null, null});
+        test(ObjectArrayTypeInfo.getInfoFor(Types.STRING), new String[] {null, null});
+        test(ObjectArrayTypeInfo.getInfoFor(Types.STRING), new String[] {"haha", "hehe"});
+        test(
+                ObjectArrayTypeInfo.getInfoFor(Types.STRING),
+                new String[] {"haha", "hehe"},
+                new String[] {"aa", "bb"});
+        test(new MapTypeInfo<>(Types.STRING, Types.INT), null);
 
-	private static void testDataType(DataType dataType, Object value) {
-		DataFormatConverter converter = getConverter(dataType);
-		Assert.assertTrue(Arrays.deepEquals(
-			new Object[] {converter.toExternal(converter.toInternal(value))}, new Object[]{value}
-		));
-	}
+        HashMap<String, Integer> map = new HashMap<>();
+        map.put("haha", 1);
+        map.put("hah1", 5);
+        map.put(null, null);
+        test(new MapTypeInfo<>(Types.STRING, Types.INT), map);
 
-	@Test
-	public void testTypes() {
-		for (int i = 0; i < simpleTypes.length; i++) {
-			test(simpleTypes[i], simpleValues[i]);
-		}
-		test(new RowTypeInfo(simpleTypes), new Row(simpleTypes.length));
-		test(new RowTypeInfo(simpleTypes), Row.ofKind(RowKind.DELETE, simpleValues));
-		test(InternalTypeInfo.ofFields(new VarCharType(VarCharType.MAX_LENGTH), new IntType()),
-				GenericRowData.of(StringData.fromString("hehe"), 111));
-		test(InternalTypeInfo.ofFields(new VarCharType(VarCharType.MAX_LENGTH), new IntType()), GenericRowData.of(null, null));
+        Tuple2 tuple2 = new Tuple2<>(5, 10);
+        TupleTypeInfo tupleTypeInfo = new TupleTypeInfo<>(tuple2.getClass(), Types.INT, Types.INT);
+        test(tupleTypeInfo, tuple2);
 
-		test(new DecimalDataTypeInfo(10, 5), null);
-		test(new DecimalDataTypeInfo(10, 5), DecimalDataUtils.castFrom(5.555, 10, 5));
+        test(TypeExtractor.createTypeInfo(MyPojo.class), new MyPojo(1, 3));
+    }
 
-		test(Types.BIG_DEC, null);
-		{
-			DataFormatConverter converter = getConverter(Types.BIG_DEC);
-			Assert.assertTrue(Arrays.deepEquals(
-					new Object[]{converter.toInternal(converter.toExternal(DecimalDataUtils.castFrom(5, 19, 18)))},
-					new Object[]{DecimalDataUtils.castFrom(5, 19, 18)}));
-		}
+    @Test
+    public void testDataTypes() {
+        for (int i = 0; i < dataTypes.length; i++) {
+            testDataType(dataTypes[i], dataValues[i]);
+        }
+    }
 
-		test(new ListTypeInfo<>(Types.STRING), null);
-		test(new ListTypeInfo<>(Types.STRING), Arrays.asList("ahah", "xx"));
+    /** Test pojo. */
+    public static class MyPojo {
+        public int f1 = 0;
+        public int f2 = 0;
 
-		test(BasicArrayTypeInfo.DOUBLE_ARRAY_TYPE_INFO, new Double[] {1D, 5D});
-		test(BasicArrayTypeInfo.DOUBLE_ARRAY_TYPE_INFO, new Double[] {null, null});
-		test(ObjectArrayTypeInfo.getInfoFor(Types.STRING), new String[] {null, null});
-		test(ObjectArrayTypeInfo.getInfoFor(Types.STRING), new String[] {"haha", "hehe"});
-		test(ObjectArrayTypeInfo.getInfoFor(Types.STRING), new String[] {"haha", "hehe"}, new String[] {"aa", "bb"});
-		test(new MapTypeInfo<>(Types.STRING, Types.INT), null);
+        public MyPojo() {}
 
-		HashMap<String, Integer> map = new HashMap<>();
-		map.put("haha", 1);
-		map.put("hah1", 5);
-		map.put(null, null);
-		test(new MapTypeInfo<>(Types.STRING, Types.INT), map);
+        public MyPojo(int f1, int f2) {
+            this.f1 = f1;
+            this.f2 = f2;
+        }
 
-		Tuple2 tuple2 = new Tuple2<>(5, 10);
-		TupleTypeInfo tupleTypeInfo = new TupleTypeInfo<>(tuple2.getClass(), Types.INT, Types.INT);
-		test(tupleTypeInfo, tuple2);
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
 
-		test(TypeExtractor.createTypeInfo(MyPojo.class), new MyPojo(1, 3));
-	}
+            MyPojo myPojo = (MyPojo) o;
 
-	@Test
-	public void testDataTypes() {
-		for (int i = 0; i < dataTypes.length; i++) {
-			testDataType(dataTypes[i], dataValues[i]);
-		}
-	}
-
-	/**
-	 * Test pojo.
-	 */
-	public static class MyPojo {
-		public int f1 = 0;
-		public int f2 = 0;
-
-		public MyPojo() {}
-
-		public MyPojo(int f1, int f2) {
-			this.f1 = f1;
-			this.f2 = f2;
-		}
-
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-
-			MyPojo myPojo = (MyPojo) o;
-
-			return f1 == myPojo.f1 && f2 == myPojo.f2;
-		}
-	}
+            return f1 == myPojo.f1 && f2 == myPojo.f2;
+        }
+    }
 }

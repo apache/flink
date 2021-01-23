@@ -29,7 +29,6 @@ import org.apache.flink.streaming.api.functions.aggregation.{AggregationFunction
 import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction
 import org.apache.flink.streaming.api.functions.query.{QueryableAppendingStateOperator, QueryableValueStateOperator}
 import org.apache.flink.streaming.api.functions.{KeyedProcessFunction, ProcessFunction}
-import org.apache.flink.streaming.api.operators.StreamGroupedReduce
 import org.apache.flink.streaming.api.scala.function.StatefulFunction
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.time.Time
@@ -231,10 +230,35 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    * [[StreamExecutionEnvironment.setStreamTimeCharacteristic()]]
    *
    * @param size The size of the window.
+   *
+   * @deprecated Please use [[window()]] with either [[TumblingEventTimeWindows]] or
+   *             [[TumblingProcessingTimeWindows]]. For more information, see the deprecation
+   *             notice on [[org.apache.flink.streaming.api.TimeCharacteristic]].
    */
+  @deprecated
   def timeWindow(size: Time): WindowedStream[T, K, TimeWindow] = {
     new WindowedStream(javaStream.timeWindow(size))
   }
+
+  /**
+   * Windows this [[KeyedStream]] into sliding time windows.
+   *
+   * This is a shortcut for either `.window(SlidingEventTimeWindows.of(size))` or
+   * `.window(SlidingProcessingTimeWindows.of(size))` depending on the time characteristic
+   * set using
+   * [[StreamExecutionEnvironment.setStreamTimeCharacteristic()]]
+   *
+   * @param size The size of the window.
+   *
+   * @deprecated Please use [[window()]] with either [[SlidingEventTimeWindows]] or
+   *             [[SlidingProcessingTimeWindows]]. For more information, see the deprecation
+   *             notice on [[org.apache.flink.streaming.api.TimeCharacteristic]].
+   */
+  @deprecated
+  def timeWindow(size: Time, slide: Time): WindowedStream[T, K, TimeWindow] = {
+    new WindowedStream(javaStream.timeWindow(size, slide))
+  }
+
 
   /**
    * Windows this [[KeyedStream]] into sliding count windows.
@@ -253,20 +277,6 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    */
   def countWindow(size: Long): WindowedStream[T, K, GlobalWindow] = {
     new WindowedStream(javaStream.countWindow(size))
-  }
-
-  /**
-   * Windows this [[KeyedStream]] into sliding time windows.
-   *
-   * This is a shortcut for either `.window(SlidingEventTimeWindows.of(size))` or
-   * `.window(SlidingProcessingTimeWindows.of(size))` depending on the time characteristic
-   * set using
-   * [[StreamExecutionEnvironment.setStreamTimeCharacteristic()]]
-   *
-   * @param size The size of the window.
-   */
-  def timeWindow(size: Time, slide: Time): WindowedStream[T, K, TimeWindow] = {
-    new WindowedStream(javaStream.timeWindow(size, slide))
   }
 
   /**
@@ -475,11 +485,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
   }
 
   private def aggregate(aggregationFunc: AggregationFunction[T]): DataStream[T] = {
-    val invokable =
-      new StreamGroupedReduce[T](aggregationFunc, dataType.createSerializer(executionConfig))
-
-    new DataStream[T](javaStream.transform("aggregation", javaStream.getType(), invokable))
-      .asInstanceOf[DataStream[T]]
+    reduce(aggregationFunc).name("Keyed Aggregation")
   }
 
   // ------------------------------------------------------------------------

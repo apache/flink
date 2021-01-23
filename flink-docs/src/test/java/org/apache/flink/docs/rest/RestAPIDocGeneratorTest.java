@@ -40,51 +40,58 @@ import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.not;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for the {@link RestAPIDocGenerator}.
- */
+/** Tests for the {@link RestAPIDocGenerator}. */
 public class RestAPIDocGeneratorTest extends TestLogger {
 
-	@Test
-	public void testExcludeFromDocumentation() throws Exception {
-		File file = File.createTempFile("rest_v0_", ".html");
-		RestAPIDocGenerator.createHtmlFile(
-			new TestExcludeDocumentingRestEndpoint(),
-			RestAPIVersion.V0,
-			file.toPath());
-		String actual = FileUtils.readFile(file, "UTF-8");
+    @Test
+    public void testExcludeFromDocumentation() throws Exception {
+        File file = File.createTempFile("rest_v0_", ".html");
+        RestAPIDocGenerator.createHtmlFile(
+                new TestExcludeDocumentingRestEndpoint(), RestAPIVersion.V0, file.toPath());
+        String actual = FileUtils.readFile(file, "UTF-8");
 
-		assertThat(actual, containsString("/test/empty1"));
-		assertThat(actual, containsString("This is a testing REST API."));
-		assertThat(actual, containsString("/test/empty2"));
-		assertThat(actual, containsString("This is another testing REST API."));
-		assertThat(actual, not(containsString("/test/exclude1")));
-		assertThat(actual, not(containsString("This REST API should not appear in the generated documentation.")));
-		assertThat(actual, not(containsString("/test/exclude2")));
-		assertThat(actual, not(containsString("This REST API should also not appear in the generated documentation.")));
-	}
+        assertThat(actual, containsString("/test/empty1"));
+        assertThat(actual, containsString("This is a testing REST API."));
+        assertThat(actual, containsString("/test/empty2"));
+        assertThat(actual, containsString("This is another testing REST API."));
+        assertThat(actual, not(containsString("/test/exclude1")));
+        assertThat(
+                actual,
+                not(
+                        containsString(
+                                "This REST API should not appear in the generated documentation.")));
+        assertThat(actual, not(containsString("/test/exclude2")));
+        assertThat(
+                actual,
+                not(
+                        containsString(
+                                "This REST API should also not appear in the generated documentation.")));
+    }
 
-	private static class TestExcludeDocumentingRestEndpoint implements DocumentingRestEndpoint {
+    private static class TestExcludeDocumentingRestEndpoint implements DocumentingRestEndpoint {
 
-		@Override
-		public List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(CompletableFuture<String> localAddressFuture) {
-			return Arrays.asList(
-				Tuple2.of(
-					new TestEmptyMessageHeaders(
-						"/test/empty1",
-						"This is a testing REST API."), null),
-				Tuple2.of(
-					new TestEmptyMessageHeaders(
-						"/test/empty2",
-						"This is another testing REST API."), null),
-				Tuple2.of(
-					new TestExcludeMessageHeaders(
-						"/test/exclude1",
-						"This REST API should not appear in the generated documentation."), null),
-				Tuple2.of(
-					new TestExcludeMessageHeaders(
-						"/test/exclude2",
-						"This REST API should also not appear in the generated documentation."), null));
-		}
-	}
+        @Override
+        public List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(
+                CompletableFuture<String> localAddressFuture) {
+            return Arrays.asList(
+                    Tuple2.of(
+                            new TestEmptyMessageHeaders(
+                                    "/test/empty1", "This is a testing REST API."),
+                            null),
+                    Tuple2.of(
+                            new TestEmptyMessageHeaders(
+                                    "/test/empty2", "This is another testing REST API."),
+                            null),
+                    Tuple2.of(
+                            new TestExcludeMessageHeaders(
+                                    "/test/exclude1",
+                                    "This REST API should not appear in the generated documentation."),
+                            null),
+                    Tuple2.of(
+                            new TestExcludeMessageHeaders(
+                                    "/test/exclude2",
+                                    "This REST API should also not appear in the generated documentation."),
+                            null));
+        }
+    }
 }

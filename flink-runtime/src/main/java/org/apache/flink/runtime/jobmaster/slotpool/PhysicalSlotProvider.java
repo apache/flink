@@ -22,29 +22,28 @@ import org.apache.flink.runtime.jobmaster.SlotRequestId;
 
 import java.util.concurrent.CompletableFuture;
 
-/**
- * The provider serves physical slot requests.
- */
+/** The provider serves physical slot requests. */
 public interface PhysicalSlotProvider {
 
-	/**
-	 * Submit a request to allocate a physical slot.
-	 *
-	 * <p>The physical slot can be either allocated from the slots, which are already available for the job,
-	 * or a new one can be requeted from the resource manager.
-	 *
-	 * @param physicalSlotRequest slot requirements
-	 * @return a future of the allocated slot
-	 */
-	CompletableFuture<PhysicalSlotRequest.Result> allocatePhysicalSlot(PhysicalSlotRequest physicalSlotRequest);
+    /**
+     * Submit a request to allocate a physical slot.
+     *
+     * <p>The physical slot can be either allocated from the slots, which are already available for
+     * the job, or a new one can be requeted from the resource manager.
+     *
+     * @param physicalSlotRequest slot requirements
+     * @return a future of the allocated slot
+     */
+    CompletableFuture<PhysicalSlotRequest.Result> allocatePhysicalSlot(
+            PhysicalSlotRequest physicalSlotRequest);
 
-	/**
-	 * Cancels the slot request with the given {@link SlotRequestId}.
-	 *
-	 * <p>If the request is already fulfilled with a physical slot, the slot will be released.
-	 *
-	 * @param slotRequestId identifying the slot request to cancel
-	 * @param cause of the cancellation
-	 */
-	void cancelSlotRequest(SlotRequestId slotRequestId, Throwable cause);
+    /**
+     * Cancels the slot request with the given {@link SlotRequestId}.
+     *
+     * <p>If the request is already fulfilled with a physical slot, the slot will be released.
+     *
+     * @param slotRequestId identifying the slot request to cancel
+     * @param cause of the cancellation
+     */
+    void cancelSlotRequest(SlotRequestId slotRequestId, Throwable cause);
 }

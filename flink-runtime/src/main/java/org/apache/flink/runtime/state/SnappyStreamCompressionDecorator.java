@@ -29,26 +29,27 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-/**
- * This implementation decorates the stream with snappy compression.
- */
+/** This implementation decorates the stream with snappy compression. */
 @Internal
 public class SnappyStreamCompressionDecorator extends StreamCompressionDecorator {
 
-	public static final StreamCompressionDecorator INSTANCE = new SnappyStreamCompressionDecorator();
+    public static final StreamCompressionDecorator INSTANCE =
+            new SnappyStreamCompressionDecorator();
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private static final int COMPRESSION_BLOCK_SIZE = 64 * 1024;
-	private static final double MIN_COMPRESSION_RATIO = 0.85d;
+    private static final int COMPRESSION_BLOCK_SIZE = 64 * 1024;
+    private static final double MIN_COMPRESSION_RATIO = 0.85d;
 
-	@Override
-	protected OutputStream decorateWithCompression(NonClosingOutpusStreamDecorator stream) throws IOException {
-		return new SnappyFramedOutputStream(stream, COMPRESSION_BLOCK_SIZE, MIN_COMPRESSION_RATIO);
-	}
+    @Override
+    protected OutputStream decorateWithCompression(NonClosingOutpusStreamDecorator stream)
+            throws IOException {
+        return new SnappyFramedOutputStream(stream, COMPRESSION_BLOCK_SIZE, MIN_COMPRESSION_RATIO);
+    }
 
-	@Override
-	protected InputStream decorateWithCompression(NonClosingInputStreamDecorator stream) throws IOException {
-		return new SnappyFramedInputStream(stream, false);
-	}
+    @Override
+    protected InputStream decorateWithCompression(NonClosingInputStreamDecorator stream)
+            throws IOException {
+        return new SnappyFramedInputStream(stream, false);
+    }
 }

@@ -40,7 +40,7 @@ implement these concepts.
 
 Flink offers different levels of abstraction for developing streaming/batch applications.
 
-<img src="{{ site.baseurl }}/fig/levels_of_abstraction.svg" alt="Programming levels of abstraction" class="offset" width="80%" />
+<img src="{% link /fig/levels_of_abstraction.svg %}" alt="Programming levels of abstraction" class="offset" width="80%" />
 
   - The lowest level abstraction simply offers **stateful and timely stream processing**. It is
     embedded into the [DataStream API]({% link dev/datastream_api.md %}) via the [Process
@@ -83,7 +83,7 @@ Flink offers different levels of abstraction for developing streaming/batch appl
 
   - The highest level abstraction offered by Flink is **SQL**. This abstraction
     is similar to the *Table API* both in semantics and expressiveness, but
-    represents programs as SQL query expressions.  The [SQL]({{ site.baseurl
-    }}{% link dev/table/index.md %}#sql) abstraction closely interacts with the
+    represents programs as SQL query expressions.  The [SQL](
+    {% link dev/table/index.md %}#sql) abstraction closely interacts with the
     Table API, and SQL queries can be executed over tables defined in the
     *Table API*.

@@ -23,52 +23,53 @@ import org.apache.flink.runtime.rest.handler.cluster.DashboardConfigHandler;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * Message headers for the {@link DashboardConfigHandler}.
- */
-public final class DashboardConfigurationHeaders implements MessageHeaders<EmptyRequestBody, DashboardConfiguration, EmptyMessageParameters> {
+/** Message headers for the {@link DashboardConfigHandler}. */
+public final class DashboardConfigurationHeaders
+        implements MessageHeaders<
+                EmptyRequestBody, DashboardConfiguration, EmptyMessageParameters> {
 
-	public static final DashboardConfigurationHeaders INSTANCE = new DashboardConfigurationHeaders();
+    public static final DashboardConfigurationHeaders INSTANCE =
+            new DashboardConfigurationHeaders();
 
-	// make the constructor private since we want it to be a singleton
-	private DashboardConfigurationHeaders() {}
+    // make the constructor private since we want it to be a singleton
+    private DashboardConfigurationHeaders() {}
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return "/config";
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return "/config";
+    }
 
-	@Override
-	public Class<DashboardConfiguration> getResponseClass() {
-		return DashboardConfiguration.class;
-	}
+    @Override
+    public Class<DashboardConfiguration> getResponseClass() {
+        return DashboardConfiguration.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public EmptyMessageParameters getUnresolvedMessageParameters() {
-		return EmptyMessageParameters.getInstance();
-	}
+    @Override
+    public EmptyMessageParameters getUnresolvedMessageParameters() {
+        return EmptyMessageParameters.getInstance();
+    }
 
-	public static DashboardConfigurationHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static DashboardConfigurationHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Returns the configuration of the WebUI.";
-	}
+    @Override
+    public String getDescription() {
+        return "Returns the configuration of the WebUI.";
+    }
 }

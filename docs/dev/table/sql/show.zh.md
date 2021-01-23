@@ -59,7 +59,7 @@ SHOW 语句用于列出所有的 catalog，或者列出当前 catalog 中所有�
 
 <div data-lang="SQL CLI" markdown="1">
 
-可以在 [SQL CLI]({{ site.baseurl }}/zh/dev/table/sqlClient.html) 中执行 SHOW 语句。
+可以在 [SQL CLI]({% link dev/table/sqlClient.zh.md %}) 中执行 SHOW 语句。
 
 以下的例子展示了如何在 SQL CLI 中执行一个 SHOW 语句。
 

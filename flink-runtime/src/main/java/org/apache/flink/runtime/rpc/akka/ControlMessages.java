@@ -18,11 +18,9 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
-/**
- * Control messages for the {@link AkkaRpcActor}.
- */
+/** Control messages for the {@link AkkaRpcActor}. */
 public enum ControlMessages {
-	START, // Start processing incoming messages
-	STOP, // Stop processing messages and drop all newly incoming messages
-	TERMINATE, // Terminate the AkkaRpcActor
+    START, // Start processing incoming messages
+    STOP, // Stop processing messages and drop all newly incoming messages
+    TERMINATE, // Terminate the AkkaRpcActor
 }

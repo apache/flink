@@ -21,20 +21,18 @@ package org.apache.flink.table.runtime.typeutils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
-/**
- * Test for {@link StringDataTypeInfo}, {@link DecimalDataTypeInfo}.
- */
+/** Test for {@link StringDataTypeInfo}, {@link DecimalDataTypeInfo}. */
 public class InternalTypeInfosTest extends TypeInformationTestBase<TypeInformation<?>> {
 
-	@Override
-	protected TypeInformation[] getTestData() {
-		return new TypeInformation[] {
-			StringDataTypeInfo.INSTANCE,
-			new DecimalDataTypeInfo(5, 2),
-			new TimestampDataTypeInfo(0),
-			new TimestampDataTypeInfo(3),
-			new TimestampDataTypeInfo(6),
-			new TimestampDataTypeInfo(9)
-		};
-	}
+    @Override
+    protected TypeInformation[] getTestData() {
+        return new TypeInformation[] {
+            StringDataTypeInfo.INSTANCE,
+            new DecimalDataTypeInfo(5, 2),
+            new TimestampDataTypeInfo(0),
+            new TimestampDataTypeInfo(3),
+            new TimestampDataTypeInfo(6),
+            new TimestampDataTypeInfo(9)
+        };
+    }
 }

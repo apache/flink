@@ -17,18 +17,109 @@
 ################################################################################
 
 import abc
-from typing import Union, Any
+from abc import ABC
+from typing import Union, Any, Dict
 
 from py4j.java_gateway import JavaObject
 
+from pyflink.datastream.time_domain import TimeDomain
 from pyflink.java_gateway import get_gateway
+
+__all__ = [
+    'RuntimeContext',
+    'MapFunction',
+    'CoMapFunction',
+    'FlatMapFunction',
+    'CoFlatMapFunction',
+    'ReduceFunction',
+    'KeySelector',
+    'FilterFunction',
+    'Partitioner',
+    'SourceFunction',
+    'SinkFunction',
+    'ProcessFunction',
+    'KeyedProcessFunction']
+
+
+class RuntimeContext(object):
+    """
+    A RuntimeContext contains information about the context in which functions are executed.
+    Each parallel instance of the function will have a context through which it can access
+    static contextual information (such as the current parallelism).
+    """
+
+    def __init__(self,
+                 task_name: str,
+                 task_name_with_subtasks: str,
+                 number_of_parallel_subtasks: int,
+                 max_number_of_parallel_subtasks: int,
+                 index_of_this_subtask: int,
+                 attempt_number: int,
+                 job_parameters: Dict[str, str]):
+        self._task_name = task_name
+        self._task_name_with_subtasks = task_name_with_subtasks
+        self._number_of_parallel_subtasks = number_of_parallel_subtasks
+        self._max_number_of_parallel_subtasks = max_number_of_parallel_subtasks
+        self._index_of_this_subtask = index_of_this_subtask
+        self._attempt_number = attempt_number
+        self._job_parameters = job_parameters
+
+    def get_task_name(self) -> str:
+        """
+        Returns the name of the task in which the UDF runs, as assigned during plan construction.
+        """
+        return self._task_name
+
+    def get_number_of_parallel_subtasks(self) -> int:
+        """
+        Gets the parallelism with which the parallel task runs.
+        """
+        return self._number_of_parallel_subtasks
+
+    def get_max_number_of_parallel_subtasks(self) -> int:
+        """
+        Gets the number of max-parallelism with which the parallel task runs.
+        """
+        return self._max_number_of_parallel_subtasks
+
+    def get_index_of_this_subtask(self) -> int:
+        """
+        Gets the number of this parallel subtask. The numbering starts from 0 and goes up to
+        parallelism-1 (parallelism as returned by
+        :func:`~RuntimeContext.get_number_of_parallel_subtasks`).
+        """
+        return self._index_of_this_subtask
+
+    def get_attempt_number(self) -> int:
+        """
+        Gets the attempt number of this parallel subtask. First attempt is numbered 0.
+        """
+        return self._attempt_number
+
+    def get_task_name_with_subtasks(self) -> str:
+        """
+        Returns the name of the task, appended with the subtask indicator, such as "MyTask (3/6)",
+        where 3 would be (:func:`~RuntimeContext.get_index_of_this_subtask` + 1), and 6 would be
+        :func:`~RuntimeContext.get_number_of_parallel_subtasks`.
+        """
+        return self._task_name_with_subtasks
+
+    def get_job_parameter(self, key: str, default_value: str):
+        """
+        Gets the global job parameter value associated with the given key as a string.
+        """
+        return self._job_parameters[key] if key in self._job_parameters else default_value
 
 
 class Function(abc.ABC):
     """
     The base class for all user-defined functions.
     """
-    pass
+    def open(self, runtime_context: RuntimeContext):
+        pass
+
+    def close(self):
+        pass
 
 
 class MapFunction(Function):
@@ -266,7 +357,7 @@ class Partitioner(Function):
         pass
 
 
-class FunctionWrapper(object):
+class FunctionWrapper(Function):
     """
     A basic wrapper class for user defined function.
     """
@@ -327,10 +418,10 @@ class FlatMapFunctionWrapper(FunctionWrapper):
 
 class FilterFunctionWrapper(FunctionWrapper):
     """
-        A wrapper class for FilterFunction. It's used for wrapping up user defined function in a
-        FilterFunction when user does not implement a FilterFunction but directly pass a function
-        object or a lambda function to filter() function.
-        """
+    A wrapper class for FilterFunction. It's used for wrapping up user defined function in a
+    FilterFunction when user does not implement a FilterFunction but directly pass a function
+    object or a lambda function to filter() function.
+    """
 
     def __init__(self, func):
         super(FilterFunctionWrapper, self).__init__(func)
@@ -466,3 +557,211 @@ class SinkFunction(JavaFunctionWrapper):
         :param sink_func: The java SinkFunction object or the full name of the SinkFunction class.
         """
         super(SinkFunction, self).__init__(sink_func)
+
+
+class TimerService(abc.ABC):
+    """
+    Interface for working with time and timers.
+    """
+
+    @abc.abstractmethod
+    def current_processing_time(self):
+        """
+        Returns the current processing time.
+        """
+        pass
+
+    @abc.abstractmethod
+    def current_watermark(self):
+        """
+        Returns the current event-time watermark.
+        """
+        pass
+
+    @abc.abstractmethod
+    def register_processing_time_timer(self, time: int):
+        """
+        Registers a timer to be fired when processing time passes the given time.
+
+        Timers can internally be scoped to keys and/or windows. When you set a timer in a keyed
+        context, such as in an operation on KeyedStream then that context will so be active when you
+        receive the timer notification.
+
+        :param time: The processing time of the timer to be registered.
+        """
+        pass
+
+    @abc.abstractmethod
+    def register_event_time_timer(self, time: int):
+        """
+        Registers a timer tobe fired when the event time watermark passes the given time.
+
+        Timers can internally be scoped to keys and/or windows. When you set a timer in a keyed
+        context, such as in an operation on KeyedStream then that context will so be active when you
+        receive the timer notification.
+
+        :param time: The event time of the timer to be registered.
+        """
+        pass
+
+    def delete_processing_time_timer(self, time: int):
+        """
+        Deletes the processing-time timer with the given trigger time. This method has only an
+        effect if such a timer was previously registered and did not already expire.
+
+        Timers can internally be scoped to keys and/or windows. When you delete a timer, it is
+        removed from the current keyed context.
+
+        :param time: The given trigger time of timer to be deleted.
+        """
+        pass
+
+    def delete_event_time_timer(self, time: int):
+        """
+        Deletes the event-time timer with the given trigger time. This method has only an effect if
+        such a timer was previously registered and did not already expire.
+
+        Timers can internally be scoped to keys and/or windows. When you delete a timer, it is
+        removed from the current keyed context.
+
+        :param time: The given trigger time of timer to be deleted.
+        """
+        pass
+
+
+class ProcessFunction(Function):
+    """
+    A function that process elements of a stream.
+
+    For every element in the input stream process_element(value, ctx, out) is invoked. This can
+    produce zero or more elements as output. Implementations can also query the time and set timers
+    through the provided Context. For firing timers on_timer(long, ctx, out) will be invoked. This
+    can again produce zero or more elements as output and register further timers.
+
+    Note that access to keyed state and timers (which are also scoped to a key) is only available if
+    the ProcessFunction is applied on a KeyedStream.
+    """
+
+    class Context(abc.ABC):
+        """
+        Information available in an invocation of process_element(value, ctx, out) or
+        on_timer(value, ctx, out).
+        """
+
+        @abc.abstractmethod
+        def timer_service(self) -> TimerService:
+            """
+            A Timer service for querying time and registering timers.
+            """
+            pass
+
+        @abc.abstractmethod
+        def timestamp(self) -> int:
+            """
+            Timestamp of the element currently being processed or timestamp of a firing timer.
+
+            This might be None, for example if the time characteristic of your program is set to
+            TimeCharacteristic.ProcessTime.
+            """
+            pass
+
+    @abc.abstractmethod
+    def process_element(self, value, ctx: 'ProcessFunction.Context'):
+        """
+        Process one element from the input stream.
+
+        This function can output zero or more elements using the Collector parameter and also update
+        internal state or set timers using the Context parameter.
+
+        :param value: The input value.
+        :param ctx:  A Context that allows querying the timestamp of the element and getting a
+                     TimerService for registering timers and querying the time. The context is only
+                     valid during the invocation of this method, do not store it.
+        """
+        pass
+
+
+class KeyedProcessFunction(Function, ABC):
+    """
+    A keyed function processes elements of a stream.
+
+    For every element in the input stream, process_element() is invoked. This can produce zero or
+    more elements as output. Implementations can also query the time and set timers through the
+    provided Context. For firing timers on_timer() will be invoked. This can again produce zero or
+    more elements as output and register further timers.
+
+    Note that access to keyed state and timers (which are also scoped to a key) is only available if
+    the KeyedProcessFunction is applied on a KeyedStream.
+    """
+
+    """
+    A function that process elements of a stream.
+
+    For every element in the input stream process_element(value, ctx, out) is invoked. This can
+    produce zero or more elements as output. Implementations can also query the time and set timers
+    through the provided Context. For firing timers on_timer(long, ctx, out) will be invoked. This
+    can again produce zero or more elements as output and register further timers.
+
+    Note that access to keyed state and timers (which are also scoped to a key) is only available if
+    the ProcessFunction is applied on a KeyedStream.
+    """
+
+    class Context(ABC):
+
+        @abc.abstractmethod
+        def get_current_key(self):
+            pass
+
+        @abc.abstractmethod
+        def timer_service(self) -> TimerService:
+            """
+            A Timer service for querying time and registering timers.
+            """
+            pass
+
+        @abc.abstractmethod
+        def timestamp(self) -> int:
+            """
+            Timestamp of the element currently being processed or timestamp of a firing timer.
+
+            This might be None, for example if the time characteristic of your program is set to
+            TimeCharacteristic.ProcessTime.
+            """
+            pass
+
+    class OnTimerContext(Context):
+
+        @abc.abstractmethod
+        def time_domain(self) -> TimeDomain:
+            """
+            The TimeDomain of the firing timer.
+            :return: The TimeDomain of current fired timer.
+            """
+            pass
+
+    @abc.abstractmethod
+    def process_element(self, value, ctx: 'KeyedProcessFunction.Context'):
+        """
+        Process one element from the input stream.
+
+        This function can output zero or more elements using the Collector parameter and also update
+        internal state or set timers using the Context parameter.
+
+        :param value: The input value.
+        :param ctx:  A Context that allows querying the timestamp of the element and getting a
+                     TimerService for registering timers and querying the time. The context is only
+                     valid during the invocation of this method, do not store it.
+        """
+        pass
+
+    def on_timer(self, timestamp: int, ctx: 'KeyedProcessFunction.OnTimerContext'):
+        """
+        Called when a timer set using TimerService fires.
+
+        :param timestamp: The timestamp of the firing timer.
+        :param ctx: An OnTimerContext that allows querying the timestamp of the firing timer,
+                    querying the TimeDomain of the firing timer and getting a TimerService for
+                    registering timers and querying the time. The context is only valid during the
+                    invocation of this method, do not store it.
+        """
+        pass

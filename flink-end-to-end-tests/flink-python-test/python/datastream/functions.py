@@ -16,25 +16,10 @@
 # limitations under the License.
 ################################################################################
 
-from pyflink.datastream.functions import CoMapFunction
+from pyflink.datastream.functions import KeySelector
 
 
-def str_len(value):
-    return value[0], len(value[0]), value[1]
+class MyKeySelector(KeySelector):
 
-
-def add_one(value):
-    return value[0], value[1] + 1, value[1]
-
-
-def m_flat_map(value):
-    for i in range(value[1]):
-        yield value[0], i, value[2]
-
-
-class MyCoMapFunction(CoMapFunction):
-    def map1(self, value):
-        return str_len(value)
-
-    def map2(self, value):
-        return add_one(value)
+    def get_key(self, value):
+        return value[1]

@@ -27,7 +27,7 @@ under the License.
 As described earlier, Flink programs can be executed on
 clusters by using a `remote environment`. Alternatively, programs can be packaged into JAR Files
 (Java Archives) for execution. Packaging the program is a prerequisite to executing them through the
-[command line interface]({{ site.baseurl }}/ops/cli.html).
+[command line interface]({% link deployment/cli.md %}).
 
 ### Packaging Programs
 

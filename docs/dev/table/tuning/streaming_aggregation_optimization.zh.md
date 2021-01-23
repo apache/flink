@@ -29,7 +29,7 @@ SQL 是数据分析中使用最广泛的语言。Flink Table API 和 SQL 使用�
 
 <span class="label label-danger">注意</span> 目前，这一页提到的优化选项仅支持 Blink planner。
 
-<span class="label label-danger">注意</span> 目前，流聚合优化仅支持 [无界聚合]({{ site.baseurl }}/zh/dev/table/sql/queries.html#聚合)。[窗口聚合]({{ site.baseurl }}/zh/dev/table/sql/queries.html#分组窗口) 优化将在未来支持。
+<span class="label label-danger">注意</span> 目前，流聚合优化仅支持 [无界聚合]({% link dev/table/sql/queries.zh.md %}#聚合)。[窗口聚合]({% link dev/table/sql/queries.zh.md %}#分组窗口) 优化将在未来支持。
 
 * This will be replaced by the TOC
 {:toc}
@@ -43,10 +43,10 @@ MiniBatch 聚合的核心思想是将一组输入的数据缓存在聚合算子�
 下图说明了 mini-batch 聚合如何减少状态操作。
 
 <div style="text-align: center">
-  <img src="{{ site.baseurl }}/fig/table-streaming/minibatch_agg.png" width="50%" height="50%" />
+  <img src="{% link /fig/table-streaming/minibatch_agg.png %}" width="50%" height="50%" />
 </div>
 
-默认情况下 mini-batch 优化是被禁用的。开启这项优化，需要设置选项 `table.exec.mini-batch.enabled`、`table.exec.mini-batch.allow-latency` 和 `table.exec.mini-batch.size`。更多详细信息请参见[配置]({{ site.baseurl }}/zh/dev/table/config.html#execution-options)页面。
+默认情况下 mini-batch 优化是被禁用的。开启这项优化，需要设置选项 `table.exec.mini-batch.enabled`、`table.exec.mini-batch.allow-latency` 和 `table.exec.mini-batch.size`。更多详细信息请参见[配置]({% link dev/table/config.zh.md %}#execution-options)页面。
 
 下面的例子显示如何启用这些选项。
 
@@ -109,7 +109,7 @@ GROUP BY color
 下图显示了 local-global 聚合如何提高性能。
 
 <div style="text-align: center">
-  <img src="{{ site.baseurl }}/fig/table-streaming/local_agg.png" width="70%" height="70%" />
+  <img src="{% link /fig/table-streaming/local_agg.png %}" width="70%" height="70%" />
 </div>
 
 
@@ -194,7 +194,7 @@ GROUP BY day
 下图显示了拆分 distinct 聚合如何提高性能（假设颜色表示 days，字母表示 user_id）。
 
 <div style="text-align: center">
-  <img src="{{ site.baseurl }}/fig/table-streaming/distinct_split.png" width="70%" height="70%" />
+  <img src="{% link /fig/table-streaming/distinct_split.png %}" width="70%" height="70%" />
 </div>
 
 注意：上面是可以从这个优化中受益的最简单的示例。除此之外，Flink 还支持拆分更复杂的聚合查询，例如，多个具有不同 distinct key （例如 `COUNT(DISTINCT a), SUM(DISTINCT b)` ）的 distinct 聚合，可以与其他非 distinct 聚合（例如 `SUM`、`MAX`、`MIN`、`COUNT` ）一起使用。

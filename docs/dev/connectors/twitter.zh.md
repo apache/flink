@@ -35,7 +35,7 @@ Flink Streaming 通过一个内置的 `TwitterSource` 类来创建到 tweets 流
 </dependency>
 {% endhighlight %}
 
-注意：当前的二进制发行版还没有这些连接器。集群执行请参考[这里]({{site.baseurl}}/zh/dev/project-configuration.html).
+注意：当前的二进制发行版还没有这些连接器。集群执行请参考[这里]({% link dev/project-configuration.zh.md %}).
 
 #### 认证
 使用 Twitter 流，用户需要先注册自己的程序，获取认证相关的必要信息。过程如下：

@@ -25,60 +25,62 @@ import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 
-/**
- * Tests (un)marshalling of {@link TaskManagerDetailsInfo}.
- */
-public class TaskManagerDetailsInfoTest extends RestResponseMarshallingTestBase<TaskManagerDetailsInfo> {
+/** Tests (un)marshalling of {@link TaskManagerDetailsInfo}. */
+public class TaskManagerDetailsInfoTest
+        extends RestResponseMarshallingTestBase<TaskManagerDetailsInfo> {
 
-	private static final Random random = new Random();
+    private static final Random random = new Random();
 
-	@Override
-	protected Class<TaskManagerDetailsInfo> getTestResponseClass() {
-		return TaskManagerDetailsInfo.class;
-	}
+    @Override
+    protected Class<TaskManagerDetailsInfo> getTestResponseClass() {
+        return TaskManagerDetailsInfo.class;
+    }
 
-	@Override
-	protected TaskManagerDetailsInfo getTestResponseInstance() throws Exception {
-		final TaskManagerInfo taskManagerInfo = TaskManagerInfoTest.createRandomTaskManagerInfo();
-		final TaskManagerMetricsInfo taskManagerMetricsInfo = createRandomTaskManagerMetricsInfo();
+    @Override
+    protected TaskManagerDetailsInfo getTestResponseInstance() throws Exception {
+        final TaskManagerInfo taskManagerInfo = TaskManagerInfoTest.createRandomTaskManagerInfo();
+        final TaskManagerMetricsInfo taskManagerMetricsInfo = createRandomTaskManagerMetricsInfo();
 
-		return new TaskManagerDetailsInfo(
-			taskManagerInfo,
-			taskManagerMetricsInfo);
-	}
+        return new TaskManagerDetailsInfo(taskManagerInfo, taskManagerMetricsInfo);
+    }
 
-	static TaskManagerMetricsInfo createRandomTaskManagerMetricsInfo() {
-		final List<TaskManagerMetricsInfo.GarbageCollectorInfo> garbageCollectorsInfo = createRandomGarbageCollectorsInfo();
+    static TaskManagerMetricsInfo createRandomTaskManagerMetricsInfo() {
+        final List<TaskManagerMetricsInfo.GarbageCollectorInfo> garbageCollectorsInfo =
+                createRandomGarbageCollectorsInfo();
 
-		return new TaskManagerMetricsInfo(
-			random.nextLong(),
-			random.nextLong(),
-			random.nextLong(),
-			random.nextLong(),
-			random.nextLong(),
-			random.nextLong(),
-			random.nextLong(),
-			random.nextLong(),
-			random.nextLong(),
-			random.nextLong(),
-			random.nextLong(),
-			random.nextLong(),
-			random.nextLong(),
-			random.nextLong(),
-			garbageCollectorsInfo);
-	}
+        return new TaskManagerMetricsInfo(
+                random.nextLong(),
+                random.nextLong(),
+                random.nextLong(),
+                random.nextLong(),
+                random.nextLong(),
+                random.nextLong(),
+                random.nextLong(),
+                random.nextLong(),
+                random.nextLong(),
+                random.nextLong(),
+                random.nextLong(),
+                random.nextLong(),
+                random.nextLong(),
+                random.nextLong(),
+                random.nextLong(),
+                random.nextLong(),
+                random.nextLong(),
+                random.nextLong(),
+                garbageCollectorsInfo);
+    }
 
-	static List<TaskManagerMetricsInfo.GarbageCollectorInfo> createRandomGarbageCollectorsInfo() {
-		final int numberGCs = random.nextInt(10);
-		final List<TaskManagerMetricsInfo.GarbageCollectorInfo> garbageCollectorInfos = new ArrayList<>(numberGCs);
+    static List<TaskManagerMetricsInfo.GarbageCollectorInfo> createRandomGarbageCollectorsInfo() {
+        final int numberGCs = random.nextInt(10);
+        final List<TaskManagerMetricsInfo.GarbageCollectorInfo> garbageCollectorInfos =
+                new ArrayList<>(numberGCs);
 
-		for (int i = 0; i < numberGCs; i++) {
-			garbageCollectorInfos.add(new TaskManagerMetricsInfo.GarbageCollectorInfo(
-				UUID.randomUUID().toString(),
-				random.nextLong(),
-				random.nextLong()));
-		}
+        for (int i = 0; i < numberGCs; i++) {
+            garbageCollectorInfos.add(
+                    new TaskManagerMetricsInfo.GarbageCollectorInfo(
+                            UUID.randomUUID().toString(), random.nextLong(), random.nextLong()));
+        }
 
-		return garbageCollectorInfos;
-	}
+        return garbageCollectorInfos;
+    }
 }

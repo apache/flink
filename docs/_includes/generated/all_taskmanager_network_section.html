@@ -104,5 +104,17 @@
             <td>Integer</td>
             <td>The number of retry attempts for network communication. Currently it's only used for establishing input/output channel connections</td>
         </tr>
+        <tr>
+            <td><h5>taskmanager.network.sort-shuffle.min-buffers</h5></td>
+            <td style="word-wrap: break-word;">64</td>
+            <td>Integer</td>
+            <td>Minimum number of network buffers required per sort-merge blocking result partition. For large scale batch jobs, it is suggested to increase this config value to improve compression ratio and reduce small network packets. Note: to increase this config value, you may also need to increase the size of total network memory to avoid "insufficient number of network buffers" error.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.sort-shuffle.min-parallelism</h5></td>
+            <td style="word-wrap: break-word;">2147483647</td>
+            <td>Integer</td>
+            <td>Parallelism threshold to switch between sort-merge blocking shuffle and the default hash-based blocking shuffle, which means for small parallelism, hash-based blocking shuffle will be used and for large parallelism, sort-merge blocking shuffle will be used. Note: sort-merge blocking shuffle uses unmanaged direct memory for shuffle data writing and reading so just increase the size of direct memory if direct memory OOM error occurs.</td>
+        </tr>
     </tbody>
 </table>

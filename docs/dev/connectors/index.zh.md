@@ -31,8 +31,8 @@ under the License.
 ## 预定义的 Source 和 Sink
 
 一些比较基本的 Source 和 Sink 已经内置在 Flink 里。
-[预定义 data sources]({{ site.baseurl }}/zh/dev/datastream_api.html#data-sources) 支持从文件、目录、socket，以及 collections 和 iterators 中读取数据。
-[预定义 data sinks]({{ site.baseurl }}/zh/dev/datastream_api.html#data-sinks) 支持把数据写入文件、标准输出（stdout）、标准错误输出（stderr）和 socket。
+[预定义 data sources]({% link dev/datastream_api.zh.md %}#data-sources) 支持从文件、目录、socket，以及 collections 和 iterators 中读取数据。
+[预定义 data sinks]({% link dev/datastream_api.zh.md %}#data-sinks) 支持把数据写入文件、标准输出（stdout）、标准错误输出（stderr）和 socket。
 
 ## 附带的连接器
 
@@ -42,7 +42,8 @@ under the License.
  * [Apache Cassandra](cassandra.html) (sink)
  * [Amazon Kinesis Streams](kinesis.html) (source/sink)
  * [Elasticsearch](elasticsearch.html) (sink)
- * [Hadoop FileSystem](filesystem_sink.html) (sink)
+ * [FileSystem（包括 Hadoop ） - 仅支持流](streamfile_sink.html) (sink)
+ * [FileSystem（包括 Hadoop ） - 流批统一](file_sink.html) (sink)
  * [RabbitMQ](rabbitmq.html) (source/sink)
  * [Apache NiFi](nifi.html) (source/sink)
  * [Twitter Streaming API](twitter.html) (source)
@@ -69,11 +70,11 @@ Flink 还有些一些额外的连接器通过 [Apache Bahir](https://bahir.apach
 
 使用connector并不是唯一可以使数据进入或者流出Flink的方式。
 一种常见的模式是从外部数据库或者 Web 服务查询数据得到初始数据流，然后通过 `Map` 或者 `FlatMap` 对初始数据流进行丰富和增强。
-Flink 提供了[异步 I/O]({{ site.baseurl }}/zh/dev/stream/operators/asyncio.html) API 来让这个过程更加简单、高效和稳定。
+Flink 提供了[异步 I/O]({% link dev/stream/operators/asyncio.zh.md %}) API 来让这个过程更加简单、高效和稳定。
 
 ### 可查询状态
 
 当 Flink 应用程序需要向外部存储推送大量数据时会导致 I/O 瓶颈问题出现。在这种场景下，如果对数据的读操作远少于写操作，那么让外部应用从 Flink 拉取所需的数据会是一种更好的方式。
-[可查询状态]({{ site.baseurl }}/zh/dev/stream/state/queryable_state.html) 接口可以实现这个功能，该接口允许被 Flink 托管的状态可以被按需查询。
+[可查询状态]({% link dev/stream/state/queryable_state.zh.md %}) 接口可以实现这个功能，该接口允许被 Flink 托管的状态可以被按需查询。
 
 {% top %}

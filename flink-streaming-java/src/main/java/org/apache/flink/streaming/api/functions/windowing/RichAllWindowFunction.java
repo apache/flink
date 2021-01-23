@@ -23,10 +23,11 @@ import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
 /**
- * A {@link org.apache.flink.api.common.functions.RichFunction} version of
- * {@link AllWindowFunction}.
+ * A {@link org.apache.flink.api.common.functions.RichFunction} version of {@link
+ * AllWindowFunction}.
  */
 @Public
-public abstract class RichAllWindowFunction<IN, OUT, W extends Window> extends AbstractRichFunction implements AllWindowFunction<IN, OUT, W> {
-	private static final long serialVersionUID = 1L;
+public abstract class RichAllWindowFunction<IN, OUT, W extends Window> extends AbstractRichFunction
+        implements AllWindowFunction<IN, OUT, W> {
+    private static final long serialVersionUID = 1L;
 }

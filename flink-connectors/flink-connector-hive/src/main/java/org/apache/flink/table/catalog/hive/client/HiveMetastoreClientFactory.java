@@ -22,16 +22,13 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 
-/**
- * Factory to create Hive metastore client.
- */
+/** Factory to create Hive metastore client. */
 public class HiveMetastoreClientFactory {
 
-	private HiveMetastoreClientFactory() {
-	}
+    private HiveMetastoreClientFactory() {}
 
-	public static HiveMetastoreClientWrapper create(HiveConf hiveConf, String hiveVersion) {
-		Preconditions.checkNotNull(hiveVersion, "Hive version cannot be null");
-		return new HiveMetastoreClientWrapper(hiveConf, hiveVersion);
-	}
+    public static HiveMetastoreClientWrapper create(HiveConf hiveConf, String hiveVersion) {
+        Preconditions.checkNotNull(hiveVersion, "Hive version cannot be null");
+        return new HiveMetastoreClientWrapper(hiveConf, hiveVersion);
+    }
 }

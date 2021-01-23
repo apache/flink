@@ -29,38 +29,41 @@ import javax.annotation.Nonnull;
 import java.util.List;
 
 class TtlValueStateVerifier
-	extends AbstractTtlStateVerifier<ValueStateDescriptor<String>, ValueState<String>, String, String, String> {
-	TtlValueStateVerifier() {
-		super(new ValueStateDescriptor<>(TtlValueStateVerifier.class.getSimpleName(), StringSerializer.INSTANCE));
-	}
+        extends AbstractTtlStateVerifier<
+                ValueStateDescriptor<String>, ValueState<String>, String, String, String> {
+    TtlValueStateVerifier() {
+        super(
+                new ValueStateDescriptor<>(
+                        TtlValueStateVerifier.class.getSimpleName(), StringSerializer.INSTANCE));
+    }
 
-	@Override
-	@Nonnull
-	State createState(FunctionInitializationContext context) {
-		return context.getKeyedStateStore().getState(stateDesc);
-	}
+    @Override
+    @Nonnull
+    State createState(FunctionInitializationContext context) {
+        return context.getKeyedStateStore().getState(stateDesc);
+    }
 
-	@Nonnull
-	public String generateRandomUpdate() {
-		return randomString();
-	}
+    @Nonnull
+    public String generateRandomUpdate() {
+        return randomString();
+    }
 
-	@Override
-	String getInternal(@Nonnull ValueState<String> state) throws Exception {
-		return state.value();
-	}
+    @Override
+    String getInternal(@Nonnull ValueState<String> state) throws Exception {
+        return state.value();
+    }
 
-	@Override
-	void updateInternal(@Nonnull ValueState<String> state, String update) throws Exception {
-		state.update(update);
-	}
+    @Override
+    void updateInternal(@Nonnull ValueState<String> state, String update) throws Exception {
+        state.update(update);
+    }
 
-	@Override
-	String expected(@Nonnull List<ValueWithTs<String>> updates, long currentTimestamp) {
-		if (updates.isEmpty()) {
-			return null;
-		}
-		ValueWithTs<String> lastUpdate = updates.get(updates.size() - 1);
-		return expired(lastUpdate.getTimestamp(), currentTimestamp) ? null : lastUpdate.getValue();
-	}
+    @Override
+    String expected(@Nonnull List<ValueWithTs<String>> updates, long currentTimestamp) {
+        if (updates.isEmpty()) {
+            return null;
+        }
+        ValueWithTs<String> lastUpdate = updates.get(updates.size() - 1);
+        return expired(lastUpdate.getTimestamp(), currentTimestamp) ? null : lastUpdate.getValue();
+    }
 }

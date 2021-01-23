@@ -106,7 +106,8 @@ class StreamTableSourceScan(
       .asInstanceOf[DataStream[Any]]
     val outputSchema = new RowSchema(this.getRowType)
 
-    val inputDataType = fromLegacyInfoToDataType(inputDataStream.getType)
+    // Fix the nullability of row type info.
+    val inputDataType = fromLegacyInfoToDataType(inputDataStream.getType).notNull()
     val producedDataType = tableSource.getProducedDataType
 
     // check that declared and actual type of table source DataStream are identical

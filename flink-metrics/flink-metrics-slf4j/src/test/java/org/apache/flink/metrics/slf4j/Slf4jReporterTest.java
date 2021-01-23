@@ -48,126 +48,154 @@ import java.util.Collections;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Test for {@link Slf4jReporter}.
- */
+/** Test for {@link Slf4jReporter}. */
 public class Slf4jReporterTest extends TestLogger {
 
-	private static final String HOST_NAME = "localhost";
-	private static final String TASK_MANAGER_ID = "tm01";
-	private static final String JOB_NAME = "jn01";
-	private static final String TASK_NAME = "tn01";
-	private static MetricRegistryImpl registry;
-	private static char delimiter;
-	private static TaskMetricGroup taskMetricGroup;
-	private static Slf4jReporter reporter;
+    private static final String HOST_NAME = "localhost";
+    private static final String TASK_MANAGER_ID = "tm01";
+    private static final String JOB_NAME = "jn01";
+    private static final String TASK_NAME = "tn01";
+    private static MetricRegistryImpl registry;
+    private static char delimiter;
+    private static TaskMetricGroup taskMetricGroup;
+    private static Slf4jReporter reporter;
 
-	@Rule
-	public final TestLoggerResource testLoggerResource = new TestLoggerResource(Slf4jReporter.class, Level.INFO);
+    @Rule
+    public final TestLoggerResource testLoggerResource =
+            new TestLoggerResource(Slf4jReporter.class, Level.INFO);
 
-	@BeforeClass
-	public static void setUp() {
-		Configuration configuration = new Configuration();
-		configuration.setString(MetricOptions.SCOPE_NAMING_TASK, "<host>.<tm_id>.<job_name>");
+    @BeforeClass
+    public static void setUp() {
+        Configuration configuration = new Configuration();
+        configuration.setString(MetricOptions.SCOPE_NAMING_TASK, "<host>.<tm_id>.<job_name>");
 
-		registry = new MetricRegistryImpl(
-			MetricRegistryConfiguration.fromConfiguration(configuration),
-			Collections.singletonList(ReporterSetup.forReporter("slf4j", new Slf4jReporter())));
-		delimiter = registry.getDelimiter();
+        registry =
+                new MetricRegistryImpl(
+                        MetricRegistryConfiguration.fromConfiguration(configuration),
+                        Collections.singletonList(
+                                ReporterSetup.forReporter("slf4j", new Slf4jReporter())));
+        delimiter = registry.getDelimiter();
 
-		taskMetricGroup = new TaskManagerMetricGroup(registry, HOST_NAME, TASK_MANAGER_ID)
-			.addTaskForJob(new JobID(), JOB_NAME, new JobVertexID(), new ExecutionAttemptID(), TASK_NAME, 0, 0);
-		reporter = (Slf4jReporter) registry.getReporters().get(0);
-	}
+        taskMetricGroup =
+                new TaskManagerMetricGroup(registry, HOST_NAME, TASK_MANAGER_ID)
+                        .addTaskForJob(
+                                new JobID(),
+                                JOB_NAME,
+                                new JobVertexID(),
+                                new ExecutionAttemptID(),
+                                TASK_NAME,
+                                0,
+                                0);
+        reporter = (Slf4jReporter) registry.getReporters().get(0);
+    }
 
-	@AfterClass
-	public static void tearDown() throws Exception {
-		registry.shutdown().get();
-	}
+    @AfterClass
+    public static void tearDown() throws Exception {
+        registry.shutdown().get();
+    }
 
-	@Test
-	public void testAddCounter() throws Exception {
-		String counterName = "simpleCounter";
+    @Test
+    public void testAddCounter() throws Exception {
+        String counterName = "simpleCounter";
 
-		SimpleCounter counter = new SimpleCounter();
-		taskMetricGroup.counter(counterName, counter);
+        SimpleCounter counter = new SimpleCounter();
+        taskMetricGroup.counter(counterName, counter);
 
-		assertTrue(reporter.getCounters().containsKey(counter));
+        assertTrue(reporter.getCounters().containsKey(counter));
 
-		String expectedCounterReport = reporter.filterCharacters(HOST_NAME) + delimiter
-			+ reporter.filterCharacters(TASK_MANAGER_ID) + delimiter + reporter.filterCharacters(JOB_NAME) + delimiter
-			+ reporter.filterCharacters(counterName) + ": 0";
+        String expectedCounterReport =
+                reporter.filterCharacters(HOST_NAME)
+                        + delimiter
+                        + reporter.filterCharacters(TASK_MANAGER_ID)
+                        + delimiter
+                        + reporter.filterCharacters(JOB_NAME)
+                        + delimiter
+                        + reporter.filterCharacters(counterName)
+                        + ": 0";
 
-		reporter.report();
-		assertThat(
-			testLoggerResource.getMessages(),
-			hasItem(containsString(expectedCounterReport)));
-	}
+        reporter.report();
+        assertThat(
+                testLoggerResource.getMessages(), hasItem(containsString(expectedCounterReport)));
+    }
 
-	@Test
-	public void testAddGauge() throws Exception {
-		String gaugeName = "gauge";
+    @Test
+    public void testAddGauge() throws Exception {
+        String gaugeName = "gauge";
 
-		taskMetricGroup.gauge(gaugeName, null);
-		assertTrue(reporter.getGauges().isEmpty());
+        int gaugesBefore = reporter.getGauges().size();
+        taskMetricGroup.gauge(gaugeName, null);
+        assertThat(reporter.getGauges().size(), is(gaugesBefore));
 
-		Gauge<Long> gauge = () -> null;
-		taskMetricGroup.gauge(gaugeName, gauge);
-		assertTrue(reporter.getGauges().containsKey(gauge));
+        Gauge<Long> gauge = () -> null;
+        taskMetricGroup.gauge(gaugeName, gauge);
+        assertTrue(reporter.getGauges().containsKey(gauge));
 
-		String expectedGaugeReport = reporter.filterCharacters(HOST_NAME) + delimiter
-			+ reporter.filterCharacters(TASK_MANAGER_ID) + delimiter + reporter.filterCharacters(JOB_NAME) + delimiter
-			+ reporter.filterCharacters(gaugeName) + ": null";
+        String expectedGaugeReport =
+                reporter.filterCharacters(HOST_NAME)
+                        + delimiter
+                        + reporter.filterCharacters(TASK_MANAGER_ID)
+                        + delimiter
+                        + reporter.filterCharacters(JOB_NAME)
+                        + delimiter
+                        + reporter.filterCharacters(gaugeName)
+                        + ": null";
 
-		reporter.report();
-		assertThat(
-			testLoggerResource.getMessages(),
-			hasItem(containsString(expectedGaugeReport)));
-	}
+        reporter.report();
+        assertThat(testLoggerResource.getMessages(), hasItem(containsString(expectedGaugeReport)));
+    }
 
-	@Test
-	public void testAddMeter() throws Exception {
-		String meterName = "meter";
+    @Test
+    public void testAddMeter() throws Exception {
+        String meterName = "meter";
 
-		Meter meter = taskMetricGroup.meter(meterName, new MeterView(5));
-		assertTrue(reporter.getMeters().containsKey(meter));
+        Meter meter = taskMetricGroup.meter(meterName, new MeterView(5));
+        assertTrue(reporter.getMeters().containsKey(meter));
 
-		String expectedMeterReport = reporter.filterCharacters(HOST_NAME) + delimiter
-			+ reporter.filterCharacters(TASK_MANAGER_ID) + delimiter + reporter.filterCharacters(JOB_NAME) + delimiter
-			+ reporter.filterCharacters(meterName) + ": 0.0";
+        String expectedMeterReport =
+                reporter.filterCharacters(HOST_NAME)
+                        + delimiter
+                        + reporter.filterCharacters(TASK_MANAGER_ID)
+                        + delimiter
+                        + reporter.filterCharacters(JOB_NAME)
+                        + delimiter
+                        + reporter.filterCharacters(meterName)
+                        + ": 0.0";
 
-		reporter.report();
-		assertThat(
-			testLoggerResource.getMessages(),
-			hasItem(containsString(expectedMeterReport)));
-	}
+        reporter.report();
+        assertThat(testLoggerResource.getMessages(), hasItem(containsString(expectedMeterReport)));
+    }
 
-	@Test
-	public void testAddHistogram() throws Exception {
-		String histogramName = "histogram";
+    @Test
+    public void testAddHistogram() throws Exception {
+        String histogramName = "histogram";
 
-		Histogram histogram = taskMetricGroup.histogram(histogramName, new TestHistogram());
-		assertTrue(reporter.getHistograms().containsKey(histogram));
+        Histogram histogram = taskMetricGroup.histogram(histogramName, new TestHistogram());
+        assertTrue(reporter.getHistograms().containsKey(histogram));
 
-		String expectedHistogramName = reporter.filterCharacters(HOST_NAME) + delimiter
-			+ reporter.filterCharacters(TASK_MANAGER_ID) + delimiter + reporter.filterCharacters(JOB_NAME) + delimiter
-			+ reporter.filterCharacters(histogramName);
+        String expectedHistogramName =
+                reporter.filterCharacters(HOST_NAME)
+                        + delimiter
+                        + reporter.filterCharacters(TASK_MANAGER_ID)
+                        + delimiter
+                        + reporter.filterCharacters(JOB_NAME)
+                        + delimiter
+                        + reporter.filterCharacters(histogramName);
 
-		reporter.report();
-		assertThat(
-			testLoggerResource.getMessages(),
-			hasItem(containsString(expectedHistogramName)));
-	}
+        reporter.report();
+        assertThat(
+                testLoggerResource.getMessages(), hasItem(containsString(expectedHistogramName)));
+    }
 
-	@Test
-	public void testFilterCharacters() throws Exception {
-		Slf4jReporter reporter = new Slf4jReporter();
+    @Test
+    public void testFilterCharacters() throws Exception {
+        Slf4jReporter reporter = new Slf4jReporter();
 
-		assertThat(reporter.filterCharacters(""), equalTo(""));
-		assertThat(reporter.filterCharacters("abc"), equalTo("abc"));
-		assertThat(reporter.filterCharacters("a:b$%^::"), equalTo("a:b$%^::"));
-	}
+        assertThat(reporter.filterCharacters(""), equalTo(""));
+        assertThat(reporter.filterCharacters("abc"), equalTo("abc"));
+        assertThat(reporter.filterCharacters("a:b$%^::"), equalTo("a:b$%^::"));
+    }
 }

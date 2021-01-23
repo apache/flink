@@ -2,7 +2,7 @@
 title: "JDBC SQL Connector"
 nav-title: JDBC
 nav-parent_id: sql-connectors
-nav-pos: 3
+nav-pos: 5
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -38,11 +38,10 @@ The JDBC sink operate in upsert mode for exchange UPDATE/DELETE messages with th
 Dependencies
 ------------
 
-In order to setup the JDBC connector, the following table provides dependency information for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
-
-|  Maven dependency                                  |  SQL Client JAR                                           |
-| :------------------------------------------------- | :-------------------------------------------------------- |
-| `flink-connector-jdbc{{site.scala_version_suffix}}`| {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-jdbc{{site.scala_version_suffix}}/{{site.version}}/flink-connector-jdbc{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/dev/table/connectors/jdbc.html) {% endif %}|
+{% assign connector = site.data.sql-connectors['jdbc'] %} 
+{% include sql-connector-download-table.html 
+    connector=connector
+%}
 
 <br>
 A driver dependency is also required to connect to a specified database. Here are drivers currently supported:
@@ -148,7 +147,14 @@ Connector Options
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>The JDBC password.</td>
-    </tr> 
+    </tr>
+    <tr>
+      <td><h5>connection.max-retry-timeout</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">60s</td>
+      <td>Duration</td>
+      <td>Maximum timeout between retries. The timeout should be in second granularity and shouldn't be smaller than 1 second.</td>
+    </tr>
     <tr>
       <td><h5>scan.partition.column</h5></td>
       <td>optional</td>
@@ -162,7 +168,7 @@ Connector Options
       <td style="word-wrap: break-word;">(none)</td>
       <td>Integer</td>
       <td>The number of partitions.</td>
-    </tr> 
+    </tr>
     <tr>
       <td><h5>scan.partition.lower-bound</h5></td>
       <td>optional</td>
@@ -183,7 +189,16 @@ Connector Options
       <td style="word-wrap: break-word;">0</td>
       <td>Integer</td>
       <td>The number of rows that should be fetched from the database when reading per round trip. If the value specified is zero, then the hint is ignored.</td>
-    </tr>     
+    </tr>
+    <tr>
+      <td><h5>scan.auto-commit</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">true</td>
+      <td>Boolean</td>
+      <td>Sets the <a href="https://docs.oracle.com/javase/tutorial/jdbc/basics/transactions.html#commit_transactions">auto-commit</a> flag on the JDBC driver,
+      which determines whether each statement is committed in a transaction automatically. Some JDBC drivers, specifically
+      <a href="https://jdbc.postgresql.org/documentation/head/query.html#query-with-cursor">Postgres</a>, may require this to be set to false in order to stream results.</td>
+    </tr>
     <tr>
       <td><h5>lookup.cache.max-rows</h5></td>
       <td>optional</td>
@@ -196,7 +211,7 @@ Connector Options
       <td><h5>lookup.cache.ttl</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
-      <td>Integer</td>
+      <td>Duration</td>
       <td>The max time to live for each rows in lookup cache, over this time, the oldest rows will be expired.
       Lookup cache is disabled by default. See the following <a href="#lookup-cache">Lookup Cache</a> section for more details. </td>
     </tr>
@@ -213,7 +228,7 @@ Connector Options
       <td style="word-wrap: break-word;">100</td>
       <td>Integer</td>
       <td>The max size of buffered records before flush. Can be set to zero to disable it.</td>
-    </tr> 
+    </tr>
     <tr>
       <td><h5>sink.buffer-flush.interval</h5></td>
       <td>optional</td>
@@ -227,6 +242,13 @@ Connector Options
       <td style="word-wrap: break-word;">3</td>
       <td>Integer</td>
       <td>The max retry times if writing records to database failed.</td>
+    </tr>
+    <tr>
+      <td><h5>sink.parallelism</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Integer</td>
+      <td>Defines the parallelism of the JDBC sink operator. By default, the parallelism is determined by the framework using the same parallelism of the upstream chained operator.</td>
     </tr>          
     </tbody>
 </table>
@@ -247,7 +269,7 @@ See [CREATE TABLE DDL]({% link dev/table/sql/create.md %}#create-table) for more
 To accelerate reading data in parallel `Source` task instances, Flink provides partitioned scan feature for JDBC table.
 
 All the following scan partition options must all be specified if any of them is specified. They describe how to partition the table when reading in parallel from multiple tasks.
-The `scan.partition.column` must be a numeric, date, or timestamp column from the table in question. Notice that `scan.partition.lower-bound` and `scan.partition.upper-bound` are just used to decide the partition stride, not for filtering the rows in table. So all rows in the table will be partitioned and returned.
+The `scan.partition.column` must be a numeric, date, or timestamp column from the table in question. Notice that `scan.partition.lower-bound` and `scan.partition.upper-bound` are used to decide the partition stride and filter the rows in table. If it is a batch job, it also doable to get the max and min value first before submitting the flink job.
 
 - `scan.partition.column`: The column name used for partitioning the input.
 - `scan.partition.num`: The number of partitions.
@@ -281,7 +303,7 @@ As there is no standard syntax for upsert, the following table describes the dat
         <th class="text-left">Database</th>
         <th class="text-left">Upsert Grammar</th>
        </tr>
-    </thead>    
+    </thead>
     <tbody>
         <tr>
             <td>MySQL</td>
@@ -301,7 +323,7 @@ The `JdbcCatalog` enables users to connect Flink to relational databases over JD
 Currently, `PostgresCatalog` is the only implementation of JDBC Catalog at the moment, `PostgresCatalog` only supports limited `Catalog` methods include:
 
 {% highlight java %}
-// The supported methods by Postgres Catalog. 
+// The supported methods by Postgres Catalog.
 PostgresCatalog.databaseExists(String databaseName)
 PostgresCatalog.listDatabases()
 PostgresCatalog.getDatabase(String databaseName)
@@ -403,7 +425,7 @@ execution:
     ...
     current-catalog: mypg  # set the JdbcCatalog as the current catalog of the session
     current-database: mydb
-    
+
 catalogs:
    - name: mypg
      type: jdbc

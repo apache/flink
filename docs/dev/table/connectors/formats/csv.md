@@ -34,11 +34,10 @@ The [CSV](https://en.wikipedia.org/wiki/Comma-separated_values) format allows to
 Dependencies
 ------------
 
-In order to setup the CSV format, the following table provides dependency information for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
-
-| Maven dependency   | SQL Client JAR         |
-| :----------------- | :----------------------|
-| `flink-csv`        | Built-in               |
+{% assign connector = site.data.sql-connectors['csv'] %} 
+{% include sql-connector-download-table.html 
+    connector=connector
+%}
 
 How to create a table with CSV format
 ----------------
@@ -93,18 +92,8 @@ Format Options
       <td>optional</td>
       <td style="word-wrap: break-word;"><code>,</code></td>
       <td>String</td>
-      <td>Field delimiter character (<code>','</code> by default).</td>
-    </tr>
-    <tr>
-      <td><h5>csv.line-delimiter</h5></td>
-      <td>optional</td>
-      <td style="word-wrap: break-word;"><code>\n</code></td>
-      <td>String</td>
-      <td>Line delimiter, <code>\n</code> by default. Note the <code>\n</code> and <code>\r</code> are invisible special characters, you have to use unicode to specify them in plain SQL.
-          <ul>
-           <li>e.g. <code>'csv.line-delimiter' = U&'\\000D'</code> specifies the to use carriage return <code>\r</code> as line delimiter.</li>
-           <li>e.g. <code>'csv.line-delimiter' = U&'\\000A'</code> specifies the to use line feed <code>\n</code> as line delimiter.</li>
-          </ul>
+      <td>Field delimiter character (<code>','</code> by default), must be single character. You can use backslash to specify special characters, e.g. <code>'\t'</code> represents the tab character.
+       You can also use unicode to specify them in plain SQL, e.g. <code>'csv.field-delimiter' = U&'\0001'</code> represents the <code>0x01</code> character.
       </td>
     </tr>
     <tr>

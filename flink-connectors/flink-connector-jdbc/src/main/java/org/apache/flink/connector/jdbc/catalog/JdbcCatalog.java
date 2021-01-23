@@ -32,60 +32,68 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
-/**
- * Catalogs for relational databases via JDBC.
- */
+/** Catalogs for relational databases via JDBC. */
 @PublicEvolving
 public class JdbcCatalog extends AbstractJdbcCatalog {
 
-	private static final Logger LOG = LoggerFactory.getLogger(JdbcCatalog.class);
+    private static final Logger LOG = LoggerFactory.getLogger(JdbcCatalog.class);
 
-	private final AbstractJdbcCatalog internal;
+    private final AbstractJdbcCatalog internal;
 
-	public JdbcCatalog(String catalogName, String defaultDatabase, String username, String pwd, String baseUrl) {
-		super(catalogName, defaultDatabase, username, pwd, baseUrl);
+    public JdbcCatalog(
+            String catalogName,
+            String defaultDatabase,
+            String username,
+            String pwd,
+            String baseUrl) {
+        super(catalogName, defaultDatabase, username, pwd, baseUrl);
 
-		internal = JdbcCatalogUtils.createCatalog(catalogName, defaultDatabase, username, pwd, baseUrl);
-	}
+        internal =
+                JdbcCatalogUtils.createCatalog(
+                        catalogName, defaultDatabase, username, pwd, baseUrl);
+    }
 
-	// ------ databases -----
+    // ------ databases -----
 
-	@Override
-	public List<String> listDatabases() throws CatalogException {
-		return internal.listDatabases();
-	}
+    @Override
+    public List<String> listDatabases() throws CatalogException {
+        return internal.listDatabases();
+    }
 
-	@Override
-	public CatalogDatabase getDatabase(String databaseName) throws DatabaseNotExistException, CatalogException {
-		return internal.getDatabase(databaseName);
-	}
+    @Override
+    public CatalogDatabase getDatabase(String databaseName)
+            throws DatabaseNotExistException, CatalogException {
+        return internal.getDatabase(databaseName);
+    }
 
-	// ------ tables and views ------
+    // ------ tables and views ------
 
-	@Override
-	public List<String> listTables(String databaseName) throws DatabaseNotExistException, CatalogException {
-		return internal.listTables(databaseName);
-	}
+    @Override
+    public List<String> listTables(String databaseName)
+            throws DatabaseNotExistException, CatalogException {
+        return internal.listTables(databaseName);
+    }
 
-	@Override
-	public CatalogBaseTable getTable(ObjectPath tablePath) throws TableNotExistException, CatalogException {
-		return internal.getTable(tablePath);
-	}
+    @Override
+    public CatalogBaseTable getTable(ObjectPath tablePath)
+            throws TableNotExistException, CatalogException {
+        return internal.getTable(tablePath);
+    }
 
-	@Override
-	public boolean tableExists(ObjectPath tablePath) throws CatalogException {
-		try {
-			return databaseExists(tablePath.getDatabaseName()) &&
-				listTables(tablePath.getDatabaseName()).contains(tablePath.getObjectName());
-		} catch (DatabaseNotExistException e) {
-			return false;
-		}
-	}
+    @Override
+    public boolean tableExists(ObjectPath tablePath) throws CatalogException {
+        try {
+            return databaseExists(tablePath.getDatabaseName())
+                    && listTables(tablePath.getDatabaseName()).contains(tablePath.getObjectName());
+        } catch (DatabaseNotExistException e) {
+            return false;
+        }
+    }
 
-	// ------ getters ------
+    // ------ getters ------
 
-	@VisibleForTesting
-	public AbstractJdbcCatalog getInternal() {
-		return internal;
-	}
+    @VisibleForTesting
+    public AbstractJdbcCatalog getInternal() {
+        return internal;
+    }
 }

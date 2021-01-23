@@ -26,7 +26,7 @@ Flink 的 Table & SQL API 可以处理 SQL 语言编写的查询语句，但是�
 
 *SQL 客户端* 的目的是提供一种简单的方式来编写、调试和提交表程序到 Flink 集群上，而无需写一行 Java 或 Scala 代码。*SQL 客户端命令行界面（CLI）* 能够在命令行中检索和可视化分布式应用中实时产生的结果。
 
-<a href="{{ site.baseurl }}/fig/sql_client_demo.gif"><img class="offset" src="{{ site.baseurl }}/fig/sql_client_demo.gif" alt="Animated demo of the Flink SQL Client CLI running table programs on a cluster" width="80%" /></a>
+<a href="{% link /fig/sql_client_demo.gif %}"><img class="offset" src="{% link /fig/sql_client_demo.gif %}" alt="Animated demo of the Flink SQL Client CLI running table programs on a cluster" width="80%" /></a>
 
 * This will be replaced by the TOC
 {:toc}
@@ -36,7 +36,7 @@ Flink 的 Table & SQL API 可以处理 SQL 语言编写的查询语句，但是�
 
 本节介绍如何在命令行里启动（setup）和运行你的第一个 Flink SQL 程序。
 
-SQL 客户端捆绑在常规 Flink 发行版中，因此可以直接运行。它仅需要一个正在运行的 Flink 集群就可以在其中执行表程序。有关设置 Flink 群集的更多信息，请参见[集群和部署]({{ site.baseurl }}/zh/ops/deployment/cluster_setup.html)部分。如果仅想试用 SQL 客户端，也可以使用以下命令启动本地集群：
+SQL 客户端捆绑在常规 Flink 发行版中，因此可以直接运行。它仅需要一个正在运行的 Flink 集群就可以在其中执行表程序。有关设置 Flink 群集的更多信息，请参见[集群和部署]({% link deployment/resource-providers/standalone/index.zh.md %})部分。如果仅想试用 SQL 客户端，也可以使用以下命令启动本地集群：
 
 {% highlight bash %}
 ./bin/start-cluster.sh
@@ -381,7 +381,7 @@ CLI commands > session environment file > defaults environment file
 
 #### 重启策略（Restart Strategies）
 
-重启策略控制 Flink 作业失败时的重启方式。与 Flink 集群的[全局重启策略]({{ site.baseurl }}/zh/dev/task_failure_recovery.html)相似，更细精度的重启配置可以在环境配置文件中声明。
+重启策略控制 Flink 作业失败时的重启方式。与 Flink 集群的[全局重启策略]({% link dev/task_failure_recovery.zh.md %}#restart-strategies)相似，更细精度的重启配置可以在环境配置文件中声明。
 
 Flink 支持以下策略：
 
@@ -467,9 +467,9 @@ tables:
 ### 自定义函数（User-defined Functions）
 SQL 客户端允许用户创建用户自定义的函数来进行 SQL 查询。当前，这些自定义函数仅限于 Java/Scala 编写的类以及 Python 文件。
 
-为提供 Java/Scala 的自定义函数，你首先需要实现和编译函数类，该函数继承自 `ScalarFunction`、 `AggregateFunction` 或 `TableFunction`（见[自定义函数]({{ site.baseurl }}/zh/dev/table/functions/udfs.html)）。一个或多个函数可以打包到 SQL 客户端的 JAR 依赖中。
+为提供 Java/Scala 的自定义函数，你首先需要实现和编译函数类，该函数继承自 `ScalarFunction`、 `AggregateFunction` 或 `TableFunction`（见[自定义函数]({% link dev/table/functions/udfs.zh.md %})）。一个或多个函数可以打包到 SQL 客户端的 JAR 依赖中。
 
-为提供 Python 的自定义函数，你需要编写 Python 函数并且用装饰器 `pyflink.table.udf.udf` 或 `pyflink.table.udf.udtf` 来装饰（见 [Python UDFs]({% link dev/python/table-api-users-guide/udfs/python_udfs.zh.md %}))）。Python 文件中可以放置一个或多个函数。其Python 文件和相关依赖需要通过在环境配置文件中或命令行选项（见 [命令行用法]({{ site.baseurl }}/zh/ops/cli.html#usage)）配置中特别指定（见 [Python 配置]({% link dev/python/table-api-users-guide/python_config.zh.md %})）。
+为提供 Python 的自定义函数，你需要编写 Python 函数并且用装饰器 `pyflink.table.udf.udf` 或 `pyflink.table.udf.udtf` 来装饰（见 [Python UDFs]({% link dev/python/table-api-users-guide/udfs/python_udfs.zh.md %}))）。Python 文件中可以放置一个或多个函数。其Python 文件和相关依赖需要通过在环境配置文件中或命令行选项（见 [命令行用法]({% link deployment/cli.zh.md %}#usage)）配置中特别指定（见 [Python 配置]({% link dev/python/python_config.zh.md %})）。
 
 所有函数在被调用之前，必须在环境配置文件中提前声明。`functions` 列表中每个函数类都必须指定
 
@@ -582,7 +582,7 @@ execution:
    current-database: mydb1
 {% endhighlight %}
 
-更多关于 catalog 的内容，参考 [Catalogs]({{ site.baseurl }}/zh/dev/table/catalogs.html)。
+更多关于 catalog 的内容，参考 [Catalogs]({% link dev/table/catalogs.zh.md %})。
 
 <a name="detached-sql-queries"></a>
 
@@ -634,7 +634,7 @@ Job ID: 6f922fe5cba87406ff23ae4a7bb79044
 Web interface: http://localhost:8081
 {% endhighlight %}
 
-<span class="label label-danger">注意</span> 提交后，SQL 客户端不追踪正在运行的 Flink 作业状态。提交后可以关闭 CLI 进程，并且不会影响分离的查询。Flink 的[重启策略]({{ site.baseurl }}/zh/dev/task_failure_recovery.html)负责容错。取消查询可以用 Flink 的 web 接口、命令行或 REST API 。
+<span class="label label-danger">注意</span> 提交后，SQL 客户端不追踪正在运行的 Flink 作业状态。提交后可以关闭 CLI 进程，并且不会影响分离的查询。Flink 的[重启策略]({% link dev/task_failure_recovery.zh.md %})负责容错。取消查询可以用 Flink 的 web 接口、命令行或 REST API 。
 
 {% top %}
 

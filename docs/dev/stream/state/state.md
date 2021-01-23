@@ -744,7 +744,7 @@ about the type of the value that the state holds:
 ListStateDescriptor<Tuple2<String, Integer>> descriptor =
     new ListStateDescriptor<>(
         "buffered-elements",
-        TypeInformation.of(new TypeHint<Tuple2<Long, Long>>() {}));
+        TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {}));
 
 checkpointedState = context.getOperatorStateStore().getListState(descriptor);
 {% endhighlight %}
@@ -886,6 +886,6 @@ class CounterSource
 </div>
 </div>
 
-Some operators might need the information when a checkpoint is fully acknowledged by Flink to communicate that with the outside world. In this case see the `org.apache.flink.runtime.state.CheckpointListener` interface.
+Some operators might need the information when a checkpoint is fully acknowledged by Flink to communicate that with the outside world. In this case see the `org.apache.flink.api.common.state.CheckpointListener` interface.
 
 {% top %}

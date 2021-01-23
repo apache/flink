@@ -33,36 +33,34 @@ import java.util.concurrent.CompletableFuture;
  */
 public class CollectSinkOperator<IN> extends StreamSink<IN> implements OperatorEventHandler {
 
-	private final CollectSinkFunction<IN> sinkFunction;
-	// we need operator id to identify the coordinator of this operator,
-	// this is only used for in clients so no need to serialize
-	private final transient CompletableFuture<OperatorID> operatorIdFuture;
+    private final CollectSinkFunction<IN> sinkFunction;
+    // we need operator id to identify the coordinator of this operator,
+    // this is only used for in clients so no need to serialize
+    private final transient CompletableFuture<OperatorID> operatorIdFuture;
 
-	public CollectSinkOperator(
-			TypeSerializer<IN> serializer,
-			long maxBytesPerBatch,
-			String accumulatorName) {
-		super(new CollectSinkFunction<>(serializer, maxBytesPerBatch, accumulatorName));
-		this.sinkFunction = (CollectSinkFunction<IN>) getUserFunction();
-		this.operatorIdFuture = new CompletableFuture<>();
-	}
+    public CollectSinkOperator(
+            TypeSerializer<IN> serializer, long maxBytesPerBatch, String accumulatorName) {
+        super(new CollectSinkFunction<>(serializer, maxBytesPerBatch, accumulatorName));
+        this.sinkFunction = (CollectSinkFunction<IN>) getUserFunction();
+        this.operatorIdFuture = new CompletableFuture<>();
+    }
 
-	@Override
-	public void handleOperatorEvent(OperatorEvent evt) {
-		// nothing to handle
-	}
+    @Override
+    public void handleOperatorEvent(OperatorEvent evt) {
+        // nothing to handle
+    }
 
-	@Override
-	public void close() throws Exception {
-		sinkFunction.accumulateFinalResults();
-		super.close();
-	}
+    @Override
+    public void close() throws Exception {
+        sinkFunction.accumulateFinalResults();
+        super.close();
+    }
 
-	public CompletableFuture<OperatorID> getOperatorIdFuture() {
-		return operatorIdFuture;
-	}
+    public CompletableFuture<OperatorID> getOperatorIdFuture() {
+        return operatorIdFuture;
+    }
 
-	void setOperatorEventGateway(OperatorEventGateway operatorEventGateway) {
-		sinkFunction.setOperatorEventGateway(operatorEventGateway);
-	}
+    void setOperatorEventGateway(OperatorEventGateway operatorEventGateway) {
+        sinkFunction.setOperatorEventGateway(operatorEventGateway);
+    }
 }

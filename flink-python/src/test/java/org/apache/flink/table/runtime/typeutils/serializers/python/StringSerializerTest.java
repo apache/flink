@@ -21,28 +21,26 @@ package org.apache.flink.table.runtime.typeutils.serializers.python;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
-/**
- * Test for {@link StringSerializer}.
- */
+/** Test for {@link StringSerializer}. */
 public class StringSerializerTest extends SerializerTestBase<String> {
 
-	@Override
-	protected TypeSerializer<String> createSerializer() {
-		return StringSerializer.INSTANCE;
-	}
+    @Override
+    protected TypeSerializer<String> createSerializer() {
+        return StringSerializer.INSTANCE;
+    }
 
-	@Override
-	protected int getLength() {
-		return -1;
-	}
+    @Override
+    protected int getLength() {
+        return -1;
+    }
 
-	@Override
-	protected Class<String> getTypeClass() {
-		return String.class;
-	}
+    @Override
+    protected Class<String> getTypeClass() {
+        return String.class;
+    }
 
-	@Override
-	protected String[] getTestData() {
-		return new String[]{"pyflink", "flink"};
-	}
+    @Override
+    protected String[] getTestData() {
+        return new String[] {"pyflink", "flink"};
+    }
 }

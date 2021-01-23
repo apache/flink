@@ -34,26 +34,25 @@ import org.apache.flink.streaming.api.operators.co.CoBroadcastWithKeyedOperator;
  * watermarks can be retrieved. They are safe to be modified.
  */
 public class KeyedBroadcastOperatorTestHarness<K, IN1, IN2, OUT>
-	extends AbstractBroadcastStreamOperatorTestHarness<IN1, IN2, OUT> {
+        extends AbstractBroadcastStreamOperatorTestHarness<IN1, IN2, OUT> {
 
-	public KeyedBroadcastOperatorTestHarness(
-		CoBroadcastWithKeyedOperator<K, IN1, IN2, OUT> operator,
-		KeySelector<IN1, K> keySelector,
-		TypeInformation<K> keyType,
-		int maxParallelism,
-		int numSubtasks,
-		int subtaskIndex)
-		throws Exception {
-		super(operator, maxParallelism, numSubtasks, subtaskIndex);
+    public KeyedBroadcastOperatorTestHarness(
+            CoBroadcastWithKeyedOperator<K, IN1, IN2, OUT> operator,
+            KeySelector<IN1, K> keySelector,
+            TypeInformation<K> keyType,
+            int maxParallelism,
+            int numSubtasks,
+            int subtaskIndex)
+            throws Exception {
+        super(operator, maxParallelism, numSubtasks, subtaskIndex);
 
-		ClosureCleaner.clean(keySelector, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, false);
-		config.setStatePartitioner(0, keySelector);
-		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
-	}
+        ClosureCleaner.clean(keySelector, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, false);
+        config.setStatePartitioner(0, keySelector);
+        config.setStateKeySerializer(keyType.createSerializer(executionConfig));
+    }
 
-	public <KS, V> BroadcastState<KS, V> getBroadcastState(MapStateDescriptor<KS, V> stateDescriptor)
-		throws Exception {
-		return getOperator().getOperatorStateBackend().getBroadcastState(stateDescriptor);
-	}
-
+    public <KS, V> BroadcastState<KS, V> getBroadcastState(
+            MapStateDescriptor<KS, V> stateDescriptor) throws Exception {
+        return getOperator().getOperatorStateBackend().getBroadcastState(stateDescriptor);
+    }
 }

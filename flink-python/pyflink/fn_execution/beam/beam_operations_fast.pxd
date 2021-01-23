@@ -22,23 +22,18 @@ from apache_beam.runners.worker.operations cimport Operation
 
 from pyflink.fn_execution.coder_impl_fast cimport BaseCoderImpl
 
-cdef class BeamStatelessFunctionOperation(Operation):
+cdef class FunctionOperation(Operation):
     cdef Operation consumer
+    cdef bint _is_python_coder
     cdef StreamCoderImpl _value_coder_impl
     cdef BaseCoderImpl _output_coder
-    cdef list user_defined_funcs
     cdef object func
-    cdef bint _is_python_coder
-    cdef bint _metric_enabled
-    cdef object base_metric_group
+    cdef object operation
+    cdef object operation_cls
+    cdef object generate_operation(self)
 
-    cdef void _update_gauge(self, base_metric_group)
-
-cdef class BeamScalarFunctionOperation(BeamStatelessFunctionOperation):
+cdef class StatelessFunctionOperation(FunctionOperation):
     pass
 
-cdef class BeamTableFunctionOperation(BeamStatelessFunctionOperation):
-    pass
-
-cdef class DataStreamStatelessFunctionOperation(BeamStatelessFunctionOperation):
-    pass
+cdef class StatefulFunctionOperation(FunctionOperation):
+    cdef object keyed_state_backend

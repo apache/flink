@@ -24,7 +24,9 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.types.utils.TypeConversions;
 
@@ -42,138 +44,151 @@ import static org.apache.flink.table.types.inference.TypeTransformations.timeToS
 import static org.apache.flink.table.types.inference.TypeTransformations.toNullable;
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for built-in {@link TypeTransformations}.
- */
+/** Tests for built-in {@link TypeTransformations}. */
 public class TypeTransformationsTest {
 
-	@Test
-	public void testToInternal() {
-		DataType dataType = DataTypes.STRUCTURED(
-			SimplePojo.class,
-			DataTypes.FIELD("name", DataTypes.STRING()),
-			DataTypes.FIELD("count", DataTypes.INT().notNull().bridgedTo(int.class)));
+    @Test
+    public void testToInternal() {
+        DataType dataType =
+                DataTypes.STRUCTURED(
+                        SimplePojo.class,
+                        DataTypes.FIELD("name", DataTypes.STRING()),
+                        DataTypes.FIELD("count", DataTypes.INT().notNull().bridgedTo(int.class)));
 
-		DataType expected = DataTypes.STRUCTURED(
-				SimplePojo.class,
-				DataTypes.FIELD("name", DataTypes.STRING().bridgedTo(StringData.class)),
-				DataTypes.FIELD("count", DataTypes.INT().notNull().bridgedTo(Integer.class)))
-			.bridgedTo(RowData.class);
+        DataType expected =
+                DataTypes.STRUCTURED(
+                                SimplePojo.class,
+                                DataTypes.FIELD(
+                                        "name", DataTypes.STRING().bridgedTo(StringData.class)),
+                                DataTypes.FIELD(
+                                        "count",
+                                        DataTypes.INT().notNull().bridgedTo(Integer.class)))
+                        .bridgedTo(RowData.class);
 
-		assertEquals(expected, DataTypeUtils.transform(dataType, TO_INTERNAL_CLASS));
-	}
+        assertEquals(expected, DataTypeUtils.transform(dataType, TO_INTERNAL_CLASS));
+    }
 
-	@Test
-	public void testTimeToSqlTypes() {
-		DataType dataType = DataTypes.ROW(
-			DataTypes.FIELD("a", DataTypes.STRING()),
-			DataTypes.FIELD("b", DataTypes.TIMESTAMP()),
-			DataTypes.FIELD("c", DataTypes.TIMESTAMP(5)),
-			DataTypes.FIELD("d", DataTypes.ARRAY(DataTypes.TIME()).bridgedTo(List.class)),
-			DataTypes.FIELD("e", DataTypes.MAP(DataTypes.DATE(), DataTypes.TIME(9))),
-			DataTypes.FIELD("f", DataTypes.TIMESTAMP_WITH_TIME_ZONE())
-		);
+    @Test
+    public void testTimeToSqlTypes() {
+        DataType dataType =
+                DataTypes.ROW(
+                        DataTypes.FIELD("a", DataTypes.STRING()),
+                        DataTypes.FIELD("b", DataTypes.TIMESTAMP()),
+                        DataTypes.FIELD("c", DataTypes.TIMESTAMP(5)),
+                        DataTypes.FIELD(
+                                "d", DataTypes.ARRAY(DataTypes.TIME()).bridgedTo(List.class)),
+                        DataTypes.FIELD("e", DataTypes.MAP(DataTypes.DATE(), DataTypes.TIME(9))),
+                        DataTypes.FIELD("f", DataTypes.TIMESTAMP_WITH_TIME_ZONE()));
 
-		DataType expected = DataTypes.ROW(
-			DataTypes.FIELD("a", DataTypes.STRING()),
-			DataTypes.FIELD("b", DataTypes.TIMESTAMP().bridgedTo(Timestamp.class)),
-			DataTypes.FIELD("c", DataTypes.TIMESTAMP(5).bridgedTo(Timestamp.class)),
-			DataTypes.FIELD("d", DataTypes.ARRAY(DataTypes.TIME().bridgedTo(Time.class)).bridgedTo(List.class)),
-			DataTypes.FIELD("e", DataTypes.MAP(
-				DataTypes.DATE().bridgedTo(Date.class),
-				DataTypes.TIME(9).bridgedTo(Time.class))),
-			DataTypes.FIELD("f", DataTypes.TIMESTAMP_WITH_TIME_ZONE())
-		);
+        DataType expected =
+                DataTypes.ROW(
+                        DataTypes.FIELD("a", DataTypes.STRING()),
+                        DataTypes.FIELD("b", DataTypes.TIMESTAMP().bridgedTo(Timestamp.class)),
+                        DataTypes.FIELD("c", DataTypes.TIMESTAMP(5).bridgedTo(Timestamp.class)),
+                        DataTypes.FIELD(
+                                "d",
+                                DataTypes.ARRAY(DataTypes.TIME().bridgedTo(Time.class))
+                                        .bridgedTo(List.class)),
+                        DataTypes.FIELD(
+                                "e",
+                                DataTypes.MAP(
+                                        DataTypes.DATE().bridgedTo(Date.class),
+                                        DataTypes.TIME(9).bridgedTo(Time.class))),
+                        DataTypes.FIELD("f", DataTypes.TIMESTAMP_WITH_TIME_ZONE()));
 
-		assertEquals(expected, DataTypeUtils.transform(dataType, timeToSqlTypes()));
-	}
+        assertEquals(expected, DataTypeUtils.transform(dataType, timeToSqlTypes()));
+    }
 
-	@Test
-	public void testLegacyDecimalToDefaultDecimal() {
-		DataType dataType = DataTypes.ROW(
-			DataTypes.FIELD("a", DataTypes.STRING()),
-			DataTypes.FIELD("b", DataTypes.DECIMAL(10, 3)),
-			DataTypes.FIELD("c", createLegacyDecimal()),
-			DataTypes.FIELD("d", DataTypes.ARRAY(createLegacyDecimal()))
-		);
+    @Test
+    public void testLegacyDecimalToDefaultDecimal() {
+        DataType dataType =
+                DataTypes.ROW(
+                        DataTypes.FIELD("a", DataTypes.STRING()),
+                        DataTypes.FIELD("b", DataTypes.DECIMAL(10, 3)),
+                        DataTypes.FIELD("c", createLegacyDecimal()),
+                        DataTypes.FIELD("d", DataTypes.ARRAY(createLegacyDecimal())));
 
-		DataType expected = DataTypes.ROW(
-			DataTypes.FIELD("a", DataTypes.STRING()),
-			DataTypes.FIELD("b", DataTypes.DECIMAL(10, 3)),
-			DataTypes.FIELD("c", DataTypes.DECIMAL(38, 18)),
-			DataTypes.FIELD("d", DataTypes.ARRAY(DataTypes.DECIMAL(38, 18)))
-		);
+        DataType expected =
+                DataTypes.ROW(
+                        DataTypes.FIELD("a", DataTypes.STRING()),
+                        DataTypes.FIELD("b", DataTypes.DECIMAL(10, 3)),
+                        DataTypes.FIELD("c", DataTypes.DECIMAL(38, 18)),
+                        DataTypes.FIELD("d", DataTypes.ARRAY(DataTypes.DECIMAL(38, 18))));
 
-		assertEquals(expected, DataTypeUtils.transform(dataType, legacyDecimalToDefaultDecimal()));
-	}
+        assertEquals(expected, DataTypeUtils.transform(dataType, legacyDecimalToDefaultDecimal()));
+    }
 
-	@Test
-	public void testLegacyRawToTypeInfoRaw() {
-		DataType dataType = DataTypes.ROW(
-			DataTypes.FIELD("a", DataTypes.STRING()),
-			DataTypes.FIELD("b", DataTypes.DECIMAL(10, 3)),
-			DataTypes.FIELD("c", createLegacyRaw()),
-			DataTypes.FIELD("d", DataTypes.ARRAY(createLegacyRaw()))
-		);
+    @Test
+    public void testLegacyRawToTypeInfoRaw() {
+        DataType dataType =
+                DataTypes.ROW(
+                        DataTypes.FIELD("a", DataTypes.STRING()),
+                        DataTypes.FIELD("b", DataTypes.DECIMAL(10, 3)),
+                        DataTypes.FIELD("c", createLegacyRaw()),
+                        DataTypes.FIELD("d", DataTypes.ARRAY(createLegacyRaw())));
 
-		TypeInformation<TypeTransformationsTest> typeInformation = TypeExtractor.getForClass(TypeTransformationsTest.class);
-		DataType expected = DataTypes.ROW(
-			DataTypes.FIELD("a", DataTypes.STRING()),
-			DataTypes.FIELD("b", DataTypes.DECIMAL(10, 3)),
-			DataTypes.FIELD("c", DataTypes.RAW(typeInformation)),
-			DataTypes.FIELD("d", DataTypes.ARRAY(DataTypes.RAW(typeInformation)))
-		);
+        TypeInformation<TypeTransformationsTest> typeInformation =
+                TypeExtractor.getForClass(TypeTransformationsTest.class);
+        DataType rawDataType = new AtomicDataType(new TypeInformationRawType<>(typeInformation));
+        DataType expected =
+                DataTypes.ROW(
+                        DataTypes.FIELD("a", DataTypes.STRING()),
+                        DataTypes.FIELD("b", DataTypes.DECIMAL(10, 3)),
+                        DataTypes.FIELD("c", rawDataType),
+                        DataTypes.FIELD("d", DataTypes.ARRAY(rawDataType)));
 
-		assertEquals(expected, DataTypeUtils.transform(dataType, legacyRawToTypeInfoRaw()));
-	}
+        assertEquals(expected, DataTypeUtils.transform(dataType, legacyRawToTypeInfoRaw()));
+    }
 
-	@Test
-	public void testToNullable() {
-		DataType dataType = DataTypes.ROW(
-			DataTypes.FIELD("a", DataTypes.STRING().notNull()),
-			DataTypes.FIELD("b", DataTypes.TIMESTAMP()),
-			DataTypes.FIELD("c", DataTypes.TIMESTAMP(5).notNull()),
-			DataTypes.FIELD("d", DataTypes.ARRAY(DataTypes.TIME().notNull())),
-			DataTypes.FIELD("e", DataTypes.MAP(DataTypes.DATE().notNull(), DataTypes.TIME(9).notNull())),
-			DataTypes.FIELD("f", DataTypes.TIMESTAMP_WITH_TIME_ZONE())
-		);
+    @Test
+    public void testToNullable() {
+        DataType dataType =
+                DataTypes.ROW(
+                        DataTypes.FIELD("a", DataTypes.STRING().notNull()),
+                        DataTypes.FIELD("b", DataTypes.TIMESTAMP()),
+                        DataTypes.FIELD("c", DataTypes.TIMESTAMP(5).notNull()),
+                        DataTypes.FIELD("d", DataTypes.ARRAY(DataTypes.TIME().notNull())),
+                        DataTypes.FIELD(
+                                "e",
+                                DataTypes.MAP(
+                                        DataTypes.DATE().notNull(), DataTypes.TIME(9).notNull())),
+                        DataTypes.FIELD("f", DataTypes.TIMESTAMP_WITH_TIME_ZONE()));
 
-		DataType expected = DataTypes.ROW(
-			DataTypes.FIELD("a", DataTypes.STRING()),
-			DataTypes.FIELD("b", DataTypes.TIMESTAMP()),
-			DataTypes.FIELD("c", DataTypes.TIMESTAMP(5)),
-			DataTypes.FIELD("d", DataTypes.ARRAY(DataTypes.TIME())),
-			DataTypes.FIELD("e", DataTypes.MAP(DataTypes.DATE(), DataTypes.TIME(9))),
-			DataTypes.FIELD("f", DataTypes.TIMESTAMP_WITH_TIME_ZONE())
-		);
+        DataType expected =
+                DataTypes.ROW(
+                        DataTypes.FIELD("a", DataTypes.STRING()),
+                        DataTypes.FIELD("b", DataTypes.TIMESTAMP()),
+                        DataTypes.FIELD("c", DataTypes.TIMESTAMP(5)),
+                        DataTypes.FIELD("d", DataTypes.ARRAY(DataTypes.TIME())),
+                        DataTypes.FIELD("e", DataTypes.MAP(DataTypes.DATE(), DataTypes.TIME(9))),
+                        DataTypes.FIELD("f", DataTypes.TIMESTAMP_WITH_TIME_ZONE()));
 
-		assertEquals(expected, DataTypeUtils.transform(dataType, toNullable()));
-	}
+        assertEquals(expected, DataTypeUtils.transform(dataType, toNullable()));
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	private static DataType createLegacyDecimal() {
-		return TypeConversions.fromLegacyInfoToDataType(Types.BIG_DEC);
-	}
+    private static DataType createLegacyDecimal() {
+        return TypeConversions.fromLegacyInfoToDataType(Types.BIG_DEC);
+    }
 
-	private static DataType createLegacyRaw() {
-		return TypeConversions.fromLegacyInfoToDataType(Types.GENERIC(TypeTransformationsTest.class));
-	}
+    private static DataType createLegacyRaw() {
+        return TypeConversions.fromLegacyInfoToDataType(
+                Types.GENERIC(TypeTransformationsTest.class));
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// Helper classes
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // Helper classes
+    // --------------------------------------------------------------------------------------------
 
-	/**
-	 * Simple POJO for testing.
-	 */
-	public static class SimplePojo {
-		public final String name;
-		public final int count;
+    /** Simple POJO for testing. */
+    public static class SimplePojo {
+        public final String name;
+        public final int count;
 
-		public SimplePojo(String name, int count) {
-			this.name = name;
-			this.count = count;
-		}
-	}
+        public SimplePojo(String name, int count) {
+            this.name = name;
+            this.count = count;
+        }
+    }
 }

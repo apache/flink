@@ -20,38 +20,34 @@ package org.apache.flink.runtime.security.modules;
 
 import java.security.GeneralSecurityException;
 
-/**
- * An installable security module.
- */
+/** An installable security module. */
 public interface SecurityModule {
 
-	/**
-	 * Install the security module.
-	 *
-	 * @throws SecurityInstallException if the security module couldn't be installed.
-	 */
-	void install() throws SecurityInstallException;
+    /**
+     * Install the security module.
+     *
+     * @throws SecurityInstallException if the security module couldn't be installed.
+     */
+    void install() throws SecurityInstallException;
 
-	/**
-	 * Uninstall the security module.
-	 *
-	 * @throws SecurityInstallException if the security module couldn't be uninstalled.
-	 * @throws UnsupportedOperationException if the security module doesn't support uninstallation.
-	 */
-	void uninstall() throws SecurityInstallException;
+    /**
+     * Uninstall the security module.
+     *
+     * @throws SecurityInstallException if the security module couldn't be uninstalled.
+     * @throws UnsupportedOperationException if the security module doesn't support uninstallation.
+     */
+    void uninstall() throws SecurityInstallException;
 
-	/**
-	 * Indicates a problem with installing or uninstalling a security module.
-	 */
-	class SecurityInstallException extends GeneralSecurityException {
-		private static final long serialVersionUID = 1L;
+    /** Indicates a problem with installing or uninstalling a security module. */
+    class SecurityInstallException extends GeneralSecurityException {
+        private static final long serialVersionUID = 1L;
 
-		public SecurityInstallException(String msg) {
-			super(msg);
-		}
+        public SecurityInstallException(String msg) {
+            super(msg);
+        }
 
-		public SecurityInstallException(String msg, Throwable cause) {
-			super(msg, cause);
-		}
-	}
+        public SecurityInstallException(String msg, Throwable cause) {
+            super(msg, cause);
+        }
+    }
 }

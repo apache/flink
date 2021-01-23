@@ -19,6 +19,7 @@
 package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
@@ -26,11 +27,15 @@ import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategy;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
+import java.lang.reflect.Constructor;
 import java.util.Arrays;
+import java.util.Optional;
 
 /**
- * Definition of a built-in function. It enables unique identification across different
- * modules by reference equality.
+ * Definition of a built-in function. It enables unique identification across different modules by
+ * reference equality.
  *
  * <p>Compared to regular {@link FunctionDefinition}, built-in functions have a default name. This
  * default name is used to lookup the function in a catalog during resolution.
@@ -38,123 +43,156 @@ import java.util.Arrays;
  * <p>Equality is defined by reference equality.
  */
 @Internal
-public final class BuiltInFunctionDefinition implements FunctionDefinition {
+public final class BuiltInFunctionDefinition implements SpecializedFunction {
 
-	private final String name;
+    private final String name;
 
-	private final FunctionKind kind;
+    private final FunctionKind kind;
 
-	private final TypeInference typeInference;
+    private final TypeInference typeInference;
 
-	private final boolean isDeterministic;
+    private final boolean isDeterministic;
 
-	private BuiltInFunctionDefinition(
-			String name,
-			FunctionKind kind,
-			TypeInference typeInference,
-			boolean isDeterministic) {
-		this.name = Preconditions.checkNotNull(name, "Name must not be null.");
-		this.kind = Preconditions.checkNotNull(kind, "Kind must not be null.");
-		this.typeInference = Preconditions.checkNotNull(typeInference, "Type inference must not be null.");
-		this.isDeterministic = isDeterministic;
-	}
+    private @Nullable String runtimeClass;
 
-	/**
-	 * Builder for configuring and creating instances of {@link BuiltInFunctionDefinition}.
-	 */
-	public static BuiltInFunctionDefinition.Builder newBuilder() {
-		return new BuiltInFunctionDefinition.Builder();
-	}
+    private BuiltInFunctionDefinition(
+            String name,
+            FunctionKind kind,
+            TypeInference typeInference,
+            boolean isDeterministic,
+            String runtimeClass) {
+        this.name = Preconditions.checkNotNull(name, "Name must not be null.");
+        this.kind = Preconditions.checkNotNull(kind, "Kind must not be null.");
+        this.typeInference =
+                Preconditions.checkNotNull(typeInference, "Type inference must not be null.");
+        this.isDeterministic = isDeterministic;
+        this.runtimeClass = runtimeClass;
+    }
 
-	public String getName() {
-		return name;
-	}
+    /** Builder for configuring and creating instances of {@link BuiltInFunctionDefinition}. */
+    public static BuiltInFunctionDefinition.Builder newBuilder() {
+        return new BuiltInFunctionDefinition.Builder();
+    }
 
-	@Override
-	public FunctionKind getKind() {
-		return kind;
-	}
+    public String getName() {
+        return name;
+    }
 
-	@Override
-	public TypeInference getTypeInference(DataTypeFactory typeFactory) {
-		return typeInference;
-	}
+    public Optional<String> getRuntimeClass() {
+        return Optional.ofNullable(runtimeClass);
+    }
 
-	@Override
-	public boolean isDeterministic() {
-		return isDeterministic;
-	}
+    @Override
+    public UserDefinedFunction specialize(SpecializedContext context) {
+        if (runtimeClass == null) {
+            throw new TableException(
+                    String.format(
+                            "Could not find a runtime implementation for built-in function '%s'. "
+                                    + "The planner should have provided an implementation.",
+                            name));
+        }
+        try {
+            final Class<?> udfClass =
+                    Class.forName(runtimeClass, true, context.getBuiltInClassLoader());
+            final Constructor<?> udfConstructor = udfClass.getConstructor(SpecializedContext.class);
+            final UserDefinedFunction udf =
+                    (UserDefinedFunction) udfConstructor.newInstance(context);
+            // in case another level of specialization is required
+            if (udf instanceof SpecializedFunction) {
+                return ((SpecializedFunction) udf).specialize(context);
+            }
+            return udf;
+        } catch (Exception e) {
+            throw new TableException(
+                    String.format(
+                            "Could not instantiate a runtime implementation for built-in function '%s'.",
+                            name),
+                    e);
+        }
+    }
 
-	@Override
-	public String toString() {
-		return name;
-	}
+    @Override
+    public FunctionKind getKind() {
+        return kind;
+    }
 
-	// --------------------------------------------------------------------------------------------
+    @Override
+    public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+        return typeInference;
+    }
 
-	/**
-	 * Builder for fluent definition of built-in functions.
-	 */
-	public static final class Builder {
+    @Override
+    public boolean isDeterministic() {
+        return isDeterministic;
+    }
 
-		private String name;
+    @Override
+    public String toString() {
+        return name;
+    }
 
-		private FunctionKind kind;
+    // --------------------------------------------------------------------------------------------
 
-		private TypeInference.Builder typeInferenceBuilder = TypeInference.newBuilder();
+    /** Builder for fluent definition of built-in functions. */
+    public static final class Builder {
 
-		private boolean isDeterministic = true;
+        private String name;
 
-		public Builder() {
-			// default constructor to allow a fluent definition
-		}
+        private FunctionKind kind;
 
-		public Builder name(String name) {
-			this.name = name;
-			return this;
-		}
+        private TypeInference.Builder typeInferenceBuilder = TypeInference.newBuilder();
 
-		public Builder kind(FunctionKind kind) {
-			this.kind = kind;
-			return this;
-		}
+        private boolean isDeterministic = true;
 
-		public Builder namedArguments(String... argumentNames) {
-			this.typeInferenceBuilder.namedArguments(Arrays.asList(argumentNames));
-			return this;
-		}
+        private String runtimeClass;
 
-		public Builder typedArguments(DataType... argumentTypes) {
-			this.typeInferenceBuilder.typedArguments(Arrays.asList(argumentTypes));
-			return this;
-		}
+        public Builder() {
+            // default constructor to allow a fluent definition
+        }
 
-		public Builder inputTypeStrategy(InputTypeStrategy inputTypeStrategy) {
-			this.typeInferenceBuilder.inputTypeStrategy(inputTypeStrategy);
-			return this;
-		}
+        public Builder name(String name) {
+            this.name = name;
+            return this;
+        }
 
-		public Builder accumulatorTypeStrategy(TypeStrategy accumulatorTypeStrategy) {
-			this.typeInferenceBuilder.accumulatorTypeStrategy(accumulatorTypeStrategy);
-			return this;
-		}
+        public Builder kind(FunctionKind kind) {
+            this.kind = kind;
+            return this;
+        }
 
-		public Builder outputTypeStrategy(TypeStrategy outputTypeStrategy) {
-			this.typeInferenceBuilder.outputTypeStrategy(outputTypeStrategy);
-			return this;
-		}
+        public Builder namedArguments(String... argumentNames) {
+            this.typeInferenceBuilder.namedArguments(Arrays.asList(argumentNames));
+            return this;
+        }
 
-		public Builder notDeterministic() {
-			this.isDeterministic = false;
-			return this;
-		}
+        public Builder typedArguments(DataType... argumentTypes) {
+            this.typeInferenceBuilder.typedArguments(Arrays.asList(argumentTypes));
+            return this;
+        }
 
-		public BuiltInFunctionDefinition build() {
-			return new BuiltInFunctionDefinition(
-				name,
-				kind,
-				typeInferenceBuilder.build(),
-				isDeterministic);
-		}
-	}
+        public Builder inputTypeStrategy(InputTypeStrategy inputTypeStrategy) {
+            this.typeInferenceBuilder.inputTypeStrategy(inputTypeStrategy);
+            return this;
+        }
+
+        public Builder outputTypeStrategy(TypeStrategy outputTypeStrategy) {
+            this.typeInferenceBuilder.outputTypeStrategy(outputTypeStrategy);
+            return this;
+        }
+
+        public Builder notDeterministic() {
+            this.isDeterministic = false;
+            return this;
+        }
+
+        public Builder runtimeClass(String runtimeClass) {
+            this.runtimeClass = runtimeClass;
+            return this;
+        }
+
+        public BuiltInFunctionDefinition build() {
+            return new BuiltInFunctionDefinition(
+                    name, kind, typeInferenceBuilder.build(), isDeterministic, runtimeClass);
+        }
+    }
 }

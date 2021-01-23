@@ -37,86 +37,99 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-/**
- * General test utilities.
- */
+/** General test utilities. */
 public enum TestUtils {
-	;
+    ;
 
-	private static final ParameterProperty<Path> MODULE_DIRECTORY = new ParameterProperty<>("moduleDir", Paths::get);
+    private static final ParameterProperty<Path> MODULE_DIRECTORY =
+            new ParameterProperty<>("moduleDir", Paths::get);
 
-	/**
-	 * Searches for a resource file matching the given regex in the given directory. This method is primarily intended
-	 * to be used for the initialization of static {@link Path} fields for resource file(i.e. jar, config file) that reside
-	 * in the modules {@code target} directory.
-	 *
-	 * @param resourceNameRegex      regex pattern to match against
-	 * @return Path pointing to the matching jar
-	 * @throws RuntimeException if none or multiple resource files could be found
-	 */
-	public static Path getResource(final String resourceNameRegex) {
-		// if the property is not set then we are most likely running in the IDE, where the working directory is the
-		// module of the test that is currently running, which is exactly what we want
-		Path moduleDirectory = MODULE_DIRECTORY.get(Paths.get("").toAbsolutePath());
+    /**
+     * Searches for a resource file matching the given regex in the given directory. This method is
+     * primarily intended to be used for the initialization of static {@link Path} fields for
+     * resource file(i.e. jar, config file) that reside in the modules {@code target} directory.
+     *
+     * @param resourceNameRegex regex pattern to match against
+     * @return Path pointing to the matching jar
+     * @throws RuntimeException if none or multiple resource files could be found
+     */
+    public static Path getResource(final String resourceNameRegex) {
+        // if the property is not set then we are most likely running in the IDE, where the working
+        // directory is the
+        // module of the test that is currently running, which is exactly what we want
+        Path moduleDirectory = MODULE_DIRECTORY.get(Paths.get("").toAbsolutePath());
 
-		try (Stream<Path> dependencyResources = Files.walk(moduleDirectory)) {
-			final List<Path> matchingResources = dependencyResources
-				.filter(jar -> Pattern.compile(resourceNameRegex).matcher(jar.toAbsolutePath().toString()).find())
-				.collect(Collectors.toList());
-			switch (matchingResources.size()) {
-				case 0:
-					throw new RuntimeException(
-						new FileNotFoundException(
-							String.format("No resource file could be found that matches the pattern %s. " +
-								"This could mean that the test module must be rebuilt via maven.", resourceNameRegex)
-						)
-					);
-				case 1:
-					return matchingResources.get(0);
-				default:
-					throw new RuntimeException(
-						new IOException(
-							String.format("Multiple resource files were found matching the pattern %s. Matches=%s",
-								resourceNameRegex, matchingResources)
-						)
-					);
-			}
-		} catch (final IOException ioe) {
-			throw new RuntimeException("Could not search for resource resource files.", ioe);
-		}
-	}
+        try (Stream<Path> dependencyResources = Files.walk(moduleDirectory)) {
+            final List<Path> matchingResources =
+                    dependencyResources
+                            .filter(
+                                    jar ->
+                                            Pattern.compile(resourceNameRegex)
+                                                    .matcher(jar.toAbsolutePath().toString())
+                                                    .find())
+                            .collect(Collectors.toList());
+            switch (matchingResources.size()) {
+                case 0:
+                    throw new RuntimeException(
+                            new FileNotFoundException(
+                                    String.format(
+                                            "No resource file could be found that matches the pattern %s. "
+                                                    + "This could mean that the test module must be rebuilt via maven.",
+                                            resourceNameRegex)));
+                case 1:
+                    return matchingResources.get(0);
+                default:
+                    throw new RuntimeException(
+                            new IOException(
+                                    String.format(
+                                            "Multiple resource files were found matching the pattern %s. Matches=%s",
+                                            resourceNameRegex, matchingResources)));
+            }
+        } catch (final IOException ioe) {
+            throw new RuntimeException("Could not search for resource resource files.", ioe);
+        }
+    }
 
-	/**
-	 * Copy all the files and sub-directories under source directory to destination directory recursively.
-	 *
-	 * @param source      directory or file path to copy from.
-	 * @param destination directory or file path to copy to.
-	 * @return Path of the destination directory.
-	 * @throws IOException if any IO error happen.
-	 */
-	public static Path copyDirectory(final Path source, final Path destination) throws IOException {
-		Files.walkFileTree(source, EnumSet.of(FileVisitOption.FOLLOW_LINKS), Integer.MAX_VALUE, new SimpleFileVisitor<Path>() {
-			@Override
-			public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes ignored)
-				throws IOException {
-				final Path targetDir = destination.resolve(source.relativize(dir));
-				try {
-					Files.copy(dir, targetDir, StandardCopyOption.COPY_ATTRIBUTES);
-				} catch (FileAlreadyExistsException e) {
-					if (!Files.isDirectory(targetDir)) {
-						throw e;
-					}
-				}
-				return FileVisitResult.CONTINUE;
-			}
+    /**
+     * Copy all the files and sub-directories under source directory to destination directory
+     * recursively.
+     *
+     * @param source directory or file path to copy from.
+     * @param destination directory or file path to copy to.
+     * @return Path of the destination directory.
+     * @throws IOException if any IO error happen.
+     */
+    public static Path copyDirectory(final Path source, final Path destination) throws IOException {
+        Files.walkFileTree(
+                source,
+                EnumSet.of(FileVisitOption.FOLLOW_LINKS),
+                Integer.MAX_VALUE,
+                new SimpleFileVisitor<Path>() {
+                    @Override
+                    public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes ignored)
+                            throws IOException {
+                        final Path targetDir = destination.resolve(source.relativize(dir));
+                        try {
+                            Files.copy(dir, targetDir, StandardCopyOption.COPY_ATTRIBUTES);
+                        } catch (FileAlreadyExistsException e) {
+                            if (!Files.isDirectory(targetDir)) {
+                                throw e;
+                            }
+                        }
+                        return FileVisitResult.CONTINUE;
+                    }
 
-			@Override
-			public FileVisitResult visitFile(Path file, BasicFileAttributes ignored) throws IOException {
-				Files.copy(file, destination.resolve(source.relativize(file)), StandardCopyOption.COPY_ATTRIBUTES);
-				return FileVisitResult.CONTINUE;
-			}
-		});
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes ignored)
+                            throws IOException {
+                        Files.copy(
+                                file,
+                                destination.resolve(source.relativize(file)),
+                                StandardCopyOption.COPY_ATTRIBUTES);
+                        return FileVisitResult.CONTINUE;
+                    }
+                });
 
-		return destination;
-	}
+        return destination;
+    }
 }

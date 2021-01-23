@@ -42,64 +42,61 @@ import static org.apache.flink.table.types.inference.strategies.StrategyUtils.fi
 @Internal
 public final class RootArgumentTypeStrategy implements ArgumentTypeStrategy {
 
-	private final LogicalTypeRoot expectedRoot;
+    private final LogicalTypeRoot expectedRoot;
 
-	private final @Nullable Boolean expectedNullability;
+    private final @Nullable Boolean expectedNullability;
 
-	public RootArgumentTypeStrategy(LogicalTypeRoot expectedRoot, @Nullable Boolean expectedNullability) {
-		this.expectedRoot = Preconditions.checkNotNull(expectedRoot);
-		this.expectedNullability = expectedNullability;
-	}
+    public RootArgumentTypeStrategy(
+            LogicalTypeRoot expectedRoot, @Nullable Boolean expectedNullability) {
+        this.expectedRoot = Preconditions.checkNotNull(expectedRoot);
+        this.expectedNullability = expectedNullability;
+    }
 
-	@Override
-	public Optional<DataType> inferArgumentType(CallContext callContext, int argumentPos, boolean throwOnFailure) {
-		final DataType actualDataType = callContext.getArgumentDataTypes().get(argumentPos);
-		final LogicalType actualType = actualDataType.getLogicalType();
+    @Override
+    public Optional<DataType> inferArgumentType(
+            CallContext callContext, int argumentPos, boolean throwOnFailure) {
+        final DataType actualDataType = callContext.getArgumentDataTypes().get(argumentPos);
+        final LogicalType actualType = actualDataType.getLogicalType();
 
-		if (Objects.equals(expectedNullability, Boolean.FALSE) && actualType.isNullable()) {
-			if (throwOnFailure) {
-				throw callContext.newValidationError(
-					"Unsupported argument type. Expected nullable type of root '%s' but actual type was '%s'.",
-					expectedRoot,
-					actualType);
-			}
-			return Optional.empty();
-		}
+        if (Objects.equals(expectedNullability, Boolean.FALSE) && actualType.isNullable()) {
+            if (throwOnFailure) {
+                throw callContext.newValidationError(
+                        "Unsupported argument type. Expected nullable type of root '%s' but actual type was '%s'.",
+                        expectedRoot, actualType);
+            }
+            return Optional.empty();
+        }
 
-		return findDataType(
-			callContext,
-			throwOnFailure,
-			actualDataType,
-			expectedRoot,
-			expectedNullability);
-	}
+        return findDataType(
+                callContext, throwOnFailure, actualDataType, expectedRoot, expectedNullability);
+    }
 
-	@Override
-	public Argument getExpectedArgument(FunctionDefinition functionDefinition, int argumentPos) {
-		// "< ... >" to indicate that this is not a type
-		if (Objects.equals(expectedNullability, Boolean.TRUE)) {
-			return Argument.of("<" + expectedRoot + " NULL>");
-		} else if (Objects.equals(expectedNullability, Boolean.FALSE)) {
-			return Argument.of("<" + expectedRoot + " NOT NULL>");
-		}
-		return Argument.of("<" + expectedRoot + ">");
-	}
+    @Override
+    public Argument getExpectedArgument(FunctionDefinition functionDefinition, int argumentPos) {
+        // "< ... >" to indicate that this is not a type
+        if (Objects.equals(expectedNullability, Boolean.TRUE)) {
+            return Argument.of("<" + expectedRoot + " NULL>");
+        } else if (Objects.equals(expectedNullability, Boolean.FALSE)) {
+            return Argument.of("<" + expectedRoot + " NOT NULL>");
+        }
+        return Argument.of("<" + expectedRoot + ">");
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		RootArgumentTypeStrategy strategy = (RootArgumentTypeStrategy) o;
-		return expectedRoot == strategy.expectedRoot &&
-			Objects.equals(expectedNullability, strategy.expectedNullability);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        RootArgumentTypeStrategy strategy = (RootArgumentTypeStrategy) o;
+        return expectedRoot == strategy.expectedRoot
+                && Objects.equals(expectedNullability, strategy.expectedNullability);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(expectedRoot, expectedNullability);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(expectedRoot, expectedNullability);
+    }
 }

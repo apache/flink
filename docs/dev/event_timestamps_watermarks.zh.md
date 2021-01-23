@@ -99,7 +99,6 @@ WatermarkStrategy
 <div data-lang="java" markdown="1">
 {% highlight java %}
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 DataStream<MyEvent> stream = env.readFile(
         myFormat, myFilePath, FileProcessingMode.PROCESS_CONTINUOUSLY, 100,
@@ -111,7 +110,7 @@ DataStream<MyEvent> withTimestampsAndWatermarks = stream
 
 withTimestampsAndWatermarks
         .keyBy( (event) -> event.getGroup() )
-        .timeWindow(Time.seconds(10))
+        .window(TumblingEventTimeWindows.of(Time.seconds(10)))
         .reduce( (a, b) -> a.add(b) )
         .addSink(...);
 {% endhighlight %}
@@ -119,7 +118,6 @@ withTimestampsAndWatermarks
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val env = StreamExecutionEnvironment.getExecutionEnvironment
-env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
 val stream: DataStream[MyEvent] = env.readFile(
          myFormat, myFilePath, FileProcessingMode.PROCESS_CONTINUOUSLY, 100,
@@ -131,7 +129,7 @@ val withTimestampsAndWatermarks: DataStream[MyEvent] = stream
 
 withTimestampsAndWatermarks
         .keyBy( _.getGroup )
-        .timeWindow(Time.seconds(10))
+        .window(TumblingEventTimeWindows.of(Time.seconds(10)))
         .reduce( (a, b) => a.add(b) )
         .addSink(...)
 {% endhighlight %}
@@ -384,7 +382,7 @@ val stream: DataStream[MyType] = env.addSource(kafkaSource)
 </div>
 </div>
 
-<img src="{{ site.baseurl }}/fig/parallel_kafka_watermarks.svg" alt="Generating Watermarks with awareness for Kafka-partitions" class="center" width="80%" />
+<img src="{% link /fig/parallel_kafka_watermarks.svg %}" alt="Generating Watermarks with awareness for Kafka-partitions" class="center" width="80%" />
 
 <a name="how-operators-process-watermarks"></a>
 
@@ -398,6 +396,6 @@ val stream: DataStream[MyType] = env.addSource(kafkaSource)
 
 ## 可以弃用 AssignerWithPeriodicWatermarks 和 AssignerWithPunctuatedWatermarks 了
 
-在 Flink 新的 `WatermarkStrategy`，`TimestampAssigner` 和 `WatermarkGenerator` 的抽象接口之前，Flink 使用的是 `AssignerWithPeriodicWatermarks` 和 `AssignerWithPeriodicWatermarks`。你仍可以在 API 中看到它们，但建议使用新接口，因为其对时间戳和 watermark 等重点的抽象和分离很清晰，并且还统一了周期性和标记形式的 watermark 生成方式。
+在 Flink 新的 `WatermarkStrategy`，`TimestampAssigner` 和 `WatermarkGenerator` 的抽象接口之前，Flink 使用的是 `AssignerWithPeriodicWatermarks` 和 `AssignerWithPunctuatedWatermarks`。你仍可以在 API 中看到它们，但建议使用新接口，因为其对时间戳和 watermark 等重点的抽象和分离很清晰，并且还统一了周期性和标记形式的 watermark 生成方式。
 
 {% top %}

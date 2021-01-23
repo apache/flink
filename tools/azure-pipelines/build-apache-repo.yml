@@ -38,7 +38,7 @@ resources:
   containers:
   # Container with Maven 3.2.5, SSL to have the same environment everywhere.
   - container: flink-build-container
-    image: rmetzger/flink-ci:ubuntu-amd64-bcef226
+    image: rmetzger/flink-ci:ubuntu-amd64-f009d96
 
 variables:
   MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
@@ -68,6 +68,35 @@ stages:
           run_end_to_end: false
           container: flink-build-container
           jdk: jdk8
+      - job: docs_404_check # run on a MSFT provided machine
+        pool:
+          vmImage: 'ubuntu-16.04'
+        steps:
+          # Skip docs check if this is a pull request that doesn't contain a documentation change
+          - bash: |
+              source ./tools/azure-pipelines/build_properties.sh
+              pr_contains_docs_changes
+              if [[ "$?" == 0 ]] ; then
+                echo "##[debug]This pull request doesn't contain a documentation change. Skipping docs check."
+                echo "##vso[task.setvariable variable=skip;]1"
+              else
+                echo "##[debug]This pull request contains a documentation change. Running docs check."
+                echo "##vso[task.setvariable variable=skip;]0"
+              fi
+            displayName: Check if PR contains docs change
+          - task: UseRubyVersion@0
+            condition: not(eq(variables['SKIP'], '1'))
+            inputs:
+              versionSpec: '= 2.4'
+              addToPath: true
+          - script: ./tools/ci/docs.sh
+            condition: not(eq(variables['SKIP'], '1'))
+          # upload spider.log for debugging
+          - task: PublishPipelineArtifact@1
+            condition: not(eq(variables['SKIP'], '1'))
+            inputs:
+             targetPath: ./docs/spider.log
+             artifact: spider.log
   # Special stage for nightly builds:
   - stage: cron_build
     displayName: "Cron build"
@@ -135,14 +164,14 @@ stages:
           container: flink-build-container
           jdk: jdk11
       - job: docs_404_check # run on a MSFT provided machine
-        pool: 
+        pool:
           vmImage: 'ubuntu-16.04'
         steps:
-        - task: UseRubyVersion@0
-          inputs:
-            versionSpec: '= 2.4'
-            addToPath: true
-        - script: ./tools/ci/docs.sh
+          - task: UseRubyVersion@0
+            inputs:
+              versionSpec: '= 2.4'
+              addToPath: true
+          - script: ./tools/ci/docs.sh
       - template: build-python-wheels.yml
         parameters:
           stage_name: cron_python_wheels

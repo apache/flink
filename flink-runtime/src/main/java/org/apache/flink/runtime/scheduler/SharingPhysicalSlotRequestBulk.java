@@ -39,76 +39,78 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>The bulk tracks the pending and fulfilled requests by the {@link ExecutionSlotSharingGroup}
  * for which the physical slot is being allocated. {@link SlotSharingExecutionSlotAllocator} calls
- * {@link #markFulfilled(ExecutionSlotSharingGroup, AllocationID)} to move a pending request to fulfilled.
+ * {@link #markFulfilled(ExecutionSlotSharingGroup, AllocationID)} to move a pending request to
+ * fulfilled.
  *
- * <p>Additionally the bulk keeps execution lists for each {@link ExecutionSlotSharingGroup} they belong to.
- * If the {@link #cancel(Throwable)} method is called (due to fulfillability check timeout in {@link PhysicalSlotRequestBulkChecker})
- * then the bulk calls back the {@link SlotSharingExecutionSlotAllocator} to cancel all logical slots requests
- * for executions of all bulk's {@link ExecutionSlotSharingGroup}s.
+ * <p>Additionally the bulk keeps execution lists for each {@link ExecutionSlotSharingGroup} they
+ * belong to. If the {@link #cancel(Throwable)} method is called (due to fulfillability check
+ * timeout in {@link PhysicalSlotRequestBulkChecker}) then the bulk calls back the {@link
+ * SlotSharingExecutionSlotAllocator} to cancel all logical slots requests for executions of all
+ * bulk's {@link ExecutionSlotSharingGroup}s.
  */
 class SharingPhysicalSlotRequestBulk implements PhysicalSlotRequestBulk {
-	private final Map<ExecutionSlotSharingGroup, List<ExecutionVertexID>> executions;
+    private final Map<ExecutionSlotSharingGroup, List<ExecutionVertexID>> executions;
 
-	private final Map<ExecutionSlotSharingGroup, ResourceProfile> pendingRequests;
+    private final Map<ExecutionSlotSharingGroup, ResourceProfile> pendingRequests;
 
-	private final Map<ExecutionSlotSharingGroup, AllocationID> fulfilledRequests;
+    private final Map<ExecutionSlotSharingGroup, AllocationID> fulfilledRequests;
 
-	private final BiConsumer<ExecutionVertexID, Throwable> logicalSlotRequestCanceller;
+    private final BiConsumer<ExecutionVertexID, Throwable> logicalSlotRequestCanceller;
 
-	SharingPhysicalSlotRequestBulk(
-			Map<ExecutionSlotSharingGroup, List<ExecutionVertexID>> executions,
-			Map<ExecutionSlotSharingGroup, ResourceProfile> pendingRequests,
-			BiConsumer<ExecutionVertexID, Throwable> logicalSlotRequestCanceller) {
-		this.executions = checkNotNull(executions);
-		this.pendingRequests = checkNotNull(pendingRequests);
-		this.fulfilledRequests = new HashMap<>();
-		this.logicalSlotRequestCanceller = checkNotNull(logicalSlotRequestCanceller);
-	}
+    SharingPhysicalSlotRequestBulk(
+            Map<ExecutionSlotSharingGroup, List<ExecutionVertexID>> executions,
+            Map<ExecutionSlotSharingGroup, ResourceProfile> pendingRequests,
+            BiConsumer<ExecutionVertexID, Throwable> logicalSlotRequestCanceller) {
+        this.executions = checkNotNull(executions);
+        this.pendingRequests = checkNotNull(pendingRequests);
+        this.fulfilledRequests = new HashMap<>();
+        this.logicalSlotRequestCanceller = checkNotNull(logicalSlotRequestCanceller);
+    }
 
-	@Override
-	public Collection<ResourceProfile> getPendingRequests() {
-		return pendingRequests.values();
-	}
+    @Override
+    public Collection<ResourceProfile> getPendingRequests() {
+        return pendingRequests.values();
+    }
 
-	@Override
-	public Set<AllocationID> getAllocationIdsOfFulfilledRequests() {
-		return new HashSet<>(fulfilledRequests.values());
-	}
+    @Override
+    public Set<AllocationID> getAllocationIdsOfFulfilledRequests() {
+        return new HashSet<>(fulfilledRequests.values());
+    }
 
-	@Override
-	public void cancel(Throwable cause) {
-		// pending requests must be canceled first otherwise they might be fulfilled by
-		// allocated slots released from this bulk
-		for (ExecutionSlotSharingGroup group : pendingRequests.keySet()) {
-			for (ExecutionVertexID id : executions.get(group)) {
-				logicalSlotRequestCanceller.accept(id, cause);
-			}
-		}
-		for (ExecutionSlotSharingGroup group : fulfilledRequests.keySet()) {
-			for (ExecutionVertexID id : executions.get(group)) {
-				logicalSlotRequestCanceller.accept(id, cause);
-			}
-		}
-	}
+    @Override
+    public void cancel(Throwable cause) {
+        // pending requests must be canceled first otherwise they might be fulfilled by
+        // allocated slots released from this bulk
+        for (ExecutionSlotSharingGroup group : pendingRequests.keySet()) {
+            for (ExecutionVertexID id : executions.get(group)) {
+                logicalSlotRequestCanceller.accept(id, cause);
+            }
+        }
+        for (ExecutionSlotSharingGroup group : fulfilledRequests.keySet()) {
+            for (ExecutionVertexID id : executions.get(group)) {
+                logicalSlotRequestCanceller.accept(id, cause);
+            }
+        }
+    }
 
-	/**
-	 * Moves a pending request to fulfilled.
-	 *
-	 * @param group {@link ExecutionSlotSharingGroup} of the pending request
-	 * @param allocationId {@link AllocationID} of the fulfilled request
-	 */
-	void markFulfilled(ExecutionSlotSharingGroup group, AllocationID allocationId) {
-		pendingRequests.remove(group);
-		fulfilledRequests.put(group, allocationId);
-	}
+    /**
+     * Moves a pending request to fulfilled.
+     *
+     * @param group {@link ExecutionSlotSharingGroup} of the pending request
+     * @param allocationId {@link AllocationID} of the fulfilled request
+     */
+    void markFulfilled(ExecutionSlotSharingGroup group, AllocationID allocationId) {
+        pendingRequests.remove(group);
+        fulfilledRequests.put(group, allocationId);
+    }
 
-	/**
-	 * Clear the pending requests.
-	 *
-	 * <p>The method can be used to make the bulk fulfilled and stop the fulfillability check
-	 * in {@link PhysicalSlotRequestBulkChecker}.
-	 */
-	void clearPendingRequests() {
-		pendingRequests.clear();
-	}
+    /**
+     * Clear the pending requests.
+     *
+     * <p>The method can be used to make the bulk fulfilled and stop the fulfillability check in
+     * {@link PhysicalSlotRequestBulkChecker}.
+     */
+    void clearPendingRequests() {
+        pendingRequests.clear();
+    }
 }

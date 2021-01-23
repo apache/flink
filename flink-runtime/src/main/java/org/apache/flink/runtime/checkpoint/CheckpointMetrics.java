@@ -23,114 +23,136 @@ import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/**
- * A collection of simple metrics, around the triggering of a checkpoint.
- */
+/** A collection of simple metrics, around the triggering of a checkpoint. */
 public class CheckpointMetrics implements Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/** The duration (in nanoseconds) that the stream alignment for the checkpoint took. */
-	private long alignmentDurationNanos;
+    private final long bytesProcessedDuringAlignment;
 
-	/** The duration (in milliseconds) of the synchronous part of the operator checkpoint. */
-	private long syncDurationMillis;
+    private final long bytesPersistedDuringAlignment;
 
-	/** The duration (in milliseconds) of the asynchronous part of the operator checkpoint.  */
-	private long asyncDurationMillis;
-	private long checkpointStartDelayNanos;
+    /** The duration (in nanoseconds) that the stream alignment for the checkpoint took. */
+    private final long alignmentDurationNanos;
 
-	public CheckpointMetrics() {
-		this(-1L, -1L, -1L, -1L);
-	}
+    /** The duration (in milliseconds) of the synchronous part of the operator checkpoint. */
+    private final long syncDurationMillis;
 
-	public CheckpointMetrics(
-			long bytesBufferedInAlignment,
-			long alignmentDurationNanos,
-			long syncDurationMillis,
-			long asyncDurationMillis) {
+    /** The duration (in milliseconds) of the asynchronous part of the operator checkpoint. */
+    private final long asyncDurationMillis;
 
-		// these may be "-1", in case the values are unknown or not set
-		checkArgument(syncDurationMillis >= -1);
-		checkArgument(asyncDurationMillis >= -1);
-		checkArgument(bytesBufferedInAlignment >= -1);
-		checkArgument(alignmentDurationNanos >= -1);
+    private final long checkpointStartDelayNanos;
 
-		this.alignmentDurationNanos = alignmentDurationNanos;
-		this.syncDurationMillis = syncDurationMillis;
-		this.asyncDurationMillis = asyncDurationMillis;
-	}
+    /** Is the checkpoint completed as an unaligned checkpoint. */
+    private final boolean unalignedCheckpoint;
 
-	public long getAlignmentDurationNanos() {
-		return alignmentDurationNanos;
-	}
+    public CheckpointMetrics() {
+        this(-1L, -1L, -1L, -1L, -1L, -1L, false);
+    }
 
-	public CheckpointMetrics setAlignmentDurationNanos(long alignmentDurationNanos) {
-		this.alignmentDurationNanos = alignmentDurationNanos;
-		return this;
-	}
+    public CheckpointMetrics(
+            long bytesProcessedDuringAlignment,
+            long bytesPersistedDuringAlignment,
+            long alignmentDurationNanos,
+            long syncDurationMillis,
+            long asyncDurationMillis,
+            long checkpointStartDelayNanos,
+            boolean unalignedCheckpoint) {
 
-	public long getSyncDurationMillis() {
-		return syncDurationMillis;
-	}
+        // these may be "-1", in case the values are unknown or not set
+        checkArgument(bytesProcessedDuringAlignment >= -1);
+        checkArgument(bytesPersistedDuringAlignment >= -1);
+        checkArgument(syncDurationMillis >= -1);
+        checkArgument(asyncDurationMillis >= -1);
+        checkArgument(alignmentDurationNanos >= -1);
+        checkArgument(checkpointStartDelayNanos >= -1);
 
-	public CheckpointMetrics setSyncDurationMillis(long syncDurationMillis) {
-		this.syncDurationMillis = syncDurationMillis;
-		return this;
-	}
+        this.bytesProcessedDuringAlignment = bytesProcessedDuringAlignment;
+        this.bytesPersistedDuringAlignment = bytesPersistedDuringAlignment;
+        this.alignmentDurationNanos = alignmentDurationNanos;
+        this.syncDurationMillis = syncDurationMillis;
+        this.asyncDurationMillis = asyncDurationMillis;
+        this.checkpointStartDelayNanos = checkpointStartDelayNanos;
+        this.unalignedCheckpoint = unalignedCheckpoint;
+    }
 
-	public long getAsyncDurationMillis() {
-		return asyncDurationMillis;
-	}
+    public long getBytesProcessedDuringAlignment() {
+        return bytesProcessedDuringAlignment;
+    }
 
-	public CheckpointMetrics setAsyncDurationMillis(long asyncDurationMillis) {
-		this.asyncDurationMillis = asyncDurationMillis;
-		return this;
-	}
+    public long getBytesPersistedDuringAlignment() {
+        return bytesPersistedDuringAlignment;
+    }
 
-	public CheckpointMetrics setCheckpointStartDelayNanos(long checkpointStartDelayNanos) {
-		this.checkpointStartDelayNanos = checkpointStartDelayNanos;
-		return this;
-	}
+    public long getAlignmentDurationNanos() {
+        return alignmentDurationNanos;
+    }
 
-	public long getCheckpointStartDelayNanos() {
-		return checkpointStartDelayNanos;
-	}
+    public long getSyncDurationMillis() {
+        return syncDurationMillis;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
+    public long getAsyncDurationMillis() {
+        return asyncDurationMillis;
+    }
 
-		CheckpointMetrics that = (CheckpointMetrics) o;
+    public long getCheckpointStartDelayNanos() {
+        return checkpointStartDelayNanos;
+    }
 
-		return alignmentDurationNanos == that.alignmentDurationNanos &&
-			syncDurationMillis == that.syncDurationMillis &&
-			asyncDurationMillis == that.asyncDurationMillis &&
-			checkpointStartDelayNanos == that.checkpointStartDelayNanos;
+    public boolean getUnalignedCheckpoint() {
+        return unalignedCheckpoint;
+    }
 
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(
-			alignmentDurationNanos,
-			syncDurationMillis,
-			asyncDurationMillis,
-			checkpointStartDelayNanos);
-	}
+        CheckpointMetrics that = (CheckpointMetrics) o;
 
-	@Override
-	public String toString() {
-		return "CheckpointMetrics{" +
-			", alignmentDurationNanos=" + alignmentDurationNanos +
-			", syncDurationMillis=" + syncDurationMillis +
-			", asyncDurationMillis=" + asyncDurationMillis +
-			", checkpointStartDelayNanos=" + checkpointStartDelayNanos +
-			'}';
-	}
+        return bytesProcessedDuringAlignment == that.bytesProcessedDuringAlignment
+                && bytesPersistedDuringAlignment == that.bytesPersistedDuringAlignment
+                && alignmentDurationNanos == that.alignmentDurationNanos
+                && syncDurationMillis == that.syncDurationMillis
+                && asyncDurationMillis == that.asyncDurationMillis
+                && checkpointStartDelayNanos == that.checkpointStartDelayNanos
+                && unalignedCheckpoint == that.unalignedCheckpoint;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                bytesProcessedDuringAlignment,
+                bytesPersistedDuringAlignment,
+                alignmentDurationNanos,
+                syncDurationMillis,
+                asyncDurationMillis,
+                checkpointStartDelayNanos,
+                unalignedCheckpoint);
+    }
+
+    @Override
+    public String toString() {
+        return "CheckpointMetrics{"
+                + "bytesProcessedDuringAlignment="
+                + bytesProcessedDuringAlignment
+                + ", bytesPersistedDuringAlignment="
+                + bytesPersistedDuringAlignment
+                + ", alignmentDurationNanos="
+                + alignmentDurationNanos
+                + ", syncDurationMillis="
+                + syncDurationMillis
+                + ", asyncDurationMillis="
+                + asyncDurationMillis
+                + ", checkpointStartDelayNanos="
+                + checkpointStartDelayNanos
+                + ", unalignedCheckpoint="
+                + unalignedCheckpoint
+                + '}';
+    }
 }

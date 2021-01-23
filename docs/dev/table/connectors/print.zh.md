@@ -2,7 +2,7 @@
 title: "Print SQL 连接器"
 nav-title: Print
 nav-parent_id: sql-connectors
-nav-pos: 11
+nav-pos: 13
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -69,7 +69,7 @@ Print 连接器允许将每一行写入标准输出流或者标准错误流。
     </tbody>
 </table>
 
-输出字符串格式为 "$row_kind(f0,f1,f2...)"，row_kind是一个 [RowKind]({{ site.baseurl }}/api/java/org/apache/flink/types/RowKind.html) 类型的短字符串，例如："+I(1,1)"。
+输出字符串格式为 "$row_kind(f0,f1,f2...)"，row_kind是一个 [RowKind]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/types/RowKind.html) 类型的短字符串，例如："+I(1,1)"。
 
 Print 连接器是内置的。
 
@@ -138,6 +138,13 @@ LIKE source_table (EXCLUDING ALL)
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
       <td>如果 format 需要打印为标准错误而不是标准输出，则为 True 。</td>
+    </tr>
+    <tr>
+      <td><h5>sink.parallelism</h5></td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Integer</td>
+      <td>为 Print sink operator 定义并行度。默认情况下，并行度由框架决定，和链在一起的上游 operator 一致。</td>
     </tr>
     </tbody>
 </table>

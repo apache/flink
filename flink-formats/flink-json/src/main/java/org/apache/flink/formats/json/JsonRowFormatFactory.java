@@ -34,73 +34,81 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Table format factory for providing configured instances of JSON-to-row {@link SerializationSchema}
- * and {@link DeserializationSchema}.
+ * Table format factory for providing configured instances of JSON-to-row {@link
+ * SerializationSchema} and {@link DeserializationSchema}.
  */
 public class JsonRowFormatFactory extends TableFormatFactoryBase<Row>
-		implements SerializationSchemaFactory<Row>, DeserializationSchemaFactory<Row> {
+        implements SerializationSchemaFactory<Row>, DeserializationSchemaFactory<Row> {
 
-	public JsonRowFormatFactory() {
-		super(JsonValidator.FORMAT_TYPE_VALUE, 1, true);
-	}
+    public JsonRowFormatFactory() {
+        super(JsonValidator.FORMAT_TYPE_VALUE, 1, true);
+    }
 
-	@Override
-	protected List<String> supportedFormatProperties() {
-		final List<String> properties = new ArrayList<>();
-		properties.add(JsonValidator.FORMAT_JSON_SCHEMA);
-		properties.add(JsonValidator.FORMAT_SCHEMA);
-		properties.add(JsonValidator.FORMAT_FAIL_ON_MISSING_FIELD);
-		return properties;
-	}
+    @Override
+    protected List<String> supportedFormatProperties() {
+        final List<String> properties = new ArrayList<>();
+        properties.add(JsonValidator.FORMAT_JSON_SCHEMA);
+        properties.add(JsonValidator.FORMAT_SCHEMA);
+        properties.add(JsonValidator.FORMAT_FAIL_ON_MISSING_FIELD);
+        properties.add(JsonValidator.FORMAT_IGNORE_PARSE_ERRORS);
+        return properties;
+    }
 
-	@Override
-	public DeserializationSchema<Row> createDeserializationSchema(Map<String, String> properties) {
-		final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
+    @Override
+    public DeserializationSchema<Row> createDeserializationSchema(Map<String, String> properties) {
+        final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
 
-		// create and configure
-		final JsonRowDeserializationSchema.Builder schema =
-			new JsonRowDeserializationSchema.Builder(createTypeInformation(descriptorProperties));
+        // create and configure
+        final JsonRowDeserializationSchema.Builder schema =
+                new JsonRowDeserializationSchema.Builder(
+                        createTypeInformation(descriptorProperties));
 
-		descriptorProperties.getOptionalBoolean(JsonValidator.FORMAT_FAIL_ON_MISSING_FIELD)
-			.ifPresent(flag -> {
-				if (flag) {
-					schema.failOnMissingField();
-				}
-			});
-		descriptorProperties.getOptionalBoolean(JsonValidator.FORMAT_IGNORE_PARSE_ERRORS)
-			.ifPresent(flag -> {
-				if (flag) {
-					schema.ignoreParseErrors();
-				}
-			});
-		return schema.build();
-	}
+        descriptorProperties
+                .getOptionalBoolean(JsonValidator.FORMAT_FAIL_ON_MISSING_FIELD)
+                .ifPresent(
+                        flag -> {
+                            if (flag) {
+                                schema.failOnMissingField();
+                            }
+                        });
+        descriptorProperties
+                .getOptionalBoolean(JsonValidator.FORMAT_IGNORE_PARSE_ERRORS)
+                .ifPresent(
+                        flag -> {
+                            if (flag) {
+                                schema.ignoreParseErrors();
+                            }
+                        });
+        return schema.build();
+    }
 
-	@Override
-	public SerializationSchema<Row> createSerializationSchema(Map<String, String> properties) {
-		final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
+    @Override
+    public SerializationSchema<Row> createSerializationSchema(Map<String, String> properties) {
+        final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
 
-		// create and configure
-		return new JsonRowSerializationSchema.Builder(createTypeInformation(descriptorProperties)).build();
-	}
+        // create and configure
+        return new JsonRowSerializationSchema.Builder(createTypeInformation(descriptorProperties))
+                .build();
+    }
 
-	private TypeInformation<Row> createTypeInformation(DescriptorProperties descriptorProperties) {
-		if (descriptorProperties.containsKey(JsonValidator.FORMAT_SCHEMA)) {
-			return (RowTypeInfo) descriptorProperties.getType(JsonValidator.FORMAT_SCHEMA);
-		} else if (descriptorProperties.containsKey(JsonValidator.FORMAT_JSON_SCHEMA)) {
-			return JsonRowSchemaConverter.convert(descriptorProperties.getString(JsonValidator.FORMAT_JSON_SCHEMA));
-		} else {
-			return deriveSchema(descriptorProperties.asMap()).toRowType();
-		}
-	}
+    private TypeInformation<Row> createTypeInformation(DescriptorProperties descriptorProperties) {
+        if (descriptorProperties.containsKey(JsonValidator.FORMAT_SCHEMA)) {
+            return (RowTypeInfo) descriptorProperties.getType(JsonValidator.FORMAT_SCHEMA);
+        } else if (descriptorProperties.containsKey(JsonValidator.FORMAT_JSON_SCHEMA)) {
+            return JsonRowSchemaConverter.convert(
+                    descriptorProperties.getString(JsonValidator.FORMAT_JSON_SCHEMA));
+        } else {
+            return deriveSchema(descriptorProperties.asMap()).toRowType();
+        }
+    }
 
-	private static DescriptorProperties getValidatedProperties(Map<String, String> propertiesMap) {
-		final DescriptorProperties descriptorProperties = new DescriptorProperties();
-		descriptorProperties.putProperties(propertiesMap);
+    private static DescriptorProperties getValidatedProperties(Map<String, String> propertiesMap) {
+        final DescriptorProperties descriptorProperties = new DescriptorProperties();
+        descriptorProperties.putProperties(propertiesMap);
 
-		// validate
-		new JsonValidator().validate(descriptorProperties);
+        // validate
+        new JsonValidator().validate(descriptorProperties);
 
-		return descriptorProperties;
-	}
+        return descriptorProperties;
+    }
 }

@@ -39,51 +39,51 @@ import java.util.List;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * {@link JobGraphRetriever} implementation which retrieves the {@link JobGraph} from
- * a file on disk.
+ * {@link JobGraphRetriever} implementation which retrieves the {@link JobGraph} from a file on
+ * disk.
  */
 public class FileJobGraphRetriever extends AbstractUserClassPathJobGraphRetriever {
 
-	public static final ConfigOption<String> JOB_GRAPH_FILE_PATH = ConfigOptions
-		.key("internal.jobgraph-path")
-		.defaultValue("job.graph");
+    public static final ConfigOption<String> JOB_GRAPH_FILE_PATH =
+            ConfigOptions.key("internal.jobgraph-path").defaultValue("job.graph");
 
-	@Nonnull
-	private final String jobGraphFile;
+    @Nonnull private final String jobGraphFile;
 
-	public FileJobGraphRetriever(@Nonnull String jobGraphFile, @Nullable File usrLibDir) throws IOException {
-		super(usrLibDir);
-		this.jobGraphFile = jobGraphFile;
-	}
+    public FileJobGraphRetriever(@Nonnull String jobGraphFile, @Nullable File usrLibDir)
+            throws IOException {
+        super(usrLibDir);
+        this.jobGraphFile = jobGraphFile;
+    }
 
-	@Override
-	public JobGraph retrieveJobGraph(Configuration configuration) throws FlinkException {
-		final File fp = new File(jobGraphFile);
+    @Override
+    public JobGraph retrieveJobGraph(Configuration configuration) throws FlinkException {
+        final File fp = new File(jobGraphFile);
 
-		try (FileInputStream input = new FileInputStream(fp);
-			ObjectInputStream obInput = new ObjectInputStream(input)) {
-			final JobGraph jobGraph = (JobGraph) obInput.readObject();
-			addUserClassPathsToJobGraph(jobGraph);
-			return jobGraph;
-		} catch (FileNotFoundException e) {
-			throw new FlinkException("Could not find the JobGraph file.", e);
-		} catch (ClassNotFoundException | IOException e) {
-			throw new FlinkException("Could not load the JobGraph from file.", e);
-		}
-	}
+        try (FileInputStream input = new FileInputStream(fp);
+                ObjectInputStream obInput = new ObjectInputStream(input)) {
+            final JobGraph jobGraph = (JobGraph) obInput.readObject();
+            addUserClassPathsToJobGraph(jobGraph);
+            return jobGraph;
+        } catch (FileNotFoundException e) {
+            throw new FlinkException("Could not find the JobGraph file.", e);
+        } catch (ClassNotFoundException | IOException e) {
+            throw new FlinkException("Could not load the JobGraph from file.", e);
+        }
+    }
 
-	private void addUserClassPathsToJobGraph(JobGraph jobGraph) {
-		final List<URL> classPaths = new ArrayList<>();
+    private void addUserClassPathsToJobGraph(JobGraph jobGraph) {
+        final List<URL> classPaths = new ArrayList<>();
 
-		if (jobGraph.getClasspaths() != null) {
-			classPaths.addAll(jobGraph.getClasspaths());
-		}
-		classPaths.addAll(getUserClassPaths());
-		jobGraph.setClasspaths(classPaths);
-	}
+        if (jobGraph.getClasspaths() != null) {
+            classPaths.addAll(jobGraph.getClasspaths());
+        }
+        classPaths.addAll(getUserClassPaths());
+        jobGraph.setClasspaths(classPaths);
+    }
 
-	public static FileJobGraphRetriever createFrom(Configuration configuration, @Nullable File usrLibDir) throws IOException {
-		checkNotNull(configuration, "configuration");
-		return new FileJobGraphRetriever(configuration.getString(JOB_GRAPH_FILE_PATH), usrLibDir);
-	}
+    public static FileJobGraphRetriever createFrom(
+            Configuration configuration, @Nullable File usrLibDir) throws IOException {
+        checkNotNull(configuration, "configuration");
+        return new FileJobGraphRetriever(configuration.getString(JOB_GRAPH_FILE_PATH), usrLibDir);
+    }
 }

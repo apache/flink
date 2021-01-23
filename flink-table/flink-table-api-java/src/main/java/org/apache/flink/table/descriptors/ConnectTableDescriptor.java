@@ -37,68 +37,65 @@ import java.util.Map;
  * <p>It can access {@link TableEnvironment} for fluently registering the table.
  */
 @PublicEvolving
-public abstract class ConnectTableDescriptor
-	extends TableDescriptor<ConnectTableDescriptor> {
+public abstract class ConnectTableDescriptor extends TableDescriptor<ConnectTableDescriptor> {
 
-	private final Registration registration;
+    private final Registration registration;
 
-	private @Nullable Schema schemaDescriptor;
+    private @Nullable Schema schemaDescriptor;
 
-	private List<String> partitionKeys = new ArrayList<>();
+    private List<String> partitionKeys = new ArrayList<>();
 
-	public ConnectTableDescriptor(Registration registration, ConnectorDescriptor connectorDescriptor) {
-		super(connectorDescriptor);
-		this.registration = registration;
-	}
+    public ConnectTableDescriptor(
+            Registration registration, ConnectorDescriptor connectorDescriptor) {
+        super(connectorDescriptor);
+        this.registration = registration;
+    }
 
-	/**
-	 * Specifies the resulting table schema.
-	 */
-	public ConnectTableDescriptor withSchema(Schema schema) {
-		schemaDescriptor = Preconditions.checkNotNull(schema, "Schema must not be null.");
-		return this;
-	}
+    /** Specifies the resulting table schema. */
+    public ConnectTableDescriptor withSchema(Schema schema) {
+        schemaDescriptor = Preconditions.checkNotNull(schema, "Schema must not be null.");
+        return this;
+    }
 
-	/**
-	 * Specifies the partition keys of this table.
-	 */
-	public ConnectTableDescriptor withPartitionKeys(List<String> partitionKeys) {
-		this.partitionKeys = Preconditions.checkNotNull(partitionKeys, "PartitionKeys must not be null.");
-		return this;
-	}
+    /** Specifies the partition keys of this table. */
+    public ConnectTableDescriptor withPartitionKeys(List<String> partitionKeys) {
+        this.partitionKeys =
+                Preconditions.checkNotNull(partitionKeys, "PartitionKeys must not be null.");
+        return this;
+    }
 
-	/**
-	 * Registers the table described by underlying properties in a given path.
-	 *
-	 * <p>There is no distinction between source and sink at the descriptor level anymore as this
-	 * method does not perform actual class lookup. It only stores the underlying properties. The
-	 * actual source/sink lookup is performed when the table is used.
-	 *
-	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
-	 * be inaccessible in the current session. To make the permanent object available again you can drop the
-	 * corresponding temporary object.
-	 *
-	 * <p><b>NOTE:</b> The schema must be explicitly defined.
-	 *
-	 * @param path path where to register the temporary table
-	 */
-	public void createTemporaryTable(String path) {
-		if (schemaDescriptor == null) {
-			throw new TableException(
-				"Table schema must be explicitly defined. To derive schema from the underlying connector" +
-					" use registerTableSourceInternal/registerTableSinkInternal/registerTableSourceAndSink.");
-		}
+    /**
+     * Registers the table described by underlying properties in a given path.
+     *
+     * <p>There is no distinction between source and sink at the descriptor level anymore as this
+     * method does not perform actual class lookup. It only stores the underlying properties. The
+     * actual source/sink lookup is performed when the table is used.
+     *
+     * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
+     * it will be inaccessible in the current session. To make the permanent object available again
+     * you can drop the corresponding temporary object.
+     *
+     * <p><b>NOTE:</b> The schema must be explicitly defined.
+     *
+     * @param path path where to register the temporary table
+     */
+    public void createTemporaryTable(String path) {
+        if (schemaDescriptor == null) {
+            throw new TableException(
+                    "Table schema must be explicitly defined. To derive schema from the underlying connector"
+                            + " use registerTableSourceInternal/registerTableSinkInternal/registerTableSourceAndSink.");
+        }
 
-		registration.createTemporaryTable(path, CatalogTableImpl.fromProperties(toProperties()));
-	}
+        registration.createTemporaryTable(path, CatalogTableImpl.fromProperties(toProperties()));
+    }
 
-	@Override
-	protected Map<String, String> additionalProperties() {
-		DescriptorProperties properties = new DescriptorProperties();
-		if (schemaDescriptor != null) {
-			properties.putProperties(schemaDescriptor.toProperties());
-		}
-		properties.putPartitionKeys(partitionKeys);
-		return properties.asMap();
-	}
+    @Override
+    protected Map<String, String> additionalProperties() {
+        DescriptorProperties properties = new DescriptorProperties();
+        if (schemaDescriptor != null) {
+            properties.putProperties(schemaDescriptor.toProperties());
+        }
+        properties.putPartitionKeys(partitionKeys);
+        return properties.asMap();
+    }
 }
