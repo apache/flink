@@ -72,12 +72,8 @@ public class ExecNodeGraphGenerator {
         }
 
         execNode = rel.translateToExecNode();
-        if (rel instanceof LegacyExecNodeBase) {
-            ((LegacyExecNodeBase<?, ?>) execNode).setInputNodes(inputNodes);
-        } else {
-            // connects the input/output nodes
-            ((ExecNodeBase<?>) execNode).setInputNodes(inputNodes);
-        }
+        // connects the input/output nodes
+        ((ExecNodeBase<?>) execNode).setInputNodes(inputNodes);
 
         visitedRels.put(rel, execNode);
         return execNode;

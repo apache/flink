@@ -25,9 +25,9 @@ import org.apache.flink.table.delegation.Executor
 import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, Operation, QueryOperation}
 import org.apache.flink.table.planner.operations.PlannerQueryOperation
 import org.apache.flink.table.planner.plan.`trait`._
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNodeGraph, LegacyStreamExecNode}
 import org.apache.flink.table.planner.plan.optimize.{Optimizer, StreamCommonSubGraphBasedOptimizer}
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.sinks.{SelectTableSinkBase, StreamSelectTableSink}
@@ -64,7 +64,6 @@ class StreamPlanner(
     planner.overrideEnvParallelism()
 
     execGraph.getRootNodes.map {
-      case legacyNode: LegacyStreamExecNode[_] => legacyNode.translateToPlan(planner)
       case node: StreamExecNode[_] => node.translateToPlan(planner)
       case _ =>
         throw new TableException("Cannot generate DataStream due to an invalid logical plan. " +
