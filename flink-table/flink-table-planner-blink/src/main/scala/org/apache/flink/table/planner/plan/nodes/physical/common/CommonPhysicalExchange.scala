@@ -39,10 +39,10 @@ import scala.collection.JavaConverters._
 abstract class CommonPhysicalExchange(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    relNode: RelNode,
+    inputRel: RelNode,
     relDistribution: RelDistribution)
-  extends Exchange(cluster, traitSet, relNode, relDistribution)
-    with FlinkPhysicalRel {
+  extends Exchange(cluster, traitSet, inputRel, relDistribution)
+  with FlinkPhysicalRel {
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
     val inputRows = mq.getRowCount(input)

@@ -51,7 +51,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.Collections;
 
-/** Stream [[ExecNode]] for unbounded python group table aggregate. */
+/** Stream {@link ExecNode} for unbounded python group table aggregate. */
 public class StreamExecPythonGroupTableAggregate extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData> {
     private static final Logger LOG =
@@ -162,9 +162,9 @@ public class StreamExecPythonGroupTableAggregate extends ExecNodeBase<RowData>
             long maxIdleStateRetentionTime,
             boolean generateUpdateBefore,
             int indexOfCountStar) {
-        Class clazz = CommonPythonUtil.loadClass(PYTHON_STREAM_TABLE_AGGREGATE_OPERATOR_NAME);
+        Class<?> clazz = CommonPythonUtil.loadClass(PYTHON_STREAM_TABLE_AGGREGATE_OPERATOR_NAME);
         try {
-            Constructor ctor =
+            Constructor<?> ctor =
                     clazz.getConstructor(
                             Configuration.class,
                             RowType.class,

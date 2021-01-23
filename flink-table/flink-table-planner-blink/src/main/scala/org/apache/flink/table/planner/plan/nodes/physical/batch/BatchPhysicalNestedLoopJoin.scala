@@ -20,20 +20,16 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNestedLoopJoin
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.utils.JoinTypeUtil
-import org.apache.flink.table.runtime.typeutils.{BinaryRowDataSerializer}
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
-
-import java.util
-
-import scala.collection.JavaConversions._
 
 /**
   * Batch physical RelNode for nested-loop [[Join]].
@@ -114,8 +110,6 @@ class BatchPhysicalNestedLoopJoin(
     // Assume NestedLoopJoin always broadcast data from child which smaller.
     satisfyTraitsOnBroadcastJoin(requiredTraitSet, leftIsBuild)
   }
-
-  //~ ExecNode methods -----------------------------------------------------------
 
   override def translateToExecNode(): ExecNode[_] = {
     val (leftEdge, rightEdge) = getInputEdges

@@ -125,8 +125,8 @@ public class StreamExecPythonGroupAggregate extends ExecNodeBase<RowData>
                         inputCountIndex,
                         countStarInserted);
         // partitioned aggregation
-        OneInputTransformation transform =
-                new OneInputTransformation(
+        OneInputTransformation<RowData, RowData> transform =
+                new OneInputTransformation<>(
                         inputTransform,
                         getDescription(),
                         operator,
@@ -163,7 +163,7 @@ public class StreamExecPythonGroupAggregate extends ExecNodeBase<RowData>
             boolean countStarInserted) {
         Class<?> clazz = CommonPythonUtil.loadClass(PYTHON_STREAM_AGGREAGTE_OPERATOR_NAME);
         try {
-            Constructor ctor =
+            Constructor<?> ctor =
                     clazz.getConstructor(
                             Configuration.class,
                             RowType.class,
