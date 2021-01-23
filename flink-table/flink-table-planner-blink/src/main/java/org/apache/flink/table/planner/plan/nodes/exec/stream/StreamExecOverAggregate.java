@@ -29,9 +29,9 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.OverSpec;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
@@ -75,8 +75,11 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
     private final OverSpec overSpec;
 
     public StreamExecOverAggregate(
-            OverSpec overSpec, ExecEdge inputEdge, RowType outputType, String description) {
-        super(Collections.singletonList(inputEdge), outputType, description);
+            OverSpec overSpec,
+            InputProperty inputProperty,
+            RowType outputType,
+            String description) {
+        super(Collections.singletonList(inputProperty), outputType, description);
         this.overSpec = overSpec;
     }
 

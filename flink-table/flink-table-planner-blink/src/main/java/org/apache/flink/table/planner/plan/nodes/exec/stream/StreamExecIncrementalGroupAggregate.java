@@ -26,9 +26,9 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
@@ -71,10 +71,10 @@ public class StreamExecIncrementalGroupAggregate extends ExecNodeBase<RowData>
             boolean[] partialAggCallNeedRetractions,
             RowType partialLocalAggInputRowType,
             boolean partialAggNeedRetraction,
-            ExecEdge inputEdge,
+            InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputEdge), outputType, description);
+        super(Collections.singletonList(inputProperty), outputType, description);
         this.partialAggGrouping = partialAggGrouping;
         this.finalAggGrouping = finalAggGrouping;
         this.partialOriginalAggCalls = partialOriginalAggCalls;

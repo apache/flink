@@ -27,9 +27,9 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
@@ -56,10 +56,10 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
     public StreamExecChangelogNormalize(
             int[] uniqueKeys,
             boolean generateUpdateBefore,
-            ExecEdge inputEdge,
+            InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputEdge), outputType, description);
+        super(Collections.singletonList(inputProperty), outputType, description);
         this.uniqueKeys = uniqueKeys;
         this.generateUpdateBefore = generateUpdateBefore;
     }

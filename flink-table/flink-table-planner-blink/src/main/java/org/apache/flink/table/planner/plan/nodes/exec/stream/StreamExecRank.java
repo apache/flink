@@ -30,9 +30,9 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator;
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.PartitionSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.SortSpec;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
@@ -83,10 +83,10 @@ public class StreamExecRank extends ExecNodeBase<RowData> implements StreamExecN
             RankProcessStrategy rankStrategy,
             boolean outputRankNumber,
             boolean generateUpdateBefore,
-            ExecEdge inputEdge,
+            InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputEdge), outputType, description);
+        super(Collections.singletonList(inputProperty), outputType, description);
         this.rankType = rankType;
         this.rankRange = rankRange;
         this.rankStrategy = rankStrategy;

@@ -24,9 +24,9 @@ import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.JoinSpec;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
@@ -60,11 +60,11 @@ public class StreamExecJoin extends ExecNodeBase<RowData> implements StreamExecN
             JoinSpec joinSpec,
             List<int[]> leftUniqueKeys,
             List<int[]> rightUniqueKeys,
-            ExecEdge leftEdge,
-            ExecEdge rightEdge,
+            InputProperty leftInputProperty,
+            InputProperty rightInputProperty,
             RowType outputType,
             String description) {
-        super(Lists.newArrayList(leftEdge, rightEdge), outputType, description);
+        super(Lists.newArrayList(leftInputProperty, rightInputProperty), outputType, description);
         this.joinSpec = joinSpec;
         this.leftUniqueKeys = leftUniqueKeys;
         this.rightUniqueKeys = rightUniqueKeys;

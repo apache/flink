@@ -23,9 +23,9 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.runtime.operators.multipleinput.BatchMultipleInputStreamOperatorFactory;
 import org.apache.flink.table.runtime.operators.multipleinput.TableOperatorWrapperGenerator;
@@ -71,8 +71,8 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
     private final ExecNode<?> rootNode;
 
     public BatchExecMultipleInput(
-            List<ExecEdge> inputEdges, ExecNode<?> rootNode, String description) {
-        super(inputEdges, rootNode.getOutputType(), description);
+            List<InputProperty> inputProperties, ExecNode<?> rootNode, String description) {
+        super(inputProperties, rootNode.getOutputType(), description);
         this.rootNode = rootNode;
     }
 
@@ -84,7 +84,10 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
         }
         final Transformation<?> outputTransform = rootNode.translateToPlan(planner);
         final int[] readOrders =
-                getInputEdges().stream().map(ExecEdge::getPriority).mapToInt(i -> i).toArray();
+                getInputProperties().stream()
+                        .map(InputProperty::getPriority)
+                        .mapToInt(i -> i)
+                        .toArray();
 
         final TableOperatorWrapperGenerator generator =
                 new TableOperatorWrapperGenerator(inputTransforms, outputTransform, readOrders);

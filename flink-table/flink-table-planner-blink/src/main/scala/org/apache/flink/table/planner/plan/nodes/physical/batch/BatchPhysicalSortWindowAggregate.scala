@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindow
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortWindowAggregate
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -91,7 +91,7 @@ class BatchPhysicalSortWindowAggregate(
       enableAssignPane,
       isMerge,
       true, // isFinal is always true
-      ExecEdge.DEFAULT,
+      InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription
     )

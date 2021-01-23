@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecUnion;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -32,7 +32,8 @@ import java.util.List;
  */
 public class BatchExecUnion extends CommonExecUnion implements BatchExecNode<RowData> {
 
-    public BatchExecUnion(List<ExecEdge> inputEdges, RowType outputType, String description) {
-        super(inputEdges, outputType, description);
+    public BatchExecUnion(
+            List<InputProperty> inputProperties, RowType outputType, String description) {
+        super(inputProperties, outputType, description);
     }
 }

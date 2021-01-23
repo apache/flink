@@ -37,8 +37,8 @@ import java.util.Map;
  * once, that means a rel will only generate one ExecNode instance.
  *
  * <p>Exchange and Union will create a actual node in the {@link ExecNode} graph as the first step,
- * once all ExecNodes' implementation are separated from physical rel, we will use {@link ExecEdge}
- * to replace them.
+ * once all ExecNodes' implementation are separated from physical rel, we will use {@link
+ * InputProperty} to replace them.
  */
 public class ExecNodeGraphGenerator {
 

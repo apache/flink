@@ -41,9 +41,9 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.OutputFormatProvider;
 import org.apache.flink.table.connector.sink.SinkFunctionProvider;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.sinks.TableSinkUtils;
 import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
@@ -78,10 +78,10 @@ public abstract class CommonExecSink extends ExecNodeBase<Object> {
             DynamicTableSink tableSink,
             ChangelogMode changelogMode,
             boolean isBounded,
-            ExecEdge inputEdge,
+            InputProperty inputProperty,
             LogicalType outputType,
             String description) {
-        super(Collections.singletonList(inputEdge), outputType, description);
+        super(Collections.singletonList(inputProperty), outputType, description);
         this.tableSink = tableSink;
         this.qualifiedName = qualifiedName;
         this.tableSchema = tableSchema;

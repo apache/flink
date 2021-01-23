@@ -25,9 +25,9 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.SortSpec;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.operators.sort.SortLimitOperator;
@@ -53,10 +53,10 @@ public class BatchExecSortLimit extends ExecNodeBase<RowData> implements BatchEx
             long limitStart,
             long limitEnd,
             boolean isGlobal,
-            ExecEdge inputEdge,
+            InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputEdge), outputType, description);
+        super(Collections.singletonList(inputProperty), outputType, description);
         this.sortSpec = sortSpec;
         this.limitStart = limitStart;
         this.limitEnd = limitEnd;

@@ -30,9 +30,9 @@ import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.functions.python.PythonFunctionKind;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.planner.plan.utils.PythonUtil;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -66,8 +66,11 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData> {
     private final RexProgram calcProgram;
 
     public CommonExecPythonCalc(
-            RexProgram calcProgram, ExecEdge inputEdge, RowType outputType, String description) {
-        super(Collections.singletonList(inputEdge), outputType, description);
+            RexProgram calcProgram,
+            InputProperty inputProperty,
+            RowType outputType,
+            String description) {
+        super(Collections.singletonList(inputProperty), outputType, description);
         this.calcProgram = calcProgram;
     }
 
