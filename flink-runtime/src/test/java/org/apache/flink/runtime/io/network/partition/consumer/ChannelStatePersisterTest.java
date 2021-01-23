@@ -64,6 +64,41 @@ public class ChannelStatePersisterTest {
         assertFalse(persister.hasBarrierReceived());
     }
 
+    @Test
+    public void testLateBarrierOnCancelledCheckpoint() throws IOException {
+        ChannelStatePersister persister =
+                new ChannelStatePersister(ChannelStateWriter.NO_OP, new InputChannelInfo(0, 0));
+
+        persister.startPersisting(1L, Collections.emptyList());
+        // checkpoint aborted
+        persister.stopPersisting(1L);
+
+        // late barrier
+        persister.checkForBarrier(barrier(1L));
+
+        persister.startPersisting(2L, Collections.emptyList());
+        persister.checkForBarrier(barrier(2L));
+
+        assertTrue(persister.hasBarrierReceived());
+    }
+
+    @Test
+    public void testLateBarrierOnCancelledCheckpointAfterRecover() throws IOException {
+        ChannelStatePersister persister =
+                new ChannelStatePersister(ChannelStateWriter.NO_OP, new InputChannelInfo(0, 0));
+
+        // checkpoint aborted, stopPersisting called on recovered input channel without persister
+        persister.stopPersisting(1L);
+
+        // late barrier
+        persister.checkForBarrier(barrier(1L));
+
+        persister.startPersisting(2L, Collections.emptyList());
+        persister.checkForBarrier(barrier(2L));
+
+        assertTrue(persister.hasBarrierReceived());
+    }
+
     private static Buffer barrier(long id) throws IOException {
         return EventSerializer.toBuffer(
                 new CheckpointBarrier(id, 1L, CheckpointOptions.forCheckpointWithDefaultLocation()),
