@@ -75,7 +75,8 @@ public final class ChannelStatePersister {
         } else if (checkpointStatus == CheckpointStatus.BARRIER_RECEIVED) {
             checkState(
                     lastSeenBarrier >= barrierId,
-                    "Internal error, #stopPersisting for last checkpoint has not been called.");
+                    "Internal error, #stopPersisting for last checkpoint has not been called for "
+                            + channelInfo);
         }
         if (knownBuffers.size() > 0) {
             channelStateWriter.addInputData(
