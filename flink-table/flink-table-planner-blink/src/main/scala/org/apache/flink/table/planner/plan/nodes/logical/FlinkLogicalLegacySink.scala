@@ -44,7 +44,7 @@ class FlinkLogicalLegacySink(
     val catalogTable: CatalogTable,
     val staticPartitions: Map[String, String])
   extends LegacySink(cluster, traitSet, input, sink, sinkName)
-          with FlinkLogicalRel {
+  with FlinkLogicalRel {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new FlinkLogicalLegacySink(
