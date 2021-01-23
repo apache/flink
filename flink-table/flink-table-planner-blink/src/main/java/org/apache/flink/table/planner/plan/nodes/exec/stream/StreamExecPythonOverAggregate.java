@@ -203,7 +203,7 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
 
         return new OneInputTransformation<>(
                 inputTransform,
-                getDesc(),
+                getDescription(),
                 pythonOperator,
                 InternalTypeInfo.of(outputRowType),
                 inputTransform.getParallelism());

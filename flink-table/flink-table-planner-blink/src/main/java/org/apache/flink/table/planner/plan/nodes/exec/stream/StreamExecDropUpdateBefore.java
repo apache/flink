@@ -52,7 +52,7 @@ public class StreamExecDropUpdateBefore extends ExecNodeBase<RowData>
 
         return new OneInputTransformation<>(
                 inputTransform,
-                getDesc(),
+                getDescription(),
                 operator,
                 inputTransform.getOutputType(),
                 inputTransform.getParallelism());

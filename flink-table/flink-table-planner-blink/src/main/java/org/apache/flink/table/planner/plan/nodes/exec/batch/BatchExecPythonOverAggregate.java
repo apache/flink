@@ -165,7 +165,7 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
                         pythonFunctionInfos);
         return new OneInputTransformation<>(
                 inputTransform,
-                getDesc(),
+                getDescription(),
                 pythonOperator,
                 InternalTypeInfo.of(outputRowType),
                 inputTransform.getParallelism());

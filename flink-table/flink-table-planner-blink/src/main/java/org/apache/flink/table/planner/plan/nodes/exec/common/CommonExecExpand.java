@@ -71,7 +71,7 @@ public abstract class CommonExecExpand extends ExecNodeBase<RowData> {
         final Transformation<RowData> transform =
                 new OneInputTransformation<>(
                         inputTransform,
-                        getDesc(),
+                        getDescription(),
                         operatorFactory,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());

@@ -208,7 +208,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
         OneInputTransformation<RowData, RowData> transform =
                 new OneInputTransformation<>(
                         inputTransformation,
-                        getDesc(),
+                        getDescription(),
                         operatorFactory,
                         InternalTypeInfo.of(resultRowType),
                         inputTransformation.getParallelism());

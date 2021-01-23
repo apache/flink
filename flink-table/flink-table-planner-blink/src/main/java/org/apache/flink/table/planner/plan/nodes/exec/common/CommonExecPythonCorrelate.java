@@ -105,7 +105,7 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData> {
                         pythonUdtfInputOffsets);
         return new OneInputTransformation<>(
                 inputTransform,
-                getDesc(),
+                getDescription(),
                 pythonOperator,
                 pythonOperatorOutputRowType,
                 inputTransform.getParallelism());

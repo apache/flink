@@ -155,7 +155,7 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
                 ExecNodeUtil.createTwoInputTransformation(
                         leftInputTransform,
                         rightInputTransform,
-                        getDesc(),
+                        getDescription(),
                         SimpleOperatorFactory.of(operator),
                         InternalTypeInfo.of(getOutputType()),
                         rightInputTransform.getParallelism(),

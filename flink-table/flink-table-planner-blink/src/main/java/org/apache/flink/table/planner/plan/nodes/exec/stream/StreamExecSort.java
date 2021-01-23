@@ -85,7 +85,7 @@ public class StreamExecSort extends ExecNodeBase<RowData> implements StreamExecN
         Transformation<RowData> transform =
                 new OneInputTransformation<>(
                         inputTransform,
-                        getDesc(),
+                        getDescription(),
                         sortOperator,
                         InternalTypeInfo.of(inputType),
                         inputTransform.getParallelism());

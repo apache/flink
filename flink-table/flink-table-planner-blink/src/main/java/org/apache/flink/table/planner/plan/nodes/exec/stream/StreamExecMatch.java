@@ -161,7 +161,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData> implements StreamExec
         final OneInputTransformation<RowData, RowData> transform =
                 new OneInputTransformation<>(
                         timestampedInputTransform,
-                        getDesc(),
+                        getDescription(),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         timestampedInputTransform.getParallelism());

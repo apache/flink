@@ -194,7 +194,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object> {
             }
             return new LegacySinkTransformation<>(
                     finalInputTransform,
-                    getDesc(),
+                    getDescription(),
                     SimpleOperatorFactory.of(operator),
                     parallelism);
         }

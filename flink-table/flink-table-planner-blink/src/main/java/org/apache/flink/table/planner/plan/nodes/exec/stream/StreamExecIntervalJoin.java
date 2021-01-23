@@ -317,7 +317,7 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
         return new TwoInputTransformation<>(
                 leftInputTransform,
                 rightInputTransform,
-                getDesc(),
+                getDescription(),
                 new KeyedCoProcessOperator<>(procJoinFunc),
                 returnTypeInfo,
                 leftInputTransform.getParallelism());
@@ -350,7 +350,7 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
         return new TwoInputTransformation<>(
                 leftInputTransform,
                 rightInputTransform,
-                getDesc(),
+                getDescription(),
                 new KeyedCoProcessOperatorWithWatermarkDelay<>(
                         rowJoinFunc, rowJoinFunc.getMaxOutputDelay()),
                 returnTypeInfo,

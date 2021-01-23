@@ -54,7 +54,7 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
     }
 
     @Override
-    public String getDesc() {
+    public String getDescription() {
         return description;
     }
 

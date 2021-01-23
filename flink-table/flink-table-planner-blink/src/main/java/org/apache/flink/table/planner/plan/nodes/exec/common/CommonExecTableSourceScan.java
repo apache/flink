@@ -55,7 +55,7 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData> {
     @Override
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
         final StreamExecutionEnvironment env = planner.getExecEnv();
-        final String operatorName = getDesc();
+        final String operatorName = getDescription();
         InternalTypeInfo<RowData> outputTypeInfo = InternalTypeInfo.of((RowType) getOutputType());
         ScanTableSource.ScanRuntimeProvider provider =
                 tableSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
