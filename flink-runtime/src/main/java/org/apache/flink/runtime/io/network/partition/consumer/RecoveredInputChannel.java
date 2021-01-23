@@ -69,6 +69,8 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     protected final int networkBuffersPerChannel;
     private boolean exclusiveBuffersAssigned;
 
+    private long lastStoppedCheckpointId = -1;
+
     RecoveredInputChannel(
             SingleInputGate inputGate,
             int channelIndex,
@@ -100,7 +102,14 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     public final InputChannel toInputChannel() throws IOException {
         Preconditions.checkState(
                 stateConsumedFuture.isDone(), "recovered state is not fully consumed");
-        return toInputChannelInternal();
+        final InputChannel inputChannel = toInputChannelInternal();
+        inputChannel.checkpointStopped(lastStoppedCheckpointId);
+        return inputChannel;
+    }
+
+    @Override
+    public void checkpointStopped(long checkpointId) {
+        this.lastStoppedCheckpointId = checkpointId;
     }
 
     protected abstract InputChannel toInputChannelInternal() throws IOException;
