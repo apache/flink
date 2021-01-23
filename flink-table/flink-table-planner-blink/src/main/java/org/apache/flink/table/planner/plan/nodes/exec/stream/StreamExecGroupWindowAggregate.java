@@ -193,7 +193,7 @@ public class StreamExecGroupWindowAggregate extends ExecNodeBase<RowData>
         final OneInputTransformation<RowData, RowData> transform =
                 new OneInputTransformation<>(
                         inputTransform,
-                        getDesc(),
+                        getDescription(),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());

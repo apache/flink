@@ -79,7 +79,8 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData> {
         final Configuration config =
                 CommonPythonUtil.getMergedConfig(planner.getExecEnv(), planner.getTableConfig());
         OneInputTransformation<RowData, RowData> ret =
-                createPythonOneInputTransformation(inputTransform, calcProgram, getDesc(), config);
+                createPythonOneInputTransformation(
+                        inputTransform, calcProgram, getDescription(), config);
         if (inputsContainSingleton()) {
             ret.setParallelism(1);
             ret.setMaxParallelism(1);

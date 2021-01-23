@@ -60,7 +60,7 @@ public class BatchExecLimit extends ExecNodeBase<RowData> implements BatchExecNo
         Transformation<RowData> transformation =
                 ExecNodeUtil.createOneInputTransformation(
                         input,
-                        getDesc(),
+                        getDescription(),
                         SimpleOperatorFactory.of(operator),
                         input.getOutputType(),
                         input.getParallelism(),

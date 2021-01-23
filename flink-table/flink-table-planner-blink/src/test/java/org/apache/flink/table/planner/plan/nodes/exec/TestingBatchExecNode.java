@@ -51,7 +51,7 @@ public class TestingBatchExecNode implements BatchExecNode<RowData> {
     }
 
     @Override
-    public String getDesc() {
+    public String getDescription() {
         return "TestingBatchExecNode";
     }
 

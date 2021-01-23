@@ -84,7 +84,7 @@ public abstract class CommonExecCorrelate extends ExecNodeBase<RowData> {
                         inputTransform.getParallelism(),
                         retainHeader,
                         getClass().getSimpleName(),
-                        getDesc());
+                        getDescription());
 
         if (inputsContainSingleton()) {
             transform.setParallelism(1);

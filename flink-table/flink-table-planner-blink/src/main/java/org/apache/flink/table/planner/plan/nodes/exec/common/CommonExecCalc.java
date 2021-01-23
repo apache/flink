@@ -85,7 +85,7 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData> {
         final Transformation<RowData> transformation =
                 new OneInputTransformation<>(
                         inputTransform,
-                        getDesc(),
+                        getDescription(),
                         substituteStreamOperator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());
