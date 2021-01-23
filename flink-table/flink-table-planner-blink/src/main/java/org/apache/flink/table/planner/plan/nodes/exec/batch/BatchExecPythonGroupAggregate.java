@@ -41,7 +41,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Collections;
 
-/** Batch [[ExecNode]] for Python unbounded group aggregate. */
+/** Batch {@link ExecNode} for Python unbounded group aggregate. */
 public class BatchExecPythonGroupAggregate extends ExecNodeBase<RowData>
         implements BatchExecNode<RowData> {
 
@@ -50,19 +50,19 @@ public class BatchExecPythonGroupAggregate extends ExecNodeBase<RowData>
                     + "BatchArrowPythonGroupAggregateFunctionOperator";
 
     private final int[] grouping;
-    private final int[] groupingSet;
+    private final int[] auxGrouping;
     private final AggregateCall[] aggCalls;
 
     public BatchExecPythonGroupAggregate(
             int[] grouping,
-            int[] groupingSet,
+            int[] auxGrouping,
             AggregateCall[] aggCalls,
             ExecEdge inputEdge,
             RowType outputType,
             String description) {
         super(Collections.singletonList(inputEdge), outputType, description);
         this.grouping = grouping;
-        this.groupingSet = groupingSet;
+        this.auxGrouping = auxGrouping;
         this.aggCalls = aggCalls;
     }
 
@@ -85,7 +85,6 @@ public class BatchExecPythonGroupAggregate extends ExecNodeBase<RowData>
         return transform;
     }
 
-    @SuppressWarnings("unchecked")
     private OneInputTransformation<RowData, RowData> createPythonOneInputTransformation(
             Transformation<RowData> inputTransform,
             RowType inputRowType,
@@ -102,7 +101,7 @@ public class BatchExecPythonGroupAggregate extends ExecNodeBase<RowData>
                         outputRowType,
                         pythonUdafInputOffsets,
                         pythonFunctionInfos);
-        return new OneInputTransformation(
+        return new OneInputTransformation<>(
                 inputTransform,
                 getDescription(),
                 pythonOperator,
@@ -117,10 +116,10 @@ public class BatchExecPythonGroupAggregate extends ExecNodeBase<RowData>
             RowType outputRowType,
             int[] udafInputOffsets,
             PythonFunctionInfo[] pythonFunctionInfos) {
-        final Class clazz =
+        final Class<?> clazz =
                 CommonPythonUtil.loadClass(ARROW_PYTHON_AGGREGATE_FUNCTION_OPERATOR_NAME);
         try {
-            Constructor ctor =
+            Constructor<?> ctor =
                     clazz.getConstructor(
                             Configuration.class,
                             PythonFunctionInfo[].class,
@@ -136,7 +135,7 @@ public class BatchExecPythonGroupAggregate extends ExecNodeBase<RowData>
                             inputRowType,
                             outputRowType,
                             grouping,
-                            groupingSet,
+                            auxGrouping,
                             udafInputOffsets);
         } catch (NoSuchMethodException
                 | IllegalAccessException

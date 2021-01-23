@@ -51,7 +51,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.Collections;
 
-/** Batch [[ExecNode]] for group widow aggregate (Python user defined aggregate function). */
+/** Batch {@link ExecNode} for group widow aggregate (Python user defined aggregate function). */
 public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
         implements BatchExecNode<RowData> {
 
@@ -60,7 +60,7 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                     + "BatchArrowPythonGroupWindowAggregateFunctionOperator";
 
     private final int[] grouping;
-    private final int[] groupingSet;
+    private final int[] auxGrouping;
     private final AggregateCall[] aggCalls;
     private final LogicalWindow window;
     private final int inputTimeFieldIndex;
@@ -68,7 +68,7 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
 
     public BatchExecPythonGroupWindowAggregate(
             int[] grouping,
-            int[] groupingSet,
+            int[] auxGrouping,
             AggregateCall[] aggCalls,
             LogicalWindow window,
             int inputTimeFieldIndex,
@@ -78,13 +78,14 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
             String description) {
         super(Collections.singletonList(inputEdge), outputType, description);
         this.grouping = grouping;
-        this.groupingSet = groupingSet;
+        this.auxGrouping = auxGrouping;
         this.aggCalls = aggCalls;
         this.window = window;
         this.inputTimeFieldIndex = inputTimeFieldIndex;
         this.namedWindowProperties = namedWindowProperties;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
         final ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
@@ -203,7 +204,7 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                             slideSize,
                             namePropertyTypeArray,
                             grouping,
-                            groupingSet,
+                            auxGrouping,
                             udafInputOffsets);
         } catch (NoSuchMethodException
                 | InstantiationException
