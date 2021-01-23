@@ -86,7 +86,7 @@ public class BatchExecSortLimit extends ExecNodeBase<RowData> implements BatchEx
         OneInputTransformation<RowData, RowData> transform =
                 new OneInputTransformation<>(
                         inputTransform,
-                        getDesc(),
+                        getDescription(),
                         SimpleOperatorFactory.of(operator),
                         InternalTypeInfo.of(inputType),
                         inputTransform.getParallelism());

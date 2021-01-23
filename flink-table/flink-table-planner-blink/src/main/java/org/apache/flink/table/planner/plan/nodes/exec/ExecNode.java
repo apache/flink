@@ -35,12 +35,8 @@ import java.util.List;
  */
 public interface ExecNode<T> {
 
-    /**
-     * Returns a string which describes this node. TODO rename to `getDescription` once all
-     * ExecNodes do not extend from FlinkPhysicalRel, because RelNode already has `getDescription`
-     * method.
-     */
-    String getDesc();
+    /** Returns a string which describes this node. */
+    String getDescription();
 
     /**
      * Returns the output {@link LogicalType} of this node, this type should be consistent with the

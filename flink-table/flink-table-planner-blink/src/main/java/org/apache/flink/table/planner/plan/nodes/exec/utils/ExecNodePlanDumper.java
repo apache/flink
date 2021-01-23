@@ -358,7 +358,7 @@ public class ExecNodePlanDumper {
             if (isReuseNode && !firstVisited) {
                 sb.append("Reused");
             } else {
-                sb.append(node.getDesc());
+                sb.append(node.getDescription());
             }
 
             if (isReuseNode) {

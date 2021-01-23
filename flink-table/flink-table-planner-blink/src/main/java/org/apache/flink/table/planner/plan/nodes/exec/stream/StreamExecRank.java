@@ -216,7 +216,7 @@ public class StreamExecRank extends ExecNodeBase<RowData> implements StreamExecN
         OneInputTransformation<RowData, RowData> transform =
                 new OneInputTransformation<>(
                         inputTransform,
-                        getDesc(),
+                        getDescription(),
                         operator,
                         InternalTypeInfo.of((RowType) getOutputType()),
                         inputTransform.getParallelism());

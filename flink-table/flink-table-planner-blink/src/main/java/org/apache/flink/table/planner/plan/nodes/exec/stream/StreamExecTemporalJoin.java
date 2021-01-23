@@ -130,7 +130,7 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
                 new TwoInputTransformation<>(
                         leftTransform,
                         rightTransform,
-                        getDesc(),
+                        getDescription(),
                         joinOperator,
                         InternalTypeInfo.of(returnType),
                         leftTransform.getParallelism());

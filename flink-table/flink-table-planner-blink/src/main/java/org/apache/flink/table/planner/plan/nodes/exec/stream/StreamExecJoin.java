@@ -136,7 +136,7 @@ public class StreamExecJoin extends ExecNodeBase<RowData> implements StreamExecN
                 new TwoInputTransformation<>(
                         leftTransform,
                         rightTransform,
-                        getDesc(),
+                        getDescription(),
                         operator,
                         InternalTypeInfo.of(returnType),
                         leftTransform.getParallelism());

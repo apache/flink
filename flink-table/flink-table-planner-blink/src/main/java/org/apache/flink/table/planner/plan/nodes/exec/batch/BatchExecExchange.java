@@ -65,7 +65,7 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
     }
 
     @Override
-    public String getDesc() {
+    public String getDescription() {
         // make sure the description be consistent with before, update this once plan is stable
         ExecEdge.RequiredShuffle requiredShuffle = getInputEdges().get(0).getRequiredShuffle();
         StringBuilder sb = new StringBuilder();
