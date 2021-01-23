@@ -41,7 +41,7 @@ class FlinkLogicalTableAggregate(
     groupSets: util.List[ImmutableBitSet],
     aggCalls: util.List[AggregateCall])
   extends TableAggregate(cluster, traitSet, input, groupSet, groupSets, aggCalls)
-    with FlinkLogicalRel {
+  with FlinkLogicalRel {
 
   override def copy(traitSet: RelTraitSet, inputs: JList[RelNode]): RelNode = {
     new FlinkLogicalTableAggregate(
