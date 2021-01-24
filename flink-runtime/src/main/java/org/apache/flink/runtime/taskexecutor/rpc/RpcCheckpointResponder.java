@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskexecutor.rpc;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorGateway;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -65,7 +66,16 @@ public class RpcCheckpointResponder implements CheckpointResponder {
             long checkpointId,
             Throwable cause) {
 
+        // TODO the passed parameter 'cause' is actually always instance of CheckpointException,
+        //  we should change the interfaces to narrow all declined checkpoint's throwable to
+        // CheckpointException.
+        Preconditions.checkArgument(
+                cause instanceof CheckpointException,
+                "The given cause is "
+                        + cause.getClass()
+                        + " instead of expected CheckpointException.");
         checkpointCoordinatorGateway.declineCheckpoint(
-                new DeclineCheckpoint(jobID, executionAttemptID, checkpointId, cause));
+                new DeclineCheckpoint(
+                        jobID, executionAttemptID, checkpointId, (CheckpointException) cause));
     }
 }

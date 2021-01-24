@@ -713,6 +713,12 @@ public class CheckpointCoordinatorTestingUtils {
             return this;
         }
 
+        public CheckpointCoordinatorBuilder setCheckpointFailureManager(
+                CheckpointFailureManager checkpointFailureManager) {
+            this.failureManager = checkpointFailureManager;
+            return this;
+        }
+
         public CheckpointCoordinatorBuilder setCompletedCheckpointStore(
                 CompletedCheckpointStore completedCheckpointStore) {
             this.completedCheckpointStore = completedCheckpointStore;
