@@ -20,6 +20,7 @@ package org.apache.flink.table.api
 
 import org.apache.flink.api.common.typeinfo.Types.STRING
 import org.apache.flink.api.scala._
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment, _}
@@ -106,10 +107,23 @@ class TableEnvironmentTest {
   @Test
   def testStreamTableEnvironmentExecutionExplain(): Unit = {
     val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
-    execEnv.setParallelism(1)
+    execEnv.setParallelism(4)
     val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
-    val tEnv = StreamTableEnvironment.create(execEnv, settings)
+    var tEnv = StreamTableEnvironment.create(execEnv, settings)
 
+    testStreamTableEnvironmentExecutionExplain(tEnv)
+
+    tEnv = StreamTableEnvironment.create(
+      StreamExecutionEnvironment.getExecutionEnvironment,
+      settings)
+    val conf = new Configuration()
+    conf.setInteger("parallelism.default", 4)
+    tEnv.getConfig.addConfiguration(conf)
+
+    testStreamTableEnvironmentExecutionExplain(tEnv)
+  }
+
+  def testStreamTableEnvironmentExecutionExplain(tEnv: TableEnvironment): Unit = {
     TestTableSourceSinks.createPersonCsvTemporaryTable(tEnv, "MyTable")
 
     TestTableSourceSinks.createCsvTemporarySinkTable(
