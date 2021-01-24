@@ -118,7 +118,7 @@ public class FsCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess
     @Override
     public CheckpointStorageLocation initializeLocationForCheckpoint(long checkpointId)
             throws IOException {
-        checkArgument(checkpointId >= 0, "Illegal negative checkpoint id: %d.", checkpointId);
+        checkArgument(checkpointId >= 0, "Illegal negative checkpoint id: %s.", checkpointId);
         checkArgument(
                 baseLocationsInitialized, "The base checkpoint location has not been initialized.");
 
