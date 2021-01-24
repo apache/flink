@@ -59,7 +59,7 @@ public interface SubtaskCheckpointCoordinator extends Closeable {
             CheckpointOptions checkpointOptions,
             CheckpointMetricsBuilder checkpointMetrics,
             OperatorChain<?, ?> operatorChain,
-            Supplier<Boolean> isCanceled)
+            Supplier<Boolean> isRunning)
             throws Exception;
 
     /**

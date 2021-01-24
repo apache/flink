@@ -36,6 +36,7 @@ import java.io.Closeable;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -49,6 +50,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
     private final String taskName;
     private final Consumer<AsyncCheckpointRunnable> registerConsumer;
     private final Consumer<AsyncCheckpointRunnable> unregisterConsumer;
+    private final Supplier<Boolean> isTaskRunning;
     private final Environment taskEnvironment;
 
     public boolean isRunning() {
@@ -78,7 +80,8 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
             Consumer<AsyncCheckpointRunnable> register,
             Consumer<AsyncCheckpointRunnable> unregister,
             Environment taskEnvironment,
-            AsyncExceptionHandler asyncExceptionHandler) {
+            AsyncExceptionHandler asyncExceptionHandler,
+            Supplier<Boolean> isTaskRunning) {
 
         this.operatorSnapshotsInProgress = checkNotNull(operatorSnapshotsInProgress);
         this.checkpointMetaData = checkNotNull(checkpointMetaData);
@@ -89,6 +92,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
         this.unregisterConsumer = unregister;
         this.taskEnvironment = checkNotNull(taskEnvironment);
         this.asyncExceptionHandler = checkNotNull(asyncExceptionHandler);
+        this.isTaskRunning = isTaskRunning;
     }
 
     @Override
@@ -237,19 +241,29 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
                                         + '.',
                                 e);
 
-                // We only report the exception for the original cause of fail and cleanup.
-                // Otherwise this followup exception could race the original exception in failing
-                // the task.
-                try {
-                    taskEnvironment.declineCheckpoint(
+                if (isTaskRunning.get()) {
+                    // We only report the exception for the original cause of fail and cleanup.
+                    // Otherwise this followup exception could race the original exception in
+                    // failing the task.
+                    try {
+                        taskEnvironment.declineCheckpoint(
+                                checkpointMetaData.getCheckpointId(),
+                                new CheckpointException(
+                                        CheckpointFailureReason.CHECKPOINT_ASYNC_EXCEPTION,
+                                        checkpointException));
+                    } catch (Exception unhandled) {
+                        AsynchronousException asyncException = new AsynchronousException(unhandled);
+                        asyncExceptionHandler.handleAsyncException(
+                                "Failure in asynchronous checkpoint materialization",
+                                asyncException);
+                    }
+                } else {
+                    // We never decline checkpoint after task is not running to avoid unexpected job
+                    // failover, which caused by exceeding checkpoint tolerable failure threshold.
+                    LOG.warn(
+                            "As task is already not running, no longer decline checkpoint {}.",
                             checkpointMetaData.getCheckpointId(),
-                            new CheckpointException(
-                                    CheckpointFailureReason.CHECKPOINT_ASYNC_EXCEPTION,
-                                    checkpointException));
-                } catch (Exception unhandled) {
-                    AsynchronousException asyncException = new AsynchronousException(unhandled);
-                    asyncExceptionHandler.handleAsyncException(
-                            "Failure in asynchronous checkpoint materialization", asyncException);
+                            checkpointException);
                 }
 
                 currentState = AsyncCheckpointState.DISCARDED;
