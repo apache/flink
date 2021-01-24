@@ -174,7 +174,7 @@ public final class SliceAssigners {
             if (size % slide != 0) {
                 throw new IllegalArgumentException(
                         String.format(
-                                "Hopping Window requires size must be an integral multiple of slide, but got size %dms and slide %dms.",
+                                "Slicing Hopping Window requires size must be an integral multiple of slide, but got size %dms and slide %dms.",
                                 size, slide));
             }
             this.size = size;

@@ -48,7 +48,7 @@ public interface SliceSharedAssigner extends SliceAssigner {
      * following window to trigger for now.
      *
      * <p>The purpose of this method is avoid register too many timers for each hopping and
-     * cumulative slice, e.g. HOP(1day, 10s) needs register 4300 timers for every slice. In order to
+     * cumulative slice, e.g. HOP(1day, 10s) needs register 8640 timers for every slice. In order to
      * improve this, we only register one timer for the next window. For hopping windows we don't
      * register next window if current window is empty (i.e. no records in current window). That
      * means we will have one more unnecessary window triggered for hopping windows if no elements

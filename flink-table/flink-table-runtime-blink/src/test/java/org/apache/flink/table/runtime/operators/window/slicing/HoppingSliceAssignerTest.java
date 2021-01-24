@@ -139,7 +139,7 @@ public class HoppingSliceAssignerTest extends SliceAssignerTestBase {
 
         assertErrorMessage(
                 () -> SliceAssigners.hopping(0, Duration.ofSeconds(5), Duration.ofSeconds(2)),
-                "Hopping Window requires size must be an integral multiple of slide, but got size 5000ms and slide 2000ms.");
+                "Slicing Hopping Window requires size must be an integral multiple of slide, but got size 5000ms and slide 2000ms.");
 
         // should pass
         SliceAssigners.hopping(0, Duration.ofSeconds(10), Duration.ofSeconds(5))

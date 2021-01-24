@@ -22,6 +22,7 @@ import org.apache.flink.table.data.RowData;
 
 /** Context to switch current key in state backend. */
 public interface StateKeyContext {
+
     /** Sets current state key to given value. */
     void setCurrentKey(RowData key);
 }

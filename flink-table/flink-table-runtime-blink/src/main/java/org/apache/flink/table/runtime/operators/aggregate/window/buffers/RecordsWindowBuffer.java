@@ -68,7 +68,9 @@ public final class RecordsWindowBuffer implements WindowBuffer {
 
     @Override
     public void addElement(BinaryRowData key, long sliceEnd, RowData element) throws Exception {
-        // track the lowest trigger time, if watermark exceeds the trigger time, it means there
+        // track the lowest trigger time, if watermark exceeds the trigger time,
+        // it means there are some elements in the buffer belong to a window going to be fired,
+        // and we need to flush the buffer into state for firing.
         minTriggerTime = Math.min(sliceEnd - 1, minTriggerTime);
 
         reuseWindowKey.replace(sliceEnd, key);
