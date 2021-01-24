@@ -1005,7 +1005,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                                 checkpointOptions,
                                 checkpointMetrics,
                                 operatorChain,
-                                this::isCanceled);
+                                this::isRunning);
                     });
 
             return true;
