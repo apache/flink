@@ -526,7 +526,7 @@ If `timestamp` is specified, another config option `scan.startup.timestamp-milli
 If `specific-offsets` is specified, another config option `scan.startup.specific-offsets` is required to specify specific startup offsets for each partition,
 e.g. an option value `partition:0,offset:42;partition:1,offset:300` indicates offset `42` for partition `0` and offset `300` for partition `1`.
 
-### CDC changelog Source
+### CDC Changelog Source
 
 Flink natively supports Kafka as a CDC changelog source. If messages in Kafka topic is change event captured from other databases using CDC tools, then you can use a CDC format to interpret messages as INSERT/UPDATE/DELETE messages into Flink SQL system.
 
