@@ -64,6 +64,10 @@ public class SubtaskStateStats implements Serializable {
     /** Is the checkpoint completed by this subtask. */
     private final boolean completed;
 
+    SubtaskStateStats(int subtaskIndex, long ackTimestamp) {
+        this(subtaskIndex, ackTimestamp, 0, 0, 0, 0, 0, 0, 0, false, true);
+    }
+
     SubtaskStateStats(
             int subtaskIndex,
             long ackTimestamp,
