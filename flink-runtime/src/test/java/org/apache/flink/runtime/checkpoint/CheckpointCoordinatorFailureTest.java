@@ -18,14 +18,14 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.InputChannelStateHandle;
@@ -59,20 +59,22 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
      */
     @Test
     public void testFailingCompletedCheckpointStoreAdd() throws Exception {
-        JobID jid = new JobID();
+        JobVertexID jobVertexId = new JobVertexID();
 
         final ManuallyTriggeredScheduledExecutor manuallyTriggeredScheduledExecutor =
                 new ManuallyTriggeredScheduledExecutor();
 
-        final ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
-        final ExecutionVertex vertex =
-                CheckpointCoordinatorTestingUtils.mockExecutionVertex(executionAttemptId);
+        ExecutionGraph testGraph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexId)
+                        .build();
+
+        ExecutionVertex vertex = testGraph.getJobVertex(jobVertexId).getTaskVertices()[0];
 
         // set up the coordinator and validate the initial state
         CheckpointCoordinator coord =
                 new CheckpointCoordinatorBuilder()
-                        .setJobId(jid)
-                        .setTasks(new ExecutionVertex[] {vertex})
+                        .setExecutionGraph(testGraph)
                         .setCompletedCheckpointStore(new FailingCompletedCheckpointStore())
                         .setTimer(manuallyTriggeredScheduledExecutor)
                         .build();
@@ -128,8 +130,8 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 
         AcknowledgeCheckpoint acknowledgeMessage =
                 new AcknowledgeCheckpoint(
-                        jid,
-                        executionAttemptId,
+                        testGraph.getJobID(),
+                        vertex.getCurrentExecutionAttempt().getAttemptId(),
                         checkpointId,
                         new CheckpointMetrics(),
                         subtaskState);

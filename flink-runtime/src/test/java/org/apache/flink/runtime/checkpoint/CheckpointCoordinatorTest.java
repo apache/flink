@@ -25,6 +25,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
@@ -32,12 +33,12 @@ import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
-import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.CheckpointCoordinatorConfigurationBuilder;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
@@ -59,20 +60,20 @@ import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorageAcces
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.memory.NonPersistentMetadataCheckpointStorageLocation;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
+import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.TriFunctionWithException;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
+import com.sun.istack.Nullable;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.verification.VerificationMode;
-
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -96,11 +97,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.mockExecutionJobVertex;
-import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.mockExecutionVertex;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_ASYNC_EXCEPTION;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_DECLINED;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_EXPIRED;
@@ -112,9 +110,8 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -129,42 +126,53 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
     @Test
     public void testAbortedCheckpointStatsUpdatedAfterFailure() throws Exception {
-        JobID jobID = new JobID();
         testReportStatsAfterFailure(
-                jobID,
                 1L,
-                (coordinator, attemptID, metrics) -> {
-                    coordinator.reportStats(1L, attemptID, metrics);
+                (coordinator, execution, metrics) -> {
+                    coordinator.reportStats(1L, execution.getAttemptId(), metrics);
                     return null;
                 });
     }
 
     @Test
     public void testCheckpointStatsUpdatedAfterFailure() throws Exception {
-        JobID jobID = new JobID();
         testReportStatsAfterFailure(
-                jobID,
                 1L,
-                (coordinator, attemptID, metrics) ->
+                (coordinator, execution, metrics) ->
                         coordinator.receiveAcknowledgeMessage(
                                 new AcknowledgeCheckpoint(
-                                        jobID, attemptID, 1L, metrics, new TaskStateSnapshot()),
+                                        execution.getVertex().getJobId(),
+                                        execution.getAttemptId(),
+                                        1L,
+                                        metrics,
+                                        new TaskStateSnapshot()),
                                 TASK_MANAGER_LOCATION_INFO));
     }
 
     private void testReportStatsAfterFailure(
-            JobID jobID,
             long checkpointId,
             TriFunctionWithException<
                             CheckpointCoordinator,
-                            ExecutionAttemptID,
+                            Execution,
                             CheckpointMetrics,
                             ?,
                             CheckpointException>
                     reportFn)
             throws Exception {
-        ExecutionVertex decliningVertex = mockExecutionVertex(new ExecutionAttemptID());
-        ExecutionVertex lateReportVertex = mockExecutionVertex(new ExecutionAttemptID());
+
+        JobVertexID decliningVertexID = new JobVertexID();
+        JobVertexID lateReportVertexID = new JobVertexID();
+
+        ExecutionGraph executionGraph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(decliningVertexID)
+                        .addJobVertex(lateReportVertexID)
+                        .build();
+
+        ExecutionVertex decliningVertex =
+                executionGraph.getJobVertex(decliningVertexID).getTaskVertices()[0];
+        ExecutionVertex lateReportVertex =
+                executionGraph.getJobVertex(lateReportVertexID).getTaskVertices()[0];
         CheckpointStatsTracker statsTracker =
                 new CheckpointStatsTracker(
                         Integer.MAX_VALUE,
@@ -172,9 +180,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
                         new UnregisteredMetricsGroup());
         CheckpointCoordinator coordinator =
                 new CheckpointCoordinatorBuilder()
-                        .setJobId(jobID)
+                        .setExecutionGraph(executionGraph)
                         .setTimer(manuallyTriggeredScheduledExecutor)
-                        .setTasks(decliningVertex, lateReportVertex)
                         .build();
         coordinator.setCheckpointStatsTracker(statsTracker);
 
@@ -190,7 +197,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
         coordinator.receiveDeclineMessage(
                 new DeclineCheckpoint(
-                        jobID,
+                        executionGraph.getJobID(),
                         decliningVertex.getCurrentExecutionAttempt().getAttemptId(),
                         checkpointId,
                         new CheckpointException(CHECKPOINT_DECLINED)),
@@ -206,9 +213,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                         .build();
 
         reportFn.apply(
-                coordinator,
-                lateReportVertex.getCurrentExecutionAttempt().getAttemptId(),
-                lateReportedMetrics);
+                coordinator, lateReportVertex.getCurrentExecutionAttempt(), lateReportedMetrics);
 
         assertStatsEqual(
                 checkpointId,
@@ -273,9 +278,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
         ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
         try {
             int pause = 1000;
-            JobID jobId = new JobID();
-            ExecutionAttemptID attemptId = new ExecutionAttemptID();
-            ExecutionVertex vertex = mockExecutionVertex(attemptId);
+            JobVertexID jobVertexId = new JobVertexID();
+            ExecutionGraph graph =
+                    new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                            .addJobVertex(jobVertexId)
+                            .setMainThreadExecutor(
+                                    ComponentMainThreadExecutorServiceAdapter
+                                            .forSingleThreadExecutor(
+                                                    new DirectScheduledExecutorService()))
+                            .build();
+
+            ExecutionVertex vertex = graph.getJobVertex(jobVertexId).getTaskVertices()[0];
+            ExecutionAttemptID attemptId = vertex.getCurrentExecutionAttempt().getAttemptId();
 
             CheckpointCoordinator coordinator =
                     new CheckpointCoordinatorBuilder()
@@ -287,10 +301,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                                             .setMaxConcurrentCheckpoints(1)
                                             .setMinPauseBetweenCheckpoints(pause)
                                             .build())
-                            .setTasksToTrigger(new ExecutionVertex[] {vertex})
-                            .setTasksToWaitFor(new ExecutionVertex[] {vertex})
-                            .setTasksToCommitTo(new ExecutionVertex[] {vertex})
-                            .setJobId(jobId)
+                            .setExecutionGraph(graph)
                             .build();
             coordinator.startCheckpointScheduler();
 
@@ -304,7 +315,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
                 Thread.sleep(10);
             }
             coordinator.receiveAcknowledgeMessage(
-                    new AcknowledgeCheckpoint(jobId, attemptId, 1L), TASK_MANAGER_LOCATION_INFO);
+                    new AcknowledgeCheckpoint(graph.getJobID(), attemptId, 1L),
+                    TASK_MANAGER_LOCATION_INFO);
             Thread.sleep(pause / 2);
             assertEquals(0, coordinator.getNumberOfPendingCheckpoints());
             Thread.sleep(pause);
@@ -317,9 +329,14 @@ public class CheckpointCoordinatorTest extends TestLogger {
     @Test
     public void testCheckpointAbortsIfTriggerTasksAreNotExecuted() {
         try {
-
             // set up the coordinator and validate the initial state
-            CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator();
+            ExecutionGraph graph =
+                    new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                            .addJobVertex(new JobVertexID())
+                            .setTransitToRunning(false)
+                            .build();
+
+            CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator(graph);
 
             // nothing should be happening
             assertEquals(0, checkpointCoordinator.getNumberOfPendingCheckpoints());
@@ -342,10 +359,32 @@ public class CheckpointCoordinatorTest extends TestLogger {
         }
     }
 
+    /**
+     * For Ack tasks, we would only abort the checkpoints when it does have a execution yet, which
+     * is impossible based on current implemented. We could already start triggering checkpoints as
+     * long as all the triggering tasks are running since the barriers could be cached in the
+     * upstream tasks' result partitions.
+     */
     @Test
-    public void testCheckpointAbortsIfTriggerTasksAreFinished() {
+    public void testCheckpointTriggeredBeforeAckTasksAreRunning() {
         try {
-            CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator();
+            JobVertexID jobVertexID1 = new JobVertexID();
+            JobVertexID jobVertexID2 = new JobVertexID();
+
+            ExecutionGraph graph =
+                    new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                            .addJobVertex(jobVertexID1)
+                            .addJobVertex(jobVertexID2, false)
+                            .setTransitToRunning(false)
+                            .build();
+
+            CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator(graph);
+            // Makes job vertex 1 running but the job vertex 2 not running
+            Arrays.stream(graph.getJobVertex(jobVertexID1).getTaskVertices())
+                    .forEach(
+                            task ->
+                                    task.getCurrentExecutionAttempt()
+                                            .transitionState(ExecutionState.RUNNING));
 
             // nothing should be happening
             assertEquals(0, checkpointCoordinator.getNumberOfPendingCheckpoints());
@@ -355,10 +394,10 @@ public class CheckpointCoordinatorTest extends TestLogger {
             final CompletableFuture<CompletedCheckpoint> checkpointFuture =
                     checkpointCoordinator.triggerCheckpoint(false);
             manuallyTriggeredScheduledExecutor.triggerAll();
-            assertTrue(checkpointFuture.isCompletedExceptionally());
+            assertFalse(checkpointFuture.isCompletedExceptionally());
 
             // still, nothing should be happening
-            assertEquals(0, checkpointCoordinator.getNumberOfPendingCheckpoints());
+            assertEquals(1, checkpointCoordinator.getNumberOfPendingCheckpoints());
             assertEquals(0, checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints());
 
             checkpointCoordinator.shutdown();
@@ -369,40 +408,19 @@ public class CheckpointCoordinatorTest extends TestLogger {
     }
 
     @Test
-    public void testCheckpointAbortsIfAckTasksAreNotExecuted() {
-        try {
-            CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator();
-
-            // nothing should be happening
-            assertEquals(0, checkpointCoordinator.getNumberOfPendingCheckpoints());
-            assertEquals(0, checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints());
-
-            // trigger the first checkpoint. this should not succeed
-            final CompletableFuture<CompletedCheckpoint> checkpointFuture =
-                    checkpointCoordinator.triggerCheckpoint(false);
-            manuallyTriggeredScheduledExecutor.triggerAll();
-            assertTrue(checkpointFuture.isCompletedExceptionally());
-
-            // still, nothing should be happening
-            assertEquals(0, checkpointCoordinator.getNumberOfPendingCheckpoints());
-            assertEquals(0, checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints());
-
-            checkpointCoordinator.shutdown();
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
-    }
-
-    @Test
-    public void testTriggerAndDeclineCheckpointThenFailureManagerThrowsException() {
-        final JobID jobId = new JobID();
-
-        // create some mock Execution vertices that receive the checkpoint trigger messages
-        final ExecutionAttemptID attemptID1 = new ExecutionAttemptID();
-        final ExecutionAttemptID attemptID2 = new ExecutionAttemptID();
-        ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
-        ExecutionVertex vertex2 = mockExecutionVertex(attemptID2);
+    public void testTriggerAndDeclineCheckpointThenFailureManagerThrowsException()
+            throws Exception {
+        JobVertexID jobVertexID1 = new JobVertexID();
+        JobVertexID jobVertexID2 = new JobVertexID();
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID1)
+                        .addJobVertex(jobVertexID2)
+                        .build();
+        ExecutionVertex vertex1 = graph.getJobVertex(jobVertexID1).getTaskVertices()[0];
+        ExecutionVertex vertex2 = graph.getJobVertex(jobVertexID2).getTaskVertices()[0];
+        final ExecutionAttemptID attemptID1 = vertex1.getCurrentExecutionAttempt().getAttemptId();
+        final ExecutionAttemptID attemptID2 = vertex2.getCurrentExecutionAttempt().getAttemptId();
 
         final String errorMsg = "Exceeded checkpoint failure tolerance number!";
 
@@ -410,7 +428,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
         // set up the coordinator
         CheckpointCoordinator checkpointCoordinator =
-                getCheckpointCoordinator(jobId, vertex1, vertex2, checkpointFailureManager);
+                getCheckpointCoordinator(graph, checkpointFailureManager);
 
         try {
             // trigger the checkpoint. this should succeed
@@ -431,7 +449,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
             // acknowledge from one of the tasks
             checkpointCoordinator.receiveAcknowledgeMessage(
-                    new AcknowledgeCheckpoint(jobId, attemptID2, checkpointId),
+                    new AcknowledgeCheckpoint(graph.getJobID(), attemptID2, checkpointId),
                     TASK_MANAGER_LOCATION_INFO);
             assertFalse(checkpoint.isDisposed());
             assertFalse(checkpoint.areTasksFullyAcknowledged());
@@ -439,7 +457,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
             // decline checkpoint from the other task
             checkpointCoordinator.receiveDeclineMessage(
                     new DeclineCheckpoint(
-                            jobId,
+                            graph.getJobID(),
                             attemptID1,
                             checkpointId,
                             new CheckpointException(CHECKPOINT_DECLINED)),
@@ -463,13 +481,16 @@ public class CheckpointCoordinatorTest extends TestLogger {
     @Test
     public void testExpiredCheckpointExceedsTolerableFailureNumber() throws Exception {
         // create some mock Execution vertices that receive the checkpoint trigger messages
-        ExecutionVertex vertex1 = mockExecutionVertex(new ExecutionAttemptID());
-        ExecutionVertex vertex2 = mockExecutionVertex(new ExecutionAttemptID());
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(new JobVertexID())
+                        .addJobVertex(new JobVertexID())
+                        .build();
 
         final String errorMsg = "Exceeded checkpoint failure tolerance number!";
         CheckpointFailureManager checkpointFailureManager = getCheckpointFailureManager(errorMsg);
         CheckpointCoordinator checkpointCoordinator =
-                getCheckpointCoordinator(new JobID(), vertex1, vertex2, checkpointFailureManager);
+                getCheckpointCoordinator(graph, checkpointFailureManager);
 
         try {
             checkpointCoordinator.triggerCheckpoint(false);
@@ -508,20 +529,31 @@ public class CheckpointCoordinatorTest extends TestLogger {
         try {
             final CheckpointException checkpointException =
                     new CheckpointException(checkpointFailureReason);
-            final JobID jobId = new JobID();
 
-            // create some mock Execution vertices that receive the checkpoint trigger messages
-            final ExecutionAttemptID attemptID1 = new ExecutionAttemptID();
-            final ExecutionAttemptID attemptID2 = new ExecutionAttemptID();
-            ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
-            ExecutionVertex vertex2 = mockExecutionVertex(attemptID2);
+            JobVertexID jobVertexID1 = new JobVertexID();
+            JobVertexID jobVertexID2 = new JobVertexID();
+
+            CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway gateway =
+                    new CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway();
+
+            ExecutionGraph graph =
+                    new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                            .addJobVertex(jobVertexID1)
+                            .addJobVertex(jobVertexID2)
+                            .setTaskManagerGateway(gateway)
+                            .build();
+
+            ExecutionVertex vertex1 = graph.getJobVertex(jobVertexID1).getTaskVertices()[0];
+            ExecutionVertex vertex2 = graph.getJobVertex(jobVertexID2).getTaskVertices()[0];
+
+            ExecutionAttemptID attemptID1 = vertex1.getCurrentExecutionAttempt().getAttemptId();
+            ExecutionAttemptID attemptID2 = vertex2.getCurrentExecutionAttempt().getAttemptId();
 
             TestFailJobCallback failJobCallback = new TestFailJobCallback();
             // set up the coordinator and validate the initial state
             CheckpointCoordinator checkpointCoordinator =
                     new CheckpointCoordinatorBuilder()
-                            .setJobId(jobId)
-                            .setTasks(new ExecutionVertex[] {vertex1, vertex2})
+                            .setExecutionGraph(graph)
                             .setCheckpointCoordinatorConfiguration(
                                     CheckpointCoordinatorConfiguration.builder()
                                             .setAlignmentTimeout(Long.MAX_VALUE)
@@ -560,7 +592,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
             assertNotNull(checkpoint);
             assertEquals(checkpointId, checkpoint.getCheckpointId());
-            assertEquals(jobId, checkpoint.getJobId());
+            assertEquals(graph.getJobID(), checkpoint.getJobId());
             assertEquals(2, checkpoint.getNumberOfNonAcknowledgedTasks());
             assertEquals(0, checkpoint.getNumberOfAcknowledgedTasks());
             assertEquals(0, checkpoint.getOperatorStates().size());
@@ -568,20 +600,21 @@ public class CheckpointCoordinatorTest extends TestLogger {
             assertFalse(checkpoint.areTasksFullyAcknowledged());
 
             // check that the vertices received the trigger checkpoint message
-            verify(vertex1.getCurrentExecutionAttempt())
-                    .triggerCheckpoint(
-                            checkpointId,
-                            checkpoint.getCheckpointTimestamp(),
-                            CheckpointOptions.forCheckpointWithDefaultLocation());
-            verify(vertex2.getCurrentExecutionAttempt())
-                    .triggerCheckpoint(
-                            checkpointId,
-                            checkpoint.getCheckpointTimestamp(),
-                            CheckpointOptions.forCheckpointWithDefaultLocation());
+            for (ExecutionVertex vertex : Arrays.asList(vertex1, vertex2)) {
+                CheckpointCoordinatorTestingUtils.TriggeredCheckpoint triggeredCheckpoint =
+                        gateway.getOnlyTriggeredCheckpoint(
+                                vertex.getCurrentExecutionAttempt().getAttemptId());
+                assertEquals(checkpointId, triggeredCheckpoint.checkpointId);
+                assertEquals(checkpoint.getCheckpointTimestamp(), triggeredCheckpoint.timestamp);
+                assertEquals(
+                        CheckpointOptions.forCheckpointWithDefaultLocation(),
+                        triggeredCheckpoint.checkpointOptions);
+            }
 
             // acknowledge from one of the tasks
             checkpointCoordinator.receiveAcknowledgeMessage(
-                    new AcknowledgeCheckpoint(jobId, attemptID2, checkpointId), "Unknown location");
+                    new AcknowledgeCheckpoint(graph.getJobID(), attemptID2, checkpointId),
+                    "Unknown location");
             assertEquals(1, checkpoint.getNumberOfAcknowledgedTasks());
             assertEquals(1, checkpoint.getNumberOfNonAcknowledgedTasks());
             assertFalse(checkpoint.isDisposed());
@@ -589,14 +622,16 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
             // acknowledge the same task again (should not matter)
             checkpointCoordinator.receiveAcknowledgeMessage(
-                    new AcknowledgeCheckpoint(jobId, attemptID2, checkpointId), "Unknown location");
+                    new AcknowledgeCheckpoint(graph.getJobID(), attemptID2, checkpointId),
+                    "Unknown location");
             assertFalse(checkpoint.isDisposed());
             assertFalse(checkpoint.areTasksFullyAcknowledged());
 
             // decline checkpoint from the other task, this should cancel the checkpoint
             // and trigger a new one
             checkpointCoordinator.receiveDeclineMessage(
-                    new DeclineCheckpoint(jobId, attemptID1, checkpointId, checkpointException),
+                    new DeclineCheckpoint(
+                            graph.getJobID(), attemptID1, checkpointId, checkpointException),
                     TASK_MANAGER_LOCATION_INFO);
             assertTrue(checkpoint.isDisposed());
 
@@ -610,10 +645,12 @@ public class CheckpointCoordinatorTest extends TestLogger {
             // decline again, nothing should happen
             // decline from the other task, nothing should happen
             checkpointCoordinator.receiveDeclineMessage(
-                    new DeclineCheckpoint(jobId, attemptID1, checkpointId, checkpointException),
+                    new DeclineCheckpoint(
+                            graph.getJobID(), attemptID1, checkpointId, checkpointException),
                     TASK_MANAGER_LOCATION_INFO);
             checkpointCoordinator.receiveDeclineMessage(
-                    new DeclineCheckpoint(jobId, attemptID2, checkpointId, checkpointException),
+                    new DeclineCheckpoint(
+                            graph.getJobID(), attemptID2, checkpointId, checkpointException),
                     TASK_MANAGER_LOCATION_INFO);
             assertTrue(checkpoint.isDisposed());
             assertEquals(1, failJobCallback.getInvokeCounter());
@@ -633,16 +670,25 @@ public class CheckpointCoordinatorTest extends TestLogger {
     @Test
     public void testTriggerAndDeclineCheckpointComplex() {
         try {
-            final JobID jobId = new JobID();
+            JobVertexID jobVertexID1 = new JobVertexID();
+            JobVertexID jobVertexID2 = new JobVertexID();
 
-            // create some mock Execution vertices that receive the checkpoint trigger messages
-            final ExecutionAttemptID attemptID1 = new ExecutionAttemptID();
-            final ExecutionAttemptID attemptID2 = new ExecutionAttemptID();
-            ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
-            ExecutionVertex vertex2 = mockExecutionVertex(attemptID2);
-            // set up the coordinator and validate the initial state
-            CheckpointCoordinator checkpointCoordinator =
-                    getCheckpointCoordinator(jobId, vertex1, vertex2);
+            CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway gateway =
+                    new CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway();
+
+            ExecutionGraph graph =
+                    new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                            .addJobVertex(jobVertexID1)
+                            .addJobVertex(jobVertexID2)
+                            .setTaskManagerGateway(gateway)
+                            .build();
+
+            ExecutionVertex vertex1 = graph.getJobVertex(jobVertexID1).getTaskVertices()[0];
+            ExecutionVertex vertex2 = graph.getJobVertex(jobVertexID2).getTaskVertices()[0];
+
+            ExecutionAttemptID attemptID1 = vertex1.getCurrentExecutionAttempt().getAttemptId();
+            ExecutionAttemptID attemptID2 = vertex2.getCurrentExecutionAttempt().getAttemptId();
+            CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator(graph);
 
             assertEquals(0, checkpointCoordinator.getNumberOfPendingCheckpoints());
             assertEquals(0, checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints());
@@ -676,7 +722,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
             assertNotNull(checkpoint1);
             assertEquals(checkpoint1Id, checkpoint1.getCheckpointId());
-            assertEquals(jobId, checkpoint1.getJobId());
+            assertEquals(graph.getJobID(), checkpoint1.getJobId());
             assertEquals(2, checkpoint1.getNumberOfNonAcknowledgedTasks());
             assertEquals(0, checkpoint1.getNumberOfAcknowledgedTasks());
             assertEquals(0, checkpoint1.getOperatorStates().size());
@@ -685,7 +731,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
             assertNotNull(checkpoint2);
             assertEquals(checkpoint2Id, checkpoint2.getCheckpointId());
-            assertEquals(jobId, checkpoint2.getJobId());
+            assertEquals(graph.getJobID(), checkpoint2.getJobId());
             assertEquals(2, checkpoint2.getNumberOfNonAcknowledgedTasks());
             assertEquals(0, checkpoint2.getNumberOfAcknowledgedTasks());
             assertEquals(0, checkpoint2.getOperatorStates().size());
@@ -693,38 +739,30 @@ public class CheckpointCoordinatorTest extends TestLogger {
             assertFalse(checkpoint2.areTasksFullyAcknowledged());
 
             // check that the vertices received the trigger checkpoint message
-            {
-                verify(vertex1.getCurrentExecutionAttempt(), times(1))
-                        .triggerCheckpoint(
-                                eq(checkpoint1Id), any(Long.class), any(CheckpointOptions.class));
-                verify(vertex2.getCurrentExecutionAttempt(), times(1))
-                        .triggerCheckpoint(
-                                eq(checkpoint1Id), any(Long.class), any(CheckpointOptions.class));
-            }
-
-            // check that the vertices received the trigger checkpoint message for the second
-            // checkpoint
-            {
-                verify(vertex1.getCurrentExecutionAttempt(), times(1))
-                        .triggerCheckpoint(
-                                eq(checkpoint2Id), any(Long.class), any(CheckpointOptions.class));
-                verify(vertex2.getCurrentExecutionAttempt(), times(1))
-                        .triggerCheckpoint(
-                                eq(checkpoint2Id), any(Long.class), any(CheckpointOptions.class));
+            for (ExecutionVertex vertex : Arrays.asList(vertex1, vertex2)) {
+                List<CheckpointCoordinatorTestingUtils.TriggeredCheckpoint> triggeredCheckpoints =
+                        gateway.getTriggeredCheckpoints(
+                                vertex.getCurrentExecutionAttempt().getAttemptId());
+                assertEquals(2, triggeredCheckpoints.size());
+                assertEquals(checkpoint1Id, triggeredCheckpoints.get(0).checkpointId);
+                assertEquals(checkpoint2Id, triggeredCheckpoints.get(1).checkpointId);
             }
 
             // decline checkpoint from one of the tasks, this should cancel the checkpoint
             checkpointCoordinator.receiveDeclineMessage(
                     new DeclineCheckpoint(
-                            jobId,
+                            graph.getJobID(),
                             attemptID1,
                             checkpoint1Id,
                             new CheckpointException(CHECKPOINT_DECLINED)),
                     TASK_MANAGER_LOCATION_INFO);
-            verify(vertex1.getCurrentExecutionAttempt(), times(1))
-                    .notifyCheckpointAborted(eq(checkpoint1Id), any(Long.class));
-            verify(vertex2.getCurrentExecutionAttempt(), times(1))
-                    .notifyCheckpointAborted(eq(checkpoint1Id), any(Long.class));
+            for (ExecutionVertex vertex : Arrays.asList(vertex1, vertex2)) {
+                assertEquals(
+                        checkpoint1Id,
+                        gateway.getOnlyNotifiedAbortedCheckpoint(
+                                        vertex.getCurrentExecutionAttempt().getAttemptId())
+                                .checkpointId);
+            }
 
             assertTrue(checkpoint1.isDisposed());
 
@@ -747,7 +785,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
             assertNotNull(checkpointNew);
             assertEquals(checkpointIdNew, checkpointNew.getCheckpointId());
-            assertEquals(jobId, checkpointNew.getJobId());
+            assertEquals(graph.getJobID(), checkpointNew.getJobId());
             assertEquals(2, checkpointNew.getNumberOfNonAcknowledgedTasks());
             assertEquals(0, checkpointNew.getNumberOfAcknowledgedTasks());
             assertEquals(0, checkpointNew.getOperatorStates().size());
@@ -759,14 +797,14 @@ public class CheckpointCoordinatorTest extends TestLogger {
             // decline from the other task, nothing should happen
             checkpointCoordinator.receiveDeclineMessage(
                     new DeclineCheckpoint(
-                            jobId,
+                            graph.getJobID(),
                             attemptID1,
                             checkpoint1Id,
                             new CheckpointException(CHECKPOINT_DECLINED)),
                     TASK_MANAGER_LOCATION_INFO);
             checkpointCoordinator.receiveDeclineMessage(
                     new DeclineCheckpoint(
-                            jobId,
+                            graph.getJobID(),
                             attemptID2,
                             checkpoint1Id,
                             new CheckpointException(CHECKPOINT_DECLINED)),
@@ -774,10 +812,13 @@ public class CheckpointCoordinatorTest extends TestLogger {
             assertTrue(checkpoint1.isDisposed());
 
             // will not notify abort message again
-            verify(vertex1.getCurrentExecutionAttempt(), times(1))
-                    .notifyCheckpointAborted(eq(checkpoint1Id), any(Long.class));
-            verify(vertex2.getCurrentExecutionAttempt(), times(1))
-                    .notifyCheckpointAborted(eq(checkpoint1Id), any(Long.class));
+            for (ExecutionVertex vertex : Arrays.asList(vertex1, vertex2)) {
+                assertEquals(
+                        1,
+                        gateway.getNotifiedAbortedCheckpoints(
+                                        vertex.getCurrentExecutionAttempt().getAttemptId())
+                                .size());
+            }
 
             checkpointCoordinator.shutdown();
         } catch (Exception e) {
@@ -789,17 +830,25 @@ public class CheckpointCoordinatorTest extends TestLogger {
     @Test
     public void testTriggerAndConfirmSimpleCheckpoint() {
         try {
-            final JobID jobId = new JobID();
+            JobVertexID jobVertexID1 = new JobVertexID();
+            JobVertexID jobVertexID2 = new JobVertexID();
 
-            // create some mock Execution vertices that receive the checkpoint trigger messages
-            final ExecutionAttemptID attemptID1 = new ExecutionAttemptID();
-            final ExecutionAttemptID attemptID2 = new ExecutionAttemptID();
-            ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
-            ExecutionVertex vertex2 = mockExecutionVertex(attemptID2);
+            CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway gateway =
+                    new CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway();
 
-            // set up the coordinator and validate the initial state
-            CheckpointCoordinator checkpointCoordinator =
-                    getCheckpointCoordinator(jobId, vertex1, vertex2);
+            ExecutionGraph graph =
+                    new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                            .addJobVertex(jobVertexID1)
+                            .addJobVertex(jobVertexID2)
+                            .setTaskManagerGateway(gateway)
+                            .build();
+
+            ExecutionVertex vertex1 = graph.getJobVertex(jobVertexID1).getTaskVertices()[0];
+            ExecutionVertex vertex2 = graph.getJobVertex(jobVertexID2).getTaskVertices()[0];
+
+            ExecutionAttemptID attemptID1 = vertex1.getCurrentExecutionAttempt().getAttemptId();
+            ExecutionAttemptID attemptID2 = vertex2.getCurrentExecutionAttempt().getAttemptId();
+            CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator(graph);
 
             assertEquals(0, checkpointCoordinator.getNumberOfPendingCheckpoints());
             assertEquals(0, checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints());
@@ -828,7 +877,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
             assertNotNull(checkpoint);
             assertEquals(checkpointId, checkpoint.getCheckpointId());
-            assertEquals(jobId, checkpoint.getJobId());
+            assertEquals(graph.getJobID(), checkpoint.getJobId());
             assertEquals(2, checkpoint.getNumberOfNonAcknowledgedTasks());
             assertEquals(0, checkpoint.getNumberOfAcknowledgedTasks());
             assertEquals(0, checkpoint.getOperatorStates().size());
@@ -836,17 +885,16 @@ public class CheckpointCoordinatorTest extends TestLogger {
             assertFalse(checkpoint.areTasksFullyAcknowledged());
 
             // check that the vertices received the trigger checkpoint message
-            {
-                verify(vertex1.getCurrentExecutionAttempt(), times(1))
-                        .triggerCheckpoint(
-                                eq(checkpointId), any(Long.class), any(CheckpointOptions.class));
-                verify(vertex2.getCurrentExecutionAttempt(), times(1))
-                        .triggerCheckpoint(
-                                eq(checkpointId), any(Long.class), any(CheckpointOptions.class));
+            for (ExecutionVertex vertex : Arrays.asList(vertex1, vertex2)) {
+                ExecutionAttemptID attemptId = vertex.getCurrentExecutionAttempt().getAttemptId();
+                assertEquals(
+                        checkpointId, gateway.getOnlyTriggeredCheckpoint(attemptId).checkpointId);
             }
 
-            OperatorID opID1 = OperatorID.fromJobVertexID(vertex1.getJobvertexId());
-            OperatorID opID2 = OperatorID.fromJobVertexID(vertex2.getJobvertexId());
+            OperatorID opID1 =
+                    vertex1.getJobVertex().getOperatorIDs().get(0).getGeneratedOperatorID();
+            OperatorID opID2 =
+                    vertex2.getJobVertex().getOperatorIDs().get(0).getGeneratedOperatorID();
             TaskStateSnapshot taskOperatorSubtaskStates1 = mock(TaskStateSnapshot.class);
             TaskStateSnapshot taskOperatorSubtaskStates2 = mock(TaskStateSnapshot.class);
             OperatorSubtaskState subtaskState1 = mock(OperatorSubtaskState.class);
@@ -859,7 +907,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
             // acknowledge from one of the tasks
             AcknowledgeCheckpoint acknowledgeCheckpoint1 =
                     new AcknowledgeCheckpoint(
-                            jobId,
+                            graph.getJobID(),
                             attemptID2,
                             checkpointId,
                             new CheckpointMetrics(),
@@ -883,7 +931,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
             // acknowledge the other task.
             checkpointCoordinator.receiveAcknowledgeMessage(
                     new AcknowledgeCheckpoint(
-                            jobId,
+                            graph.getJobID(),
                             attemptID1,
                             checkpointId,
                             new CheckpointMetrics(),
@@ -910,23 +958,22 @@ public class CheckpointCoordinatorTest extends TestLogger {
             }
 
             // validate that the relevant tasks got a confirmation message
-            {
-                verify(vertex1.getCurrentExecutionAttempt(), times(1))
-                        .triggerCheckpoint(
-                                eq(checkpointId), any(Long.class), any(CheckpointOptions.class));
-                verify(vertex2.getCurrentExecutionAttempt(), times(1))
-                        .triggerCheckpoint(
-                                eq(checkpointId), any(Long.class), any(CheckpointOptions.class));
+            for (ExecutionVertex vertex : Arrays.asList(vertex1, vertex2)) {
+                ExecutionAttemptID attemptId = vertex.getCurrentExecutionAttempt().getAttemptId();
+                assertEquals(
+                        checkpointId,
+                        gateway.getOnlyNotifiedCompletedCheckpoint(attemptId).checkpointId);
             }
 
             CompletedCheckpoint success = checkpointCoordinator.getSuccessfulCheckpoints().get(0);
-            assertEquals(jobId, success.getJobId());
+            assertEquals(graph.getJobID(), success.getJobId());
             assertEquals(checkpoint.getCheckpointId(), success.getCheckpointID());
             assertEquals(2, success.getOperatorStates().size());
 
             // ---------------
             // trigger another checkpoint and see that this one replaces the other checkpoint
             // ---------------
+            gateway.resetCount();
             checkpointCoordinator.triggerCheckpoint(false);
             manuallyTriggeredScheduledExecutor.triggerAll();
 
@@ -938,10 +985,10 @@ public class CheckpointCoordinatorTest extends TestLogger {
                             .next()
                             .getKey();
             checkpointCoordinator.receiveAcknowledgeMessage(
-                    new AcknowledgeCheckpoint(jobId, attemptID1, checkpointIdNew),
+                    new AcknowledgeCheckpoint(graph.getJobID(), attemptID1, checkpointIdNew),
                     TASK_MANAGER_LOCATION_INFO);
             checkpointCoordinator.receiveAcknowledgeMessage(
-                    new AcknowledgeCheckpoint(jobId, attemptID2, checkpointIdNew),
+                    new AcknowledgeCheckpoint(graph.getJobID(), attemptID2, checkpointIdNew),
                     TASK_MANAGER_LOCATION_INFO);
 
             assertEquals(0, checkpointCoordinator.getNumberOfPendingCheckpoints());
@@ -950,23 +997,19 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
             CompletedCheckpoint successNew =
                     checkpointCoordinator.getSuccessfulCheckpoints().get(0);
-            assertEquals(jobId, successNew.getJobId());
+            assertEquals(graph.getJobID(), successNew.getJobId());
             assertEquals(checkpointIdNew, successNew.getCheckpointID());
             assertTrue(successNew.getOperatorStates().isEmpty());
 
             // validate that the relevant tasks got a confirmation message
-            {
-                verify(vertex1.getCurrentExecutionAttempt(), times(1))
-                        .triggerCheckpoint(
-                                eq(checkpointIdNew), any(Long.class), any(CheckpointOptions.class));
-                verify(vertex2.getCurrentExecutionAttempt(), times(1))
-                        .triggerCheckpoint(
-                                eq(checkpointIdNew), any(Long.class), any(CheckpointOptions.class));
-
-                verify(vertex1.getCurrentExecutionAttempt(), times(1))
-                        .notifyCheckpointComplete(eq(checkpointIdNew), any(Long.class));
-                verify(vertex2.getCurrentExecutionAttempt(), times(1))
-                        .notifyCheckpointComplete(eq(checkpointIdNew), any(Long.class));
+            for (ExecutionVertex vertex : Arrays.asList(vertex1, vertex2)) {
+                ExecutionAttemptID attemptId = vertex.getCurrentExecutionAttempt().getAttemptId();
+                assertEquals(
+                        checkpointIdNew,
+                        gateway.getOnlyTriggeredCheckpoint(attemptId).checkpointId);
+                assertEquals(
+                        checkpointIdNew,
+                        gateway.getOnlyNotifiedCompletedCheckpoint(attemptId).checkpointId);
             }
 
             checkpointCoordinator.shutdown();
@@ -979,41 +1022,37 @@ public class CheckpointCoordinatorTest extends TestLogger {
     @Test
     public void testMultipleConcurrentCheckpoints() {
         try {
-            final JobID jobId = new JobID();
+            JobVertexID jobVertexID1 = new JobVertexID();
+            JobVertexID jobVertexID2 = new JobVertexID();
+            JobVertexID jobVertexID3 = new JobVertexID();
 
-            // create some mock execution vertices
+            CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway gateway =
+                    new CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway();
 
-            final ExecutionAttemptID triggerAttemptID1 = new ExecutionAttemptID();
-            final ExecutionAttemptID triggerAttemptID2 = new ExecutionAttemptID();
+            ExecutionGraph graph =
+                    new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                            .addJobVertex(jobVertexID1)
+                            .addJobVertex(jobVertexID2)
+                            .addJobVertex(jobVertexID3, false)
+                            .setTaskManagerGateway(gateway)
+                            .build();
 
-            final ExecutionAttemptID ackAttemptID1 = new ExecutionAttemptID();
-            final ExecutionAttemptID ackAttemptID2 = new ExecutionAttemptID();
-            final ExecutionAttemptID ackAttemptID3 = new ExecutionAttemptID();
+            ExecutionVertex vertex1 = graph.getJobVertex(jobVertexID1).getTaskVertices()[0];
+            ExecutionVertex vertex2 = graph.getJobVertex(jobVertexID2).getTaskVertices()[0];
+            ExecutionVertex vertex3 = graph.getJobVertex(jobVertexID3).getTaskVertices()[0];
 
-            final ExecutionAttemptID commitAttemptID = new ExecutionAttemptID();
-
-            ExecutionVertex triggerVertex1 = mockExecutionVertex(triggerAttemptID1);
-            ExecutionVertex triggerVertex2 = mockExecutionVertex(triggerAttemptID2);
-
-            ExecutionVertex ackVertex1 = mockExecutionVertex(ackAttemptID1);
-            ExecutionVertex ackVertex2 = mockExecutionVertex(ackAttemptID2);
-            ExecutionVertex ackVertex3 = mockExecutionVertex(ackAttemptID3);
-
-            ExecutionVertex commitVertex = mockExecutionVertex(commitAttemptID);
+            ExecutionAttemptID attemptID1 = vertex1.getCurrentExecutionAttempt().getAttemptId();
+            ExecutionAttemptID attemptID2 = vertex2.getCurrentExecutionAttempt().getAttemptId();
+            ExecutionAttemptID attemptID3 = vertex3.getCurrentExecutionAttempt().getAttemptId();
 
             // set up the coordinator and validate the initial state
             CheckpointCoordinator checkpointCoordinator =
                     new CheckpointCoordinatorBuilder()
-                            .setJobId(jobId)
+                            .setExecutionGraph(graph)
                             .setCheckpointCoordinatorConfiguration(
                                     CheckpointCoordinatorConfiguration.builder()
                                             .setMaxConcurrentCheckpoints(Integer.MAX_VALUE)
                                             .build())
-                            .setTasksToTrigger(
-                                    new ExecutionVertex[] {triggerVertex1, triggerVertex2})
-                            .setTasksToWaitFor(
-                                    new ExecutionVertex[] {ackVertex1, ackVertex2, ackVertex3})
-                            .setTasksToCommitTo(new ExecutionVertex[] {commitVertex})
                             .setCompletedCheckpointStore(new StandaloneCompletedCheckpointStore(2))
                             .setTimer(manuallyTriggeredScheduledExecutor)
                             .build();
@@ -1035,20 +1074,20 @@ public class CheckpointCoordinatorTest extends TestLogger {
             long checkpointId1 = pending1.getCheckpointId();
 
             // trigger messages should have been sent
-            verify(triggerVertex1.getCurrentExecutionAttempt(), times(1))
-                    .triggerCheckpoint(
-                            eq(checkpointId1), any(Long.class), any(CheckpointOptions.class));
-            verify(triggerVertex2.getCurrentExecutionAttempt(), times(1))
-                    .triggerCheckpoint(
-                            eq(checkpointId1), any(Long.class), any(CheckpointOptions.class));
+            for (ExecutionVertex vertex : Arrays.asList(vertex1, vertex2)) {
+                ExecutionAttemptID attemptId = vertex.getCurrentExecutionAttempt().getAttemptId();
+                assertEquals(
+                        checkpointId1, gateway.getOnlyTriggeredCheckpoint(attemptId).checkpointId);
+            }
 
             // acknowledge one of the three tasks
             checkpointCoordinator.receiveAcknowledgeMessage(
-                    new AcknowledgeCheckpoint(jobId, ackAttemptID2, checkpointId1),
+                    new AcknowledgeCheckpoint(graph.getJobID(), attemptID2, checkpointId1),
                     TASK_MANAGER_LOCATION_INFO);
 
             // start the second checkpoint
             // trigger the first checkpoint. this should succeed
+            gateway.resetCount();
             final CompletableFuture<CompletedCheckpoint> checkpointFuture2 =
                     checkpointCoordinator.triggerCheckpoint(false);
             manuallyTriggeredScheduledExecutor.triggerAll();
@@ -1068,26 +1107,25 @@ public class CheckpointCoordinatorTest extends TestLogger {
             long checkpointId2 = pending2.getCheckpointId();
 
             // trigger messages should have been sent
-            verify(triggerVertex1.getCurrentExecutionAttempt(), times(1))
-                    .triggerCheckpoint(
-                            eq(checkpointId2), any(Long.class), any(CheckpointOptions.class));
-            verify(triggerVertex2.getCurrentExecutionAttempt(), times(1))
-                    .triggerCheckpoint(
-                            eq(checkpointId2), any(Long.class), any(CheckpointOptions.class));
+            for (ExecutionVertex vertex : Arrays.asList(vertex1, vertex2)) {
+                ExecutionAttemptID attemptId = vertex.getCurrentExecutionAttempt().getAttemptId();
+                assertEquals(
+                        checkpointId2, gateway.getOnlyTriggeredCheckpoint(attemptId).checkpointId);
+            }
 
             // we acknowledge the remaining two tasks from the first
             // checkpoint and two tasks from the second checkpoint
             checkpointCoordinator.receiveAcknowledgeMessage(
-                    new AcknowledgeCheckpoint(jobId, ackAttemptID3, checkpointId1),
+                    new AcknowledgeCheckpoint(graph.getJobID(), attemptID3, checkpointId1),
                     TASK_MANAGER_LOCATION_INFO);
             checkpointCoordinator.receiveAcknowledgeMessage(
-                    new AcknowledgeCheckpoint(jobId, ackAttemptID1, checkpointId2),
+                    new AcknowledgeCheckpoint(graph.getJobID(), attemptID1, checkpointId2),
                     TASK_MANAGER_LOCATION_INFO);
             checkpointCoordinator.receiveAcknowledgeMessage(
-                    new AcknowledgeCheckpoint(jobId, ackAttemptID1, checkpointId1),
+                    new AcknowledgeCheckpoint(graph.getJobID(), attemptID1, checkpointId1),
                     TASK_MANAGER_LOCATION_INFO);
             checkpointCoordinator.receiveAcknowledgeMessage(
-                    new AcknowledgeCheckpoint(jobId, ackAttemptID2, checkpointId2),
+                    new AcknowledgeCheckpoint(graph.getJobID(), attemptID2, checkpointId2),
                     TASK_MANAGER_LOCATION_INFO);
 
             // now, the first checkpoint should be confirmed
@@ -1096,12 +1134,17 @@ public class CheckpointCoordinatorTest extends TestLogger {
             assertTrue(pending1.isDisposed());
 
             // the first confirm message should be out
-            verify(commitVertex.getCurrentExecutionAttempt(), times(1))
-                    .notifyCheckpointComplete(eq(checkpointId1), any(Long.class));
+            for (ExecutionVertex vertex : Arrays.asList(vertex1, vertex2, vertex3)) {
+                ExecutionAttemptID attemptId = vertex.getCurrentExecutionAttempt().getAttemptId();
+                assertEquals(
+                        checkpointId1,
+                        gateway.getOnlyNotifiedCompletedCheckpoint(attemptId).checkpointId);
+            }
 
             // send the last remaining ack for the second checkpoint
+            gateway.resetCount();
             checkpointCoordinator.receiveAcknowledgeMessage(
-                    new AcknowledgeCheckpoint(jobId, ackAttemptID3, checkpointId2),
+                    new AcknowledgeCheckpoint(graph.getJobID(), attemptID3, checkpointId2),
                     TASK_MANAGER_LOCATION_INFO);
 
             // now, the second checkpoint should be confirmed
@@ -1110,20 +1153,24 @@ public class CheckpointCoordinatorTest extends TestLogger {
             assertTrue(pending2.isDisposed());
 
             // the second commit message should be out
-            verify(commitVertex.getCurrentExecutionAttempt(), times(1))
-                    .notifyCheckpointComplete(eq(checkpointId2), any(Long.class));
+            for (ExecutionVertex vertex : Arrays.asList(vertex1, vertex2, vertex3)) {
+                ExecutionAttemptID attemptId = vertex.getCurrentExecutionAttempt().getAttemptId();
+                assertEquals(
+                        checkpointId2,
+                        gateway.getOnlyNotifiedCompletedCheckpoint(attemptId).checkpointId);
+            }
 
             // validate the committed checkpoints
             List<CompletedCheckpoint> scs = checkpointCoordinator.getSuccessfulCheckpoints();
 
             CompletedCheckpoint sc1 = scs.get(0);
             assertEquals(checkpointId1, sc1.getCheckpointID());
-            assertEquals(jobId, sc1.getJobId());
+            assertEquals(graph.getJobID(), sc1.getJobId());
             assertTrue(sc1.getOperatorStates().isEmpty());
 
             CompletedCheckpoint sc2 = scs.get(1);
             assertEquals(checkpointId2, sc2.getCheckpointID());
-            assertEquals(jobId, sc2.getJobId());
+            assertEquals(graph.getJobID(), sc2.getJobId());
             assertTrue(sc2.getOperatorStates().isEmpty());
 
             checkpointCoordinator.shutdown();
@@ -1136,42 +1183,39 @@ public class CheckpointCoordinatorTest extends TestLogger {
     @Test
     public void testSuccessfulCheckpointSubsumesUnsuccessful() {
         try {
-            final JobID jobId = new JobID();
+            JobVertexID jobVertexID1 = new JobVertexID();
+            JobVertexID jobVertexID2 = new JobVertexID();
+            JobVertexID jobVertexID3 = new JobVertexID();
 
-            // create some mock execution vertices
-            final ExecutionAttemptID triggerAttemptID1 = new ExecutionAttemptID();
-            final ExecutionAttemptID triggerAttemptID2 = new ExecutionAttemptID();
+            CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway gateway =
+                    new CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway();
 
-            final ExecutionAttemptID ackAttemptID1 = new ExecutionAttemptID();
-            final ExecutionAttemptID ackAttemptID2 = new ExecutionAttemptID();
-            final ExecutionAttemptID ackAttemptID3 = new ExecutionAttemptID();
+            ExecutionGraph graph =
+                    new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                            .addJobVertex(jobVertexID1)
+                            .addJobVertex(jobVertexID2)
+                            .addJobVertex(jobVertexID3, false)
+                            .setTaskManagerGateway(gateway)
+                            .build();
 
-            final ExecutionAttemptID commitAttemptID = new ExecutionAttemptID();
+            ExecutionVertex vertex1 = graph.getJobVertex(jobVertexID1).getTaskVertices()[0];
+            ExecutionVertex vertex2 = graph.getJobVertex(jobVertexID2).getTaskVertices()[0];
+            ExecutionVertex vertex3 = graph.getJobVertex(jobVertexID3).getTaskVertices()[0];
 
-            ExecutionVertex triggerVertex1 = mockExecutionVertex(triggerAttemptID1);
-            ExecutionVertex triggerVertex2 = mockExecutionVertex(triggerAttemptID2);
-
-            ExecutionVertex ackVertex1 = mockExecutionVertex(ackAttemptID1);
-            ExecutionVertex ackVertex2 = mockExecutionVertex(ackAttemptID2);
-            ExecutionVertex ackVertex3 = mockExecutionVertex(ackAttemptID3);
-
-            ExecutionVertex commitVertex = mockExecutionVertex(commitAttemptID);
+            ExecutionAttemptID attemptID1 = vertex1.getCurrentExecutionAttempt().getAttemptId();
+            ExecutionAttemptID attemptID2 = vertex2.getCurrentExecutionAttempt().getAttemptId();
+            ExecutionAttemptID attemptID3 = vertex3.getCurrentExecutionAttempt().getAttemptId();
 
             // set up the coordinator and validate the initial state
             final StandaloneCompletedCheckpointStore completedCheckpointStore =
                     new StandaloneCompletedCheckpointStore(10);
             CheckpointCoordinator checkpointCoordinator =
                     new CheckpointCoordinatorBuilder()
-                            .setJobId(jobId)
+                            .setExecutionGraph(graph)
                             .setCheckpointCoordinatorConfiguration(
                                     CheckpointCoordinatorConfiguration.builder()
                                             .setMaxConcurrentCheckpoints(Integer.MAX_VALUE)
                                             .build())
-                            .setTasksToTrigger(
-                                    new ExecutionVertex[] {triggerVertex1, triggerVertex2})
-                            .setTasksToWaitFor(
-                                    new ExecutionVertex[] {ackVertex1, ackVertex2, ackVertex3})
-                            .setTasksToCommitTo(new ExecutionVertex[] {commitVertex})
                             .setCompletedCheckpointStore(completedCheckpointStore)
                             .setTimer(manuallyTriggeredScheduledExecutor)
                             .build();
@@ -1193,16 +1237,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
             long checkpointId1 = pending1.getCheckpointId();
 
             // trigger messages should have been sent
-            verify(triggerVertex1.getCurrentExecutionAttempt(), times(1))
-                    .triggerCheckpoint(
-                            eq(checkpointId1), any(Long.class), any(CheckpointOptions.class));
-            verify(triggerVertex2.getCurrentExecutionAttempt(), times(1))
-                    .triggerCheckpoint(
-                            eq(checkpointId1), any(Long.class), any(CheckpointOptions.class));
+            for (ExecutionVertex vertex : Arrays.asList(vertex1, vertex2)) {
+                ExecutionAttemptID attemptId = vertex.getCurrentExecutionAttempt().getAttemptId();
+                assertEquals(
+                        checkpointId1, gateway.getOnlyTriggeredCheckpoint(attemptId).checkpointId);
+            }
 
-            OperatorID opID1 = OperatorID.fromJobVertexID(ackVertex1.getJobvertexId());
-            OperatorID opID2 = OperatorID.fromJobVertexID(ackVertex2.getJobvertexId());
-            OperatorID opID3 = OperatorID.fromJobVertexID(ackVertex3.getJobvertexId());
+            OperatorID opID1 =
+                    vertex1.getJobVertex().getOperatorIDs().get(0).getGeneratedOperatorID();
+            OperatorID opID2 =
+                    vertex2.getJobVertex().getOperatorIDs().get(0).getGeneratedOperatorID();
+            OperatorID opID3 =
+                    vertex3.getJobVertex().getOperatorIDs().get(0).getGeneratedOperatorID();
 
             TaskStateSnapshot taskOperatorSubtaskStates11 = spy(new TaskStateSnapshot());
             TaskStateSnapshot taskOperatorSubtaskStates12 = spy(new TaskStateSnapshot());
@@ -1218,15 +1264,15 @@ public class CheckpointCoordinatorTest extends TestLogger {
             // acknowledge one of the three tasks
             checkpointCoordinator.receiveAcknowledgeMessage(
                     new AcknowledgeCheckpoint(
-                            jobId,
-                            ackAttemptID2,
+                            graph.getJobID(),
+                            attemptID2,
                             checkpointId1,
                             new CheckpointMetrics(),
                             taskOperatorSubtaskStates12),
                     TASK_MANAGER_LOCATION_INFO);
 
             // start the second checkpoint
-            // trigger the first checkpoint. this should succeed
+            gateway.resetCount();
             final CompletableFuture<CompletedCheckpoint> checkpointFuture2 =
                     checkpointCoordinator.triggerCheckpoint(false);
             manuallyTriggeredScheduledExecutor.triggerAll();
@@ -1258,20 +1304,19 @@ public class CheckpointCoordinatorTest extends TestLogger {
             taskOperatorSubtaskStates23.putSubtaskStateByOperatorID(opID3, subtaskState23);
 
             // trigger messages should have been sent
-            verify(triggerVertex1.getCurrentExecutionAttempt(), times(1))
-                    .triggerCheckpoint(
-                            eq(checkpointId2), any(Long.class), any(CheckpointOptions.class));
-            verify(triggerVertex2.getCurrentExecutionAttempt(), times(1))
-                    .triggerCheckpoint(
-                            eq(checkpointId2), any(Long.class), any(CheckpointOptions.class));
+            for (ExecutionVertex vertex : Arrays.asList(vertex1, vertex2)) {
+                ExecutionAttemptID attemptId = vertex.getCurrentExecutionAttempt().getAttemptId();
+                assertEquals(
+                        checkpointId2, gateway.getOnlyTriggeredCheckpoint(attemptId).checkpointId);
+            }
 
             // we acknowledge one more task from the first checkpoint and the second
             // checkpoint completely. The second checkpoint should then subsume the first checkpoint
 
             checkpointCoordinator.receiveAcknowledgeMessage(
                     new AcknowledgeCheckpoint(
-                            jobId,
-                            ackAttemptID3,
+                            graph.getJobID(),
+                            attemptID3,
                             checkpointId2,
                             new CheckpointMetrics(),
                             taskOperatorSubtaskStates23),
@@ -1279,8 +1324,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
             checkpointCoordinator.receiveAcknowledgeMessage(
                     new AcknowledgeCheckpoint(
-                            jobId,
-                            ackAttemptID1,
+                            graph.getJobID(),
+                            attemptID1,
                             checkpointId2,
                             new CheckpointMetrics(),
                             taskOperatorSubtaskStates21),
@@ -1288,8 +1333,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
             checkpointCoordinator.receiveAcknowledgeMessage(
                     new AcknowledgeCheckpoint(
-                            jobId,
-                            ackAttemptID1,
+                            graph.getJobID(),
+                            attemptID1,
                             checkpointId1,
                             new CheckpointMetrics(),
                             taskOperatorSubtaskStates11),
@@ -1297,8 +1342,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
             checkpointCoordinator.receiveAcknowledgeMessage(
                     new AcknowledgeCheckpoint(
-                            jobId,
-                            ackAttemptID2,
+                            graph.getJobID(),
+                            attemptID2,
                             checkpointId2,
                             new CheckpointMetrics(),
                             taskOperatorSubtaskStates22),
@@ -1326,18 +1371,22 @@ public class CheckpointCoordinatorTest extends TestLogger {
             List<CompletedCheckpoint> scs = checkpointCoordinator.getSuccessfulCheckpoints();
             CompletedCheckpoint success = scs.get(0);
             assertEquals(checkpointId2, success.getCheckpointID());
-            assertEquals(jobId, success.getJobId());
+            assertEquals(graph.getJobID(), success.getJobId());
             assertEquals(3, success.getOperatorStates().size());
 
             // the first confirm message should be out
-            verify(commitVertex.getCurrentExecutionAttempt(), times(1))
-                    .notifyCheckpointComplete(eq(checkpointId2), any(Long.class));
+            for (ExecutionVertex vertex : Arrays.asList(vertex1, vertex2, vertex3)) {
+                ExecutionAttemptID attemptId = vertex.getCurrentExecutionAttempt().getAttemptId();
+                assertEquals(
+                        checkpointId2,
+                        gateway.getOnlyNotifiedCompletedCheckpoint(attemptId).checkpointId);
+            }
 
             // send the last remaining ack for the first checkpoint. This should not do anything
             checkpointCoordinator.receiveAcknowledgeMessage(
                     new AcknowledgeCheckpoint(
-                            jobId,
-                            ackAttemptID3,
+                            graph.getJobID(),
+                            attemptID3,
                             checkpointId1,
                             new CheckpointMetrics(),
                             taskOperatorSubtaskStates13),
@@ -1362,31 +1411,28 @@ public class CheckpointCoordinatorTest extends TestLogger {
     @Test
     public void testCheckpointTimeoutIsolated() {
         try {
-            final JobID jobId = new JobID();
+            JobVertexID jobVertexID1 = new JobVertexID();
+            JobVertexID jobVertexID2 = new JobVertexID();
 
-            // create some mock execution vertices
+            CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway gateway =
+                    new CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway();
 
-            final ExecutionAttemptID triggerAttemptID = new ExecutionAttemptID();
+            ExecutionGraph graph =
+                    new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                            .addJobVertex(jobVertexID1)
+                            .addJobVertex(jobVertexID2, false)
+                            .setTaskManagerGateway(gateway)
+                            .build();
 
-            final ExecutionAttemptID ackAttemptID1 = new ExecutionAttemptID();
-            final ExecutionAttemptID ackAttemptID2 = new ExecutionAttemptID();
+            ExecutionVertex vertex1 = graph.getJobVertex(jobVertexID1).getTaskVertices()[0];
+            ExecutionVertex vertex2 = graph.getJobVertex(jobVertexID2).getTaskVertices()[0];
 
-            final ExecutionAttemptID commitAttemptID = new ExecutionAttemptID();
-
-            ExecutionVertex triggerVertex = mockExecutionVertex(triggerAttemptID);
-
-            ExecutionVertex ackVertex1 = mockExecutionVertex(ackAttemptID1);
-            ExecutionVertex ackVertex2 = mockExecutionVertex(ackAttemptID2);
-
-            ExecutionVertex commitVertex = mockExecutionVertex(commitAttemptID);
+            ExecutionAttemptID attemptID1 = vertex1.getCurrentExecutionAttempt().getAttemptId();
 
             // set up the coordinator
             CheckpointCoordinator checkpointCoordinator =
                     new CheckpointCoordinatorBuilder()
-                            .setJobId(jobId)
-                            .setTasksToTrigger(new ExecutionVertex[] {triggerVertex})
-                            .setTasksToWaitFor(new ExecutionVertex[] {ackVertex1, ackVertex2})
-                            .setTasksToCommitTo(new ExecutionVertex[] {commitVertex})
+                            .setExecutionGraph(graph)
                             .setCompletedCheckpointStore(new StandaloneCompletedCheckpointStore(2))
                             .setTimer(manuallyTriggeredScheduledExecutor)
                             .build();
@@ -1402,7 +1448,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
                     checkpointCoordinator.getPendingCheckpoints().values().iterator().next();
             assertFalse(checkpoint.isDisposed());
 
-            OperatorID opID1 = OperatorID.fromJobVertexID(ackVertex1.getJobvertexId());
+            OperatorID opID1 =
+                    vertex1.getJobVertex().getOperatorIDs().get(0).getGeneratedOperatorID();
 
             TaskStateSnapshot taskOperatorSubtaskStates1 = spy(new TaskStateSnapshot());
             OperatorSubtaskState subtaskState1 = mock(OperatorSubtaskState.class);
@@ -1410,8 +1457,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
             checkpointCoordinator.receiveAcknowledgeMessage(
                     new AcknowledgeCheckpoint(
-                            jobId,
-                            ackAttemptID1,
+                            graph.getJobID(),
+                            attemptID1,
                             checkpoint.getCheckpointId(),
                             new CheckpointMetrics(),
                             taskOperatorSubtaskStates1),
@@ -1427,8 +1474,10 @@ public class CheckpointCoordinatorTest extends TestLogger {
             verify(subtaskState1, times(1)).discardState();
 
             // no confirm message must have been sent
-            verify(commitVertex.getCurrentExecutionAttempt(), times(0))
-                    .notifyCheckpointComplete(anyLong(), anyLong());
+            for (ExecutionVertex vertex : Arrays.asList(vertex1, vertex2)) {
+                ExecutionAttemptID attemptId = vertex.getCurrentExecutionAttempt().getAttemptId();
+                assertEquals(0, gateway.getNotifiedCompletedCheckpoints(attemptId).size());
+            }
 
             checkpointCoordinator.shutdown();
         } catch (Exception e) {
@@ -1440,26 +1489,27 @@ public class CheckpointCoordinatorTest extends TestLogger {
     @Test
     public void testHandleMessagesForNonExistingCheckpoints() {
         try {
-            final JobID jobId = new JobID();
-
             // create some mock execution vertices and trigger some checkpoint
+            JobVertexID jobVertexID1 = new JobVertexID();
+            JobVertexID jobVertexID2 = new JobVertexID();
 
-            final ExecutionAttemptID triggerAttemptID = new ExecutionAttemptID();
-            final ExecutionAttemptID ackAttemptID1 = new ExecutionAttemptID();
-            final ExecutionAttemptID ackAttemptID2 = new ExecutionAttemptID();
-            final ExecutionAttemptID commitAttemptID = new ExecutionAttemptID();
+            CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway gateway =
+                    new CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway();
 
-            ExecutionVertex triggerVertex = mockExecutionVertex(triggerAttemptID);
-            ExecutionVertex ackVertex1 = mockExecutionVertex(ackAttemptID1);
-            ExecutionVertex ackVertex2 = mockExecutionVertex(ackAttemptID2);
-            ExecutionVertex commitVertex = mockExecutionVertex(commitAttemptID);
+            ExecutionGraph graph =
+                    new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                            .addJobVertex(jobVertexID1)
+                            .addJobVertex(jobVertexID2, false)
+                            .setTaskManagerGateway(gateway)
+                            .build();
+
+            ExecutionVertex vertex1 = graph.getJobVertex(jobVertexID1).getTaskVertices()[0];
+
+            ExecutionAttemptID attemptID1 = vertex1.getCurrentExecutionAttempt().getAttemptId();
 
             CheckpointCoordinator checkpointCoordinator =
                     new CheckpointCoordinatorBuilder()
-                            .setJobId(jobId)
-                            .setTasksToTrigger(new ExecutionVertex[] {triggerVertex})
-                            .setTasksToWaitFor(new ExecutionVertex[] {ackVertex1, ackVertex2})
-                            .setTasksToCommitTo(new ExecutionVertex[] {commitVertex})
+                            .setExecutionGraph(graph)
                             .setCompletedCheckpointStore(new StandaloneCompletedCheckpointStore(2))
                             .setTimer(manuallyTriggeredScheduledExecutor)
                             .build();
@@ -1478,17 +1528,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
             // wrong job id
             checkpointCoordinator.receiveAcknowledgeMessage(
-                    new AcknowledgeCheckpoint(new JobID(), ackAttemptID1, checkpointId),
+                    new AcknowledgeCheckpoint(new JobID(), attemptID1, checkpointId),
                     TASK_MANAGER_LOCATION_INFO);
 
             // unknown checkpoint
             checkpointCoordinator.receiveAcknowledgeMessage(
-                    new AcknowledgeCheckpoint(jobId, ackAttemptID1, 1L),
+                    new AcknowledgeCheckpoint(graph.getJobID(), attemptID1, 1L),
                     TASK_MANAGER_LOCATION_INFO);
 
             // unknown ack vertex
             checkpointCoordinator.receiveAcknowledgeMessage(
-                    new AcknowledgeCheckpoint(jobId, new ExecutionAttemptID(), checkpointId),
+                    new AcknowledgeCheckpoint(
+                            graph.getJobID(), new ExecutionAttemptID(), checkpointId),
                     TASK_MANAGER_LOCATION_INFO);
 
             checkpointCoordinator.shutdown();
@@ -1508,29 +1559,33 @@ public class CheckpointCoordinatorTest extends TestLogger {
      */
     @Test
     public void testStateCleanupForLateOrUnknownMessages() throws Exception {
-        final JobID jobId = new JobID();
+        JobVertexID jobVertexID1 = new JobVertexID();
+        JobVertexID jobVertexID2 = new JobVertexID();
 
-        final ExecutionAttemptID triggerAttemptId = new ExecutionAttemptID();
-        final ExecutionVertex triggerVertex = mockExecutionVertex(triggerAttemptId);
+        CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway gateway =
+                new CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway();
 
-        final ExecutionAttemptID ackAttemptId1 = new ExecutionAttemptID();
-        final ExecutionVertex ackVertex1 = mockExecutionVertex(ackAttemptId1);
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID1)
+                        .addJobVertex(jobVertexID2, false)
+                        .setTaskManagerGateway(gateway)
+                        .build();
 
-        final ExecutionAttemptID ackAttemptId2 = new ExecutionAttemptID();
-        final ExecutionVertex ackVertex2 = mockExecutionVertex(ackAttemptId2);
+        ExecutionVertex vertex1 = graph.getJobVertex(jobVertexID1).getTaskVertices()[0];
+        ExecutionVertex vertex2 = graph.getJobVertex(jobVertexID2).getTaskVertices()[0];
+
+        ExecutionAttemptID attemptID1 = vertex1.getCurrentExecutionAttempt().getAttemptId();
+        ExecutionAttemptID attemptID2 = vertex2.getCurrentExecutionAttempt().getAttemptId();
 
         CheckpointCoordinatorConfiguration chkConfig =
-                new CheckpointCoordinatorConfigurationBuilder()
+                new CheckpointCoordinatorConfiguration.CheckpointCoordinatorConfigurationBuilder()
                         .setMaxConcurrentCheckpoints(1)
                         .build();
         CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinatorBuilder()
-                        .setJobId(jobId)
+                        .setExecutionGraph(graph)
                         .setCheckpointCoordinatorConfiguration(chkConfig)
-                        .setTasksToTrigger(new ExecutionVertex[] {triggerVertex})
-                        .setTasksToWaitFor(
-                                new ExecutionVertex[] {triggerVertex, ackVertex1, ackVertex2})
-                        .setTasksToCommitTo(new ExecutionVertex[0])
                         .setTimer(manuallyTriggeredScheduledExecutor)
                         .build();
 
@@ -1546,7 +1601,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
         long checkpointId = pendingCheckpoint.getCheckpointId();
 
-        OperatorID opIDtrigger = OperatorID.fromJobVertexID(triggerVertex.getJobvertexId());
+        OperatorID opIDtrigger =
+                vertex1.getJobVertex().getOperatorIDs().get(0).getGeneratedOperatorID();
 
         TaskStateSnapshot taskOperatorSubtaskStatesTrigger = spy(new TaskStateSnapshot());
         OperatorSubtaskState subtaskStateTrigger = mock(OperatorSubtaskState.class);
@@ -1556,8 +1612,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
         // acknowledge the first trigger vertex
         checkpointCoordinator.receiveAcknowledgeMessage(
                 new AcknowledgeCheckpoint(
-                        jobId,
-                        triggerAttemptId,
+                        graph.getJobID(),
+                        attemptID1,
                         checkpointId,
                         new CheckpointMetrics(),
                         taskOperatorSubtaskStatesTrigger),
@@ -1571,7 +1627,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
         // receive an acknowledge message for an unknown vertex
         checkpointCoordinator.receiveAcknowledgeMessage(
                 new AcknowledgeCheckpoint(
-                        jobId,
+                        graph.getJobID(),
                         new ExecutionAttemptID(),
                         checkpointId,
                         new CheckpointMetrics(),
@@ -1600,8 +1656,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
         TaskStateSnapshot triggerSubtaskState = mock(TaskStateSnapshot.class);
         checkpointCoordinator.receiveAcknowledgeMessage(
                 new AcknowledgeCheckpoint(
-                        jobId,
-                        triggerAttemptId,
+                        graph.getJobID(),
+                        attemptID1,
                         checkpointId,
                         new CheckpointMetrics(),
                         triggerSubtaskState),
@@ -1614,8 +1670,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
         reset(subtaskStateTrigger);
         checkpointCoordinator.receiveDeclineMessage(
                 new DeclineCheckpoint(
-                        jobId,
-                        ackAttemptId1,
+                        graph.getJobID(),
+                        attemptID1,
                         checkpointId,
                         new CheckpointException(CHECKPOINT_DECLINED)),
                 TASK_MANAGER_LOCATION_INFO);
@@ -1630,8 +1686,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
         // late acknowledge message from the second ack vertex
         checkpointCoordinator.receiveAcknowledgeMessage(
                 new AcknowledgeCheckpoint(
-                        jobId,
-                        ackAttemptId2,
+                        graph.getJobID(),
+                        attemptID2,
                         checkpointId,
                         new CheckpointMetrics(),
                         ackSubtaskState),
@@ -1659,7 +1715,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
         // receive an acknowledge message for an unknown vertex
         checkpointCoordinator.receiveAcknowledgeMessage(
                 new AcknowledgeCheckpoint(
-                        jobId,
+                        graph.getJobID(),
                         new ExecutionAttemptID(),
                         checkpointId,
                         new CheckpointMetrics(),
@@ -1687,17 +1743,27 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
     @Test
     public void testTriggerAndConfirmSimpleSavepoint() throws Exception {
-        final JobID jobId = new JobID();
+        JobVertexID jobVertexID1 = new JobVertexID();
+        JobVertexID jobVertexID2 = new JobVertexID();
 
-        // create some mock Execution vertices that receive the checkpoint trigger messages
-        final ExecutionAttemptID attemptID1 = new ExecutionAttemptID();
-        final ExecutionAttemptID attemptID2 = new ExecutionAttemptID();
-        ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
-        ExecutionVertex vertex2 = mockExecutionVertex(attemptID2);
+        CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway gateway =
+                new CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway();
+
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID1)
+                        .addJobVertex(jobVertexID2)
+                        .setTaskManagerGateway(gateway)
+                        .build();
+
+        ExecutionVertex vertex1 = graph.getJobVertex(jobVertexID1).getTaskVertices()[0];
+        ExecutionVertex vertex2 = graph.getJobVertex(jobVertexID2).getTaskVertices()[0];
+
+        ExecutionAttemptID attemptID1 = vertex1.getCurrentExecutionAttempt().getAttemptId();
+        ExecutionAttemptID attemptID2 = vertex2.getCurrentExecutionAttempt().getAttemptId();
 
         // set up the coordinator and validate the initial state
-        CheckpointCoordinator checkpointCoordinator =
-                getCheckpointCoordinator(jobId, vertex1, vertex2);
+        CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator(graph);
 
         assertEquals(0, checkpointCoordinator.getNumberOfPendingCheckpoints());
         assertEquals(0, checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints());
@@ -1718,7 +1784,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
         assertNotNull(pending);
         assertEquals(checkpointId, pending.getCheckpointId());
-        assertEquals(jobId, pending.getJobId());
+        assertEquals(graph.getJobID(), pending.getJobId());
         assertEquals(2, pending.getNumberOfNonAcknowledgedTasks());
         assertEquals(0, pending.getNumberOfAcknowledgedTasks());
         assertEquals(0, pending.getOperatorStates().size());
@@ -1740,7 +1806,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
         // acknowledge from one of the tasks
         AcknowledgeCheckpoint acknowledgeCheckpoint2 =
                 new AcknowledgeCheckpoint(
-                        jobId,
+                        graph.getJobID(),
                         attemptID2,
                         checkpointId,
                         new CheckpointMetrics(),
@@ -1763,7 +1829,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
         // acknowledge the other task.
         checkpointCoordinator.receiveAcknowledgeMessage(
                 new AcknowledgeCheckpoint(
-                        jobId,
+                        graph.getJobID(),
                         attemptID1,
                         checkpointId,
                         new CheckpointMetrics(),
@@ -1780,11 +1846,9 @@ public class CheckpointCoordinatorTest extends TestLogger {
         assertEquals(0, checkpointCoordinator.getNumberOfPendingCheckpoints());
 
         // validate that the relevant tasks got a confirmation message
-        {
-            verify(vertex1.getCurrentExecutionAttempt(), times(1))
-                    .notifyCheckpointComplete(eq(checkpointId), any(Long.class));
-            verify(vertex2.getCurrentExecutionAttempt(), times(1))
-                    .notifyCheckpointComplete(eq(checkpointId), any(Long.class));
+        for (ExecutionVertex vertex : Arrays.asList(vertex1, vertex2)) {
+            ExecutionAttemptID attemptId = vertex.getCurrentExecutionAttempt().getAttemptId();
+            assertEquals(checkpointId, gateway.getOnlyTriggeredCheckpoint(attemptId).checkpointId);
         }
 
         // validate that the shared states are registered
@@ -1794,13 +1858,14 @@ public class CheckpointCoordinatorTest extends TestLogger {
         }
 
         CompletedCheckpoint success = checkpointCoordinator.getSuccessfulCheckpoints().get(0);
-        assertEquals(jobId, success.getJobId());
+        assertEquals(graph.getJobID(), success.getJobId());
         assertEquals(pending.getCheckpointId(), success.getCheckpointID());
         assertEquals(2, success.getOperatorStates().size());
 
         // ---------------
         // trigger another checkpoint and see that this one replaces the other checkpoint
         // ---------------
+        gateway.resetCount();
         savepointFuture = checkpointCoordinator.triggerSavepoint(savepointDir);
         manuallyTriggeredScheduledExecutor.triggerAll();
         assertFalse(savepointFuture.isDone());
@@ -1808,17 +1873,17 @@ public class CheckpointCoordinatorTest extends TestLogger {
         long checkpointIdNew =
                 checkpointCoordinator.getPendingCheckpoints().entrySet().iterator().next().getKey();
         checkpointCoordinator.receiveAcknowledgeMessage(
-                new AcknowledgeCheckpoint(jobId, attemptID1, checkpointIdNew),
+                new AcknowledgeCheckpoint(graph.getJobID(), attemptID1, checkpointIdNew),
                 TASK_MANAGER_LOCATION_INFO);
         checkpointCoordinator.receiveAcknowledgeMessage(
-                new AcknowledgeCheckpoint(jobId, attemptID2, checkpointIdNew),
+                new AcknowledgeCheckpoint(graph.getJobID(), attemptID2, checkpointIdNew),
                 TASK_MANAGER_LOCATION_INFO);
 
         assertEquals(0, checkpointCoordinator.getNumberOfPendingCheckpoints());
         assertEquals(1, checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints());
 
         CompletedCheckpoint successNew = checkpointCoordinator.getSuccessfulCheckpoints().get(0);
-        assertEquals(jobId, successNew.getJobId());
+        assertEquals(graph.getJobID(), successNew.getJobId());
         assertEquals(checkpointIdNew, successNew.getCheckpointID());
         assertTrue(successNew.getOperatorStates().isEmpty());
         assertNotNull(savepointFuture.get());
@@ -1828,18 +1893,13 @@ public class CheckpointCoordinatorTest extends TestLogger {
         verify(subtaskState2, never()).discardState();
 
         // validate that the relevant tasks got a confirmation message
-        {
-            verify(vertex1.getCurrentExecutionAttempt(), times(1))
-                    .triggerCheckpoint(
-                            eq(checkpointIdNew), any(Long.class), any(CheckpointOptions.class));
-            verify(vertex2.getCurrentExecutionAttempt(), times(1))
-                    .triggerCheckpoint(
-                            eq(checkpointIdNew), any(Long.class), any(CheckpointOptions.class));
-
-            verify(vertex1.getCurrentExecutionAttempt(), times(1))
-                    .notifyCheckpointComplete(eq(checkpointIdNew), any(Long.class));
-            verify(vertex2.getCurrentExecutionAttempt(), times(1))
-                    .notifyCheckpointComplete(eq(checkpointIdNew), any(Long.class));
+        for (ExecutionVertex vertex : Arrays.asList(vertex1, vertex2)) {
+            ExecutionAttemptID attemptId = vertex.getCurrentExecutionAttempt().getAttemptId();
+            assertEquals(
+                    checkpointIdNew, gateway.getOnlyTriggeredCheckpoint(attemptId).checkpointId);
+            assertEquals(
+                    checkpointIdNew,
+                    gateway.getOnlyNotifiedCompletedCheckpoint(attemptId).checkpointId);
         }
 
         checkpointCoordinator.shutdown();
@@ -1853,25 +1913,31 @@ public class CheckpointCoordinatorTest extends TestLogger {
      */
     @Test
     public void testSavepointsAreNotSubsumed() throws Exception {
-        final JobID jobId = new JobID();
+        JobVertexID jobVertexID1 = new JobVertexID();
+        JobVertexID jobVertexID2 = new JobVertexID();
 
-        // create some mock Execution vertices that receive the checkpoint trigger messages
-        final ExecutionAttemptID attemptID1 = new ExecutionAttemptID();
-        final ExecutionAttemptID attemptID2 = new ExecutionAttemptID();
-        ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
-        ExecutionVertex vertex2 = mockExecutionVertex(attemptID2);
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID1)
+                        .addJobVertex(jobVertexID2)
+                        .build();
+
+        ExecutionVertex vertex1 = graph.getJobVertex(jobVertexID1).getTaskVertices()[0];
+        ExecutionVertex vertex2 = graph.getJobVertex(jobVertexID2).getTaskVertices()[0];
+
+        ExecutionAttemptID attemptID1 = vertex1.getCurrentExecutionAttempt().getAttemptId();
+        ExecutionAttemptID attemptID2 = vertex2.getCurrentExecutionAttempt().getAttemptId();
 
         StandaloneCheckpointIDCounter counter = new StandaloneCheckpointIDCounter();
 
         // set up the coordinator and validate the initial state
         CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinatorBuilder()
-                        .setJobId(jobId)
+                        .setExecutionGraph(graph)
                         .setCheckpointCoordinatorConfiguration(
                                 CheckpointCoordinatorConfiguration.builder()
                                         .setMaxConcurrentCheckpoints(Integer.MAX_VALUE)
                                         .build())
-                        .setTasks(new ExecutionVertex[] {vertex1, vertex2})
                         .setCheckpointIDCounter(counter)
                         .setCompletedCheckpointStore(new StandaloneCompletedCheckpointStore(10))
                         .setTimer(manuallyTriggeredScheduledExecutor)
@@ -1902,10 +1968,10 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
         // 2nd checkpoint should subsume the 1st checkpoint, but not the savepoint
         checkpointCoordinator.receiveAcknowledgeMessage(
-                new AcknowledgeCheckpoint(jobId, attemptID1, checkpointId2),
+                new AcknowledgeCheckpoint(graph.getJobID(), attemptID1, checkpointId2),
                 TASK_MANAGER_LOCATION_INFO);
         checkpointCoordinator.receiveAcknowledgeMessage(
-                new AcknowledgeCheckpoint(jobId, attemptID2, checkpointId2),
+                new AcknowledgeCheckpoint(graph.getJobID(), attemptID2, checkpointId2),
                 TASK_MANAGER_LOCATION_INFO);
 
         assertEquals(1, checkpointCoordinator.getNumberOfPendingCheckpoints());
@@ -1929,14 +1995,15 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
         // 2nd savepoint should subsume the last checkpoint, but not the 1st savepoint
         checkpointCoordinator.receiveAcknowledgeMessage(
-                new AcknowledgeCheckpoint(jobId, attemptID1, savepointId2),
+                new AcknowledgeCheckpoint(graph.getJobID(), attemptID1, savepointId2),
                 TASK_MANAGER_LOCATION_INFO);
         checkpointCoordinator.receiveAcknowledgeMessage(
-                new AcknowledgeCheckpoint(jobId, attemptID2, savepointId2),
+                new AcknowledgeCheckpoint(graph.getJobID(), attemptID2, savepointId2),
                 TASK_MANAGER_LOCATION_INFO);
 
         assertEquals(1, checkpointCoordinator.getNumberOfPendingCheckpoints());
         assertEquals(2, checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints());
+
         assertFalse(checkpointCoordinator.getPendingCheckpoints().get(savepointId1).isDisposed());
 
         assertFalse(savepointFuture1.isDone());
@@ -1944,10 +2011,10 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
         // Ack first savepoint
         checkpointCoordinator.receiveAcknowledgeMessage(
-                new AcknowledgeCheckpoint(jobId, attemptID1, savepointId1),
+                new AcknowledgeCheckpoint(graph.getJobID(), attemptID1, savepointId1),
                 TASK_MANAGER_LOCATION_INFO);
         checkpointCoordinator.receiveAcknowledgeMessage(
-                new AcknowledgeCheckpoint(jobId, attemptID2, savepointId1),
+                new AcknowledgeCheckpoint(graph.getJobID(), attemptID2, savepointId1),
                 TASK_MANAGER_LOCATION_INFO);
 
         assertEquals(0, checkpointCoordinator.getNumberOfPendingCheckpoints());
@@ -1957,39 +2024,24 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
     private void testMaxConcurrentAttempts(int maxConcurrentAttempts) {
         try {
-            final JobID jobId = new JobID();
+            JobVertexID jobVertexID1 = new JobVertexID();
 
-            // create some mock execution vertices and trigger some checkpoint
-            final ExecutionAttemptID triggerAttemptID = new ExecutionAttemptID();
-            final ExecutionAttemptID ackAttemptID = new ExecutionAttemptID();
-            final ExecutionAttemptID commitAttemptID = new ExecutionAttemptID();
+            CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway gateway =
+                    new CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway();
 
-            ExecutionVertex triggerVertex = mockExecutionVertex(triggerAttemptID);
-            ExecutionVertex ackVertex = mockExecutionVertex(ackAttemptID);
-            ExecutionVertex commitVertex = mockExecutionVertex(commitAttemptID);
+            ExecutionGraph graph =
+                    new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                            .addJobVertex(jobVertexID1)
+                            .setTaskManagerGateway(gateway)
+                            .build();
 
-            final AtomicInteger numCalls = new AtomicInteger();
+            ExecutionVertex vertex1 = graph.getJobVertex(jobVertexID1).getTaskVertices()[0];
 
-            final Execution execution = triggerVertex.getCurrentExecutionAttempt();
-
-            doAnswer(
-                            invocation -> {
-                                numCalls.incrementAndGet();
-                                return null;
-                            })
-                    .when(execution)
-                    .triggerCheckpoint(anyLong(), anyLong(), any(CheckpointOptions.class));
-
-            doAnswer(
-                            invocation -> {
-                                numCalls.incrementAndGet();
-                                return null;
-                            })
-                    .when(execution)
-                    .notifyCheckpointComplete(anyLong(), anyLong());
+            ExecutionAttemptID attemptID1 = vertex1.getCurrentExecutionAttempt().getAttemptId();
 
             CheckpointCoordinatorConfiguration chkConfig =
-                    new CheckpointCoordinatorConfigurationBuilder()
+                    new CheckpointCoordinatorConfiguration
+                                    .CheckpointCoordinatorConfigurationBuilder()
                             .setCheckpointInterval(10) // periodic interval is 10 ms
                             .setCheckpointTimeout(200000) // timeout is very long (200 s)
                             .setMinPauseBetweenCheckpoints(0L) // no extra delay
@@ -1997,11 +2049,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
                             .build();
             CheckpointCoordinator checkpointCoordinator =
                     new CheckpointCoordinatorBuilder()
-                            .setJobId(jobId)
+                            .setExecutionGraph(graph)
                             .setCheckpointCoordinatorConfiguration(chkConfig)
-                            .setTasksToTrigger(new ExecutionVertex[] {triggerVertex})
-                            .setTasksToWaitFor(new ExecutionVertex[] {ackVertex})
-                            .setTasksToCommitTo(new ExecutionVertex[] {commitVertex})
                             .setCompletedCheckpointStore(new StandaloneCompletedCheckpointStore(2))
                             .setTimer(manuallyTriggeredScheduledExecutor)
                             .build();
@@ -2013,29 +2062,30 @@ public class CheckpointCoordinatorTest extends TestLogger {
                 manuallyTriggeredScheduledExecutor.triggerAll();
             }
 
-            assertEquals(maxConcurrentAttempts, numCalls.get());
-
-            verify(triggerVertex.getCurrentExecutionAttempt(), times(maxConcurrentAttempts))
-                    .triggerCheckpoint(anyLong(), anyLong(), any(CheckpointOptions.class));
+            assertEquals(maxConcurrentAttempts, gateway.getTriggeredCheckpoints(attemptID1).size());
+            assertEquals(0, gateway.getNotifiedCompletedCheckpoints(attemptID1).size());
 
             // now, once we acknowledge one checkpoint, it should trigger the next one
             checkpointCoordinator.receiveAcknowledgeMessage(
-                    new AcknowledgeCheckpoint(jobId, ackAttemptID, 1L), TASK_MANAGER_LOCATION_INFO);
+                    new AcknowledgeCheckpoint(graph.getJobID(), attemptID1, 1L),
+                    TASK_MANAGER_LOCATION_INFO);
 
             final Collection<ScheduledFuture<?>> periodicScheduledTasks =
                     manuallyTriggeredScheduledExecutor.getPeriodicScheduledTask();
             assertEquals(1, periodicScheduledTasks.size());
-            final ScheduledFuture scheduledFuture = periodicScheduledTasks.iterator().next();
 
             manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
             manuallyTriggeredScheduledExecutor.triggerAll();
 
-            assertEquals(maxConcurrentAttempts + 1, numCalls.get());
+            assertEquals(
+                    maxConcurrentAttempts + 1, gateway.getTriggeredCheckpoints(attemptID1).size());
 
             // no further checkpoints should happen
             manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
             manuallyTriggeredScheduledExecutor.triggerAll();
-            assertEquals(maxConcurrentAttempts + 1, numCalls.get());
+
+            assertEquals(
+                    maxConcurrentAttempts + 1, gateway.getTriggeredCheckpoints(attemptID1).size());
 
             checkpointCoordinator.shutdown();
         } catch (Exception e) {
@@ -2048,19 +2098,20 @@ public class CheckpointCoordinatorTest extends TestLogger {
     public void testMaxConcurrentAttempsWithSubsumption() {
         try {
             final int maxConcurrentAttempts = 2;
-            final JobID jobId = new JobID();
+            JobVertexID jobVertexID1 = new JobVertexID();
 
-            // create some mock execution vertices and trigger some checkpoint
-            final ExecutionAttemptID triggerAttemptID = new ExecutionAttemptID();
-            final ExecutionAttemptID ackAttemptID = new ExecutionAttemptID();
-            final ExecutionAttemptID commitAttemptID = new ExecutionAttemptID();
+            ExecutionGraph graph =
+                    new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                            .addJobVertex(jobVertexID1)
+                            .build();
 
-            ExecutionVertex triggerVertex = mockExecutionVertex(triggerAttemptID);
-            ExecutionVertex ackVertex = mockExecutionVertex(ackAttemptID);
-            ExecutionVertex commitVertex = mockExecutionVertex(commitAttemptID);
+            ExecutionVertex vertex1 = graph.getJobVertex(jobVertexID1).getTaskVertices()[0];
+
+            ExecutionAttemptID attemptID1 = vertex1.getCurrentExecutionAttempt().getAttemptId();
 
             CheckpointCoordinatorConfiguration chkConfig =
-                    new CheckpointCoordinatorConfigurationBuilder()
+                    new CheckpointCoordinatorConfiguration
+                                    .CheckpointCoordinatorConfigurationBuilder()
                             .setCheckpointInterval(10) // periodic interval is 10 ms
                             .setCheckpointTimeout(200000) // timeout is very long (200 s)
                             .setMinPauseBetweenCheckpoints(0L) // no extra delay
@@ -2068,11 +2119,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
                             .build();
             CheckpointCoordinator checkpointCoordinator =
                     new CheckpointCoordinatorBuilder()
-                            .setJobId(jobId)
+                            .setExecutionGraph(graph)
                             .setCheckpointCoordinatorConfiguration(chkConfig)
-                            .setTasksToTrigger(new ExecutionVertex[] {triggerVertex})
-                            .setTasksToWaitFor(new ExecutionVertex[] {ackVertex})
-                            .setTasksToCommitTo(new ExecutionVertex[] {commitVertex})
                             .setCompletedCheckpointStore(new StandaloneCompletedCheckpointStore(2))
                             .setTimer(manuallyTriggeredScheduledExecutor)
                             .build();
@@ -2094,7 +2142,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
             // and allow two more checkpoints to be triggered
             // now, once we acknowledge one checkpoint, it should trigger the next one
             checkpointCoordinator.receiveAcknowledgeMessage(
-                    new AcknowledgeCheckpoint(jobId, ackAttemptID, 2L), TASK_MANAGER_LOCATION_INFO);
+                    new AcknowledgeCheckpoint(graph.getJobID(), attemptID1, 2L),
+                    TASK_MANAGER_LOCATION_INFO);
 
             // after a while, there should be the new checkpoints
             do {
@@ -2118,24 +2167,19 @@ public class CheckpointCoordinatorTest extends TestLogger {
     @Test
     public void testPeriodicSchedulingWithInactiveTasks() {
         try {
-            final JobID jobId = new JobID();
+            JobVertexID jobVertexID1 = new JobVertexID();
 
-            // create some mock execution vertices and trigger some checkpoint
-            final ExecutionAttemptID triggerAttemptID = new ExecutionAttemptID();
-            final ExecutionAttemptID ackAttemptID = new ExecutionAttemptID();
-            final ExecutionAttemptID commitAttemptID = new ExecutionAttemptID();
+            ExecutionGraph graph =
+                    new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                            .addJobVertex(jobVertexID1)
+                            .setTransitToRunning(false)
+                            .build();
 
-            ExecutionVertex triggerVertex = mockExecutionVertex(triggerAttemptID);
-            ExecutionVertex ackVertex = mockExecutionVertex(ackAttemptID);
-            ExecutionVertex commitVertex = mockExecutionVertex(commitAttemptID);
-
-            final AtomicReference<ExecutionState> currentState =
-                    new AtomicReference<>(ExecutionState.CREATED);
-            when(triggerVertex.getCurrentExecutionAttempt().getState())
-                    .thenAnswer(invocation -> currentState.get());
+            ExecutionVertex vertex1 = graph.getJobVertex(jobVertexID1).getTaskVertices()[0];
 
             CheckpointCoordinatorConfiguration chkConfig =
-                    new CheckpointCoordinatorConfigurationBuilder()
+                    new CheckpointCoordinatorConfiguration
+                                    .CheckpointCoordinatorConfigurationBuilder()
                             .setCheckpointInterval(10) // periodic interval is 10 ms
                             .setCheckpointTimeout(200000) // timeout is very long (200 s)
                             .setMinPauseBetweenCheckpoints(0) // no extra delay
@@ -2143,11 +2187,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
                             .build();
             CheckpointCoordinator checkpointCoordinator =
                     new CheckpointCoordinatorBuilder()
-                            .setJobId(jobId)
+                            .setExecutionGraph(graph)
                             .setCheckpointCoordinatorConfiguration(chkConfig)
-                            .setTasksToTrigger(new ExecutionVertex[] {triggerVertex})
-                            .setTasksToWaitFor(new ExecutionVertex[] {ackVertex})
-                            .setTasksToCommitTo(new ExecutionVertex[] {commitVertex})
                             .setCompletedCheckpointStore(new StandaloneCompletedCheckpointStore(2))
                             .setTimer(manuallyTriggeredScheduledExecutor)
                             .build();
@@ -2160,7 +2201,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
             assertEquals(0, checkpointCoordinator.getNumberOfPendingCheckpoints());
 
             // now move the state to RUNNING
-            currentState.set(ExecutionState.RUNNING);
+            vertex1.getCurrentExecutionAttempt().transitionState(ExecutionState.RUNNING);
 
             // the coordinator should start checkpointing now
             manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
@@ -2176,24 +2217,30 @@ public class CheckpointCoordinatorTest extends TestLogger {
     /** Tests that the savepoints can be triggered concurrently. */
     @Test
     public void testConcurrentSavepoints() throws Exception {
-        JobID jobId = new JobID();
         int numSavepoints = 5;
 
-        final ExecutionAttemptID attemptID1 = new ExecutionAttemptID();
-        ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
+        JobVertexID jobVertexID1 = new JobVertexID();
+
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID1)
+                        .build();
+
+        ExecutionVertex vertex1 = graph.getJobVertex(jobVertexID1).getTaskVertices()[0];
+
+        ExecutionAttemptID attemptID1 = vertex1.getCurrentExecutionAttempt().getAttemptId();
 
         StandaloneCheckpointIDCounter checkpointIDCounter = new StandaloneCheckpointIDCounter();
 
         CheckpointCoordinatorConfiguration chkConfig =
-                new CheckpointCoordinatorConfigurationBuilder()
+                new CheckpointCoordinatorConfiguration.CheckpointCoordinatorConfigurationBuilder()
                         .setMaxConcurrentCheckpoints(
                                 1) // max one checkpoint at a time => should not affect savepoints
                         .build();
         CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinatorBuilder()
-                        .setJobId(jobId)
+                        .setExecutionGraph(graph)
                         .setCheckpointCoordinatorConfiguration(chkConfig)
-                        .setTasks(new ExecutionVertex[] {vertex1})
                         .setCheckpointIDCounter(checkpointIDCounter)
                         .setCompletedCheckpointStore(new StandaloneCompletedCheckpointStore(2))
                         .setTimer(manuallyTriggeredScheduledExecutor)
@@ -2219,7 +2266,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
         long checkpointId = checkpointIDCounter.getLast();
         for (int i = 0; i < numSavepoints; i++, checkpointId--) {
             checkpointCoordinator.receiveAcknowledgeMessage(
-                    new AcknowledgeCheckpoint(jobId, attemptID1, checkpointId),
+                    new AcknowledgeCheckpoint(graph.getJobID(), attemptID1, checkpointId),
                     TASK_MANAGER_LOCATION_INFO);
         }
 
@@ -2233,7 +2280,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
     @Test
     public void testMinDelayBetweenSavepoints() throws Exception {
         CheckpointCoordinatorConfiguration chkConfig =
-                new CheckpointCoordinatorConfigurationBuilder()
+                new CheckpointCoordinatorConfiguration.CheckpointCoordinatorConfigurationBuilder()
                         .setMinPauseBetweenCheckpoints(
                                 100000000L) // very long min delay => should not affect savepoints
                         .setMaxConcurrentCheckpoints(1)
@@ -2261,14 +2308,21 @@ public class CheckpointCoordinatorTest extends TestLogger {
     public void testExternalizedCheckpoints() throws Exception {
         try {
 
+            ExecutionGraph graph =
+                    new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                            .addJobVertex(new JobVertexID())
+                            .build();
+
             // set up the coordinator and validate the initial state
             CheckpointCoordinatorConfiguration chkConfig =
-                    new CheckpointCoordinatorConfigurationBuilder()
+                    new CheckpointCoordinatorConfiguration
+                                    .CheckpointCoordinatorConfigurationBuilder()
                             .setCheckpointRetentionPolicy(
                                     CheckpointRetentionPolicy.RETAIN_ON_FAILURE)
                             .build();
             CheckpointCoordinator checkpointCoordinator =
                     new CheckpointCoordinatorBuilder()
+                            .setExecutionGraph(graph)
                             .setCheckpointCoordinatorConfiguration(chkConfig)
                             .setTimer(manuallyTriggeredScheduledExecutor)
                             .build();
@@ -2507,7 +2561,6 @@ public class CheckpointCoordinatorTest extends TestLogger {
     /** Tests that the pending checkpoint stats callbacks are created. */
     @Test
     public void testCheckpointStatsTrackerPendingCheckpointCallback() throws Exception {
-
         // set up the coordinator and validate the initial state
         CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinatorBuilder()
@@ -2575,23 +2628,17 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
     @Test
     public void testSharedStateRegistrationOnRestore() throws Exception {
-
-        final JobID jobId = new JobID();
-
-        final JobVertexID jobVertexID1 = new JobVertexID();
+        JobVertexID jobVertexID1 = new JobVertexID();
 
         int parallelism1 = 2;
         int maxParallelism1 = 4;
 
-        final ExecutionJobVertex jobVertex1 =
-                mockExecutionJobVertex(jobVertexID1, parallelism1, maxParallelism1);
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID1, parallelism1, maxParallelism1)
+                        .build();
 
-        List<ExecutionVertex> allExecutionVertices = new ArrayList<>(parallelism1);
-
-        allExecutionVertices.addAll(Arrays.asList(jobVertex1.getTaskVertices()));
-
-        ExecutionVertex[] arrayExecutionVertices =
-                allExecutionVertices.toArray(new ExecutionVertex[allExecutionVertices.size()]);
+        ExecutionJobVertex jobVertex1 = graph.getJobVertex(jobVertexID1);
 
         EmbeddedCompletedCheckpointStore store = new EmbeddedCompletedCheckpointStore(10);
 
@@ -2600,8 +2647,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
         // set up the coordinator and validate the initial state
         CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinatorBuilder()
-                        .setJobId(jobId)
-                        .setTasks(arrayExecutionVertices)
+                        .setExecutionGraph(graph)
                         .setCompletedCheckpointStore(store)
                         .setTimer(manuallyTriggeredScheduledExecutor)
                         .setSharedStateRegistryFactory(
@@ -2620,7 +2666,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
         for (int i = 0; i < numCheckpoints; ++i) {
             performIncrementalCheckpoint(
-                    jobId, checkpointCoordinator, jobVertex1, keyGroupPartitions1, i);
+                    graph.getJobID(), checkpointCoordinator, jobVertex1, keyGroupPartitions1, i);
         }
 
         List<CompletedCheckpoint> completedCheckpoints =
@@ -2753,19 +2799,25 @@ public class CheckpointCoordinatorTest extends TestLogger {
         final Tuple2<Integer, Throwable> invocationCounterAndException = Tuple2.of(0, null);
         final Throwable expectedRootCause = new IOException("Custom-Exception");
 
-        final JobID jobId = new JobID();
+        JobVertexID jobVertexID1 = new JobVertexID();
+        JobVertexID jobVertexID2 = new JobVertexID();
 
-        final ExecutionAttemptID attemptID1 = new ExecutionAttemptID();
-        final ExecutionAttemptID attemptID2 = new ExecutionAttemptID();
-        final ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
-        final ExecutionVertex vertex2 = mockExecutionVertex(attemptID2);
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID1)
+                        .addJobVertex(jobVertexID2)
+                        .build();
+
+        ExecutionVertex vertex1 = graph.getJobVertex(jobVertexID1).getTaskVertices()[0];
+        ExecutionVertex vertex2 = graph.getJobVertex(jobVertexID2).getTaskVertices()[0];
+
+        ExecutionAttemptID attemptID1 = vertex1.getCurrentExecutionAttempt().getAttemptId();
+        ExecutionAttemptID attemptID2 = vertex2.getCurrentExecutionAttempt().getAttemptId();
 
         // set up the coordinator and validate the initial state
         final CheckpointCoordinator coordinator =
                 getCheckpointCoordinator(
-                        jobId,
-                        vertex1,
-                        vertex2,
+                        graph,
                         new CheckpointFailureManager(
                                 0,
                                 new CheckpointFailureManager.FailJobCallback() {
@@ -2788,7 +2840,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
         manuallyTriggeredScheduledExecutor.triggerAll();
         final PendingCheckpoint syncSavepoint =
-                declineSynchronousSavepoint(jobId, coordinator, attemptID1, expectedRootCause);
+                declineSynchronousSavepoint(
+                        graph.getJobID(), coordinator, attemptID1, expectedRootCause);
 
         assertTrue(syncSavepoint.isDisposed());
 
@@ -2858,7 +2911,11 @@ public class CheckpointCoordinatorTest extends TestLogger {
         int maxConcurrentCheckpoints = 1;
         int checkpointRequestsToSend = 10;
         int activeRequests = 0;
-        JobID jobId = new JobID();
+
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(new JobVertexID())
+                        .build();
         CheckpointCoordinator coordinator =
                 new CheckpointCoordinatorBuilder()
                         .setCheckpointCoordinatorConfiguration(
@@ -2866,7 +2923,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                                         .setUnalignedCheckpointsEnabled(true)
                                         .setMaxConcurrentCheckpoints(maxConcurrentCheckpoints)
                                         .build())
-                        .setJobId(jobId)
+                        .setExecutionGraph(graph)
                         .setTimer(manuallyTriggeredScheduledExecutor)
                         .build();
         try {
@@ -2887,7 +2944,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
             coordinator.receiveDeclineMessage(
                     new DeclineCheckpoint(
-                            jobId,
+                            graph.getJobID(),
                             new ExecutionAttemptID(),
                             1L,
                             new CheckpointException(CHECKPOINT_DECLINED)),
@@ -2917,32 +2974,27 @@ public class CheckpointCoordinatorTest extends TestLogger {
      */
     @Test
     public void testExternallyInducedSourceWithOperatorCoordinator() throws Exception {
-        final JobID jobId = new JobID();
+        JobVertexID jobVertexID1 = new JobVertexID();
+        JobVertexID jobVertexID2 = new JobVertexID();
 
-        // create some mock Execution vertices that receive the checkpoint trigger messages
-        final ExecutionAttemptID attemptID1 = new ExecutionAttemptID();
-        final ExecutionAttemptID attemptID2 = new ExecutionAttemptID();
-        ExecutionVertex vertex1 =
-                mockExecutionVertex(
-                        attemptID1,
-                        (executionAttemptID,
-                                jid,
-                                checkpointId,
-                                timestamp,
-                                checkpointOptions,
-                                advanceToEndOfEventTime) -> {});
-        ExecutionVertex vertex2 =
-                mockExecutionVertex(
-                        attemptID2,
-                        (executionAttemptID,
-                                jid,
-                                checkpointId,
-                                timestamp,
-                                checkpointOptions,
-                                advanceToEndOfEventTime) -> {});
+        CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway gateway =
+                new CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway();
 
-        OperatorID opID1 = OperatorID.fromJobVertexID(vertex1.getJobvertexId());
-        OperatorID opID2 = OperatorID.fromJobVertexID(vertex2.getJobvertexId());
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID1)
+                        .addJobVertex(jobVertexID2)
+                        .setTaskManagerGateway(gateway)
+                        .build();
+
+        ExecutionVertex vertex1 = graph.getJobVertex(jobVertexID1).getTaskVertices()[0];
+        ExecutionVertex vertex2 = graph.getJobVertex(jobVertexID2).getTaskVertices()[0];
+
+        ExecutionAttemptID attemptID1 = vertex1.getCurrentExecutionAttempt().getAttemptId();
+        ExecutionAttemptID attemptID2 = vertex2.getCurrentExecutionAttempt().getAttemptId();
+
+        OperatorID opID1 = vertex1.getJobVertex().getOperatorIDs().get(0).getGeneratedOperatorID();
+        OperatorID opID2 = vertex2.getJobVertex().getOperatorIDs().get(0).getGeneratedOperatorID();
         TaskStateSnapshot taskOperatorSubtaskStates1 = new TaskStateSnapshot();
         TaskStateSnapshot taskOperatorSubtaskStates2 = new TaskStateSnapshot();
         OperatorSubtaskState subtaskState1 = OperatorSubtaskState.builder().build();
@@ -2967,8 +3019,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
         // set up the coordinator and validate the initial state
         CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinatorBuilder()
-                        .setJobId(jobId)
-                        .setTasks(new ExecutionVertex[] {vertex1, vertex2})
+                        .setExecutionGraph(graph)
                         .setCheckpointCoordinatorConfiguration(
                                 CheckpointCoordinatorConfiguration.builder()
                                         .setMaxConcurrentCheckpoints(Integer.MAX_VALUE)
@@ -3002,14 +3053,14 @@ public class CheckpointCoordinatorTest extends TestLogger {
                         checkpointIdRef.set(checkpointId);
                         AcknowledgeCheckpoint acknowledgeCheckpoint1 =
                                 new AcknowledgeCheckpoint(
-                                        jobId,
+                                        graph.getJobID(),
                                         attemptID1,
                                         checkpointId,
                                         new CheckpointMetrics(),
                                         taskOperatorSubtaskStates1);
                         AcknowledgeCheckpoint acknowledgeCheckpoint2 =
                                 new AcknowledgeCheckpoint(
-                                        jobId,
+                                        graph.getJobID(),
                                         attemptID2,
                                         checkpointId,
                                         new CheckpointMetrics(),
@@ -3067,13 +3118,13 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
         // validate that the relevant tasks got a confirmation message
         long checkpointId = checkpointIdRef.get();
-        verify(vertex1.getCurrentExecutionAttempt(), times(1))
-                .triggerCheckpoint(eq(checkpointId), any(Long.class), any(CheckpointOptions.class));
-        verify(vertex2.getCurrentExecutionAttempt(), times(1))
-                .triggerCheckpoint(eq(checkpointId), any(Long.class), any(CheckpointOptions.class));
+        for (ExecutionVertex vertex : Arrays.asList(vertex1, vertex2)) {
+            ExecutionAttemptID attemptId = vertex.getCurrentExecutionAttempt().getAttemptId();
+            assertEquals(checkpointId, gateway.getOnlyTriggeredCheckpoint(attemptId).checkpointId);
+        }
 
         CompletedCheckpoint success = checkpointCoordinator.getSuccessfulCheckpoints().get(0);
-        assertEquals(jobId, success.getJobId());
+        assertEquals(graph.getJobID(), success.getJobId());
         assertEquals(2, success.getOperatorStates().size());
 
         checkpointCoordinator.shutdown();
@@ -3081,32 +3132,23 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
     @Test
     public void testCompleteCheckpointFailureWithExternallyInducedSource() throws Exception {
-        final JobID jobId = new JobID();
+        JobVertexID jobVertexID1 = new JobVertexID();
+        JobVertexID jobVertexID2 = new JobVertexID();
 
-        // create some mock Execution vertices that receive the checkpoint trigger messages
-        final ExecutionAttemptID attemptID1 = new ExecutionAttemptID();
-        final ExecutionAttemptID attemptID2 = new ExecutionAttemptID();
-        ExecutionVertex vertex1 =
-                mockExecutionVertex(
-                        attemptID1,
-                        (executionAttemptID,
-                                jid,
-                                checkpointId,
-                                timestamp,
-                                checkpointOptions,
-                                advanceToEndOfEventTime) -> {});
-        ExecutionVertex vertex2 =
-                mockExecutionVertex(
-                        attemptID2,
-                        (executionAttemptID,
-                                jid,
-                                checkpointId,
-                                timestamp,
-                                checkpointOptions,
-                                advanceToEndOfEventTime) -> {});
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID1)
+                        .addJobVertex(jobVertexID2)
+                        .build();
 
-        OperatorID opID1 = OperatorID.fromJobVertexID(vertex1.getJobvertexId());
-        OperatorID opID2 = OperatorID.fromJobVertexID(vertex2.getJobvertexId());
+        ExecutionVertex vertex1 = graph.getJobVertex(jobVertexID1).getTaskVertices()[0];
+        ExecutionVertex vertex2 = graph.getJobVertex(jobVertexID2).getTaskVertices()[0];
+
+        ExecutionAttemptID attemptID1 = vertex1.getCurrentExecutionAttempt().getAttemptId();
+        ExecutionAttemptID attemptID2 = vertex2.getCurrentExecutionAttempt().getAttemptId();
+
+        OperatorID opID1 = vertex1.getJobVertex().getOperatorIDs().get(0).getGeneratedOperatorID();
+        OperatorID opID2 = vertex2.getJobVertex().getOperatorIDs().get(0).getGeneratedOperatorID();
         TaskStateSnapshot taskOperatorSubtaskStates1 = new TaskStateSnapshot();
         TaskStateSnapshot taskOperatorSubtaskStates2 = new TaskStateSnapshot();
         OperatorSubtaskState subtaskState1 = OperatorSubtaskState.builder().build();
@@ -3131,8 +3173,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
         // set up the coordinator and validate the initial state
         CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinatorBuilder()
-                        .setJobId(jobId)
-                        .setTasks(new ExecutionVertex[] {vertex1, vertex2})
+                        .setExecutionGraph(graph)
                         .setCheckpointCoordinatorConfiguration(
                                 CheckpointCoordinatorConfiguration.builder()
                                         .setMaxConcurrentCheckpoints(Integer.MAX_VALUE)
@@ -3195,14 +3236,14 @@ public class CheckpointCoordinatorTest extends TestLogger {
                         checkpointIdRef.set(checkpointId);
                         AcknowledgeCheckpoint acknowledgeCheckpoint1 =
                                 new AcknowledgeCheckpoint(
-                                        jobId,
+                                        graph.getJobID(),
                                         attemptID1,
                                         checkpointId,
                                         new CheckpointMetrics(),
                                         taskOperatorSubtaskStates1);
                         AcknowledgeCheckpoint acknowledgeCheckpoint2 =
                                 new AcknowledgeCheckpoint(
-                                        jobId,
+                                        graph.getJobID(),
                                         attemptID2,
                                         checkpointId,
                                         new CheckpointMetrics(),
@@ -3251,9 +3292,14 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
     @Test
     public void testNotifyCheckpointAbortionInOperatorCoordinator() throws Exception {
-        JobID jobId = new JobID();
-        final ExecutionAttemptID attemptID = new ExecutionAttemptID();
-        ExecutionVertex executionVertex = mockExecutionVertex(attemptID);
+        JobVertexID jobVertexID = new JobVertexID();
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID)
+                        .build();
+
+        ExecutionVertex executionVertex = graph.getJobVertex(jobVertexID).getTaskVertices()[0];
+        ExecutionAttemptID attemptID = executionVertex.getCurrentExecutionAttempt().getAttemptId();
 
         CheckpointCoordinatorTestingUtils.MockOperatorCoordinatorCheckpointContext context =
                 new CheckpointCoordinatorTestingUtils
@@ -3266,8 +3312,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
         // set up the coordinator and validate the initial state
         CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinatorBuilder()
-                        .setJobId(jobId)
-                        .setTasks(new ExecutionVertex[] {executionVertex})
+                        .setExecutionGraph(graph)
                         .setCheckpointCoordinatorConfiguration(
                                 CheckpointCoordinatorConfiguration.builder()
                                         .setMaxConcurrentCheckpoints(Integer.MAX_VALUE)
@@ -3290,7 +3335,11 @@ public class CheckpointCoordinatorTest extends TestLogger {
                     Collections.max(checkpointCoordinator.getPendingCheckpoints().keySet());
             AcknowledgeCheckpoint acknowledgeCheckpoint1 =
                     new AcknowledgeCheckpoint(
-                            jobId, attemptID, checkpointId2, new CheckpointMetrics(), null);
+                            graph.getJobID(),
+                            attemptID,
+                            checkpointId2,
+                            new CheckpointMetrics(),
+                            null);
             checkpointCoordinator.receiveAcknowledgeMessage(acknowledgeCheckpoint1, "");
 
             // OperatorCoordinator should have been notified of the abortion of checkpoint 1.
@@ -3301,12 +3350,9 @@ public class CheckpointCoordinatorTest extends TestLogger {
         }
     }
 
-    private CheckpointCoordinator getCheckpointCoordinator(
-            JobID jobId, ExecutionVertex vertex1, ExecutionVertex vertex2) {
-
+    private CheckpointCoordinator getCheckpointCoordinator(ExecutionGraph graph) throws Exception {
         return new CheckpointCoordinatorBuilder()
-                .setJobId(jobId)
-                .setTasks(new ExecutionVertex[] {vertex1, vertex2})
+                .setExecutionGraph(graph)
                 .setCheckpointCoordinatorConfiguration(
                         CheckpointCoordinatorConfiguration.builder()
                                 .setAlignmentTimeout(Long.MAX_VALUE)
@@ -3317,50 +3363,29 @@ public class CheckpointCoordinatorTest extends TestLogger {
     }
 
     private CheckpointCoordinator getCheckpointCoordinator(
-            JobID jobId,
-            ExecutionVertex vertex1,
-            ExecutionVertex vertex2,
-            CheckpointFailureManager failureManager) {
+            ExecutionGraph graph, CheckpointFailureManager failureManager) throws Exception {
 
         return new CheckpointCoordinatorBuilder()
-                .setJobId(jobId)
-                .setTasks(new ExecutionVertex[] {vertex1, vertex2})
+                .setExecutionGraph(graph)
                 .setTimer(manuallyTriggeredScheduledExecutor)
                 .setFailureManager(failureManager)
                 .build();
     }
 
-    private CheckpointCoordinator getCheckpointCoordinator() {
+    private CheckpointCoordinator getCheckpointCoordinator() throws Exception {
         return getCheckpointCoordinator(manuallyTriggeredScheduledExecutor);
     }
 
-    private CheckpointCoordinator getCheckpointCoordinator(ScheduledExecutor timer) {
-        final ExecutionAttemptID triggerAttemptID1 = new ExecutionAttemptID();
-        final ExecutionAttemptID triggerAttemptID2 = new ExecutionAttemptID();
-        ExecutionVertex triggerVertex1 = mockExecutionVertex(triggerAttemptID1);
-        JobVertexID jobVertexID2 = new JobVertexID();
-        ExecutionVertex triggerVertex2 =
-                mockExecutionVertex(
-                        triggerAttemptID2,
-                        jobVertexID2,
-                        Collections.singletonList(OperatorID.fromJobVertexID(jobVertexID2)),
-                        1,
-                        1,
-                        ExecutionState.FINISHED);
-
-        // create some mock Execution vertices that need to ack the checkpoint
-        final ExecutionAttemptID ackAttemptID1 = new ExecutionAttemptID();
-        final ExecutionAttemptID ackAttemptID2 = new ExecutionAttemptID();
-        ExecutionVertex ackVertex1 = mockExecutionVertex(ackAttemptID1);
-        ExecutionVertex ackVertex2 = mockExecutionVertex(ackAttemptID2);
+    private CheckpointCoordinator getCheckpointCoordinator(ScheduledExecutor timer)
+            throws Exception {
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(new JobVertexID())
+                        .addJobVertex(new JobVertexID())
+                        .build();
 
         // set up the coordinator and validate the initial state
-        return new CheckpointCoordinatorBuilder()
-                .setTasksToTrigger(new ExecutionVertex[] {triggerVertex1, triggerVertex2})
-                .setTasksToWaitFor(new ExecutionVertex[] {ackVertex1, ackVertex2})
-                .setTasksToCommitTo(new ExecutionVertex[] {})
-                .setTimer(timer)
-                .build();
+        return new CheckpointCoordinatorBuilder().setExecutionGraph(graph).setTimer(timer).build();
     }
 
     private CheckpointFailureManager getCheckpointFailureManager(String errorMsg) {
