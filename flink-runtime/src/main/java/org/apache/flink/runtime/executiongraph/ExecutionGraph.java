@@ -26,7 +26,6 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
@@ -443,9 +442,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
                         new DispatcherThreadFactory(
                                 Thread.currentThread().getThreadGroup(), "Checkpoint Timer"));
 
-        Tuple2<List<ExecutionVertex>, List<ExecutionVertex>> sourceAndAllVertices =
-                getSourceAndAllVertices();
-
         // create the coordinator that triggers and commits checkpoints and holds the state
         checkpointCoordinator =
                 new CheckpointCoordinator(
@@ -460,12 +456,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
                         new ScheduledExecutorServiceAdapter(checkpointCoordinatorTimer),
                         SharedStateRegistry.DEFAULT_FACTORY,
                         failureManager,
-                        new CheckpointBriefCalculator(
-                                getJobID(),
-                                sourceAndAllVertices.f0,
-                                sourceAndAllVertices.f1,
-                                sourceAndAllVertices.f1),
-                        new ExecutionAttemptMappingProvider(sourceAndAllVertices.f1));
+                        createCheckpointBriefCalculator(),
+                        new ExecutionAttemptMappingProvider(getAllExecutionVertices()));
+        checkpointCoordinator.setDisableCheckpointsAfterTasksFinished(true);
 
         // register the master hooks on the checkpoint coordinator
         for (MasterTriggerRestoreHook<?> hook : masterHooks) {
@@ -491,18 +484,11 @@ public class ExecutionGraph implements AccessExecutionGraph {
         this.checkpointStorageName = checkpointStorage.getClass().getSimpleName();
     }
 
-    private Tuple2<List<ExecutionVertex>, List<ExecutionVertex>> getSourceAndAllVertices() {
-        List<ExecutionVertex> sourceVertices = new ArrayList<>();
-        List<ExecutionVertex> allVertices = new ArrayList<>();
-        for (ExecutionVertex executionVertex : getAllExecutionVertices()) {
-            if (executionVertex.getJobVertex().getJobVertex().isInputVertex()) {
-                sourceVertices.add(executionVertex);
-            }
-
-            allVertices.add(executionVertex);
-        }
-
-        return new Tuple2<>(sourceVertices, allVertices);
+    private CheckpointBriefCalculator createCheckpointBriefCalculator() {
+        return new CheckpointBriefCalculator(
+                getJobID(),
+                new ExecutionGraphCheckpointBriefCalculatorContext(this),
+                getVerticesTopologically());
     }
 
     @Nullable
@@ -603,6 +589,10 @@ public class ExecutionGraph implements AccessExecutionGraph {
      */
     public long getNumberOfRestarts() {
         return numberOfRestartsCounter.getCount();
+    }
+
+    public int getVerticesFinished() {
+        return verticesFinished;
     }
 
     @Override

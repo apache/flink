@@ -21,11 +21,10 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Responses to query the current attempt for the tasks and provide the mapping from the execution
@@ -35,8 +34,9 @@ public class ExecutionAttemptMappingProvider {
 
     private final List<ExecutionVertex> tasks;
 
-    public ExecutionAttemptMappingProvider(List<ExecutionVertex> tasks) {
-        this.tasks = checkNotNull(tasks);
+    public ExecutionAttemptMappingProvider(Iterable<ExecutionVertex> tasks) {
+        this.tasks = new ArrayList<>();
+        tasks.forEach(this.tasks::add);
     }
 
     public int getNumberOfTasks() {

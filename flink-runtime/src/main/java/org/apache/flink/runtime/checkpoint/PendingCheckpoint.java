@@ -90,7 +90,7 @@ public class PendingCheckpoint implements Checkpoint {
 
     private final Map<ExecutionAttemptID, ExecutionVertex> notYetAcknowledgedTasks;
 
-    private final List<ExecutionVertex> tasksToCommitTo;
+    private final CheckpointBrief checkpointBrief;
 
     private final Set<OperatorID> notYetAcknowledgedOperatorCoordinators;
 
@@ -129,8 +129,7 @@ public class PendingCheckpoint implements Checkpoint {
             JobID jobId,
             long checkpointId,
             long checkpointTimestamp,
-            Map<ExecutionAttemptID, ExecutionVertex> verticesToConfirm,
-            List<ExecutionVertex> tasksToCommitTo,
+            CheckpointBrief checkpointBrief,
             Collection<OperatorID> operatorCoordinatorsToConfirm,
             Collection<String> masterStateIdentifiers,
             CheckpointProperties props,
@@ -138,14 +137,14 @@ public class PendingCheckpoint implements Checkpoint {
             CompletableFuture<CompletedCheckpoint> onCompletionPromise) {
 
         checkArgument(
-                verticesToConfirm.size() > 0,
+                checkpointBrief.getTasksToWait().size() > 0,
                 "Checkpoint needs at least one vertex that commits the checkpoint");
 
         this.jobId = checkNotNull(jobId);
         this.checkpointId = checkpointId;
         this.checkpointTimestamp = checkpointTimestamp;
-        this.notYetAcknowledgedTasks = checkNotNull(verticesToConfirm);
-        this.tasksToCommitTo = checkNotNull(tasksToCommitTo);
+        this.notYetAcknowledgedTasks = checkNotNull(checkpointBrief.getTasksToWait());
+        this.checkpointBrief = checkNotNull(checkpointBrief);
         this.props = checkNotNull(props);
         this.targetLocation = checkNotNull(targetLocation);
 
@@ -159,7 +158,7 @@ public class PendingCheckpoint implements Checkpoint {
                 operatorCoordinatorsToConfirm.isEmpty()
                         ? Collections.emptySet()
                         : new HashSet<>(operatorCoordinatorsToConfirm);
-        this.acknowledgedTasks = new HashSet<>(verticesToConfirm.size());
+        this.acknowledgedTasks = new HashSet<>(checkpointBrief.getTasksToWait().size());
         this.onCompletionPromise = checkNotNull(onCompletionPromise);
     }
 
@@ -204,8 +203,8 @@ public class PendingCheckpoint implements Checkpoint {
         return numAcknowledgedTasks;
     }
 
-    public List<ExecutionVertex> getTasksToCommitTo() {
-        return tasksToCommitTo;
+    public CheckpointBrief getCheckpointBrief() {
+        return checkpointBrief;
     }
 
     public Map<OperatorID, OperatorState> getOperatorStates() {
