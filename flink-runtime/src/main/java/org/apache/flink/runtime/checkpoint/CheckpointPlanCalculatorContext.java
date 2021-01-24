@@ -18,18 +18,25 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import java.util.concurrent.CompletableFuture;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 
 /**
- * Calculates the plan of the next checkpoint, including the tasks to trigger, wait or commit for
- * each checkpoint.
+ * Provides the context for {@link DefaultCheckpointPlanCalculator} to compute the plan of
+ * checkpoints.
  */
-public interface CheckpointPlanCalculator {
+public interface CheckpointPlanCalculatorContext {
 
     /**
-     * Calculates the plan of the next checkpoint.
+     * Acquires the main thread executor for this job.
      *
-     * @return The result plan.
+     * @return The main thread executor.
      */
-    CompletableFuture<CheckpointPlan> calculateCheckpointPlan();
+    ScheduledExecutor getMainExecutor();
+
+    /**
+     * Detects whether there are already some tasks finished.
+     *
+     * @return Whether there are finished tasks.
+     */
+    boolean hasFinishedTasks();
 }

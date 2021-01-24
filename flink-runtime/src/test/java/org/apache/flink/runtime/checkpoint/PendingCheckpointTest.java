@@ -27,6 +27,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.Str
 import org.apache.flink.runtime.checkpoint.PendingCheckpoint.TaskAcknowledgeResult;
 import org.apache.flink.runtime.checkpoint.hooks.MasterHooks;
 import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -56,7 +57,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -82,7 +82,7 @@ import static org.powermock.api.mockito.PowerMockito.when;
 /** Tests for the {@link PendingCheckpoint}. */
 public class PendingCheckpointTest {
 
-    private static final Map<ExecutionAttemptID, ExecutionVertex> ACK_TASKS = new HashMap<>();
+    private static final List<Execution> ACK_TASKS = new ArrayList<>();
     private static final List<ExecutionVertex> TASKS_TO_COMMIT = new ArrayList<>();
     private static final ExecutionAttemptID ATTEMPT_ID = new ExecutionAttemptID();
 
@@ -97,7 +97,11 @@ public class PendingCheckpointTest {
         when(vertex.getMaxParallelism()).thenReturn(128);
         when(vertex.getTotalNumberOfParallelSubtasks()).thenReturn(1);
         when(vertex.getJobVertex()).thenReturn(jobVertex);
-        ACK_TASKS.put(ATTEMPT_ID, vertex);
+
+        Execution execution = mock(Execution.class);
+        when(execution.getAttemptId()).thenReturn(ATTEMPT_ID);
+        when(execution.getVertex()).thenReturn(vertex);
+        ACK_TASKS.add(execution);
         TASKS_TO_COMMIT.add(vertex);
     }
 
@@ -603,14 +607,19 @@ public class PendingCheckpointTest {
                         1024,
                         4096);
 
-        final Map<ExecutionAttemptID, ExecutionVertex> ackTasks = new HashMap<>(ACK_TASKS);
+        final List<Execution> ackTasks = new ArrayList<>(ACK_TASKS);
         final List<ExecutionVertex> tasksToCommit = new ArrayList<>(TASKS_TO_COMMIT);
 
         return new PendingCheckpoint(
                 new JobID(),
                 0,
                 1,
-                new CheckpointPlan(Collections.emptyList(), ackTasks, tasksToCommit),
+                new CheckpointPlan(
+                        Collections.emptyList(),
+                        ackTasks,
+                        tasksToCommit,
+                        Collections.emptyList(),
+                        Collections.emptyList()),
                 operatorCoordinators,
                 masterStateIdentifiers,
                 props,
