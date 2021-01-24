@@ -19,16 +19,15 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.executiongraph.Execution;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 
 import java.util.List;
-import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * The brief of one checkpoint, indicating which tasks to trigger, waiting for acknowledge or commit
+ * The plan of one checkpoint, indicating which tasks to trigger, waiting for acknowledge or commit
  * for one specific checkpoint.
  */
 class CheckpointPlan {
@@ -37,7 +36,7 @@ class CheckpointPlan {
     private final List<Execution> tasksToTrigger;
 
     /** Tasks who need to acknowledge a checkpoint before it succeeds. */
-    private final Map<ExecutionAttemptID, ExecutionVertex> tasksToWaitFor;
+    private final List<Execution> tasksToWaitFor;
 
     /**
      * Tasks that are still running when taking the checkpoint, these need to be sent a message when
@@ -45,25 +44,43 @@ class CheckpointPlan {
      */
     private final List<ExecutionVertex> tasksToCommitTo;
 
+    /** Tasks that have already been finished when taking the checkpoint. */
+    private final List<Execution> finishedTasks;
+
+    /** The job vertices whose tasks are all finished when taking the checkpoint. */
+    private final List<ExecutionJobVertex> fullyFinishedJobVertex;
+
     CheckpointPlan(
             List<Execution> tasksToTrigger,
-            Map<ExecutionAttemptID, ExecutionVertex> tasksToWaitFor,
-            List<ExecutionVertex> tasksToCommitTo) {
+            List<Execution> tasksToWaitFor,
+            List<ExecutionVertex> tasksToCommitTo,
+            List<Execution> finishedTasks,
+            List<ExecutionJobVertex> fullyFinishedJobVertex) {
 
         this.tasksToTrigger = checkNotNull(tasksToTrigger);
         this.tasksToWaitFor = checkNotNull(tasksToWaitFor);
         this.tasksToCommitTo = checkNotNull(tasksToCommitTo);
+        this.finishedTasks = checkNotNull(finishedTasks);
+        this.fullyFinishedJobVertex = checkNotNull(fullyFinishedJobVertex);
     }
 
     List<Execution> getTasksToTrigger() {
         return tasksToTrigger;
     }
 
-    Map<ExecutionAttemptID, ExecutionVertex> getTasksToWaitFor() {
+    List<Execution> getTasksToWaitFor() {
         return tasksToWaitFor;
     }
 
     List<ExecutionVertex> getTasksToCommitTo() {
         return tasksToCommitTo;
+    }
+
+    public List<Execution> getFinishedTasks() {
+        return finishedTasks;
+    }
+
+    public List<ExecutionJobVertex> getFullyFinishedJobVertex() {
+        return fullyFinishedJobVertex;
     }
 }
