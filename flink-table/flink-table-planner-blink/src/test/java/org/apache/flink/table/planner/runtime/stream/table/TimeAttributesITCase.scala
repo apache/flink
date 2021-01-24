@@ -20,12 +20,13 @@ package org.apache.flink.table.planner.runtime.stream.table
 
 import org.apache.flink.api.common.eventtime.{SerializableTimestampAssigner, WatermarkStrategy}
 import org.apache.flink.api.scala.createTypeInformation
+import org.apache.flink.core.testutils.FlinkMatchers.containsMessage
 import org.apache.flink.runtime.client.JobExecutionException
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink}
 import org.apache.flink.types.Row
-import org.junit.Assert.{assertEquals, fail}
+import org.junit.Assert.{assertEquals, assertThat, fail}
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -47,16 +48,14 @@ class TimeAttributesITCase(mode: StateBackendMode) extends StreamingWithStateTes
     tEnv.toAppendStream[Row](result).addSink(sink)
     try {
       env.execute()
+      fail("should fail")
     } catch {
-      case je: JobExecutionException =>
-        val innerCause = je.getCause.getCause
-        assert(innerCause.isInstanceOf[RuntimeException])
-        assertEquals(
-          "Rowtime timestamp is not defined. Please make sure that a " +
+      case t: Throwable =>
+        assertThat(
+          t,
+          containsMessage("Rowtime timestamp is not defined. Please make sure that a " +
             "proper TimestampAssigner is defined and the stream environment uses the EventTime " +
-            "time characteristic.",
-          innerCause.getMessage)
-      case e: Exception => fail(s"Expected JobExecutionException, received $e")
+            "time characteristic."))
     }
   }
 
