@@ -238,7 +238,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             CheckpointOptions options,
             CheckpointMetricsBuilder metrics,
             OperatorChain<?, ?> operatorChain,
-            Supplier<Boolean> isCanceled)
+            Supplier<Boolean> isRunning)
             throws Exception {
 
         checkNotNull(options);
@@ -296,8 +296,8 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                 new HashMap<>(operatorChain.getNumberOfOperators());
         try {
             if (takeSnapshotSync(
-                    snapshotFutures, metadata, metrics, options, operatorChain, isCanceled)) {
-                finishAndReportAsync(snapshotFutures, metadata, metrics, options);
+                    snapshotFutures, metadata, metrics, options, operatorChain, isRunning)) {
+                finishAndReportAsync(snapshotFutures, metadata, metrics, isRunning);
             } else {
                 cleanup(snapshotFutures, metadata, metrics, new Exception("Checkpoint declined"));
             }
@@ -500,7 +500,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             Map<OperatorID, OperatorSnapshotFutures> snapshotFutures,
             CheckpointMetaData metadata,
             CheckpointMetricsBuilder metrics,
-            CheckpointOptions options) {
+            Supplier<Boolean> isRunning) {
         // we are transferring ownership over snapshotInProgressList for cleanup to the thread,
         // active on submit
         asyncOperationsThreadPool.execute(
@@ -513,7 +513,8 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                         registerConsumer(),
                         unregisterConsumer(),
                         env,
-                        asyncExceptionHandler));
+                        asyncExceptionHandler,
+                        isRunning));
     }
 
     private Consumer<AsyncCheckpointRunnable> registerConsumer() {
@@ -538,7 +539,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             CheckpointMetricsBuilder checkpointMetrics,
             CheckpointOptions checkpointOptions,
             OperatorChain<?, ?> operatorChain,
-            Supplier<Boolean> isCanceled)
+            Supplier<Boolean> isRunning)
             throws Exception {
 
         for (final StreamOperatorWrapper<?, ?> operatorWrapper :
@@ -576,7 +577,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                                     checkpointOptions,
                                     operatorChain,
                                     operatorWrapper.getStreamOperator(),
-                                    isCanceled,
+                                    isRunning,
                                     channelStateWriteResult,
                                     storage));
                 }
@@ -603,13 +604,13 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             CheckpointOptions checkpointOptions,
             OperatorChain<?, ?> operatorChain,
             StreamOperator<?> op,
-            Supplier<Boolean> isCanceled,
+            Supplier<Boolean> isRunning,
             ChannelStateWriteResult channelStateWriteResult,
             CheckpointStreamFactory storage)
             throws Exception {
         OperatorSnapshotFutures snapshotInProgress =
                 checkpointStreamOperator(
-                        op, checkpointMetaData, checkpointOptions, storage, isCanceled);
+                        op, checkpointMetaData, checkpointOptions, storage, isRunning);
         if (op == operatorChain.getMainOperator()) {
             snapshotInProgress.setInputChannelStateFuture(
                     channelStateWriteResult
@@ -684,7 +685,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             CheckpointMetaData checkpointMetaData,
             CheckpointOptions checkpointOptions,
             CheckpointStreamFactory storageLocation,
-            Supplier<Boolean> isCanceled)
+            Supplier<Boolean> isRunning)
             throws Exception {
         try {
             return op.snapshotState(
@@ -693,7 +694,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                     checkpointOptions,
                     storageLocation);
         } catch (Exception ex) {
-            if (!isCanceled.get()) {
+            if (isRunning.get()) {
                 LOG.info(ex.getMessage(), ex);
             }
             throw ex;

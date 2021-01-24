@@ -37,12 +37,22 @@ import org.junit.Test;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /** Tests for {@link AsyncCheckpointRunnable}. */
 public class AsyncCheckpointRunnableTest {
 
     @Test
-    public void testAsyncCheckpointException() {
+    public void testDeclineWithAsyncCheckpointExceptionWhenRunning() {
+        testAsyncCheckpointException(() -> true);
+    }
+
+    @Test
+    public void testDeclineWithAsyncCheckpointExceptionWhenNotRunning() {
+        testAsyncCheckpointException(() -> false);
+    }
+
+    private void testAsyncCheckpointException(Supplier<Boolean> isTaskRunning) {
         final Map<OperatorID, OperatorSnapshotFutures> snapshotsInProgress = new HashMap<>();
         snapshotsInProgress.put(
                 new OperatorID(),
@@ -66,13 +76,18 @@ public class AsyncCheckpointRunnableTest {
                         r -> {},
                         r -> {},
                         environment,
-                        (msg, ex) -> {});
+                        (msg, ex) -> {},
+                        isTaskRunning);
         runnable.run();
 
-        Assert.assertTrue(environment.getCause() instanceof CheckpointException);
-        Assert.assertSame(
-                ((CheckpointException) environment.getCause()).getCheckpointFailureReason(),
-                CheckpointFailureReason.CHECKPOINT_ASYNC_EXCEPTION);
+        if (isTaskRunning.get()) {
+            Assert.assertTrue(environment.getCause() instanceof CheckpointException);
+            Assert.assertSame(
+                    ((CheckpointException) environment.getCause()).getCheckpointFailureReason(),
+                    CheckpointFailureReason.CHECKPOINT_ASYNC_EXCEPTION);
+        } else {
+            Assert.assertNull(environment.getCause());
+        }
     }
 
     private static class TestEnvironment extends StreamMockEnvironment {
