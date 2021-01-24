@@ -430,6 +430,11 @@ public class CheckpointBriefCalculator {
         public boolean containsNoTasks() {
             return type == TaskSetType.NO_TASKS;
         }
+
+        @VisibleForTesting
+        ExecutionJobVertex getJobVertex() {
+            return jobVertex;
+        }
     }
 
     private enum TaskSetType {

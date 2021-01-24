@@ -253,12 +253,6 @@ public class CheckpointStatsTrackerTest {
     @Test
     public void testCreateSnapshot() throws Exception {
         JobVertexID jobVertexID = new JobVertexID();
-        ExecutionGraph graph =
-                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
-                        .addJobVertex(jobVertexID)
-                        .build();
-        ExecutionJobVertex jobVertex = graph.getJobVertex(jobVertexID);
-
         CheckpointStatsTracker tracker =
                 new CheckpointStatsTracker(
                         10,

@@ -578,6 +578,10 @@ public class CheckpointCoordinatorTestingUtils {
             jobVertex.setMaxParallelism(maxParallelism);
             jobVertex.setInvokableClass(NoOpInvokable.class);
 
+            return addJobVertex(jobVertex, isSource);
+        }
+
+        public CheckpointExecutionGraphBuilder addJobVertex(JobVertex jobVertex, boolean isSource) {
             if (isSource) {
                 sourceVertices.add(jobVertex);
             } else {
