@@ -40,6 +40,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Random;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static org.junit.Assert.assertEquals;
 
@@ -141,6 +144,40 @@ public class MetadataV3SerializerTest {
         }
     }
 
+    @Test
+    public void testCheckpointWithFinishedTasksForCheckpoint() throws Exception {
+        testCheckpointWithFinishedTasks(null);
+    }
+
+    @Test
+    public void testCheckpointWithFinishedTasksForSavepoint() throws Exception {
+        testCheckpointWithFinishedTasks(temporaryFolder.newFolder().toURI().toString());
+    }
+
+    private void testCheckpointWithFinishedTasks(String basePath) throws Exception {
+        final Random rnd = new Random();
+
+        final int maxNumMasterStates = 5;
+        final int maxTaskStates = 20;
+        final int maxNumSubtasks = 20;
+        final int maxFinishedSubtasks = 10;
+
+        final long checkpointId = rnd.nextLong() & 0x7fffffffffffffffL;
+
+        final int numTasks = rnd.nextInt(maxTaskStates) + 1;
+        final int numSubtasks = rnd.nextInt(maxNumSubtasks) + 1;
+        final int numFinished = rnd.nextInt(maxFinishedSubtasks) + 1;
+        final Collection<OperatorState> taskStates =
+                CheckpointTestUtils.createOperatorStates(rnd, basePath, numTasks, numSubtasks);
+        taskStates.stream().limit(numFinished).forEach(OperatorState::markedFullyFinished);
+
+        final int numMasterStates = rnd.nextInt(maxNumMasterStates) + 1;
+        final Collection<MasterState> masterStates =
+                CheckpointTestUtils.createRandomMasterStates(rnd, numMasterStates);
+
+        testCheckpointSerialization(checkpointId, taskStates, masterStates, basePath);
+    }
+
     /**
      * Test checkpoint metadata (de)serialization.
      *
@@ -190,6 +227,13 @@ public class MetadataV3SerializerTest {
                 serializer.deserialize(in, getClass().getClassLoader(), basePath);
         assertEquals(checkpointId, deserialized.getCheckpointId());
         assertEquals(operatorStates, deserialized.getOperatorStates());
+        assertEquals(
+                operatorStates.stream()
+                        .map(OperatorState::isFullyFinished)
+                        .collect(Collectors.toList()),
+                deserialized.getOperatorStates().stream()
+                        .map(OperatorState::isFullyFinished)
+                        .collect(Collectors.toList()));
 
         assertEquals(masterStates.size(), deserialized.getMasterStates().size());
         for (Iterator<MasterState> a = masterStates.iterator(),

@@ -41,6 +41,18 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public class OperatorState implements CompositeStateHandle {
 
+    private static final int FULLY_FINISHED_PLACEHOLDER_INDEX = -1;
+
+    /** A special content that marks this operator as fully finished. */
+    private static final Map<Integer, OperatorSubtaskState> FULLY_FINISHED_STATE =
+            new HashMap<Integer, OperatorSubtaskState>() {
+                {
+                    this.put(
+                            FULLY_FINISHED_PLACEHOLDER_INDEX,
+                            OperatorSubtaskState.builder().build());
+                }
+            };
+
     private static final long serialVersionUID = -4845578005863201810L;
 
     /** The id of the operator. */
@@ -81,10 +93,22 @@ public class OperatorState implements CompositeStateHandle {
         return operatorID;
     }
 
+    public boolean isFullyFinished() {
+        return operatorSubtaskStates.equals(FULLY_FINISHED_STATE);
+    }
+
+    public void markedFullyFinished() {
+        operatorSubtaskStates.clear();
+        FULLY_FINISHED_STATE.forEach(operatorSubtaskStates::put);
+    }
+
     public void putState(int subtaskIndex, OperatorSubtaskState subtaskState) {
         Preconditions.checkNotNull(subtaskState);
+        checkState(!isFullyFinished());
 
-        if (subtaskIndex < 0 || subtaskIndex >= parallelism) {
+        if (subtaskIndex == FULLY_FINISHED_PLACEHOLDER_INDEX) {
+            markedFullyFinished();
+        } else if (subtaskIndex < 0 || subtaskIndex >= parallelism) {
             throw new IndexOutOfBoundsException(
                     "The given sub task index "
                             + subtaskIndex

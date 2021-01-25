@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorInfo;
@@ -315,6 +316,25 @@ public class PendingCheckpoint implements Checkpoint {
 
             // make sure we fulfill the promise with an exception if something fails
             try {
+                // Completes the operator state for the fully finished operators
+                for (ExecutionJobVertex jobVertex : checkpointBrief.getFullyFinishedJobVertex()) {
+                    for (OperatorIDPair operatorID : jobVertex.getOperatorIDs()) {
+                        OperatorState operatorState =
+                                operatorStates.get(operatorID.getGeneratedOperatorID());
+
+                        if (operatorState == null) {
+                            operatorState =
+                                    new OperatorState(
+                                            operatorID.getGeneratedOperatorID(),
+                                            jobVertex.getParallelism(),
+                                            jobVertex.getMaxParallelism());
+                            operatorStates.put(operatorID.getGeneratedOperatorID(), operatorState);
+                        }
+
+                        operatorState.markedFullyFinished();
+                    }
+                }
+
                 // write out the metadata
                 final CheckpointMetadata savepoint =
                         new CheckpointMetadata(checkpointId, operatorStates.values(), masterStates);
