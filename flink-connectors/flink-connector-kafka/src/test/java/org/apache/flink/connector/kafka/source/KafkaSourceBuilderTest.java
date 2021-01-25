@@ -31,10 +31,11 @@ public class KafkaSourceBuilderTest {
     public void testParitionDiscoverySettingWithBounded() throws Exception {
         KafkaSourceBuilder sourceWithBounded =
                 new KafkaSourceBuilder().setBounded(OffsetsInitializer.latest());
-        sourceWithBounded.setParitionDiscoverySetting();
+        sourceWithBounded.parseAndSetRequiredProperties();
         String actualWithBounded =
-                sourceWithBounded.props.getProperty(
-                        KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key());
+                sourceWithBounded
+                        .getProps()
+                        .getProperty(KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key());
         String expectedWithBounded = "-1";
         assertEquals(expectedWithBounded, actualWithBounded);
     }
@@ -43,10 +44,11 @@ public class KafkaSourceBuilderTest {
     public void testParitionDiscoverySettingWithUnbounded() throws Exception {
         KafkaSourceBuilder sourceWithUnbounded =
                 new KafkaSourceBuilder().setUnbounded(OffsetsInitializer.latest());
-        sourceWithUnbounded.setParitionDiscoverySetting();
+        sourceWithUnbounded.parseAndSetRequiredProperties();
         String actualWithUnbounded =
-                sourceWithUnbounded.props.getProperty(
-                        KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key());
+                sourceWithUnbounded
+                        .getProps()
+                        .getProperty(KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key());
         String expectedWithUnbounded = "-1";
         assertEquals(expectedWithUnbounded, actualWithUnbounded);
     }
@@ -58,10 +60,11 @@ public class KafkaSourceBuilderTest {
                         .setUnbounded(OffsetsInitializer.latest())
                         .setProperty(
                                 KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key(), "60000");
-        sourceWithProps.setParitionDiscoverySetting();
+        sourceWithProps.parseAndSetRequiredProperties();
         String actualWithProps =
-                sourceWithProps.props.getProperty(
-                        KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key());
+                sourceWithProps
+                        .getProps()
+                        .getProperty(KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key());
         String expectedWithProps = "60000";
         assertEquals(expectedWithProps, actualWithProps);
     }

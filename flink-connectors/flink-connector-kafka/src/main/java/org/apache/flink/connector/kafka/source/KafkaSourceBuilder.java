@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.kafka.source;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.NoStoppingOffsetsInitializer;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
@@ -379,6 +380,11 @@ public class KafkaSourceBuilder<OUT> {
         return this;
     }
 
+    @VisibleForTesting
+    Properties getProps() {
+        return this.props;
+    }
+
     /**
      * Build the {@link KafkaSource}.
      *
@@ -396,11 +402,6 @@ public class KafkaSourceBuilder<OUT> {
                 props);
     }
 
-    /** setParitionDiscoverySetting . */
-    public void setParitionDiscoverySetting() {
-        paritionDiscoverySetting();
-    }
-
     // ------------- private helpers  --------------
 
     private void ensureSubscriberIsNull(String attemptingSubscribeMode) {
@@ -412,7 +413,8 @@ public class KafkaSourceBuilder<OUT> {
         }
     }
 
-    private void parseAndSetRequiredProperties() {
+    @VisibleForTesting
+    void parseAndSetRequiredProperties() {
         maybeOverride(
                 ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
                 ByteArrayDeserializer.class.getName(),
@@ -430,7 +432,14 @@ public class KafkaSourceBuilder<OUT> {
 
         // If the source is bounded or stoppingOffsetsInitializer is specified, do not run periodic
         // partition discovery.
-        paritionDiscoverySetting();
+        boolean hasStoppingOffsets =
+                !(stoppingOffsetsInitializer instanceof NoStoppingOffsetsInitializer);
+        boolean hasParitionDiscoverySetting =
+                props.getProperty(KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key()) != null;
+        if (boundedness == Boundedness.BOUNDED
+                || (hasStoppingOffsets && !hasParitionDiscoverySetting)) {
+            props.setProperty(KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key(), "-1");
+        }
 
         // If the client id prefix is not set, reuse the consumer group id as the client id prefix.
         maybeOverride(
@@ -472,16 +481,5 @@ public class KafkaSourceBuilder<OUT> {
                 "No subscribe mode is specified, "
                         + "should be one of topics, topic pattern and partition set.");
         checkNotNull(deserializationSchema, "Deserialization schema is required but not provided.");
-    }
-
-    private void paritionDiscoverySetting() {
-        boolean hasStoppingOffsets =
-                !(stoppingOffsetsInitializer instanceof NoStoppingOffsetsInitializer);
-        boolean hasParitionDiscoverySetting =
-                props.getProperty(KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key()) != null;
-        if (boundedness == Boundedness.BOUNDED
-                || (hasStoppingOffsets && !hasParitionDiscoverySetting)) {
-            props.setProperty(KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key(), "-1");
-        }
     }
 }
