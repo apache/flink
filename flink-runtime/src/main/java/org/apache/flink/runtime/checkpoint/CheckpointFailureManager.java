@@ -33,8 +33,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class CheckpointFailureManager {
 
     public static final int UNLIMITED_TOLERABLE_FAILURE_NUMBER = Integer.MAX_VALUE;
-    public static final FlinkRuntimeException EXCEEDED_CHECKPOINT_TOLERABLE_FAILURE_EXCEPTION =
-            new FlinkRuntimeException("Exceeded checkpoint tolerable failure threshold.");
+    public static final String EXCEEDED_CHECKPOINT_TOLERABLE_FAILURE_MESSAGE =
+            "Exceeded checkpoint tolerable failure threshold.";
 
     private final int tolerableCpFailureNumber;
     private final FailJobCallback failureCallback;
@@ -95,7 +95,8 @@ public class CheckpointFailureManager {
             checkFailureCounter(exception, checkpointId);
             if (continuousFailureCounter.get() > tolerableCpFailureNumber) {
                 clearCount();
-                errorHandler.accept(EXCEEDED_CHECKPOINT_TOLERABLE_FAILURE_EXCEPTION);
+                errorHandler.accept(
+                        new FlinkRuntimeException(EXCEEDED_CHECKPOINT_TOLERABLE_FAILURE_MESSAGE));
             }
         }
     }

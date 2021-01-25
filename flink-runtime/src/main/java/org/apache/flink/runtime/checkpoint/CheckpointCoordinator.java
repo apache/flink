@@ -1003,7 +1003,7 @@ public class CheckpointCoordinator {
                         message.getTaskExecutionId(),
                         job,
                         taskManagerLocationInfo,
-                        checkpointException);
+                        checkpointException.getCause());
                 abortPendingCheckpoint(
                         checkpoint, checkpointException, message.getTaskExecutionId());
             } else if (LOG.isDebugEnabled()) {

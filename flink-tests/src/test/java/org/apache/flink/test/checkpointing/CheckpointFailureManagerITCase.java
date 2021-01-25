@@ -109,8 +109,8 @@ public class CheckpointFailureManagerITCase extends TestLogger {
                     ExceptionUtils.findThrowable(jobException, FlinkRuntimeException.class);
             Assert.assertTrue(throwable.isPresent());
             Assert.assertEquals(
-                    CheckpointFailureManager.EXCEEDED_CHECKPOINT_TOLERABLE_FAILURE_EXCEPTION,
-                    throwable.get());
+                    CheckpointFailureManager.EXCEEDED_CHECKPOINT_TOLERABLE_FAILURE_MESSAGE,
+                    throwable.get().getMessage());
         }
         // assert that the job only failed once.
         Assert.assertEquals(1, StringGeneratingSourceFunction.INITIALIZE_TIMES.get());
@@ -198,7 +198,7 @@ public class CheckpointFailureManagerITCase extends TestLogger {
 
                             return new FutureTask<>(
                                     () -> {
-                                        throw new Exception("Async part snapshot exception.");
+                                        throw new Exception("Excepted async snapshot exception.");
                                     });
                         }
                     };
