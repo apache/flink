@@ -153,10 +153,7 @@ public class RocksFullSnapshotStrategy<K>
                                 checkpointId, checkpointStreamFactory, checkpointOptions);
 
         return new SnapshotAsynchronousPartCallable(
-                checkpointStreamSupplier,
-                fullRocksDBSnapshotResources.snapshot,
-                fullRocksDBSnapshotResources.stateMetaInfoSnapshots,
-                fullRocksDBSnapshotResources.metaDataCopy);
+                checkpointStreamSupplier, fullRocksDBSnapshotResources);
     }
 
     @Override
@@ -198,24 +195,16 @@ public class RocksFullSnapshotStrategy<K>
                 checkpointStreamSupplier;
 
         /** RocksDB snapshot. */
-        @Nonnull private final Snapshot snapshot;
-
-        @Nonnull private final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots;
-
-        @Nonnull private final List<MetaData> metaData;
+        @Nonnull private final FullRocksDBSnapshotResources snapshotResources;
 
         SnapshotAsynchronousPartCallable(
                 @Nonnull
                         SupplierWithException<CheckpointStreamWithResultProvider, Exception>
                                 checkpointStreamSupplier,
-                @Nonnull Snapshot snapshot,
-                @Nonnull List<StateMetaInfoSnapshot> stateMetaInfoSnapshots,
-                @Nonnull List<RocksDbKvStateInfo> metaDataCopy) {
+                @Nonnull FullRocksDBSnapshotResources snapshotResources) {
 
             this.checkpointStreamSupplier = checkpointStreamSupplier;
-            this.snapshot = snapshot;
-            this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
-            this.metaData = fillMetaData(metaDataCopy);
+            this.snapshotResources = snapshotResources;
         }
 
         @Override
@@ -253,7 +242,7 @@ public class RocksFullSnapshotStrategy<K>
             final ReadOptions readOptions = new ReadOptions();
 
             try {
-                readOptions.setSnapshot(snapshot);
+                readOptions.setSnapshot(snapshotResources.snapshot);
                 kvStateIterators = createKVStateIterators(readOptions);
 
                 writeKVStateData(
@@ -272,6 +261,8 @@ public class RocksFullSnapshotStrategy<K>
 
         private List<Tuple2<RocksIteratorWrapper, Integer>> createKVStateIterators(
                 ReadOptions readOptions) {
+
+            List<MetaData> metaData = snapshotResources.getMetaData();
             final List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators =
                     new ArrayList<>(metaData.size());
 
@@ -300,7 +291,7 @@ public class RocksFullSnapshotStrategy<K>
                             // get a serialized form already at state registration time in the
                             // future
                             keySerializer,
-                            stateMetaInfoSnapshots,
+                            snapshotResources.stateMetaInfoSnapshots,
                             !Objects.equals(
                                     UncompressedStreamCompressionDecorator.INSTANCE,
                                     keyGroupCompressionDecorator));
@@ -429,22 +420,6 @@ public class RocksFullSnapshotStrategy<K>
         }
     }
 
-    private static List<MetaData> fillMetaData(List<RocksDbKvStateInfo> metaDataCopy) {
-        List<MetaData> metaData = new ArrayList<>(metaDataCopy.size());
-        for (RocksDbKvStateInfo rocksDbKvStateInfo : metaDataCopy) {
-            StateSnapshotTransformer<byte[]> stateSnapshotTransformer = null;
-            if (rocksDbKvStateInfo.metaInfo instanceof RegisteredKeyValueStateBackendMetaInfo) {
-                stateSnapshotTransformer =
-                        ((RegisteredKeyValueStateBackendMetaInfo<?, ?>) rocksDbKvStateInfo.metaInfo)
-                                .getStateSnapshotTransformFactory()
-                                .createForSerializedState()
-                                .orElse(null);
-            }
-            metaData.add(new MetaData(rocksDbKvStateInfo, stateSnapshotTransformer));
-        }
-        return metaData;
-    }
-
     private static RocksIteratorWrapper getRocksIterator(
             RocksDB db,
             ColumnFamilyHandle columnFamilyHandle,
@@ -471,10 +446,10 @@ public class RocksFullSnapshotStrategy<K>
 
     static class FullRocksDBSnapshotResources implements SnapshotResources {
         private final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots;
-        private final List<RocksDbKvStateInfo> metaDataCopy;
         private final ResourceGuard.Lease lease;
         private final Snapshot snapshot;
         private final RocksDB db;
+        private final List<MetaData> metaData;
 
         public FullRocksDBSnapshotResources(
                 ResourceGuard.Lease lease,
@@ -484,9 +459,33 @@ public class RocksFullSnapshotStrategy<K>
                 RocksDB db) {
             this.lease = lease;
             this.snapshot = snapshot;
-            this.metaDataCopy = metaDataCopy;
             this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
             this.db = db;
+
+            // we need to to this in the constructor, i.e. in the synchronous part of the snapshot
+            // TODO: better yet, we can do it outside the constructor
+            this.metaData = fillMetaData(metaDataCopy);
+        }
+
+        private List<MetaData> fillMetaData(List<RocksDbKvStateInfo> metaDataCopy) {
+            List<MetaData> metaData = new ArrayList<>(metaDataCopy.size());
+            for (RocksDbKvStateInfo rocksDbKvStateInfo : metaDataCopy) {
+                StateSnapshotTransformer<byte[]> stateSnapshotTransformer = null;
+                if (rocksDbKvStateInfo.metaInfo instanceof RegisteredKeyValueStateBackendMetaInfo) {
+                    stateSnapshotTransformer =
+                            ((RegisteredKeyValueStateBackendMetaInfo<?, ?>)
+                                            rocksDbKvStateInfo.metaInfo)
+                                    .getStateSnapshotTransformFactory()
+                                    .createForSerializedState()
+                                    .orElse(null);
+                }
+                metaData.add(new MetaData(rocksDbKvStateInfo, stateSnapshotTransformer));
+            }
+            return metaData;
+        }
+
+        private List<MetaData> getMetaData() {
+            return metaData;
         }
 
         @Override
