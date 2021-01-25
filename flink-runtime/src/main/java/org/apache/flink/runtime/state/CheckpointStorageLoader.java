@@ -71,7 +71,7 @@ public class CheckpointStorageLoader {
         final String storageName = config.get(CheckpointingOptions.CHECKPOINT_STORAGE);
         if (storageName == null) {
             if (logger != null) {
-                logger.warn(
+                logger.debug(
                         "The configuration {} has not be set in the current"
                                 + " sessions flink-conf.yaml. Falling back to a default CheckpointStorage"
                                 + " type. Users are strongly encouraged explicitly set this configuration"
