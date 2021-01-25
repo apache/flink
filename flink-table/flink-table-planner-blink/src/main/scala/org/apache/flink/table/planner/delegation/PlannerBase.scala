@@ -155,11 +155,6 @@ abstract class PlannerBase(
     if (modifyOperations.isEmpty) {
       return List.empty[Transformation[_]]
     }
-    // prepare the execEnv before translating
-    getExecEnv.configure(
-      getTableConfig.getConfiguration,
-      Thread.currentThread().getContextClassLoader)
-    overrideEnvParallelism()
 
     val relNodes = modifyOperations.map(translateToRel)
     val optimizedRelNodes = optimize(relNodes)
@@ -186,6 +181,12 @@ abstract class PlannerBase(
     */
   @VisibleForTesting
   private[flink] def translateToRel(modifyOperation: ModifyOperation): RelNode = {
+    // prepare the execEnv before translating
+    getExecEnv.configure(
+      getTableConfig.getConfiguration,
+      Thread.currentThread().getContextClassLoader)
+    overrideEnvParallelism()
+
     modifyOperation match {
       case s: UnregisteredSinkModifyOperation[_] =>
         val input = getRelBuilder.queryOperation(s.getChild).build()
