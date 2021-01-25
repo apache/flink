@@ -25,7 +25,7 @@ import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
 
 import org.junit.Test
 
-class WindowAggregateValidationTest extends TableTestBase {
+class GroupWindowValidationTest extends TableTestBase {
   private val streamUtil: StreamTableTestUtil = streamTestUtil()
   streamUtil.addTable[(Int, String, Long)](
     "MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)

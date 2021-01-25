@@ -30,7 +30,7 @@ import org.apache.flink.table.planner.utils.{CountAggFunction, IntAvgAggFunction
 
 import org.junit.{Before, Test}
 
-class WindowAggregateITCase extends BatchTestBase {
+class GroupWindowITCase extends BatchTestBase {
 
   @Before
   override def before(): Unit = {

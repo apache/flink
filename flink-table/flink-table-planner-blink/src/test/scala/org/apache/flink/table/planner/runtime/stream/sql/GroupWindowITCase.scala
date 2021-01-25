@@ -41,7 +41,7 @@ import java.time.Duration
 import java.util.concurrent.TimeUnit
 
 @RunWith(classOf[Parameterized])
-class WindowAggregateITCase(mode: StateBackendMode)
+class GroupWindowITCase(mode: StateBackendMode)
   extends StreamingWithStateTestBase(mode) {
 
   val data = List(
