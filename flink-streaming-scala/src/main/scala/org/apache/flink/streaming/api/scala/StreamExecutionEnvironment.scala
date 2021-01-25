@@ -281,8 +281,6 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    *
    * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
    * @see #getStateBackend()
-   * @see #getCheckpointConfig()#setCheckpointStorage(
-   *      org.apache.flink.runtime.state.CheckpointStorage)
    */
   @PublicEvolving
   def setStateBackend(backend: StateBackend): StreamExecutionEnvironment = {
