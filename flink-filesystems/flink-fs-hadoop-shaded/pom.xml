@@ -32,6 +32,17 @@ under the License.
 
 	<packaging>jar</packaging>
 
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<!-- Bumped for security purposes -->
+				<groupId>commons-beanutils</groupId>
+				<artifactId>commons-beanutils</artifactId>
+				<version>1.9.4</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
 	<dependencies>
 		<!-- The Hadoop file system abstraction  -->
 		<dependency>
