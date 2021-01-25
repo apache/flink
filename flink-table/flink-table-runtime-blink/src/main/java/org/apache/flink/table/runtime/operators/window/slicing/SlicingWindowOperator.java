@@ -223,10 +223,8 @@ public final class SlicingWindowOperator<K, W> extends TableStreamOperator<RowDa
             // we need to notify WindowProcessor first to flush buffer into state
             lastTriggeredProcessingTime = timestamp;
             windowProcessor.advanceProgress(timestamp);
-            // register timer again, because we need to skip current timer to avoid duplicate output
-            setCurrentKey(timer.getKey());
-            internalTimerService.registerProcessingTimeTimer(timer.getNamespace(), timestamp);
-            return;
+            // timers registered in advanceProgress() should always be smaller than current timer
+            // so, it should be safe to trigger current timer straightforwards.
         }
         onTimer(timer);
     }

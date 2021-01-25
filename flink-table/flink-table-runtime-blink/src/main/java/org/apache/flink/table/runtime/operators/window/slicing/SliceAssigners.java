@@ -28,7 +28,6 @@ import org.apache.commons.math3.util.ArithmeticUtils;
 
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -111,7 +110,7 @@ public final class SliceAssigners {
 
         private final long size;
         private final long offset;
-        private final ReusableListIterable reuseList = new ReusableListIterable();
+        private final ReusableListIterable reuseExpiredList = new ReusableListIterable();
 
         private TumblingSliceAssigner(int rowtimeIndex, long size, long offset) {
             super(rowtimeIndex);
@@ -141,8 +140,8 @@ public final class SliceAssigners {
 
         @Override
         public Iterable<Long> expiredSlices(long windowEnd) {
-            reuseList.reset(windowEnd);
-            return reuseList;
+            reuseExpiredList.reset(windowEnd);
+            return reuseExpiredList;
         }
     }
 
@@ -161,7 +160,7 @@ public final class SliceAssigners {
         private final long offset;
         private final long sliceSize;
         private final int numSlicesPerWindow;
-        private final ReusableListIterable reuseList = new ReusableListIterable();
+        private final ReusableListIterable reuseExpiredList = new ReusableListIterable();
 
         protected HoppingSliceAssigner(int rowtimeIndex, long size, long slide, long offset) {
             super(rowtimeIndex);
@@ -200,8 +199,8 @@ public final class SliceAssigners {
             // we need to cleanup the first slice of the window
             long windowStart = getWindowStart(windowEnd);
             long firstSliceEnd = windowStart + sliceSize;
-            reuseList.reset(firstSliceEnd);
-            return reuseList;
+            reuseExpiredList.reset(firstSliceEnd);
+            return reuseExpiredList;
         }
 
         @Override
@@ -236,7 +235,8 @@ public final class SliceAssigners {
         private final long maxSize;
         private final long step;
         private final long offset;
-        private final ReusableListIterable reuseList = new ReusableListIterable();
+        private final ReusableListIterable reuseToBeMergedList = new ReusableListIterable();
+        private final ReusableListIterable reuseExpiredList = new ReusableListIterable();
 
         protected CumulativeSliceAssigner(int rowtimeIndex, long maxSize, long step, long offset) {
             super(rowtimeIndex);
@@ -275,16 +275,17 @@ public final class SliceAssigners {
             long firstSliceEnd = windowStart + step;
             long lastSliceEnd = windowStart + maxSize;
             if (windowEnd == firstSliceEnd) {
-                // we reuse state in the first slice, skip cleanup for the first slice
-                return Collections.emptyList();
+                // we share state in the first slice, skip cleanup for the first slice
+                reuseExpiredList.clear();
             } else if (windowEnd == lastSliceEnd) {
                 // when this is the last slice,
-                // we need to cleanup the shared state which is the first slice
-                reuseList.reset(windowEnd, firstSliceEnd);
+                // we need to cleanup the shared state (i.e. first slice) and the current slice
+                reuseExpiredList.reset(windowEnd, firstSliceEnd);
             } else {
-                reuseList.reset(windowEnd);
+                // clean up current slice
+                reuseExpiredList.reset(windowEnd);
             }
-            return reuseList;
+            return reuseExpiredList;
         }
 
         @Override
@@ -293,12 +294,12 @@ public final class SliceAssigners {
             long firstSliceEnd = windowStart + step;
             if (sliceEnd == firstSliceEnd) {
                 // if this is the first slice, there is nothing to merge
-                reuseList.clear();
+                reuseToBeMergedList.clear();
             } else {
                 // otherwise, merge the current slice state into the first slice state
-                reuseList.reset(sliceEnd);
+                reuseToBeMergedList.reset(sliceEnd);
             }
-            callback.merge(firstSliceEnd, reuseList);
+            callback.merge(firstSliceEnd, reuseToBeMergedList);
         }
 
         @Override
@@ -321,7 +322,7 @@ public final class SliceAssigners {
 
         private final int windowEndIndex;
         private final long windowSize;
-        private final ReusableListIterable reuseList = new ReusableListIterable();
+        private final ReusableListIterable reuseExpiredList = new ReusableListIterable();
 
         public WindowedSliceAssigner(int windowEndIndex, long windowSize) {
             checkArgument(
@@ -348,8 +349,8 @@ public final class SliceAssigners {
 
         @Override
         public Iterable<Long> expiredSlices(long windowEnd) {
-            reuseList.reset(windowEnd);
-            return reuseList;
+            reuseExpiredList.reset(windowEnd);
+            return reuseExpiredList;
         }
 
         @Override
