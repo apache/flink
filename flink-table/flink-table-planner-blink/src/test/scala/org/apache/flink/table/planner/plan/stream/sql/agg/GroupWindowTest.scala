@@ -29,7 +29,7 @@ import java.time.Duration
 
 import org.junit.Test
 
-class WindowAggregateTest extends TableTestBase {
+class GroupWindowTest extends TableTestBase {
 
   private val util = streamTestUtil()
   util.addDataStream[(Int, String, Long)](

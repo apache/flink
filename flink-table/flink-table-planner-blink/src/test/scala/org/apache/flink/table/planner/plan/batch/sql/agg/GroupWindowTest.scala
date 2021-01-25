@@ -33,7 +33,7 @@ import java.util
 import scala.collection.JavaConversions._
 
 @RunWith(classOf[Parameterized])
-class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTestBase {
+class GroupWindowTest(aggStrategy: AggregatePhaseStrategy) extends TableTestBase {
 
   private val util = batchTestUtil()
 
@@ -416,7 +416,7 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
   }
 }
 
-object WindowAggregateTest {
+object GroupWindowTest {
 
   @Parameterized.Parameters(name = "aggStrategy={0}")
   def parameters(): util.Collection[AggregatePhaseStrategy] = {
