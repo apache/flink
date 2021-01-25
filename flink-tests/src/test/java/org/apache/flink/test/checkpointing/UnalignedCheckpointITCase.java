@@ -196,11 +196,11 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                                 "source")
                         .slotSharingGroup(slotSharing ? "default" : "source")
                         .disableChaining()
-                        .map(i -> i)
+                        .map(i -> checkHeader(i))
                         .name("forward")
                         .uid("forward")
                         .slotSharingGroup(slotSharing ? "default" : "forward")
-                        .keyBy(i -> i % parallelism * parallelism)
+                        .keyBy(i -> withoutHeader(i) % parallelism * parallelism)
                         .process(new KeyedIdentityFunction())
                         .name("keyed")
                         .uid("keyed");
@@ -332,12 +332,21 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
         public void initializeState(FunctionInitializationContext context) throws Exception {
             super.initializeState(context);
             backpressure = false;
+            LOG.info(
+                    "Inducing backpressure=false @ {} subtask ({} attempt)",
+                    getRuntimeContext().getIndexOfThisSubtask(),
+                    getRuntimeContext().getAttemptNumber());
         }
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
             super.snapshotState(context);
             backpressure = state.completedCheckpoints < minCheckpoints;
+            LOG.info(
+                    "Inducing backpressure={} @ {} subtask ({} attempt)",
+                    backpressure,
+                    getRuntimeContext().getIndexOfThisSubtask(),
+                    getRuntimeContext().getAttemptNumber());
         }
 
         @Override
