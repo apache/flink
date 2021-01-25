@@ -512,18 +512,20 @@ object GenerateUtils {
       contextTerm: String): GeneratedExpression = {
     val resultType = new TimestampType(true, TimestampKind.ROWTIME, 3)
     val resultTypeTerm = primitiveTypeTermForType(resultType)
-    val Seq(resultTerm, nullTerm) = ctx.addReusableLocalVariables(
+    val Seq(resultTerm, nullTerm, timestamp) = ctx.addReusableLocalVariables(
       (resultTypeTerm, "result"),
-      ("boolean", "isNull"))
+      ("boolean", "isNull"),
+      ("Long", "timestamp"))
 
     val accessCode =
       s"""
-         |$resultTerm = $TIMESTAMP_DATA.fromEpochMillis($contextTerm.timestamp());
-         |if ($resultTerm == null) {
-         |  throw new RuntimeException("Rowtime timestamp is null. Please make sure that a " +
-         |    "proper TimestampAssigner is defined and the stream environment uses the EventTime " +
-         |    "time characteristic.");
+         |$timestamp = $contextTerm.timestamp();
+         |if ($timestamp == null) {
+         |  throw new RuntimeException("Rowtime timestamp is not defined. Please make sure that " +
+         |    "a proper TimestampAssigner is defined and the stream environment " +
+         |    "uses the EventTime time characteristic.");
          |}
+         |$resultTerm = $TIMESTAMP_DATA.fromEpochMillis($timestamp);
          |$nullTerm = false;
        """.stripMargin.trim
 
