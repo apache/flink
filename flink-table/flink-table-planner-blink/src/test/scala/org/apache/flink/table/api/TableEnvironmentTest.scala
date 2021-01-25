@@ -105,25 +105,28 @@ class TableEnvironmentTest {
   }
 
   @Test
-  def testStreamTableEnvironmentExecutionExplain(): Unit = {
+  def testStreamTableEnvironmentExecutionExplainWithEnvParallelism(): Unit = {
     val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
     execEnv.setParallelism(4)
     val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
-    var tEnv = StreamTableEnvironment.create(execEnv, settings)
+    val tEnv = StreamTableEnvironment.create(execEnv, settings)
 
-    testStreamTableEnvironmentExecutionExplain(tEnv)
-
-    tEnv = StreamTableEnvironment.create(
-      StreamExecutionEnvironment.getExecutionEnvironment,
-      settings)
-    val conf = new Configuration()
-    conf.setInteger("parallelism.default", 4)
-    tEnv.getConfig.addConfiguration(conf)
-
-    testStreamTableEnvironmentExecutionExplain(tEnv)
+    verifyTableEnvironmentExecutionExplain(tEnv)
   }
 
-  def testStreamTableEnvironmentExecutionExplain(tEnv: TableEnvironment): Unit = {
+  @Test
+  def testStreamTableEnvironmentExecutionExplainWithConfParallelism(): Unit = {
+    val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
+    val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
+    val tEnv = StreamTableEnvironment.create(execEnv, settings)
+    val configuration = new Configuration()
+    configuration.setInteger("parallelism.default", 4)
+    tEnv.getConfig.addConfiguration(configuration)
+
+    verifyTableEnvironmentExecutionExplain(tEnv)
+  }
+
+  private def verifyTableEnvironmentExecutionExplain(tEnv: TableEnvironment): Unit = {
     TestTableSourceSinks.createPersonCsvTemporaryTable(tEnv, "MyTable")
 
     TestTableSourceSinks.createCsvTemporarySinkTable(
