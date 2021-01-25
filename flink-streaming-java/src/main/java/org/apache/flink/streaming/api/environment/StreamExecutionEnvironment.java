@@ -589,8 +589,7 @@ public class StreamExecutionEnvironment {
      *
      * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
      * @see #getStateBackend()
-     * @see #getCheckpointConfig()#setCheckpointStorage(
-     *     org.apache.flink.runtime.state.CheckpointStorage)
+     * @see CheckpointConfig#setCheckpointStorage( org.apache.flink.runtime.state.CheckpointStorage)
      */
     @PublicEvolving
     public StreamExecutionEnvironment setStateBackend(StateBackend backend) {
