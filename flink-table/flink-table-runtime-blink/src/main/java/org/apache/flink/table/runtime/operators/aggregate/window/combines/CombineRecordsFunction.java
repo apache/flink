@@ -114,9 +114,9 @@ public final class CombineRecordsFunction implements WindowCombineFunction {
         // step 5: register timer for current window
         if (isEventTime) {
             timerService.registerEventTimeTimer(window, window - 1);
-        } else {
-            timerService.registerProcessingTimeTimer(window, window - 1);
         }
+        // we don't need register processing-time timer, because we already register them
+        // per-record in AbstractWindowAggProcessor.processElement()
     }
 
     @Override
