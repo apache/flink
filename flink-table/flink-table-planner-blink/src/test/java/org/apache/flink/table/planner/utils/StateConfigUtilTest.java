@@ -91,7 +91,7 @@ public class StateConfigUtilTest {
     private static final class TestingStateBackendOperator extends AbstractStreamOperator<Boolean>
             implements OneInputStreamOperator<String, Boolean> {
 
-        private static final long serialVersionUID = 6355892847620434528L;
+        private static final long serialVersionUID = 1L;
 
         private transient Boolean result = null;
 
@@ -110,7 +110,7 @@ public class StateConfigUtilTest {
     }
 
     private static final class VerifyingSink implements SinkFunction<Boolean> {
-        private static final long serialVersionUID = 4572915858888093394L;
+        private static final long serialVersionUID = 1L;
 
         private static final List<Boolean> RESULT = new ArrayList<>();
 
