@@ -17,6 +17,7 @@
 
 package org.apache.flink.table.module.hive;
 
+import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.ValidationException;
@@ -253,14 +254,17 @@ public class HiveModuleTest {
                         tableEnv.sqlQuery("select coalesce('abc',1)").execute().collect());
         assertEquals("[abc]", results.toString());
 
-        try {
-            CollectionUtil.iteratorToList(
-                    tableEnv.sqlQuery("select coalesce(cast('abc' as char(3)),1)")
-                            .execute()
-                            .collect());
-            fail("Calling COALESCE with incompatible types should fail");
-        } catch (ValidationException e) {
-            // expected
+        // hive 3.x is more lenient on type conversion
+        if (!HiveVersionTestUtil.HIVE_310_OR_LATER) {
+            try {
+                CollectionUtil.iteratorToList(
+                        tableEnv.sqlQuery("select coalesce(cast('abc' as char(3)),1)")
+                                .execute()
+                                .collect());
+                fail("Calling COALESCE with incompatible types should fail");
+            } catch (ValidationException e) {
+                // expected
+            }
         }
 
         results =

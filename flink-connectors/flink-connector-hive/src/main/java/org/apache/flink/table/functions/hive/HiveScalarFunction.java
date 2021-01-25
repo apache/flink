@@ -26,7 +26,6 @@ import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.hive.util.HiveFunctionUtil;
-import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.ArgumentCount;
 import org.apache.flink.table.types.inference.CallContext;
@@ -35,13 +34,14 @@ import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.Signature;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategy;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import org.apache.hadoop.hive.ql.exec.UDF;
 import org.apache.hadoop.hive.ql.exec.UDFArgumentException;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDF;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -116,6 +116,9 @@ public abstract class HiveScalarFunction<UDFType> extends ScalarFunction {
     protected abstract Object evalInternal(Object[] args);
 
     private void setArguments(CallContext callContext) {
+        if (reuseArgTypeForCast(callContext)) {
+            return;
+        }
         DataType[] inputTypes = callContext.getArgumentDataTypes().toArray(new DataType[0]);
         Object[] constantArgs = new Object[inputTypes.length];
         for (int i = 0; i < constantArgs.length; i++) {
@@ -123,9 +126,7 @@ public abstract class HiveScalarFunction<UDFType> extends ScalarFunction {
                 constantArgs[i] =
                         callContext
                                 .getArgumentValue(
-                                        i,
-                                        ClassLogicalTypeConverter.getDefaultExternalClassForType(
-                                                inputTypes[i].getLogicalType()))
+                                        i, inputTypes[i].getLogicalType().getDefaultConversion())
                                 .orElse(null);
                 // we always use string type for string constant arg because that's what hive UDFs
                 // expect
@@ -136,6 +137,46 @@ public abstract class HiveScalarFunction<UDFType> extends ScalarFunction {
         }
         this.constantArguments = constantArgs;
         this.argTypes = inputTypes;
+    }
+
+    // calcite converts CAST(literal) to literal, when that happens we shouldn't change type for
+    // string literals and the previously remembered types should be reused
+    private boolean reuseArgTypeForCast(CallContext callContext) {
+        if (argTypes == null
+                || constantArguments == null
+                || argTypes.length != callContext.getArgumentDataTypes().size()) {
+            return false;
+        }
+        for (int i = 0; i < argTypes.length; i++) {
+            // removing cast won't change type
+            if (!sameType(callContext, i)) {
+                return false;
+            }
+            // removing cast gives us more constant args, not less
+            if (constantArguments[i] != null && !callContext.isArgumentLiteral(i)) {
+                return false;
+            }
+            // store the new constant arg
+            if (callContext.isArgumentLiteral(i)) {
+                constantArguments[i] =
+                        callContext
+                                .getArgumentValue(
+                                        i, argTypes[i].getLogicalType().getDefaultConversion())
+                                .orElse(null);
+            }
+        }
+        return true;
+    }
+
+    private boolean sameType(CallContext callContext, int i) {
+        LogicalType oldType = argTypes[i].getLogicalType();
+        LogicalType newType = callContext.getArgumentDataTypes().get(i).getLogicalType();
+        if (oldType.equals(newType)) {
+            return true;
+        }
+        return constantArguments[i] instanceof String
+                && oldType.equals(DataTypes.STRING().getLogicalType())
+                && newType.getTypeRoot() == LogicalTypeRoot.CHAR;
     }
 
     /** Infer return type of this function call. */
@@ -178,7 +219,7 @@ public abstract class HiveScalarFunction<UDFType> extends ScalarFunction {
                     return Optional.empty();
                 }
             }
-            return Optional.of(Arrays.asList(argTypes));
+            return Optional.of(callContext.getArgumentDataTypes());
         }
 
         @Override
