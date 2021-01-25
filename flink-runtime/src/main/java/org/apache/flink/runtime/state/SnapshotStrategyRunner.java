@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
 
 /**
@@ -88,11 +89,8 @@ public final class SnapshotStrategyRunner<T extends StateObject, SR extends Snap
                         streamFactory,
                         checkpointOptions);
 
-        switch (executionType) {
-            case SYNCHRONOUS:
-                return DoneFuture.of(asyncSnapshot.get(cancelStreamRegistry));
-            case ASYNCHRONOUS:
-                return new AsyncSnapshotCallable<SnapshotResult<T>>() {
+        FutureTask<SnapshotResult<T>> asyncSnapshotTask =
+                new AsyncSnapshotCallable<SnapshotResult<T>>() {
                     @Override
                     protected SnapshotResult<T> callInternal() throws Exception {
                         return asyncSnapshot.get(snapshotCloseableRegistry);
@@ -111,9 +109,12 @@ public final class SnapshotStrategyRunner<T extends StateObject, SR extends Snap
                                 LOG_ASYNC_COMPLETED_TEMPLATE, streamFactory, startTime);
                     }
                 }.toAsyncSnapshotFutureTask(cancelStreamRegistry);
-            default:
-                throw new IllegalStateException("Unknown execution type: " + executionType);
+
+        if (executionType == ExecutionType.SYNCHRONOUS) {
+            asyncSnapshotTask.run();
         }
+
+        return asyncSnapshotTask;
     }
 
     private void logCompletedInternal(
