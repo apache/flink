@@ -16,18 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.contrib.streaming.state.snapshot;
+package org.apache.flink.runtime.state;
 
 /**
- * Utility methods and constants around RocksDB creating and restoring snapshots for {@link
- * org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend}.
+ * Utility methods and constants around creating and restoring full snapshots using {@link
+ * FullSnapshotAsyncWriter}.
  */
-public class RocksSnapshotUtil {
+public class FullSnapshotUtil {
 
-    /** File suffix of sstable files. */
-    public static final String SST_FILE_SUFFIX = ".sst";
+    public static final int FIRST_BIT_IN_BYTE_MASK = 0x80;
 
-    private RocksSnapshotUtil() {
+    public static final int END_OF_KEY_GROUP_MARK = 0xFFFF;
+
+    public static void setMetaDataFollowsFlagInKey(byte[] key) {
+        key[0] |= FIRST_BIT_IN_BYTE_MASK;
+    }
+
+    public static void clearMetaDataFollowsFlag(byte[] key) {
+        key[0] &= (~FIRST_BIT_IN_BYTE_MASK);
+    }
+
+    public static boolean hasMetaDataFollowsFlag(byte[] key) {
+        return 0 != (key[0] & FIRST_BIT_IN_BYTE_MASK);
+    }
+
+    private FullSnapshotUtil() {
         throw new AssertionError();
     }
 }
