@@ -853,6 +853,12 @@ public class SingleInputGate extends IndexedInputGate {
                     return;
                 }
 
+                if (channel.isReleased()) {
+                    // when channel is closed, EndOfPartitionEvent is send and a final notification
+                    // if EndOfPartitionEvent causes a release, we must ignore the notification
+                    return;
+                }
+
                 if (!queueChannelUnsafe(channel, priority)) {
                     return;
                 }
