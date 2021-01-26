@@ -25,8 +25,7 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
-import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorageFactory;
-import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorageFactory;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.util.DynamicCodeLoadingException;
 import org.apache.flink.util.Preconditions;
 
@@ -48,7 +47,7 @@ public class CheckpointStorageLoader {
      * Loads the checkpoint storage from the configuration, from the parameter
      * 'state.checkpoint-storage', as defined in {@link CheckpointingOptions#CHECKPOINT_STORAGE}.
      *
-     * <p>The state backends can be specified either via their shortcut name, or via the class name
+     * <p>The implementation can be specified either via their shortcut name, or via the class name
      * of a {@link CheckpointStorageFactory}. If a CheckpointStorageFactory class name is specified,
      * the factory is instantiated (via its zero-argument constructor) and its {@link
      * CheckpointStorageFactory#createFromConfig(ReadableConfig, ClassLoader)} method is called.
@@ -92,13 +91,11 @@ public class CheckpointStorageLoader {
                     logger.info("Checkpoint storage is set to JobManager");
                 }
                 return Optional.of(
-                        new JobManagerCheckpointStorageFactory()
-                                .createFromConfig(config, classLoader));
+                        JobManagerCheckpointStorage.createFromConfig(config, classLoader));
 
             case FILE_SYSTEM_STORAGE_NAME:
                 FileSystemCheckpointStorage storage =
-                        new FileSystemCheckpointStorageFactory()
-                                .createFromConfig(config, classLoader);
+                        FileSystemCheckpointStorage.createFromConfig(config, classLoader);
                 if (logger != null) {
                     logger.info(
                             "Checkpoint storage is set to filesystem (checkpoints \"{}\")",
@@ -179,6 +176,11 @@ public class CheckpointStorageLoader {
         Preconditions.checkNotNull(configuredStateBackend, "statebackend");
 
         if (defaultSavepointDirectory != null) {
+            // If a savepoint directory was manually specified in code
+            // we override any value set in the flink-conf. This allows
+            // us to pass this value to the CheckpointStorage instance
+            // where it is needed at runtime while keeping its API logically
+            // separated for users.
             config.set(
                     CheckpointingOptions.SAVEPOINT_DIRECTORY, defaultSavepointDirectory.toString());
         }
@@ -231,7 +233,7 @@ public class CheckpointStorageLoader {
 
         if (config.getOptional(CheckpointingOptions.CHECKPOINTS_DIRECTORY).isPresent()) {
             FileSystemCheckpointStorage storage =
-                    new FileSystemCheckpointStorageFactory().createFromConfig(config, classLoader);
+                    FileSystemCheckpointStorage.createFromConfig(config, classLoader);
             if (logger != null) {
                 logger.info(
                         "Checkpoint storage is set to filesystem: {}", storage.getCheckpointPath());
@@ -243,6 +245,6 @@ public class CheckpointStorageLoader {
             logger.info("Checkpoint storage is set to JobManager");
         }
 
-        return new JobManagerCheckpointStorageFactory().createFromConfig(config, classLoader);
+        return JobManagerCheckpointStorage.createFromConfig(config, classLoader);
     }
 }

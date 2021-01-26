@@ -33,9 +33,7 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
-import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorageFactory;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
-import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorageFactory;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.DynamicCodeLoadingException;
 
@@ -159,19 +157,11 @@ public class CheckpointStorageLoaderTest {
         // AbstractStateBackend#X_STATE_BACKEND_NAME)
         // to guard against config-breaking changes of the name
 
-        final Configuration config1 = new Configuration();
-        config1.set(CheckpointingOptions.CHECKPOINT_STORAGE, "jobmanager");
+        final Configuration config = new Configuration();
+        config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "jobmanager");
 
-        final Configuration config2 = new Configuration();
-        config2.set(
-                CheckpointingOptions.CHECKPOINT_STORAGE,
-                JobManagerCheckpointStorageFactory.class.getName());
-
-        CheckpointStorage storage1 = CheckpointStorageLoader.fromConfig(config1, cl, null).get();
-        CheckpointStorage storage2 = CheckpointStorageLoader.fromConfig(config2, cl, null).get();
-
-        Assert.assertThat(storage1, Matchers.instanceOf(JobManagerCheckpointStorage.class));
-        Assert.assertThat(storage2, Matchers.instanceOf(JobManagerCheckpointStorage.class));
+        CheckpointStorage storage = CheckpointStorageLoader.fromConfig(config, cl, null).get();
+        Assert.assertThat(storage, Matchers.instanceOf(JobManagerCheckpointStorage.class));
     }
 
     /**
@@ -191,22 +181,12 @@ public class CheckpointStorageLoaderTest {
         config1.set(CheckpointingOptions.CHECKPOINT_STORAGE, "jobmanager");
         config1.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
 
-        final Configuration config2 = new Configuration();
-        config2.set(
-                CheckpointingOptions.CHECKPOINT_STORAGE,
-                JobManagerCheckpointStorageFactory.class.getName());
-        config2.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
-
         CheckpointStorage storage1 = CheckpointStorageLoader.fromConfig(config1, cl, null).get();
-        CheckpointStorage storage2 = CheckpointStorageLoader.fromConfig(config2, cl, null).get();
 
         Assert.assertThat(storage1, Matchers.instanceOf(JobManagerCheckpointStorage.class));
-        Assert.assertThat(storage2, Matchers.instanceOf(JobManagerCheckpointStorage.class));
 
         Assert.assertEquals(
                 expectedSavepointPath, ((JobManagerCheckpointStorage) storage1).getSavepointPath());
-        Assert.assertEquals(
-                expectedSavepointPath, ((JobManagerCheckpointStorage) storage2).getSavepointPath());
     }
 
     /**
@@ -294,35 +274,17 @@ public class CheckpointStorageLoaderTest {
         config1.setInteger(CheckpointingOptions.FS_WRITE_BUFFER_SIZE, minWriteBufferSize);
         config1.setBoolean(CheckpointingOptions.ASYNC_SNAPSHOTS, async);
 
-        final Configuration config2 = new Configuration();
-        config2.set(
-                CheckpointingOptions.CHECKPOINT_STORAGE,
-                FileSystemCheckpointStorageFactory.class.getName());
-        config2.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
-        config2.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
-        config2.set(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, threshold);
-        config1.setInteger(CheckpointingOptions.FS_WRITE_BUFFER_SIZE, minWriteBufferSize);
-        config2.setBoolean(CheckpointingOptions.ASYNC_SNAPSHOTS, async);
-
         CheckpointStorage storage1 = CheckpointStorageLoader.fromConfig(config1, cl, null).get();
-        CheckpointStorage storage2 = CheckpointStorageLoader.fromConfig(config2, cl, null).get();
 
         Assert.assertThat(storage1, Matchers.instanceOf(FileSystemCheckpointStorage.class));
-        Assert.assertThat(storage2, Matchers.instanceOf(FileSystemCheckpointStorage.class));
 
         FileSystemCheckpointStorage fs1 = (FileSystemCheckpointStorage) storage1;
-        FileSystemCheckpointStorage fs2 = (FileSystemCheckpointStorage) storage1;
 
         Assert.assertThat(fs1.getCheckpointPath(), normalizedPath(expectedCheckpointsPath));
-        Assert.assertThat(fs2.getCheckpointPath(), normalizedPath(expectedCheckpointsPath));
         Assert.assertThat(fs1.getSavepointPath(), normalizedPath(expectedSavepointsPath));
-        Assert.assertThat(fs2.getSavepointPath(), normalizedPath(expectedSavepointsPath));
         Assert.assertEquals(threshold.getBytes(), fs1.getMinFileSizeThreshold());
-        Assert.assertEquals(threshold.getBytes(), fs2.getMinFileSizeThreshold());
         Assert.assertEquals(
                 Math.max(threshold.getBytes(), minWriteBufferSize), fs1.getWriteBufferSize());
-        Assert.assertEquals(
-                Math.max(threshold.getBytes(), minWriteBufferSize), fs2.getWriteBufferSize());
     }
 
     /**

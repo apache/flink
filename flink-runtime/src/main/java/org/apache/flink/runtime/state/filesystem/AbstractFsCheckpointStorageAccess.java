@@ -38,7 +38,32 @@ import java.nio.charset.StandardCharsets;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/** An implementation of durable checkpoint storage to file systems. */
+/**
+ * An implementation of durable checkpoint storage to file systems.
+ *
+ * <h1>Checkpoint Layout</h1>
+ *
+ * <p>The checkpoint storage is configured with a base directory and persists the checkpoint data of
+ * specific checkpoints in specific subdirectories. For example, if the base directory was set to
+ * {@code hdfs://namenode:port/flink-checkpoints/}, the state backend will create a subdirectory
+ * with the job's ID that will contain the actual checkpoints: ({@code
+ * hdfs://namenode:port/flink-checkpoints/1b080b6e710aabbef8993ab18c6de98b})
+ *
+ * <p>Each checkpoint individually will store all its files in a subdirectory that includes the
+ * checkpoint number, such as {@code
+ * hdfs://namenode:port/flink-checkpoints/1b080b6e710aabbef8993ab18c6de98b/chk-17/}.
+ *
+ * <h1>Savepoint Layout</h1>
+ *
+ * <p>A savepoint that is set to be stored in path {@code hdfs://namenode:port/flink-savepoints/},
+ * will create a subdirectory {@code savepoint-jobId(0, 6)-randomDigits} in which it stores all
+ * savepoint data. The random digits are added as "entropy" to avoid directory collisions.
+ *
+ * <h1>Metadata File</h1>
+ *
+ * <p>A completed checkpoint writes its metadata into a file '{@value
+ * AbstractFsCheckpointStorageAccess#METADATA_FILE_NAME}'.
+ */
 public abstract class AbstractFsCheckpointStorageAccess implements CheckpointStorageAccess {
 
     // ------------------------------------------------------------------------

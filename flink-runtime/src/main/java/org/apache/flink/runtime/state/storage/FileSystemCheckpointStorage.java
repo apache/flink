@@ -27,13 +27,16 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
+import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.ConfigurableCheckpointStorage;
+import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageAccess;
 import org.apache.flink.util.MathUtils;
 
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.URI;
@@ -76,7 +79,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * implemented via the {@link #configure(ReadableConfig, ClassLoader)} method.
  */
 @PublicEvolving
-public class FileSystemCheckpointStorage extends AbstractFileCheckpointStorage
+public class FileSystemCheckpointStorage
         implements CheckpointStorage, ConfigurableCheckpointStorage {
 
     private static final long serialVersionUID = -8191916350224044011L;
@@ -85,6 +88,9 @@ public class FileSystemCheckpointStorage extends AbstractFileCheckpointStorage
     private static final int MAX_FILE_STATE_THRESHOLD = 1024 * 1024;
 
     // ------------------------------------------------------------------------
+
+    /** The location where snapshots will be externalized. */
+    private final ExternalizedSnapshotLocation location;
 
     /**
      * State below this size will be stored as part of the metadata, rather than in files. A value
@@ -205,7 +211,10 @@ public class FileSystemCheckpointStorage extends AbstractFileCheckpointStorage
 
         this.fileStateThreshold = fileStateSizeThreshold;
         this.writeBufferSize = writeBufferSize;
-        setCheckpointPath(checkpointDirectory);
+        this.location =
+                ExternalizedSnapshotLocation.newBuilder()
+                        .withCheckpointPath(checkpointDirectory)
+                        .build();
     }
 
     /**
@@ -215,9 +224,7 @@ public class FileSystemCheckpointStorage extends AbstractFileCheckpointStorage
      * @param configuration The configuration
      */
     private FileSystemCheckpointStorage(
-            FileSystemCheckpointStorage original,
-            ReadableConfig configuration,
-            ClassLoader classLoader) {
+            FileSystemCheckpointStorage original, ReadableConfig configuration) {
         if (getValidFileStateThreshold(original.fileStateThreshold) >= 0) {
             this.fileStateThreshold = original.fileStateThreshold;
         } else {
@@ -234,7 +241,7 @@ public class FileSystemCheckpointStorage extends AbstractFileCheckpointStorage
 
                 // because this is the only place we (unlikely) ever log, we lazily
                 // create the logger here
-                LoggerFactory.getLogger(AbstractFileCheckpointStorage.class)
+                LoggerFactory.getLogger(FileSystemCheckpointStorage.class)
                         .warn(
                                 "Ignoring invalid file size threshold value ({}): {} - using default value {} instead.",
                                 FS_SMALL_FILE_THRESHOLD.key(),
@@ -249,8 +256,12 @@ public class FileSystemCheckpointStorage extends AbstractFileCheckpointStorage
                         : configuration.get(CheckpointingOptions.FS_WRITE_BUFFER_SIZE);
 
         this.writeBufferSize = Math.max(bufferSize, this.fileStateThreshold);
-        setCheckpointPath(original.getCheckpointPath(), configuration);
-        setSavepointPath(original.getSavepointPath(), configuration);
+        this.location =
+                ExternalizedSnapshotLocation.newBuilder()
+                        .withCheckpointPath(original.location.getBaseCheckpointPath())
+                        .withSavepointPath(original.location.getBaseSavepointPath())
+                        .withConfiguration(configuration)
+                        .build();
     }
 
     private int getValidFileStateThreshold(long fileStateThreshold) {
@@ -263,15 +274,50 @@ public class FileSystemCheckpointStorage extends AbstractFileCheckpointStorage
     @Override
     public FileSystemCheckpointStorage configure(ReadableConfig config, ClassLoader classLoader)
             throws IllegalConfigurationException {
-        return new FileSystemCheckpointStorage(this, config, classLoader);
+        return new FileSystemCheckpointStorage(this, config);
+    }
+
+    /**
+     * Creates a new {@link FileSystemCheckpointStorage} using the given configuration.
+     *
+     * @param config The Flink configuration (loaded by the TaskManager).
+     * @param classLoader The class loader that should be used to load the checkpoint storage.
+     * @return The created checkpoint storage.
+     * @throws IllegalConfigurationException If the configuration misses critical values, or
+     *     specifies invalid values
+     */
+    public static FileSystemCheckpointStorage createFromConfig(
+            ReadableConfig config, ClassLoader classLoader) throws IllegalConfigurationException {
+        // we need to explicitly read the checkpoint directory here, because that
+        // is a required constructor parameter
+        final String checkpointDir = config.get(CheckpointingOptions.CHECKPOINTS_DIRECTORY);
+        if (checkpointDir == null) {
+            throw new IllegalConfigurationException(
+                    "Cannot create the file system state backend: The configuration does not specify the "
+                            + "checkpoint directory '"
+                            + CheckpointingOptions.CHECKPOINTS_DIRECTORY.key()
+                            + '\'');
+        }
+
+        try {
+            return new FileSystemCheckpointStorage(checkpointDir).configure(config, classLoader);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalConfigurationException(
+                    "Invalid configuration for the state backend", e);
+        }
+    }
+
+    @Override
+    public CompletedCheckpointStorageLocation resolveCheckpoint(String pointer) throws IOException {
+        return AbstractFsCheckpointStorageAccess.resolveCheckpointPointer(pointer);
     }
 
     @Override
     public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
         checkNotNull(jobId, "jobId");
         return new FsCheckpointStorageAccess(
-                getCheckpointPath(),
-                getSavepointPath(),
+                location.getBaseCheckpointPath(),
+                location.getBaseSavepointPath(),
                 jobId,
                 getMinFileSizeThreshold(),
                 getWriteBufferSize());
@@ -287,7 +333,13 @@ public class FileSystemCheckpointStorage extends AbstractFileCheckpointStorage
     public Path getCheckpointPath() {
         // we know that this can never be null by the way of constructor checks
         //noinspection ConstantConditions
-        return super.getCheckpointPath();
+        return location.getBaseCheckpointPath();
+    }
+
+    /** @return The default location where savepoints will be externalized if set. */
+    @Nullable
+    public Path getSavepointPath() {
+        return location.getBaseSavepointPath();
     }
 
     /**

@@ -28,10 +28,10 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
+import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -103,17 +103,18 @@ public class StickyAllocationAndLocalRecoveryTestJob {
                             CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
         }
 
-        String stateBackend = pt.get("stateBackend", "file");
         String checkpointDir = pt.getRequired("checkpointDir");
+        env.getCheckpointConfig().setCheckpointStorage(checkpointDir);
 
         boolean killJvmOnFail = pt.getBoolean("killJvmOnFail", false);
 
-        if ("file".equals(stateBackend)) {
+        String stateBackend = pt.get("stateBackend", "hashmap");
+        if ("hashmap".equals(stateBackend)) {
             boolean asyncCheckpoints = pt.getBoolean("asyncCheckpoints", true);
-            env.setStateBackend(new FsStateBackend(checkpointDir, asyncCheckpoints));
+            env.setStateBackend(new HashMapStateBackend(asyncCheckpoints));
         } else if ("rocks".equals(stateBackend)) {
             boolean incrementalCheckpoints = pt.getBoolean("incrementalCheckpoints", false);
-            env.setStateBackend(new RocksDBStateBackend(checkpointDir, incrementalCheckpoints));
+            env.setStateBackend(new EmbeddedRocksDBStateBackend(incrementalCheckpoints));
         } else {
             throw new IllegalArgumentException("Unknown backend: " + stateBackend);
         }
