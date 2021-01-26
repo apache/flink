@@ -354,7 +354,7 @@ public class HiveTableUtil {
                         tablePath.getDatabaseName(), tablePath.getObjectName());
         hiveTable.setCreateTime((int) (System.currentTimeMillis() / 1000));
 
-        Map<String, String> properties = new HashMap<>(table.getProperties());
+        Map<String, String> properties = new HashMap<>(table.getOptions());
         // Table comment
         if (table.getComment() != null) {
             properties.put(HiveCatalogConfig.COMMENT, table.getComment());

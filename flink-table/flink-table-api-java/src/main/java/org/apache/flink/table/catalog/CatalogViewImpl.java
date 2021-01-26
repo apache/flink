@@ -41,7 +41,7 @@ public class CatalogViewImpl extends AbstractCatalogView {
                 getOriginalQuery(),
                 getExpandedQuery(),
                 getSchema().copy(),
-                new HashMap<>(getProperties()),
+                new HashMap<>(getOptions()),
                 getComment());
     }
 

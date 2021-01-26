@@ -353,7 +353,7 @@ abstract class PlannerBase(
       case Some(table: CatalogTable) =>
         val catalog = catalogManager.getCatalog(objectIdentifier.getCatalogName)
         val tableToFind = if (dynamicOptions.nonEmpty) {
-          table.copy(FlinkHints.mergeTableOptions(dynamicOptions, table.getProperties))
+          table.copy(FlinkHints.mergeTableOptions(dynamicOptions, table.getOptions))
         } else {
           table
         }
