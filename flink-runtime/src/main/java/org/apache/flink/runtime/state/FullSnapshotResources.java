@@ -19,14 +19,20 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 
 import java.io.IOException;
 import java.util.List;
 
-/** A {@link SnapshotResources} to be used with a backend-independent {@link SnapshotStrategy}. */
+/**
+ * A {@link SnapshotResources} to be used with the backend-independent {@link
+ * FullSnapshotAsyncWriter}.
+ *
+ * @param <K> type of the backend keys.
+ */
 @Internal
-public interface FullSnapshotResources extends SnapshotResources {
+public interface FullSnapshotResources<K> extends SnapshotResources {
 
     /**
      * Returns the list of {@link StateMetaInfoSnapshot meta info snapshots} for this state
@@ -39,4 +45,13 @@ public interface FullSnapshotResources extends SnapshotResources {
      * snapshot resources.
      */
     KeyValueStateIterator createKVStateIterator() throws IOException;
+
+    /** Returns the {@link KeyGroupRange} of this snapshot. */
+    KeyGroupRange getKeyGroupRange();
+
+    /** Returns key {@link TypeSerializer}. */
+    TypeSerializer<K> getKeySerializer();
+
+    /** Returns the {@link StreamCompressionDecorator} that should be used for writing. */
+    StreamCompressionDecorator getStreamCompressionDecorator();
 }
