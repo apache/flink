@@ -19,6 +19,7 @@ package org.apache.flink.streaming.runtime.io.checkpointing;
 
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
+import org.apache.flink.runtime.checkpoint.channel.MockChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.RecordingChannelStateWriter;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.ConnectionID;
@@ -32,6 +33,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.EndOfChannelStateEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
@@ -41,6 +43,8 @@ import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorImpl;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
+
+import org.apache.flink.shaded.guava18.com.google.common.io.Closer;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -174,6 +178,48 @@ public class CheckpointedInputGateTest {
             assertAddedInputSize(stateWriter, 2, 3);
         } finally {
             bufferPool.destroy();
+        }
+    }
+
+    /**
+     * Tests a priority notification happening right before cancellation. The mail would be
+     * processed while draining mailbox but can't pull any data anymore.
+     */
+    @Test
+    public void testPriorityBeforeClose() throws IOException, InterruptedException {
+
+        NetworkBufferPool bufferPool = new NetworkBufferPool(10, 1024);
+        try (Closer closer = Closer.create()) {
+            closer.register(bufferPool::destroy);
+
+            SingleInputGate singleInputGate =
+                    new SingleInputGateBuilder()
+                            .setNumberOfChannels(2)
+                            .setBufferPoolFactory(bufferPool.createBufferPool(2, Integer.MAX_VALUE))
+                            .setSegmentProvider(bufferPool)
+                            .setChannelFactory(InputChannelBuilder::buildRemoteChannel)
+                            .build();
+            singleInputGate.setup();
+            ((RemoteInputChannel) singleInputGate.getChannel(0)).requestSubpartition(0);
+
+            MailboxExecutorImpl mailboxExecutor =
+                    new MailboxExecutorImpl(
+                            new TaskMailboxImpl(), 0, StreamTaskActionExecutor.IMMEDIATE);
+
+            ValidatingCheckpointHandler validatingHandler = new ValidatingCheckpointHandler(1);
+            SingleCheckpointBarrierHandler barrierHandler =
+                    AlternatingControllerTest.barrierHandler(
+                            singleInputGate, validatingHandler, new MockChannelStateWriter());
+            CheckpointedInputGate checkpointedInputGate =
+                    new CheckpointedInputGate(
+                            singleInputGate,
+                            barrierHandler,
+                            mailboxExecutor,
+                            UpstreamRecoveryTracker.forInputGate(singleInputGate));
+
+            emit(checkpointedInputGate, 0, barrier(1));
+            singleInputGate.close();
+            mailboxExecutor.yield();
         }
     }
 
