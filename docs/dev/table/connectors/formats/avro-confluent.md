@@ -80,6 +80,20 @@ CREATE TABLE user_created (
 )
 {% endhighlight %}
 
+To which  we can write as follows):
+
+{% highlight sql %}
+INSERT INTO user_created
+SELECT
+  -- replicating the user id into a column mapped to the kafka key
+  id as the_kafka_key,
+
+  -- all values
+  id, name, email
+FROM some_table
+{% endhighlight %}
+
+---
 
 Example of a table with both the Kafka key and value registered as Avro records in the Schema Registry:
 
@@ -106,7 +120,7 @@ CREATE TABLE user_created (
   'key.avro-confluent.schema-registry.url' = 'http://localhost:8082',
   'key.fields' = 'kafka_key_id',
 
-  -- In this example, the Avro types of both the Kafka key and Kafka value contain the field 'id'
+  -- In this example, we want the Avro types of both the Kafka key and value to contain the field 'id'
   -- => adding a prefix to the table column associated to the Kafka key field avoids clashes
   'key.fields-prefix' = 'kafka_key_',
 
@@ -120,6 +134,7 @@ CREATE TABLE user_created (
 )
 {% endhighlight %}
 
+---
 Example of a table using the upsert connector with the Kafka value registered as an Avro record in the Schema Registry:
 
 {% highlight sql %}
@@ -146,7 +161,7 @@ CREATE TABLE user_created (
   -- We don't specify 'key.fields' in this case since it's dictated by the primary key of the table
   'key.format' = 'raw',
   
-  -- In this example, the avro types of both the kafka key and value contain the field 'id'
+  -- In this example, we want the Avro types of both the Kafka key and value to contain the field 'id'
   -- => adding a prefix to the table column associated to the kafka key field to avoid clashes
   'key.fields-prefix' = 'kafka_key_',
 
