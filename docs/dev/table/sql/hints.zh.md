@@ -25,13 +25,13 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-可以将 SQL 提示（hints）与 SQL 语句一起使用改变执行计划（execution plans）。本章介绍如何使用 SQL 提示增强各种方法。
+SQL hints 是和 SQL 语句一起使用来改变执行计划的。本章介绍如何使用 SQL hints 增强各种方法。
 
-SQL 提示一般可以用于以下：
+SQL hints 一般可以用于以下：
 
-- Enforce planner：没有十分契合的 planner，所以实现提示让用户更好地控制执行是十分有意义的；
-- 增加元数据（或者统计信息）：如 "table index for scan" 和 "skew info of some shuffle keys" 的一些统计数据对于查询来说是动态的，用提示来配置它们会非常方便，因为我们从 planner 获得的计划元数据通常不那么准确；
-- 算子（Operator）资源约束：在许多情况下，我们会为执行算子提供默认的资源配置，即最小并行度或托管内存（UDF 资源消耗）或特殊资源需求（GPU 或 SSD 磁盘）等，可以使用 SQL 提示非常灵活地为每个查询（非作业）配置资源。
+- 增强 planner：没有完美的 planner，所以实现 SQL hints 让用户更好地控制执行是非常有意义的；
+- 增加元数据（或者统计信息）：如"已扫描的表索引"和"一些混洗键（shuffle keys）的倾斜信息"的一些统计数据对于查询来说是动态的，用 hints 来配置它们会非常方便，因为我们从 planner 获得的计划元数据通常不那么准确；
+- 算子（Operator）资源约束：在许多情况下，我们会为执行算子提供默认的资源配置，即最小并行度或托管内存（UDF 资源消耗）或特殊资源需求（GPU 或 SSD 磁盘）等，可以使用 SQL hints 非常灵活地为每个查询（非作业）配置资源。
 
 <a name="dynamic-table-options"></a>
 ## 动态表（Dynamic Table）选项
@@ -43,7 +43,7 @@ SQL 提示一般可以用于以下：
 
 <a name="syntax"></a>
 ### 语法
-为了不破坏 SQL 兼容性，我们使用 Oracle 风格的 SQL 提示语法：
+为了不破坏 SQL 兼容性，我们使用 Oracle 风格的 SQL hints 语法：
 {% highlight sql %}
 table_path /*+ OPTIONS(key=val [, key=val]*) */
 
@@ -62,17 +62,17 @@ val:
 CREATE TABLE kafka_table1 (id BIGINT, name STRING, age INT) WITH (...);
 CREATE TABLE kafka_table2 (id BIGINT, name STRING, age INT) WITH (...);
 
--- 在查询源中覆盖表选项
+-- 覆盖查询语句中源表的选项
 select id, name from kafka_table1 /*+ OPTIONS('scan.startup.mode'='earliest-offset') */;
 
--- 在 join 中覆盖表选项
+-- 覆盖 join 中源表的选项
 select * from
     kafka_table1 /*+ OPTIONS('scan.startup.mode'='earliest-offset') */ t1
     join
     kafka_table2 /*+ OPTIONS('scan.startup.mode'='earliest-offset') */ t2
     on t1.id = t2.id;
 
--- 对 INSERT 目标表使用覆盖表选项
+-- 覆盖插入语句中结果表的选项
 insert into kafka_table1 /*+ OPTIONS('sink.partitioner'='round-robin') */ select * from kafka_table2;
 
 {% endhighlight %}
