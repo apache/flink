@@ -36,33 +36,20 @@ The recommended way to create a `TableEnvironment` is to create from an `Environ
 
 ```python
 
-from pyflink.table import EnvironmentSettings, StreamTableEnvironment, BatchTableEnvironment
+from pyflink.table import EnvironmentSettings, TableEnvironment
 
-# create a blink streaming TableEnvironment
-env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
-table_env = StreamTableEnvironment.create(environment_settings=env_settings)
-
-# create a blink batch TableEnvironment
-env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
-table_env = BatchTableEnvironment.create(environment_settings=env_settings)
-
-# create a flink streaming TableEnvironment
-env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_old_planner().build()
-table_env = StreamTableEnvironment.create(environment_settings=env_settings)
-
-# create a flink batch TableEnvironment
-env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_old_planner().build()
-table_env = BatchTableEnvironment.create(environment_settings=env_settings)
+# create a streaming TableEnvironment
+env_settings = EnvironmentSettings.new_instance().in_streaming_mode().build()
+# or a batch TableEnvironment
+# env_settings = EnvironmentSettings.new_instance().in_batch_mode().build()
+table_env = TableEnvironment.create(env_settings)
 
 ```
 
-If you need to access the `ExecutionEnvironment`/`StreamExecutionEnvironment` object which the `TableEnvironment` based on,
-e.g. mixing with DataStream API, configuring via the APIs of `ExecutionEnvironment`/`StreamExecutionEnvironment`, 
-you can also create a `TableEnvironment` from an `ExecutionEnvironment`/`StreamExecutionEnvironment` with a optional `TableConfig` object:
+Alternatively, users can create a StreamTableEnvironment from an existing StreamExecutionEnvironment to interoperate with the DataStream API.
 
 ```python
 
-from pyflink.dataset import ExecutionEnvironment
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.table import StreamTableEnvironment, BatchTableEnvironment, TableConfig
 
@@ -70,29 +57,7 @@ from pyflink.table import StreamTableEnvironment, BatchTableEnvironment, TableCo
 env = StreamExecutionEnvironment.get_execution_environment()
 table_env = StreamTableEnvironment.create(env)
 
-# create a blink streaming TableEnvironment from a StreamExecutionEnvironment with a TableConfig
-env = StreamExecutionEnvironment.get_execution_environment()
-table_config = TableConfig()  # you can add configuration options in it
-table_env = StreamTableEnvironment.create(env, table_config)
-
-# create a flink batch TableEnvironment from an ExecutionEnvironment
-env = ExecutionEnvironment.get_execution_environment()
-table_env = BatchTableEnvironment.create(env)
-
-# create a flink batch TableEnvironment from an ExecutionEnvironment with a TableConfig
-env = ExecutionEnvironment.get_execution_environment()
-table_config = TableConfig()  # you can add configuration options in it
-table_env = BatchTableEnvironment.create(env, table_config)
-
-# create a flink streaming TableEnvironment from a StreamExecutionEnvironment
-env = StreamExecutionEnvironment.get_execution_environment()
-env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_old_planner().build()
-table_env = StreamTableEnvironment.create(env, environment_settings=env_settings)
-
 ```
-
-**Note:** Almost all the configurations in `ExecutionEnvironment`/`StreamExecutionEnvironment` can be configured via `TableEnvironment.get_config()` now, see [Configuration]({{< ref "docs/deployment/config" >}}) for more details.
-Only a few rarely used or deprecated configurations still require direct access to `ExecutionEnvironment` /`StreamExecutionEnvironment` for configuring, e.g. the input dependency constraint.
 
 TableEnvironment API
 --------------------

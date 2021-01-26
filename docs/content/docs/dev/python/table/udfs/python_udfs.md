@@ -50,7 +50,8 @@ class HashCode(ScalarFunction):
   def eval(self, s):
     return hash(s) * self.factor
 
-table_env = BatchTableEnvironment.create(env)
+settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+table_env = TableEnvironment.create(settings)
 
 hash_code = udf(HashCode(), result_type=DataTypes.BIGINT())
 
@@ -79,7 +80,8 @@ public class HashCode extends ScalarFunction {
 '''
 from pyflink.table.expressions import call
 
-table_env = BatchTableEnvironment.create(env)
+settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+table_env = TableEnvironment.create(settings)
 
 # register the Java function
 table_env.create_java_temporary_function("hash_code", "my.java.function.HashCode")
@@ -148,8 +150,8 @@ class Split(TableFunction):
         for s in string.split(" "):
             yield s, len(s)
 
-env = StreamExecutionEnvironment.get_execution_environment()
-table_env = StreamTableEnvironment.create(env)
+env_settings = EnvironmentSettings.new_instance().use_blink_planner().is_streaming_mode().build()
+table_env = TableEnvironment.create(env_settings)
 my_table = ...  # type: Table, table schema: [a: String]
 
 # register the Python Table Function
@@ -186,8 +188,8 @@ public class Split extends TableFunction<Tuple2<String, Integer>> {
 '''
 from pyflink.table.expressions import call
 
-env = StreamExecutionEnvironment.get_execution_environment()
-table_env = StreamTableEnvironment.create(env)
+env_settings = EnvironmentSettings.new_instance().use_blink_planner().is_streaming_mode().build()
+table_env = TableEnvironment.create(env_settings)
 my_table = ...  # type: Table, table schema: [a: String]
 
 # Register the java function.
@@ -264,8 +266,7 @@ The following example shows how to define your own aggregate function and call i
 
 ```python
 from pyflink.common import Row
-from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.table import AggregateFunction, DataTypes, StreamTableEnvironment
+from pyflink.table import AggregateFunction, DataTypes, TableEnvironment, EnvironmentSettings
 from pyflink.table.expressions import call
 from pyflink.table.udf import udaf
 
@@ -299,8 +300,8 @@ class WeightedAvg(AggregateFunction):
             DataTypes.FIELD("f1", DataTypes.BIGINT())])
 
 
-env = StreamExecutionEnvironment.get_execution_environment()
-table_env = StreamTableEnvironment.create(env)
+env_settings = EnvironmentSettings.new_instance().use_blink_planner().is_streaming_mode().build()
+table_env = TableEnvironment.create(env_settings)
 # the result type and accumulator type can also be specified in the udaf decorator:
 # weighted_avg = udaf(WeightedAvg(), result_type=DataTypes.BIGINT(), accumulator_type=...)
 weighted_avg = udaf(WeightedAvg())

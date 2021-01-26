@@ -106,7 +106,7 @@ tableEnv.executeSql("DESCRIBE Orders").print()
 {{< tab "Python" >}}
 ```python
 settings = EnvironmentSettings.new_instance()...
-table_env = StreamTableEnvironment.create(env, settings)
+table_env = TableEnvironment.create(settings)
 
 # register a table named "Orders"
 table_env.execute_sql( \

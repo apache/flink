@@ -24,9 +24,9 @@ import pytz
 from pyflink.table import DataTypes, expressions as expr
 from pyflink.table.udf import ScalarFunction, udf
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
+from pyflink.testing.test_case_utils import PyFlinkOldStreamTableTestCase, \
     PyFlinkBlinkStreamTableTestCase, PyFlinkBlinkBatchTableTestCase, \
-    PyFlinkBatchTableTestCase
+    PyFlinkOldBatchTableTestCase
 
 
 class UserDefinedFunctionTests(object):
@@ -640,11 +640,11 @@ def float_equal(a, b, rel_tol=1e-09, abs_tol=0.0):
 
 
 class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
-                                            PyFlinkStreamTableTestCase):
+                                            PyFlinkOldStreamTableTestCase):
     pass
 
 
-class PyFlinkBatchUserDefinedFunctionTests(PyFlinkBatchTableTestCase):
+class PyFlinkBatchUserDefinedFunctionTests(PyFlinkOldBatchTableTestCase):
 
     def test_chaining_scalar_function(self):
         add_one = udf(lambda i: i + 1, result_type=DataTypes.BIGINT())

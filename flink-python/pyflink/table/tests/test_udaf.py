@@ -261,7 +261,7 @@ class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
                            pd.DataFrame([[3, 12, 12, 12.0]], columns=['a', 'b', 'c', 'd']))
 
     def test_mixed_with_built_in_functions_with_retract(self):
-        self.env.set_parallelism(1)
+        self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
         self.t_env.create_temporary_system_function(
             "concat",
             ConcatAggregateFunction())
@@ -309,7 +309,7 @@ class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
         self.assertEqual(result[len(result) - 1], expected)
 
     def test_mixed_with_built_in_functions_without_retract(self):
-        self.env.set_parallelism(1)
+        self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
         self.t_env.create_temporary_system_function(
             "concat",
             ConcatAggregateFunction())
