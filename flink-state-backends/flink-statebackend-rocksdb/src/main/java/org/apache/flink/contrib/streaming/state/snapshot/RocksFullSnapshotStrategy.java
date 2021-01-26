@@ -227,6 +227,30 @@ public class RocksFullSnapshotStrategy<K>
             }
         }
 
+        private RocksStatesPerKeyGroupMergeIterator createKVStateIterator() throws IOException {
+            ReadOptions readOptions = null;
+            List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators = null;
+
+            try {
+                readOptions = new ReadOptions();
+                readOptions.setSnapshot(snapshotResources.snapshot);
+                kvStateIterators = createKVStateIterators(readOptions);
+
+                // Here we transfer ownership of ReadOptions and RocksIterators to the
+                // RocksStatesPerKeyGroupMergeIterator
+                return new RocksStatesPerKeyGroupMergeIterator(
+                        readOptions, new ArrayList<>(kvStateIterators), keyGroupPrefixBytes);
+            } catch (Throwable t) {
+                // If anything goes wrong, clean up our stuff. If things went smoothly the
+                // merging iterator is now responsible for closing the resources
+                IOUtils.closeQuietly(readOptions);
+                if (kvStateIterators != null) {
+                    kvStateIterators.forEach(kv -> IOUtils.closeQuietly(kv.f0));
+                }
+                throw new IOException("Error creating merge iterator", t);
+            }
+        }
+
         private void writeSnapshotToOutputStream(
                 @Nonnull CheckpointStreamWithResultProvider checkpointStreamWithResultProvider,
                 @Nonnull KeyGroupRangeOffsets keyGroupRangeOffsets)
@@ -238,33 +262,9 @@ public class RocksFullSnapshotStrategy<K>
 
             writeKVStateMetaData(outputView);
 
-            List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators = null;
-            final ReadOptions readOptions = new ReadOptions();
-
-            try {
-                readOptions.setSnapshot(snapshotResources.snapshot);
-                kvStateIterators = createKVStateIterators(readOptions);
-
-                // Here we transfer ownership of RocksIterators to the
-                // RocksStatesPerKeyGroupMergeIterator
-                try (RocksStatesPerKeyGroupMergeIterator mergeIterator =
-                        new RocksStatesPerKeyGroupMergeIterator(
-                                kvStateIterators, keyGroupPrefixBytes)) {
-
-                    writeKVStateData(
-                            mergeIterator,
-                            checkpointStreamWithResultProvider,
-                            keyGroupRangeOffsets);
-                }
-            } finally {
-
-                if (kvStateIterators != null) {
-                    for (Tuple2<RocksIteratorWrapper, Integer> kvStateIterator : kvStateIterators) {
-                        IOUtils.closeQuietly(kvStateIterator.f0);
-                    }
-                }
-
-                IOUtils.closeQuietly(readOptions);
+            try (RocksStatesPerKeyGroupMergeIterator kvStateIterator = createKVStateIterator()) {
+                writeKVStateData(
+                        kvStateIterator, checkpointStreamWithResultProvider, keyGroupRangeOffsets);
             }
         }
 
