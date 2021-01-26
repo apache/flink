@@ -21,6 +21,7 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.contrib.streaming.state.iterator.RocksStatesPerKeyGroupMergeIterator;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.util.IOUtils;
 
@@ -59,7 +60,7 @@ public class RocksKeyGroupsRocksSingleStateIteratorTest {
     public void testEmptyMergeIterator() throws Exception {
         RocksStatesPerKeyGroupMergeIterator emptyIterator =
                 new RocksStatesPerKeyGroupMergeIterator(
-                        new ReadOptions(), Collections.emptyList(), 2);
+                        new CloseableRegistry(), Collections.emptyList(), 2);
         Assert.assertFalse(emptyIterator.isValid());
     }
 
@@ -130,7 +131,7 @@ public class RocksKeyGroupsRocksSingleStateIteratorTest {
 
             try (RocksStatesPerKeyGroupMergeIterator mergeIterator =
                     new RocksStatesPerKeyGroupMergeIterator(
-                            new ReadOptions(),
+                            new CloseableRegistry(),
                             rocksIteratorsWithKVStateId,
                             maxParallelism <= Byte.MAX_VALUE ? 1 : 2)) {
 

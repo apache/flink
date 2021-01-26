@@ -23,11 +23,13 @@ import org.apache.flink.util.IOUtils;
 
 import javax.annotation.Nonnull;
 
+import java.io.Closeable;
+
 /**
  * Wraps a RocksDB iterator to cache it's current key and assigns an id for the key/value state to
  * the iterator. Used by {@link RocksStatesPerKeyGroupMergeIterator}.
  */
-class RocksSingleStateIterator implements AutoCloseable {
+class RocksSingleStateIterator implements Closeable {
 
     /**
      * @param iterator underlying {@link RocksIteratorWrapper}
