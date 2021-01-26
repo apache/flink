@@ -1383,7 +1383,7 @@ public abstract class CatalogTest {
     public static class TestTable implements CatalogBaseTable {
 
         @Override
-        public Map<String, String> getProperties() {
+        public Map<String, String> getOptions() {
             return null;
         }
 

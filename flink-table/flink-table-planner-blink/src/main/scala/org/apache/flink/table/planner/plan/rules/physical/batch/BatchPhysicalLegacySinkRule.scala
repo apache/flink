@@ -56,7 +56,7 @@ class BatchPhysicalLegacySinkRule extends ConverterRule(
 
             val shuffleEnable = sinkNode
                 .catalogTable
-                .getProperties
+                .getOptions
                 .get(FileSystemOptions.SINK_SHUFFLE_BY_PARTITION.key())
 
             if (shuffleEnable != null && shuffleEnable.toBoolean) {

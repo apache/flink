@@ -53,7 +53,7 @@ import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterTableAddConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
-import org.apache.flink.table.operations.ddl.AlterTablePropertiesOperation;
+import org.apache.flink.table.operations.ddl.AlterTableOptionsOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
@@ -157,9 +157,9 @@ public class SqlToOperationConverterTest {
                         .field("c", DataTypes.INT())
                         .field("d", DataTypes.VARCHAR(Integer.MAX_VALUE))
                         .build();
-        Map<String, String> properties = new HashMap<>();
-        properties.put("connector", "COLLECTION");
-        final CatalogTable catalogTable = new CatalogTableImpl(tableSchema, properties, "");
+        Map<String, String> options = new HashMap<>();
+        options.put("connector", "COLLECTION");
+        final CatalogTable catalogTable = new CatalogTableImpl(tableSchema, options, "");
         catalog.createTable(path1, catalogTable, true);
         catalog.createTable(path2, catalogTable, true);
     }
@@ -463,10 +463,10 @@ public class SqlToOperationConverterTest {
         assert operation instanceof CreateTableOperation;
         CreateTableOperation op = (CreateTableOperation) operation;
         CatalogTable catalogTable = op.getCatalogTable();
-        Map<String, String> properties =
-                catalogTable.getProperties().entrySet().stream()
+        Map<String, String> options =
+                catalogTable.getOptions().entrySet().stream()
                         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        Map<String, String> sortedProperties = new TreeMap<>(properties);
+        Map<String, String> sortedProperties = new TreeMap<>(options);
         final String expected =
                 "{a-B-c-d124=Ab, "
                         + "a.b-c-d.*=adad, "
@@ -1062,20 +1062,20 @@ public class SqlToOperationConverterTest {
             assertEquals(expectedIdentifier, alterTableRenameOperation.getTableIdentifier());
             assertEquals(expectedNewIdentifier, alterTableRenameOperation.getNewTableIdentifier());
         }
-        // test alter table properties
+        // test alter table options
         Operation operation =
                 parse(
                         "alter table cat1.db1.tb1 set ('k1' = 'v1', 'K2' = 'V2')",
                         SqlDialect.DEFAULT);
-        assert operation instanceof AlterTablePropertiesOperation;
-        final AlterTablePropertiesOperation alterTablePropertiesOperation =
-                (AlterTablePropertiesOperation) operation;
-        assertEquals(expectedIdentifier, alterTablePropertiesOperation.getTableIdentifier());
-        assertEquals(2, alterTablePropertiesOperation.getCatalogTable().getProperties().size());
-        Map<String, String> properties = new HashMap<>();
-        properties.put("k1", "v1");
-        properties.put("K2", "V2");
-        assertEquals(properties, alterTablePropertiesOperation.getCatalogTable().getProperties());
+        assert operation instanceof AlterTableOptionsOperation;
+        final AlterTableOptionsOperation alterTableOptionsOperation =
+                (AlterTableOptionsOperation) operation;
+        assertEquals(expectedIdentifier, alterTableOptionsOperation.getTableIdentifier());
+        assertEquals(2, alterTableOptionsOperation.getCatalogTable().getOptions().size());
+        Map<String, String> options = new HashMap<>();
+        options.put("k1", "v1");
+        options.put("K2", "V2");
+        assertEquals(options, alterTableOptionsOperation.getCatalogTable().getOptions());
     }
 
     @Test

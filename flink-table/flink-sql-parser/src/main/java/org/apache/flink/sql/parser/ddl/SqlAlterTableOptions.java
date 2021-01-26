@@ -30,16 +30,16 @@ import java.util.List;
 import static java.util.Objects.requireNonNull;
 
 /** ALTER TABLE [[catalogName.] dataBasesName].tableName SET ( name=value [, name=value]*). */
-public class SqlAlterTableProperties extends SqlAlterTable {
+public class SqlAlterTableOptions extends SqlAlterTable {
 
     private final SqlNodeList propertyList;
 
-    public SqlAlterTableProperties(
+    public SqlAlterTableOptions(
             SqlParserPos pos, SqlIdentifier tableName, SqlNodeList propertyList) {
         this(pos, tableName, null, propertyList);
     }
 
-    public SqlAlterTableProperties(
+    public SqlAlterTableOptions(
             SqlParserPos pos,
             SqlIdentifier tableName,
             SqlNodeList partitionSpec,

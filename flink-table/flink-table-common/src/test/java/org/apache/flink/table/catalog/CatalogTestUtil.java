@@ -49,18 +49,18 @@ public class CatalogTestUtil {
         assertEquals(t1.isPartitioned(), t2.isPartitioned());
 
         assertEquals(
-                t1.getProperties().get(CatalogConfig.IS_GENERIC),
-                t2.getProperties().get(CatalogConfig.IS_GENERIC));
+                t1.getOptions().get(CatalogConfig.IS_GENERIC),
+                t2.getOptions().get(CatalogConfig.IS_GENERIC));
 
         // Hive tables may have properties created by itself
         // thus properties of Hive table is a super set of those in its corresponding Flink table
-        if (Boolean.valueOf(t1.getProperties().get(CatalogConfig.IS_GENERIC))) {
-            assertEquals(t1.getProperties(), t2.getProperties());
+        if (Boolean.parseBoolean(t1.getOptions().get(CatalogConfig.IS_GENERIC))) {
+            assertEquals(t1.getOptions(), t2.getOptions());
         } else {
             assertTrue(
-                    t2.getProperties().keySet().stream()
+                    t2.getOptions().keySet().stream()
                             .noneMatch(k -> k.startsWith(FLINK_PROPERTY_PREFIX)));
-            assertTrue(t2.getProperties().entrySet().containsAll(t1.getProperties().entrySet()));
+            assertTrue(t2.getOptions().entrySet().containsAll(t1.getOptions().entrySet()));
         }
     }
 
@@ -73,13 +73,13 @@ public class CatalogTestUtil {
 
         // Hive tables may have properties created by itself
         // thus properties of Hive table is a super set of those in its corresponding Flink table
-        if (Boolean.valueOf(v1.getProperties().get(CatalogConfig.IS_GENERIC))) {
-            assertEquals(v1.getProperties(), v2.getProperties());
+        if (Boolean.parseBoolean(v1.getOptions().get(CatalogConfig.IS_GENERIC))) {
+            assertEquals(v1.getOptions(), v2.getOptions());
         } else {
             assertTrue(
-                    v2.getProperties().keySet().stream()
+                    v2.getOptions().keySet().stream()
                             .noneMatch(k -> k.startsWith(FLINK_PROPERTY_PREFIX)));
-            assertTrue(v2.getProperties().entrySet().containsAll(v1.getProperties().entrySet()));
+            assertTrue(v2.getOptions().entrySet().containsAll(v1.getOptions().entrySet()));
         }
     }
 

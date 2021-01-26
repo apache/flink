@@ -99,7 +99,7 @@ class BatchTableEnvironmentTest extends TableTestBase {
     assertEquals(
       Map("connector" -> "COLLECTION", "is-bounded" -> "true", "k1" -> "a", "k2" -> "b").asJava,
       util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
-        .getTable(ObjectPath.fromString(s"${util.tableEnv.getCurrentDatabase}.tbl1")).getProperties)
+        .getTable(ObjectPath.fromString(s"${util.tableEnv.getCurrentDatabase}.tbl1")).getOptions)
 
     val tableResult3 = util.tableEnv.executeSql("DROP TABLE tbl1")
     assertEquals(ResultKind.SUCCESS, tableResult3.getResultKind)

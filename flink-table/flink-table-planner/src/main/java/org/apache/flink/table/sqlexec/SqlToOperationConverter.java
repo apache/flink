@@ -21,7 +21,7 @@ package org.apache.flink.table.sqlexec;
 import org.apache.flink.sql.parser.ddl.SqlAlterDatabase;
 import org.apache.flink.sql.parser.ddl.SqlAlterFunction;
 import org.apache.flink.sql.parser.ddl.SqlAlterTable;
-import org.apache.flink.sql.parser.ddl.SqlAlterTableProperties;
+import org.apache.flink.sql.parser.ddl.SqlAlterTableOptions;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableRename;
 import org.apache.flink.sql.parser.ddl.SqlCreateDatabase;
 import org.apache.flink.sql.parser.ddl.SqlCreateFunction;
@@ -79,7 +79,7 @@ import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
-import org.apache.flink.table.operations.ddl.AlterTablePropertiesOperation;
+import org.apache.flink.table.operations.ddl.AlterTableOptionsOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
@@ -306,29 +306,29 @@ public class SqlToOperationConverter {
             ObjectIdentifier newTableIdentifier =
                     catalogManager.qualifyIdentifier(newUnresolvedIdentifier);
             return new AlterTableRenameOperation(tableIdentifier, newTableIdentifier);
-        } else if (sqlAlterTable instanceof SqlAlterTableProperties) {
+        } else if (sqlAlterTable instanceof SqlAlterTableOptions) {
             Optional<CatalogManager.TableLookupResult> optionalCatalogTable =
                     catalogManager.getTable(tableIdentifier);
             if (optionalCatalogTable.isPresent() && !optionalCatalogTable.get().isTemporary()) {
                 CatalogTable originalCatalogTable =
                         (CatalogTable) optionalCatalogTable.get().getTable();
-                Map<String, String> properties = new HashMap<>();
-                properties.putAll(originalCatalogTable.getProperties());
-                ((SqlAlterTableProperties) sqlAlterTable)
+                Map<String, String> options = new HashMap<>();
+                options.putAll(originalCatalogTable.getOptions());
+                ((SqlAlterTableOptions) sqlAlterTable)
                         .getPropertyList()
                         .getList()
                         .forEach(
                                 p ->
-                                        properties.put(
+                                        options.put(
                                                 ((SqlTableOption) p).getKeyString(),
                                                 ((SqlTableOption) p).getValueString()));
                 CatalogTable catalogTable =
                         new CatalogTableImpl(
                                 originalCatalogTable.getSchema(),
                                 originalCatalogTable.getPartitionKeys(),
-                                properties,
+                                options,
                                 originalCatalogTable.getComment());
-                return new AlterTablePropertiesOperation(tableIdentifier, catalogTable);
+                return new AlterTableOptionsOperation(tableIdentifier, catalogTable);
             } else {
                 throw new ValidationException(
                         String.format(

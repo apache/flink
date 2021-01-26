@@ -984,14 +984,14 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     tableEnv.executeSql("alter table t1 rename to t2")
     assert(tableEnv.listTables().sameElements(Array[String]("t2")))
     tableEnv.executeSql("alter table t2 set ('k1' = 'a', 'k2' = 'b')")
-    val expectedProperties = new util.HashMap[String, String]()
-    expectedProperties.put("connector", "COLLECTION")
-    expectedProperties.put("k1", "a")
-    expectedProperties.put("k2", "b")
-    val properties = tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+    val expectedOptions = new util.HashMap[String, String]()
+    expectedOptions.put("connector", "COLLECTION")
+    expectedOptions.put("k1", "a")
+    expectedOptions.put("k2", "b")
+    val options = tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
       .getTable(new ObjectPath(tableEnv.getCurrentDatabase, "t2"))
-      .getProperties
-    assertEquals(expectedProperties, properties)
+      .getOptions
+    assertEquals(expectedOptions, options)
     val currentCatalog = tableEnv.getCurrentCatalog
     val currentDB = tableEnv.getCurrentDatabase
     tableEnv.executeSql("alter table t2 add constraint ct1 primary key(a) not enforced")

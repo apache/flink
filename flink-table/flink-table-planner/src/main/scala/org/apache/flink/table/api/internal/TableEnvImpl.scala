@@ -681,7 +681,7 @@ abstract class TableEnvImpl(
                 alterTableRenameOp.getTableIdentifier.toObjectPath,
                 alterTableRenameOp.getNewTableIdentifier.getObjectName,
                 false)
-            case alterTablePropertiesOp: AlterTablePropertiesOperation =>
+            case alterTablePropertiesOp: AlterTableOptionsOperation =>
               catalog.alterTable(
                 alterTablePropertiesOp.getTableIdentifier.toObjectPath,
                 alterTablePropertiesOp.getCatalogTable,

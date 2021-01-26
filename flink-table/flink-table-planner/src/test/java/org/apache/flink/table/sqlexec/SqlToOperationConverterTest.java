@@ -52,7 +52,7 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
-import org.apache.flink.table.operations.ddl.AlterTablePropertiesOperation;
+import org.apache.flink.table.operations.ddl.AlterTableOptionsOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
@@ -339,7 +339,7 @@ public class SqlToOperationConverterTest {
         CreateTableOperation op = (CreateTableOperation) operation;
         CatalogTable catalogTable = op.getCatalogTable();
         Map<String, String> properties =
-                catalogTable.getProperties().entrySet().stream()
+                catalogTable.getOptions().entrySet().stream()
                         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         Map<String, String> sortedProperties = new TreeMap<>(properties);
         final String expected =
@@ -653,15 +653,15 @@ public class SqlToOperationConverterTest {
                 parse(
                         "alter table cat1.db1.tb1 set ('k1' = 'v1', 'K2' = 'V2')",
                         SqlDialect.DEFAULT);
-        assert operation instanceof AlterTablePropertiesOperation;
-        final AlterTablePropertiesOperation alterTablePropertiesOperation =
-                (AlterTablePropertiesOperation) operation;
-        assertEquals(expectedIdentifier, alterTablePropertiesOperation.getTableIdentifier());
-        assertEquals(2, alterTablePropertiesOperation.getCatalogTable().getProperties().size());
+        assert operation instanceof AlterTableOptionsOperation;
+        final AlterTableOptionsOperation alterTableOptionsOperation =
+                (AlterTableOptionsOperation) operation;
+        assertEquals(expectedIdentifier, alterTableOptionsOperation.getTableIdentifier());
+        assertEquals(2, alterTableOptionsOperation.getCatalogTable().getOptions().size());
         Map<String, String> properties = new HashMap<>();
         properties.put("k1", "v1");
         properties.put("K2", "V2");
-        assertEquals(properties, alterTablePropertiesOperation.getCatalogTable().getProperties());
+        assertEquals(properties, alterTableOptionsOperation.getCatalogTable().getOptions());
     }
 
     // ~ Tool Methods ----------------------------------------------------------

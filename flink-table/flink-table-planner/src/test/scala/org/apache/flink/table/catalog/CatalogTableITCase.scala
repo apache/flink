@@ -633,7 +633,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
     expectedProperties.put("k2", "b")
     val properties = tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
       .getTable(new ObjectPath(tableEnv.getCurrentDatabase, "t2"))
-      .getProperties
+      .getOptions
     assertEquals(expectedProperties, properties)
   }
 

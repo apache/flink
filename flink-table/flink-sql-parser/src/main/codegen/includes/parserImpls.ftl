@@ -452,7 +452,7 @@ SqlAlterTable SqlAlterTable() :
         <SET>
         propertyList = TableProperties()
         {
-            return new SqlAlterTableProperties(
+            return new SqlAlterTableOptions(
                         startPos.plus(getPos()),
                         tableIdentifier,
                         propertyList);
