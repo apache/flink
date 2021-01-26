@@ -96,6 +96,17 @@ public class TaskMailboxImpl implements TaskMailbox {
         return !batch.isEmpty() || hasNewMail;
     }
 
+    @VisibleForTesting
+    public int size() {
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            return batch.size() + queue.size();
+        } finally {
+            lock.unlock();
+        }
+    }
+
     @Override
     public Optional<Mail> tryTake(int priority) {
         checkIsMailboxThread();
