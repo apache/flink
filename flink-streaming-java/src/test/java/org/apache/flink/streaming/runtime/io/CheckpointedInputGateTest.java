@@ -17,21 +17,27 @@
 
 package org.apache.flink.streaming.runtime.io;
 
+import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
+import org.apache.flink.runtime.checkpoint.channel.MockChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.RecordingChannelStateWriter;
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.TestingConnectionManager;
 import org.apache.flink.runtime.io.network.TestingPartitionRequestClient;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.EndOfChannelStateEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
@@ -41,12 +47,16 @@ import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorImpl;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
 
+import org.apache.flink.shaded.guava18.com.google.common.io.Closer;
+
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSomeBuffer;
 import static org.junit.Assert.assertEquals;
@@ -176,6 +186,78 @@ public class CheckpointedInputGateTest {
         }
     }
 
+    /**
+     * Tests a priority notification happening right before cancellation. The mail would be
+     * processed while draining mailbox but can't pull any data anymore.
+     */
+    @Test
+    public void testPriorityBeforeClose() throws IOException, InterruptedException {
+
+        NetworkBufferPool bufferPool = new NetworkBufferPool(10, 1024);
+        try (Closer closer = Closer.create()) {
+            closer.register(bufferPool::destroy);
+
+            for (int repeat = 0; repeat < 100; repeat++) {
+                setUp();
+
+                SingleInputGate singleInputGate =
+                        new SingleInputGateBuilder()
+                                .setNumberOfChannels(2)
+                                .setBufferPoolFactory(
+                                        bufferPool.createBufferPool(2, Integer.MAX_VALUE))
+                                .setSegmentProvider(bufferPool)
+                                .setChannelFactory(InputChannelBuilder::buildRemoteChannel)
+                                .build();
+                singleInputGate.setup();
+                ((RemoteInputChannel) singleInputGate.getChannel(0)).requestSubpartition(0);
+
+                final TaskMailboxImpl mailbox = new TaskMailboxImpl();
+                MailboxExecutorImpl mailboxExecutor =
+                        new MailboxExecutorImpl(mailbox, 0, StreamTaskActionExecutor.IMMEDIATE);
+
+                ValidatingCheckpointHandler validatingHandler = new ValidatingCheckpointHandler(1);
+                SingleCheckpointBarrierHandler barrierHandler =
+                        AlternatingControllerTest.barrierHandler(
+                                singleInputGate, validatingHandler, new MockChannelStateWriter());
+                CheckpointedInputGate checkpointedInputGate =
+                        new CheckpointedInputGate(
+                                singleInputGate,
+                                barrierHandler,
+                                mailboxExecutor,
+                                UpstreamRecoveryTracker.forInputGate(singleInputGate));
+
+                final int oldSize = mailbox.size();
+                enqueue(checkpointedInputGate, 0, barrier(1));
+                // wait for priority mail to be enqueued
+                Deadline deadline = Deadline.fromNow(Duration.ofMinutes(1));
+                while (deadline.hasTimeLeft() && oldSize >= mailbox.size()) {
+                    Thread.sleep(1);
+                }
+
+                // test the race condition
+                // either priority event could be handled, then we expect a checkpoint to be
+                // triggered or closing came first in which case we expect a CancelTaskException
+                CountDownLatch beforeLatch = new CountDownLatch(2);
+                final CheckedThread canceler =
+                        new CheckedThread("Canceler") {
+                            @Override
+                            public void go() throws IOException {
+                                beforeLatch.countDown();
+                                singleInputGate.close();
+                            }
+                        };
+                canceler.start();
+                beforeLatch.countDown();
+                try {
+                    while (mailboxExecutor.tryYield()) {}
+                    assertEquals(1L, validatingHandler.triggeredCheckpointCounter);
+                } catch (CancelTaskException e) {
+                }
+                canceler.join();
+            }
+        }
+    }
+
     private static CheckpointBarrier barrier(long barrierId) {
         return new CheckpointBarrier(
                 barrierId,
@@ -193,6 +275,11 @@ public class CheckpointedInputGateTest {
     private void enqueueEndOfState(CheckpointedInputGate checkpointedInputGate, int channelIndex)
             throws IOException {
         enqueue(checkpointedInputGate, channelIndex, EndOfChannelStateEvent.INSTANCE);
+    }
+
+    private void enqueueEndOfPartition(
+            CheckpointedInputGate checkpointedInputGate, int channelIndex) throws IOException {
+        enqueue(checkpointedInputGate, channelIndex, EndOfPartitionEvent.INSTANCE);
     }
 
     private void enqueue(
