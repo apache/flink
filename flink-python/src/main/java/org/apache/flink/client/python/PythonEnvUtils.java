@@ -242,6 +242,16 @@ final class PythonEnvUtils {
                     && sourceFileName.endsWith(".py")) {
                 // add the parent directory of .py file itself to PYTHONPATH
                 pythonPathList.add(targetPath.getParent().toString());
+            } else if (Files.isRegularFile(Paths.get(targetPath.toString()).toRealPath())
+                    && sourceFileName.endsWith(".zip")) {
+                // expand the zip file and add the root directory to PYTHONPATH
+                // as not all zip files are importable
+                Path targetDirectory =
+                        new Path(
+                                targetPath.getParent(),
+                                sourceFileName.substring(0, sourceFileName.lastIndexOf(".")));
+                FileUtils.expandDirectory(targetPath, targetDirectory);
+                pythonPathList.add(targetDirectory.toString());
             } else {
                 pythonPathList.add(targetPath.toString());
             }
