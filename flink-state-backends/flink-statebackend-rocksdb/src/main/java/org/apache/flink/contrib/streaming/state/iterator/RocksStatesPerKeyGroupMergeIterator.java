@@ -21,6 +21,7 @@ package org.apache.flink.contrib.streaming.state.iterator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.contrib.streaming.state.RocksIteratorWrapper;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.runtime.state.KeyValueStateIterator;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -36,7 +37,7 @@ import java.util.PriorityQueue;
  * Iterator that merges multiple RocksDB iterators to partition all states into contiguous
  * key-groups. The resulting iteration sequence is ordered by (key-group, kv-state).
  */
-public class RocksStatesPerKeyGroupMergeIterator implements AutoCloseable {
+public class RocksStatesPerKeyGroupMergeIterator implements KeyValueStateIterator {
 
     private final CloseableRegistry closeableRegistry;
     private final PriorityQueue<RocksSingleStateIterator> heap;
@@ -97,10 +98,7 @@ public class RocksStatesPerKeyGroupMergeIterator implements AutoCloseable {
         this.newKVState = true;
     }
 
-    /**
-     * Advances the iterator. Should only be called if {@link #isValid()} returned true. Valid flag
-     * can only change after calling {@link #next()}.
-     */
+    @Override
     public void next() {
         newKeyGroup = false;
         newKVState = false;
@@ -172,7 +170,7 @@ public class RocksStatesPerKeyGroupMergeIterator implements AutoCloseable {
         }
     }
 
-    /** @return key-group for the current key */
+    @Override
     public int keyGroup() {
         final byte[] currentKey = currentSubIterator.getCurrentKey();
         int result = 0;
@@ -184,46 +182,32 @@ public class RocksStatesPerKeyGroupMergeIterator implements AutoCloseable {
         return result;
     }
 
+    @Override
     public byte[] key() {
         return currentSubIterator.getCurrentKey();
     }
 
+    @Override
     public byte[] value() {
         return currentSubIterator.getIterator().value();
     }
 
-    /** @return Id of K/V state to which the current key belongs. */
+    @Override
     public int kvStateId() {
         return currentSubIterator.getKvStateId();
     }
 
-    /**
-     * Indicates if current key starts a new k/v-state, i.e. belong to a different k/v-state than
-     * it's predecessor.
-     *
-     * @return true iff the current key belong to a different k/v-state than it's predecessor.
-     */
+    @Override
     public boolean isNewKeyValueState() {
         return newKVState;
     }
 
-    /**
-     * Indicates if current key starts a new key-group, i.e. belong to a different key-group than
-     * it's predecessor.
-     *
-     * @return true iff the current key belong to a different key-group than it's predecessor.
-     */
+    @Override
     public boolean isNewKeyGroup() {
         return newKeyGroup;
     }
 
-    /**
-     * Check if the iterator is still valid. Getters like {@link #key()}, {@link #value()}, etc. as
-     * well as {@link #next()} should only be called if valid returned true. Should be checked after
-     * each call to {@link #next()} before accessing iterator state.
-     *
-     * @return True iff this iterator is valid.
-     */
+    @Override
     public boolean isValid() {
         return valid;
     }
