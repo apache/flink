@@ -162,9 +162,9 @@ public class ProcessPythonEnvironmentManagerTest {
     public void testPythonFiles() throws Exception {
         // use LinkedHashMap to preserve the path order in environment variable
         Map<String, String> pythonFiles = new LinkedHashMap<>();
-        pythonFiles.put(String.join(File.separator, tmpDir, "file0"), "test_file1.py");
-        pythonFiles.put(String.join(File.separator, tmpDir, "file1"), "test_file2.zip");
-        pythonFiles.put(String.join(File.separator, tmpDir, "file2"), "test_file3.egg");
+        pythonFiles.put(String.join(File.separator, tmpDir, "zip0"), "test_zip.zip");
+        pythonFiles.put(String.join(File.separator, tmpDir, "file1"), "test_file1.py");
+        pythonFiles.put(String.join(File.separator, tmpDir, "file2"), "test_file2.egg");
         pythonFiles.put(String.join(File.separator, tmpDir, "dir0"), "test_dir");
         PythonDependencyInfo dependencyInfo =
                 new PythonDependencyInfo(pythonFiles, null, null, new HashMap<>(), "python");
@@ -178,33 +178,19 @@ public class ProcessPythonEnvironmentManagerTest {
             String baseDir = environmentManager.getBaseDirectory();
             String[] expectedUserPythonPaths =
                     new String[] {
-                        String.join(File.separator, baseDir, PYTHON_FILES_DIR, "file0"),
-                        String.join(
-                                File.separator,
-                                baseDir,
-                                PYTHON_FILES_DIR,
-                                "file1",
-                                "test_file2.zip"),
+                        String.join(File.separator, baseDir, PYTHON_FILES_DIR, "zip0", "test_zip"),
+                        String.join(File.separator, baseDir, PYTHON_FILES_DIR, "file1"),
                         String.join(
                                 File.separator,
                                 baseDir,
                                 PYTHON_FILES_DIR,
                                 "file2",
-                                "test_file3.egg"),
+                                "test_file2.egg"),
                         String.join(File.separator, baseDir, PYTHON_FILES_DIR, "dir0", "test_dir")
                     };
             String expectedPythonPath = String.join(File.pathSeparator, expectedUserPythonPaths);
 
             assertEquals(expectedPythonPath, environmentVariable.get("PYTHONPATH"));
-            assertFileEquals(
-                    new File(String.join(File.separator, tmpDir, "file0")),
-                    new File(
-                            String.join(
-                                    File.separator,
-                                    baseDir,
-                                    PYTHON_FILES_DIR,
-                                    "file0",
-                                    "test_file1.py")));
             assertFileEquals(
                     new File(String.join(File.separator, tmpDir, "file1")),
                     new File(
@@ -213,7 +199,16 @@ public class ProcessPythonEnvironmentManagerTest {
                                     baseDir,
                                     PYTHON_FILES_DIR,
                                     "file1",
-                                    "test_file2.zip")));
+                                    "test_file1.py")));
+            assertFileEquals(
+                    new File(String.join(File.separator, tmpDir, "zipExpected0")),
+                    new File(
+                            String.join(
+                                    File.separator,
+                                    baseDir,
+                                    PYTHON_FILES_DIR,
+                                    "zip0",
+                                    "test_zip")));
             assertFileEquals(
                     new File(String.join(File.separator, tmpDir, "file2")),
                     new File(
@@ -222,7 +217,7 @@ public class ProcessPythonEnvironmentManagerTest {
                                     baseDir,
                                     PYTHON_FILES_DIR,
                                     "file2",
-                                    "test_file3.egg")));
+                                    "test_file2.egg")));
             assertFileEquals(
                     new File(String.join(File.separator, tmpDir, "dir0")),
                     new File(
