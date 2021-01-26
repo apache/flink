@@ -32,13 +32,14 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamWithResultProvider;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
+import org.apache.flink.runtime.state.FullSnapshotResources;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
+import org.apache.flink.runtime.state.KeyValueStateIterator;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
-import org.apache.flink.runtime.state.SnapshotResources;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
@@ -78,8 +79,7 @@ import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUti
  * @param <K> type of the backend keys.
  */
 public class RocksFullSnapshotStrategy<K>
-        extends RocksDBSnapshotStrategyBase<
-                K, RocksFullSnapshotStrategy.FullRocksDBSnapshotResources> {
+        extends RocksDBSnapshotStrategyBase<K, FullSnapshotResources> {
 
     private static final Logger LOG = LoggerFactory.getLogger(RocksFullSnapshotStrategy.class);
 
@@ -111,7 +111,7 @@ public class RocksFullSnapshotStrategy<K>
     }
 
     @Override
-    public FullRocksDBSnapshotResources syncPrepareResources(long checkpointId) throws Exception {
+    public FullSnapshotResources syncPrepareResources(long checkpointId) throws Exception {
 
         final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots =
                 new ArrayList<>(kvStateInformation.size());
@@ -132,13 +132,13 @@ public class RocksFullSnapshotStrategy<K>
 
     @Override
     public SnapshotResultSupplier<KeyedStateHandle> asyncSnapshot(
-            FullRocksDBSnapshotResources fullRocksDBSnapshotResources,
+            FullSnapshotResources fullRocksDBSnapshotResources,
             long checkpointId,
             long timestamp,
             @Nonnull CheckpointStreamFactory checkpointStreamFactory,
             @Nonnull CheckpointOptions checkpointOptions) {
 
-        if (fullRocksDBSnapshotResources.stateMetaInfoSnapshots.isEmpty()) {
+        if (fullRocksDBSnapshotResources.getMetaInfoSnapshots().isEmpty()) {
             if (LOG.isDebugEnabled()) {
                 LOG.debug(
                         "Asynchronous RocksDB snapshot performed on empty keyed state at {}. Returning null.",
@@ -194,14 +194,13 @@ public class RocksFullSnapshotStrategy<K>
         private final SupplierWithException<CheckpointStreamWithResultProvider, Exception>
                 checkpointStreamSupplier;
 
-        /** RocksDB snapshot. */
-        @Nonnull private final FullRocksDBSnapshotResources snapshotResources;
+        @Nonnull private final FullSnapshotResources snapshotResources;
 
         SnapshotAsynchronousPartCallable(
                 @Nonnull
                         SupplierWithException<CheckpointStreamWithResultProvider, Exception>
                                 checkpointStreamSupplier,
-                @Nonnull FullRocksDBSnapshotResources snapshotResources) {
+                @Nonnull FullSnapshotResources snapshotResources) {
 
             this.checkpointStreamSupplier = checkpointStreamSupplier;
             this.snapshotResources = snapshotResources;
@@ -238,7 +237,7 @@ public class RocksFullSnapshotStrategy<K>
 
             writeKVStateMetaData(outputView);
 
-            try (RocksStatesPerKeyGroupMergeIterator kvStateIterator =
+            try (KeyValueStateIterator kvStateIterator =
                     snapshotResources.createKVStateIterator()) {
                 writeKVStateData(
                         kvStateIterator, checkpointStreamWithResultProvider, keyGroupRangeOffsets);
@@ -254,7 +253,7 @@ public class RocksFullSnapshotStrategy<K>
                             // get a serialized form already at state registration time in the
                             // future
                             keySerializer,
-                            snapshotResources.stateMetaInfoSnapshots,
+                            snapshotResources.getMetaInfoSnapshots(),
                             !Objects.equals(
                                     UncompressedStreamCompressionDecorator.INSTANCE,
                                     keyGroupCompressionDecorator));
@@ -263,7 +262,7 @@ public class RocksFullSnapshotStrategy<K>
         }
 
         private void writeKVStateData(
-                final RocksStatesPerKeyGroupMergeIterator mergeIterator,
+                final KeyValueStateIterator mergeIterator,
                 final CheckpointStreamWithResultProvider checkpointStreamWithResultProvider,
                 final KeyGroupRangeOffsets keyGroupRangeOffsets)
                 throws IOException, InterruptedException {
@@ -377,7 +376,7 @@ public class RocksFullSnapshotStrategy<K>
         }
     }
 
-    static class FullRocksDBSnapshotResources implements SnapshotResources {
+    static class FullRocksDBSnapshotResources implements FullSnapshotResources {
         private final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots;
         private final ResourceGuard.Lease lease;
         private final Snapshot snapshot;
@@ -422,7 +421,8 @@ public class RocksFullSnapshotStrategy<K>
             return metaData;
         }
 
-        private RocksStatesPerKeyGroupMergeIterator createKVStateIterator() throws IOException {
+        @Override
+        public KeyValueStateIterator createKVStateIterator() throws IOException {
             CloseableRegistry closeableRegistry = new CloseableRegistry();
 
             try {
@@ -477,6 +477,11 @@ public class RocksFullSnapshotStrategy<K>
             return stateSnapshotTransformer == null
                     ? new RocksIteratorWrapper(rocksIterator)
                     : new RocksTransformingIteratorWrapper(rocksIterator, stateSnapshotTransformer);
+        }
+
+        @Override
+        public List<StateMetaInfoSnapshot> getMetaInfoSnapshots() {
+            return stateMetaInfoSnapshots;
         }
 
         @Override
