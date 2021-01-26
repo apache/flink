@@ -45,8 +45,8 @@ Dependencies
     connector=connector
 %}
 
-Examples
---------
+Usage examples
+--------------
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
