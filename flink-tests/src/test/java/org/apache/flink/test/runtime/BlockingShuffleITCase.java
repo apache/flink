@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -94,6 +95,11 @@ public class BlockingShuffleITCase {
         StreamGraph streamGraph = env.getStreamGraph();
         streamGraph.setGlobalDataExchangeMode(GlobalDataExchangeMode.ALL_EDGES_BLOCKING);
         streamGraph.setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES);
+        // a scheduler supporting batch jobs is required for this job graph, because it contains
+        // blocking data exchanges, and the "lazy from sources" schedule mode is not supported by
+        // the declarative scheduler.
+        // The scheduler is selected based on the JobType.
+        streamGraph.setJobType(JobType.BATCH);
         return StreamingJobGraphGenerator.createJobGraph(streamGraph);
     }
 

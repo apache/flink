@@ -45,6 +45,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.InputOutputFormatContainer;
 import org.apache.flink.runtime.jobgraph.InputOutputFormatVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -713,6 +714,23 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
         assertEquals(
                 ResultPartitionType.PIPELINED_BOUNDED,
                 sourceAndMapVertex.getProducedDataSets().get(0).getResultType());
+    }
+
+    @Test
+    public void testStreamingJobTypeByDefault() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.fromElements("test").addSink(new DiscardingSink<>());
+        JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+        assertEquals(JobType.STREAMING, jobGraph.getJobType());
+    }
+
+    @Test
+    public void testBatchJobType() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+        env.fromElements("test").addSink(new DiscardingSink<>());
+        JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+        assertEquals(JobType.BATCH, jobGraph.getJobType());
     }
 
     @Test

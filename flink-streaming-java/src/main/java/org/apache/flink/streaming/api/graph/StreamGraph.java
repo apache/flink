@@ -34,6 +34,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -117,6 +118,7 @@ public class StreamGraph implements Pipeline {
     private CheckpointStorage checkpointStorage;
     private Set<Tuple2<StreamNode, StreamNode>> iterationSourceSinkPairs;
     private InternalTimeServiceManager.Provider timerServiceProvider;
+    private JobType jobType = JobType.STREAMING;
 
     public StreamGraph(
             ExecutionConfig executionConfig,
@@ -930,5 +932,13 @@ public class StreamGraph implements Pipeline {
         return typeInfo != null && !(typeInfo instanceof MissingTypeInfo)
                 ? typeInfo.createSerializer(executionConfig)
                 : null;
+    }
+
+    public void setJobType(JobType jobType) {
+        this.jobType = jobType;
+    }
+
+    public JobType getJobType() {
+        return jobType;
     }
 }
