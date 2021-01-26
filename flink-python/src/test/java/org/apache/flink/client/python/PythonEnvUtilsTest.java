@@ -79,7 +79,7 @@ public class PythonEnvUtilsTest {
         File relativeFile =
                 new File(tmpDirPath + File.separator + "subdir" + File.separator + "b.py");
         File schemeFile =
-                new File(tmpDirPath + File.separator + "subdir" + File.separator + "c.py");
+                new File(tmpDirPath + File.separator + "subdir" + File.separator + "c.egg");
 
         // The files must actually exist
         try (ZipArchiveOutputStream zipOut =
@@ -124,6 +124,7 @@ public class PythonEnvUtilsTest {
         expectedPythonPaths.add(String.join(File.separator, base, "{uuid}", "a"));
         expectedPythonPaths.add(String.join(File.separator, base, "{uuid}", "module_dir"));
         expectedPythonPaths.add(String.join(File.separator, base, "{uuid}"));
+        expectedPythonPaths.add(String.join(File.separator, base, "{uuid}", "c.egg"));
 
         Set<String> actualPaths =
                 Arrays.stream(env.pythonPath.split(File.pathSeparator))
