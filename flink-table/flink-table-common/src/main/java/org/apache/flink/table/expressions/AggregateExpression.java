@@ -18,18 +18,40 @@
 
 package org.apache.flink.table.expressions;
 
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.connector.source.abilities.SupportsAggregatePushDown;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
-/** Expression for aggregate function which is corresponding to the AggregateCall in Calcite. */
+/**
+ * Resolved and validated expression for calling an aggregate function.
+ *
+ * <p>A aggregate call contains:
+ *
+ * <ul>
+ *   <li>a {@link FunctionDefinition} that identifies the function to be called
+ *   <li>a list of {@link FieldReferenceExpression} represents the arguments for aggregate function.
+ *   <li>a {@link CallExpression} represents the filter with the aggregate function.
+ *   <li>a {@link DataType} represents the result data type of aggregate function.
+ *   <li>{@code distinct} indicates whether this is a distinct aggregate function.
+ *   <li>{@code approximate} indicates whether this is a approximate aggregate function.
+ *   <li>{@code ignoreNulls} indicates whether this aggregate function ignore null value.
+ * </ul>
+ *
+ * <p>Note: currently, the {@link AggregateExpression} is only used in {@link
+ * SupportsAggregatePushDown}.
+ */
+@PublicEvolving
 public class AggregateExpression implements ResolvedExpression {
 
     private final FunctionDefinition functionDefinition;
@@ -86,16 +108,8 @@ public class AggregateExpression implements ResolvedExpression {
     }
 
     @Nullable
-    public CallExpression getFilterExpression() {
-        return filterExpression;
-    }
-
-    /**
-     * Returns a string representation of the aggregate function for logging or printing to a
-     * console.
-     */
-    public String getFunctionName() {
-        return functionDefinition.toString();
+    public Optional<CallExpression> getFilterExpression() {
+        return Optional.ofNullable(filterExpression);
     }
 
     @Override
@@ -105,7 +119,9 @@ public class AggregateExpression implements ResolvedExpression {
 
     @Override
     public List<ResolvedExpression> getResolvedChildren() {
-        return Collections.singletonList(this.filterExpression);
+        List<ResolvedExpression> resolvedChildren = new ArrayList<>(this.args);
+        resolvedChildren.add(this.filterExpression);
+        return Collections.unmodifiableList(resolvedChildren);
     }
 
     @Override
@@ -114,12 +130,14 @@ public class AggregateExpression implements ResolvedExpression {
                 args.stream()
                         .map(Expression::asSummaryString)
                         .collect(Collectors.joining(", ", "(", ")"));
-        return getFunctionName() + argList;
+        return functionDefinition.toString() + argList;
     }
 
     @Override
     public List<Expression> getChildren() {
-        return Collections.singletonList(this.filterExpression);
+        List<Expression> children = new ArrayList<>(this.args);
+        children.add(this.filterExpression);
+        return Collections.unmodifiableList(children);
     }
 
     @Override
@@ -137,9 +155,9 @@ public class AggregateExpression implements ResolvedExpression {
         }
         AggregateExpression that = (AggregateExpression) o;
         return Objects.equals(functionDefinition, that.functionDefinition)
-                && args.equals(that.args)
-                && filterExpression.equals(that.filterExpression)
-                && resultType.equals(that.resultType)
+                && Objects.equals(args, that.args)
+                && Objects.equals(filterExpression, that.filterExpression)
+                && Objects.equals(resultType, that.resultType)
                 && Objects.equals(distinct, that.distinct)
                 && Objects.equals(approximate, that.approximate)
                 && Objects.equals(ignoreNulls, that.ignoreNulls);

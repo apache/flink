@@ -1001,7 +1001,7 @@ public final class TestValuesTableFactory
                         || functionDefinition instanceof Count1AggFunction)) {
                     return false;
                 }
-                if (aggExpression.getFilterExpression() != null
+                if (aggExpression.getFilterExpression().isPresent()
                         || aggExpression.isApproximate()
                         || aggExpression.isDistinct()) {
                     return false;
