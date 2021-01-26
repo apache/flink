@@ -102,7 +102,7 @@ object TestCollectionTableFactory {
 
   def getCollectionSource(context: TableSourceFactory.Context): CollectionTableSource = {
     val schema = context.getTable.getSchema
-    val isBounded = context.getTable.getProperties.getOrDefault(IS_BOUNDED, "true").toBoolean
+    val isBounded = context.getTable.getOptions.getOrDefault(IS_BOUNDED, "true").toBoolean
     new CollectionTableSource(emitIntervalMS, getPhysicalSchema(schema), isBounded)
   }
 

@@ -106,7 +106,7 @@ import org.apache.flink.table.operations.ddl.AlterPartitionPropertiesOperation;
 import org.apache.flink.table.operations.ddl.AlterTableAddConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableOperation;
-import org.apache.flink.table.operations.ddl.AlterTablePropertiesOperation;
+import org.apache.flink.table.operations.ddl.AlterTableOptionsOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
 import org.apache.flink.table.operations.ddl.AlterTableSchemaOperation;
 import org.apache.flink.table.operations.ddl.AlterViewAsOperation;
@@ -817,9 +817,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                             alterTableRenameOp.getTableIdentifier().toObjectPath(),
                             alterTableRenameOp.getNewTableIdentifier().getObjectName(),
                             false);
-                } else if (alterTableOperation instanceof AlterTablePropertiesOperation) {
-                    AlterTablePropertiesOperation alterTablePropertiesOp =
-                            (AlterTablePropertiesOperation) operation;
+                } else if (alterTableOperation instanceof AlterTableOptionsOperation) {
+                    AlterTableOptionsOperation alterTablePropertiesOp =
+                            (AlterTableOptionsOperation) operation;
                     catalog.alterTable(
                             alterTablePropertiesOp.getTableIdentifier().toObjectPath(),
                             alterTablePropertiesOp.getCatalogTable(),

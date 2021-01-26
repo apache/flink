@@ -25,11 +25,10 @@ import org.apache.flink.table.operations.OperationUtils;
 import java.util.stream.Collectors;
 
 /** Operation to describe a ALTER TABLE .. SET .. statement. */
-public class AlterTablePropertiesOperation extends AlterTableOperation {
+public class AlterTableOptionsOperation extends AlterTableOperation {
     private final CatalogTable catalogTable;
 
-    public AlterTablePropertiesOperation(
-            ObjectIdentifier tableIdentifier, CatalogTable catalogTable) {
+    public AlterTableOptionsOperation(ObjectIdentifier tableIdentifier, CatalogTable catalogTable) {
         super(tableIdentifier);
         this.catalogTable = catalogTable;
     }
@@ -41,7 +40,7 @@ public class AlterTablePropertiesOperation extends AlterTableOperation {
     @Override
     public String asSummaryString() {
         String description =
-                catalogTable.getProperties().entrySet().stream()
+                catalogTable.getOptions().entrySet().stream()
                         .map(
                                 entry ->
                                         OperationUtils.formatParameter(

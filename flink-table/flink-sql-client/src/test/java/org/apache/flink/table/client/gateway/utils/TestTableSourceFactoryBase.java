@@ -108,7 +108,7 @@ public abstract class TestTableSourceFactoryBase implements StreamTableSourceFac
                 SchemaValidator.deriveRowtimeAttributes(params);
         return new TestTableSource(
                 schema,
-                context.getTable().getProperties().get(testProperty),
+                context.getTable().getOptions().get(testProperty),
                 proctime.orElse(null),
                 rowtime);
     }

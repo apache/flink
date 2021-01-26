@@ -38,14 +38,14 @@ public abstract class AbstractCatalogView implements CatalogView {
     private final String expandedQuery;
 
     private final TableSchema schema;
-    private final Map<String, String> properties;
+    private final Map<String, String> options;
     private final String comment;
 
     public AbstractCatalogView(
             String originalQuery,
             String expandedQuery,
             TableSchema schema,
-            Map<String, String> properties,
+            Map<String, String> options,
             String comment) {
         checkArgument(
                 !StringUtils.isNullOrWhitespaceOnly(originalQuery),
@@ -57,7 +57,7 @@ public abstract class AbstractCatalogView implements CatalogView {
         this.originalQuery = originalQuery;
         this.expandedQuery = expandedQuery;
         this.schema = checkNotNull(schema, "schema cannot be null");
-        this.properties = checkNotNull(properties, "properties cannot be null");
+        this.options = checkNotNull(options, "options cannot be null");
         this.comment = comment;
     }
 
@@ -72,8 +72,8 @@ public abstract class AbstractCatalogView implements CatalogView {
     }
 
     @Override
-    public Map<String, String> getProperties() {
-        return this.properties;
+    public Map<String, String> getOptions() {
+        return this.options;
     }
 
     @Override

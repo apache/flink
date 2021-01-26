@@ -90,12 +90,12 @@ public class TableEnvironmentTest {
                                 .build()));
         assertThat(table.getPartitionKeys(), equalTo(Arrays.asList("my_part_1", "my_part_2")));
 
-        Map<String, String> properties = new HashMap<>();
-        properties.put("update-mode", "append");
-        properties.put("connector.property-version", "1");
-        properties.put("format.type", "my_format");
-        properties.put("format.property-version", "1");
-        properties.put("connector.type", "table-source-factory-mock");
-        assertThat(table.getProperties(), equalTo(properties));
+        Map<String, String> options = new HashMap<>();
+        options.put("update-mode", "append");
+        options.put("connector.property-version", "1");
+        options.put("format.type", "my_format");
+        options.put("format.property-version", "1");
+        options.put("connector.type", "table-source-factory-mock");
+        assertThat(table.getOptions(), equalTo(options));
     }
 }
