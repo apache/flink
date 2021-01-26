@@ -112,7 +112,7 @@ For example with a `FsStateBackend` or `RocksDBStateBackend`:
 
 Since Flink 1.11.0, savepoints can generally be moved by moving (or copying) the entire savepoint directory to a different location, and Flink will be able to restore from the moved savepoint.
 
-<div class="alert alert-warning">There are two exceptions: 1) if *<a href="{% link ops/filesystems/s3.zh.md %}#entropy-injection-for-s3-file-systems">entropy injection</a>* is activated: In that case the savepoint directory will not contain all savepoint data files,
+<div class="alert alert-warning">There are two exceptions: 1) if *<a href="{% link deployment/filesystems/s3.md %}#entropy-injection-for-s3-file-systems">entropy injection</a>* is activated: In that case the savepoint directory will not contain all savepoint data files,
 because the injected path entropy spreads the files over many directories. Lacking a common savepoint root directory, the savepoints will contain absolute path references, which prevent moving the directory.
 
 2) The job contains task-owned state(such as `GenericWriteAhreadLog` sink).
