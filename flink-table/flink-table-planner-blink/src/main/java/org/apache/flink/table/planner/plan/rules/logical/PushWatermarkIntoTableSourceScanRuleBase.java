@@ -95,7 +95,7 @@ public abstract class PushWatermarkIntoTableSourceScanRuleBase extends RelOptRul
         Duration idleTimeout =
                 configuration.get(ExecutionConfigOptions.TABLE_EXEC_SOURCE_IDLE_TIMEOUT);
         if (!idleTimeout.isZero() && !idleTimeout.isNegative()) {
-            watermarkStrategy.withIdleness(idleTimeout);
+            watermarkStrategy = watermarkStrategy.withIdleness(idleTimeout);
             digest = String.format("%s, idletimeout=[%s]", digest, idleTimeout.toMillis());
         }
 
