@@ -192,7 +192,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
                 new DeclineCheckpoint(
                         jobID,
                         decliningVertex.getCurrentExecutionAttempt().getAttemptId(),
-                        checkpointId),
+                        checkpointId,
+                        new CheckpointException(CHECKPOINT_DECLINED)),
                 "test");
 
         CheckpointMetrics lateReportedMetrics =
