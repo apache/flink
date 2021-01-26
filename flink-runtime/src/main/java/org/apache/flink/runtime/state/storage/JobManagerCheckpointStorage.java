@@ -20,12 +20,17 @@ package org.apache.flink.runtime.state.storage;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
+import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.ConfigurableCheckpointStorage;
+import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
 import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorageAccess;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 
@@ -76,7 +81,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * implemented via the {@link #configure(ReadableConfig, ClassLoader)} method.
  */
 @PublicEvolving
-public class JobManagerCheckpointStorage extends AbstractFileCheckpointStorage
+public class JobManagerCheckpointStorage
         implements CheckpointStorage, ConfigurableCheckpointStorage {
 
     private static final long serialVersionUID = 4109305377809414635L;
@@ -86,6 +91,9 @@ public class JobManagerCheckpointStorage extends AbstractFileCheckpointStorage
 
     /** The maximal size that the snapshotted memory state may have. */
     private final int maxStateSize;
+
+    /** The optional locations where snapshots will be externalized. */
+    private final ExternalizedSnapshotLocation location;
 
     // ------------------------------------------------------------------------
 
@@ -148,7 +156,10 @@ public class JobManagerCheckpointStorage extends AbstractFileCheckpointStorage
     public JobManagerCheckpointStorage(Path checkpointPath, int maxStateSize) {
         checkArgument(maxStateSize > 0, "maxStateSize must be > 0");
         this.maxStateSize = maxStateSize;
-        setCheckpointPath(checkpointPath);
+        this.location =
+                ExternalizedSnapshotLocation.newBuilder()
+                        .withCheckpointPath(checkpointPath)
+                        .build();
     }
 
     /**
@@ -159,8 +170,12 @@ public class JobManagerCheckpointStorage extends AbstractFileCheckpointStorage
     private JobManagerCheckpointStorage(
             JobManagerCheckpointStorage original, ReadableConfig config) {
         this.maxStateSize = original.maxStateSize;
-        setCheckpointPath(original.getCheckpointPath(), config);
-        setSavepointPath(original.getSavepointPath(), config);
+        this.location =
+                ExternalizedSnapshotLocation.newBuilder()
+                        .withCheckpointPath(original.location.getBaseCheckpointPath())
+                        .withSavepointPath(original.location.getBaseSavepointPath())
+                        .withConfiguration(config)
+                        .build();
     }
 
     // ------------------------------------------------------------------------
@@ -177,6 +192,18 @@ public class JobManagerCheckpointStorage extends AbstractFileCheckpointStorage
         return maxStateSize;
     }
 
+    /** @return The location where checkpoints will be externalized if set. */
+    @Nullable
+    public Path getCheckpointPath() {
+        return location.getBaseCheckpointPath();
+    }
+
+    /** @return The default location where savepoints will be externalized if set. */
+    @Nullable
+    public Path getSavepointPath() {
+        return location.getBaseSavepointPath();
+    }
+
     // ------------------------------------------------------------------------
     //  Reconfiguration
     // ------------------------------------------------------------------------
@@ -186,7 +213,6 @@ public class JobManagerCheckpointStorage extends AbstractFileCheckpointStorage
      * for fields where that were not specified in this checkpoint storage.
      *
      * @param config The configuration
-     * @param classLoader The class loader
      * @return The re-configured variant of the checkpoint storage
      */
     @Override
@@ -194,14 +220,41 @@ public class JobManagerCheckpointStorage extends AbstractFileCheckpointStorage
         return new JobManagerCheckpointStorage(this, config);
     }
 
+    /**
+     * Creates a new {@link JobManagerCheckpointStorage} using the given configuration.
+     *
+     * @param config The Flink configuration (loaded by the TaskManager).
+     * @param classLoader The clsas loader that should be used to load the checkpoint storage.
+     * @return The created checkpoint storage.
+     * @throws IllegalConfigurationException If the configuration misses critical values, or
+     *     specifies invalid values
+     */
+    public static JobManagerCheckpointStorage createFromConfig(
+            ReadableConfig config, ClassLoader classLoader) throws IllegalConfigurationException {
+        try {
+            return new JobManagerCheckpointStorage().configure(config, classLoader);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalConfigurationException(
+                    "Invalid configuration for the state backend", e);
+        }
+    }
+
     // ------------------------------------------------------------------------
     //  checkpoint state persistence
     // ------------------------------------------------------------------------
 
     @Override
+    public CompletedCheckpointStorageLocation resolveCheckpoint(String pointer) throws IOException {
+        return AbstractFsCheckpointStorageAccess.resolveCheckpointPointer(pointer);
+    }
+
+    @Override
     public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
         return new MemoryBackendCheckpointStorageAccess(
-                jobId, getCheckpointPath(), getSavepointPath(), maxStateSize);
+                jobId,
+                location.getBaseCheckpointPath(),
+                location.getBaseSavepointPath(),
+                maxStateSize);
     }
 
     // ------------------------------------------------------------------------

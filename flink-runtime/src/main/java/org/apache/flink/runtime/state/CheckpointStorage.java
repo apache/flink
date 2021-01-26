@@ -24,15 +24,14 @@ import org.apache.flink.api.common.JobID;
 import java.io.IOException;
 
 /**
- * CheckpointStorage defines how {@link StateBackend}'s checkpoint their state for fault tolerance
- * in streaming applications. Various implementations store their checkpoints in different fashions
- * and have different requirements and availability guarantees.
+ * CheckpointStorage defines how {@link StateBackend}'s store their state for fault tolerance in
+ * streaming applications. Various implementations store their checkpoints in different fashions and
+ * have different requirements and availability guarantees.
  *
  * <p>For example, {@link org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage
  * JobManagerCheckpointStorage} stores checkpoints in the memory of the JobManager. It is
- * lightweight and without additional dependencies but is not highly available and only supports
- * small state sizes. This checkpoint storage policy is convenient for local testing and
- * development.
+ * lightweight and without additional dependencies but is not scalable and only supports small state
+ * sizes. This checkpoint storage policy is convenient for local testing and development.
  *
  * <p>{@link org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage
  * FileSystemCheckpointStorage} stores checkpoints in a filesystem. For systems like HDFS, NFS
@@ -51,7 +50,7 @@ import java.io.IOException;
  *
  * <h2>Serializability</h2>
  *
- * <p>State Backends need to be {@link java.io.Serializable serializable}, because they distributed
+ * <p>Implementations need to be {@link java.io.Serializable serializable}, because they distributed
  * across parallel processes (for distributed execution) together with the streaming application
  * code.
  *
@@ -71,9 +70,6 @@ public interface CheckpointStorage extends java.io.Serializable {
     /**
      * Resolves the given pointer to a checkpoint/savepoint into a checkpoint location. The location
      * supports reading the checkpoint metadata, or disposing the checkpoint storage location.
-     *
-     * <p>If the state backend cannot understand the format of the pointer (for example because it
-     * was created by a different state backend) this method should throw an {@code IOException}.
      *
      * @param externalPointer The external checkpoint pointer to resolve.
      * @return The checkpoint location handle.
