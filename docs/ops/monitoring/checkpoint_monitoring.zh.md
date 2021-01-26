@@ -60,6 +60,8 @@ Flink 的 Web 界面提供了`选项卡/标签（tab）`来监视作业的 check
 
 Checkpoint 历史记录保存有关最近触发的 checkpoint 的统计信息，包括当前正在进行的 checkpoint。
 
+注意，对于失败的 checkpoint，指标会尽最大努力进行更新，但是可能不准确。
+
 <center>
   <img src="{% link /fig/checkpoint_monitoring-history.png %}" width="700px" alt="Checkpoint Monitoring: History">
 </center>
