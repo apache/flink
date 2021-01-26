@@ -127,7 +127,7 @@ public class RocksFullSnapshotStrategy<K>
         final Snapshot snapshot = db.getSnapshot();
 
         return new FullRocksDBSnapshotResources(
-                lease, snapshot, metaDataCopy, stateMetaInfoSnapshots, db);
+                lease, snapshot, metaDataCopy, stateMetaInfoSnapshots, db, keyGroupPrefixBytes);
     }
 
     @Override
@@ -227,29 +227,6 @@ public class RocksFullSnapshotStrategy<K>
             }
         }
 
-        private RocksStatesPerKeyGroupMergeIterator createKVStateIterator() throws IOException {
-            CloseableRegistry closeableRegistry = new CloseableRegistry();
-
-            try {
-                ReadOptions readOptions = new ReadOptions();
-                closeableRegistry.registerCloseable(readOptions::close);
-                readOptions.setSnapshot(snapshotResources.snapshot);
-
-                List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators =
-                        createKVStateIterators(closeableRegistry, readOptions);
-
-                // Here we transfer ownership of the required resources to the
-                // RocksStatesPerKeyGroupMergeIterator
-                return new RocksStatesPerKeyGroupMergeIterator(
-                        closeableRegistry, new ArrayList<>(kvStateIterators), keyGroupPrefixBytes);
-            } catch (Throwable t) {
-                // If anything goes wrong, clean up our stuff. If things went smoothly the
-                // merging iterator is now responsible for closing the resources
-                IOUtils.closeQuietly(closeableRegistry);
-                throw new IOException("Error creating merge iterator", t);
-            }
-        }
-
         private void writeSnapshotToOutputStream(
                 @Nonnull CheckpointStreamWithResultProvider checkpointStreamWithResultProvider,
                 @Nonnull KeyGroupRangeOffsets keyGroupRangeOffsets)
@@ -261,34 +238,11 @@ public class RocksFullSnapshotStrategy<K>
 
             writeKVStateMetaData(outputView);
 
-            try (RocksStatesPerKeyGroupMergeIterator kvStateIterator = createKVStateIterator()) {
+            try (RocksStatesPerKeyGroupMergeIterator kvStateIterator =
+                    snapshotResources.createKVStateIterator()) {
                 writeKVStateData(
                         kvStateIterator, checkpointStreamWithResultProvider, keyGroupRangeOffsets);
             }
-        }
-
-        private List<Tuple2<RocksIteratorWrapper, Integer>> createKVStateIterators(
-                CloseableRegistry closeableRegistry, ReadOptions readOptions) throws IOException {
-
-            List<MetaData> metaData = snapshotResources.getMetaData();
-            final List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators =
-                    new ArrayList<>(metaData.size());
-
-            int kvStateId = 0;
-
-            for (MetaData metaDataEntry : metaData) {
-                RocksIteratorWrapper rocksIteratorWrapper =
-                        getRocksIterator(
-                                db,
-                                metaDataEntry.rocksDbKvStateInfo.columnFamilyHandle,
-                                metaDataEntry.stateSnapshotTransformer,
-                                readOptions);
-                kvStateIterators.add(Tuple2.of(rocksIteratorWrapper, kvStateId));
-                closeableRegistry.registerCloseable(rocksIteratorWrapper);
-                ++kvStateId;
-            }
-
-            return kvStateIterators;
         }
 
         private void writeKVStateMetaData(final DataOutputView outputView) throws IOException {
@@ -423,30 +377,6 @@ public class RocksFullSnapshotStrategy<K>
         }
     }
 
-    private static RocksIteratorWrapper getRocksIterator(
-            RocksDB db,
-            ColumnFamilyHandle columnFamilyHandle,
-            StateSnapshotTransformer<byte[]> stateSnapshotTransformer,
-            ReadOptions readOptions) {
-        RocksIterator rocksIterator = db.newIterator(columnFamilyHandle, readOptions);
-        return stateSnapshotTransformer == null
-                ? new RocksIteratorWrapper(rocksIterator)
-                : new RocksTransformingIteratorWrapper(rocksIterator, stateSnapshotTransformer);
-    }
-
-    private static class MetaData {
-        final RocksDbKvStateInfo rocksDbKvStateInfo;
-        final StateSnapshotTransformer<byte[]> stateSnapshotTransformer;
-
-        private MetaData(
-                RocksDbKvStateInfo rocksDbKvStateInfo,
-                StateSnapshotTransformer<byte[]> stateSnapshotTransformer) {
-
-            this.rocksDbKvStateInfo = rocksDbKvStateInfo;
-            this.stateSnapshotTransformer = stateSnapshotTransformer;
-        }
-    }
-
     static class FullRocksDBSnapshotResources implements SnapshotResources {
         private final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots;
         private final ResourceGuard.Lease lease;
@@ -454,16 +384,21 @@ public class RocksFullSnapshotStrategy<K>
         private final RocksDB db;
         private final List<MetaData> metaData;
 
+        /** Number of bytes in the key-group prefix. */
+        @Nonnegative private final int keyGroupPrefixBytes;
+
         public FullRocksDBSnapshotResources(
                 ResourceGuard.Lease lease,
                 Snapshot snapshot,
                 List<RocksDbKvStateInfo> metaDataCopy,
                 List<StateMetaInfoSnapshot> stateMetaInfoSnapshots,
-                RocksDB db) {
+                RocksDB db,
+                int keyGroupPrefixBytes) {
             this.lease = lease;
             this.snapshot = snapshot;
             this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
             this.db = db;
+            this.keyGroupPrefixBytes = keyGroupPrefixBytes;
 
             // we need to to this in the constructor, i.e. in the synchronous part of the snapshot
             // TODO: better yet, we can do it outside the constructor
@@ -487,8 +422,61 @@ public class RocksFullSnapshotStrategy<K>
             return metaData;
         }
 
-        private List<MetaData> getMetaData() {
-            return metaData;
+        private RocksStatesPerKeyGroupMergeIterator createKVStateIterator() throws IOException {
+            CloseableRegistry closeableRegistry = new CloseableRegistry();
+
+            try {
+                ReadOptions readOptions = new ReadOptions();
+                closeableRegistry.registerCloseable(readOptions::close);
+                readOptions.setSnapshot(snapshot);
+
+                List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators =
+                        createKVStateIterators(closeableRegistry, readOptions);
+
+                // Here we transfer ownership of the required resources to the
+                // RocksStatesPerKeyGroupMergeIterator
+                return new RocksStatesPerKeyGroupMergeIterator(
+                        closeableRegistry, new ArrayList<>(kvStateIterators), keyGroupPrefixBytes);
+            } catch (Throwable t) {
+                // If anything goes wrong, clean up our stuff. If things went smoothly the
+                // merging iterator is now responsible for closing the resources
+                IOUtils.closeQuietly(closeableRegistry);
+                throw new IOException("Error creating merge iterator", t);
+            }
+        }
+
+        private List<Tuple2<RocksIteratorWrapper, Integer>> createKVStateIterators(
+                CloseableRegistry closeableRegistry, ReadOptions readOptions) throws IOException {
+
+            final List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators =
+                    new ArrayList<>(metaData.size());
+
+            int kvStateId = 0;
+
+            for (MetaData metaDataEntry : metaData) {
+                RocksIteratorWrapper rocksIteratorWrapper =
+                        createRocksIteratorWrapper(
+                                db,
+                                metaDataEntry.rocksDbKvStateInfo.columnFamilyHandle,
+                                metaDataEntry.stateSnapshotTransformer,
+                                readOptions);
+                kvStateIterators.add(Tuple2.of(rocksIteratorWrapper, kvStateId));
+                closeableRegistry.registerCloseable(rocksIteratorWrapper);
+                ++kvStateId;
+            }
+
+            return kvStateIterators;
+        }
+
+        private static RocksIteratorWrapper createRocksIteratorWrapper(
+                RocksDB db,
+                ColumnFamilyHandle columnFamilyHandle,
+                StateSnapshotTransformer<byte[]> stateSnapshotTransformer,
+                ReadOptions readOptions) {
+            RocksIterator rocksIterator = db.newIterator(columnFamilyHandle, readOptions);
+            return stateSnapshotTransformer == null
+                    ? new RocksIteratorWrapper(rocksIterator)
+                    : new RocksTransformingIteratorWrapper(rocksIterator, stateSnapshotTransformer);
         }
 
         @Override
@@ -496,6 +484,19 @@ public class RocksFullSnapshotStrategy<K>
             db.releaseSnapshot(snapshot);
             IOUtils.closeQuietly(snapshot);
             IOUtils.closeQuietly(lease);
+        }
+
+        private static class MetaData {
+            final RocksDbKvStateInfo rocksDbKvStateInfo;
+            final StateSnapshotTransformer<byte[]> stateSnapshotTransformer;
+
+            private MetaData(
+                    RocksDbKvStateInfo rocksDbKvStateInfo,
+                    StateSnapshotTransformer<byte[]> stateSnapshotTransformer) {
+
+                this.rocksDbKvStateInfo = rocksDbKvStateInfo;
+                this.stateSnapshotTransformer = stateSnapshotTransformer;
+            }
         }
     }
 }
