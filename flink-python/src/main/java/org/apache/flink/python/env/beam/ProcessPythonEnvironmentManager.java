@@ -292,10 +292,12 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
                 // as not all zip files are importable
                 org.apache.flink.core.fs.Path targetDirectory =
                         new org.apache.flink.core.fs.Path(
-                                filesDirectory, String.join(
-                                File.separator,
-                                distributedCacheFileName,
-                                originFileName.substring(0, originFileName.lastIndexOf("."))));
+                                filesDirectory,
+                                String.join(
+                                        File.separator,
+                                        distributedCacheFileName,
+                                        originFileName.substring(
+                                                0, originFileName.lastIndexOf("."))));
                 FileUtils.expandDirectory(
                         new org.apache.flink.core.fs.Path(pythonFile.getAbsolutePath()),
                         targetDirectory);

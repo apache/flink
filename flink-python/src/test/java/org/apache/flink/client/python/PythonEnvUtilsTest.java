@@ -83,10 +83,10 @@ public class PythonEnvUtilsTest {
 
         // The files must actually exist
         try (ZipArchiveOutputStream zipOut =
-                     new ZipArchiveOutputStream(new FileOutputStream(zipFile))) {
+                new ZipArchiveOutputStream(new FileOutputStream(zipFile))) {
             ZipArchiveEntry entry = new ZipArchiveEntry("zipDir" + "/zipfile0");
             zipOut.putArchiveEntry(entry);
-            zipOut.write(new byte[]{1, 1, 1, 1, 1});
+            zipOut.write(new byte[] {1, 1, 1, 1, 1});
             zipOut.closeArchiveEntry();
         }
         dirFile.mkdir();

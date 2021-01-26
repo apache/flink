@@ -170,33 +170,23 @@ public class ProcessPythonEnvironmentManagerTest {
                 new PythonDependencyInfo(pythonFiles, null, null, new HashMap<>(), "python");
 
         try (ProcessPythonEnvironmentManager environmentManager =
-                     createBasicPythonEnvironmentManager(dependencyInfo)) {
+                createBasicPythonEnvironmentManager(dependencyInfo)) {
             environmentManager.open();
             Map<String, String> environmentVariable =
                     environmentManager.constructEnvironmentVariables();
 
             String baseDir = environmentManager.getBaseDirectory();
             String[] expectedUserPythonPaths =
-                    new String[]{
-                            String.join(
-                                    File.separator,
-                                    baseDir,
-                                    PYTHON_FILES_DIR,
-                                    "zip0",
-                                    "test_zip"),
-                            String.join(File.separator, baseDir, PYTHON_FILES_DIR, "file1"),
-                            String.join(
-                                    File.separator,
-                                    baseDir,
-                                    PYTHON_FILES_DIR,
-                                    "file2",
-                                    "test_file2.egg"),
-                            String.join(
-                                    File.separator,
-                                    baseDir,
-                                    PYTHON_FILES_DIR,
-                                    "dir0",
-                                    "test_dir")
+                    new String[] {
+                        String.join(File.separator, baseDir, PYTHON_FILES_DIR, "zip0", "test_zip"),
+                        String.join(File.separator, baseDir, PYTHON_FILES_DIR, "file1"),
+                        String.join(
+                                File.separator,
+                                baseDir,
+                                PYTHON_FILES_DIR,
+                                "file2",
+                                "test_file2.egg"),
+                        String.join(File.separator, baseDir, PYTHON_FILES_DIR, "dir0", "test_dir")
                     };
             String expectedPythonPath = String.join(File.pathSeparator, expectedUserPythonPaths);
 
