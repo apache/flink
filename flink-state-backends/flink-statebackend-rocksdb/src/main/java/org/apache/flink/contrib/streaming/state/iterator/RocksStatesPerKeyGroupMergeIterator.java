@@ -20,11 +20,13 @@ package org.apache.flink.contrib.streaming.state.iterator;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.contrib.streaming.state.RocksIteratorWrapper;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.rocksdb.ReadOptions;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -36,7 +38,7 @@ import java.util.PriorityQueue;
  */
 public class RocksStatesPerKeyGroupMergeIterator implements AutoCloseable {
 
-    private final ReadOptions readOptions;
+    private final CloseableRegistry closeableRegistry;
     private final PriorityQueue<RocksSingleStateIterator> heap;
     private final int keyGroupPrefixByteCount;
     private boolean newKeyGroup;
@@ -69,14 +71,15 @@ public class RocksStatesPerKeyGroupMergeIterator implements AutoCloseable {
      * them.
      */
     public RocksStatesPerKeyGroupMergeIterator(
-            final ReadOptions readOptions,
+            final CloseableRegistry closeableRegistry,
             List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators,
-            final int keyGroupPrefixByteCount) {
-        Preconditions.checkNotNull(readOptions);
+            final int keyGroupPrefixByteCount)
+            throws IOException {
+        Preconditions.checkNotNull(closeableRegistry);
         Preconditions.checkNotNull(kvStateIterators);
         Preconditions.checkArgument(keyGroupPrefixByteCount >= 1);
 
-        this.readOptions = readOptions;
+        this.closeableRegistry = closeableRegistry;
         this.keyGroupPrefixByteCount = keyGroupPrefixByteCount;
 
         if (kvStateIterators.size() > 0) {
@@ -117,7 +120,9 @@ public class RocksStatesPerKeyGroupMergeIterator implements AutoCloseable {
                 detectNewKeyGroup(oldKey);
             }
         } else {
-            IOUtils.closeQuietly(rocksIterator);
+            if (closeableRegistry.unregisterCloseable(currentSubIterator)) {
+                IOUtils.closeQuietly(currentSubIterator);
+            }
 
             if (heap.isEmpty()) {
                 currentSubIterator = null;
@@ -131,7 +136,7 @@ public class RocksStatesPerKeyGroupMergeIterator implements AutoCloseable {
     }
 
     private PriorityQueue<RocksSingleStateIterator> buildIteratorHeap(
-            List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators) {
+            List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators) throws IOException {
 
         Comparator<RocksSingleStateIterator> iteratorComparator =
                 COMPARATORS.get(keyGroupPrefixByteCount - 1);
@@ -143,10 +148,15 @@ public class RocksStatesPerKeyGroupMergeIterator implements AutoCloseable {
             final RocksIteratorWrapper rocksIterator = rocksIteratorWithKVStateId.f0;
             rocksIterator.seekToFirst();
             if (rocksIterator.isValid()) {
-                iteratorPriorityQueue.offer(
-                        new RocksSingleStateIterator(rocksIterator, rocksIteratorWithKVStateId.f1));
+                RocksSingleStateIterator wrappingIterator =
+                        new RocksSingleStateIterator(rocksIterator, rocksIteratorWithKVStateId.f1);
+                iteratorPriorityQueue.offer(wrappingIterator);
+                closeableRegistry.registerCloseable(wrappingIterator);
+                closeableRegistry.unregisterCloseable(rocksIterator);
             } else {
-                IOUtils.closeQuietly(rocksIterator);
+                if (closeableRegistry.unregisterCloseable(rocksIterator)) {
+                    IOUtils.closeQuietly(rocksIterator);
+                }
             }
         }
         return iteratorPriorityQueue;
@@ -230,12 +240,8 @@ public class RocksStatesPerKeyGroupMergeIterator implements AutoCloseable {
 
     @Override
     public void close() {
-        IOUtils.closeQuietly(readOptions);
+        IOUtils.closeQuietly(closeableRegistry);
 
-        IOUtils.closeQuietly(currentSubIterator);
-        currentSubIterator = null;
-
-        IOUtils.closeAllQuietly(heap);
         heap.clear();
     }
 }
