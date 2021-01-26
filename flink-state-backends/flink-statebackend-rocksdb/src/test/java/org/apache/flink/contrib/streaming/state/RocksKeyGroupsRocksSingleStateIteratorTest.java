@@ -58,7 +58,8 @@ public class RocksKeyGroupsRocksSingleStateIteratorTest {
     @Test
     public void testEmptyMergeIterator() throws Exception {
         RocksStatesPerKeyGroupMergeIterator emptyIterator =
-                new RocksStatesPerKeyGroupMergeIterator(Collections.emptyList(), 2);
+                new RocksStatesPerKeyGroupMergeIterator(
+                        new ReadOptions(), Collections.emptyList(), 2);
         Assert.assertFalse(emptyIterator.isValid());
     }
 
@@ -129,6 +130,7 @@ public class RocksKeyGroupsRocksSingleStateIteratorTest {
 
             try (RocksStatesPerKeyGroupMergeIterator mergeIterator =
                     new RocksStatesPerKeyGroupMergeIterator(
+                            new ReadOptions(),
                             rocksIteratorsWithKVStateId,
                             maxParallelism <= Byte.MAX_VALUE ? 1 : 2)) {
 

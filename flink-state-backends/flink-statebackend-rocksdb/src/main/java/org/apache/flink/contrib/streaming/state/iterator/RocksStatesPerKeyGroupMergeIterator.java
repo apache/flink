@@ -23,6 +23,8 @@ import org.apache.flink.contrib.streaming.state.RocksIteratorWrapper;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
+import org.rocksdb.ReadOptions;
+
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -34,6 +36,7 @@ import java.util.PriorityQueue;
  */
 public class RocksStatesPerKeyGroupMergeIterator implements AutoCloseable {
 
+    private final ReadOptions readOptions;
     private final PriorityQueue<RocksSingleStateIterator> heap;
     private final int keyGroupPrefixByteCount;
     private boolean newKeyGroup;
@@ -60,12 +63,20 @@ public class RocksStatesPerKeyGroupMergeIterator implements AutoCloseable {
         }
     }
 
+    /**
+     * Creates a new {@link RocksStatesPerKeyGroupMergeIterator}. The iterator takes ownership of
+     * passed in resources, such as the {@link ReadOptions}, and becomes responsible for closing
+     * them.
+     */
     public RocksStatesPerKeyGroupMergeIterator(
+            final ReadOptions readOptions,
             List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators,
             final int keyGroupPrefixByteCount) {
+        Preconditions.checkNotNull(readOptions);
         Preconditions.checkNotNull(kvStateIterators);
         Preconditions.checkArgument(keyGroupPrefixByteCount >= 1);
 
+        this.readOptions = readOptions;
         this.keyGroupPrefixByteCount = keyGroupPrefixByteCount;
 
         if (kvStateIterators.size() > 0) {
@@ -219,6 +230,8 @@ public class RocksStatesPerKeyGroupMergeIterator implements AutoCloseable {
 
     @Override
     public void close() {
+        IOUtils.closeQuietly(readOptions);
+
         IOUtils.closeQuietly(currentSubIterator);
         currentSubIterator = null;
 
