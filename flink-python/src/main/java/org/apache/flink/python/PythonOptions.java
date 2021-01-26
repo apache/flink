@@ -70,11 +70,10 @@ public class PythonOptions {
                     .stringType()
                     .noDefaultValue()
                     .withDescription(
-                            "Attach custom python files for job. These files will "
-                                    + "be added to the PYTHONPATH of both the local client and the remote python UDF "
-                                    + "worker. The standard python resource file suffixes such as .py/.egg/.zip or "
-                                    + "directory are all supported. Comma (',') could be used as the separator to specify "
-                                    + "multiple files. The option is equivalent to the command line option \"-pyfs\". ");
+                            "Attach custom python files for job. The standard python resource file suffixes such as .py/.egg/.zip or "
+                                    + "directory are all supported. These files will be added to the PYTHONPATH of both the local "
+                                    + "client and the remote python UDF worker. Files suffixed with .zip will be extracted and added to PYTHONPATH. "
+                                    + "Comma (',') could be used as the separator to specify multiple files. The option is equivalent to the command line option \"-pyfs\". ");
 
     public static final ConfigOption<String> PYTHON_REQUIREMENTS =
             ConfigOptions.key("python.requirements")

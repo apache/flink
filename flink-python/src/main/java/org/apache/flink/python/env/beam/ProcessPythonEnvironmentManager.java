@@ -287,6 +287,21 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
                 // If the python file is file with suffix .py, add the parent directory to
                 // PYTHONPATH.
                 pythonPath = String.join(File.separator, filesDirectory, distributedCacheFileName);
+            } else if (pythonFile.isFile() && originFileName.endsWith(".zip")) {
+                // Expand the zip file and add the root directory to PYTHONPATH
+                // as not all zip files are importable
+                org.apache.flink.core.fs.Path targetDirectory =
+                        new org.apache.flink.core.fs.Path(
+                                filesDirectory,
+                                String.join(
+                                        File.separator,
+                                        distributedCacheFileName,
+                                        originFileName.substring(
+                                                0, originFileName.lastIndexOf("."))));
+                FileUtils.expandDirectory(
+                        new org.apache.flink.core.fs.Path(pythonFile.getAbsolutePath()),
+                        targetDirectory);
+                pythonPath = targetDirectory.toString();
             } else {
                 pythonPath =
                         String.join(
