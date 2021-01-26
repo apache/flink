@@ -47,6 +47,8 @@ Out of the box, Flink bundles these state backends:
 
 If nothing else is configured, the system will use the MemoryStateBackend.
 
+**NOTE:** Current implementations of state backends are not thread-safety as state access within Flink operator assumes to be single-threaded.
+
 
 ### The MemoryStateBackend
 

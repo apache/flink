@@ -46,6 +46,7 @@ Flink 内置了以下这些开箱即用的 state backends ：
 
 如果不设置，默认使用 MemoryStateBackend。
 
+**注意:** 由于目前Flink的算子都理应是单线程访问状态，所以目前所有的state backends实现均不是线程安全的。
 
 ### MemoryStateBackend
 
