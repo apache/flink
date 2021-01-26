@@ -198,7 +198,7 @@ public class CheckpointFailureManagerITCase extends TestLogger {
 
                             return new FutureTask<>(
                                     () -> {
-                                        throw new Exception("Excepted async snapshot exception.");
+                                        throw new Exception("Expected async snapshot exception.");
                                     });
                         }
                     };
