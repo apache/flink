@@ -41,6 +41,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphUtils;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.util.AbstractID;
 
@@ -58,9 +59,11 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
 
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 public class JobGraphGeneratorTest {
@@ -290,6 +293,15 @@ public class JobGraphGeneratorTest {
         DistributedCache.DistributedCacheEntry nonExecutableDirEntry =
                 submittedArtifacts.get(nonExecutableDirName);
         assertState(nonExecutableDirEntry, false, true);
+    }
+
+    @Test
+    public void testGeneratedJobsAreBatchJobType() {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.fromElements("test").output(new DiscardingOutputFormat<>());
+
+        JobGraph graph = compileJob(env);
+        assertThat(graph.getJobType(), is(JobType.BATCH));
     }
 
     @Test
