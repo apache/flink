@@ -303,7 +303,7 @@ public class PythonConfigUtil {
             StreamExecutionEnvironment env, TableConfig tableConfig) {
         try {
             Configuration config = new Configuration(getEnvironmentConfig(env));
-            config.addAll(tableConfig.getConfiguration());
+            PythonDependencyUtils.merge(config, tableConfig.getConfiguration());
             Configuration mergedConfig =
                     PythonDependencyUtils.configurePythonDependencies(env.getCachedFiles(), config);
             mergedConfig.setString("table.exec.timezone", tableConfig.getLocalTimeZone().getId());
@@ -319,7 +319,7 @@ public class PythonConfigUtil {
             Field field = ExecutionEnvironment.class.getDeclaredField("cacheFile");
             field.setAccessible(true);
             Configuration config = new Configuration(env.getConfiguration());
-            config.addAll(tableConfig.getConfiguration());
+            PythonDependencyUtils.merge(config, tableConfig.getConfiguration());
             Configuration mergedConfig =
                     PythonDependencyUtils.configurePythonDependencies(
                             (List<Tuple2<String, DistributedCache.DistributedCacheEntry>>)

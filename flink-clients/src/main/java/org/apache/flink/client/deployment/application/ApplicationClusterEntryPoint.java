@@ -18,7 +18,6 @@
 
 package org.apache.flink.client.deployment.application;
 
-import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.ProgramOptionsUtils;
 import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor;
 import org.apache.flink.client.program.PackagedProgram;
@@ -84,9 +83,7 @@ public class ApplicationClusterEntryPoint extends ClusterEntrypoint {
     }
 
     protected static void configureExecution(
-            final Configuration configuration, final PackagedProgram program)
-            throws MalformedURLException, IllegalAccessException, NoSuchFieldException,
-                    CliArgsException {
+            final Configuration configuration, final PackagedProgram program) throws Exception {
         configuration.set(DeploymentOptions.TARGET, EmbeddedExecutor.NAME);
         ConfigUtils.encodeCollectionToConfig(
                 configuration,
