@@ -111,6 +111,19 @@ public class CopyOnWriteStateMapSnapshot<K, N, S>
     }
 
     @Override
+    public SnapshotIterator<K, N, S> getIterator(
+            @Nonnull TypeSerializer<K> keySerializer,
+            @Nonnull TypeSerializer<N> namespaceSerializer,
+            @Nonnull TypeSerializer<S> stateSerializer,
+            @Nullable final StateSnapshotTransformer<S> stateSnapshotTransformer) {
+
+        return stateSnapshotTransformer == null
+                ? new NonTransformSnapshotIterator<>(numberOfEntriesInSnapshotData, snapshotData)
+                : new TransformedSnapshotIterator<>(
+                        numberOfEntriesInSnapshotData, snapshotData, stateSnapshotTransformer);
+    }
+
+    @Override
     public void writeState(
             TypeSerializer<K> keySerializer,
             TypeSerializer<N> namespaceSerializer,
@@ -119,13 +132,11 @@ public class CopyOnWriteStateMapSnapshot<K, N, S>
             @Nullable StateSnapshotTransformer<S> stateSnapshotTransformer)
             throws IOException {
         SnapshotIterator<K, N, S> snapshotIterator =
-                stateSnapshotTransformer == null
-                        ? new NonTransformSnapshotIterator<>(
-                                numberOfEntriesInSnapshotData, snapshotData)
-                        : new TransformedSnapshotIterator<>(
-                                numberOfEntriesInSnapshotData,
-                                snapshotData,
-                                stateSnapshotTransformer);
+                getIterator(
+                        keySerializer,
+                        namespaceSerializer,
+                        stateSerializer,
+                        stateSnapshotTransformer);
 
         int size = snapshotIterator.size();
         dov.writeInt(size);
