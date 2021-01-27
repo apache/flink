@@ -275,6 +275,10 @@ under the License.
 					<groupId>org.apache.hadoop</groupId>
 					<artifactId>hadoop-auth</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
