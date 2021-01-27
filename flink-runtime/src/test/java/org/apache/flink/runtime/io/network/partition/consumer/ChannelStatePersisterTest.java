@@ -17,9 +17,11 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
+import org.apache.flink.runtime.checkpoint.channel.RecordingChannelStateWriter;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -27,8 +29,11 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSomeBuffer;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -36,23 +41,36 @@ import static org.junit.Assert.assertTrue;
 public class ChannelStatePersisterTest {
 
     @Test
-    public void testNewBarrierNotOverwrittenByStopPersisting() throws IOException {
+    public void testNewBarrierNotOverwrittenByStopPersisting() throws Exception {
+        RecordingChannelStateWriter channelStateWriter = new RecordingChannelStateWriter();
+        InputChannelInfo channelInfo = new InputChannelInfo(0, 0);
         ChannelStatePersister persister =
-                new ChannelStatePersister(ChannelStateWriter.NO_OP, new InputChannelInfo(0, 0));
+                new ChannelStatePersister(channelStateWriter, channelInfo);
 
-        persister.checkForBarrier(barrier(1L));
-        persister.startPersisting(1L, Collections.emptyList());
+        long checkpointId = 1L;
+        channelStateWriter.start(
+                checkpointId, CheckpointOptions.forCheckpointWithDefaultLocation(true, true, 0));
+
+        persister.checkForBarrier(barrier(checkpointId));
+        persister.startPersisting(checkpointId, Arrays.asList(buildSomeBuffer()));
+        assertEquals(1, channelStateWriter.getAddedInput().get(channelInfo).size());
+
+        persister.maybePersist(buildSomeBuffer());
+        assertEquals(1, channelStateWriter.getAddedInput().get(channelInfo).size());
 
         // meanwhile, checkpoint coordinator timed out the 1st checkpoint and started the 2nd
         // now task thread is picking up the barrier and aborts the 1st:
-        persister.checkForBarrier(barrier(2L));
-        persister.stopPersisting(1L);
+        persister.checkForBarrier(barrier(checkpointId + 1));
+        persister.maybePersist(buildSomeBuffer());
+        persister.stopPersisting(checkpointId);
+        persister.maybePersist(buildSomeBuffer());
+        assertEquals(1, channelStateWriter.getAddedInput().get(channelInfo).size());
 
         assertTrue(persister.hasBarrierReceived());
     }
 
     @Test
-    public void testNewBarrierNotOverwrittenByCheckForBarrier() throws IOException {
+    public void testNewBarrierNotOverwrittenByCheckForBarrier() throws Exception {
         ChannelStatePersister persister =
                 new ChannelStatePersister(ChannelStateWriter.NO_OP, new InputChannelInfo(0, 0));
 
@@ -65,38 +83,59 @@ public class ChannelStatePersisterTest {
     }
 
     @Test
-    public void testLateBarrierOnCancelledCheckpoint() throws IOException {
-        ChannelStatePersister persister =
-                new ChannelStatePersister(ChannelStateWriter.NO_OP, new InputChannelInfo(0, 0));
-
-        persister.startPersisting(1L, Collections.emptyList());
-        // checkpoint aborted
-        persister.stopPersisting(1L);
-
-        // late barrier
-        persister.checkForBarrier(barrier(1L));
-
-        persister.startPersisting(2L, Collections.emptyList());
-        persister.checkForBarrier(barrier(2L));
-
-        assertTrue(persister.hasBarrierReceived());
+    public void testLateBarrierOnStartedAndCancelledCheckpoint() throws Exception {
+        testLateBarrier(true, true);
     }
 
     @Test
-    public void testLateBarrierOnCancelledCheckpointAfterRecover() throws IOException {
+    public void testLateBarrierOnCancelledCheckpoint() throws Exception {
+        testLateBarrier(false, true);
+    }
+
+    @Test
+    public void testLateBarrierOnNotYetCancelledCheckpoint() throws Exception {
+        testLateBarrier(false, false);
+    }
+
+    private void testLateBarrier(
+            boolean startCheckpointOnLateBarrier, boolean cancelCheckpointBeforeLateBarrier)
+            throws Exception {
+        RecordingChannelStateWriter channelStateWriter = new RecordingChannelStateWriter();
+        InputChannelInfo channelInfo = new InputChannelInfo(0, 0);
+
+        ChannelStatePersister persister =
+                new ChannelStatePersister(channelStateWriter, channelInfo);
+
+        long lateCheckpointId = 1L;
+        long checkpointId = 2L;
+        if (startCheckpointOnLateBarrier) {
+            persister.startPersisting(lateCheckpointId, Collections.emptyList());
+        }
+        if (cancelCheckpointBeforeLateBarrier) {
+            persister.stopPersisting(lateCheckpointId);
+        }
+        persister.checkForBarrier(barrier(lateCheckpointId));
+        channelStateWriter.start(
+                checkpointId, CheckpointOptions.forCheckpointWithDefaultLocation(true, true, 0));
+        persister.startPersisting(checkpointId, Arrays.asList(buildSomeBuffer()));
+        persister.maybePersist(buildSomeBuffer());
+        persister.checkForBarrier(barrier(checkpointId));
+        persister.maybePersist(buildSomeBuffer());
+
+        assertTrue(persister.hasBarrierReceived());
+        assertEquals(2, channelStateWriter.getAddedInput().get(channelInfo).size());
+    }
+
+    @Test(expected = CheckpointException.class)
+    public void testLateBarrierTriggeringCheckpoint() throws Exception {
         ChannelStatePersister persister =
                 new ChannelStatePersister(ChannelStateWriter.NO_OP, new InputChannelInfo(0, 0));
 
-        // checkpoint aborted, stopPersisting called on recovered input channel without persister
-        persister.stopPersisting(1L);
+        long lateCheckpointId = 1L;
+        long checkpointId = 2L;
 
-        // late barrier
-        persister.checkForBarrier(barrier(1L));
-
-        persister.startPersisting(2L, Collections.emptyList());
-        persister.checkForBarrier(barrier(2L));
-
-        assertTrue(persister.hasBarrierReceived());
+        persister.checkForBarrier(barrier(checkpointId));
+        persister.startPersisting(lateCheckpointId, Collections.emptyList());
     }
 
     private static Buffer barrier(long id) throws IOException {
