@@ -51,9 +51,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /** A {@link FullSnapshotResources} for the RocksDB backend. */
-class RocksDBFullSnapshotResources<K> implements FullSnapshotResources<K> {
+public class RocksDBFullSnapshotResources<K> implements FullSnapshotResources<K> {
     private final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots;
     private final ResourceGuard.Lease lease;
     private final Snapshot snapshot;
@@ -97,8 +98,8 @@ class RocksDBFullSnapshotResources<K> implements FullSnapshotResources<K> {
     public static <K> RocksDBFullSnapshotResources<K> create(
             final LinkedHashMap<String, RocksDBKeyedStateBackend.RocksDbKvStateInfo>
                     kvStateInformation,
-            final LinkedHashMap<String, HeapPriorityQueueSnapshotRestoreWrapper<?>>
-                    registeredPQStates,
+            // TODO: was it important that this is a LinkedHashMap
+            final Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates,
             final RocksDB db,
             final ResourceGuard rocksDBResourceGuard,
             final KeyGroupRange keyGroupRange,

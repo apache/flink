@@ -107,4 +107,8 @@ public class HeapPriorityQueuesManager {
         registeredPQStates.put(stateName, wrapper);
         return priorityQueue;
     }
+
+    public Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> getRegisteredPQStates() {
+        return registeredPQStates;
+    }
 }

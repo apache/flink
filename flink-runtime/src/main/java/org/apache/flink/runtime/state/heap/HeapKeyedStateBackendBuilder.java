@@ -29,7 +29,6 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.RestoreOperation;
 import org.apache.flink.runtime.state.SavepointKeyedStateHandle;
-import org.apache.flink.runtime.state.SnapshotStrategyRunner;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
@@ -96,14 +95,6 @@ public class HeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
         CloseableRegistry cancelStreamRegistryForBackend = new CloseableRegistry();
         HeapSnapshotStrategy<K> snapshotStrategy =
                 initSnapshotStrategy(registeredKVStates, registeredPQStates);
-        HeapSavepointStrategy<K> savepointStrategy =
-                new HeapSavepointStrategy<>(
-                        registeredKVStates,
-                        registeredPQStates,
-                        keyGroupCompressionDecorator,
-                        keyGroupRange,
-                        keySerializerProvider,
-                        numberOfKeyGroups);
         InternalKeyContext<K> keyContext =
                 new InternalKeyContextImpl<>(keyGroupRange, numberOfKeyGroups);
 
@@ -127,16 +118,8 @@ public class HeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
                 registeredPQStates,
                 localRecoveryConfig,
                 priorityQueueSetFactory,
-                new SnapshotStrategyRunner<>(
-                        "Heap backend snapshot",
-                        snapshotStrategy,
-                        cancelStreamRegistryForBackend,
-                        asynchronousSnapshots ? ASYNCHRONOUS : SYNCHRONOUS),
-                new SnapshotStrategyRunner<>(
-                        "Heap backend savepoint",
-                        savepointStrategy,
-                        cancelStreamRegistryForBackend,
-                        asynchronousSnapshots ? ASYNCHRONOUS : SYNCHRONOUS),
+                snapshotStrategy,
+                asynchronousSnapshots ? ASYNCHRONOUS : SYNCHRONOUS,
                 stateTableFactory,
                 keyContext);
     }

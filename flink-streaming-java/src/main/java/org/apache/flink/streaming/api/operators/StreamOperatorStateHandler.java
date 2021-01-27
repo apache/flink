@@ -34,10 +34,15 @@ import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.DefaultKeyedStateStore;
+import org.apache.flink.runtime.state.FullSnapshotResources;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.runtime.state.SavepointResources;
+import org.apache.flink.runtime.state.SavepointSnapshotStrategy;
+import org.apache.flink.runtime.state.SnapshotStrategyRunner;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateInitializationContextImpl;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
@@ -51,6 +56,7 @@ import org.apache.flink.shaded.guava18.com.google.common.io.Closer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.Closeable;
@@ -222,9 +228,19 @@ public class StreamOperatorStateHandler {
             }
 
             if (null != keyedStateBackend) {
-                snapshotInProgress.setKeyedStateManagedFuture(
-                        keyedStateBackend.snapshot(
-                                checkpointId, timestamp, factory, checkpointOptions));
+                if (checkpointOptions.getCheckpointType().isSavepoint()) {
+                    SnapshotStrategyRunner<KeyedStateHandle, ? extends FullSnapshotResources<?>>
+                            snapshotRunner = prepareSavepoint(keyedStateBackend, closeableRegistry);
+
+                    snapshotInProgress.setKeyedStateManagedFuture(
+                            snapshotRunner.snapshot(
+                                    checkpointId, timestamp, factory, checkpointOptions));
+
+                } else {
+                    snapshotInProgress.setKeyedStateManagedFuture(
+                            keyedStateBackend.snapshot(
+                                    checkpointId, timestamp, factory, checkpointOptions));
+                }
             }
         } catch (Exception snapshotException) {
             try {
@@ -250,6 +266,24 @@ public class StreamOperatorStateHandler {
                     CheckpointFailureReason.CHECKPOINT_DECLINED,
                     snapshotException);
         }
+    }
+
+    @Nonnull
+    public static SnapshotStrategyRunner<KeyedStateHandle, ? extends FullSnapshotResources<?>>
+            prepareSavepoint(
+                    CheckpointableKeyedStateBackend<?> keyedStateBackend,
+                    CloseableRegistry closeableRegistry)
+                    throws Exception {
+        SavepointResources<?> savepointResources = keyedStateBackend.savepoint();
+
+        SavepointSnapshotStrategy<?> savepointSnapshotStrategy =
+                new SavepointSnapshotStrategy<>(savepointResources.getSnapshotResources());
+
+        return new SnapshotStrategyRunner<>(
+                "Asynchronous full Savepoint",
+                savepointSnapshotStrategy,
+                closeableRegistry,
+                savepointResources.getPreferredSnapshotExecutionType());
     }
 
     public void notifyCheckpointComplete(long checkpointId) throws Exception {

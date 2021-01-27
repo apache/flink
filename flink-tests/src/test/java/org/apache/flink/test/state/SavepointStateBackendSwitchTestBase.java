@@ -23,19 +23,23 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
+import org.apache.flink.runtime.state.FullSnapshotResources;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
+import org.apache.flink.runtime.state.SnapshotStrategyRunner;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
+import org.apache.flink.streaming.api.operators.StreamOperatorStateHandler;
 import org.apache.flink.streaming.api.operators.TimerHeapInternalTimer;
 import org.apache.flink.streaming.api.operators.TimerSerializer;
 import org.apache.flink.test.state.BackendSwitchSpecs.BackendSwitchSpec;
@@ -227,8 +231,13 @@ public abstract class SavepointStateBackendSwitchTestBase {
         priorityQueue.add(new TimerHeapInternalTimer<>(2345L, "mno", namespace2));
         priorityQueue.add(new TimerHeapInternalTimer<>(3456L, "mno", namespace3));
 
+        SnapshotStrategyRunner<KeyedStateHandle, ? extends FullSnapshotResources<?>>
+                savepointRunner =
+                        StreamOperatorStateHandler.prepareSavepoint(
+                                keyedBackend, new CloseableRegistry());
+
         RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot =
-                keyedBackend.snapshot(
+                savepointRunner.snapshot(
                         0L,
                         0L,
                         new MemCheckpointStreamFactory(4 * 1024 * 1024),
