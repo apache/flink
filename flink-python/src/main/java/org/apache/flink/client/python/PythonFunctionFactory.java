@@ -21,6 +21,7 @@ package org.apache.flink.client.python;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.python.util.PythonDependencyUtils;
 import org.apache.flink.table.functions.python.PythonFunction;
 
 import py4j.GatewayServer;
@@ -79,7 +80,7 @@ public interface PythonFunctionFactory {
         Configuration mergedConfig =
                 new Configuration(
                         ExecutionEnvironment.getExecutionEnvironment().getConfiguration());
-        mergedConfig.addAll((Configuration) config);
+        PythonDependencyUtils.merge(mergedConfig, (Configuration) config);
         PythonFunctionFactory pythonFunctionFactory = getPythonFunctionFactory(mergedConfig);
         return pythonFunctionFactory.getPythonFunction(moduleName, objectName);
     }

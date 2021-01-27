@@ -27,6 +27,7 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -111,7 +112,7 @@ public final class PythonDependencyInfo {
     public static PythonDependencyInfo create(
             PythonConfig pythonConfig, DistributedCache distributedCache) {
 
-        Map<String, String> pythonFiles = new HashMap<>();
+        Map<String, String> pythonFiles = new LinkedHashMap<>();
         for (Map.Entry<String, String> entry : pythonConfig.getPythonFilesInfo().entrySet()) {
             File pythonFile = distributedCache.getFile(entry.getKey());
             String filePath = pythonFile.getAbsolutePath();

@@ -33,6 +33,7 @@ import static org.apache.flink.client.cli.CliFrontendParser.ARGS_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYMODULE_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PY_OPTION;
 import static org.apache.flink.client.cli.ProgramOptionsUtils.isPythonEntryPoint;
+import static org.apache.flink.python.util.PythonDependencyUtils.merge;
 
 /**
  * The class for command line options that refer to a Python program or JAR program with Python
@@ -95,6 +96,6 @@ public class PythonProgramOptions extends ProgramOptions {
     @Override
     public void applyToConfiguration(Configuration configuration) {
         super.applyToConfiguration(configuration);
-        configuration.addAll(pythonConfiguration);
+        merge(configuration, pythonConfiguration);
     }
 }
