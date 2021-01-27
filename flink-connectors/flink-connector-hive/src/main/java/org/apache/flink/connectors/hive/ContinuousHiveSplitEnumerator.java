@@ -174,7 +174,7 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>>
         }
     }
 
-    private static class PartitionMonitor<T extends Comparable<T>>
+    static class PartitionMonitor<T extends Comparable<T>>
             implements Callable<NewSplitsAndState<T>> {
 
         // keep these locally so that we don't need to share state with main thread
@@ -186,7 +186,7 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>>
         private final ContinuousPartitionFetcher<Partition, T> fetcher;
         private final HiveTableSource.HiveContinuousPartitionFetcherContext<T> fetcherContext;
 
-        private PartitionMonitor(
+        PartitionMonitor(
                 T currentReadOffset,
                 Collection<List<String>> seenPartitionsSinceOffset,
                 ObjectPath tablePath,
@@ -220,10 +220,10 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>>
                 List<String> partSpec = partition.getValues();
                 if (seenPartitionsSinceOffset.add(partSpec)) {
                     T offset = tuple2.f1;
-                    if (offset.compareTo(currentReadOffset) > 0) {
+                    if (offset.compareTo(currentReadOffset) >= 0) {
                         nextSeen.add(partSpec);
                     }
-                    if (offset.compareTo(maxOffset) > 0) {
+                    if (offset.compareTo(maxOffset) >= 0) {
                         maxOffset = offset;
                     }
                     LOG.info(
@@ -248,10 +248,10 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>>
     }
 
     /** The result passed from monitor thread to main thread. */
-    private static class NewSplitsAndState<T extends Comparable<T>> {
-        private final T offset;
-        private final Collection<List<String>> seenPartitions;
-        private final Collection<HiveSourceSplit> newSplits;
+    static class NewSplitsAndState<T extends Comparable<T>> {
+        final T offset;
+        final Collection<List<String>> seenPartitions;
+        final Collection<HiveSourceSplit> newSplits;
 
         private NewSplitsAndState(
                 Collection<HiveSourceSplit> newSplits,
