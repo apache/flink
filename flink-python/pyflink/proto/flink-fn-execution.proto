@@ -147,6 +147,30 @@ message UserDefinedAggregateFunction {
   bool takes_row_as_input = 6;
 }
 
+message GroupWindow {
+  enum WindowType {
+    TUMBLING_GROUP_WINDOW = 0;
+    SLIDING_GROUP_WINDOW = 1;
+    SESSION_GROUP_WINDOW = 2;
+  }
+
+  WindowType window_type = 1;
+
+  bool is_time_window = 2;
+
+  int64 window_slide = 3;
+
+  int64 window_size = 4;
+
+  bool is_row_time = 5;
+
+  int32 time_field_index = 6;
+
+  int64 allowedLateness = 7;
+
+  repeated int32 namedProperties = 8;
+}
+
 // A list of the user-defined aggregate functions to be executed in a group aggregate operation.
 message UserDefinedAggregateFunctions {
   repeated UserDefinedAggregateFunction udfs = 1;
@@ -169,6 +193,9 @@ message UserDefinedAggregateFunctions {
   int32 map_state_write_cache_size = 10;
   // True if the count(*) agg is inserted by the planner.
   bool count_star_inserted = 11;
+
+  // Group Window.
+  GroupWindow group_window = 12;
 }
 
 // A representation of the data schema.

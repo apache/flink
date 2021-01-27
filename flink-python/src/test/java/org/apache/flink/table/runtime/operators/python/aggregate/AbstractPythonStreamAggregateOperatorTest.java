@@ -42,12 +42,13 @@ import java.util.Collections;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
 
 /**
- * Base class for {@link PythonStreamGroupAggregateOperatorTest} and {@link
- * PythonStreamGroupTableAggregateOperatorTest}.
+ * Base class for {@link PythonStreamGroupAggregateOperatorTest}, {@link
+ * PythonStreamGroupTableAggregateOperatorTest} and {@link
+ * PythonStreamGroupWindowAggregateOperatorTest}.
  */
 public abstract class AbstractPythonStreamAggregateOperatorTest {
 
-    private LogicalType[] getOutputLogicalType() {
+    protected LogicalType[] getOutputLogicalType() {
         return new LogicalType[] {
             DataTypes.STRING().getLogicalType(), DataTypes.BIGINT().getLogicalType()
         };
