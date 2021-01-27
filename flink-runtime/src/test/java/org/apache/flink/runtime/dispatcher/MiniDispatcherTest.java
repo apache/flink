@@ -26,7 +26,6 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServicesBuilder;
@@ -38,6 +37,7 @@ import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGate
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.util.TestLogger;
 
@@ -74,7 +74,7 @@ public class MiniDispatcherTest extends TestLogger {
 
     private static JobGraph jobGraph;
 
-    private static ArchivedExecutionGraph archivedExecutionGraph;
+    private static ExecutionGraphInfo executionGraphInfo;
 
     private static TestingRpcService rpcService;
 
@@ -87,8 +87,8 @@ public class MiniDispatcherTest extends TestLogger {
 
     private final HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
 
-    private final ArchivedExecutionGraphStore archivedExecutionGraphStore =
-            new MemoryArchivedExecutionGraphStore();
+    private final ExecutionGraphInfoStore executionGraphInfoStore =
+            new MemoryExecutionGraphInfoStore();
 
     private TestingHighAvailabilityServices highAvailabilityServices;
 
@@ -98,11 +98,12 @@ public class MiniDispatcherTest extends TestLogger {
     public static void setupClass() throws IOException {
         jobGraph = new JobGraph();
 
-        archivedExecutionGraph =
-                new ArchivedExecutionGraphBuilder()
-                        .setJobID(jobGraph.getJobID())
-                        .setState(JobStatus.FINISHED)
-                        .build();
+        executionGraphInfo =
+                new ExecutionGraphInfo(
+                        new ArchivedExecutionGraphBuilder()
+                                .setJobID(jobGraph.getJobID())
+                                .setState(JobStatus.FINISHED)
+                                .build());
 
         rpcService = new TestingRpcService();
         configuration = new Configuration();
@@ -166,7 +167,7 @@ public class MiniDispatcherTest extends TestLogger {
             final TestingJobManagerRunner testingJobManagerRunner =
                     testingJobManagerRunnerFactory.takeCreatedJobManagerRunner();
 
-            testingJobManagerRunner.completeResultFuture(archivedExecutionGraph);
+            testingJobManagerRunner.completeResultFuture(executionGraphInfo);
 
             // wait until we terminate
             miniDispatcher.getShutDownFuture().get();
@@ -192,7 +193,7 @@ public class MiniDispatcherTest extends TestLogger {
             final TestingJobManagerRunner testingJobManagerRunner =
                     testingJobManagerRunnerFactory.takeCreatedJobManagerRunner();
 
-            testingJobManagerRunner.completeResultFuture(archivedExecutionGraph);
+            testingJobManagerRunner.completeResultFuture(executionGraphInfo);
 
             assertFalse(miniDispatcher.getTerminationFuture().isDone());
 
@@ -228,10 +229,11 @@ public class MiniDispatcherTest extends TestLogger {
 
             dispatcherGateway.cancelJob(jobGraph.getJobID(), Time.seconds(10L));
             testingJobManagerRunner.completeResultFuture(
-                    new ArchivedExecutionGraphBuilder()
-                            .setJobID(jobGraph.getJobID())
-                            .setState(JobStatus.CANCELED)
-                            .build());
+                    new ExecutionGraphInfo(
+                            new ArchivedExecutionGraphBuilder()
+                                    .setJobID(jobGraph.getJobID())
+                                    .setState(JobStatus.CANCELED)
+                                    .build()));
 
             ApplicationStatus applicationStatus = miniDispatcher.getShutDownFuture().get();
             assertThat(applicationStatus, is(ApplicationStatus.CANCELED));
@@ -256,7 +258,7 @@ public class MiniDispatcherTest extends TestLogger {
                         () -> CompletableFuture.completedFuture(resourceManagerGateway),
                         blobServer,
                         heartbeatServices,
-                        archivedExecutionGraphStore,
+                        executionGraphInfoStore,
                         testingFatalErrorHandlerResource.getFatalErrorHandler(),
                         VoidHistoryServerArchivist.INSTANCE,
                         null,

@@ -20,8 +20,8 @@ package org.apache.flink.runtime.rest.util;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 
 import java.util.concurrent.CompletableFuture;
@@ -36,7 +36,7 @@ public enum NoOpExecutionGraphCache implements ExecutionGraphCache {
     }
 
     @Override
-    public CompletableFuture<AccessExecutionGraph> getExecutionGraph(
+    public CompletableFuture<ExecutionGraphInfo> getExecutionGraphInfo(
             JobID jobId, RestfulGateway restfulGateway) {
         return FutureUtils.completedExceptionally(
                 new UnsupportedOperationException(

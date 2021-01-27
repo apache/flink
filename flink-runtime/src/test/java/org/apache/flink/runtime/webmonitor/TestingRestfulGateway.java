@@ -33,6 +33,7 @@ import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.function.TriFunction;
 
@@ -52,6 +53,10 @@ public class TestingRestfulGateway implements RestfulGateway {
             jobId -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
     static final Function<JobID, CompletableFuture<ArchivedExecutionGraph>>
             DEFAULT_REQUEST_JOB_FUNCTION =
+                    jobId ->
+                            FutureUtils.completedExceptionally(new UnsupportedOperationException());
+    static final Function<JobID, CompletableFuture<ExecutionGraphInfo>>
+            DEFAULT_REQUEST_EXECUTION_GRAPH_INFO =
                     jobId ->
                             FutureUtils.completedExceptionally(new UnsupportedOperationException());
     static final Function<JobID, CompletableFuture<JobStatus>> DEFAULT_REQUEST_JOB_STATUS_FUNCTION =
@@ -106,6 +111,9 @@ public class TestingRestfulGateway implements RestfulGateway {
 
     protected Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestJobFunction;
 
+    protected Function<JobID, CompletableFuture<ExecutionGraphInfo>>
+            requestExecutionGraphInfoFunction;
+
     protected Function<JobID, CompletableFuture<JobResult>> requestJobResultFunction;
 
     protected Function<JobID, CompletableFuture<JobStatus>> requestJobStatusFunction;
@@ -137,6 +145,7 @@ public class TestingRestfulGateway implements RestfulGateway {
                 LOCALHOST,
                 DEFAULT_CANCEL_JOB_FUNCTION,
                 DEFAULT_REQUEST_JOB_FUNCTION,
+                DEFAULT_REQUEST_EXECUTION_GRAPH_INFO,
                 DEFAULT_REQUEST_JOB_RESULT_FUNCTION,
                 DEFAULT_REQUEST_JOB_STATUS_FUNCTION,
                 DEFAULT_REQUEST_MULTIPLE_JOB_DETAILS_SUPPLIER,
@@ -154,6 +163,8 @@ public class TestingRestfulGateway implements RestfulGateway {
             String hostname,
             Function<JobID, CompletableFuture<Acknowledge>> cancelJobFunction,
             Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestJobFunction,
+            Function<JobID, CompletableFuture<ExecutionGraphInfo>>
+                    requestExecutionGraphInfoFunction,
             Function<JobID, CompletableFuture<JobResult>> requestJobResultFunction,
             Function<JobID, CompletableFuture<JobStatus>> requestJobStatusFunction,
             Supplier<CompletableFuture<MultipleJobsDetails>> requestMultipleJobDetailsSupplier,
@@ -175,6 +186,7 @@ public class TestingRestfulGateway implements RestfulGateway {
         this.hostname = hostname;
         this.cancelJobFunction = cancelJobFunction;
         this.requestJobFunction = requestJobFunction;
+        this.requestExecutionGraphInfoFunction = requestExecutionGraphInfoFunction;
         this.requestJobResultFunction = requestJobResultFunction;
         this.requestJobStatusFunction = requestJobStatusFunction;
         this.requestMultipleJobDetailsSupplier = requestMultipleJobDetailsSupplier;
@@ -203,6 +215,12 @@ public class TestingRestfulGateway implements RestfulGateway {
     @Override
     public CompletableFuture<ArchivedExecutionGraph> requestJob(JobID jobId, Time timeout) {
         return requestJobFunction.apply(jobId);
+    }
+
+    @Override
+    public CompletableFuture<ExecutionGraphInfo> requestExecutionGraphInfo(
+            JobID jobId, Time timeout) {
+        return requestExecutionGraphInfoFunction.apply(jobId);
     }
 
     @Override
@@ -278,6 +296,8 @@ public class TestingRestfulGateway implements RestfulGateway {
         protected String hostname = LOCALHOST;
         protected Function<JobID, CompletableFuture<Acknowledge>> cancelJobFunction;
         protected Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestJobFunction;
+        protected Function<JobID, CompletableFuture<ExecutionGraphInfo>>
+                requestExecutionGraphInfoFunction;
         protected Function<JobID, CompletableFuture<JobResult>> requestJobResultFunction;
         protected Function<JobID, CompletableFuture<JobStatus>> requestJobStatusFunction;
         protected Supplier<CompletableFuture<MultipleJobsDetails>>
@@ -301,6 +321,7 @@ public class TestingRestfulGateway implements RestfulGateway {
         protected AbstractBuilder() {
             cancelJobFunction = DEFAULT_CANCEL_JOB_FUNCTION;
             requestJobFunction = DEFAULT_REQUEST_JOB_FUNCTION;
+            requestExecutionGraphInfoFunction = DEFAULT_REQUEST_EXECUTION_GRAPH_INFO;
             requestJobResultFunction = DEFAULT_REQUEST_JOB_RESULT_FUNCTION;
             requestJobStatusFunction = DEFAULT_REQUEST_JOB_STATUS_FUNCTION;
             requestMultipleJobDetailsSupplier = DEFAULT_REQUEST_MULTIPLE_JOB_DETAILS_SUPPLIER;
@@ -335,6 +356,13 @@ public class TestingRestfulGateway implements RestfulGateway {
         public T setRequestJobFunction(
                 Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestJobFunction) {
             this.requestJobFunction = requestJobFunction;
+            return self();
+        }
+
+        public T setRequestExecutionGraphInfoFunction(
+                Function<JobID, CompletableFuture<ExecutionGraphInfo>>
+                        requestExecutionGraphInfoFunction) {
+            this.requestExecutionGraphInfoFunction = requestExecutionGraphInfoFunction;
             return self();
         }
 
@@ -429,6 +457,7 @@ public class TestingRestfulGateway implements RestfulGateway {
                     hostname,
                     cancelJobFunction,
                     requestJobFunction,
+                    requestExecutionGraphInfoFunction,
                     requestJobResultFunction,
                     requestJobStatusFunction,
                     requestMultipleJobDetailsSupplier,

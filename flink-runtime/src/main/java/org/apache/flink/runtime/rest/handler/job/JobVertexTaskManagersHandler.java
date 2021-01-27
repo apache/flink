@@ -62,7 +62,8 @@ import java.util.concurrent.Executor;
  * and metrics of all its subtasks aggregated by TaskManager.
  */
 public class JobVertexTaskManagersHandler
-        extends AbstractExecutionGraphHandler<JobVertexTaskManagersInfo, JobVertexMessageParameters>
+        extends AbstractAccessExecutionGraphHandler<
+                JobVertexTaskManagersInfo, JobVertexMessageParameters>
         implements JsonArchivist {
     private MetricFetcher metricFetcher;
 

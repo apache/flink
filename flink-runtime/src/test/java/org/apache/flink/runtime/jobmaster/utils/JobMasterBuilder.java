@@ -20,7 +20,6 @@ package org.apache.flink.runtime.jobmaster.utils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
@@ -43,6 +42,7 @@ import org.apache.flink.runtime.jobmaster.factories.UnregisteredJobManagerJobMet
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 
@@ -207,15 +207,15 @@ public class JobMasterBuilder {
      */
     public static final class TestingOnCompletionActions implements OnCompletionActions {
 
-        private final CompletableFuture<ArchivedExecutionGraph>
-                jobReachedGloballyTerminalStateFuture = new CompletableFuture<>();
+        private final CompletableFuture<ExecutionGraphInfo> jobReachedGloballyTerminalStateFuture =
+                new CompletableFuture<>();
         private final CompletableFuture<Void> jobFinishedByOtherFuture = new CompletableFuture<>();
         private final CompletableFuture<Throwable> jobMasterFailedFuture =
                 new CompletableFuture<>();
 
         @Override
-        public void jobReachedGloballyTerminalState(ArchivedExecutionGraph executionGraph) {
-            jobReachedGloballyTerminalStateFuture.complete(executionGraph);
+        public void jobReachedGloballyTerminalState(ExecutionGraphInfo executionGraphInfo) {
+            jobReachedGloballyTerminalStateFuture.complete(executionGraphInfo);
         }
 
         @Override
@@ -228,12 +228,11 @@ public class JobMasterBuilder {
             jobMasterFailedFuture.complete(cause);
         }
 
-        public CompletableFuture<ArchivedExecutionGraph>
-                getJobReachedGloballyTerminalStateFuture() {
+        public CompletableFuture<ExecutionGraphInfo> getJobReachedGloballyTerminalStateFuture() {
             return jobReachedGloballyTerminalStateFuture;
         }
 
-        public CompletableFuture<ArchivedExecutionGraph> getJobFinishedByOtherFuture() {
+        public CompletableFuture<ExecutionGraphInfo> getJobFinishedByOtherFuture() {
             return jobReachedGloballyTerminalStateFuture;
         }
 

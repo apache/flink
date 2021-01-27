@@ -133,7 +133,11 @@ public class JobMasterExecutionDeploymentReconciliationTest extends TestLogger {
         assertThat(deploymentTrackerWrapper.getStopFuture().get(), is(deployedExecution));
 
         assertThat(
-                onCompletionActions.getJobReachedGloballyTerminalStateFuture().get().getState(),
+                onCompletionActions
+                        .getJobReachedGloballyTerminalStateFuture()
+                        .get()
+                        .getArchivedExecutionGraph()
+                        .getState(),
                 is(JobStatus.FAILED));
     }
 

@@ -20,9 +20,9 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 
 import javax.annotation.Nonnull;
 
@@ -64,8 +64,8 @@ class TestingDispatcher extends Dispatcher {
         startFuture.complete(null);
     }
 
-    void completeJobExecution(ArchivedExecutionGraph archivedExecutionGraph) {
-        runAsync(() -> jobReachedGloballyTerminalState(archivedExecutionGraph));
+    void completeJobExecution(ExecutionGraphInfo executionGraphInfo) {
+        runAsync(() -> jobReachedGloballyTerminalState(executionGraphInfo));
     }
 
     CompletableFuture<Void> getJobTerminationFuture(@Nonnull JobID jobId, @Nonnull Time timeout) {
