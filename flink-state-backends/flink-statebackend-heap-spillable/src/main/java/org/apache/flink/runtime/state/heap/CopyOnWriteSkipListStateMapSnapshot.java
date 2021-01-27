@@ -20,9 +20,12 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.state.StateEntry;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.util.ResourceGuard;
+import org.apache.flink.util.WrappingRuntimeException;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
@@ -31,6 +34,9 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.Spliterators;
+import java.util.stream.StreamSupport;
 
 import static org.apache.flink.runtime.state.heap.SkipListUtils.HEAD_NODE;
 import static org.apache.flink.runtime.state.heap.SkipListUtils.NIL_NODE;
@@ -83,6 +89,64 @@ public class CopyOnWriteSkipListStateMapSnapshot<K, N, S>
     public void release() {
         owningStateMap.releaseSnapshot(this);
         lease.close();
+    }
+
+    @Override
+    public Iterator<StateEntry<K, N, S>> getIterator(
+            @Nonnull TypeSerializer<K> keySerializer,
+            @Nonnull TypeSerializer<N> namespaceSerializer,
+            @Nonnull TypeSerializer<S> stateSerializer,
+            @Nullable StateSnapshotTransformer<S> stateSnapshotTransformer) {
+        SkipListValueSerializer<S> skipListValueSerializer =
+                new SkipListValueSerializer<>(stateSerializer);
+
+        DataInputDeserializer inputDeserializer = new DataInputDeserializer();
+        // 1. iterates nodes to get size after transform
+        Iterator<Tuple2<Long, Long>> transformNodeIterator = new SnapshotNodeIterator(true);
+        return StreamSupport.stream(
+                        Spliterators.spliteratorUnknownSize(transformNodeIterator, 0), false)
+                .map(
+                        tuple ->
+                                transformEntry(
+                                        keySerializer,
+                                        namespaceSerializer,
+                                        stateSnapshotTransformer,
+                                        skipListValueSerializer,
+                                        inputDeserializer,
+                                        tuple))
+                .filter(Objects::nonNull)
+                .iterator();
+    }
+
+    private StateEntry<K, N, S> transformEntry(
+            TypeSerializer<K> keySerializer,
+            TypeSerializer<N> namespaceSerializer,
+            StateSnapshotTransformer<S> stateSnapshotTransformer,
+            SkipListValueSerializer<S> skipListValueSerializer,
+            DataInputDeserializer inputDeserializer,
+            Tuple2<Long, Long> pointers) {
+        try {
+            final S oldState = owningStateMap.helpGetState(pointers.f1, skipListValueSerializer);
+            final S newState;
+            if (stateSnapshotTransformer != null) {
+                newState = stateSnapshotTransformer.filterOrTransform(oldState);
+            } else {
+                newState = oldState;
+            }
+            Tuple2<byte[], byte[]> keyAndNamespace =
+                    owningStateMap.helpGetBytesForKeyAndNamespace(pointers.f0);
+            if (newState == null) {
+                return null;
+            } else {
+                inputDeserializer.setBuffer(keyAndNamespace.f0);
+                K key = keySerializer.deserialize(inputDeserializer);
+                inputDeserializer.setBuffer(keyAndNamespace.f1);
+                N namespace = namespaceSerializer.deserialize(inputDeserializer);
+                return new StateEntry.SimpleStateEntry<>(key, namespace, newState);
+            }
+        } catch (IOException e) {
+            throw new WrappingRuntimeException(e);
+        }
     }
 
     @Override
