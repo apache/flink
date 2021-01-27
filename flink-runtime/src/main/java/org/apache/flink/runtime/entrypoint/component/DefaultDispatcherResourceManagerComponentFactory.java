@@ -25,9 +25,9 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ExponentialBackoffRetryStrategy;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
+import org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStore;
 import org.apache.flink.runtime.dispatcher.HistoryServerArchivist;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
 import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
@@ -106,7 +106,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
             BlobServer blobServer,
             HeartbeatServices heartbeatServices,
             MetricRegistry metricRegistry,
-            ArchivedExecutionGraphStore archivedExecutionGraphStore,
+            ExecutionGraphInfoStore executionGraphInfoStore,
             MetricQueryServiceRetriever metricQueryServiceRetriever,
             FatalErrorHandler fatalErrorHandler)
             throws Exception {
@@ -201,7 +201,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
                             () ->
                                     MetricUtils.instantiateJobManagerMetricGroup(
                                             metricRegistry, hostname),
-                            archivedExecutionGraphStore,
+                            executionGraphInfoStore,
                             fatalErrorHandler,
                             historyServerArchivist,
                             metricRegistry.getMetricQueryServiceGatewayRpcAddress(),
