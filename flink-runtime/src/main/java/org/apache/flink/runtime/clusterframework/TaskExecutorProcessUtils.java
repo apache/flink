@@ -108,6 +108,18 @@ public class TaskExecutorProcessUtils {
         configs.put(
                 TaskManagerOptions.MANAGED_MEMORY_SIZE.key(),
                 taskExecutorProcessSpec.getManagedMemorySize().getBytes() + "b");
+        configs.put(
+                TaskManagerOptions.JVM_METASPACE.key(),
+                taskExecutorProcessSpec.getJvmMetaspaceAndOverhead().getMetaspace().getBytes()
+                        + "b");
+        configs.put(
+                TaskManagerOptions.JVM_OVERHEAD_MIN.key(),
+                taskExecutorProcessSpec.getJvmMetaspaceAndOverhead().getOverhead().getBytes()
+                        + "b");
+        configs.put(
+                TaskManagerOptions.JVM_OVERHEAD_MAX.key(),
+                taskExecutorProcessSpec.getJvmMetaspaceAndOverhead().getOverhead().getBytes()
+                        + "b");
         return assembleDynamicConfigsStr(configs);
     }
 

@@ -217,6 +217,9 @@ public class ConfigurationUtils {
         checkConfigContains(configs, TaskManagerOptions.NETWORK_MEMORY_MAX.key());
         checkConfigContains(configs, TaskManagerOptions.NETWORK_MEMORY_MIN.key());
         checkConfigContains(configs, TaskManagerOptions.MANAGED_MEMORY_SIZE.key());
+        checkConfigContains(configs, TaskManagerOptions.JVM_METASPACE.key());
+        checkConfigContains(configs, TaskManagerOptions.JVM_OVERHEAD_MIN.key());
+        checkConfigContains(configs, TaskManagerOptions.JVM_OVERHEAD_MAX.key());
 
         return configs;
     }
