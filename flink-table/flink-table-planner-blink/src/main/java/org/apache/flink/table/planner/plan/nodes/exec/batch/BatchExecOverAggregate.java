@@ -31,8 +31,8 @@ import org.apache.flink.table.planner.codegen.over.MultiFieldRangeBoundComparato
 import org.apache.flink.table.planner.codegen.over.RangeBoundComparatorCodeGenerator;
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.OverSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.OverSpec.GroupSpec;
@@ -72,8 +72,11 @@ import java.util.List;
 public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
 
     public BatchExecOverAggregate(
-            OverSpec over, ExecEdge inputEdge, RowType outputType, String description) {
-        super(over, inputEdge, outputType, description);
+            OverSpec overSpec,
+            InputProperty inputProperty,
+            RowType outputType,
+            String description) {
+        super(overSpec, inputProperty, outputType, description);
     }
 
     @SuppressWarnings("unchecked")

@@ -25,8 +25,8 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecSink;
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -47,7 +47,7 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
             TableSchema tableSchema,
             DynamicTableSink tableSink,
             ChangelogMode inputChangelogMode,
-            ExecEdge inputEdge,
+            InputProperty inputProperty,
             LogicalType outputType,
             String description) {
         super(
@@ -56,7 +56,7 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
                 tableSink,
                 tableSink.getChangelogMode(inputChangelogMode),
                 false, // isBounded
-                inputEdge,
+                inputProperty,
                 outputType,
                 description);
     }

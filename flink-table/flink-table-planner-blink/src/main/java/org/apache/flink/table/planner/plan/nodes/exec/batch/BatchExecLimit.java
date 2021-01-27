@@ -22,9 +22,9 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.runtime.operators.sort.LimitOperator;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -42,10 +42,10 @@ public class BatchExecLimit extends ExecNodeBase<RowData> implements BatchExecNo
             long limitStart,
             long limitEnd,
             boolean isGlobal,
-            ExecEdge inputEdge,
+            InputProperty inputProperty,
             LogicalType outputType,
             String description) {
-        super(Collections.singletonList(inputEdge), outputType, description);
+        super(Collections.singletonList(inputProperty), outputType, description);
         this.isGlobal = isGlobal;
         this.limitStart = limitStart;
         this.limitEnd = limitEnd;

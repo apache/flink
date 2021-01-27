@@ -23,7 +23,7 @@ import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.calcite.Sink
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
 import org.apache.flink.table.planner.plan.utils.ChangelogPlanUtils
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -60,7 +60,7 @@ class StreamPhysicalSink(
       catalogTable.getSchema,
       tableSink,
       inputChangelogMode,
-      ExecEdge.DEFAULT,
+      InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription
     )

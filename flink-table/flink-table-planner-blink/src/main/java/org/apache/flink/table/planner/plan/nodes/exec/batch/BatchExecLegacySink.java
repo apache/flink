@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecLegacySink;
 import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter;
 import org.apache.flink.table.sinks.TableSink;
@@ -43,10 +43,17 @@ public class BatchExecLegacySink<T> extends CommonExecLegacySink<T>
     public BatchExecLegacySink(
             TableSink<T> tableSink,
             @Nullable String[] upsertKeys,
-            ExecEdge inputEdge,
+            InputProperty inputProperty,
             LogicalType outputType,
             String description) {
-        super(tableSink, upsertKeys, false, false, inputEdge, outputType, description);
+        super(
+                tableSink,
+                upsertKeys,
+                false, // needRetraction
+                false, // isStreaming
+                inputProperty,
+                outputType,
+                description);
     }
 
     @Override

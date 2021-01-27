@@ -28,8 +28,8 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.OverSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.PartitionSpec;
@@ -61,8 +61,11 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
     private final List<Integer> aggWindowIndex;
 
     public BatchExecPythonOverAggregate(
-            OverSpec over, ExecEdge inputEdge, RowType outputType, String description) {
-        super(over, inputEdge, outputType, description);
+            OverSpec overSpec,
+            InputProperty inputProperty,
+            RowType outputType,
+            String description) {
+        super(overSpec, inputProperty, outputType, description);
         lowerBoundary = new ArrayList<>();
         upperBoundary = new ArrayList<>();
         aggCalls = new ArrayList<>();

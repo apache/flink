@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalExchange
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -48,7 +48,7 @@ class StreamPhysicalExchange(
 
   override def translateToExecNode(): ExecNode[_] = {
     new StreamExecExchange(
-      ExecEdge.builder.requiredShuffle(getRequiredShuffle).build,
+      InputProperty.builder.requiredDistribution(getRequiredDistribution).build,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
   }

@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.plan.nodes.calcite.LegacySink
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLegacySink
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
 import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, UpdatingPlanChecker}
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.sinks._
@@ -62,7 +62,7 @@ class StreamPhysicalLegacySink[T](
       sink,
       upsertKeys.orNull,
       needRetraction,
-      ExecEdge.DEFAULT,
+      InputProperty.DEFAULT,
       fromDataTypeToLogicalType(sink.getConsumedDataType),
       getRelDetailedDescription
     )

@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecOverAggregate
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
 import org.apache.flink.table.planner.plan.utils.OverAggregateUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -58,7 +58,7 @@ class StreamPhysicalOverAggregate(
   override def translateToExecNode(): ExecNode[_] = {
     new StreamExecOverAggregate(
       OverAggregateUtil.createOverSpec(logicWindow),
-      ExecEdge.DEFAULT,
+      InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription
     )

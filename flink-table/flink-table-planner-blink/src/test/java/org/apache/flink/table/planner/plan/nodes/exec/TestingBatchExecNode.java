@@ -34,20 +34,20 @@ import java.util.List;
 public class TestingBatchExecNode implements BatchExecNode<RowData> {
 
     private final List<ExecNode<?>> inputNodes;
-    private final List<ExecEdge> inputEdges;
+    private final List<InputProperty> inputProperties;
 
     public TestingBatchExecNode() {
         this.inputNodes = new ArrayList<>();
-        this.inputEdges = new ArrayList<>();
+        this.inputProperties = new ArrayList<>();
     }
 
     public void addInput(ExecNode<?> input) {
-        addInput(input, ExecEdge.DEFAULT);
+        addInput(input, InputProperty.DEFAULT);
     }
 
-    public void addInput(ExecNode<?> input, ExecEdge edge) {
+    public void addInput(ExecNode<?> input, InputProperty inputProperty) {
         inputNodes.add(input);
-        inputEdges.add(edge);
+        inputProperties.add(inputProperty);
     }
 
     @Override
@@ -66,17 +66,14 @@ public class TestingBatchExecNode implements BatchExecNode<RowData> {
     }
 
     @Override
-    public List<ExecEdge> getInputEdges() {
-        return inputEdges;
+    public List<InputProperty> getInputProperties() {
+        return inputProperties;
     }
 
     @Override
     public void replaceInputNode(int ordinalInParent, ExecNode<?> newInputNode) {
         inputNodes.set(ordinalInParent, newInputNode);
     }
-
-    @Override
-    public void replaceInputEdge(int ordinalInParent, ExecEdge newInputEdge) {}
 
     @Override
     public Transformation<RowData> translateToPlan(Planner planner) {

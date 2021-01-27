@@ -21,9 +21,9 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 
 import java.util.List;
 
@@ -60,8 +60,8 @@ public class StreamExecMultipleInput extends ExecNodeBase<RowData>
     private final ExecNode<?> rootNode;
 
     public StreamExecMultipleInput(
-            List<ExecEdge> inputEdges, ExecNode<?> rootNode, String description) {
-        super(inputEdges, rootNode.getOutputType(), description);
+            List<InputProperty> inputProperties, ExecNode<?> rootNode, String description) {
+        super(inputProperties, rootNode.getOutputType(), description);
         this.rootNode = rootNode;
     }
 
