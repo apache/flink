@@ -247,16 +247,20 @@ class HeapSnapshotStrategy<K>
         private final Map<StateUID, Integer> stateNamesToId;
 
         HeapSnapshotResources(
-                List<StateMetaInfoSnapshot> metaInfoSnapshots,
-                Map<StateUID, StateSnapshot> cowStateStableSnapshots,
-                Map<StateUID, Integer> stateNamesToId) {
+                @Nonnull List<StateMetaInfoSnapshot> metaInfoSnapshots,
+                @Nonnull Map<StateUID, StateSnapshot> cowStateStableSnapshots,
+                @Nonnull Map<StateUID, Integer> stateNamesToId) {
             this.metaInfoSnapshots = metaInfoSnapshots;
             this.cowStateStableSnapshots = cowStateStableSnapshots;
             this.stateNamesToId = stateNamesToId;
         }
 
         @Override
-        public void release() {}
+        public void release() {
+            for (StateSnapshot stateSnapshot : cowStateStableSnapshots.values()) {
+                stateSnapshot.release();
+            }
+        }
 
         public List<StateMetaInfoSnapshot> getMetaInfoSnapshots() {
             return metaInfoSnapshots;
