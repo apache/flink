@@ -260,7 +260,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                 new RocksDbTtlCompactFiltersManager(ttlTimeProvider);
 
         ResourceGuard rocksDBResourceGuard = new ResourceGuard();
-        SnapshotStrategy<K> snapshotStrategy;
+        RocksDBSnapshotStrategyBase<K, ?> checkpointStrategy;
         PriorityQueueSetFactory priorityQueueFactory;
         SerializedCompositeKeyBuilder<K> sharedRocksKeyBuilder;
         // Number of bytes required to prefix the key groups.
@@ -316,7 +316,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                             keyGroupPrefixBytes,
                             32);
             // init snapshot strategy after db is assured to be initialized
-            snapshotStrategy =
+            checkpointStrategy =
                     initializeSavepointAndCheckpointStrategies(
                             cancelStreamRegistryForBackend,
                             rocksDBResourceGuard,
@@ -391,8 +391,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                 cancelStreamRegistryForBackend,
                 this.keyGroupCompressionDecorator,
                 rocksDBResourceGuard,
-                snapshotStrategy.checkpointSnapshotStrategy,
-                snapshotStrategy.savepointSnapshotStrategy,
+                checkpointStrategy,
                 writeBatchWrapper,
                 defaultColumnFamilyHandle,
                 nativeMetricMonitor,
@@ -479,7 +478,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
         }
     }
 
-    private SnapshotStrategy<K> initializeSavepointAndCheckpointStrategies(
+    private RocksDBSnapshotStrategyBase<K, ?> initializeSavepointAndCheckpointStrategies(
             CloseableRegistry cancelStreamRegistry,
             ResourceGuard rocksDBResourceGuard,
             LinkedHashMap<String, RocksDBKeyedStateBackend.RocksDbKvStateInfo> kvStateInformation,
@@ -489,21 +488,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
             UUID backendUID,
             SortedMap<Long, Set<StateHandleID>> materializedSstFiles,
             long lastCompletedCheckpointId) {
-        RocksDBSnapshotStrategyBase<K, ?> savepointSnapshotStrategy =
-                new RocksFullSnapshotStrategy<>(
-                        db,
-                        rocksDBResourceGuard,
-                        keySerializerProvider.currentSchemaSerializer(),
-                        kvStateInformation,
-                        registeredPQStates,
-                        keyGroupRange,
-                        keyGroupPrefixBytes,
-                        localRecoveryConfig,
-                        keyGroupCompressionDecorator);
         RocksDBSnapshotStrategyBase<K, ?> checkpointSnapshotStrategy;
         if (enableIncrementalCheckpointing) {
-            // TODO eventually we might want to separate savepoint and snapshot strategy, i.e.
-            // having 2 strategies.
             checkpointSnapshotStrategy =
                     new RocksIncrementalSnapshotStrategy<>(
                             db,
@@ -520,9 +506,19 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                             lastCompletedCheckpointId,
                             numberOfTransferingThreads);
         } else {
-            checkpointSnapshotStrategy = savepointSnapshotStrategy;
+            checkpointSnapshotStrategy =
+                    new RocksFullSnapshotStrategy<>(
+                            db,
+                            rocksDBResourceGuard,
+                            keySerializerProvider.currentSchemaSerializer(),
+                            kvStateInformation,
+                            registeredPQStates,
+                            keyGroupRange,
+                            keyGroupPrefixBytes,
+                            localRecoveryConfig,
+                            keyGroupCompressionDecorator);
         }
-        return new SnapshotStrategy<>(checkpointSnapshotStrategy, savepointSnapshotStrategy);
+        return checkpointSnapshotStrategy;
     }
 
     private PriorityQueueSetFactory initPriorityQueueFactory(
@@ -567,18 +563,6 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
             // Clear the base directory when the backend is created
             // in case something crashed and the backend never reached dispose()
             FileUtils.deleteDirectory(instanceBasePath);
-        }
-    }
-
-    static final class SnapshotStrategy<K> {
-        final RocksDBSnapshotStrategyBase<K, ?> checkpointSnapshotStrategy;
-        final RocksDBSnapshotStrategyBase<K, ?> savepointSnapshotStrategy;
-
-        SnapshotStrategy(
-                RocksDBSnapshotStrategyBase<K, ?> checkpointSnapshotStrategy,
-                RocksDBSnapshotStrategyBase<K, ?> savepointSnapshotStrategy) {
-            this.checkpointSnapshotStrategy = checkpointSnapshotStrategy;
-            this.savepointSnapshotStrategy = savepointSnapshotStrategy;
         }
     }
 }
