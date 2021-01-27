@@ -140,6 +140,11 @@ Flink 有使用 [Scala](http://scala-lang.org) 来写的 API，库和运行时�
 mvn clean install -DskipTests -Dscala-2.12
 {% endhighlight %}
 
+要针对特定的二进制 Scala 版本进行构建，可以使用
+{% highlight bash %}
+mvn clean install -DskipTests -Dscala-2.12 -Dscala.version=<scala version>
+{% endhighlight %}
+
 {% top %}
 
 ## 加密的文件系统
