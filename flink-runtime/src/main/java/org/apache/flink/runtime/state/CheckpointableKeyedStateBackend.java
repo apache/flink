@@ -20,6 +20,8 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.state.CheckpointListener;
 
+import javax.annotation.Nonnull;
+
 import java.io.Closeable;
 
 /**
@@ -37,4 +39,11 @@ public interface CheckpointableKeyedStateBackend<K>
 
     /** Returns the key groups which this state backend is responsible for. */
     KeyGroupRange getKeyGroupRange();
+
+    /**
+     * Returns a {@link SavepointResources} that can be used by {@link SavepointSnapshotStrategy} to
+     * write out a savepoint in the common/unified format.
+     */
+    @Nonnull
+    SavepointResources<K> savepoint() throws Exception;
 }

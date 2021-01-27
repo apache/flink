@@ -43,7 +43,10 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.PriorityComparable;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
+import org.apache.flink.runtime.state.SavepointResources;
+import org.apache.flink.runtime.state.SnapshotExecutionType;
 import org.apache.flink.runtime.state.SnapshotResult;
+import org.apache.flink.runtime.state.SnapshotStrategy;
 import org.apache.flink.runtime.state.SnapshotStrategyRunner;
 import org.apache.flink.runtime.state.StateSnapshotRestore;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
@@ -98,13 +101,10 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
     /** The configuration for local recovery. */
     private final LocalRecoveryConfig localRecoveryConfig;
 
-    /**
-     * The snapshot strategy for this backend. This determines, e.g., if snapshots are synchronous
-     * or asynchronous.
-     */
-    private final SnapshotStrategyRunner<KeyedStateHandle, ?> checkpointStrategyRunner;
+    /** The snapshot strategy for this backend. */
+    private final SnapshotStrategy<KeyedStateHandle, ?> checkpointStrategy;
 
-    private final SnapshotStrategyRunner<KeyedStateHandle, ?> savepointStrategyRunner;
+    private final SnapshotExecutionType snapshotExecutionType;
 
     private final StateTableFactory<K> stateTableFactory;
 
@@ -123,8 +123,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates,
             LocalRecoveryConfig localRecoveryConfig,
             HeapPriorityQueueSetFactory priorityQueueSetFactory,
-            SnapshotStrategyRunner<KeyedStateHandle, ?> checkpointStrategyRunner,
-            SnapshotStrategyRunner<KeyedStateHandle, ?> savepointStrategyRunner,
+            HeapSnapshotStrategy<K> checkpointStrategy,
+            SnapshotExecutionType snapshotExecutionType,
             StateTableFactory<K> stateTableFactory,
             InternalKeyContext<K> keyContext) {
         super(
@@ -138,8 +138,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                 keyContext);
         this.registeredKVStates = registeredKVStates;
         this.localRecoveryConfig = localRecoveryConfig;
-        this.checkpointStrategyRunner = checkpointStrategyRunner;
-        this.savepointStrategyRunner = savepointStrategyRunner;
+        this.checkpointStrategy = checkpointStrategy;
+        this.snapshotExecutionType = snapshotExecutionType;
         this.stateTableFactory = stateTableFactory;
         this.priorityQueuesManager =
                 new HeapPriorityQueuesManager(
@@ -306,13 +306,30 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             @Nonnull CheckpointOptions checkpointOptions)
             throws Exception {
 
-        if (checkpointOptions.getCheckpointType().isSavepoint()) {
-            return savepointStrategyRunner.snapshot(
-                    checkpointId, timestamp, streamFactory, checkpointOptions);
-        } else {
-            return checkpointStrategyRunner.snapshot(
-                    checkpointId, timestamp, streamFactory, checkpointOptions);
-        }
+        SnapshotStrategyRunner<KeyedStateHandle, ?> snapshotStrategyRunner =
+                new SnapshotStrategyRunner<>(
+                        "Heap backend snapshot",
+                        checkpointStrategy,
+                        cancelStreamRegistry,
+                        snapshotExecutionType);
+        return snapshotStrategyRunner.snapshot(
+                checkpointId, timestamp, streamFactory, checkpointOptions);
+    }
+
+    @Nonnull
+    @Override
+    public SavepointResources<K> savepoint() {
+
+        HeapSnapshotResources<K> snapshotResources =
+                HeapSnapshotResources.create(
+                        registeredKVStates,
+                        priorityQueuesManager.getRegisteredPQStates(),
+                        keyGroupCompressionDecorator,
+                        keyGroupRange,
+                        keySerializer,
+                        numberOfKeyGroups);
+
+        return new SavepointResources<>(snapshotResources, snapshotExecutionType);
     }
 
     @Override
