@@ -183,7 +183,8 @@ public class KvStateClientProxyHandler
                                         final KvStateInternalRequest internalRequest =
                                                 new KvStateInternalRequest(
                                                         kvStateId,
-                                                        request.getSerializedKeyAndNamespace());
+                                                        request.getSerializedKeyAndNamespace(),
+                                                        request.getMergeValue());
                                         return kvStateClient.sendRequest(
                                                 serverAddress, internalRequest);
                                     }

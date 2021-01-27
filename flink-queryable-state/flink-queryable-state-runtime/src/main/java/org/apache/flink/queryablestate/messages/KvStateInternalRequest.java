@@ -38,11 +38,23 @@ public class KvStateInternalRequest extends MessageBody {
 
     private final KvStateID kvStateId;
     private final byte[] serializedKeyAndNamespace;
+    private final byte[] mergeValue;
 
     public KvStateInternalRequest(final KvStateID stateId, final byte[] serializedKeyAndNamespace) {
 
         this.kvStateId = Preconditions.checkNotNull(stateId);
         this.serializedKeyAndNamespace = Preconditions.checkNotNull(serializedKeyAndNamespace);
+        this.mergeValue = new byte[]{};
+    }
+
+    public KvStateInternalRequest(
+            final KvStateID stateId,
+            final byte[] serializedKeyAndNamespace,
+            final byte[] mergeValue) {
+
+        this.kvStateId = Preconditions.checkNotNull(stateId);
+        this.serializedKeyAndNamespace = Preconditions.checkNotNull(serializedKeyAndNamespace);
+        this.mergeValue = mergeValue;
     }
 
     public KvStateID getKvStateId() {
@@ -53,17 +65,24 @@ public class KvStateInternalRequest extends MessageBody {
         return serializedKeyAndNamespace;
     }
 
+    public byte[] getMergeValue() {
+        return mergeValue;
+    }
+
     @Override
     public byte[] serialize() {
 
         // KvStateId + sizeOf(serializedKeyAndNamespace) + serializedKeyAndNamespace
-        final int size = KvStateID.SIZE + Integer.BYTES + serializedKeyAndNamespace.length;
+        final int size = KvStateID.SIZE + Integer.BYTES + serializedKeyAndNamespace.length
+                + mergeValue.length + Integer.BYTES;
 
         return ByteBuffer.allocate(size)
                 .putLong(kvStateId.getLowerPart())
                 .putLong(kvStateId.getUpperPart())
                 .putInt(serializedKeyAndNamespace.length)
                 .put(serializedKeyAndNamespace)
+                .putInt(mergeValue.length)
+                .put(mergeValue)
                 .array();
     }
 
@@ -85,7 +104,12 @@ public class KvStateInternalRequest extends MessageBody {
             if (length > 0) {
                 buf.readBytes(serializedKeyAndNamespace);
             }
-            return new KvStateInternalRequest(kvStateId, serializedKeyAndNamespace);
+            int vlength = buf.readInt();
+            byte[] mergeValue = new byte[vlength];
+            if (vlength > 0) {
+                buf.readBytes(mergeValue);
+            }
+            return new KvStateInternalRequest(kvStateId, serializedKeyAndNamespace, mergeValue);
         }
     }
 }

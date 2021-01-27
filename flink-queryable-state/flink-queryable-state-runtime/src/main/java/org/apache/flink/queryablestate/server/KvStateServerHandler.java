@@ -19,6 +19,10 @@
 package org.apache.flink.queryablestate.server;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.memory.DataInputDeserializer;
+import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.queryablestate.exceptions.UnknownKeyOrNamespaceException;
 import org.apache.flink.queryablestate.exceptions.UnknownKvStateIdException;
 import org.apache.flink.queryablestate.messages.KvStateInternalRequest;
@@ -29,6 +33,7 @@ import org.apache.flink.queryablestate.network.stats.KvStateRequestStats;
 import org.apache.flink.runtime.query.KvStateEntry;
 import org.apache.flink.runtime.query.KvStateInfo;
 import org.apache.flink.runtime.query.KvStateRegistry;
+import org.apache.flink.runtime.state.heap.AbstractHeapMergingState;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
@@ -59,7 +64,7 @@ public class KvStateServerHandler
      * @param server the {@link KvStateServerImpl} using the handler.
      * @param kvStateRegistry registry to query.
      * @param serializer the {@link MessageSerializer} used to (de-) serialize the different
-     *     messages.
+     *         messages.
      * @param stats server statistics collector.
      */
     public KvStateServerHandler(
@@ -84,8 +89,17 @@ public class KvStateServerHandler
                         new UnknownKvStateIdException(getServerName(), request.getKvStateId()));
             } else {
                 byte[] serializedKeyAndNamespace = request.getSerializedKeyAndNamespace();
+                byte[] mergeValue = request.getMergeValue();
 
-                byte[] serializedResult = getSerializedValue(kvState, serializedKeyAndNamespace);
+                byte[] serializedResult;
+                if (mergeValue.length > 0) {
+                    serializedResult = mergeSerializedValue(
+                            kvState,
+                            serializedKeyAndNamespace,
+                            mergeValue);
+                } else {
+                    serializedResult = getSerializedValue(kvState, serializedKeyAndNamespace);
+                }
                 if (serializedResult != null) {
                     responseFuture.complete(new KvStateResponse(serializedResult));
                 } else {
@@ -117,6 +131,35 @@ public class KvStateServerHandler
                 infoForCurrentThread.getKeySerializer(),
                 infoForCurrentThread.getNamespaceSerializer(),
                 infoForCurrentThread.getStateValueSerializer());
+    }
+
+    private static <K, N, V> byte[] mergeSerializedValue(
+            final KvStateEntry<K, N, V> entry,
+            final byte[] serializedKeyAndNamespace,
+            final byte[] mergeValue) throws Exception {
+
+        final InternalKvState<K, N, V> state = entry.getState();
+        final KvStateInfo<K, N, V> infoForCurrentThread = entry.getInfoForCurrentThread();
+
+        Tuple2<K, N> keyAndNamespace = KvStateSerializer.deserializeKeyAndNamespace(
+                serializedKeyAndNamespace,
+                infoForCurrentThread.getKeySerializer(),
+                infoForCurrentThread.getNamespaceSerializer());
+
+        TypeSerializer<V> valueSerializer = infoForCurrentThread.getStateValueSerializer();
+        DataInputDeserializer dis = new DataInputDeserializer(
+                mergeValue,
+                0,
+                mergeValue.length);
+
+        if (state instanceof AbstractHeapMergingState) {
+            final AbstractHeapMergingState mergingState = (AbstractHeapMergingState) state;
+            mergingState.mergeStateValue(keyAndNamespace.f0, keyAndNamespace.f1, valueSerializer.deserialize(dis));
+        } else {
+            throw new RuntimeException("State should be instance of AbstractHeapMergingState.");
+        }
+
+        return getSerializedValue(entry, serializedKeyAndNamespace);
     }
 
     @Override

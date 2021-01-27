@@ -34,7 +34,7 @@ import java.util.Collection;
  * @param <SV> The type of the values in the state.
  * @param <OUT> The type of the output elements.
  */
-abstract class AbstractHeapMergingState<K, N, IN, SV, OUT>
+public abstract class AbstractHeapMergingState<K, N, IN, SV, OUT>
         extends AbstractHeapAppendingState<K, N, IN, SV, OUT>
         implements InternalMergingState<K, N, IN, SV, OUT> {
 
@@ -89,6 +89,15 @@ abstract class AbstractHeapMergingState<K, N, IN, SV, OUT>
             map.transform(target, merged, mergeTransformation);
         }
     }
+
+    public void mergeStateValue(K key, N target, SV mergeValue) throws Exception {
+        synchronized (this) {
+            if (mergeValue != null) {
+                stateTable.transform(key, target, mergeValue, mergeTransformation);
+            }
+        }
+    }
+
 
     protected abstract SV mergeState(SV a, SV b) throws Exception;
 

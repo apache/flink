@@ -204,6 +204,17 @@ public abstract class StateTable<K, N, S>
         stateMap.transform(key, namespace, value, transformation);
     }
 
+    public <T> void transform(
+            K key,
+            N namespace,
+            T value,
+            StateTransformationFunction<S, T> transformation) throws Exception {
+        checkKeyNamespacePreconditions(key, namespace);
+
+        int keyGroup = keyContext.getCurrentKeyGroupIndex();
+        StateMap<K, N, S> stateMap = getMapForKeyGroup(keyGroup);
+        stateMap.transform(key, namespace, value, transformation);
+    }
     // For queryable state ------------------------------------------------------------------------
 
     /**
@@ -259,7 +270,7 @@ public abstract class StateTable<K, N, S>
         return stateMap != null && stateMap.containsKey(key, namespace);
     }
 
-    private void checkKeyNamespacePreconditions(K key, N namespace) {
+    public void checkKeyNamespacePreconditions(K key, N namespace) {
         Preconditions.checkNotNull(
                 key, "No key set. This method should not be called outside of a keyed context.");
         Preconditions.checkNotNull(namespace, "Provided namespace is null.");
@@ -305,7 +316,7 @@ public abstract class StateTable<K, N, S>
     }
 
     /** Translates a key-group id to the internal array offset. */
-    private int indexToOffset(int index) {
+    public int indexToOffset(int index) {
         return index - keyGroupOffset;
     }
 
