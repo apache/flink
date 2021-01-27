@@ -36,6 +36,7 @@ import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.util.SerializedValue;
 
 import java.util.Collection;
@@ -67,7 +68,24 @@ public interface RestfulGateway extends RpcGateway {
      * @return Future containing the {@link ArchivedExecutionGraph} for the given jobId, otherwise
      *     {@link FlinkJobNotFoundException}
      */
-    CompletableFuture<ArchivedExecutionGraph> requestJob(JobID jobId, @RpcTimeout Time timeout);
+    default CompletableFuture<ArchivedExecutionGraph> requestJob(
+            JobID jobId, @RpcTimeout Time timeout) {
+        return requestExecutionGraphInfo(jobId, timeout)
+                .thenApply(ExecutionGraphInfo::getArchivedExecutionGraph);
+    }
+
+    /**
+     * Requests the {@link ExecutionGraphInfo} containing additional information besides the {@link
+     * ArchivedExecutionGraph}. If there is no such graph, then the future is completed with a
+     * {@link FlinkJobNotFoundException}.
+     *
+     * @param jobId identifying the job whose {@link ExecutionGraphInfo} is requested
+     * @param timeout for the asynchronous operation
+     * @return Future containing the {@link ExecutionGraphInfo} for the given jobId, otherwise
+     *     {@link FlinkJobNotFoundException}
+     */
+    CompletableFuture<ExecutionGraphInfo> requestExecutionGraphInfo(
+            JobID jobId, @RpcTimeout Time timeout);
 
     /**
      * Requests the {@link JobResult} of a job specified by the given jobId.

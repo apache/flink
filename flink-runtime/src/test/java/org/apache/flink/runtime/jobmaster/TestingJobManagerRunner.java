@@ -20,7 +20,7 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.util.Preconditions;
 
 import java.util.concurrent.CompletableFuture;
@@ -88,8 +88,8 @@ public class TestingJobManagerRunner implements JobManagerRunner {
         return closeAsyncCalledLatch;
     }
 
-    public void completeResultFuture(ArchivedExecutionGraph archivedExecutionGraph) {
-        resultFuture.complete(JobManagerRunnerResult.forSuccess(archivedExecutionGraph));
+    public void completeResultFuture(ExecutionGraphInfo executionGraphInfo) {
+        resultFuture.complete(JobManagerRunnerResult.forSuccess(executionGraphInfo));
     }
 
     public void completeResultFutureExceptionally(Exception e) {
@@ -108,6 +108,7 @@ public class TestingJobManagerRunner implements JobManagerRunner {
         this.jobMasterGatewayFuture.complete(testingJobMasterGateway);
     }
 
+    /** {@code Builder} for instantiating {@link TestingJobManagerRunner} instances. */
     public static class Builder {
         private JobID jobId = null;
         private boolean blockingTermination = false;

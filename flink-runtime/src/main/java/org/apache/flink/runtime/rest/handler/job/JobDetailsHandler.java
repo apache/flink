@@ -56,7 +56,7 @@ import java.util.concurrent.Executor;
 
 /** Handler returning the details for the specified job. */
 public class JobDetailsHandler
-        extends AbstractExecutionGraphHandler<JobDetailsInfo, JobMessageParameters>
+        extends AbstractAccessExecutionGraphHandler<JobDetailsInfo, JobMessageParameters>
         implements JsonArchivist {
 
     private final MetricFetcher metricFetcher;

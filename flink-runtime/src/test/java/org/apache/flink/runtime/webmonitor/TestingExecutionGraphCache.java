@@ -20,8 +20,8 @@ package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
@@ -31,7 +31,7 @@ import java.util.function.IntSupplier;
 public class TestingExecutionGraphCache implements ExecutionGraphCache {
     private final IntSupplier sizeSupplier;
 
-    private final BiFunction<JobID, RestfulGateway, CompletableFuture<AccessExecutionGraph>>
+    private final BiFunction<JobID, RestfulGateway, CompletableFuture<ExecutionGraphInfo>>
             getExecutionGraphFunction;
 
     private final Runnable cleanupRunnable;
@@ -40,7 +40,7 @@ public class TestingExecutionGraphCache implements ExecutionGraphCache {
 
     private TestingExecutionGraphCache(
             IntSupplier sizeSupplier,
-            BiFunction<JobID, RestfulGateway, CompletableFuture<AccessExecutionGraph>>
+            BiFunction<JobID, RestfulGateway, CompletableFuture<ExecutionGraphInfo>>
                     getExecutionGraphFunction,
             Runnable cleanupRunnable,
             Runnable closeRunnable) {
@@ -56,7 +56,7 @@ public class TestingExecutionGraphCache implements ExecutionGraphCache {
     }
 
     @Override
-    public CompletableFuture<AccessExecutionGraph> getExecutionGraph(
+    public CompletableFuture<ExecutionGraphInfo> getExecutionGraphInfo(
             JobID jobId, RestfulGateway restfulGateway) {
         return getExecutionGraphFunction.apply(jobId, restfulGateway);
     }
@@ -79,7 +79,7 @@ public class TestingExecutionGraphCache implements ExecutionGraphCache {
     public static final class Builder {
 
         private IntSupplier sizeSupplier = () -> 0;
-        private BiFunction<JobID, RestfulGateway, CompletableFuture<AccessExecutionGraph>>
+        private BiFunction<JobID, RestfulGateway, CompletableFuture<ExecutionGraphInfo>>
                 getExecutionGraphFunction =
                         (ignoredA, ignoredB) ->
                                 FutureUtils.completedExceptionally(
@@ -95,7 +95,7 @@ public class TestingExecutionGraphCache implements ExecutionGraphCache {
         }
 
         public Builder setGetExecutionGraphFunction(
-                BiFunction<JobID, RestfulGateway, CompletableFuture<AccessExecutionGraph>>
+                BiFunction<JobID, RestfulGateway, CompletableFuture<ExecutionGraphInfo>>
                         getExecutionGraphFunction) {
             this.getExecutionGraphFunction = getExecutionGraphFunction;
             return this;

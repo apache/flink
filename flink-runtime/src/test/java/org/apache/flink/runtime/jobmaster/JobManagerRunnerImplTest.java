@@ -24,7 +24,6 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -33,6 +32,7 @@ import org.apache.flink.runtime.jobmaster.factories.TestingJobMasterServiceFacto
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
@@ -67,7 +67,7 @@ public class JobManagerRunnerImplTest extends TestLogger {
 
     private static JobGraph jobGraph;
 
-    private static ArchivedExecutionGraph archivedExecutionGraph;
+    private static ExecutionGraphInfo executionGraphInfo;
 
     private static JobMasterServiceFactory defaultJobMasterServiceFactory;
 
@@ -85,11 +85,12 @@ public class JobManagerRunnerImplTest extends TestLogger {
         jobVertex.setInvokableClass(NoOpInvokable.class);
         jobGraph = new JobGraph(jobVertex);
 
-        archivedExecutionGraph =
-                new ArchivedExecutionGraphBuilder()
-                        .setJobID(jobGraph.getJobID())
-                        .setState(JobStatus.FINISHED)
-                        .build();
+        executionGraphInfo =
+                new ExecutionGraphInfo(
+                        new ArchivedExecutionGraphBuilder()
+                                .setJobID(jobGraph.getJobID())
+                                .setState(JobStatus.FINISHED)
+                                .build());
     }
 
     @Before
@@ -120,12 +121,12 @@ public class JobManagerRunnerImplTest extends TestLogger {
 
             assertThat(resultFuture.isDone(), is(false));
 
-            jobManagerRunner.jobReachedGloballyTerminalState(archivedExecutionGraph);
+            jobManagerRunner.jobReachedGloballyTerminalState(executionGraphInfo);
 
             final JobManagerRunnerResult jobManagerRunnerResult = resultFuture.get();
             assertThat(
                     jobManagerRunnerResult,
-                    is(JobManagerRunnerResult.forSuccess(archivedExecutionGraph)));
+                    is(JobManagerRunnerResult.forSuccess(executionGraphInfo)));
         } finally {
             jobManagerRunner.close();
         }

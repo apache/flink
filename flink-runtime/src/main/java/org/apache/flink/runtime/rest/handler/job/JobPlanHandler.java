@@ -40,7 +40,8 @@ import java.util.Map;
 import java.util.concurrent.Executor;
 
 /** Handler serving the job execution plan. */
-public class JobPlanHandler extends AbstractExecutionGraphHandler<JobPlanInfo, JobMessageParameters>
+public class JobPlanHandler
+        extends AbstractAccessExecutionGraphHandler<JobPlanInfo, JobMessageParameters>
         implements JsonArchivist {
 
     public JobPlanHandler(

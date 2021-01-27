@@ -27,8 +27,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
-import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
-import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
+import org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStore;
+import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
 import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.runner.DefaultDispatcherRunnerFactory;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
@@ -78,9 +78,9 @@ public class ApplicationClusterEntryPoint extends ClusterEntrypoint {
     }
 
     @Override
-    protected ArchivedExecutionGraphStore createSerializableExecutionGraphStore(
+    protected ExecutionGraphInfoStore createSerializableExecutionGraphStore(
             final Configuration configuration, final ScheduledExecutor scheduledExecutor) {
-        return new MemoryArchivedExecutionGraphStore();
+        return new MemoryExecutionGraphInfoStore();
     }
 
     protected static void configureExecution(

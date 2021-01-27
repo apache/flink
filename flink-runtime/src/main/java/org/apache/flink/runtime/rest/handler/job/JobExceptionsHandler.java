@@ -49,7 +49,8 @@ import java.util.concurrent.Executor;
 
 /** Handler serving the job exceptions. */
 public class JobExceptionsHandler
-        extends AbstractExecutionGraphHandler<JobExceptionsInfo, JobExceptionsMessageParameters>
+        extends AbstractAccessExecutionGraphHandler<
+                JobExceptionsInfo, JobExceptionsMessageParameters>
         implements JsonArchivist {
 
     static final int MAX_NUMBER_EXCEPTION_TO_REPORT = 20;

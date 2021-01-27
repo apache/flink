@@ -26,6 +26,7 @@ import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
@@ -55,20 +56,19 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Store for {@link ArchivedExecutionGraph}. The store writes the archived execution graph to disk
- * and keeps the most recently used execution graphs in a memory cache for faster serving. Moreover,
- * the stored execution graphs are periodically cleaned up.
+ * Store for {@link ExecutionGraphInfo} instances. The store writes the archived execution graph
+ * information to disk and keeps the most recently used execution graphs in a memory cache for
+ * faster serving. Moreover, the stored execution graphs are periodically cleaned up.
  */
-public class FileArchivedExecutionGraphStore implements ArchivedExecutionGraphStore {
+public class FileExecutionGraphInfoStore implements ExecutionGraphInfoStore {
 
-    private static final Logger LOG =
-            LoggerFactory.getLogger(FileArchivedExecutionGraphStore.class);
+    private static final Logger LOG = LoggerFactory.getLogger(FileExecutionGraphInfoStore.class);
 
     private final File storageDir;
 
     private final Cache<JobID, JobDetails> jobDetailsCache;
 
-    private final LoadingCache<JobID, ArchivedExecutionGraph> archivedExecutionGraphCache;
+    private final LoadingCache<JobID, ExecutionGraphInfo> executionGraphInfoCache;
 
     private final ScheduledFuture<?> cleanupFuture;
 
@@ -80,7 +80,7 @@ public class FileArchivedExecutionGraphStore implements ArchivedExecutionGraphSt
 
     private int numCanceledJobs;
 
-    public FileArchivedExecutionGraphStore(
+    public FileExecutionGraphInfoStore(
             File rootDir,
             Time expirationTime,
             int maximumCapacity,
@@ -93,7 +93,7 @@ public class FileArchivedExecutionGraphStore implements ArchivedExecutionGraphSt
 
         LOG.info(
                 "Initializing {}: Storage directory {}, expiration time {}, maximum cache size {} bytes.",
-                FileArchivedExecutionGraphStore.class.getSimpleName(),
+                FileExecutionGraphInfoStore.class.getSimpleName(),
                 storageDirectory,
                 expirationTime.toMilliseconds(),
                 maximumCacheSizeBytes);
@@ -113,15 +113,14 @@ public class FileArchivedExecutionGraphStore implements ArchivedExecutionGraphSt
                         .ticker(ticker)
                         .build();
 
-        this.archivedExecutionGraphCache =
+        this.executionGraphInfoCache =
                 CacheBuilder.newBuilder()
                         .maximumWeight(maximumCacheSizeBytes)
                         .weigher(this::calculateSize)
                         .build(
-                                new CacheLoader<JobID, ArchivedExecutionGraph>() {
+                                new CacheLoader<JobID, ExecutionGraphInfo>() {
                                     @Override
-                                    public ArchivedExecutionGraph load(JobID jobId)
-                                            throws Exception {
+                                    public ExecutionGraphInfo load(JobID jobId) throws Exception {
                                         return loadExecutionGraph(jobId);
                                     }
                                 });
@@ -147,19 +146,23 @@ public class FileArchivedExecutionGraphStore implements ArchivedExecutionGraphSt
 
     @Override
     @Nullable
-    public ArchivedExecutionGraph get(JobID jobId) {
+    public ExecutionGraphInfo get(JobID jobId) {
         try {
-            return archivedExecutionGraphCache.get(jobId);
+            return executionGraphInfoCache.get(jobId);
         } catch (ExecutionException e) {
-            LOG.debug("Could not load archived execution graph for job id {}.", jobId, e);
+            LOG.debug(
+                    "Could not load archived execution graph information for job id {}.", jobId, e);
             return null;
         }
     }
 
     @Override
-    public void put(ArchivedExecutionGraph archivedExecutionGraph) throws IOException {
+    public void put(ExecutionGraphInfo executionGraphInfo) throws IOException {
+        final JobID jobId = executionGraphInfo.getJobId();
+
+        final ArchivedExecutionGraph archivedExecutionGraph =
+                executionGraphInfo.getArchivedExecutionGraph();
         final JobStatus jobStatus = archivedExecutionGraph.getState();
-        final JobID jobId = archivedExecutionGraph.getJobID();
         final String jobName = archivedExecutionGraph.getJobName();
 
         Preconditions.checkArgument(
@@ -195,12 +198,12 @@ public class FileArchivedExecutionGraphStore implements ArchivedExecutionGraphSt
         }
 
         // write the ArchivedExecutionGraph to disk
-        storeArchivedExecutionGraph(archivedExecutionGraph);
+        storeExecutionGraphInfo(executionGraphInfo);
 
         final JobDetails detailsForJob = JobDetails.createDetailsForJob(archivedExecutionGraph);
 
         jobDetailsCache.put(jobId, detailsForJob);
-        archivedExecutionGraphCache.put(jobId, archivedExecutionGraph);
+        executionGraphInfoCache.put(jobId, executionGraphInfo);
     }
 
     @Override
@@ -236,27 +239,28 @@ public class FileArchivedExecutionGraphStore implements ArchivedExecutionGraphSt
     // Internal methods
     // --------------------------------------------------------------
 
-    private int calculateSize(JobID jobId, ArchivedExecutionGraph serializableExecutionGraph) {
-        final File archivedExecutionGraphFile = getExecutionGraphFile(jobId);
+    private int calculateSize(JobID jobId, ExecutionGraphInfo serializableExecutionGraphInfo) {
+        final File executionGraphInfoFile = getExecutionGraphFile(jobId);
 
-        if (archivedExecutionGraphFile.exists()) {
-            return Math.toIntExact(archivedExecutionGraphFile.length());
+        if (executionGraphInfoFile.exists()) {
+            return Math.toIntExact(executionGraphInfoFile.length());
         } else {
             LOG.debug(
-                    "Could not find archived execution graph file for {}. Estimating the size instead.",
+                    "Could not find execution graph information file for {}. Estimating the size instead.",
                     jobId);
+            final ArchivedExecutionGraph serializableExecutionGraph =
+                    serializableExecutionGraphInfo.getArchivedExecutionGraph();
             return serializableExecutionGraph.getAllVertices().size() * 1000
                     + serializableExecutionGraph.getAccumulatorsSerialized().size() * 1000;
         }
     }
 
-    private ArchivedExecutionGraph loadExecutionGraph(JobID jobId)
+    private ExecutionGraphInfo loadExecutionGraph(JobID jobId)
             throws IOException, ClassNotFoundException {
-        final File archivedExecutionGraphFile = getExecutionGraphFile(jobId);
+        final File executionGraphInfoFile = getExecutionGraphFile(jobId);
 
-        if (archivedExecutionGraphFile.exists()) {
-            try (FileInputStream fileInputStream =
-                    new FileInputStream(archivedExecutionGraphFile)) {
+        if (executionGraphInfoFile.exists()) {
+            try (FileInputStream fileInputStream = new FileInputStream(executionGraphInfoFile)) {
                 return InstantiationUtil.deserializeObject(
                         fileInputStream, getClass().getClassLoader());
             }
@@ -268,13 +272,12 @@ public class FileArchivedExecutionGraphStore implements ArchivedExecutionGraphSt
         }
     }
 
-    private void storeArchivedExecutionGraph(ArchivedExecutionGraph archivedExecutionGraph)
-            throws IOException {
+    private void storeExecutionGraphInfo(ExecutionGraphInfo executionGraphInfo) throws IOException {
         final File archivedExecutionGraphFile =
-                getExecutionGraphFile(archivedExecutionGraph.getJobID());
+                getExecutionGraphFile(executionGraphInfo.getJobId());
 
         try (FileOutputStream fileOutputStream = new FileOutputStream(archivedExecutionGraphFile)) {
-            InstantiationUtil.serializeObject(fileOutputStream, archivedExecutionGraph);
+            InstantiationUtil.serializeObject(fileOutputStream, executionGraphInfo);
         }
     }
 
@@ -293,7 +296,7 @@ public class FileArchivedExecutionGraphStore implements ArchivedExecutionGraphSt
             LOG.debug("Could not delete file {}.", archivedExecutionGraphFile, e);
         }
 
-        archivedExecutionGraphCache.invalidate(jobId);
+        executionGraphInfoCache.invalidate(jobId);
         jobDetailsCache.invalidate(jobId);
     }
 
@@ -323,7 +326,7 @@ public class FileArchivedExecutionGraphStore implements ArchivedExecutionGraphSt
     }
 
     @VisibleForTesting
-    LoadingCache<JobID, ArchivedExecutionGraph> getArchivedExecutionGraphCache() {
-        return archivedExecutionGraphCache;
+    LoadingCache<JobID, ExecutionGraphInfo> getExecutionGraphInfoCache() {
+        return executionGraphInfoCache;
     }
 }

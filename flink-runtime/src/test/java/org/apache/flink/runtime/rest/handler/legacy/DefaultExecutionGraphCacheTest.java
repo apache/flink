@@ -21,10 +21,9 @@ package org.apache.flink.runtime.rest.handler.legacy;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.util.ExecutorUtils;
@@ -55,12 +54,13 @@ import static org.junit.Assert.fail;
 /** Tests for the {@link DefaultExecutionGraphCache}. */
 public class DefaultExecutionGraphCacheTest extends TestLogger {
 
-    private static ArchivedExecutionGraph expectedExecutionGraph;
+    private static ExecutionGraphInfo expectedExecutionGraphInfo;
     private static final JobID expectedJobId = new JobID();
 
     @BeforeClass
     public static void setup() {
-        expectedExecutionGraph = new ArchivedExecutionGraphBuilder().build();
+        expectedExecutionGraphInfo =
+                new ExecutionGraphInfo(new ArchivedExecutionGraphBuilder().build());
     }
 
     /** Tests that we can cache AccessExecutionGraphs over multiple accesses. */
@@ -71,19 +71,20 @@ public class DefaultExecutionGraphCacheTest extends TestLogger {
 
         final CountingRestfulGateway restfulGateway =
                 createCountingRestfulGateway(
-                        expectedJobId, CompletableFuture.completedFuture(expectedExecutionGraph));
+                        expectedJobId,
+                        CompletableFuture.completedFuture(expectedExecutionGraphInfo));
 
         try (ExecutionGraphCache executionGraphCache =
                 new DefaultExecutionGraphCache(timeout, timeToLive)) {
-            CompletableFuture<AccessExecutionGraph> accessExecutionGraphFuture =
-                    executionGraphCache.getExecutionGraph(expectedJobId, restfulGateway);
+            CompletableFuture<ExecutionGraphInfo> executionGraphInfoFuture =
+                    executionGraphCache.getExecutionGraphInfo(expectedJobId, restfulGateway);
 
-            assertEquals(expectedExecutionGraph, accessExecutionGraphFuture.get());
+            assertEquals(expectedExecutionGraphInfo, executionGraphInfoFuture.get());
 
-            accessExecutionGraphFuture =
-                    executionGraphCache.getExecutionGraph(expectedJobId, restfulGateway);
+            executionGraphInfoFuture =
+                    executionGraphCache.getExecutionGraphInfo(expectedJobId, restfulGateway);
 
-            assertEquals(expectedExecutionGraph, accessExecutionGraphFuture.get());
+            assertEquals(expectedExecutionGraphInfo, executionGraphInfoFuture.get());
 
             assertThat(restfulGateway.getNumRequestJobCalls(), Matchers.equalTo(1));
         }
@@ -98,23 +99,23 @@ public class DefaultExecutionGraphCacheTest extends TestLogger {
         final CountingRestfulGateway restfulGateway =
                 createCountingRestfulGateway(
                         expectedJobId,
-                        CompletableFuture.completedFuture(expectedExecutionGraph),
-                        CompletableFuture.completedFuture(expectedExecutionGraph));
+                        CompletableFuture.completedFuture(expectedExecutionGraphInfo),
+                        CompletableFuture.completedFuture(expectedExecutionGraphInfo));
 
         try (ExecutionGraphCache executionGraphCache =
                 new DefaultExecutionGraphCache(timeout, timeToLive)) {
-            CompletableFuture<AccessExecutionGraph> executionGraphFuture =
-                    executionGraphCache.getExecutionGraph(expectedJobId, restfulGateway);
+            CompletableFuture<ExecutionGraphInfo> executionGraphInfoFuture =
+                    executionGraphCache.getExecutionGraphInfo(expectedJobId, restfulGateway);
 
-            assertEquals(expectedExecutionGraph, executionGraphFuture.get());
+            assertEquals(expectedExecutionGraphInfo, executionGraphInfoFuture.get());
 
             // sleep for the TTL
             Thread.sleep(timeToLive.toMilliseconds() * 5L);
 
-            CompletableFuture<AccessExecutionGraph> executionGraphFuture2 =
-                    executionGraphCache.getExecutionGraph(expectedJobId, restfulGateway);
+            CompletableFuture<ExecutionGraphInfo> executionGraphInfoFuture2 =
+                    executionGraphCache.getExecutionGraphInfo(expectedJobId, restfulGateway);
 
-            assertEquals(expectedExecutionGraph, executionGraphFuture2.get());
+            assertEquals(expectedExecutionGraphInfo, executionGraphInfoFuture2.get());
 
             assertThat(restfulGateway.getNumRequestJobCalls(), Matchers.equalTo(2));
         }
@@ -135,25 +136,26 @@ public class DefaultExecutionGraphCacheTest extends TestLogger {
                         expectedJobId,
                         FutureUtils.completedExceptionally(
                                 new FlinkJobNotFoundException(expectedJobId)),
-                        CompletableFuture.completedFuture(expectedExecutionGraph));
+                        CompletableFuture.completedFuture(expectedExecutionGraphInfo));
 
         try (ExecutionGraphCache executionGraphCache =
                 new DefaultExecutionGraphCache(timeout, timeToLive)) {
-            CompletableFuture<AccessExecutionGraph> executionGraphFuture =
-                    executionGraphCache.getExecutionGraph(expectedJobId, restfulGateway);
+            CompletableFuture<ExecutionGraphInfo> executionGraphFuture =
+                    executionGraphCache.getExecutionGraphInfo(expectedJobId, restfulGateway);
 
             try {
                 executionGraphFuture.get();
 
                 fail("The execution graph future should have been completed exceptionally.");
             } catch (ExecutionException ee) {
+                ee.printStackTrace();
                 assertTrue(ee.getCause() instanceof FlinkException);
             }
 
-            CompletableFuture<AccessExecutionGraph> executionGraphFuture2 =
-                    executionGraphCache.getExecutionGraph(expectedJobId, restfulGateway);
+            CompletableFuture<ExecutionGraphInfo> executionGraphFuture2 =
+                    executionGraphCache.getExecutionGraphInfo(expectedJobId, restfulGateway);
 
-            assertEquals(expectedExecutionGraph, executionGraphFuture2.get());
+            assertEquals(expectedExecutionGraphInfo, executionGraphFuture2.get());
         }
     }
 
@@ -166,21 +168,21 @@ public class DefaultExecutionGraphCacheTest extends TestLogger {
         final Time timeout = Time.milliseconds(100L);
         final Time timeToLive = Time.milliseconds(1L);
         final JobID expectedJobId2 = new JobID();
-        final ArchivedExecutionGraph expectedExecutionGraph2 =
-                new ArchivedExecutionGraphBuilder().build();
+        final ExecutionGraphInfo expectedExecutionGraphInfo2 =
+                new ExecutionGraphInfo(new ArchivedExecutionGraphBuilder().build());
 
         final AtomicInteger requestJobCalls = new AtomicInteger(0);
         final TestingRestfulGateway restfulGateway =
                 new TestingRestfulGateway.Builder()
-                        .setRequestJobFunction(
+                        .setRequestExecutionGraphInfoFunction(
                                 jobId -> {
                                     requestJobCalls.incrementAndGet();
                                     if (jobId.equals(expectedJobId)) {
                                         return CompletableFuture.completedFuture(
-                                                expectedExecutionGraph);
+                                                expectedExecutionGraphInfo);
                                     } else if (jobId.equals(expectedJobId2)) {
                                         return CompletableFuture.completedFuture(
-                                                expectedExecutionGraph2);
+                                                expectedExecutionGraphInfo2);
                                     } else {
                                         throw new AssertionError("Invalid job id received.");
                                     }
@@ -190,15 +192,15 @@ public class DefaultExecutionGraphCacheTest extends TestLogger {
         try (ExecutionGraphCache executionGraphCache =
                 new DefaultExecutionGraphCache(timeout, timeToLive)) {
 
-            CompletableFuture<AccessExecutionGraph> executionGraph1Future =
-                    executionGraphCache.getExecutionGraph(expectedJobId, restfulGateway);
+            CompletableFuture<ExecutionGraphInfo> executionGraph1Future =
+                    executionGraphCache.getExecutionGraphInfo(expectedJobId, restfulGateway);
 
-            CompletableFuture<AccessExecutionGraph> executionGraph2Future =
-                    executionGraphCache.getExecutionGraph(expectedJobId2, restfulGateway);
+            CompletableFuture<ExecutionGraphInfo> executionGraph2Future =
+                    executionGraphCache.getExecutionGraphInfo(expectedJobId2, restfulGateway);
 
-            assertEquals(expectedExecutionGraph, executionGraph1Future.get());
+            assertEquals(expectedExecutionGraphInfo, executionGraph1Future.get());
 
-            assertEquals(expectedExecutionGraph2, executionGraph2Future.get());
+            assertEquals(expectedExecutionGraphInfo2, executionGraph2Future.get());
 
             assertThat(requestJobCalls.get(), Matchers.equalTo(2));
 
@@ -218,11 +220,12 @@ public class DefaultExecutionGraphCacheTest extends TestLogger {
 
         final CountingRestfulGateway restfulGateway =
                 createCountingRestfulGateway(
-                        expectedJobId, CompletableFuture.completedFuture(expectedExecutionGraph));
+                        expectedJobId,
+                        CompletableFuture.completedFuture(expectedExecutionGraphInfo));
 
         final int numConcurrentAccesses = 10;
 
-        final ArrayList<CompletableFuture<AccessExecutionGraph>> executionGraphFutures =
+        final ArrayList<CompletableFuture<ExecutionGraphInfo>> executionGraphFutures =
                 new ArrayList<>(numConcurrentAccesses);
 
         final ExecutorService executor =
@@ -231,10 +234,10 @@ public class DefaultExecutionGraphCacheTest extends TestLogger {
         try (ExecutionGraphCache executionGraphCache =
                 new DefaultExecutionGraphCache(timeout, timeToLive)) {
             for (int i = 0; i < numConcurrentAccesses; i++) {
-                CompletableFuture<AccessExecutionGraph> executionGraphFuture =
+                CompletableFuture<ExecutionGraphInfo> executionGraphFuture =
                         CompletableFuture.supplyAsync(
                                         () ->
-                                                executionGraphCache.getExecutionGraph(
+                                                executionGraphCache.getExecutionGraphInfo(
                                                         expectedJobId, restfulGateway),
                                         executor)
                                 .thenCompose(Function.identity());
@@ -242,13 +245,13 @@ public class DefaultExecutionGraphCacheTest extends TestLogger {
                 executionGraphFutures.add(executionGraphFuture);
             }
 
-            final CompletableFuture<Collection<AccessExecutionGraph>> allExecutionGraphFutures =
+            final CompletableFuture<Collection<ExecutionGraphInfo>> allExecutionGraphFutures =
                     FutureUtils.combineAll(executionGraphFutures);
 
-            Collection<AccessExecutionGraph> allExecutionGraphs = allExecutionGraphFutures.get();
+            Collection<ExecutionGraphInfo> allExecutionGraphs = allExecutionGraphFutures.get();
 
-            for (AccessExecutionGraph executionGraph : allExecutionGraphs) {
-                assertEquals(expectedExecutionGraph, executionGraph);
+            for (ExecutionGraphInfo executionGraph : allExecutionGraphs) {
+                assertEquals(expectedExecutionGraphInfo, executionGraph);
             }
 
             assertThat(restfulGateway.getNumRequestJobCalls(), Matchers.equalTo(1));
@@ -258,8 +261,8 @@ public class DefaultExecutionGraphCacheTest extends TestLogger {
     }
 
     private CountingRestfulGateway createCountingRestfulGateway(
-            JobID jobId, CompletableFuture<ArchivedExecutionGraph>... accessExecutionGraphs) {
-        final ConcurrentLinkedQueue<CompletableFuture<ArchivedExecutionGraph>> queue =
+            JobID jobId, CompletableFuture<ExecutionGraphInfo>... accessExecutionGraphs) {
+        final ConcurrentLinkedQueue<CompletableFuture<ExecutionGraphInfo>> queue =
                 new ConcurrentLinkedQueue<>(Arrays.asList(accessExecutionGraphs));
         return new CountingRestfulGateway(jobId, ignored -> queue.poll());
     }
@@ -276,16 +279,17 @@ public class DefaultExecutionGraphCacheTest extends TestLogger {
 
         private CountingRestfulGateway(
                 JobID expectedJobId,
-                Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestJobFunction) {
+                Function<JobID, CompletableFuture<ExecutionGraphInfo>> requestJobFunction) {
             this.expectedJobId = Preconditions.checkNotNull(expectedJobId);
-            this.requestJobFunction = Preconditions.checkNotNull(requestJobFunction);
+            this.requestExecutionGraphInfoFunction = Preconditions.checkNotNull(requestJobFunction);
         }
 
         @Override
-        public CompletableFuture<ArchivedExecutionGraph> requestJob(JobID jobId, Time timeout) {
+        public CompletableFuture<ExecutionGraphInfo> requestExecutionGraphInfo(
+                JobID jobId, Time timeout) {
             assertThat(jobId, Matchers.equalTo(expectedJobId));
             numRequestJobCalls.incrementAndGet();
-            return super.requestJob(jobId, timeout);
+            return super.requestExecutionGraphInfo(jobId, timeout);
         }
 
         public int getNumRequestJobCalls() {

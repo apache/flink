@@ -28,6 +28,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.util.FlinkException;
 
 import java.util.Collections;
@@ -119,9 +120,11 @@ public class MiniDispatcher extends Dispatcher {
 
     @Override
     protected CleanupJobState jobReachedGloballyTerminalState(
-            ArchivedExecutionGraph archivedExecutionGraph) {
+            ExecutionGraphInfo executionGraphInfo) {
+        final ArchivedExecutionGraph archivedExecutionGraph =
+                executionGraphInfo.getArchivedExecutionGraph();
         final CleanupJobState cleanupHAState =
-                super.jobReachedGloballyTerminalState(archivedExecutionGraph);
+                super.jobReachedGloballyTerminalState(executionGraphInfo);
 
         if (jobCancelled || executionMode == ClusterEntrypoint.ExecutionMode.DETACHED) {
             // shut down if job is cancelled or we don't have to wait for the execution result

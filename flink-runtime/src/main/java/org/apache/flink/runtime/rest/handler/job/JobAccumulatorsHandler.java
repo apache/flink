@@ -48,7 +48,8 @@ import java.util.concurrent.Executor;
 
 /** Request handler that returns the aggregated accumulators of a job. */
 public class JobAccumulatorsHandler
-        extends AbstractExecutionGraphHandler<JobAccumulatorsInfo, JobAccumulatorsMessageParameters>
+        extends AbstractAccessExecutionGraphHandler<
+                JobAccumulatorsInfo, JobAccumulatorsMessageParameters>
         implements JsonArchivist {
 
     public JobAccumulatorsHandler(

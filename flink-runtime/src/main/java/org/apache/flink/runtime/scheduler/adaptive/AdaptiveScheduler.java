@@ -86,6 +86,7 @@ import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerUtils;
@@ -368,8 +369,9 @@ public class AdaptiveScheduler
     }
 
     @Override
-    public ArchivedExecutionGraph requestJob() {
-        return state.getJob();
+    public ExecutionGraphInfo requestJob() {
+        // no exception history support is added for now (see FLINK-21439)
+        return new ExecutionGraphInfo(state.getJob());
     }
 
     @Override

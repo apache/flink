@@ -21,7 +21,7 @@ package org.apache.flink.runtime.minicluster;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
-import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
+import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -105,7 +105,7 @@ public class TestingMiniCluster extends MiniCluster {
                             blobServer,
                             heartbeatServices,
                             metricRegistry,
-                            new MemoryArchivedExecutionGraphStore(),
+                            new MemoryExecutionGraphInfoStore(),
                             metricQueryServiceRetriever,
                             fatalErrorHandler));
         }

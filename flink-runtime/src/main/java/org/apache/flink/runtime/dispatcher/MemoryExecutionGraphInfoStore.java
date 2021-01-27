@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 
 import javax.annotation.Nullable;
 
@@ -33,34 +34,35 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * {@link ArchivedExecutionGraphStore} implementation which stores the {@link
- * ArchivedExecutionGraph} in memory.
+ * {@link ExecutionGraphInfoStore} implementation which stores the {@link ArchivedExecutionGraph} in
+ * memory.
  */
-public class MemoryArchivedExecutionGraphStore implements ArchivedExecutionGraphStore {
+public class MemoryExecutionGraphInfoStore implements ExecutionGraphInfoStore {
 
-    private final Map<JobID, ArchivedExecutionGraph> serializableExecutionGraphs = new HashMap<>(4);
+    private final Map<JobID, ExecutionGraphInfo> serializableExecutionGraphInfos = new HashMap<>(4);
 
     @Override
     public int size() {
-        return serializableExecutionGraphs.size();
+        return serializableExecutionGraphInfos.size();
     }
 
     @Nullable
     @Override
-    public ArchivedExecutionGraph get(JobID jobId) {
-        return serializableExecutionGraphs.get(jobId);
+    public ExecutionGraphInfo get(JobID jobId) {
+        return serializableExecutionGraphInfos.get(jobId);
     }
 
     @Override
-    public void put(ArchivedExecutionGraph serializableExecutionGraph) throws IOException {
-        serializableExecutionGraphs.put(
-                serializableExecutionGraph.getJobID(), serializableExecutionGraph);
+    public void put(ExecutionGraphInfo serializableExecutionGraphInfo) throws IOException {
+        serializableExecutionGraphInfos.put(
+                serializableExecutionGraphInfo.getJobId(), serializableExecutionGraphInfo);
     }
 
     @Override
     public JobsOverview getStoredJobsOverview() {
         Collection<JobStatus> allJobStatus =
-                serializableExecutionGraphs.values().stream()
+                serializableExecutionGraphInfos.values().stream()
+                        .map(ExecutionGraphInfo::getArchivedExecutionGraph)
                         .map(ArchivedExecutionGraph::getState)
                         .collect(Collectors.toList());
 
@@ -69,7 +71,8 @@ public class MemoryArchivedExecutionGraphStore implements ArchivedExecutionGraph
 
     @Override
     public Collection<JobDetails> getAvailableJobDetails() {
-        return serializableExecutionGraphs.values().stream()
+        return serializableExecutionGraphInfos.values().stream()
+                .map(ExecutionGraphInfo::getArchivedExecutionGraph)
                 .map(JobDetails::createDetailsForJob)
                 .collect(Collectors.toList());
     }
@@ -77,11 +80,12 @@ public class MemoryArchivedExecutionGraphStore implements ArchivedExecutionGraph
     @Nullable
     @Override
     public JobDetails getAvailableJobDetails(JobID jobId) {
-        final ArchivedExecutionGraph archivedExecutionGraph =
-                serializableExecutionGraphs.get(jobId);
+        final ExecutionGraphInfo archivedExecutionGraphInfo =
+                serializableExecutionGraphInfos.get(jobId);
 
-        if (archivedExecutionGraph != null) {
-            return JobDetails.createDetailsForJob(archivedExecutionGraph);
+        if (archivedExecutionGraphInfo != null) {
+            return JobDetails.createDetailsForJob(
+                    archivedExecutionGraphInfo.getArchivedExecutionGraph());
         } else {
             return null;
         }
@@ -89,6 +93,6 @@ public class MemoryArchivedExecutionGraphStore implements ArchivedExecutionGraph
 
     @Override
     public void close() throws IOException {
-        serializableExecutionGraphs.clear();
+        serializableExecutionGraphInfos.clear();
     }
 }

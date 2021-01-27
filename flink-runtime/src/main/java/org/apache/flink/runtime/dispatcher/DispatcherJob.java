@@ -29,6 +29,7 @@ import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobNotFinishedException;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
@@ -137,8 +138,7 @@ public final class DispatcherJob implements AutoCloseableAsync {
     private void handleJobManagerRunnerResult(JobManagerRunnerResult jobManagerRunnerResult) {
         if (jobManagerRunnerResult.isSuccess()) {
             jobResultFuture.complete(
-                    DispatcherJobResult.forSuccess(
-                            jobManagerRunnerResult.getArchivedExecutionGraph()));
+                    DispatcherJobResult.forSuccess(jobManagerRunnerResult.getExecutionGraphInfo()));
         } else if (jobManagerRunnerResult.isJobNotFinished()) {
             jobResultFuture.completeExceptionally(new JobNotFinishedException(jobId));
         } else if (jobManagerRunnerResult.isInitializationFailure()) {
@@ -156,7 +156,7 @@ public final class DispatcherJob implements AutoCloseableAsync {
                         initializationTimestamp);
         jobResultFuture.complete(
                 DispatcherJobResult.forInitializationFailure(
-                        archivedExecutionGraph, initializationFailure));
+                        new ExecutionGraphInfo(archivedExecutionGraph), initializationFailure));
     }
 
     public CompletableFuture<DispatcherJobResult> getResultFuture() {
@@ -166,9 +166,10 @@ public final class DispatcherJob implements AutoCloseableAsync {
     public CompletableFuture<JobDetails> requestJobDetails(Time timeout) {
         return requestJob(timeout)
                 .thenApply(
-                        executionGraph -> {
+                        executionGraphInfo -> {
                             synchronized (lock) {
-                                return JobDetails.createDetailsForJob(executionGraph);
+                                return JobDetails.createDetailsForJob(
+                                        executionGraphInfo.getArchivedExecutionGraph());
                             }
                         });
     }
@@ -205,16 +206,18 @@ public final class DispatcherJob implements AutoCloseableAsync {
     }
 
     public CompletableFuture<JobStatus> requestJobStatus(Time timeout) {
-        return requestJob(timeout).thenApply(ArchivedExecutionGraph::getState);
+        return requestJob(timeout)
+                .thenApply(
+                        executionGraphInfo ->
+                                executionGraphInfo.getArchivedExecutionGraph().getState());
     }
 
-    /** Returns a future completing to the ArchivedExecutionGraph of the job. */
-    public CompletableFuture<ArchivedExecutionGraph> requestJob(Time timeout) {
+    /** Returns a future completing to the ExecutionGraphInfo of the job. */
+    public CompletableFuture<ExecutionGraphInfo> requestJob(Time timeout) {
         synchronized (lock) {
             if (isInitialized()) {
                 if (jobResultFuture.isDone()) { // job is not running anymore
-                    return jobResultFuture.thenApply(
-                            DispatcherJobResult::getArchivedExecutionGraph);
+                    return jobResultFuture.thenApply(DispatcherJobResult::getExecutionGraphInfo);
                 }
                 // job is still running
                 return getJobMasterGateway()
@@ -224,12 +227,13 @@ public final class DispatcherJob implements AutoCloseableAsync {
                         this.jobStatus == DispatcherJobStatus.INITIALIZING
                                 || jobStatus == DispatcherJobStatus.CANCELLING);
                 return CompletableFuture.completedFuture(
-                        ArchivedExecutionGraph.createFromInitializingJob(
-                                jobId,
-                                jobName,
-                                jobStatus.asJobStatus(),
-                                null,
-                                initializationTimestamp));
+                        new ExecutionGraphInfo(
+                                ArchivedExecutionGraph.createFromInitializingJob(
+                                        jobId,
+                                        jobName,
+                                        jobStatus.asJobStatus(),
+                                        null,
+                                        initializationTimestamp)));
             }
         }
     }

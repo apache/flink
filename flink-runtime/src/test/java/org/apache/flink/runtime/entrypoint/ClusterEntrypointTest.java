@@ -23,7 +23,7 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
-import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
+import org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStore;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
 
 import org.junit.Test;
@@ -57,7 +57,7 @@ public class ClusterEntrypointTest {
         }
 
         @Override
-        protected ArchivedExecutionGraphStore createSerializableExecutionGraphStore(
+        protected ExecutionGraphInfoStore createSerializableExecutionGraphStore(
                 Configuration configuration, ScheduledExecutor scheduledExecutor)
                 throws IOException {
             throw new UnsupportedOperationException("Not needed for this test");

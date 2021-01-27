@@ -19,9 +19,9 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 
 import javax.annotation.Nullable;
 
@@ -29,32 +29,32 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
 
-/** Interface for a {@link ArchivedExecutionGraph} store. */
-public interface ArchivedExecutionGraphStore extends Closeable {
+/** Interface for a {@link ExecutionGraphInfo} store. */
+public interface ExecutionGraphInfoStore extends Closeable {
 
     /**
-     * Returns the current number of stored {@link ArchivedExecutionGraph}.
+     * Returns the current number of stored {@link ExecutionGraphInfo} instances.
      *
-     * @return Current number of stored {@link ArchivedExecutionGraph}
+     * @return Current number of stored {@link ExecutionGraphInfo} instances
      */
     int size();
 
     /**
-     * Get the {@link ArchivedExecutionGraph} for the given job id. Null if it isn't stored.
+     * Get the {@link ExecutionGraphInfo} for the given job id. Null if it isn't stored.
      *
      * @param jobId identifying the serializable execution graph to retrieve
      * @return The stored serializable execution graph or null
      */
     @Nullable
-    ArchivedExecutionGraph get(JobID jobId);
+    ExecutionGraphInfo get(JobID jobId);
 
     /**
-     * Store the given {@link ArchivedExecutionGraph} in the store.
+     * Store the given {@link ExecutionGraphInfo} in the store.
      *
-     * @param archivedExecutionGraph to store
+     * @param executionGraphInfo to store
      * @throws IOException if the serializable execution graph could not be stored in the store
      */
-    void put(ArchivedExecutionGraph archivedExecutionGraph) throws IOException;
+    void put(ExecutionGraphInfo executionGraphInfo) throws IOException;
 
     /**
      * Return the {@link JobsOverview} for all stored/past jobs.

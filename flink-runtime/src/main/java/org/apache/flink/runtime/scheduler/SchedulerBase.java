@@ -763,9 +763,10 @@ public abstract class SchedulerBase implements SchedulerNG {
     }
 
     @Override
-    public ArchivedExecutionGraph requestJob() {
+    public ExecutionGraphInfo requestJob() {
         mainThreadExecutor.assertRunningInMainThread();
-        return ArchivedExecutionGraph.createFrom(executionGraph);
+        return new ExecutionGraphInfo(
+                ArchivedExecutionGraph.createFrom(executionGraph), getExceptionHistory());
     }
 
     @Override
