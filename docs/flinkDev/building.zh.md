@@ -137,7 +137,7 @@ Flink 有使用 [Scala](http://scala-lang.org) 来写的 API，库和运行时�
 
 如果使用 Scala 2.12 来进行构建，执行如下命令：
 {% highlight bash %}
-mvn clean install -DskipTests -Dscala-2.12
+mvn clean install -DskipTests -Dscala-2.12 -Dscala.version=2.12.12
 {% endhighlight %}
 
 {% top %}
