@@ -18,11 +18,16 @@
 package org.apache.flink.streaming.examples.wordcount;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.MultipleParameterTool;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HeartbeatManagerOptions;
+import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
@@ -59,21 +64,20 @@ public class WordCount {
         // Checking input parameters
         final MultipleParameterTool params = MultipleParameterTool.fromArgs(args);
 
-        // set up the execution environment
-        // final StreamExecutionEnvironment env =
-        // StreamExecutionEnvironment.getExecutionEnvironment();
         Configuration configuration = new Configuration();
         configuration.setLong(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT, 1000000L);
         configuration.setString(AkkaOptions.ASK_TIMEOUT, "1 h");
-        final StreamExecutionEnvironment env =
-                StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(configuration);
+
+        // set up the execution environment
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(configuration);
+//        final StreamExecutionEnvironment env =
+//                StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(configuration);
 
         // make parameters available in the web interface
         env.getConfig().setGlobalJobParameters(params);
-        env.getCheckpointConfig().enableUnalignedCheckpoints(true);
-        		env.getCheckpointConfig().setAlignmentTimeout(100000000L);
-//        env.getCheckpointConfig().setAlignmentTimeout(1L);
         env.enableCheckpointing(500);
+        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+        // env.setStateBackend(new FsStateBackend("file://tmp/test/"));
 
         // get input data
         DataStream<String> text = null;
@@ -167,4 +171,51 @@ public class WordCount {
             }
         }
     }
+
+//    private static class FailingMapperFunction
+//        extends RichMapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> {
+//        private ValueState<Integer> valueState;
+//
+//        @Override
+//        public void open(Configuration parameters) throws Exception {
+//            super.open(parameters);
+//            valueState =
+//                getRuntimeContext()
+//                    .getState(new ValueStateDescriptor<>("value", Integer.class));
+//        }
+//
+//        FailingMapperFunction(int restartTimes) {
+//            this.restartTimes = restartTimes;
+//        }
+//
+//        @Override
+//        public Tuple2<Integer, Integer> map(Tuple2<Integer, Integer> input) throws Exception {
+//            int indexOfThisSubtask = getRuntimeContext().getIndexOfThisSubtask();
+//
+//            if (input.f1 > FAIL_BASE * (jobFailedCnt.get() + 1)) {
+//
+//                // we would let region-0 to failover first
+//                if (jobFailedCnt.get() < 1 && indexOfThisSubtask == 0) {
+//                    jobFailedCnt.incrementAndGet();
+//                    throw new TestException();
+//                }
+//
+//                // then let last region to failover
+//                if (jobFailedCnt.get() < restartTimes && indexOfThisSubtask == NUM_OF_REGIONS - 1) {
+//                    jobFailedCnt.incrementAndGet();
+//                    throw new TestException();
+//                }
+//            }
+//
+//            // take input (1, 2) and (1, 3) for example, we would finally emit (1, 5) out with the
+//            // usage of keyed state.
+//            Integer value = valueState.value();
+//            if (value == null) {
+//                valueState.update(input.f1);
+//                return input;
+//            } else {
+//                return Tuple2.of(input.f0, value + input.f1);
+//            }
+//        }
+//    }
 }

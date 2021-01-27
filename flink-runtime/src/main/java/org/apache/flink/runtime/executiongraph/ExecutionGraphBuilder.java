@@ -51,7 +51,7 @@ import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageLoader;
 import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.StateBackendLoader;
+import org.apache.flink.runtime.state.proxy.ProxyStateBackend;
 import org.apache.flink.util.DynamicCodeLoadingException;
 import org.apache.flink.util.SerializedValue;
 
@@ -234,9 +234,9 @@ public class ExecutionGraphBuilder {
 
             final StateBackend rootBackend;
             try {
-                rootBackend =
-                        StateBackendLoader.fromApplicationOrConfigOrDefault(
-                                applicationConfiguredBackend, jobManagerConfig, classLoader, log);
+                rootBackend = new ProxyStateBackend(applicationConfiguredBackend, jobManagerConfig, classLoader, log);
+//                        StateBackendLoader.fromApplicationOrConfigOrDefault(
+//                                applicationConfiguredBackend, jobManagerConfig, classLoader, log);
             } catch (IllegalConfigurationException | IOException | DynamicCodeLoadingException e) {
                 throw new JobExecutionException(
                         jobId, "Could not instantiate configured state backend", e);

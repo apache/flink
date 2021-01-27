@@ -50,20 +50,27 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class AbstractKeyedStateBackend<K>
         implements CheckpointableKeyedStateBackend<K>, CheckpointListener {
 
-    /** The key serializer. */
-    protected final TypeSerializer<K> keySerializer;
+    //========================================================================
+    //
+    // These two are duplicated for both ProxyKeyedStateBackend & underlying wrapped keyedStateBackend
+    // Need further refine
 
     /** Listeners to changes of ({@link #keyContext}). */
     private final ArrayList<KeySelectionListener<K>> keySelectionListeners;
 
     /** So that we can give out state when the user uses the same key. */
-    private final HashMap<String, InternalKvState<K, ?, ?>> keyValueStatesByName;
-
-    /** For caching the last accessed partitioned state. */
-    private String lastName;
+    protected final HashMap<String, InternalKvState<K, ?, ?>> keyValueStatesByName;
 
     @SuppressWarnings("rawtypes")
-    private InternalKvState lastState;
+    protected InternalKvState lastState;
+
+    /** For caching the last accessed partitioned state. */
+    protected String lastName;
+
+    //========================================================================
+
+    /** The key serializer. */
+    public final TypeSerializer<K> keySerializer;
 
     /** The number of key-groups aka max parallelism. */
     protected final int numberOfKeyGroups;
@@ -72,25 +79,25 @@ public abstract class AbstractKeyedStateBackend<K>
     protected final KeyGroupRange keyGroupRange;
 
     /** KvStateRegistry helper for this task. */
-    protected final TaskKvStateRegistry kvStateRegistry;
+    public final TaskKvStateRegistry kvStateRegistry;
 
     /**
      * Registry for all opened streams, so they can be closed if the task using this backend is
      * closed.
      */
-    protected CloseableRegistry cancelStreamRegistry;
+    public CloseableRegistry cancelStreamRegistry;
 
-    protected final ClassLoader userCodeClassLoader;
+    public final ClassLoader userCodeClassLoader;
 
-    private final ExecutionConfig executionConfig;
+    public final ExecutionConfig executionConfig;
 
-    protected final TtlTimeProvider ttlTimeProvider;
+    public final TtlTimeProvider ttlTimeProvider;
 
     /** Decorates the input and output streams to write key-groups compressed. */
-    protected final StreamCompressionDecorator keyGroupCompressionDecorator;
+    public final StreamCompressionDecorator keyGroupCompressionDecorator;
 
     /** The key context for this backend. */
-    protected final InternalKeyContext<K> keyContext;
+    public final InternalKeyContext<K> keyContext;
 
     public AbstractKeyedStateBackend(
             TaskKvStateRegistry kvStateRegistry,
@@ -133,10 +140,10 @@ public abstract class AbstractKeyedStateBackend<K>
         this.keySerializer = keySerializer;
         this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
         this.cancelStreamRegistry = cancelStreamRegistry;
-        this.keyValueStatesByName = new HashMap<>();
         this.executionConfig = executionConfig;
         this.keyGroupCompressionDecorator = keyGroupCompressionDecorator;
         this.ttlTimeProvider = Preconditions.checkNotNull(ttlTimeProvider);
+        this.keyValueStatesByName = new HashMap<>();
         this.keySelectionListeners = new ArrayList<>(1);
     }
 

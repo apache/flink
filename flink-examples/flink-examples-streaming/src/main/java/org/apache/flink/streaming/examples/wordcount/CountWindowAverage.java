@@ -52,7 +52,7 @@ public class CountWindowAverage extends RichFlatMapFunction<Tuple2<Long, Long>, 
 
 	public static void main(String[] args) throws Exception {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStateBackend(new FsStateBackend("/tmp/test/"));
+		env.setStateBackend(new FsStateBackend("file://tmp/test/"));
 		env.enableCheckpointing(100);
 		env.fromElements(Tuple2.of(1L, 3L), Tuple2.of(1L, 5L), Tuple2.of(1L, 7L), Tuple2.of(1L, 4L), Tuple2.of(1L, 2L))
 			.keyBy(value -> value.f0)

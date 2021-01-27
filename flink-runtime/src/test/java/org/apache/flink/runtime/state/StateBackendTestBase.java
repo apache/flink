@@ -71,6 +71,7 @@ import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
+import org.apache.flink.runtime.state.proxy.ProxyStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.types.IntValue;
@@ -211,7 +212,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
             throws Exception {
 
         AbstractKeyedStateBackend<K> backend =
-                getStateBackend()
+//                new ProxyStateBackend(getStateBackend())
+            getStateBackend()
                         .createKeyedStateBackend(
                                 env,
                                 new JobID(),

@@ -57,6 +57,7 @@ import org.apache.flink.runtime.state.CheckpointStorageLoader;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
+import org.apache.flink.runtime.state.proxy.ProxyStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
@@ -1141,11 +1142,16 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         final StateBackend fromApplication =
                 configuration.getStateBackend(getUserCodeClassLoader());
 
-        return StateBackendLoader.fromApplicationOrConfigOrDefault(
-                fromApplication,
+        return new ProxyStateBackend(fromApplication,
                 getEnvironment().getTaskManagerInfo().getConfiguration(),
                 getUserCodeClassLoader(),
                 LOG);
+
+//        return StateBackendLoader.fromApplicationOrConfigOrDefault(
+//                fromApplication,
+//                getEnvironment().getTaskManagerInfo().getConfiguration(),
+//                getUserCodeClassLoader(),
+//                LOG);
     }
 
     private CheckpointStorage createCheckpointStorage(StateBackend backend) throws Exception {
