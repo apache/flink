@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecHashJoin
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, JoinUtil}
 import org.apache.flink.table.runtime.operators.join.HashJoinType
@@ -164,7 +164,7 @@ class BatchPhysicalHashJoin(
     val leftRowCount = Util.first(mq.getRowCount(left), 200000).toLong
     val rightRowSize = Util.first(mq.getAverageRowSize(right), 24).toInt
     val rightRowCount = Util.first(mq.getRowCount(right), 200000).toLong
-    val (leftEdge, rightEdge) = getInputEdges
+    val (leftEdge, rightEdge) = getInputProperties
     new BatchExecHashJoin(
         joinSpec,
         leftRowSize,
@@ -180,28 +180,27 @@ class BatchPhysicalHashJoin(
     )
   }
 
-  private def getInputEdges: (ExecEdge, ExecEdge) = {
-
-    val (buildRequiredShuffle, probeRequiredShuffle) = if (isBroadcast) {
-      (ExecEdge.RequiredShuffle.broadcast(), ExecEdge.RequiredShuffle.any())
+  private def getInputProperties: (InputProperty, InputProperty) = {
+    val (buildRequiredDistribution, probeRequiredDistribution) = if (isBroadcast) {
+      (InputProperty.BROADCAST_DISTRIBUTION, InputProperty.ANY_DISTRIBUTION)
     } else {
       val leftKeys = joinSpec.getLeftKeys
       val rightKeys = joinSpec.getRightKeys
       val (buildKeys, probeKeys) = if (leftIsBuild) (leftKeys, rightKeys) else (rightKeys, leftKeys)
-      (ExecEdge.RequiredShuffle.hash(buildKeys), ExecEdge.RequiredShuffle.hash(probeKeys))
+      (InputProperty.hashDistribution(buildKeys), InputProperty.hashDistribution(probeKeys))
     }
     val probeDamBehavior = if (hashJoinType.buildLeftSemiOrAnti()) {
-      ExecEdge.DamBehavior.END_INPUT
+      InputProperty.DamBehavior.END_INPUT
     } else {
-      ExecEdge.DamBehavior.PIPELINED
+      InputProperty.DamBehavior.PIPELINED
     }
-    val buildEdge = ExecEdge.builder()
-      .requiredShuffle(buildRequiredShuffle)
-      .damBehavior(ExecEdge.DamBehavior.BLOCKING)
+    val buildEdge = InputProperty.builder()
+      .requiredDistribution(buildRequiredDistribution)
+      .damBehavior(InputProperty.DamBehavior.BLOCKING)
       .priority(0)
       .build()
-    val probeEdge = ExecEdge.builder()
-      .requiredShuffle(probeRequiredShuffle)
+    val probeEdge = InputProperty.builder()
+      .requiredDistribution(probeRequiredDistribution)
       .damBehavior(probeDamBehavior)
       .priority(1)
       .build()

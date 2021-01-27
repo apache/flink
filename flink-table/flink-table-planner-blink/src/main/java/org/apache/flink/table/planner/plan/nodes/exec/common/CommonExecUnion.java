@@ -22,9 +22,9 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.types.logical.RowType;
 
 import java.util.ArrayList;
@@ -36,8 +36,9 @@ import java.util.List;
  */
 public abstract class CommonExecUnion extends ExecNodeBase<RowData> {
 
-    public CommonExecUnion(List<ExecEdge> inputEdges, RowType outputType, String description) {
-        super(inputEdges, outputType, description);
+    public CommonExecUnion(
+            List<InputProperty> inputProperties, RowType outputType, String description) {
+        super(inputProperties, outputType, description);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})

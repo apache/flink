@@ -24,8 +24,8 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecSink;
 import org.apache.flink.table.types.logical.LogicalType;
 
@@ -40,7 +40,7 @@ public class BatchExecSink extends CommonExecSink implements BatchExecNode<Objec
             List<String> qualifiedName,
             TableSchema tableSchema,
             DynamicTableSink tableSink,
-            ExecEdge inputEdge,
+            InputProperty inputProperty,
             LogicalType outputType,
             String description) {
         super(
@@ -49,7 +49,7 @@ public class BatchExecSink extends CommonExecSink implements BatchExecNode<Objec
                 tableSink,
                 tableSink.getChangelogMode(ChangelogMode.insertOnly()),
                 true, // isBounded
-                inputEdge,
+                inputProperty,
                 outputType,
                 description);
     }

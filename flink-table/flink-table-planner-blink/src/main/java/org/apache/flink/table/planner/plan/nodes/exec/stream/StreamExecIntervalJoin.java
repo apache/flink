@@ -32,9 +32,9 @@ import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.IntervalJoinSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.JoinSpec;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
@@ -65,11 +65,11 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
 
     public StreamExecIntervalJoin(
             IntervalJoinSpec intervalJoinSpec,
-            ExecEdge leftInputEdge,
-            ExecEdge rightInputEdge,
+            InputProperty leftInputProperty,
+            InputProperty rightInputProperty,
             RowType outputType,
             String description) {
-        super(Lists.newArrayList(leftInputEdge, rightInputEdge), outputType, description);
+        super(Lists.newArrayList(leftInputProperty, rightInputProperty), outputType, description);
         this.intervalJoinSpec = intervalJoinSpec;
     }
 

@@ -31,9 +31,9 @@ import org.apache.flink.table.planner.codegen.ExprCodeGenerator;
 import org.apache.flink.table.planner.codegen.FunctionCodeGenerator;
 import org.apache.flink.table.planner.codegen.GeneratedExpression;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.JoinSpec;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
@@ -75,11 +75,11 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
             boolean isTemporalTableFunctionJoin,
             int leftTimeAttributeIndex,
             int rightTimeAttributeIndex,
-            ExecEdge leftEdge,
-            ExecEdge rightEdge,
+            InputProperty leftInputProperty,
+            InputProperty rightInputProperty,
             RowType outputType,
             String description) {
-        super(Lists.newArrayList(leftEdge, rightEdge), outputType, description);
+        super(Lists.newArrayList(leftInputProperty, rightInputProperty), outputType, description);
         Preconditions.checkArgument(
                 rightTimeAttributeIndex == FIELD_INDEX_FOR_PROC_TIME_ATTRIBUTE
                         || rightTimeAttributeIndex >= 0);

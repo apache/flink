@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecPythonCorrelate;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.types.logical.RowType;
@@ -35,9 +35,9 @@ public class BatchExecPythonCorrelate extends CommonExecPythonCorrelate
             FlinkJoinType joinType,
             RexCall invocation,
             RexNode condition,
-            ExecEdge inputEdge,
+            InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(joinType, invocation, condition, inputEdge, outputType, description);
+        super(joinType, invocation, condition, inputProperty, outputType, description);
     }
 }

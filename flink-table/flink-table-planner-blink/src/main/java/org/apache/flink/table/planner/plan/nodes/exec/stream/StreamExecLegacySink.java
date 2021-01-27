@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecLegacySink;
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils;
 import org.apache.flink.table.sinks.TableSink;
@@ -46,10 +46,17 @@ public class StreamExecLegacySink<T> extends CommonExecLegacySink<T>
             TableSink<T> tableSink,
             @Nullable String[] upsertKeys,
             boolean needRetraction,
-            ExecEdge inputEdge,
+            InputProperty inputProperty,
             LogicalType outputType,
             String description) {
-        super(tableSink, upsertKeys, needRetraction, true, inputEdge, outputType, description);
+        super(
+                tableSink,
+                upsertKeys,
+                needRetraction,
+                true, // isStreaming
+                inputProperty,
+                outputType,
+                description);
     }
 
     protected RowType checkAndConvertInputTypeIfNeeded(RowType inputRowType) {

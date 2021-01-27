@@ -20,8 +20,8 @@ package org.apache.flink.table.planner.plan.nodes.exec.processor.utils;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.TestingBatchExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecExchange;
 import org.apache.flink.table.types.logical.RowType;
@@ -38,7 +38,7 @@ public class InputPriorityConflictResolverTest {
 
     @Test
     public void testDetectAndResolve() {
-        // P = ExecEdge.DamBehavior.PIPELINED, E = ExecEdge.DamBehavior.END_INPUT
+        // P = InputProperty.DamBehavior.PIPELINED, E = InputProperty.DamBehavior.END_INPUT
         // P100 = PIPELINED + priority 100
         //
         // 0 --------(P0)----> 1 --(P0)-----------> 7
@@ -54,26 +54,29 @@ public class InputPriorityConflictResolverTest {
         for (int i = 0; i < nodes.length; i++) {
             nodes[i] = new TestingBatchExecNode();
         }
-        nodes[1].addInput(nodes[0], ExecEdge.builder().priority(0).build());
-        nodes[2].addInput(nodes[1], ExecEdge.builder().priority(0).build());
-        nodes[3].addInput(nodes[0], ExecEdge.builder().priority(0).build());
-        nodes[4].addInput(nodes[8], ExecEdge.builder().priority(0).build());
-        nodes[4].addInput(nodes[0], ExecEdge.builder().priority(0).build());
-        nodes[5].addInput(nodes[8], ExecEdge.builder().priority(0).build());
+        nodes[1].addInput(nodes[0], InputProperty.builder().priority(0).build());
+        nodes[2].addInput(nodes[1], InputProperty.builder().priority(0).build());
+        nodes[3].addInput(nodes[0], InputProperty.builder().priority(0).build());
+        nodes[4].addInput(nodes[8], InputProperty.builder().priority(0).build());
+        nodes[4].addInput(nodes[0], InputProperty.builder().priority(0).build());
+        nodes[5].addInput(nodes[8], InputProperty.builder().priority(0).build());
         nodes[5].addInput(
                 nodes[0],
-                ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.END_INPUT).priority(0).build());
-        nodes[7].addInput(nodes[1], ExecEdge.builder().priority(0).build());
-        nodes[7].addInput(nodes[2], ExecEdge.builder().priority(0).build());
-        nodes[7].addInput(nodes[3], ExecEdge.builder().priority(1).build());
-        nodes[7].addInput(nodes[4], ExecEdge.builder().priority(10).build());
-        nodes[7].addInput(nodes[5], ExecEdge.builder().priority(10).build());
-        nodes[7].addInput(nodes[6], ExecEdge.builder().priority(100).build());
+                InputProperty.builder()
+                        .damBehavior(InputProperty.DamBehavior.END_INPUT)
+                        .priority(0)
+                        .build());
+        nodes[7].addInput(nodes[1], InputProperty.builder().priority(0).build());
+        nodes[7].addInput(nodes[2], InputProperty.builder().priority(0).build());
+        nodes[7].addInput(nodes[3], InputProperty.builder().priority(1).build());
+        nodes[7].addInput(nodes[4], InputProperty.builder().priority(10).build());
+        nodes[7].addInput(nodes[5], InputProperty.builder().priority(10).build());
+        nodes[7].addInput(nodes[6], InputProperty.builder().priority(100).build());
 
         InputPriorityConflictResolver resolver =
                 new InputPriorityConflictResolver(
                         Collections.singletonList(nodes[7]),
-                        ExecEdge.DamBehavior.END_INPUT,
+                        InputProperty.DamBehavior.END_INPUT,
                         ShuffleMode.BATCH,
                         new Configuration());
         resolver.detectAndResolve();
@@ -106,19 +109,21 @@ public class InputPriorityConflictResolverTest {
 
         BatchExecExchange exchange =
                 new BatchExecExchange(
-                        ExecEdge.builder().requiredShuffle(ExecEdge.RequiredShuffle.any()).build(),
+                        InputProperty.builder()
+                                .requiredDistribution(InputProperty.ANY_DISTRIBUTION)
+                                .build(),
                         (RowType) nodes[0].getOutputType(),
                         "Exchange");
         exchange.setRequiredShuffleMode(ShuffleMode.BATCH);
         exchange.setInputNodes(Collections.singletonList(nodes[0]));
 
-        nodes[1].addInput(exchange, ExecEdge.builder().priority(0).build());
-        nodes[1].addInput(exchange, ExecEdge.builder().priority(1).build());
+        nodes[1].addInput(exchange, InputProperty.builder().priority(0).build());
+        nodes[1].addInput(exchange, InputProperty.builder().priority(1).build());
 
         InputPriorityConflictResolver resolver =
                 new InputPriorityConflictResolver(
                         Collections.singletonList(nodes[1]),
-                        ExecEdge.DamBehavior.END_INPUT,
+                        InputProperty.DamBehavior.END_INPUT,
                         ShuffleMode.BATCH,
                         new Configuration());
         resolver.detectAndResolve();

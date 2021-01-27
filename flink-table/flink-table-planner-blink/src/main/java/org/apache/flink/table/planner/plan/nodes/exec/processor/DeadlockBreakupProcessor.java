@@ -20,8 +20,8 @@ package org.apache.flink.table.planner.plan.nodes.exec.processor;
 
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.processor.utils.InputPriorityConflictResolver;
 
@@ -42,7 +42,7 @@ public class DeadlockBreakupProcessor implements DAGProcessor {
         InputPriorityConflictResolver resolver =
                 new InputPriorityConflictResolver(
                         execGraph.getRootNodes(),
-                        ExecEdge.DamBehavior.END_INPUT,
+                        InputProperty.DamBehavior.END_INPUT,
                         ShuffleMode.BATCH,
                         context.getPlanner().getTableConfig().getConfiguration());
         resolver.detectAndResolve();

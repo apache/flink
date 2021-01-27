@@ -39,7 +39,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class ExecNodeBase<T> implements ExecNode<T> {
 
     private final String description;
-    private final List<ExecEdge> inputEdges;
+    private final List<InputProperty> inputProperties;
     private final LogicalType outputType;
     // TODO remove this field once edge support `source` and `target`,
     //  and then we can get/set `inputNodes` through `inputEdges`.
@@ -47,8 +47,9 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
 
     private transient Transformation<T> transformation;
 
-    protected ExecNodeBase(List<ExecEdge> inputEdges, LogicalType outputType, String description) {
-        this.inputEdges = new ArrayList<>(checkNotNull(inputEdges));
+    protected ExecNodeBase(
+            List<InputProperty> inputProperties, LogicalType outputType, String description) {
+        this.inputProperties = checkNotNull(inputProperties);
         this.outputType = checkNotNull(outputType);
         this.description = checkNotNull(description);
     }
@@ -70,14 +71,14 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
     }
 
     @Override
-    public List<ExecEdge> getInputEdges() {
-        return checkNotNull(inputEdges, "inputEdges should not be null.");
+    public List<InputProperty> getInputProperties() {
+        return inputProperties;
     }
 
     // TODO remove this method once edge support `source` and `target`,
     //  and then we can get/set `inputNodes` through `inputEdges`.
     public void setInputNodes(List<ExecNode<?>> inputNodes) {
-        checkArgument(checkNotNull(inputNodes).size() == checkNotNull(inputEdges).size());
+        checkArgument(checkNotNull(inputNodes).size() == inputProperties.size());
         this.inputNodes = new ArrayList<>(inputNodes);
     }
 
@@ -85,12 +86,6 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
     public void replaceInputNode(int ordinalInParent, ExecNode<?> newInputNode) {
         checkArgument(ordinalInParent >= 0 && ordinalInParent < inputNodes.size());
         inputNodes.set(ordinalInParent, newInputNode);
-    }
-
-    @Override
-    public void replaceInputEdge(int ordinalInParent, ExecEdge newInputEdge) {
-        checkArgument(ordinalInParent >= 0 && ordinalInParent < inputEdges.size());
-        inputEdges.set(ordinalInParent, newInputEdge);
     }
 
     public Transformation<T> translateToPlan(Planner planner) {
@@ -114,7 +109,10 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
                 .anyMatch(
                         i ->
                                 i instanceof CommonExecExchange
-                                        && i.getInputEdges().get(0).getRequiredShuffle().getType()
-                                                == ExecEdge.ShuffleType.SINGLETON);
+                                        && i.getInputProperties()
+                                                        .get(0)
+                                                        .getRequiredDistribution()
+                                                        .getType()
+                                                == InputProperty.DistributionType.SINGLETON);
     }
 }

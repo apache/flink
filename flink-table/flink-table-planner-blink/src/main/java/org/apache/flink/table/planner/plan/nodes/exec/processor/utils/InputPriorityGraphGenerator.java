@@ -21,8 +21,8 @@ package org.apache.flink.table.planner.plan.nodes.exec.processor.utils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.AbstractExecNodeExactlyOnceVisitor;
 import org.apache.flink.util.Preconditions;
@@ -92,7 +92,7 @@ public abstract class InputPriorityGraphGenerator {
 
     private final List<ExecNode<?>> roots;
     private final Set<ExecNode<?>> boundaries;
-    private final ExecEdge.DamBehavior safeDamBehavior;
+    private final InputProperty.DamBehavior safeDamBehavior;
 
     protected TopologyGraph graph;
 
@@ -102,12 +102,12 @@ public abstract class InputPriorityGraphGenerator {
      * @param roots the first layer of nodes on the output side of the sub-graph
      * @param boundaries the first layer of nodes on the input side of the sub-graph
      * @param safeDamBehavior when checking for conflicts we'll ignore the edges with {@link
-     *     ExecEdge.DamBehavior} stricter or equal than this
+     *     InputProperty.DamBehavior} stricter or equal than this
      */
     public InputPriorityGraphGenerator(
             List<ExecNode<?>> roots,
             Set<ExecNode<?>> boundaries,
-            ExecEdge.DamBehavior safeDamBehavior) {
+            InputProperty.DamBehavior safeDamBehavior) {
         Preconditions.checkArgument(
                 roots.stream().allMatch(r -> r instanceof BatchExecNode),
                 "InputPriorityConflictResolver can only be used for batch jobs.");
@@ -138,12 +138,12 @@ public abstract class InputPriorityGraphGenerator {
         // group inputs by input priorities
         TreeMap<Integer, List<Integer>> inputPriorityGroupMap = new TreeMap<>();
         Preconditions.checkState(
-                node.getInputNodes().size() == node.getInputEdges().size(),
+                node.getInputNodes().size() == node.getInputProperties().size(),
                 "Number of inputs nodes does not equal to number of input edges for node "
                         + node.getClass().getName()
                         + ". This is a bug.");
-        for (int i = 0; i < node.getInputEdges().size(); i++) {
-            int priority = node.getInputEdges().get(i).getPriority();
+        for (int i = 0; i < node.getInputProperties().size(); i++) {
+            int priority = node.getInputProperties().get(i).getPriority();
             inputPriorityGroupMap.computeIfAbsent(priority, k -> new ArrayList<>()).add(i);
         }
 
@@ -192,10 +192,10 @@ public abstract class InputPriorityGraphGenerator {
                         boolean hasAncestor = false;
 
                         if (!boundaries.contains(node)) {
-                            List<ExecEdge> inputEdges = node.getInputEdges();
-                            for (int i = 0; i < inputEdges.size(); i++) {
+                            List<InputProperty> inputProperties = node.getInputProperties();
+                            for (int i = 0; i < inputProperties.size(); i++) {
                                 // we only go through PIPELINED edges
-                                if (inputEdges
+                                if (inputProperties
                                         .get(i)
                                         .getDamBehavior()
                                         .stricterOrEqual(safeDamBehavior)) {

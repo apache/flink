@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecIntervalJoin
 import org.apache.flink.table.planner.plan.nodes.exec.utils.IntervalJoinSpec
 import org.apache.flink.table.planner.plan.nodes.exec.utils.IntervalJoinSpec.WindowBounds
@@ -89,8 +89,8 @@ class StreamPhysicalIntervalJoin(
   override def translateToExecNode(): ExecNode[_] = {
     new StreamExecIntervalJoin(
         new IntervalJoinSpec(joinSpec, windowBounds),
-        ExecEdge.DEFAULT,
-        ExecEdge.DEFAULT,
+        InputProperty.DEFAULT,
+        InputProperty.DEFAULT,
         FlinkTypeFactory.toLogicalRowType(getRowType),
         getRelDetailedDescription)
   }

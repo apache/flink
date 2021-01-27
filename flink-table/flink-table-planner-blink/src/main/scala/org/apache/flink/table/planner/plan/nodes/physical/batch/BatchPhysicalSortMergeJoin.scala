@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortMergeJoin
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, FlinkRelOptUtil, JoinTypeUtil, JoinUtil}
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType
 
@@ -179,12 +179,8 @@ class BatchPhysicalSortMergeJoin(
       joinSpec.getFilterNulls,
       condition,
       estimateOutputSize(getLeft) < estimateOutputSize(getRight),
-      ExecEdge.builder()
-        .damBehavior(ExecEdge.DamBehavior.END_INPUT)
-        .build(),
-      ExecEdge.builder()
-        .damBehavior(ExecEdge.DamBehavior.END_INPUT)
-        .build(),
+      InputProperty.builder().damBehavior(InputProperty.DamBehavior.END_INPUT).build(),
+      InputProperty.builder().damBehavior(InputProperty.DamBehavior.END_INPUT).build(),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription
     )

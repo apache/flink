@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecPythonCalc;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -30,7 +30,10 @@ import org.apache.calcite.rex.RexProgram;
 public class BatchExecPythonCalc extends CommonExecPythonCalc implements BatchExecNode<RowData> {
 
     public BatchExecPythonCalc(
-            RexProgram calcProgram, ExecEdge inputEdge, RowType outputType, String description) {
-        super(calcProgram, inputEdge, outputType, description);
+            RexProgram calcProgram,
+            InputProperty inputProperty,
+            RowType outputType,
+            String description) {
+        super(calcProgram, inputProperty, outputType, description);
     }
 }

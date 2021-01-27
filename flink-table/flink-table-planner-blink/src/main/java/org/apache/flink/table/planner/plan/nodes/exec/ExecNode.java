@@ -57,29 +57,21 @@ public interface ExecNode<T> {
     List<ExecNode<?>> getInputNodes();
 
     /**
-     * Returns a list of this node's input edges. If there are no inputs, returns an empty list, not
-     * null.
+     * Returns a list of this node's input properties. If there are no inputs, returns an empty
+     * list, not null.
      *
-     * @return List of this node's input edges
+     * @return List of this node's input properties
      */
-    List<ExecEdge> getInputEdges();
+    List<InputProperty> getInputProperties();
 
     /**
      * Replaces the <code>ordinalInParent</code><sup>th</sup> input. Once we introduce source node
-     * and target node for {@link ExecEdge}, we will remove this method.
+     * and target node for {@link InputProperty}, we will remove this method.
      *
      * @param ordinalInParent Position of the child input, 0 is the first
      * @param newInputNode New node that should be put at position ordinalInParent
      */
     void replaceInputNode(int ordinalInParent, ExecNode<?> newInputNode);
-
-    /**
-     * Replaces the <code>ordinalInParent</code><sup>th</sup> edge.
-     *
-     * @param ordinalInParent Position of the child input, 0 is the first
-     * @param newInputEdge New edge that should be put at position ordinalInParent
-     */
-    void replaceInputEdge(int ordinalInParent, ExecEdge newInputEdge);
 
     /**
      * Translates this node into a Flink operator.
