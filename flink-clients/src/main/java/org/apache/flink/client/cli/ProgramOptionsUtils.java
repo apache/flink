@@ -127,11 +127,11 @@ public enum ProgramOptionsUtils {
                 programOptions.getClass().getDeclaredField("pythonConfiguration");
         pythonConfiguration.setAccessible(true);
         ClassLoader classLoader = getPythonClassLoader();
-        Class<?> PythonDependencyUtilsClazz =
+        Class<?> pythonDependencyUtilsClazz =
                 Class.forName(
                         "org.apache.flink.python.util.PythonDependencyUtils", false, classLoader);
         Method mergeMethod =
-                PythonDependencyUtilsClazz.getDeclaredMethod(
+                pythonDependencyUtilsClazz.getDeclaredMethod(
                         "merge", Configuration.class, Configuration.class);
         mergeMethod.invoke(null, configuration, pythonConfiguration.get(programOptions));
     }
