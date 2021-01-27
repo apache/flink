@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -123,7 +124,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
     // Consume
     // ------------------------------------------------------------------------
 
-    public void checkpointStarted(CheckpointBarrier barrier) {
+    public void checkpointStarted(CheckpointBarrier barrier) throws CheckpointException {
         channelStatePersister.startPersisting(barrier.getId(), Collections.emptyList());
     }
 
