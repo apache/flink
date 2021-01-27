@@ -151,9 +151,11 @@ public class JarHandlerUtils {
                     URL::toString);
         }
 
-        public JobGraph toJobGraph(Configuration configuration, boolean suppressOutput) {
+        public JobGraph toJobGraph(
+                PackagedProgram packagedProgram,
+                Configuration configuration,
+                boolean suppressOutput) {
             try {
-                final PackagedProgram packagedProgram = toPackagedProgram(configuration);
                 return PackagedProgramUtils.createJobGraph(
                         packagedProgram, configuration, parallelism, jobId, suppressOutput);
             } catch (final ProgramInvocationException e) {

@@ -103,6 +103,11 @@ public class JarRunHandler
                         executor)
                 .handle(
                         (jobIds, throwable) -> {
+                            try {
+                                program.deleteExtractedLibraries();
+                            } catch (Exception e) {
+                                log.debug("Error while deleting jars extracted from user-jar.");
+                            }
                             if (throwable != null) {
                                 throw new CompletionException(
                                         new RestHandlerException(

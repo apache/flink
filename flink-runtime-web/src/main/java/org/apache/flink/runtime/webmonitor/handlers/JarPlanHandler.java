@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
@@ -100,8 +101,19 @@ public class JarPlanHandler
 
         return CompletableFuture.supplyAsync(
                 () -> {
-                    final JobGraph jobGraph = context.toJobGraph(configuration, true);
-                    return planGenerator.apply(jobGraph);
+                    final PackagedProgram packagedProgram =
+                            context.toPackagedProgram(configuration);
+                    try {
+                        final JobGraph jobGraph =
+                                context.toJobGraph(packagedProgram, configuration, true);
+                        return planGenerator.apply(jobGraph);
+                    } finally {
+                        try {
+                            packagedProgram.deleteExtractedLibraries();
+                        } catch (Exception e) {
+                            log.debug("Error while deleting jars extracted from user-jar.");
+                        }
+                    }
                 },
                 executor);
     }
