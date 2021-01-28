@@ -27,7 +27,7 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
 import java.util.Collection;
 
-import static org.apache.flink.runtime.entrypoint.ClusterEntrypoint.EXECUTION_MODE;
+import static org.apache.flink.runtime.entrypoint.ClusterEntrypoint.INTERNAL_CLUSTER_EXECUTION_MODE;
 
 /** {@link DispatcherFactory} which creates a {@link MiniDispatcher}. */
 public enum JobDispatcherFactory implements DispatcherFactory {
@@ -45,7 +45,7 @@ public enum JobDispatcherFactory implements DispatcherFactory {
 
         final Configuration configuration =
                 partialDispatcherServicesWithJobGraphStore.getConfiguration();
-        final String executionModeValue = configuration.getString(EXECUTION_MODE);
+        final String executionModeValue = configuration.getString(INTERNAL_CLUSTER_EXECUTION_MODE);
         final ClusterEntrypoint.ExecutionMode executionMode =
                 ClusterEntrypoint.ExecutionMode.valueOf(executionModeValue);
 
