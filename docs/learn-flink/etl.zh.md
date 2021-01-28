@@ -342,14 +342,14 @@ connected stream 也可以被用来实现流的关联。
 
 ### 示例
 
-在这个例子中，一个控制流是用来指定哪些词需要从 `streamOfWords` 里过滤掉的。 一个称为 `ControlFunction` 的 `RichCoFlatMapFunction` 作用于连接的流来实现这个功能。
+在这个例子中，一个控制流是用来指定哪些词需要从 `datastreamOfWords` 里过滤掉的。 一个称为 `ControlFunction` 的 `RichCoFlatMapFunction` 作用于连接的流来实现这个功能。
 
 {% highlight java %}
 public static void main(String[] args) throws Exception {
     StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
     DataStream<String> control = env.fromElements("DROP", "IGNORE").keyBy(x -> x);
-    DataStream<String> streamOfWords = env.fromElements("Apache", "DROP", "Flink", "IGNORE").keyBy(x -> x);
+    DataStream<String> datastreamOfWords = env.fromElements("Apache", "DROP", "Flink", "IGNORE").keyBy(x -> x);
   
     control
         .connect(datastreamOfWords)
