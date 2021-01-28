@@ -28,6 +28,9 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
+import org.apache.flink.table.planner.expressions.PlannerWindowEnd;
+import org.apache.flink.table.planner.expressions.PlannerWindowStart;
 import org.apache.flink.table.runtime.operators.python.aggregate.arrow.AbstractArrowPythonAggregateFunctionOperator;
 import org.apache.flink.table.runtime.operators.window.Window;
 import org.apache.flink.table.runtime.operators.window.assigners.SlidingWindowAssigner;
@@ -450,7 +453,12 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                 windowAssigner,
                 trigger,
                 0,
-                new int[] {0, 1},
+                new FlinkRelBuilder.PlannerNamedWindowProperty[] {
+                    new FlinkRelBuilder.PlannerNamedWindowProperty(
+                            "start", new PlannerWindowStart(null)),
+                    new FlinkRelBuilder.PlannerNamedWindowProperty(
+                            "end", new PlannerWindowEnd(null))
+                },
                 groupingSet,
                 udafInputOffsets);
     }
@@ -467,7 +475,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                 WindowAssigner windowAssigner,
                 Trigger trigger,
                 long allowedLateness,
-                int[] namedProperties,
+                FlinkRelBuilder.PlannerNamedWindowProperty[] namedProperties,
                 int[] groupingSet,
                 int[] udafInputOffsets) {
             super(
