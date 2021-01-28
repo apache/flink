@@ -29,7 +29,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.state.AbstractSnapshotStrategy;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackendBuilder;
@@ -37,7 +36,9 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.runtime.state.SnapshotResult;
+import org.apache.flink.runtime.state.SnapshotResources;
+import org.apache.flink.runtime.state.SnapshotStrategy;
+import org.apache.flink.runtime.state.SnapshotStrategyRunner;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -61,12 +62,8 @@ import javax.annotation.Nonnull;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Optional;
-import java.util.concurrent.FutureTask;
-import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.mockito.Mockito.mock;
 
 /** Tests to verify end-to-end logic of checkpoint failure manager. */
 public class CheckpointFailureManagerITCase extends TestLogger {
@@ -162,8 +159,28 @@ public class CheckpointFailureManagerITCase extends TestLogger {
     }
 
     private static class AsyncFailureStateBackend extends MemoryStateBackend {
-
         private static final long serialVersionUID = 1L;
+        private static final SnapshotStrategy<OperatorStateHandle, SnapshotResources>
+                ASYNC_DECLINING_SNAPSHOT_STRATEGY =
+                        new SnapshotStrategy<OperatorStateHandle, SnapshotResources>() {
+                            @Override
+                            public SnapshotResources syncPrepareResources(long checkpointId)
+                                    throws Exception {
+                                return null;
+                            }
+
+                            @Override
+                            public SnapshotResultSupplier<OperatorStateHandle> asyncSnapshot(
+                                    SnapshotResources syncPartResource,
+                                    long checkpointId,
+                                    long timestamp,
+                                    @Nonnull CheckpointStreamFactory streamFactory,
+                                    @Nonnull CheckpointOptions checkpointOptions) {
+                                return (closeableRegistry) -> {
+                                    throw new Exception("Expected async snapshot exception.");
+                                };
+                            }
+                        };
 
         @Override
         public OperatorStateBackend createOperatorStateBackend(
@@ -180,28 +197,19 @@ public class CheckpointFailureManagerITCase extends TestLogger {
                 @Override
                 @SuppressWarnings("unchecked")
                 public DefaultOperatorStateBackend build() {
+                    CloseableRegistry closeableRegistry = new CloseableRegistry();
                     return new DefaultOperatorStateBackend(
                             executionConfig,
-                            cancelStreamRegistry,
+                            closeableRegistry,
                             new HashMap<>(),
                             new HashMap<>(),
                             new HashMap<>(),
                             new HashMap<>(),
-                            mock(AbstractSnapshotStrategy.class)) {
-                        @Nonnull
-                        @Override
-                        public RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshot(
-                                long checkpointId,
-                                long timestamp,
-                                @Nonnull CheckpointStreamFactory streamFactory,
-                                @Nonnull CheckpointOptions checkpointOptions) {
-
-                            return new FutureTask<>(
-                                    () -> {
-                                        throw new Exception("Expected async snapshot exception.");
-                                    });
-                        }
-                    };
+                            new SnapshotStrategyRunner(
+                                    "Async Failure State Backend",
+                                    ASYNC_DECLINING_SNAPSHOT_STRATEGY,
+                                    closeableRegistry,
+                                    SnapshotStrategyRunner.ExecutionType.ASYNCHRONOUS));
                 }
             }.build();
         }
