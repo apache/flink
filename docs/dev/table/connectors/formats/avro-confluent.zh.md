@@ -35,7 +35,7 @@ Avro Schema Registry (``avro-confluent``) 格式能让你读取被 ``io.confluen
 
 当以这种格式写入（序列化）记录时，Avro schema 是从 table schema 中推断出来的，并会用来检索要与数据一起编码的 schema id。我们会在配置的 Confluent Schema Registry 中配置的 [subject](https://docs.confluent.io/current/schema-registry/index.html#schemas-subjects-and-topics) 下，检索 schema id。subject 通过 `avro-confluent.schema-registry.subject` 参数来制定。
 
-Avro Schema Registry 格式只能与[Apache Kafka SQL连接器]({% link dev/table/connectors/kafka.zh.md %})结合使用。||TODO: TRANSLATION:|| or the [Upsert Kafka SQL Connector]({% link dev/table/connectors/upsert-kafka.zh.md %}).
+The Avro Schema Registry format can only be used in conjunction with the [Apache Kafka SQL connector]({% link dev/table/connectors/kafka.zh.md %}) or the [Upsert Kafka SQL Connector]({% link dev/table/connectors/upsert-kafka.zh.md %}).
 
 依赖
 ------------
@@ -52,8 +52,6 @@ Avro Schema Registry 格式只能与[Apache Kafka SQL连接器]({% link dev/tabl
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
-
-||TODO: TRANSLATION:||
 
 Example of a table using raw UTF-8 string as Kafka key and Avro records registered in the Schema Registry as Kafka values:
 
