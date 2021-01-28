@@ -256,4 +256,7 @@ object OperatorCodeGenerator extends Logging {
 
   def generateCollect(emit: String): String =
     s"$DEFAULT_OPERATOR_COLLECTOR_TERM.collect($OUT_ELEMENT.replace($emit));"
+
+  def generateCollectWithTimestamp(emit: String, timestampTerm: String): String =
+    s"$DEFAULT_OPERATOR_COLLECTOR_TERM.collect($OUT_ELEMENT.replace($emit, $timestampTerm));"
 }
