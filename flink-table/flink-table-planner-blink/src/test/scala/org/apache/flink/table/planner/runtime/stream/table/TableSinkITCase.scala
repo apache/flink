@@ -22,7 +22,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.factories.TestValuesTableFactory.{TestSinkContextTableSink, changelogRow}
+import org.apache.flink.table.planner.factories.TestValuesTableFactory.changelogRow
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase
 import org.apache.flink.table.planner.runtime.utils.TestData.{data1, nullData4, smallTupleData3, tupleData3, tupleData5}
 import org.apache.flink.table.utils.LegacyRowResource
@@ -33,7 +33,6 @@ import org.junit.{Rule, Test}
 
 import java.lang.{Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
-import java.time.{LocalDateTime, ZoneOffset}
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.JavaConversions._
@@ -629,89 +628,6 @@ class TableSinkITCase extends StreamingTestBase {
   }
 
   @Test
-  def testSinkContext(): Unit = {
-    val data = List(
-      rowOf("1970-01-01 00:00:00.001", localDateTime(1L), 1, 1d),
-      rowOf("1970-01-01 00:00:00.002", localDateTime(2L), 1, 2d),
-      rowOf("1970-01-01 00:00:00.003", localDateTime(3L), 1, 2d),
-      rowOf("1970-01-01 00:00:00.004", localDateTime(4L), 1, 5d),
-      rowOf("1970-01-01 00:00:00.007", localDateTime(7L), 1, 3d),
-      rowOf("1970-01-01 00:00:00.008", localDateTime(8L), 1, 3d),
-      rowOf("1970-01-01 00:00:00.016", localDateTime(16L), 1, 4d))
-
-    val dataId: String = TestValuesTableFactory.registerData(data)
-
-    val sourceDDL =
-      s"""
-         |CREATE TABLE src (
-         |  log_ts STRING,
-         |  ts TIMESTAMP(3),
-         |  a INT,
-         |  b DOUBLE,
-         |  WATERMARK FOR ts AS ts - INTERVAL '0.001' SECOND
-         |) WITH (
-         |  'connector' = 'values',
-         |  'data-id' = '$dataId'
-         |)
-      """.stripMargin
-
-    val sinkDDL =
-      s"""
-         |CREATE TABLE sink (
-         |  log_ts STRING,
-         |  ts TIMESTAMP(3),
-         |  a INT,
-         |  b DOUBLE
-         |) WITH (
-         |  'connector' = 'values',
-         |  'table-sink-class' = '${classOf[TestSinkContextTableSink].getName}'
-         |)
-      """.stripMargin
-
-    tEnv.executeSql(sourceDDL)
-    tEnv.executeSql(sinkDDL)
-
-    //---------------------------------------------------------------------------------------
-    // Verify writing out a source directly with the rowtime attribute
-    //---------------------------------------------------------------------------------------
-
-    tEnv.executeSql("INSERT INTO sink SELECT * FROM src").await()
-
-    val expected = List(1000, 2000, 3000, 4000, 7000, 8000, 16000)
-    assertEquals(expected.sorted, TestSinkContextTableSink.ROWTIMES.sorted)
-
-    val sinkDDL2 =
-      s"""
-         |CREATE TABLE sink2 (
-         |  window_rowtime TIMESTAMP(3),
-         |  b DOUBLE
-         |) WITH (
-         |  'connector' = 'values',
-         |  'table-sink-class' = '${classOf[TestSinkContextTableSink].getName}'
-         |)
-      """.stripMargin
-    tEnv.executeSql(sinkDDL2)
-
-    //---------------------------------------------------------------------------------------
-    // Verify writing out with additional operator to generate a new rowtime attribute
-    //---------------------------------------------------------------------------------------
-
-    tEnv.executeSql(
-      """
-        |INSERT INTO sink2
-        |SELECT
-        |  TUMBLE_ROWTIME(ts, INTERVAL '5' SECOND),
-        |  SUM(b)
-        |FROM src
-        |GROUP BY TUMBLE(ts, INTERVAL '5' SECOND)
-        |""".stripMargin
-    ).await()
-
-    val expected2 = List(4999, 9999, 19999)
-    assertEquals(expected2.sorted, TestSinkContextTableSink.ROWTIMES.sorted)
-  }
-
-  @Test
   def testMetadataSourceAndSink(): Unit = {
     val dataId = TestValuesTableFactory.registerData(nullData4)
     // tests metadata at different locations and casting in both sources and sinks
@@ -953,11 +869,5 @@ class TableSinkITCase extends StreamingTestBase {
          |)
          |""".stripMargin)
     tEnv.executeSql(s"INSERT INTO $sinkTableName SELECT * FROM $sourceTableName").await()
-  }
-
-  // ------------------------------------------------------------------------------------------
-
-  private def localDateTime(epochSecond: Long): LocalDateTime = {
-    LocalDateTime.ofEpochSecond(epochSecond, 0, ZoneOffset.UTC)
   }
 }
