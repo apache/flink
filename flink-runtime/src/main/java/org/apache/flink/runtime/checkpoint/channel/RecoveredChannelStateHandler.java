@@ -67,8 +67,6 @@ class InputChannelRecoveredStateHandler
     @Override
     public void recover(InputChannelInfo channelInfo, Buffer buffer) {
         if (buffer.readableBytes() > 0) {
-            NetworkActionsLogger.traceRecover(
-                    "InputChannelRecoveredStateHandler#recover", buffer, channelInfo);
             getChannel(channelInfo).onRecoveredStateBuffer(buffer);
         } else {
             buffer.recycleBuffer();

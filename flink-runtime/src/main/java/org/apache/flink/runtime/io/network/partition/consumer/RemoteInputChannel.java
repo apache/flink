@@ -42,6 +42,9 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
@@ -60,6 +63,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 /** An input channel, which requests a remote partition queue. */
 public class RemoteInputChannel extends InputChannel {
+    private static final Logger LOG = LoggerFactory.getLogger(RemoteInputChannel.class);
 
     private static final int NONE = -1;
 
@@ -163,6 +167,12 @@ public class RemoteInputChannel extends InputChannel {
     public void requestSubpartition(int subpartitionIndex)
             throws IOException, InterruptedException {
         if (partitionRequestClient == null) {
+            LOG.debug(
+                    "{}: Requesting REMOTE subpartition {} of partition {}. {}",
+                    this,
+                    subpartitionIndex,
+                    partitionId,
+                    channelStatePersister);
             // Create a client and request the partition
             try {
                 partitionRequestClient =
@@ -448,6 +458,7 @@ public class RemoteInputChannel extends InputChannel {
                 NetworkActionsLogger.traceInput(
                         "RemoteInputChannel#onBuffer",
                         buffer,
+                        inputGate.getOwningTaskName(),
                         channelInfo,
                         channelStatePersister,
                         sequenceNumber);
