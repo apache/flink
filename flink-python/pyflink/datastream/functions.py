@@ -22,8 +22,8 @@ from typing import Union, Any, Dict
 
 from py4j.java_gateway import JavaObject
 
-from pyflink.datastream.state import ValueState, ValueStateDescriptor, \
-    ListStateDescriptor, ListState, MapStateDescriptor, MapState
+from pyflink.datastream.state import ValueState, ValueStateDescriptor, ListStateDescriptor, \
+    ListState, MapStateDescriptor, MapState, ReducingStateDescriptor, ReducingState
 from pyflink.datastream.time_domain import TimeDomain
 from pyflink.java_gateway import get_gateway
 
@@ -140,6 +140,16 @@ class RuntimeContext(object):
         """
         Gets a handle to the system's key/value map state. This state is similar to the value state
         access, but is optimized for state that is composed of user-defined key-value pairs.
+
+        This state is only accessible if the function is executed on a KeyedStream.
+        """
+        pass
+
+    def get_reducing_state(self, state_descriptor: ReducingStateDescriptor) -> ReducingState:
+        """
+        Gets a handle to the system's key/value reducing state. This state is similar to the state
+        accessed via get_state(ValueStateDescriptor), but is optimized for state that aggregates
+        values.
 
         This state is only accessible if the function is executed on a KeyedStream.
         """
