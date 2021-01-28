@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.KeyExtractorFunction;
 import org.apache.flink.runtime.state.KeyGroupPartitioner;
+import org.apache.flink.runtime.state.KeyGroupPartitioner.PartitioningResult;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.RegisteredPriorityQueueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.StateSnapshot;
@@ -31,6 +32,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.lang.reflect.Array;
+import java.util.Iterator;
 
 /**
  * This class represents the snapshot of an {@link HeapPriorityQueueSet}.
@@ -55,7 +57,7 @@ public class HeapPriorityQueueStateSnapshot<T> implements StateSnapshot {
     @Nonnegative private final int totalKeyGroups;
 
     /** Result of partitioning the snapshot by key-group. */
-    @Nullable private StateKeyGroupWriter stateKeyGroupWriter;
+    @Nullable private PartitioningResult<T> partitioningResult;
 
     HeapPriorityQueueStateSnapshot(
             @Nonnull T[] heapArrayCopy,
@@ -71,12 +73,19 @@ public class HeapPriorityQueueStateSnapshot<T> implements StateSnapshot {
         this.totalKeyGroups = totalKeyGroups;
     }
 
-    @SuppressWarnings("unchecked")
     @Nonnull
     @Override
     public StateKeyGroupWriter getKeyGroupWriter() {
+        return getPartitioningResult();
+    }
 
-        if (stateKeyGroupWriter == null) {
+    public Iterator<T> getIteratorForKeyGroup(int keyGroupId) {
+        return getPartitioningResult().iterator(keyGroupId);
+    }
+
+    @SuppressWarnings("unchecked")
+    private PartitioningResult<T> getPartitioningResult() {
+        if (partitioningResult == null) {
 
             T[] partitioningOutput =
                     (T[])
@@ -96,10 +105,10 @@ public class HeapPriorityQueueStateSnapshot<T> implements StateSnapshot {
                             keyExtractor,
                             elementSerializer::serialize);
 
-            stateKeyGroupWriter = keyGroupPartitioner.partitionByKeyGroup();
+            partitioningResult = keyGroupPartitioner.partitionByKeyGroup();
         }
 
-        return stateKeyGroupWriter;
+        return partitioningResult;
     }
 
     @Nonnull
