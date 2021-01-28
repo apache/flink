@@ -21,6 +21,12 @@
             <td>Configure the minimum increase in parallelism for a job to scale up.</td>
         </tr>
         <tr>
+            <td><h5>scheduler-mode</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td><p>Enum</p>Possible values: [REACTIVE]</td>
+            <td>Determines the mode of the scheduler. Note that <span markdown="span">`scheduler-mode`</span>=<span markdown="span">`REACTIVE`</span> is only supported by standalone application deployments, not by active resource managers (YARN, Kubernetes) or session clusters.</td>
+        </tr>
+        <tr>
             <td><h5>slot.idle.timeout</h5></td>
             <td style="word-wrap: break-word;">50000</td>
             <td>Long</td>

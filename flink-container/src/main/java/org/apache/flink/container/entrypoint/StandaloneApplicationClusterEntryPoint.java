@@ -85,6 +85,11 @@ public final class StandaloneApplicationClusterEntryPoint extends ApplicationClu
         ClusterEntrypoint.runClusterEntrypoint(entrypoint);
     }
 
+    @Override
+    protected boolean supportsReactiveMode() {
+        return true;
+    }
+
     @VisibleForTesting
     static Configuration loadConfigurationFromClusterConfig(
             StandaloneApplicationClusterConfiguration clusterConfiguration) {
