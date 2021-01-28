@@ -37,6 +37,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -176,7 +177,7 @@ public class PythonDependencyUtils {
             String fileKey = generateUniqueFileKey(PYTHON_FILE_PREFIX, filePath);
             registerCachedFileIfNotExist(filePath, fileKey);
             if (!internalConfig.contains(PYTHON_FILES)) {
-                internalConfig.set(PYTHON_FILES, new HashMap<>());
+                internalConfig.set(PYTHON_FILES, new LinkedHashMap<>());
             }
             internalConfig.get(PYTHON_FILES).put(fileKey, new File(filePath).getName());
         }
