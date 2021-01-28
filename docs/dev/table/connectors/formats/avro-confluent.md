@@ -80,7 +80,7 @@ CREATE TABLE user_created (
 )
 {% endhighlight %}
 
-To which  we can write as follows):
+We can write data into the kafka table as follows:
 
 {% highlight sql %}
 INSERT INTO user_created
