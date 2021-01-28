@@ -45,7 +45,7 @@ Dependencies
     connector=connector
 %}
 
-Usage examples
+How to create tables with Avro-Confluent format
 --------------
 
 <div class="codetabs" markdown="1">
