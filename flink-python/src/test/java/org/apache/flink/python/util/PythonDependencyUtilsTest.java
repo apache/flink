@@ -35,7 +35,13 @@ import java.util.stream.Collectors;
 import static org.apache.flink.python.PythonOptions.PYTHON_CLIENT_EXECUTABLE;
 import static org.apache.flink.python.PythonOptions.PYTHON_EXECUTABLE;
 import static org.apache.flink.python.PythonOptions.PYTHON_REQUIREMENTS;
-import static org.apache.flink.python.util.PythonDependencyUtils.*;
+import static org.apache.flink.python.util.PythonDependencyUtils.CACHE;
+import static org.apache.flink.python.util.PythonDependencyUtils.FILE;
+import static org.apache.flink.python.util.PythonDependencyUtils.PYTHON_ARCHIVES;
+import static org.apache.flink.python.util.PythonDependencyUtils.PYTHON_FILES;
+import static org.apache.flink.python.util.PythonDependencyUtils.PYTHON_REQUIREMENTS_FILE;
+import static org.apache.flink.python.util.PythonDependencyUtils.configurePythonDependencies;
+import static org.apache.flink.python.util.PythonDependencyUtils.merge;
 import static org.junit.Assert.assertEquals;
 
 /** Tests for PythonDependencyUtils. */

@@ -405,7 +405,7 @@ class StreamExecutionEnvironment(object):
             .getEnvironmentConfig(self._j_stream_execution_environment)
         python_files = env_config.getString(jvm.PythonOptions.PYTHON_FILES.key(), None)
         if python_files is not None:
-            python_files = jvm.PythonDependencyUtils.FILE_DELIMITER.join([python_files, file_path])
+            python_files = jvm.PythonDependencyUtils.FILE_DELIMITER.join([file_path, python_files])
         else:
             python_files = file_path
         env_config.setString(jvm.PythonOptions.PYTHON_FILES.key(), python_files)
