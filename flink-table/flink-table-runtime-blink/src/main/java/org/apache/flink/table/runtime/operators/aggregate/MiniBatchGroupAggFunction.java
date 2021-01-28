@@ -221,8 +221,15 @@ public class MiniBatchGroupAggFunction
 
                 // if this was not the first row and we have to emit retractions
                 if (!firstRow) {
-                    if (!equaliser.equals(prevAggValue, newAggValue)) {
-                        // new row is not same with prev row
+                    if (stateRetentionTime <= 0 && equaliser.equals(prevAggValue, newAggValue)) {
+                        // new row is the same with prev row and state cleaning is not enabled,
+                        // we do not emit retraction and acc message.
+                        // if state cleaning is enabled, we have to emit messages to prevent
+                        // too early state eviction of downstream operators.
+                        return;
+                    } else {
+                        // new row is not the same with prev row or state cleaning is enabled,
+                        // retract previous result.
                         if (generateUpdateBefore) {
                             // prepare UPDATE_BEFORE message for previous row
                             resultRow
@@ -234,7 +241,6 @@ public class MiniBatchGroupAggFunction
                         resultRow.replace(currentKey, newAggValue).setRowKind(RowKind.UPDATE_AFTER);
                         out.collect(resultRow);
                     }
-                    // new row is same with prev row, no need to output
                 } else {
                     // this is the first, output new result
                     // prepare INSERT message for new row
