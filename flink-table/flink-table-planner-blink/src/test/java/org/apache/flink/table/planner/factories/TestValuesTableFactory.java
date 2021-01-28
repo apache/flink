@@ -53,6 +53,7 @@ import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
+import org.apache.flink.table.connector.source.abilities.SupportsAggregatePushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
@@ -61,11 +62,14 @@ import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata
 import org.apache.flink.table.connector.source.abilities.SupportsSourceWatermark;
 import org.apache.flink.table.connector.source.abilities.SupportsWatermarkPushDown;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.expressions.AggregateExpression;
+import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.functions.AsyncTableFunction;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.AppendingOutputFormat;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.AppendingSinkFunction;
@@ -73,6 +77,12 @@ import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.Async
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.KeyedUpsertingSinkFunction;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.RetractingSinkFunction;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.TestValuesLookupFunction;
+import org.apache.flink.table.planner.functions.aggfunctions.Count1AggFunction;
+import org.apache.flink.table.planner.functions.aggfunctions.CountAggFunction;
+import org.apache.flink.table.planner.functions.aggfunctions.MaxAggFunction;
+import org.apache.flink.table.planner.functions.aggfunctions.MinAggFunction;
+import org.apache.flink.table.planner.functions.aggfunctions.Sum0AggFunction;
+import org.apache.flink.table.planner.functions.aggfunctions.SumAggFunction;
 import org.apache.flink.table.planner.runtime.utils.FailingCollectionSource;
 import org.apache.flink.table.planner.utils.FilterUtils;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
@@ -94,6 +104,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -640,7 +651,8 @@ public final class TestValuesTableFactory
                     SupportsFilterPushDown,
                     SupportsLimitPushDown,
                     SupportsPartitionPushDown,
-                    SupportsReadingMetadata {
+                    SupportsReadingMetadata,
+                    SupportsAggregatePushDown {
 
         protected DataType producedDataType;
         protected final ChangelogMode changelogMode;
@@ -658,6 +670,9 @@ public final class TestValuesTableFactory
         protected List<Map<String, String>> allPartitions;
         protected final Map<String, DataType> readableMetadata;
         protected @Nullable int[] projectedMetadataFields;
+
+        private @Nullable int[] groupingSet;
+        private List<AggregateExpression> aggregateExpressions;
 
         private TestValuesScanTableSource(
                 DataType producedDataType,
@@ -690,6 +705,8 @@ public final class TestValuesTableFactory
             this.allPartitions = allPartitions;
             this.readableMetadata = readableMetadata;
             this.projectedMetadataFields = projectedMetadataFields;
+            this.groupingSet = null;
+            this.aggregateExpressions = Collections.emptyList();
         }
 
         @Override
@@ -816,31 +833,114 @@ public final class TestValuesTableFactory
         }
 
         protected Collection<RowData> convertToRowData(DataStructureConverter converter) {
-            List<RowData> result = new ArrayList<>();
+            List<Row> resultBuffer = new ArrayList<>();
             List<Map<String, String>> keys =
                     allPartitions.isEmpty()
                             ? Collections.singletonList(Collections.emptyMap())
                             : allPartitions;
             int numRetained = 0;
+            boolean overLimit = false;
             for (Map<String, String> partition : keys) {
                 for (Row row : data.get(partition)) {
-                    if (result.size() >= limit) {
-                        return result;
+                    if (resultBuffer.size() >= limit) {
+                        overLimit = true;
+                        break;
                     }
                     boolean isRetained =
                             FilterUtils.isRetainedAfterApplyingFilterPredicates(
                                     filterPredicates, getValueGetter(row));
                     if (isRetained) {
                         final Row projectedRow = projectRow(row);
-                        final RowData rowData = (RowData) converter.toInternal(projectedRow);
-                        if (rowData != null) {
-                            if (numRetained >= numElementToSkip) {
-                                rowData.setRowKind(row.getKind());
-                                result.add(rowData);
-                            }
-                            numRetained++;
-                        }
+                        resultBuffer.add(projectedRow);
                     }
+                }
+                if (overLimit) {
+                    break;
+                }
+            }
+            // simulate aggregate operation
+            if (!aggregateExpressions.isEmpty()) {
+                resultBuffer = applyAggregatesToRows(resultBuffer);
+            }
+            List<RowData> result = new ArrayList<>();
+            for (Row row : resultBuffer) {
+                final RowData rowData = (RowData) converter.toInternal(row);
+                if (rowData != null) {
+                    if (numRetained >= numElementToSkip) {
+                        rowData.setRowKind(row.getKind());
+                        result.add(rowData);
+                    }
+                    numRetained++;
+                }
+            }
+            return result;
+        }
+
+        private List<Row> applyAggregatesToRows(List<Row> rows) {
+            if (groupingSet != null && groupingSet.length > 0) {
+                // has group by, group firstly
+                Map<Row, List<Row>> buffer = new HashMap<>();
+                for (Row row : rows) {
+                    Row bufferKey = new Row(groupingSet.length);
+                    for (int i = 0; i < groupingSet.length; i++) {
+                        bufferKey.setField(i, row.getField(groupingSet[i]));
+                    }
+                    if (buffer.containsKey(bufferKey)) {
+                        buffer.get(bufferKey).add(row);
+                    } else {
+                        buffer.put(bufferKey, new ArrayList<>(Collections.singletonList(row)));
+                    }
+                }
+                List<Row> result = new ArrayList<>();
+                for (Map.Entry<Row, List<Row>> entry : buffer.entrySet()) {
+                    result.add(Row.join(entry.getKey(), accumulateRows(entry.getValue())));
+                }
+                return result;
+            } else {
+                return Collections.singletonList(accumulateRows(rows));
+            }
+        }
+
+        // can only apply sum/sum0/avg function for long type fields for testing
+        private Row accumulateRows(List<Row> rows) {
+            Row result = new Row(aggregateExpressions.size());
+            for (int i = 0; i < aggregateExpressions.size(); i++) {
+                FunctionDefinition aggFunction =
+                        aggregateExpressions.get(i).getFunctionDefinition();
+                List<FieldReferenceExpression> arguments = aggregateExpressions.get(i).getArgs();
+                if (aggFunction instanceof MinAggFunction) {
+                    int argIndex = arguments.get(0).getFieldIndex();
+                    Row minRow =
+                            rows.stream()
+                                    .min(Comparator.comparing(row -> row.getFieldAs(argIndex)))
+                                    .get();
+                    result.setField(i, minRow.getField(argIndex));
+                } else if (aggFunction instanceof MaxAggFunction) {
+                    int argIndex = arguments.get(0).getFieldIndex();
+                    Row maxRow =
+                            rows.stream()
+                                    .max(Comparator.comparing(row -> row.getFieldAs(argIndex)))
+                                    .get();
+                    result.setField(i, maxRow.getField(argIndex));
+                } else if (aggFunction instanceof SumAggFunction) {
+                    int argIndex = arguments.get(0).getFieldIndex();
+                    Object finalSum =
+                            rows.stream()
+                                    .filter(row -> row.getField(argIndex) != null)
+                                    .mapToLong(row -> row.getFieldAs(argIndex))
+                                    .sum();
+                    result.setField(i, finalSum);
+                } else if (aggFunction instanceof Sum0AggFunction) {
+                    int argIndex = arguments.get(0).getFieldIndex();
+                    Object finalSum0 =
+                            rows.stream()
+                                    .filter(row -> row.getField(argIndex) != null)
+                                    .mapToLong(row -> row.getFieldAs(argIndex))
+                                    .sum();
+                    result.setField(i, finalSum0);
+                } else if (aggFunction instanceof CountAggFunction
+                        || aggFunction instanceof Count1AggFunction) {
+                    result.setField(i, (long) rows.size());
                 }
             }
             return result;
@@ -905,6 +1005,39 @@ public final class TestValuesTableFactory
                     this.data.put(Collections.emptyMap(), Collections.emptyList());
                 }
             }
+        }
+
+        @Override
+        public boolean applyAggregates(
+                List<int[]> groupingSets,
+                List<AggregateExpression> aggregateExpressions,
+                DataType producedDataType) {
+            // this TestValuesScanTableSource only support simple group type ar present.
+            if (groupingSets.size() > 1) {
+                return false;
+            }
+            List<AggregateExpression> aggExpressions = new ArrayList<>();
+            for (AggregateExpression aggExpression : aggregateExpressions) {
+                FunctionDefinition functionDefinition = aggExpression.getFunctionDefinition();
+                if (!(functionDefinition instanceof MinAggFunction
+                        || functionDefinition instanceof MaxAggFunction
+                        || functionDefinition instanceof SumAggFunction
+                        || functionDefinition instanceof Sum0AggFunction
+                        || functionDefinition instanceof CountAggFunction
+                        || functionDefinition instanceof Count1AggFunction)) {
+                    return false;
+                }
+                if (aggExpression.getFilterExpression().isPresent()
+                        || aggExpression.isApproximate()
+                        || aggExpression.isDistinct()) {
+                    return false;
+                }
+                aggExpressions.add(aggExpression);
+            }
+            this.groupingSet = groupingSets.get(0);
+            this.aggregateExpressions = aggExpressions;
+            this.producedDataType = producedDataType;
+            return true;
         }
 
         @Override

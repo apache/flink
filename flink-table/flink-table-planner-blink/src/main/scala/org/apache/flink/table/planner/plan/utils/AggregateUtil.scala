@@ -27,7 +27,9 @@ import org.apache.flink.table.planner.JLong
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.expressions._
-import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
+import org.apache.flink.table.planner.functions.aggfunctions.{CountAggFunction, DeclarativeAggregateFunction, Sum0AggFunction}
+import org.apache.flink.table.planner.functions.aggfunctions.AvgAggFunction.{ByteAvgAggFunction, DoubleAvgAggFunction, FloatAvgAggFunction, IntAvgAggFunction, LongAvgAggFunction, ShortAvgAggFunction}
+import org.apache.flink.table.planner.functions.aggfunctions.Sum0AggFunction.{ByteSum0AggFunction, DoubleSum0AggFunction, FloatSum0AggFunction, IntSum0AggFunction, LongSum0AggFunction, ShortSum0AggFunction}
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
 import org.apache.flink.table.planner.functions.inference.OperatorBindingCallContext
 import org.apache.flink.table.planner.functions.sql.{FlinkSqlOperatorTable, SqlFirstLastValueAggFunction, SqlListAggFunction}
@@ -272,6 +274,22 @@ object AggregateUtil extends Enumeration {
       needInputCount,
       isStateBackendDataViews,
       needDistinctInfo = true)
+  }
+
+  def deriveSumAndCountFromAvg(
+      avgAggFunction: UserDefinedFunction): (Sum0AggFunction, CountAggFunction) = {
+    avgAggFunction match {
+      case _: ByteAvgAggFunction => (new ByteSum0AggFunction, new CountAggFunction)
+      case _: ShortAvgAggFunction => (new ShortSum0AggFunction, new CountAggFunction)
+      case _: IntAvgAggFunction => (new IntSum0AggFunction, new CountAggFunction)
+      case _: LongAvgAggFunction => (new LongSum0AggFunction, new CountAggFunction)
+      case _: FloatAvgAggFunction => (new FloatSum0AggFunction, new CountAggFunction)
+      case _: DoubleAvgAggFunction => (new DoubleSum0AggFunction, new CountAggFunction)
+      case _ => {
+        throw new TableException(s"Avg aggregate function does not support: ''$avgAggFunction''" +
+          s"Please re-check the function or data type.")
+      }
+    }
   }
 
   def transformToBatchAggregateFunctions(

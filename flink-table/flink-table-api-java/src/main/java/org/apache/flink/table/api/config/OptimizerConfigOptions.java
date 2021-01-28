@@ -95,6 +95,16 @@ public class OptimizerConfigOptions {
                                     + TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED.key()
                                     + " is true.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+    public static final ConfigOption<Boolean> TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED =
+            key("table.optimizer.source.aggregate-pushdown-enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "When it is true, the optimizer will push down the local aggregates into "
+                                    + "the TableSource which implements SupportsAggregatePushDown. "
+                                    + "Default value is false.");
+
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Boolean> TABLE_OPTIMIZER_SOURCE_PREDICATE_PUSHDOWN_ENABLED =
             key("table.optimizer.source.predicate-pushdown-enabled")

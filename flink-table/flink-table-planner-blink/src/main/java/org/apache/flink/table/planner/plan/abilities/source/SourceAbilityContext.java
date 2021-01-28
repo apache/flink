@@ -39,6 +39,7 @@ import org.apache.calcite.rel.core.TableScan;
  *   <li>project push down (SupportsProjectionPushDown)
  *   <li>partition push down (SupportsPartitionPushDown)
  *   <li>watermark push down (SupportsWatermarkPushDown)
+ *   <li>aggregate push down (SupportsAggregatePushDown)
  *   <li>reading metadata (SupportsReadingMetadata)
  * </ul>
  */
