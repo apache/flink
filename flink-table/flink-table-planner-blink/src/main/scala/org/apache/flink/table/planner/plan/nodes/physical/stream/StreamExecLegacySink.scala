@@ -188,13 +188,19 @@ class StreamExecLegacySink[T](
     if (CodeGenUtils.isInternalClass(resultDataType)) {
       parTransformation.asInstanceOf[Transformation[T]]
     } else {
+      val rowtimeIndex = if (rowtimeFields.size == 1) {
+        rowtimeFields.head.getIndex
+      } else {
+        -1
+      }
       val (converterOperator, outputTypeInfo) = generateRowConverterOperator[T](
         CodeGeneratorContext(config),
         config,
         convType.asInstanceOf[RowDataTypeInfo].toRowType,
         sink,
         withChangeFlag,
-        "SinkConversion"
+        "SinkConversion",
+        rowtimeIndex
       )
       new OneInputTransformation(
         parTransformation,

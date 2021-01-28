@@ -22,7 +22,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.factories.TestValuesTableFactory.{TestSinkContextTableSink, changelogRow}
+import org.apache.flink.table.planner.factories.TestValuesTableFactory.changelogRow
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase
 import org.apache.flink.table.planner.runtime.utils.TestData.{nullData4, smallTupleData3, tupleData3, tupleData5}
 import org.apache.flink.util.ExceptionUtils
@@ -31,9 +31,6 @@ import org.junit.Test
 
 import java.lang.{Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
-import java.sql.Timestamp
-import java.time.{LocalDateTime, OffsetDateTime, ZoneId, ZoneOffset}
-import java.util.TimeZone
 
 import scala.collection.JavaConversions._
 
@@ -621,94 +618,5 @@ class TableSinkITCase extends StreamingTestBase {
     val result = TestValuesTableFactory.getResults("not_null_sink")
     val expected = List("book,1,12", "book,4,11", "fruit,3,44")
     assertEquals(expected.sorted, result.sorted)
-  }
-
-  @Test
-  def testSinkContext(): Unit = {
-    val data = List(
-      rowOf("1970-01-01 00:00:00.001", localDateTime(1L), 1, 1d),
-      rowOf("1970-01-01 00:00:00.002", localDateTime(2L), 1, 2d),
-      rowOf("1970-01-01 00:00:00.003", localDateTime(3L), 1, 2d),
-      rowOf("1970-01-01 00:00:00.004", localDateTime(4L), 1, 5d),
-      rowOf("1970-01-01 00:00:00.007", localDateTime(7L), 1, 3d),
-      rowOf("1970-01-01 00:00:00.008", localDateTime(8L), 1, 3d),
-      rowOf("1970-01-01 00:00:00.016", localDateTime(16L), 1, 4d))
-
-    val dataId: String = TestValuesTableFactory.registerData(data)
-
-    val sourceDDL =
-      s"""
-         |CREATE TABLE src (
-         |  log_ts STRING,
-         |  ts TIMESTAMP(3),
-         |  a INT,
-         |  b DOUBLE,
-         |  WATERMARK FOR ts AS ts - INTERVAL '0.001' SECOND
-         |) WITH (
-         |  'connector' = 'values',
-         |  'data-id' = '$dataId'
-         |)
-      """.stripMargin
-
-    val sinkDDL =
-      s"""
-         |CREATE TABLE sink (
-         |  log_ts STRING,
-         |  ts TIMESTAMP(3),
-         |  a INT,
-         |  b DOUBLE
-         |) WITH (
-         |  'connector' = 'values',
-         |  'table-sink-class' = '${classOf[TestSinkContextTableSink].getName}'
-         |)
-      """.stripMargin
-
-    tEnv.executeSql(sourceDDL)
-    tEnv.executeSql(sinkDDL)
-
-    //---------------------------------------------------------------------------------------
-    // Verify writing out a source directly with the rowtime attribute
-    //---------------------------------------------------------------------------------------
-
-    execInsertSqlAndWaitResult("INSERT INTO sink SELECT * FROM src")
-
-    val expected = List(1000, 2000, 3000, 4000, 7000, 8000, 16000)
-    assertEquals(expected.sorted, TestSinkContextTableSink.ROWTIMES.sorted)
-
-    val sinkDDL2 =
-      s"""
-         |CREATE TABLE sink2 (
-         |  window_rowtime TIMESTAMP(3),
-         |  b DOUBLE
-         |) WITH (
-         |  'connector' = 'values',
-         |  'table-sink-class' = '${classOf[TestSinkContextTableSink].getName}'
-         |)
-      """.stripMargin
-    tEnv.executeSql(sinkDDL2)
-
-    //---------------------------------------------------------------------------------------
-    // Verify writing out with additional operator to generate a new rowtime attribute
-    //---------------------------------------------------------------------------------------
-
-    execInsertSqlAndWaitResult(
-      """
-        |INSERT INTO sink2
-        |SELECT
-        |  TUMBLE_ROWTIME(ts, INTERVAL '5' SECOND),
-        |  SUM(b)
-        |FROM src
-        |GROUP BY TUMBLE(ts, INTERVAL '5' SECOND)
-        |""".stripMargin
-    )
-
-    val expected2 = List(4999, 9999, 19999)
-    assertEquals(expected2.sorted, TestSinkContextTableSink.ROWTIMES.sorted)
-  }
-
-  // ------------------------------------------------------------------------------------------
-
-  private def localDateTime(epochSecond: Long): LocalDateTime = {
-    LocalDateTime.ofEpochSecond(epochSecond, 0, ZoneOffset.UTC)
   }
 }
