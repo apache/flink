@@ -29,7 +29,8 @@ from pyflink.datastream.functions import CoMapFunction, CoFlatMapFunction
 from pyflink.datastream.functions import FilterFunction, ProcessFunction, KeyedProcessFunction
 from pyflink.datastream.functions import KeySelector
 from pyflink.datastream.functions import MapFunction, FlatMapFunction
-from pyflink.datastream.state import ValueStateDescriptor, ListStateDescriptor, MapStateDescriptor
+from pyflink.datastream.state import ValueStateDescriptor, ListStateDescriptor, \
+    MapStateDescriptor, ReducingStateDescriptor, ReducingState
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkTestCase, invoke_java_object_method
@@ -839,6 +840,36 @@ class DataStreamTests(PyFlinkTestCase):
                            "current key: hello, current value state: 4, current list state: [2, 4],"
                            " current map state: {2: hello, 4: hello}, current value: Row(f0=6, "
                            "f1='hello', f2='1603708293000')"]
+        result.sort()
+        expected_result.sort()
+        self.assertEqual(expected_result, result)
+
+    def test_reducing_state(self):
+        self.env.set_parallelism(2)
+        data_stream = self.env.from_collection([
+            (1, 'hi'), (2, 'hello'), (3, 'hi'), (4, 'hello'), (5, 'hi'), (6, 'hello')],
+            type_info=Types.TUPLE([Types.INT(), Types.STRING()]))
+
+        class MyProcessFunction(KeyedProcessFunction):
+
+            def __init__(self):
+                self.reducing_state = None  # type: ReducingState
+
+            def open(self, runtime_context: RuntimeContext):
+                self.reducing_state = runtime_context.get_reducing_state(
+                    ReducingStateDescriptor(
+                        'reducing_state', lambda i, i2: i + i2, Types.INT()))
+
+            def process_element(self, value, ctx):
+                self.reducing_state.add(value[0])
+                yield Row(self.reducing_state.get(), value[1])
+
+        data_stream.key_by(lambda x: x[1], key_type_info=Types.STRING()) \
+            .process(MyProcessFunction(), output_type=Types.TUPLE([Types.INT(), Types.STRING()])) \
+            .add_sink(self.test_sink)
+        self.env.execute('test_reducing_state')
+        result = self.test_sink.get_results()
+        expected_result = ['(1,hi)', '(2,hello)', '(4,hi)', '(6,hello)', '(9,hi)', '(12,hello)']
         result.sort()
         expected_result.sort()
         self.assertEqual(expected_result, result)

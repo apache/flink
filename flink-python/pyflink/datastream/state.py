@@ -27,7 +27,9 @@ __all__ = [
     'ListStateDescriptor',
     'ListState',
     'MapStateDescriptor',
-    'MapState'
+    'MapState',
+    'ReducingStateDescriptor',
+    'ReducingState'
 ]
 
 T = TypeVar('T')
@@ -113,6 +115,21 @@ class MergingState(AppendingState[IN, OUT]):
     Extension of AppendingState that allows merging of state. That is, two instance of MergingState
     can be combined into a single instance that contains all the information of the two merged
     states.
+    """
+    pass
+
+
+class ReducingState(MergingState[T, T]):
+    """
+    :class:`State` interface for reducing state. Elements can be added to the state, they will be
+    combined using a reduce function. The current state can be inspected.
+
+    The state is accessed and modified by user functions, and checkpointed consistently by the
+    system as part of the distributed snapshots.
+
+    The state is only accessible by functions applied on a KeyedStream. The key is automatically
+    supplied by the system, so the function always sees the value mapped to the key of the current
+    element. That way, the system can handle stream and state partitioning consistently together.
     """
     pass
 
@@ -311,3 +328,33 @@ class MapStateDescriptor(StateDescriptor):
         :param value_type_info: the type information of the value.
         """
         super(MapStateDescriptor, self).__init__(name, Types.MAP(key_type_info, value_type_info))
+
+
+class ReducingStateDescriptor(StateDescriptor):
+    """
+    StateDescriptor for ReducingState. This can be used to create partitioned reducing state using
+    RuntimeContext.get_reducing_state(ReducingStateDescriptor).
+    """
+
+    def __init__(self,
+                 name: str,
+                 reduce_function,
+                 type_info: TypeInformation):
+        """
+        Constructor of the ReducingStateDescriptor.
+
+        :param name: The name of the state.
+        :param reduce_function: The ReduceFunction used to aggregate the state.
+        :param type_info: The type of the values in the state.
+        """
+        super(ReducingStateDescriptor, self).__init__(name, type_info)
+        from pyflink.datastream.functions import ReduceFunction, ReduceFunctionWrapper
+        if not isinstance(reduce_function, ReduceFunction):
+            if callable(reduce_function):
+                reduce_function = ReduceFunctionWrapper(reduce_function)  # type: ignore
+            else:
+                raise TypeError("The input must be a ReduceFunction or a callable function!")
+        self._reduce_function = reduce_function
+
+    def get_reduce_function(self):
+        return self._reduce_function

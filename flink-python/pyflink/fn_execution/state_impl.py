@@ -24,7 +24,8 @@ from apache_beam.runners.worker.bundle_processor import SynchronousBagRuntimeSta
 from apache_beam.transforms import userstate
 from typing import List, Tuple, Any
 
-from pyflink.datastream.state import ValueState, ListState, MapState
+from pyflink.datastream import ReduceFunction
+from pyflink.datastream.state import ValueState, ListState, MapState, ReducingState
 
 
 class LRUCache(object):
@@ -118,6 +119,32 @@ class SynchronousListRuntimeState(ListState):
     def update(self, values):
         self.clear()
         self.add_all(values)
+
+    def clear(self):
+        self._internal_state.clear()
+
+
+class SynchronousReducingRuntimeState(ReducingState):
+    """
+    The runtime ListState implementation backed by a :class:`SynchronousBagRuntimeState`.
+    """
+
+    def __init__(self, internal_state: SynchronousBagRuntimeState, reduce_function: ReduceFunction):
+        self._internal_state = internal_state
+        self._reduce_function = reduce_function
+
+    def add(self, v):
+        current_value = self.get()
+        if current_value is None:
+            self._internal_state.add(v)
+        else:
+            self._internal_state.clear()
+            self._internal_state.add(self._reduce_function.reduce(current_value, v))
+
+    def get(self):
+        for i in self._internal_state.read():
+            return i
+        return None
 
     def clear(self):
         self._internal_state.clear()
@@ -774,6 +801,15 @@ class RemoteKeyedStateBackend(object):
         self._all_states[name] = map_state
         return map_state
 
+    def get_reducing_state(self, name, coder, reduce_function):
+        if name in self._all_states:
+            self.validate_reducing_state(name, coder)
+            return self._all_states[name]
+        internal_bag_state = self._get_internal_bag_state(name, coder)
+        reducing_state = SynchronousReducingRuntimeState(internal_bag_state, reduce_function)
+        self._all_states[name] = reducing_state
+        return reducing_state
+
     def validate_value_state(self, name, coder):
         if name in self._all_states:
             state = self._all_states[name]
@@ -800,6 +836,15 @@ class RemoteKeyedStateBackend(object):
                                 % name)
             if state._internal_state._map_key_coder != map_key_coder or \
                     state._internal_state._map_value_coder != map_value_coder:
+                raise Exception("State name corrupted: %s" % name)
+
+    def validate_reducing_state(self, name, coder):
+        if name in self._all_states:
+            state = self._all_states[name]
+            if not isinstance(state, SynchronousReducingRuntimeState):
+                raise Exception("The state name '%s' is already in use and not a reducing state."
+                                % name)
+            if state._internal_state._value_coder != coder:
                 raise Exception("State name corrupted: %s" % name)
 
     def _get_internal_bag_state(self, name, element_coder):
@@ -858,7 +903,10 @@ class RemoteKeyedStateBackend(object):
                 # cache old internal state
                 self._internal_state_cache.put(
                     (state_name, encoded_old_key), state_obj._internal_state)
-            if isinstance(state_obj, (SynchronousValueRuntimeState, SynchronousListRuntimeState)):
+            if isinstance(state_obj,
+                          (SynchronousValueRuntimeState,
+                           SynchronousListRuntimeState,
+                           SynchronousReducingRuntimeState)):
                 state_obj._internal_state = self._get_internal_bag_state(
                     state_name, state_obj._internal_state._value_coder)
             elif isinstance(state_obj, SynchronousMapRuntimeState):
