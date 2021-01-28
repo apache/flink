@@ -158,7 +158,7 @@ CREATE TABLE user_created (
 ) WITH (
 
   'connector' = 'upsert-kafka',
-  'topic' = 'user_events_example2',
+  'topic' = 'user_events_example3',
   'properties.bootstrap.servers' = 'localhost:9092',
 
   -- UTF-8 string as Kafka keys
