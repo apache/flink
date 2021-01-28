@@ -20,6 +20,7 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
 import org.apache.flink.runtime.state.InternalPriorityQueue;
 import org.apache.flink.runtime.state.InternalPriorityQueueTestBase;
 import org.apache.flink.runtime.state.heap.KeyGroupPartitionedPriorityQueue;
@@ -58,7 +59,8 @@ public class KeyGroupPartitionedPriorityQueueWithRocksDBStoreTest
             DataOutputSerializer outputStreamWithPos = new DataOutputSerializer(128);
             DataInputDeserializer inputStreamWithPos = new DataInputDeserializer();
             int keyGroupPrefixBytes =
-                    RocksDBKeySerializationUtils.computeRequiredBytesInKeyGroupPrefix(numKeyGroups);
+                    CompositeKeySerializationUtils.computeRequiredBytesInKeyGroupPrefix(
+                            numKeyGroups);
             TreeOrderedSetCache orderedSetCache = new TreeOrderedSetCache(32);
             return new RocksDBCachingPriorityQueueSet<>(
                     keyGroupId,

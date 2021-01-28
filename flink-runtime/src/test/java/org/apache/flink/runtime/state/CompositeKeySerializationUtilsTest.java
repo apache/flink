@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.contrib.streaming.state;
+package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
@@ -30,17 +30,17 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.junit.Assert;
 import org.junit.Test;
 
-/** Tests for guarding {@link RocksDBKeySerializationUtils}. */
-public class RocksDBKeySerializationUtilsTest {
+/** Tests for guarding {@link CompositeKeySerializationUtils}. */
+public class CompositeKeySerializationUtilsTest {
 
     @Test
     public void testIsAmbiguousKeyPossible() {
         Assert.assertFalse(
-                RocksDBKeySerializationUtils.isAmbiguousKeyPossible(
+                CompositeKeySerializationUtils.isAmbiguousKeyPossible(
                         IntSerializer.INSTANCE, StringSerializer.INSTANCE));
 
         Assert.assertTrue(
-                RocksDBKeySerializationUtils.isAmbiguousKeyPossible(
+                CompositeKeySerializationUtils.isAmbiguousKeyPossible(
                         StringSerializer.INSTANCE, StringSerializer.INSTANCE));
     }
 
@@ -52,10 +52,10 @@ public class RocksDBKeySerializationUtilsTest {
         for (int keyGroupPrefixBytes = 1; keyGroupPrefixBytes <= 2; ++keyGroupPrefixBytes) {
             for (int orgKeyGroup = 0; orgKeyGroup < 128; ++orgKeyGroup) {
                 outputStream.reset();
-                RocksDBKeySerializationUtils.writeKeyGroup(
+                CompositeKeySerializationUtils.writeKeyGroup(
                         orgKeyGroup, keyGroupPrefixBytes, outputView);
                 int deserializedKeyGroup =
-                        RocksDBKeySerializationUtils.readKeyGroup(
+                        CompositeKeySerializationUtils.readKeyGroup(
                                 keyGroupPrefixBytes,
                                 new DataInputViewStreamWrapper(
                                         new ByteArrayInputStreamWithPos(
@@ -73,17 +73,19 @@ public class RocksDBKeySerializationUtilsTest {
         // test for key
         for (int orgKey = 0; orgKey < 100; ++orgKey) {
             outputView.clear();
-            RocksDBKeySerializationUtils.writeKey(
+            CompositeKeySerializationUtils.writeKey(
                     orgKey, IntSerializer.INSTANCE, outputView, false);
             inputView.setBuffer(outputView.getCopyOfBuffer());
             int deserializedKey =
-                    RocksDBKeySerializationUtils.readKey(IntSerializer.INSTANCE, inputView, false);
+                    CompositeKeySerializationUtils.readKey(
+                            IntSerializer.INSTANCE, inputView, false);
             Assert.assertEquals(orgKey, deserializedKey);
 
-            RocksDBKeySerializationUtils.writeKey(orgKey, IntSerializer.INSTANCE, outputView, true);
+            CompositeKeySerializationUtils.writeKey(
+                    orgKey, IntSerializer.INSTANCE, outputView, true);
             inputView.setBuffer(outputView.getCopyOfBuffer());
             deserializedKey =
-                    RocksDBKeySerializationUtils.readKey(IntSerializer.INSTANCE, inputView, true);
+                    CompositeKeySerializationUtils.readKey(IntSerializer.INSTANCE, inputView, true);
             Assert.assertEquals(orgKey, deserializedKey);
         }
     }
@@ -95,19 +97,19 @@ public class RocksDBKeySerializationUtilsTest {
 
         for (int orgNamespace = 0; orgNamespace < 100; ++orgNamespace) {
             outputView.clear();
-            RocksDBKeySerializationUtils.writeNameSpace(
+            CompositeKeySerializationUtils.writeNameSpace(
                     orgNamespace, IntSerializer.INSTANCE, outputView, false);
             inputView.setBuffer(outputView.getCopyOfBuffer());
             int deserializedNamepsace =
-                    RocksDBKeySerializationUtils.readNamespace(
+                    CompositeKeySerializationUtils.readNamespace(
                             IntSerializer.INSTANCE, inputView, false);
             Assert.assertEquals(orgNamespace, deserializedNamepsace);
 
-            RocksDBKeySerializationUtils.writeNameSpace(
+            CompositeKeySerializationUtils.writeNameSpace(
                     orgNamespace, IntSerializer.INSTANCE, outputView, true);
             inputView.setBuffer(outputView.getCopyOfBuffer());
             deserializedNamepsace =
-                    RocksDBKeySerializationUtils.readNamespace(
+                    CompositeKeySerializationUtils.readNamespace(
                             IntSerializer.INSTANCE, inputView, true);
             Assert.assertEquals(orgNamespace, deserializedNamepsace);
         }

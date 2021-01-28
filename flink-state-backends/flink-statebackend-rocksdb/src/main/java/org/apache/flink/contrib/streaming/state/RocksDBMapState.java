@@ -29,6 +29,7 @@ import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
+import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -328,8 +329,8 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
                 KeyGroupRangeAssignment.assignToKeyGroup(
                         keyAndNamespace.f0, backend.getNumberOfKeyGroups());
 
-        RocksDBSerializedCompositeKeyBuilder<K> keyBuilder =
-                new RocksDBSerializedCompositeKeyBuilder<>(
+        SerializedCompositeKeyBuilder<K> keyBuilder =
+                new SerializedCompositeKeyBuilder<>(
                         safeKeySerializer, backend.getKeyGroupPrefixBytes(), 32);
 
         keyBuilder.setKeyAndKeyGroup(keyAndNamespace.f0, keyGroup);

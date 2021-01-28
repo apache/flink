@@ -20,8 +20,8 @@ package org.apache.flink.contrib.streaming.state.iterator;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.contrib.streaming.state.RocksDBKeySerializationUtils;
 import org.apache.flink.contrib.streaming.state.RocksIteratorWrapper;
+import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nonnull;
@@ -64,7 +64,7 @@ public class RocksStateKeysAndNamespaceIterator<K, N> extends AbstractRocksState
                 final byte[] keyBytes = iterator.key();
                 final K currentKey = deserializeKey(keyBytes, byteArrayDataInputView);
                 final N currentNamespace =
-                        RocksDBKeySerializationUtils.readNamespace(
+                        CompositeKeySerializationUtils.readNamespace(
                                 namespaceSerializer, byteArrayDataInputView, ambiguousKeyPossible);
                 nextKey = Tuple2.of(currentKey, currentNamespace);
                 iterator.next();

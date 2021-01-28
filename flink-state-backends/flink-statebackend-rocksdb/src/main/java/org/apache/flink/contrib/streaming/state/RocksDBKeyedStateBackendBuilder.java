@@ -35,11 +35,13 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.BackendBuildingException;
+import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.PriorityQueueSetFactory;
+import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
@@ -255,10 +257,10 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
         ResourceGuard rocksDBResourceGuard = new ResourceGuard();
         SnapshotStrategy<K> snapshotStrategy;
         PriorityQueueSetFactory priorityQueueFactory;
-        RocksDBSerializedCompositeKeyBuilder<K> sharedRocksKeyBuilder;
+        SerializedCompositeKeyBuilder<K> sharedRocksKeyBuilder;
         // Number of bytes required to prefix the key groups.
         int keyGroupPrefixBytes =
-                RocksDBKeySerializationUtils.computeRequiredBytesInKeyGroupPrefix(
+                CompositeKeySerializationUtils.computeRequiredBytesInKeyGroupPrefix(
                         numberOfKeyGroups);
         try {
             // Variables for snapshot strategy when incremental checkpoint is enabled
@@ -301,7 +303,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
             // serializer
             // only now we can be certain that the key serializer used in the builder is final.
             sharedRocksKeyBuilder =
-                    new RocksDBSerializedCompositeKeyBuilder<>(
+                    new SerializedCompositeKeyBuilder<>(
                             keySerializerProvider.currentSchemaSerializer(),
                             keyGroupPrefixBytes,
                             32);

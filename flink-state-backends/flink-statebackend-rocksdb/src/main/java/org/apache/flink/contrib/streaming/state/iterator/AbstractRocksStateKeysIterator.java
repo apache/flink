@@ -20,9 +20,9 @@ package org.apache.flink.contrib.streaming.state.iterator;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.contrib.streaming.state.RocksDBKeySerializationUtils;
 import org.apache.flink.contrib.streaming.state.RocksIteratorWrapper;
 import org.apache.flink.core.memory.DataInputDeserializer;
+import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
 
 import javax.annotation.Nonnull;
 
@@ -64,7 +64,7 @@ public abstract class AbstractRocksStateKeysIterator<K> implements AutoCloseable
 
     protected K deserializeKey(byte[] keyBytes, DataInputDeserializer readView) throws IOException {
         readView.setBuffer(keyBytes, keyGroupPrefixBytes, keyBytes.length - keyGroupPrefixBytes);
-        return RocksDBKeySerializationUtils.readKey(
+        return CompositeKeySerializationUtils.readKey(
                 keySerializer, byteArrayDataInputView, ambiguousKeyPossible);
     }
 
