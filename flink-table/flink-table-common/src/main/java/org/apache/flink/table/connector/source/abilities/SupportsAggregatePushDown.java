@@ -28,7 +28,7 @@ import org.apache.flink.table.types.DataType;
 import java.util.List;
 
 /**
- * Enables to push down local aggregates into a {@link ScanTableSource}.
+ * Enables to push down the local aggregates into a {@link ScanTableSource}.
  *
  * <p>Given the following example inventory table:
  *
@@ -69,11 +69,11 @@ import java.util.List;
  *          +- TableSourceScan(table=[[inventory, project=[name, type, amount, price]]], fields=[name, type, amount, price])
  * }</pre>
  *
- * <p>For efficiency, a source can push local aggregates further down in order to reduce the network
- * and computing overhead. The passed aggregate functions and grouping sets are in the original
- * order. The downstream storage which has aggregation capability can directly return the aggregated
+ * <p>For efficiency, a source can push the local aggregates further down into underlying database or
+ * storage system to reduce the network and computing overhead. The passed aggregate functions and
+ * grouping sets are in the order defined by the query. The source can directly return the aggregated
  * values if the underlying database or storage system has aggregation capability. The optimized
- * plan will change to the following pattern with local aggregate push down:
+ * plan will be changed to the following pattern with local aggregate push down:
  *
  * <pre>{@code
  * Calc(select=[EXPR$0, EXPR$1, EXPR$2, EXPR$3, name, type])
@@ -82,51 +82,41 @@ import java.util.List;
  *       +- TableSourceScan(table=[[inventory, project=[name, type, amount, price], aggregates=[grouping=[name,type], aggFunctions=[IntSumAggFunction(amount),DoubleMaxAggFunction(price),DoubleSum0AggFunction(price),CountAggFunction(price),Count1AggFunction()]]]], fields=[name, type, sum$0, max$1, sum$2, count$3, count1$4])
  * }</pre>
  *
- * <p>We can see the original {@code LocalHashAggregate} has been removed and pushed down into
+ * <p>We can see the original {@code LocalHashAggregate} has been removed and pushed down into the
  * {@code TableSourceScan}. Meanwhile the output datatype of {@code TableSourceScan} has changed,
  * which is the pattern of {@code grouping sets} + {@code the output of aggregate functions}.
  *
- * <p>Due to the complexity of aggregate, only limited aggregate functions are supported at present.
+ * <p>Due to the complexity of aggregate, the aggregate push down does not support a number of more
+ * complex statements at present:
  *
  * <ul>
- *   <li>Only support sum/min/max/count/avg(will convert to sum0 + count) aggregate function push
- *       down.
- *   <li>Only support simple group type, cube and roll up will not be pushed down.
- *   <li>If expression is involved in aggregate or group by, e.g. max (col1 + col2) or group by
- *       (col1 + col2), aggregate will not be pushed down.
- *   <li>Window aggregate function will not be pushed down.
- *   <li>Aggregate function with filter will not be pushed down.
+ *   <li>complex grouping operations such as ROLLUP, CUBE, or GROUPING SETS.
+ *   <li>expressions inside the aggregation function call: such as sum(a * b).
+ *   <li>aggregations with ordering.
+ *   <li>aggregations with filter.
  * </ul>
  *
- * <p>For the above example inventory table, and we have the below test sql:
+ * <p>For the above example inventory table, and we have the following test sql:
  *
  * <pre>{@code
  * SELECT
- *   sum(amount),
- *   max(price),
- *   avg(price),
- *   count(distinct price),
+ *   sum(amount) FILTER(where amount > 0),
  *   name,
- *   type
+ *   type,
  * FROM inventory
  *   group by name, type
  * }</pre>
  *
- * <p>Since there is a count(distinct) aggregate function in it, the entire computational semantics
- * will change obviously. And the optimized plan as shown below. The local aggregate will not be
- * pushed down in this scenario.
+ * <p>Since there is a filter after the sum aggregate function. And the optimized plan as shown below.
+ * The local aggregate will not be pushed down in this scenario.
  *
  * <pre>{@code
- * Calc(select=[EXPR$0, EXPR$1, EXPR$2, EXPR$3, name, type])
- * +- HashAggregate(groupBy=[name, type], select=[name, type, Final_MIN(min$0) AS EXPR$0, Final_MIN(min$1) AS EXPR$1, Final_MIN(min$2) AS EXPR$2, Final_COUNT(count$3) AS EXPR$3])
+ * Calc(select=[EXPR$0, name, type])
+ * +- HashAggregate(isMerge=[true], groupBy=[name, type], select=[name, type, Final_SUM(sum$0) AS EXPR$0])
  *    +- Exchange(distribution=[hash[name, type]])
- *       +- LocalHashAggregate(groupBy=[name, type], select=[name, type, Partial_MIN(EXPR$0) FILTER $g_1 AS min$0, Partial_MIN(EXPR$1) FILTER $g_1 AS min$1, Partial_MIN(EXPR$2) FILTER $g_1 AS min$2, Partial_COUNT(price) FILTER $g_0 AS count$3])
- *          +- Calc(select=[name, type, price, EXPR$0, EXPR$1, EXPR$2, =(CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT), 0) AS $g_0, =(CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT), 1) AS $g_1])
- *             +- HashAggregate(groupBy=[name, type, price, $e], select=[name, type, price, $e, Final_SUM(sum$0) AS EXPR$0, Final_MAX(max$1) AS EXPR$1, Final_AVG(sum$2, count$3) AS EXPR$2])
- *                +- Exchange(distribution=[hash[name, type, price, $e]])
- *                   +- LocalHashAggregate(groupBy=[name, type, price, $e], select=[name, type, price, $e, Partial_SUM(amount) AS sum$0, Partial_MAX(price_0) AS max$1, Partial_AVG(price_0) AS (sum$2, count$3)])
- *                      +- Expand(projects=[name, type, amount, price, $e, price_0], projects=[{name, type, amount, price, 0 AS $e, price AS price_0}, {name, type, amount, null AS price, 1 AS $e, price AS price_0}])
- *                         +- TableSourceScan(table=[[inventory, project=[name, type, amount, price]]], fields=[name, type, amount, price])
+ *       +- LocalHashAggregate(groupBy=[name, type], select=[name, type, Partial_SUM(amount) FILTER $f3 AS sum$0])
+ *          +- Calc(select=[name, type, amount, IS TRUE(>(amount, 0)) AS $f3])
+ *             +- TableSourceScan(table=[[inventory, project=[name, type, amount]]], fields=[name, type, amount])
  * }</pre>
  *
  * <p>Note: The local aggregate push down strategy is all or nothing, it can only be pushed down if
@@ -145,8 +135,8 @@ public interface SupportsAggregatePushDown {
      * the aggregates or nothing and return whether all the aggregates have been pushed down into
      * the source.
      *
-     * <p>Note: Use the passed data type instead of {@link TableSchema#toPhysicalRowDataType()} for
-     * describing the final output data type when creating {@link TypeInformation}. The projection
+     * <p>Note: Use the passed {@code producedDataType} instead of {@link TableSchema#toPhysicalRowDataType()}
+     * for describing the final output data type when creating {@link TypeInformation}. The projection
      * of grouping keys and aggregate values is already considered in the given output data type.
      * The passed data type pattern is {@code grouping sets} + {@code aggregate function result},
      * downstream storage need to organize the returned aggregate data strictly in this manner.
