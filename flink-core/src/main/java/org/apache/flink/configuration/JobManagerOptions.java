@@ -24,6 +24,7 @@ import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.LinkElement.link;
+import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.configuration.description.TextElement.text;
 
 /** Configuration options for the JobManager. */
@@ -358,6 +359,18 @@ public class JobManagerOptions {
                                     .list(text("'ng': new generation scheduler"))
                                     .build());
 
+    @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
+    public static final ConfigOption<SchedulerExecutionMode> SCHEDULER_MODE =
+            key("scheduler-mode")
+                    .enumType(SchedulerExecutionMode.class)
+                    .defaultValue(null)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Determines the mode of the scheduler. Note that %s=%s is only supported by standalone application deployments, not by active resource managers (YARN, Kubernetes) or session clusters.",
+                                            code("scheduler-mode"),
+                                            code(SchedulerExecutionMode.REACTIVE.name()))
+                                    .build());
     /**
      * Config parameter controlling whether partitions should already be released during the job
      * execution.
