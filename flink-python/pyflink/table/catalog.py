@@ -729,19 +729,6 @@ class CatalogBaseTable(object):
         """
         return dict(self._j_catalog_base_table.getOptions())
 
-    def get_properties(self) -> Dict[str, str]:
-        """
-        Get the properties of the table.
-
-        :return: Property map of the table/view.
-
-        .. note:: This method is deprecated. Use :func:`~pyflink.table.CatalogBaseTable.get_options`
-                  instead.
-        """
-        warnings.warn("Deprecated in 1.11. Use CatalogBaseTable#get_options instead.",
-                      DeprecationWarning)
-        return dict(self._j_catalog_base_table.getProperties())
-
     def get_schema(self) -> TableSchema:
         """
         Get the schema of the table.
