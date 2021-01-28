@@ -78,11 +78,11 @@ public class StreamPhysicalPythonGroupWindowAggregateRule extends ConverterRule 
                         .anyMatch(x -> PythonUtil.isPythonAggregate(x, PythonFunctionKind.PANDAS));
         boolean existJavaFunction =
                 aggCalls.stream().anyMatch(x -> !PythonUtil.isPythonAggregate(x, null));
+        if (existPandasFunction && existGeneralPythonFunction) {
+            throw new TableException(
+                    "Pandas UDAFs and General Python UDAFs are not supported in used together currently.");
+        }
         if (existPandasFunction || existGeneralPythonFunction) {
-            if (existGeneralPythonFunction) {
-                throw new TableException(
-                        "non-Pandas UDAFs are not supported in stream mode currently.");
-            }
             if (existJavaFunction) {
                 throw new TableException(
                         "Python UDAF and Java/Scala UDAF cannot be used together.");
@@ -98,7 +98,12 @@ public class StreamPhysicalPythonGroupWindowAggregateRule extends ConverterRule 
         FlinkLogicalWindowAggregate agg = (FlinkLogicalWindowAggregate) rel;
         LogicalWindow window = agg.getWindow();
 
-        if (window instanceof SessionGroupWindow) {
+        List<AggregateCall> aggCalls = agg.getAggCallList();
+        boolean isPandasPythonUDAF =
+                aggCalls.stream()
+                        .anyMatch(x -> PythonUtil.isPythonAggregate(x, PythonFunctionKind.PANDAS));
+
+        if (isPandasPythonUDAF && window instanceof SessionGroupWindow) {
             throw new TableException("Session Group Window is currently not supported.");
         }
         RelNode input = agg.getInput();
@@ -127,7 +132,7 @@ public class StreamPhysicalPythonGroupWindowAggregateRule extends ConverterRule 
                 newInput,
                 rel.getRowType(),
                 agg.getGroupSet().toArray(),
-                JavaScalaConversionUtil.toScala(agg.getAggCallList()),
+                JavaScalaConversionUtil.toScala(aggCalls),
                 agg.getWindow(),
                 agg.getNamedProperties(),
                 emitStrategy);
