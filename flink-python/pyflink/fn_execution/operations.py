@@ -24,7 +24,7 @@ from typing import List, Tuple, Any, Dict
 from apache_beam.coders import PickleCoder
 
 from pyflink.datastream.state import ValueStateDescriptor, ValueState, ListStateDescriptor, \
-    ListState, MapStateDescriptor, MapState
+    ListState, MapStateDescriptor, MapState, ReducingStateDescriptor, ReducingState
 from pyflink.datastream import TimeDomain
 from pyflink.datastream.functions import RuntimeContext, TimerService, ProcessFunction, \
     KeyedProcessFunction
@@ -457,6 +457,10 @@ class InternalRuntimeContext(RuntimeContext):
     def get_map_state(self, state_descriptor: MapStateDescriptor) -> MapState:
         return self._keyed_state_backend.get_map_state(state_descriptor.name, PickleCoder(),
                                                        PickleCoder())
+
+    def get_reducing_state(self, state_descriptor: ReducingStateDescriptor) -> ReducingState:
+        return self._keyed_state_backend.get_reducing_state(
+            state_descriptor.get_name(), PickleCoder(), state_descriptor.get_reduce_function())
 
 
 class ProcessFunctionOperation(DataStreamStatelessFunctionOperation):
