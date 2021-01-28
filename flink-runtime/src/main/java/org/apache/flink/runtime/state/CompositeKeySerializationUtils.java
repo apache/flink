@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.contrib.streaming.state;
+package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputDeserializer;
@@ -28,9 +28,10 @@ import javax.annotation.Nonnull;
 import java.io.IOException;
 
 /** Utils for RocksDB state serialization and deserialization. */
-public class RocksDBKeySerializationUtils {
+public class CompositeKeySerializationUtils {
 
-    static int readKeyGroup(int keyGroupPrefixBytes, DataInputView inputView) throws IOException {
+    public static int readKeyGroup(int keyGroupPrefixBytes, DataInputView inputView)
+            throws IOException {
         int keyGroup = 0;
         for (int i = 0; i < keyGroupPrefixBytes; ++i) {
             keyGroup <<= 8;

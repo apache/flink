@@ -24,6 +24,7 @@ import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
@@ -70,7 +71,7 @@ public abstract class AbstractRocksDBState<K, N, V> implements InternalKvState<K
 
     protected final DataInputDeserializer dataInputView;
 
-    private final RocksDBSerializedCompositeKeyBuilder<K> sharedKeyNamespaceSerializer;
+    private final SerializedCompositeKeyBuilder<K> sharedKeyNamespaceSerializer;
 
     /**
      * Creates a new RocksDB backed state.
@@ -138,8 +139,8 @@ public abstract class AbstractRocksDBState<K, N, V> implements InternalKvState<K
                 KeyGroupRangeAssignment.assignToKeyGroup(
                         keyAndNamespace.f0, backend.getNumberOfKeyGroups());
 
-        RocksDBSerializedCompositeKeyBuilder<K> keyBuilder =
-                new RocksDBSerializedCompositeKeyBuilder<>(
+        SerializedCompositeKeyBuilder<K> keyBuilder =
+                new SerializedCompositeKeyBuilder<>(
                         safeKeySerializer, backend.getKeyGroupPrefixBytes(), 32);
         keyBuilder.setKeyAndKeyGroup(keyAndNamespace.f0, keyGroup);
         byte[] key = keyBuilder.buildCompositeKeyNamespace(keyAndNamespace.f1, namespaceSerializer);
