@@ -162,6 +162,7 @@ public class KafkaSourceEnumerator
     public void addSplitsBack(List<KafkaPartitionSplit> splits, int subtaskId) {
         addPartitionSplitChangeToPendingAssignments(splits);
         assignPendingPartitionSplits();
+        maybeSignalNoMoreSplits(subtaskId);
     }
 
     @Override
@@ -171,6 +172,7 @@ public class KafkaSourceEnumerator
                 subtaskId,
                 consumerGroupId);
         assignPendingPartitionSplits();
+        maybeSignalNoMoreSplits(subtaskId);
     }
 
     @Override
@@ -189,6 +191,17 @@ public class KafkaSourceEnumerator
     }
 
     // ----------------- private methods -------------------
+
+    private void maybeSignalNoMoreSplits(int subtaskId) {
+        if (noMoreNewPartitionSplits) {
+            LOG.debug(
+                    "No more KafkaPartitionSplits to assign. Sending NoMoreSplitsEvent to "
+                            + "reader {} in consumer group {}.",
+                    subtaskId,
+                    consumerGroupId);
+            context.signalNoMoreSplits(subtaskId);
+        }
+    }
 
     private PartitionSplitChange discoverAndInitializePartitionSplit() {
         // Make a copy of the partitions to owners
@@ -276,15 +289,6 @@ public class KafkaSourceEnumerator
                             .addAll(newPartitionSplits);
                     // Clear the pending splits for the reader owner.
                     pendingPartitionSplitAssignment.remove(readerOwner);
-                    // Sends NoMoreSplitsEvent to the readers if there is no more partition splits
-                    // to be assigned.
-                    if (noMoreNewPartitionSplits) {
-                        LOG.debug(
-                                "No more KafkaPartitionSplits to assign. Sending NoMoreSplitsEvent to the readers "
-                                        + "in consumer group {}.",
-                                consumerGroupId);
-                        context.signalNoMoreSplits(readerOwner);
-                    }
                 });
     }
 
