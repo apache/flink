@@ -22,7 +22,7 @@ from typing import Union, Any, Dict
 
 from py4j.java_gateway import JavaObject
 
-from pyflink.common.state import ValueState, ValueStateDescriptor, \
+from pyflink.datastream.state import ValueState, ValueStateDescriptor, \
     ListStateDescriptor, ListState, MapStateDescriptor, MapState
 from pyflink.datastream.time_domain import TimeDomain
 from pyflink.java_gateway import get_gateway
