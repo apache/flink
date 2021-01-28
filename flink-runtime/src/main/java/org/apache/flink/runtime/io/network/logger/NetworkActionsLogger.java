@@ -40,12 +40,14 @@ public class NetworkActionsLogger {
     public static void traceInput(
             String action,
             Buffer buffer,
+            String taskName,
             InputChannelInfo channelInfo,
             ChannelStatePersister channelStatePersister,
             int sequenceNumber) {
         if (ENABLED) {
             LOG.trace(
-                    "{} {}, seq {}, {} @ {}",
+                    "[{}] {} {}, seq {}, {} @ {}",
+                    taskName,
                     action,
                     buffer.toDebugString(INCLUDE_HASH),
                     sequenceNumber,
@@ -55,15 +57,26 @@ public class NetworkActionsLogger {
     }
 
     public static void traceOutput(
-            String action, Buffer buffer, ResultSubpartitionInfo channelInfo) {
+            String action, Buffer buffer, String taskName, ResultSubpartitionInfo channelInfo) {
         if (ENABLED) {
-            LOG.trace("{} {} @ {}", action, buffer.toDebugString(INCLUDE_HASH), channelInfo);
+            LOG.trace(
+                    "[{}] {} {} @ {}",
+                    taskName,
+                    action,
+                    buffer.toDebugString(INCLUDE_HASH),
+                    channelInfo);
         }
     }
 
-    public static void traceRecover(String action, Buffer buffer, InputChannelInfo channelInfo) {
+    public static void traceRecover(
+            String action, Buffer buffer, String taskName, InputChannelInfo channelInfo) {
         if (ENABLED) {
-            LOG.trace("{} {} @ {}", action, buffer.toDebugString(INCLUDE_HASH), channelInfo);
+            LOG.trace(
+                    "[{}] {} {} @ {}",
+                    taskName,
+                    action,
+                    buffer.toDebugString(INCLUDE_HASH),
+                    channelInfo);
         }
     }
 

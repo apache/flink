@@ -325,7 +325,10 @@ public class PipelinedSubpartition extends ResultSubpartition
             // queue
             // will be 2 or more.
             NetworkActionsLogger.traceOutput(
-                    "PipelinedSubpartition#pollBuffer", buffer, subpartitionInfo);
+                    "PipelinedSubpartition#pollBuffer",
+                    buffer,
+                    parent.getOwningTaskName(),
+                    subpartitionInfo);
             return new BufferAndBacklog(
                     buffer,
                     getBuffersInBacklog(),

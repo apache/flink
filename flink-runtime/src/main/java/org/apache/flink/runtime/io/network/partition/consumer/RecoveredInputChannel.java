@@ -27,6 +27,7 @@ import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.util.Preconditions;
@@ -120,6 +121,11 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
 
     public void onRecoveredStateBuffer(Buffer buffer) {
         boolean recycleBuffer = true;
+        NetworkActionsLogger.traceRecover(
+                "InputChannelRecoveredStateHandler#recover",
+                buffer,
+                inputGate.getOwningTaskName(),
+                channelInfo);
         try {
             final boolean wasEmpty;
             synchronized (receivedBuffers) {
