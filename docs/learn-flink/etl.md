@@ -418,7 +418,7 @@ Connected streams can also be used to implement streaming joins.
 ### Example
 
 In this example, a control stream is used to specify words which must be filtered out of the
-`streamOfWords`. A `RichCoFlatMapFunction` called `ControlFunction` is applied to the connected
+`datastreamOfWords`. A `RichCoFlatMapFunction` called `ControlFunction` is applied to the connected
 streams to get this done. 
 
 {% highlight java %}
@@ -426,7 +426,7 @@ public static void main(String[] args) throws Exception {
     StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
     DataStream<String> control = env.fromElements("DROP", "IGNORE").keyBy(x -> x);
-    DataStream<String> streamOfWords = env.fromElements("Apache", "DROP", "Flink", "IGNORE").keyBy(x -> x);
+    DataStream<String> datastreamOfWords = env.fromElements("Apache", "DROP", "Flink", "IGNORE").keyBy(x -> x);
   
     control
         .connect(datastreamOfWords)
