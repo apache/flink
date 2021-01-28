@@ -147,11 +147,10 @@ Please refer to the [build guide]({% link flinkDev/building.md %}#scala-versions
 for details on how to build Flink for a specific Scala version.
 
 Scala versions after 2.12.8 are not binary compatible with previous 2.12.x
-versions. The Flink project does therefore not offer releases for versions past
-2.12.8. If you want, you can build Flink yourself for a later Scala version.
-Refer to the [build guide]({%link flinkDev/building.md %}#scala-versions) for
-more information, as mentioned above. For this to work, you need to add
-`-Djapicmp.skip` to skip binary compatibility checks when building.
+versions, preventing the Flink project from upgrading its 2.12.x builds beyond 2.12.8.
+Users can build Flink locally for latter Scala versions by following the above mentioned
+[build guide]({% link flinkDev/building.md %}#scala-versions). For this to work, users
+need to add `-Djapicmp.skip` to skip binary compatibility checks when building.
 
 See the [Scala 2.12.8 release
 notes](https://github.com/scala/scala/releases/tag/v2.12.8) for more details,
