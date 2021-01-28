@@ -49,6 +49,12 @@ class BatchPhysicalTableSourceScan(
     new BatchPhysicalTableSourceScan(cluster, traitSet, getHints, tableSourceTable)
   }
 
+  def copy(
+      traitSet: RelTraitSet,
+      tableSourceTable: TableSourceTable): BatchPhysicalTableSourceScan = {
+    new BatchPhysicalTableSourceScan(cluster, traitSet, getHints, tableSourceTable)
+  }
+
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
     val rowCnt = mq.getRowCount(this)
     if (rowCnt == null) {

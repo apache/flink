@@ -131,4 +131,23 @@ class TableSourceTable(
       flinkContext,
       abilitySpecs ++ newAbilitySpecs)
   }
+
+  /**
+   * Creates a copy of this table, changing the rowType
+   *
+   * @param newRowType new row type
+   * @return New TableSourceTable instance with new row type
+   */
+  def copy(newRowType: RelDataType): TableSourceTable = {
+    new TableSourceTable(
+      relOptSchema,
+      tableIdentifier,
+      newRowType,
+      statistic,
+      tableSource,
+      isStreamingMode,
+      catalogTable,
+      flinkContext,
+      abilitySpecs)
+  }
 }

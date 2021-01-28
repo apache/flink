@@ -414,17 +414,17 @@ object TestData {
 
   // person test data
   lazy val personData: Seq[Row] = Seq(
-    row(1, 23, "tom", 172, "m"),
-    row(2, 21, "mary", 161, "f"),
-    row(3, 18, "jack", 182, "m"),
-    row(4, 25, "rose", 165, "f"),
-    row(5, 27, "danny", 175, "m"),
-    row(6, 31, "tommas", 172, "m"),
-    row(7, 19, "olivia", 172, "f"),
-    row(8, 34, "stef", 170, "m"),
-    row(9, 32, "emma", 171, "f"),
-    row(10, 28, "benji", 165, "m"),
-    row(11, 20, "eva", 180, "f")
+    row(1, 23, "tom", 172, "m", 200L),
+    row(2, 25, "mary", 161, "f", 100L),
+    row(3, 23, "jack", 182, "m", 150L),
+    row(4, 25, "rose", 165, "f", 100L),
+    row(5, 27, "danny", 175, "m", 300L),
+    row(6, 23, "tommas", 172, "m", 400L),
+    row(7, 19, "olivia", 172, "f", 50L),
+    row(8, 34, "stef", 170, "m", 100L),
+    row(9, 25, "emma", 171, "f", 180L),
+    row(10, 28, "benji", 165, "m", 170L),
+    row(11, 20, "eva", 180, "f", 200L)
   )
 
   val nullablesOfPersonData = Array(true, true, true, true, true)
