@@ -99,7 +99,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErrorHandler {
 
-    public static final ConfigOption<String> EXECUTION_MODE =
+    public static final ConfigOption<String> INTERNAL_CLUSTER_EXECUTION_MODE =
             ConfigOptions.key("internal.cluster.execution-mode")
                     .defaultValue(ExecutionMode.NORMAL.toString());
 
