@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
@@ -42,8 +43,12 @@ import org.junit.Test;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -132,18 +137,93 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
         assertThat(storeShutdownFuture.get(), is(JobStatus.FINISHED));
     }
 
+    @Test(timeout = 60000)
+    public void testNotifyCheckpointCoordinatorOnTaskFinished() throws Exception {
+        JobVertex first = new JobVertex("FirstMockVertex");
+        first.setInvokableClass(AbstractInvokable.class);
+
+        JobVertex second = new JobVertex("SecondMockVertex");
+        second.setInvokableClass(AbstractInvokable.class);
+
+        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+        SchedulerBase scheduler =
+                createSchedulerAndEnableCheckpointing(
+                        new StandaloneCheckpointIDCounter(),
+                        new EmbeddedCompletedCheckpointStore(),
+                        Integer.MAX_VALUE,
+                        ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(executor),
+                        first,
+                        second);
+        ExecutionGraph graph = scheduler.getExecutionGraph();
+        CheckpointCoordinator checkpointCoordinator = graph.getCheckpointCoordinator();
+
+        executor.submit(
+                        () -> {
+                            try {
+                                scheduler.startScheduling();
+                                graph.getAllExecutionVertices()
+                                        .forEach(
+                                                task ->
+                                                        task.getCurrentExecutionAttempt()
+                                                                .transitionState(
+                                                                        ExecutionState.RUNNING));
+                            } catch (Throwable t) {
+                                throw new CompletionException(t);
+                            }
+                        })
+                .get();
+
+        checkpointCoordinator.triggerCheckpoint(false);
+        // Wait for the checkpoint get trigger.
+        while (checkpointCoordinator.getNumberOfPendingCheckpoints() == 0) {
+            Thread.sleep(1000);
+        }
+        assertEquals(1, checkpointCoordinator.getNumberOfPendingCheckpoints());
+        PendingCheckpoint pendingCheckpoint =
+                checkpointCoordinator.getPendingCheckpoints().values().iterator().next();
+
+        Execution execution =
+                graph.getVerticesTopologically()
+                        .iterator()
+                        .next()
+                        .getTaskVertices()[0]
+                        .getCurrentExecutionAttempt();
+        executor.submit(execution::markFinished).get();
+
+        // Wait for the checkpoint re-compute tasks to trigger
+        while (!pendingCheckpoint.isAcknowledgedBy(execution.getAttemptId())) {
+            Thread.sleep(1000);
+        }
+        assertEquals(1, pendingCheckpoint.getCheckpointBrief().getTasksToTrigger().size());
+    }
+
     private SchedulerBase createSchedulerAndEnableCheckpointing(
             CheckpointIDCounter counter, CompletedCheckpointStore store) throws Exception {
-        final Time timeout = Time.days(1L);
 
         final JobVertex jobVertex = new JobVertex("MockVertex");
         jobVertex.setInvokableClass(AbstractInvokable.class);
 
-        final JobGraph jobGraph = new JobGraph(jobVertex);
+        return createSchedulerAndEnableCheckpointing(
+                counter,
+                store,
+                100,
+                ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                jobVertex);
+    }
+
+    private SchedulerBase createSchedulerAndEnableCheckpointing(
+            CheckpointIDCounter counter,
+            CompletedCheckpointStore store,
+            long checkpointTimeout,
+            ComponentMainThreadExecutor mainThreadExecutor,
+            JobVertex... jobVertices)
+            throws Exception {
+        final Time timeout = Time.days(1L);
+        final JobGraph jobGraph = new JobGraph(jobVertices);
         final CheckpointCoordinatorConfiguration chkConfig =
                 new CheckpointCoordinatorConfiguration(
                         100,
-                        100,
+                        checkpointTimeout,
                         100,
                         1,
                         CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
@@ -156,12 +236,15 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
         jobGraph.setSnapshotSettings(checkpointingSettings);
 
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(
-                                jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread())
+                SchedulerTestingUtils.newSchedulerBuilder(jobGraph, mainThreadExecutor)
                         .setCheckpointRecoveryFactory(
                                 new TestingCheckpointRecoveryFactory(store, counter))
                         .setRpcTimeout(timeout)
                         .build();
+        scheduler
+                .getExecutionGraph()
+                .getCheckpointCoordinator()
+                .setDisableCheckpointsAfterTasksFinished(false);
 
         return scheduler;
     }

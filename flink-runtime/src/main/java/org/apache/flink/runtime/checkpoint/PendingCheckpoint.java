@@ -51,6 +51,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -91,7 +92,9 @@ public class PendingCheckpoint implements Checkpoint {
 
     private final Map<ExecutionAttemptID, ExecutionVertex> notYetAcknowledgedTasks;
 
-    private final CheckpointBrief checkpointBrief;
+    private final boolean advanceToEndOfTime;
+
+    private final AtomicReference<CheckpointBrief> checkpointBrief = new AtomicReference<>(null);
 
     private final Set<OperatorID> notYetAcknowledgedOperatorCoordinators;
 
@@ -130,6 +133,7 @@ public class PendingCheckpoint implements Checkpoint {
             JobID jobId,
             long checkpointId,
             long checkpointTimestamp,
+            boolean advanceToEndOfTime,
             CheckpointBrief checkpointBrief,
             Collection<OperatorID> operatorCoordinatorsToConfirm,
             Collection<String> masterStateIdentifiers,
@@ -145,7 +149,8 @@ public class PendingCheckpoint implements Checkpoint {
         this.checkpointId = checkpointId;
         this.checkpointTimestamp = checkpointTimestamp;
         this.notYetAcknowledgedTasks = checkNotNull(checkpointBrief.getTasksToWait());
-        this.checkpointBrief = checkNotNull(checkpointBrief);
+        this.advanceToEndOfTime = advanceToEndOfTime;
+        this.checkpointBrief.set(checkNotNull(checkpointBrief));
         this.props = checkNotNull(props);
         this.targetLocation = checkNotNull(targetLocation);
 
@@ -204,8 +209,16 @@ public class PendingCheckpoint implements Checkpoint {
         return numAcknowledgedTasks;
     }
 
+    public void setCheckpointBrief(CheckpointBrief checkpointBrief) {
+        this.checkpointBrief.set(checkpointBrief);
+    }
+
     public CheckpointBrief getCheckpointBrief() {
-        return checkpointBrief;
+        return checkpointBrief.get();
+    }
+
+    public boolean isAdvanceToEndOfTime() {
+        return advanceToEndOfTime;
     }
 
     public Map<OperatorID, OperatorState> getOperatorStates() {
@@ -317,7 +330,8 @@ public class PendingCheckpoint implements Checkpoint {
             // make sure we fulfill the promise with an exception if something fails
             try {
                 // Completes the operator state for the fully finished operators
-                for (ExecutionJobVertex jobVertex : checkpointBrief.getFullyFinishedJobVertex()) {
+                for (ExecutionJobVertex jobVertex :
+                        getCheckpointBrief().getFullyFinishedJobVertex()) {
                     for (OperatorIDPair operatorID : jobVertex.getOperatorIDs()) {
                         OperatorState operatorState =
                                 operatorStates.get(operatorID.getGeneratedOperatorID());
@@ -474,6 +488,30 @@ public class PendingCheckpoint implements Checkpoint {
 
             return TaskAcknowledgeResult.SUCCESS;
         }
+    }
+
+    public TaskAcknowledgeResult acknowledgeTasksFinished(ExecutionAttemptID executionAttemptId) {
+        final ExecutionVertex vertex = notYetAcknowledgedTasks.remove(executionAttemptId);
+
+        if (vertex == null) {
+            if (acknowledgedTasks.contains(executionAttemptId)) {
+                return TaskAcknowledgeResult.DUPLICATE;
+            } else {
+                return TaskAcknowledgeResult.UNKNOWN;
+            }
+        } else {
+            acknowledgedTasks.add(executionAttemptId);
+        }
+
+        long ackTimestamp = System.currentTimeMillis();
+        SubtaskStateStats subtaskStateStats =
+                new SubtaskStateStats(vertex.getParallelSubtaskIndex(), ackTimestamp);
+
+        if (statsCallback != null) {
+            statsCallback.reportSubtaskStats(vertex.getJobvertexId(), subtaskStateStats);
+        }
+
+        return TaskAcknowledgeResult.SUCCESS;
     }
 
     public TaskAcknowledgeResult acknowledgeCoordinatorState(

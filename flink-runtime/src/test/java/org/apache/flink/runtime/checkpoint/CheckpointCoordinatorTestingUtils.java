@@ -536,6 +536,10 @@ public class CheckpointCoordinatorTestingUtils {
                     abortedCheckpoints.size());
             return abortedCheckpoints.get(0);
         }
+
+        public int getTotalTriggerCount() {
+            return triggeredCheckpoints.values().stream().map(List::size).reduce(0, Integer::sum);
+        }
     }
 
     static class CheckpointExecutionGraphBuilder {

@@ -694,6 +694,7 @@ public class PendingCheckpointTest {
                 new JobID(),
                 0,
                 1,
+                false,
                 new CheckpointBrief(
                         new ArrayList<>(),
                         ackTasks,
