@@ -233,7 +233,8 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
                 detached
                         ? ClusterEntrypoint.ExecutionMode.DETACHED
                         : ClusterEntrypoint.ExecutionMode.NORMAL;
-        flinkConfig.setString(ClusterEntrypoint.EXECUTION_MODE, executionMode.toString());
+        flinkConfig.setString(
+                ClusterEntrypoint.INTERNAL_CLUSTER_EXECUTION_MODE, executionMode.toString());
 
         flinkConfig.setString(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS, entryPoint);
 
