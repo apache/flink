@@ -26,9 +26,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JMXServerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginManager;
@@ -151,6 +153,16 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         this.configuration = generateClusterConfiguration(configuration);
         this.terminationFuture = new CompletableFuture<>();
 
+        if (configuration.get(JobManagerOptions.SCHEDULER_MODE) == SchedulerExecutionMode.REACTIVE
+                && !supportsReactiveMode()) {
+            final String msg =
+                    "Reactive mode is configured for an unsupported cluster type. At the moment, reactive mode is only supported by standalone application clusters (bin/standalone-job.sh).";
+            // log message as well, otherwise the error is only shown in the .out file of the
+            // cluster
+            LOG.error(msg);
+            throw new IllegalConfigurationException(msg);
+        }
+
         shutDownHook =
                 ShutdownHookUtil.addShutdownHook(
                         this::cleanupDirectories, getClass().getSimpleName(), LOG);
@@ -201,6 +213,10 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                             getClass().getSimpleName()),
                     strippedThrowable);
         }
+    }
+
+    protected boolean supportsReactiveMode() {
+        return false;
     }
 
     private void configureFileSystems(Configuration configuration, PluginManager pluginManager) {
