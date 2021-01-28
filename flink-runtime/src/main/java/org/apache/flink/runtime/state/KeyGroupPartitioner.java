@@ -43,46 +43,43 @@ public class KeyGroupPartitioner<T> {
      * The input data for the partitioning. All elements to consider must be densely in the index
      * interval [0, {@link #numberOfElements}[, without null values.
      */
-    @Nonnull protected final T[] partitioningSource;
+    @Nonnull private final T[] partitioningSource;
 
     /**
      * The output array for the partitioning. The size must be {@link #numberOfElements} (or
      * bigger).
      */
-    @Nonnull protected final T[] partitioningDestination;
+    @Nonnull private final T[] partitioningDestination;
 
     /** Total number of input elements. */
-    @Nonnegative protected final int numberOfElements;
+    @Nonnegative private final int numberOfElements;
 
     /** The total number of key-groups in the job. */
-    @Nonnegative protected final int totalKeyGroups;
-
-    /** The key-group range for the input data, covered in this partitioning. */
-    @Nonnull protected final KeyGroupRange keyGroupRange;
+    @Nonnegative private final int totalKeyGroups;
 
     /**
      * This bookkeeping array is used to count the elements in each key-group. In a second step, it
      * is transformed into a histogram by accumulation.
      */
-    @Nonnull protected final int[] counterHistogram;
+    @Nonnull private final int[] counterHistogram;
 
     /**
      * This is a helper array that caches the key-group for each element, so we do not have to
      * compute them twice.
      */
-    @Nonnull protected final int[] elementKeyGroups;
+    @Nonnull private final int[] elementKeyGroups;
 
     /** Cached value of keyGroupRange#firstKeyGroup. */
-    @Nonnegative protected final int firstKeyGroup;
+    @Nonnegative private final int firstKeyGroup;
 
     /** Function to extract the key from a given element. */
-    @Nonnull protected final KeyExtractorFunction<T> keyExtractorFunction;
+    @Nonnull private final KeyExtractorFunction<T> keyExtractorFunction;
 
     /** Function to write an element to a {@link DataOutputView}. */
-    @Nonnull protected final ElementWriterFunction<T> elementWriterFunction;
+    @Nonnull private final ElementWriterFunction<T> elementWriterFunction;
 
     /** Cached result. */
-    @Nullable protected StateSnapshot.StateKeyGroupWriter computedResult;
+    @Nullable private StateSnapshot.StateKeyGroupWriter computedResult;
 
     /**
      * Creates a new {@link KeyGroupPartitioner}.
@@ -114,7 +111,6 @@ public class KeyGroupPartitioner<T> {
         this.partitioningSource = partitioningSource;
         this.partitioningDestination = partitioningDestination;
         this.numberOfElements = numberOfElements;
-        this.keyGroupRange = keyGroupRange;
         this.totalKeyGroups = totalKeyGroups;
         this.keyExtractorFunction = keyExtractorFunction;
         this.elementWriterFunction = elementWriterFunction;
