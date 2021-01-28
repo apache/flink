@@ -41,8 +41,10 @@ import org.junit.Test;
 import java.util.Collections;
 import java.util.List;
 
+import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
@@ -137,12 +139,12 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
                         subtaskState);
 
         try {
-            coord.receiveAcknowledgeMessage(acknowledgeMessage, "Unknown location");
+            coord.receiveAcknowledgeMessage(acknowledgeMessage, "Unknown location").get();
             fail(
                     "Expected a checkpoint exception because the completed checkpoint store could not "
                             + "store the completed checkpoint.");
-        } catch (CheckpointException e) {
-            // ignore because we expected this exception
+        } catch (Exception e) {
+            assertThat(e.getCause(), instanceOf(CheckpointException.class));
         }
 
         // make sure that the pending checkpoint has been discarded after we could not complete it

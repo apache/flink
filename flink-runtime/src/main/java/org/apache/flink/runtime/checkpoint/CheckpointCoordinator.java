@@ -993,10 +993,30 @@ public class CheckpointCoordinator {
     /**
      * Receives a {@link DeclineCheckpoint} message for a pending checkpoint.
      *
-     * @param message Checkpoint decline from the task manager
-     * @param taskManagerLocationInfo The location info of the decline checkpoint message's sender
+     * @param message Checkpoint decline from the task manager.
+     * @param taskManagerLocationInfo The location info of the decline checkpoint message's sender.
+     * @return The result future for processing the decline message.
      */
-    public void receiveDeclineMessage(DeclineCheckpoint message, String taskManagerLocationInfo) {
+    public CompletableFuture<Void> receiveDeclineMessage(
+            DeclineCheckpoint message, String taskManagerLocationInfo) {
+
+        CompletableFuture<Void> declineFuture = new CompletableFuture<>();
+        executor.execute(
+                () -> {
+                    try {
+                        receiveDeclineMessageInternal(message, taskManagerLocationInfo);
+                        declineFuture.complete(null);
+                    } catch (Throwable e) {
+                        LOG.error("Error in CheckpointCoordinator while processing {}", message, e);
+                        declineFuture.completeExceptionally(e);
+                    }
+                });
+
+        return declineFuture;
+    }
+
+    private void receiveDeclineMessageInternal(
+            DeclineCheckpoint message, String taskManagerLocationInfo) {
         if (shutdown || message == null) {
             return;
         }
@@ -1072,12 +1092,29 @@ public class CheckpointCoordinator {
      *
      * @param message Checkpoint ack from the task manager
      * @param taskManagerLocationInfo The location of the acknowledge checkpoint message's sender
-     * @return Flag indicating whether the ack'd checkpoint was associated with a pending
-     *     checkpoint.
-     * @throws CheckpointException If the checkpoint cannot be added to the completed checkpoint
-     *     store.
+     * @return The future of flag indicating whether the ack'd checkpoint was associated with a
+     *     pending checkpoint.
      */
-    public boolean receiveAcknowledgeMessage(
+    public CompletableFuture<Boolean> receiveAcknowledgeMessage(
+            AcknowledgeCheckpoint message, String taskManagerLocationInfo) {
+
+        CompletableFuture<Boolean> ackFuture = new CompletableFuture<>();
+        executor.execute(
+                () -> {
+                    try {
+                        ackFuture.complete(
+                                receiveAcknowledgeMessageInternal(
+                                        message, taskManagerLocationInfo));
+                    } catch (Throwable t) {
+                        LOG.warn("Error while processing checkpoint acknowledgement message", t);
+                        ackFuture.completeExceptionally(t);
+                    }
+                });
+
+        return ackFuture;
+    }
+
+    private boolean receiveAcknowledgeMessageInternal(
             AcknowledgeCheckpoint message, String taskManagerLocationInfo)
             throws CheckpointException {
         if (shutdown || message == null) {
@@ -1887,10 +1924,20 @@ public class CheckpointCoordinator {
     public void reportStats(long id, ExecutionAttemptID attemptId, CheckpointMetrics metrics)
             throws CheckpointException {
 
-        if (statsTracker != null) {
-            getVertex(attemptId)
-                    .ifPresent(ev -> statsTracker.reportIncompleteStats(id, ev, metrics));
-        }
+        executor.execute(
+                () -> {
+                    try {
+                        if (statsTracker != null) {
+                            getVertex(attemptId)
+                                    .ifPresent(
+                                            ev ->
+                                                    statsTracker.reportIncompleteStats(
+                                                            id, ev, metrics));
+                        }
+                    } catch (CheckpointException e) {
+                        throw new CompletionException(e);
+                    }
+                });
     }
 
     // ------------------------------------------------------------------------

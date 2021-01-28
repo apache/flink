@@ -461,13 +461,14 @@ public class CheckpointCoordinatorTest extends TestLogger {
                             attemptID1,
                             checkpointId,
                             new CheckpointException(CHECKPOINT_DECLINED)),
-                    TASK_MANAGER_LOCATION_INFO);
+                    TASK_MANAGER_LOCATION_INFO).get();
 
             fail("Test failed.");
         } catch (Exception e) {
             // expected
-            assertTrue(e instanceof RuntimeException);
-            assertEquals(errorMsg, e.getMessage());
+            Throwable cause = e.getCause();
+            assertTrue(cause instanceof RuntimeException);
+            assertEquals(errorMsg, cause.getMessage());
         } finally {
             try {
                 checkpointCoordinator.shutdown();

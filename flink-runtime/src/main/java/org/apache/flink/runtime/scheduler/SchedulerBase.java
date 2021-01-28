@@ -1019,14 +1019,11 @@ public abstract class SchedulerBase implements SchedulerNG {
                 executionGraph.getCheckpointCoordinator();
 
         if (checkpointCoordinator != null) {
-            ioExecutor.execute(
-                    () -> {
-                        try {
-                            process.accept(checkpointCoordinator);
-                        } catch (Exception t) {
-                            log.warn("Error while processing " + messageType + " message", t);
-                        }
-                    });
+            try {
+                process.accept(checkpointCoordinator);
+            } catch (Exception t) {
+                log.warn("Error while processing " + messageType + " message", t);
+            }
         } else {
             String errorMessage =
                     "Received " + messageType + " message for job {} with no CheckpointCoordinator";
