@@ -143,10 +143,11 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 
             if (subpartitionView == null) {
                 LOG.debug(
-                        "{}: Requesting LOCAL subpartition {} of partition {}.",
+                        "{}: Requesting LOCAL subpartition {} of partition {}. {}",
                         this,
                         subpartitionIndex,
-                        partitionId);
+                        partitionId,
+                        channelStatePersister);
 
                 try {
                     ResultSubpartitionView subpartitionView =
@@ -262,6 +263,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
         NetworkActionsLogger.traceInput(
                 "LocalInputChannel#getNextBuffer",
                 buffer,
+                inputGate.getOwningTaskName(),
                 channelInfo,
                 channelStatePersister,
                 next.getSequenceNumber());
