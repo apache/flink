@@ -42,10 +42,9 @@ public class SavepointTriggerRequestBody implements RequestBody {
     @JsonCreator
     public SavepointTriggerRequestBody(
             @Nullable @JsonProperty(FIELD_NAME_TARGET_DIRECTORY) final String targetDirectory,
-            @JsonProperty(value = FIELD_NAME_CANCEL_JOB, defaultValue = "false")
-                    final boolean cancelJob) {
+            @Nullable @JsonProperty(FIELD_NAME_CANCEL_JOB) final Boolean cancelJob) {
         this.targetDirectory = targetDirectory;
-        this.cancelJob = cancelJob;
+        this.cancelJob = cancelJob != null ? cancelJob : false;
     }
 
     @Nullable
