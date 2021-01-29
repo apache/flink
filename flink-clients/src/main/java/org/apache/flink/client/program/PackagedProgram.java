@@ -42,6 +42,7 @@ import java.lang.reflect.Modifier;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -88,7 +89,7 @@ public class PackagedProgram implements AutoCloseable {
 
     private final List<URL> classpaths;
 
-    private final ClassLoader userCodeClassLoader;
+    private final URLClassLoader userCodeClassLoader;
 
     private final SavepointRestoreSettings savepointSettings;
 
@@ -588,6 +589,11 @@ public class PackagedProgram implements AutoCloseable {
 
     @Override
     public void close() {
+        try {
+            userCodeClassLoader.close();
+        } catch (IOException e) {
+            LOG.debug("Error while closing user-code classloader.", e);
+        }
         try {
             deleteExtractedLibraries();
         } catch (Exception e) {
