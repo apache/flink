@@ -32,6 +32,7 @@ import { JobListComponent } from 'share/customize/job-list/job-list.component';
 import { TaskBadgeComponent } from 'share/customize/task-badge/task-badge.component';
 import { RefreshDownloadComponent } from 'share/customize/refresh-download/refresh-download.component';
 import { BackpressureBadgeComponent } from './customize/backpressure-badge/backpressure-badge.component';
+import { FlameGraphComponent } from './customize/flame-graph/flame-graph.component';
 
 @NgModule({
   imports: [CommonModule, NgZorroAntdModule, PipeModule, DagreModule],
@@ -46,7 +47,8 @@ import { BackpressureBadgeComponent } from './customize/backpressure-badge/backp
     ResizeComponent,
     JobChartComponent,
     CheckpointBadgeComponent,
-    BackpressureBadgeComponent
+    BackpressureBadgeComponent,
+    FlameGraphComponent
   ],
   exports: [
     JobListComponent,
@@ -62,7 +64,8 @@ import { BackpressureBadgeComponent } from './customize/backpressure-badge/backp
     ResizeComponent,
     JobChartComponent,
     CheckpointBadgeComponent,
-    BackpressureBadgeComponent
+    BackpressureBadgeComponent,
+    FlameGraphComponent
   ]
 })
 export class ShareModule {}
