@@ -101,18 +101,11 @@ public class JarPlanHandler
 
         return CompletableFuture.supplyAsync(
                 () -> {
-                    final PackagedProgram packagedProgram =
-                            context.toPackagedProgram(configuration);
-                    try {
+                    try (PackagedProgram packagedProgram =
+                            context.toPackagedProgram(configuration)) {
                         final JobGraph jobGraph =
                                 context.toJobGraph(packagedProgram, configuration, true);
                         return planGenerator.apply(jobGraph);
-                    } finally {
-                        try {
-                            packagedProgram.deleteExtractedLibraries();
-                        } catch (Exception e) {
-                            log.debug("Error while deleting jars extracted from user-jar.", e);
-                        }
                     }
                 },
                 executor);
