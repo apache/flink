@@ -20,7 +20,6 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.slots.DummySlotOwner;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
@@ -33,7 +32,6 @@ public class TestingLogicalSlotBuilder {
     private int slotNumber = 0;
     private AllocationID allocationId = new AllocationID();
     private SlotRequestId slotRequestId = new SlotRequestId();
-    private SlotSharingGroupId slotSharingGroupId = new SlotSharingGroupId();
     private SlotOwner slotOwner = new DummySlotOwner();
     private boolean automaticallyCompleteReleaseFuture = true;
 
@@ -63,11 +61,6 @@ public class TestingLogicalSlotBuilder {
         return this;
     }
 
-    public TestingLogicalSlotBuilder setSlotSharingGroupId(SlotSharingGroupId slotSharingGroupId) {
-        this.slotSharingGroupId = slotSharingGroupId;
-        return this;
-    }
-
     public TestingLogicalSlotBuilder setAutomaticallyCompleteReleaseFuture(
             boolean automaticallyCompleteReleaseFuture) {
         this.automaticallyCompleteReleaseFuture = automaticallyCompleteReleaseFuture;
@@ -86,7 +79,6 @@ public class TestingLogicalSlotBuilder {
                 slotNumber,
                 allocationId,
                 slotRequestId,
-                slotSharingGroupId,
                 automaticallyCompleteReleaseFuture,
                 slotOwner);
     }

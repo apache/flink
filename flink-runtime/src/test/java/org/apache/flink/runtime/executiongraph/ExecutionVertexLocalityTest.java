@@ -237,11 +237,7 @@ public class ExecutionVertexLocalityTest extends TestLogger {
 
         LogicalSlot slot =
                 new SingleLogicalSlot(
-                        new SlotRequestId(),
-                        slotContext,
-                        null,
-                        Locality.LOCAL,
-                        mock(SlotOwner.class));
+                        new SlotRequestId(), slotContext, Locality.LOCAL, mock(SlotOwner.class));
 
         if (!vertex.getCurrentExecutionAttempt().tryAssignResource(slot)) {
             throw new FlinkException("Could not assign resource.");
