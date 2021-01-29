@@ -145,23 +145,19 @@ public class JarListHandler
                             for (String clazz : classes) {
                                 clazz = clazz.trim();
 
-                                PackagedProgram program = null;
-                                try {
-                                    program =
-                                            PackagedProgram.newBuilder()
-                                                    .setJarFile(f)
-                                                    .setEntryPointClassName(clazz)
-                                                    .setConfiguration(configuration)
-                                                    .build();
-                                } catch (Exception ignored) {
-                                    // ignore jar files which throw an error upon creating a
-                                    // PackagedProgram
-                                }
-                                if (program != null) {
+                                try (PackagedProgram program =
+                                        PackagedProgram.newBuilder()
+                                                .setJarFile(f)
+                                                .setEntryPointClassName(clazz)
+                                                .setConfiguration(configuration)
+                                                .build()) {
                                     JarListInfo.JarEntryInfo jarEntryInfo =
                                             new JarListInfo.JarEntryInfo(
                                                     clazz, program.getDescription());
                                     jarEntryList.add(jarEntryInfo);
+                                } catch (Exception ignored) {
+                                    // ignore jar files which throw an error upon creating a
+                                    // PackagedProgram
                                 }
                             }
 
