@@ -111,7 +111,7 @@ public class JarPlanHandler
                         try {
                             packagedProgram.deleteExtractedLibraries();
                         } catch (Exception e) {
-                            log.debug("Error while deleting jars extracted from user-jar.");
+                            log.debug("Error while deleting jars extracted from user-jar.", e);
                         }
                     }
                 },
