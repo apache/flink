@@ -187,6 +187,8 @@ $ kubectl port-forward service/<ServiceName> 8081
 
 Please refer to the official documentation on [publishing services in Kubernetes](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types) for more information.
 
+<span class="label label-warning">Warning:</span> Depending on your environment, starting a Flink cluster with `LoadBalancer` REST service exposed type might make the cluster accessible publicly (usually with the ability to execute arbitrary code).
+
 ### Logging
 
 The Kubernetes integration exposes `conf/log4j-console.properties` and `conf/logback-console.xml` as a ConfigMap to the pods.
