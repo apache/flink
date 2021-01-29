@@ -16,47 +16,16 @@
  * limitations under the License.
  */
 
-@import "theme";
 
-.container {
-  width: 100%;
-  overflow: hidden;
-  height: 500px;
-  position: relative;
-  border-bottom: solid 1px @border-color-split;
+nz-select {
+  width: 300px;
 }
 
-nz-radio-group {
-  position: absolute;
-  right: 24px;
-  z-index: 1;
-  top: 15px;
-  opacity: .7;
-  transition: opacity ease-in .28s;
-  &:hover {
-    opacity: 1;
-  }
-}
-
-flink-dagre {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  left: 0;
-}
-
-flink-job-overview-drawer {
-  width: 60%;
-  height: 100%;
-  position: absolute;
-  right: 0;
-  background: #ffffff;
-  border-left: solid 1px @border-color-split;
+.metric-selector {
+  text-align: center;
 }
 
 :host {
-  height: 100%;
+  padding: 16px;
   display: block;
-  position: relative;
 }
-
