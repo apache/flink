@@ -377,8 +377,8 @@ public class SavepointITCase extends TestLogger {
 
         private transient boolean processed;
 
-        BoundedPassThroughOperator() {
-            chainingStrategy = ChainingStrategy.ALWAYS;
+        BoundedPassThroughOperator(ChainingStrategy chainingStrategy) {
+            this.chainingStrategy = chainingStrategy;
         }
 
         @Override
@@ -393,7 +393,6 @@ public class SavepointITCase extends TestLogger {
                 processed = true;
                 progressLatch.countDown();
             }
-            Thread.sleep(1000);
         }
 
         // --------------------------------------------------------------------
@@ -413,39 +412,46 @@ public class SavepointITCase extends TestLogger {
         final int numTaskManagers = 2;
         final int numSlotsPerTaskManager = 2;
 
-        final MiniClusterResourceFactory clusterFactory =
-                new MiniClusterResourceFactory(
-                        numTaskManagers, numSlotsPerTaskManager, getFileBasedCheckpointsConfig());
+        for (ChainingStrategy chainingStrategy : ChainingStrategy.values()) {
+            final MiniClusterResourceFactory clusterFactory =
+                    new MiniClusterResourceFactory(
+                            numTaskManagers,
+                            numSlotsPerTaskManager,
+                            getFileBasedCheckpointsConfig());
 
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(1);
+            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+            env.setParallelism(1);
 
-        BoundedPassThroughOperator<Integer> operator = new BoundedPassThroughOperator<>();
-        DataStream<Integer> stream =
-                env.addSource(new InfiniteTestSource())
-                        .transform("pass-through", BasicTypeInfo.INT_TYPE_INFO, operator);
+            BoundedPassThroughOperator<Integer> operator =
+                    new BoundedPassThroughOperator<>(chainingStrategy);
+            DataStream<Integer> stream =
+                    env.addSource(new InfiniteTestSource())
+                            .transform("pass-through", BasicTypeInfo.INT_TYPE_INFO, operator);
 
-        stream.addSink(new DiscardingSink<>());
+            stream.addSink(new DiscardingSink<>());
 
-        final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
-        final JobID jobId = jobGraph.getJobID();
+            final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+            final JobID jobId = jobGraph.getJobID();
 
-        MiniClusterWithClientResource cluster = clusterFactory.get();
-        cluster.before();
-        ClusterClient<?> client = cluster.getClusterClient();
+            MiniClusterWithClientResource cluster = clusterFactory.get();
+            cluster.before();
+            ClusterClient<?> client = cluster.getClusterClient();
 
-        try {
-            BoundedPassThroughOperator.resetForTest(1);
+            try {
+                BoundedPassThroughOperator.resetForTest(1);
 
-            client.submitJob(jobGraph).get();
+                client.submitJob(jobGraph).get();
 
-            BoundedPassThroughOperator.getProgressLatch().await();
+                BoundedPassThroughOperator.getProgressLatch().await();
 
-            client.stopWithSavepoint(jobId, false, null).get();
+                client.stopWithSavepoint(jobId, false, null).get();
 
-            Assert.assertFalse(BoundedPassThroughOperator.inputEnded);
-        } finally {
-            cluster.after();
+                Assert.assertFalse(
+                        "input ended with chainingStrategy " + chainingStrategy,
+                        BoundedPassThroughOperator.inputEnded);
+            } finally {
+                cluster.after();
+            }
         }
     }
 
