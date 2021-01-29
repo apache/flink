@@ -19,9 +19,22 @@ from abc import ABC, abstractmethod
 
 from typing import TypeVar, Generic, Iterable, List, Iterator, Dict, Tuple
 
+from pyflink.common.typeinfo import TypeInformation, Types
+
+__all__ = [
+    'ValueStateDescriptor',
+    'ValueState',
+    'ListStateDescriptor',
+    'ListState',
+    'MapStateDescriptor',
+    'MergingState'
+]
+
 T = TypeVar('T')
 K = TypeVar('K')
 V = TypeVar('V')
+IN = TypeVar('IN')
+OUT = TypeVar('OUT')
 
 
 class State(ABC):
@@ -67,7 +80,44 @@ class ValueState(State, Generic[T]):
         pass
 
 
-class ListState(State, Generic[T]):
+class AppendingState(State, Generic[IN, OUT]):
+    """
+    Base interface for partitioned state taht supports adding elements and inspecting the current
+    state. Elements can either be kept in a buffer (list-like) or aggregated into one value.
+
+    This state is accessed and modified by user functions, and checkpointed consistently by the
+    system as part of the distributed snapshots.
+
+    The state is only accessible by functions applied on a KeyedStream. The key is automatically
+    supplied by the system, so the function always sees the value mapped to the key of the current
+    element. That way, the system can handle stream and state partitioning consistently together.
+    """
+
+    @abstractmethod
+    def get(self) -> OUT:
+        """
+        Returns the elements under the current key.
+        """
+        pass
+
+    @abstractmethod
+    def add(self, value: IN) -> None:
+        """
+        Adding the given value to the tail of this list state.
+        """
+        pass
+
+
+class MergingState(AppendingState[IN, OUT]):
+    """
+    Extension of AppendingState that allows merging of state. That is, two instance of MergingState
+    can be combined into a single instance that contains all the information of the two merged
+    states.
+    """
+    pass
+
+
+class ListState(MergingState[T, Iterable[T]]):
     """
     :class:`State` interface for partitioned list state in Operations.
     The state is accessed and modified by user functions, and checkpointed consistently
@@ -79,20 +129,6 @@ class ListState(State, Generic[T]):
     user function always sees the value mapped to the key of the current element. That way, the
     system can handle stream and state partitioning consistently together.
     """
-
-    @abstractmethod
-    def get(self) -> Iterable[T]:
-        """
-        Returns the elements under the current key.
-        """
-        pass
-
-    @abstractmethod
-    def add(self, value: T) -> None:
-        """
-        Adding the given value to the tail of this list state.
-        """
-        pass
 
     @abstractmethod
     def update(self, values: List[T]) -> None:
@@ -201,3 +237,77 @@ class MapState(State, Generic[K, V]):
 
     def __iter__(self) -> Iterator[K]:
         return iter(self.keys())
+
+
+class StateDescriptor(ABC):
+    """
+    Base class for state descriptors. A StateDescriptor is used for creating partitioned State in
+    stateful operations.
+    """
+
+    def __init__(self, name: str, type_info: TypeInformation):
+        """
+        Constructor for StateDescriptor.
+
+        :param name: The name of the state
+        :param type_info: The type information of the value.
+        """
+        self.name = name
+        self.type_info = type_info
+
+    def get_name(self) -> str:
+        """
+        Get the name of the state.
+
+        :return: The name of the state.
+        """
+        return self.name
+
+
+class ValueStateDescriptor(StateDescriptor):
+    """
+    StateDescriptor for ValueState. This can be used to create partitioned value state using
+    RuntimeContext.get_state(ValueStateDescriptor).
+    """
+
+    def __init__(self, name: str, value_type_info: TypeInformation):
+        """
+        Constructor of the ValueStateDescriptor.
+
+        :param name: The name of the state.
+        :param value_type_info: the type information of the state.
+        """
+        super(ValueStateDescriptor, self).__init__(name, value_type_info)
+
+
+class ListStateDescriptor(StateDescriptor):
+    """
+    StateDescriptor for ListState. This can be used to create state where the type is a list that
+    can be appended and iterated over.
+    """
+
+    def __init__(self, name: str, elem_type_info: TypeInformation):
+        """
+        Constructor of the ListStateDescriptor.
+
+        :param name: The name of the state.
+        :param elem_type_info: the type information of the state element.
+        """
+        super(ListStateDescriptor, self).__init__(name, Types.LIST(elem_type_info))
+
+
+class MapStateDescriptor(StateDescriptor):
+    """
+    StateDescriptor for MapState. This can be used to create state where the type is a map that can
+    be updated and iterated over.
+    """
+
+    def __init__(self, name: str, key_type_info: TypeInformation, value_type_info: TypeInformation):
+        """
+        Constructor of the MapStateDescriptor.
+
+        :param name: The name of the state.
+        :param key_type_info: The type information of the key.
+        :param value_type_info: the type information of the value.
+        """
+        super(MapStateDescriptor, self).__init__(name, Types.MAP(key_type_info, value_type_info))
