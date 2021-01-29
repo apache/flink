@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -134,14 +133,6 @@ public interface LogicalSlot {
      * @return Unique id identifying the slot request with which this slot was allocated
      */
     SlotRequestId getSlotRequestId();
-
-    /**
-     * Gets the slot sharing group id to which this slot belongs.
-     *
-     * @return slot sharing group id of this slot or null, if none.
-     */
-    @Nullable
-    SlotSharingGroupId getSlotSharingGroupId();
 
     /** Payload for a logical slot. */
     interface Payload {
