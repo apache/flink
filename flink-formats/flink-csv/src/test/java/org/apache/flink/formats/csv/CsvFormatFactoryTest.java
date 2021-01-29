@@ -207,6 +207,29 @@ public class CsvFormatFactoryTest extends TestLogger {
     }
 
     @Test
+    public void testDeserializeWithDisableQuoteCharacter() throws IOException {
+        // test deserialization schema
+        final Map<String, String> options =
+                getModifiedOptions(
+                        opts -> {
+                            opts.put("csv.disable-quote-character", "true");
+                            opts.remove("csv.quote-character");
+                        });
+
+        final DynamicTableSource actualSource = createTableSource(options);
+        assert actualSource instanceof TestDynamicTableFactory.DynamicTableSourceMock;
+        TestDynamicTableFactory.DynamicTableSourceMock sourceMock =
+                (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
+
+        DeserializationSchema<RowData> deserializationSchema =
+                sourceMock.valueFormat.createRuntimeDecoder(
+                        ScanRuntimeProviderContext.INSTANCE, SCHEMA.toRowDataType());
+        RowData expected = GenericRowData.of(fromString("\"abc"), 123, false);
+        RowData actual = deserializationSchema.deserialize("\"abc;123;false".getBytes());
+        assertEquals(expected, actual);
+    }
+
+    @Test
     public void testInvalidIgnoreParseError() {
         thrown.expect(ValidationException.class);
         thrown.expect(
