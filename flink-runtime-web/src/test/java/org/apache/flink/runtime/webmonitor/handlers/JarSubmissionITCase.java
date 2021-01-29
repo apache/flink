@@ -22,12 +22,9 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.messages.JobPlanInfo;
 import org.apache.flink.runtime.util.BlobServerResource;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
-import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
-import org.junit.Assume;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -50,13 +47,6 @@ public class JarSubmissionITCase extends TestLogger {
     @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     @Rule public final BlobServerResource blobServerResource = new BlobServerResource();
-
-    @BeforeClass
-    public static void checkOS() {
-        Assume.assumeFalse(
-                "This test fails on Windows due to unclosed JarFiles, see FLINK-9844.",
-                OperatingSystem.isWindows());
-    }
 
     @Test
     public void testJarSubmission() throws Exception {
