@@ -295,7 +295,7 @@ public class PackagedProgram implements AutoCloseable {
     }
 
     /** Deletes all temporary files created for contained packaged libraries. */
-    public void deleteExtractedLibraries() {
+    private void deleteExtractedLibraries() {
         deleteExtractedLibraries(this.extractedTempLibraries);
         this.extractedTempLibraries.clear();
     }
