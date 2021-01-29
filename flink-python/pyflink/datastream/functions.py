@@ -22,6 +22,8 @@ from typing import Union, Any, Dict
 
 from py4j.java_gateway import JavaObject
 
+from pyflink.common.state import ValueState, ValueStateDescriptor, \
+    ListStateDescriptor, ListState, MapStateDescriptor, MapState
 from pyflink.datastream.time_domain import TimeDomain
 from pyflink.java_gateway import get_gateway
 
@@ -38,7 +40,8 @@ __all__ = [
     'SourceFunction',
     'SinkFunction',
     'ProcessFunction',
-    'KeyedProcessFunction']
+    'KeyedProcessFunction',
+    'TimerService']
 
 
 class RuntimeContext(object):
@@ -109,6 +112,38 @@ class RuntimeContext(object):
         Gets the global job parameter value associated with the given key as a string.
         """
         return self._job_parameters[key] if key in self._job_parameters else default_value
+
+    def get_state(self, state_descriptor: ValueStateDescriptor) -> ValueState:
+        """
+        Gets a handle to the system's key/value state. THe key/value state is only accessible if the
+        function is executed on a KeyedStream. On each access, the state exposes the value for the
+        key of the element currently processed by the function. Each function may have multiple
+        partitioned states, addressed with different names.
+
+        Because the scope of each value is the key of the currently processed element, and the
+        elements are distributed by the Flink runtime, the system can transparently scale out and
+        redistribute the state and KeyedStream.
+        """
+        pass
+
+    def get_list_state(self, state_descriptor: ListStateDescriptor) -> ListState:
+        """
+        Gets a handle to the system's key/value list state. This state is similar to the value state
+        access, but is optimized for state that holds lists. One can add elements to the list, or
+        retrieve the list as a whle.
+
+        This state is only accessible if the function is executed on a KeyedStream.
+        """
+        pass
+
+    def get_map_state(self, state_descriptor: MapStateDescriptor) -> MapState:
+        """
+        Gets a handle to the system's key/value map state. This state is similar to the value state
+        access, but is optimized for state that is composed of user-defined key-value pairs.
+
+        This state is only accessible if the function is executed on a KeyedStream.
+        """
+        pass
 
 
 class Function(abc.ABC):

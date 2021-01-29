@@ -310,7 +310,7 @@ def extract_keyed_process_function(user_defined_function_proto, ctx, on_timer_ct
             on_timer_ctx.set_timestamp(value[1])
             on_timer_ctx.timer_service().set_current_watermark(value[2])
             current_key = value[3]
-            on_timer_ctx.set_current_key(current_key)
+            on_timer_ctx.set_current_key(current_key[0])
             keyed_state_backend.set_current_key(current_key)
             if value[0] == KeyedProcessFunctionInputFlag.EVENT_TIME_TIMER.value:
                 on_timer_ctx.set_time_domain(TimeDomain.EVENT_TIME)

@@ -825,9 +825,13 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                 byte[] keyBytes = mapUserState.getKey().toByteArray();
                 bais.setBuffer(keyBytes, 0, keyBytes.length);
                 Object key = keySerializer.deserialize(baisWrapper);
-                keyedStateBackend.setCurrentKey(
-                        ((RowDataSerializer) keyedStateBackend.getKeySerializer())
-                                .toBinaryRow((RowData) key));
+                if (keyedStateBackend.getKeySerializer() instanceof RowDataSerializer) {
+                    keyedStateBackend.setCurrentKey(
+                            ((RowDataSerializer) keyedStateBackend.getKeySerializer())
+                                    .toBinaryRow((RowData) key));
+                } else {
+                    keyedStateBackend.setCurrentKey(key);
+                }
             } else {
                 throw new RuntimeException("Unsupported bag state request: " + request);
             }

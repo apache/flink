@@ -19,10 +19,12 @@ import abc
 import time
 from functools import reduce
 from itertools import chain
+from typing import List, Tuple, Any, Dict
 
 from apache_beam.coders import PickleCoder
-from typing import Tuple, Any, List
 
+from pyflink.common.state import ValueStateDescriptor, ValueState, ListStateDescriptor, ListState, \
+    MapStateDescriptor, MapState
 from pyflink.datastream import TimeDomain
 from pyflink.datastream.functions import RuntimeContext, TimerService, ProcessFunction, \
     KeyedProcessFunction
@@ -30,6 +32,7 @@ from pyflink.fn_execution import flink_fn_execution_pb2, operation_utils
 from pyflink.fn_execution.aggregate import extract_data_view_specs
 from pyflink.fn_execution.beam.beam_coders import DataViewFilterCoder
 from pyflink.fn_execution.operation_utils import extract_user_defined_aggregate_function
+from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 
 try:
     from pyflink.fn_execution.aggregate_fast import RowKeySelector, SimpleAggsHandleFunction, \
@@ -428,6 +431,34 @@ class DataStreamStatelessFunctionOperation(Operation):
         return func, [user_defined_func]
 
 
+class InternalRuntimeContext(RuntimeContext):
+
+    def __init__(self,
+                 task_name: str,
+                 task_name_with_subtasks: str,
+                 number_of_parallel_subtasks: int,
+                 max_number_of_parallel_subtasks: int,
+                 index_of_this_subtask: int,
+                 attempt_number: int,
+                 job_parameters: Dict[str, str],
+                 keyed_state_backend: RemoteKeyedStateBackend):
+        super(InternalRuntimeContext, self).__init__(
+            task_name, task_name_with_subtasks, number_of_parallel_subtasks,
+            max_number_of_parallel_subtasks, index_of_this_subtask, attempt_number,
+            job_parameters)
+        self._keyed_state_backend = keyed_state_backend
+
+    def get_state(self, state_descriptor: ValueStateDescriptor) -> ValueState:
+        return self._keyed_state_backend.get_value_state(state_descriptor.name, PickleCoder())
+
+    def get_list_state(self, state_descriptor: ListStateDescriptor) -> ListState:
+        return self._keyed_state_backend.get_list_state(state_descriptor.name, PickleCoder())
+
+    def get_map_state(self, state_descriptor: MapStateDescriptor) -> MapState:
+        return self._keyed_state_backend.get_map_state(state_descriptor.name, PickleCoder(),
+                                                       PickleCoder())
+
+
 class ProcessFunctionOperation(DataStreamStatelessFunctionOperation):
 
     def __init__(self, spec):
@@ -499,6 +530,21 @@ class KeyedProcessFunctionOperation(StatefulFunctionOperation):
             serialized_fn, self.function_context, self.on_timer_ctx, self._collector,
             self.keyed_state_backend)
         return func, [proc_func]
+
+    def open(self):
+        for user_defined_func in self.user_defined_funcs:
+            if hasattr(user_defined_func, 'open'):
+                runtime_context = InternalRuntimeContext(
+                    self.spec.serialized_fn.runtime_context.task_name,
+                    self.spec.serialized_fn.runtime_context.task_name_with_subtasks,
+                    self.spec.serialized_fn.runtime_context.number_of_parallel_subtasks,
+                    self.spec.serialized_fn.runtime_context.max_number_of_parallel_subtasks,
+                    self.spec.serialized_fn.runtime_context.index_of_this_subtask,
+                    self.spec.serialized_fn.runtime_context.attempt_number,
+                    {p.key: p.value for p in
+                     self.spec.serialized_fn.runtime_context.job_parameters},
+                    self.keyed_state_backend)
+                user_defined_func.open(runtime_context)
 
     class InternalCollector(object):
         """
