@@ -232,7 +232,7 @@ public class CliFrontend {
         try {
             executeProgram(effectiveConfiguration, program);
         } finally {
-            program.deleteExtractedLibraries();
+            program.close();
         }
     }
 
@@ -338,7 +338,7 @@ public class CliFrontend {
                 System.out.println("No description provided.");
             }
         } finally {
-            program.deleteExtractedLibraries();
+            program.close();
         }
     }
 

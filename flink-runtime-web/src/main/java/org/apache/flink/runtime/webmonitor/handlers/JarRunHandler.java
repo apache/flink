@@ -103,6 +103,7 @@ public class JarRunHandler
                         executor)
                 .handle(
                         (jobIds, throwable) -> {
+                            program.close();
                             if (throwable != null) {
                                 throw new CompletionException(
                                         new RestHandlerException(
