@@ -148,6 +148,14 @@ public final class FunctionCatalog {
         }
 
         if (!tempCatalogFunctions.containsKey(normalizedIdentifier)) {
+            Optional<TemporaryOperationListener> listener =
+                    catalogManager.getTemporaryOperationListener(normalizedIdentifier);
+            if (listener.isPresent()) {
+                catalogFunction =
+                        listener.get()
+                                .onCreateTemporaryFunction(
+                                        normalizedIdentifier.toObjectPath(), catalogFunction);
+            }
             tempCatalogFunctions.put(normalizedIdentifier, catalogFunction);
         } else if (!ignoreIfExists) {
             throw new ValidationException(
@@ -165,14 +173,19 @@ public final class FunctionCatalog {
                 FunctionIdentifier.normalizeObjectIdentifier(identifier);
         final CatalogFunction definition = tempCatalogFunctions.remove(normalizedIdentifier);
 
-        if (definition == null && !ignoreIfNotExist) {
+        if (definition != null) {
+            catalogManager
+                    .getTemporaryOperationListener(identifier)
+                    .ifPresent(l -> l.onDropTemporaryFunction(normalizedIdentifier.toObjectPath()));
+            return true;
+        } else if (ignoreIfNotExist) {
+            return false;
+        } else {
             throw new ValidationException(
                     String.format(
                             "Could not drop temporary catalog function. A function '%s' doesn't exist.",
                             identifier.asSummaryString()));
         }
-
-        return definition != null;
     }
 
     /** Registers a catalog function by also considering temporary catalog functions. */
@@ -440,7 +453,11 @@ public final class FunctionCatalog {
 
         CatalogFunction fd = tempCatalogFunctions.remove(normalizedName);
 
-        if (fd == null && !ignoreIfNotExist) {
+        if (fd != null) {
+            catalogManager
+                    .getTemporaryOperationListener(identifier)
+                    .ifPresent(l -> l.onDropTemporaryFunction(normalizedName.toObjectPath()));
+        } else if (!ignoreIfNotExist) {
             throw new ValidationException(
                     String.format("Temporary catalog function %s doesn't exist", identifier));
         }
