@@ -106,7 +106,7 @@ public class JarRunHandler
                             try {
                                 program.deleteExtractedLibraries();
                             } catch (Exception e) {
-                                log.debug("Error while deleting jars extracted from user-jar.");
+                                log.debug("Error while deleting jars extracted from user-jar.", e);
                             }
                             if (throwable != null) {
                                 throw new CompletionException(
