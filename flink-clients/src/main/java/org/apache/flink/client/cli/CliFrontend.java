@@ -242,12 +242,8 @@ public class CliFrontend {
 
         LOG.debug("Effective executor configuration: {}", effectiveConfiguration);
 
-        final PackagedProgram program = getPackagedProgram(programOptions, effectiveConfiguration);
-
-        try {
+        try (PackagedProgram program = getPackagedProgram(programOptions, effectiveConfiguration)) {
             executeProgram(effectiveConfiguration, program);
-        } finally {
-            program.deleteExtractedLibraries();
         }
     }
 
@@ -387,7 +383,7 @@ public class CliFrontend {
             }
         } finally {
             if (program != null) {
-                program.deleteExtractedLibraries();
+                program.close();
             }
         }
     }
