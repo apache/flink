@@ -97,7 +97,7 @@ public class ChannelStatePersisterTest {
         testLateBarrier(false, false);
     }
 
-    public void testLateBarrier(
+    private void testLateBarrier(
             boolean startCheckpointOnLateBarrier, boolean cancelCheckpointBeforeLateBarrier)
             throws Exception {
         RecordingChannelStateWriter channelStateWriter = new RecordingChannelStateWriter();
