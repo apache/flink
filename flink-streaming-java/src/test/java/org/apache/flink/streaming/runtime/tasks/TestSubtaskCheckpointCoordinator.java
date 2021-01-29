@@ -78,7 +78,7 @@ public class TestSubtaskCheckpointCoordinator implements SubtaskCheckpointCoordi
             CheckpointOptions checkpointOptions,
             CheckpointMetrics checkpointMetrics,
             OperatorChain<?, ?> operatorChain,
-            Supplier<Boolean> isCanceled) {}
+            Supplier<Boolean> isRunning) {}
 
     @Override
     public void notifyCheckpointComplete(
