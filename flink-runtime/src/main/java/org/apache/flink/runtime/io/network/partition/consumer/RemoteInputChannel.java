@@ -568,8 +568,7 @@ public class RemoteInputChannel extends InputChannel {
         synchronized (receivedBuffers) {
             channelStatePersister.stopPersisting(checkpointId);
             if (lastBarrierId == checkpointId) {
-                lastBarrierId = NONE;
-                lastBarrierSequenceNumber = NONE;
+                resetLastBarrier();
             }
         }
     }
@@ -638,6 +637,11 @@ public class RemoteInputChannel extends InputChannel {
                     CheckpointFailureReason
                             .CHECKPOINT_SUBSUMED); // currently, at most one active unaligned
             // checkpoint is possible
+        } else if (checkpointId > lastBarrierId) {
+            // This channel has received some obsolete barrier, older compared to the checkpointId
+            // which we are processing right now, and we should ignore that obsoleted checkpoint
+            // barrier sequence number.
+            resetLastBarrier();
         }
 
         final List<Buffer> inflightBuffers = new ArrayList<>();
@@ -657,6 +661,11 @@ public class RemoteInputChannel extends InputChannel {
         }
 
         return inflightBuffers;
+    }
+
+    private void resetLastBarrier() {
+        lastBarrierId = NONE;
+        lastBarrierSequenceNumber = NONE;
     }
 
     /**
