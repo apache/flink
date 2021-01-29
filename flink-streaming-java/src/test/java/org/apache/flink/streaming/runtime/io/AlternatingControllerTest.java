@@ -19,6 +19,7 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -377,8 +378,13 @@ public class AlternatingControllerTest {
         while (gate.pollNext().isPresent()) {}
     }
 
-    private static SingleCheckpointBarrierHandler barrierHandler(
+    public static SingleCheckpointBarrierHandler barrierHandler(
             SingleInputGate inputGate, AbstractInvokable target) {
+        return barrierHandler(inputGate, target, ChannelStateWriter.NO_OP);
+    }
+
+    public static SingleCheckpointBarrierHandler barrierHandler(
+            SingleInputGate inputGate, AbstractInvokable target, ChannelStateWriter stateWriter) {
         String taskName = "test";
         return new SingleCheckpointBarrierHandler(
                 taskName,
@@ -387,7 +393,7 @@ public class AlternatingControllerTest {
                 new AlternatingController(
                         new AlignedController(inputGate),
                         new UnalignedController(
-                                TestSubtaskCheckpointCoordinator.INSTANCE, inputGate)));
+                                new TestSubtaskCheckpointCoordinator(stateWriter), inputGate)));
     }
 
     private Buffer barrier(long barrierId, CheckpointType checkpointType) throws IOException {
