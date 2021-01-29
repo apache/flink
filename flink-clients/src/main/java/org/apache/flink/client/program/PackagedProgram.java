@@ -26,6 +26,9 @@ import org.apache.flink.runtime.security.FlinkSecurityManager;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.JarUtils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nullable;
 
 import java.io.BufferedInputStream;
@@ -58,7 +61,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * This class encapsulates represents a program, packaged in a jar file. It supplies functionality
  * to extract nested libraries, search for the program entry point, and extract a program plan.
  */
-public class PackagedProgram {
+public class PackagedProgram implements AutoCloseable {
+
+    private static final Logger LOG = LoggerFactory.getLogger(PackagedProgram.class);
 
     /**
      * Property name of the entry in JAR manifest file that describes the Flink specific entry
@@ -290,7 +295,7 @@ public class PackagedProgram {
     }
 
     /** Deletes all temporary files created for contained packaged libraries. */
-    public void deleteExtractedLibraries() {
+    private void deleteExtractedLibraries() {
         deleteExtractedLibraries(this.extractedTempLibraries);
         this.extractedTempLibraries.clear();
     }
@@ -614,6 +619,15 @@ public class PackagedProgram {
                     "Cannot access jar file"
                             + (t.getMessage() == null ? "." : ": " + t.getMessage()),
                     t);
+        }
+    }
+
+    @Override
+    public void close() {
+        try {
+            deleteExtractedLibraries();
+        } catch (Exception e) {
+            LOG.debug("Error while deleting jars extracted from user-jar.", e);
         }
     }
 
