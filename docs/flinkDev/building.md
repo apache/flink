@@ -112,17 +112,22 @@ It is sufficient to call `mvn clean install -DskipTests` in the root directory o
 The build has to be done in two steps: First in the base directory, then in shaded modules, such as the distribution and the filesystems:
 
 {% highlight bash %}
+# build overall project
 mvn clean install -DskipTests
+
+# build shaded modules used in dist again, for example:
+cd flink-filesystems/flink-s3-fs-presto/
+mvn clean install -DskipTests
+# ... and other modules
+
+# build dist again to include shaded modules
 cd flink-dist
 mvn clean install
-cd ../flink-filesystems/flink-s3-fs-presto/
-mvn clean install -DskipTests
-...
 {% endhighlight %}
 
 *Note:* To check your Maven version, run `mvn --version`.
 
-*Note:* We recommend using the latest Maven 3.2.x version for building production grade Flink distributions, as this is the version the Flink developers are using for the official releases and testing.
+*Note:* We recommend using the latest Maven 3.2.x version for building production-grade Flink distributions, as this is the version the Flink developers are using for the official releases and testing.
 
 {% top %}
 
