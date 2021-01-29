@@ -25,6 +25,7 @@ from py4j.java_gateway import JavaObject
 from pyflink.datastream.state import ValueState, ValueStateDescriptor, ListStateDescriptor, \
     ListState, MapStateDescriptor, MapState, ReducingStateDescriptor, ReducingState
 from pyflink.datastream.time_domain import TimeDomain
+from pyflink.datastream.timerservice import TimerService
 from pyflink.java_gateway import get_gateway
 
 __all__ = [
@@ -602,76 +603,6 @@ class SinkFunction(JavaFunctionWrapper):
         :param sink_func: The java SinkFunction object or the full name of the SinkFunction class.
         """
         super(SinkFunction, self).__init__(sink_func)
-
-
-class TimerService(abc.ABC):
-    """
-    Interface for working with time and timers.
-    """
-
-    @abc.abstractmethod
-    def current_processing_time(self):
-        """
-        Returns the current processing time.
-        """
-        pass
-
-    @abc.abstractmethod
-    def current_watermark(self):
-        """
-        Returns the current event-time watermark.
-        """
-        pass
-
-    @abc.abstractmethod
-    def register_processing_time_timer(self, time: int):
-        """
-        Registers a timer to be fired when processing time passes the given time.
-
-        Timers can internally be scoped to keys and/or windows. When you set a timer in a keyed
-        context, such as in an operation on KeyedStream then that context will so be active when you
-        receive the timer notification.
-
-        :param time: The processing time of the timer to be registered.
-        """
-        pass
-
-    @abc.abstractmethod
-    def register_event_time_timer(self, time: int):
-        """
-        Registers a timer tobe fired when the event time watermark passes the given time.
-
-        Timers can internally be scoped to keys and/or windows. When you set a timer in a keyed
-        context, such as in an operation on KeyedStream then that context will so be active when you
-        receive the timer notification.
-
-        :param time: The event time of the timer to be registered.
-        """
-        pass
-
-    def delete_processing_time_timer(self, time: int):
-        """
-        Deletes the processing-time timer with the given trigger time. This method has only an
-        effect if such a timer was previously registered and did not already expire.
-
-        Timers can internally be scoped to keys and/or windows. When you delete a timer, it is
-        removed from the current keyed context.
-
-        :param time: The given trigger time of timer to be deleted.
-        """
-        pass
-
-    def delete_event_time_timer(self, time: int):
-        """
-        Deletes the event-time timer with the given trigger time. This method has only an effect if
-        such a timer was previously registered and did not already expire.
-
-        Timers can internally be scoped to keys and/or windows. When you delete a timer, it is
-        removed from the current keyed context.
-
-        :param time: The given trigger time of timer to be deleted.
-        """
-        pass
 
 
 class ProcessFunction(Function):

@@ -25,9 +25,8 @@ from apache_beam.coders import PickleCoder
 
 from pyflink.datastream.state import ValueStateDescriptor, ValueState, ListStateDescriptor, \
     ListState, MapStateDescriptor, MapState, ReducingStateDescriptor, ReducingState
-from pyflink.datastream import TimeDomain
-from pyflink.datastream.functions import RuntimeContext, TimerService, ProcessFunction, \
-    KeyedProcessFunction
+from pyflink.datastream import TimeDomain, TimerService
+from pyflink.datastream.functions import RuntimeContext, ProcessFunction, KeyedProcessFunction
 from pyflink.fn_execution import flink_fn_execution_pb2, operation_utils
 from pyflink.fn_execution.aggregate import extract_data_view_specs
 from pyflink.fn_execution.beam.beam_coders import DataViewFilterCoder
