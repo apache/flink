@@ -165,7 +165,16 @@ public class SourceStreamTask<
                                         new CancelTaskException(sourceThreadThrowable));
                             } else if (!isFinished && sourceThreadThrowable != null) {
                                 mailboxProcessor.reportThrowable(sourceThreadThrowable);
+                            } else if (sourceThreadThrowable != null
+                                    || isCanceled()
+                                    || isFinished) {
+                                mailboxProcessor.allActionsCompleted();
                             } else {
+                                // this is a "true" end of input regardless of whether
+                                // stop-with-savepoint was issued or not
+                                synchronized (lock) {
+                                    operatorChain.setIsStoppingBySyncSavepoint(false);
+                                }
                                 mailboxProcessor.allActionsCompleted();
                             }
                         });

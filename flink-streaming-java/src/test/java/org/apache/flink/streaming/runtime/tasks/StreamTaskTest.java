@@ -117,6 +117,7 @@ import org.apache.flink.util.CloseableIterable;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.SupplierWithException;
 
@@ -152,7 +153,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
+import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
+import static org.apache.flink.runtime.checkpoint.CheckpointType.SYNC_SAVEPOINT;
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
+import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
+import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MAX_PRIORITY;
 import static org.apache.flink.streaming.util.StreamTaskUtil.waitTaskIsRunning;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -185,12 +190,92 @@ public class StreamTaskTest extends TestLogger {
     @Rule public final Timeout timeoutPerTest = Timeout.seconds(30);
 
     @Test
+    public void testSyncSavepointCompleted() throws Exception {
+        testSyncSavepointWithEndInput(StreamTask::notifyCheckpointCompleteAsync, false);
+    }
+
+    @Test
+    public void testSyncSavepointAborted() throws Exception {
+        testSyncSavepointWithEndInput(
+                (task, id) -> task.abortCheckpointOnBarrier(id, new RuntimeException()), true);
+    }
+
+    @Test
+    public void testSyncSavepointAbortedAsync() throws Exception {
+        testSyncSavepointWithEndInput(StreamTask::notifyCheckpointAbortAsync, true);
+    }
+
+    /**
+     * Test for SyncSavepoint and EndInput interactions. Targets following scenarios scenarios:
+     *
+     * <ol>
+     *   <li>Thread1: notify sync savepoint
+     *   <li>Thread2: endInput
+     *   <li>Thread1: confirm/abort/abortAsync
+     *   <li>assert inputEnded: confirmed - no, abort/abortAsync - yes
+     * </ol>
+     */
+    private void testSyncSavepointWithEndInput(
+            BiConsumerWithException<StreamTask<?, ?>, Long, IOException> savepointResult,
+            boolean expectEndInput)
+            throws Exception {
+        StreamTaskMailboxTestHarness<String> harness =
+                new StreamTaskMailboxTestHarnessBuilder<>(OneInputStreamTask::new, STRING_TYPE_INFO)
+                        .addInput(STRING_TYPE_INFO)
+                        .setupOutputForSingletonOperatorChain(
+                                new TestBoundedOneInputStreamOperator())
+                        .build();
+
+        final long checkpointId = 1L;
+        CountDownLatch savepointTriggeredLatch = new CountDownLatch(1);
+        CountDownLatch inputEndedLatch = new CountDownLatch(1);
+
+        MailboxExecutor executor =
+                harness.streamTask.getMailboxExecutorFactory().createExecutor(MAX_PRIORITY);
+        executor.execute(
+                () -> {
+                    try {
+                        harness.streamTask.triggerCheckpointOnBarrier(
+                                new CheckpointMetaData(checkpointId, checkpointId),
+                                new CheckpointOptions(SYNC_SAVEPOINT, getDefault()),
+                                new CheckpointMetrics());
+                    } catch (IOException e) {
+                        fail(e.getMessage());
+                    }
+                },
+                "triggerCheckpointOnBarrier");
+        new Thread(
+                        () -> {
+                            try {
+                                savepointTriggeredLatch.await();
+                                harness.endInput();
+                                inputEndedLatch.countDown();
+                            } catch (InterruptedException e) {
+                                fail(e.getMessage());
+                            }
+                        })
+                .start();
+        // this mails should be executed from the one above (from triggerCheckpointOnBarrier)
+        executor.execute(savepointTriggeredLatch::countDown, "savepointTriggeredLatch");
+        executor.execute(
+                () -> {
+                    inputEndedLatch.await();
+                    savepointResult.accept(harness.streamTask, checkpointId);
+                },
+                "savepointResult");
+
+        while (harness.streamTask.isMailboxLoopRunning()) {
+            harness.streamTask.runMailboxStep();
+        }
+
+        Assert.assertEquals(expectEndInput, TestBoundedOneInputStreamOperator.isInputEnded());
+    }
+
+    @Test
     public void testCleanUpExceptionSuppressing() throws Exception {
         OneInputStreamTaskTestHarness<String, String> testHarness =
                 new OneInputStreamTaskTestHarness<>(
-                        OneInputStreamTask::new,
-                        BasicTypeInfo.STRING_TYPE_INFO,
-                        BasicTypeInfo.STRING_TYPE_INFO);
+                        OneInputStreamTask::new, STRING_TYPE_INFO, STRING_TYPE_INFO);
 
         testHarness.setupOutputForSingletonOperatorChain();
 
