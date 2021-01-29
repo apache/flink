@@ -39,8 +39,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * This class handles the close, endInput and other related logic of a {@link StreamOperator}. It
  * also automatically propagates the close operation to the next wrapper that the {@link #next}
  * points to, so we can use {@link #next} to link all operator wrappers in the operator chain and
- * close all operators only by calling the {@link #close(StreamTaskActionExecutor)} method of the
- * header operator wrapper.
+ * close all operators only by calling the {@link #close(StreamTaskActionExecutor, boolean)} method
+ * of the header operator wrapper.
  */
 @Internal
 public class StreamOperatorWrapper<OUT, OP extends StreamOperator<OUT>> {
@@ -120,8 +120,9 @@ public class StreamOperatorWrapper<OUT, OP extends StreamOperator<OUT>> {
      * MailboxExecutor#yield()} to take the mails of closing operator and running timers and run
      * them.
      */
-    public void close(StreamTaskActionExecutor actionExecutor) throws Exception {
-        if (!isHead) {
+    public void close(StreamTaskActionExecutor actionExecutor, boolean isStoppingBySyncSavepoint)
+            throws Exception {
+        if (!isHead && !isStoppingBySyncSavepoint) {
             // NOTE: This only do for the case where the operator is one-input operator. At present,
             // any non-head operator on the operator chain is one-input operator.
             actionExecutor.runThrowing(() -> endOperatorInput(1));
@@ -131,7 +132,7 @@ public class StreamOperatorWrapper<OUT, OP extends StreamOperator<OUT>> {
 
         // propagate the close operation to the next wrapper
         if (next != null) {
-            next.close(actionExecutor);
+            next.close(actionExecutor, isStoppingBySyncSavepoint);
         }
     }
 
