@@ -132,7 +132,7 @@ public class StreamOperatorWrapperTest extends TestLogger {
     @Test
     public void testClose() throws Exception {
         output.clear();
-        operatorWrappers.get(0).close(containingTask.getActionExecutor());
+        operatorWrappers.get(0).close(containingTask.getActionExecutor(), false);
 
         List<Object> expected = new ArrayList<>();
         for (int i = 0; i < operatorWrappers.size(); i++) {
@@ -170,7 +170,7 @@ public class StreamOperatorWrapperTest extends TestLogger {
                                 .createExecutor(Integer.MAX_VALUE - 1));
 
         try {
-            operatorWrapper.close(containingTask.getActionExecutor());
+            operatorWrapper.close(containingTask.getActionExecutor(), false);
             fail("should throw an exception");
         } catch (Throwable t) {
             Optional<Throwable> optional =
