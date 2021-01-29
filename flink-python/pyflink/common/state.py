@@ -21,6 +21,15 @@ from typing import TypeVar, Generic, Iterable, List, Iterator, Dict, Tuple
 
 from pyflink.common.typeinfo import TypeInformation, Types
 
+__all__ = [
+    'ValueStateDescriptor',
+    'ValueState',
+    'ListStateDescriptor',
+    'ListState',
+    'MapStateDescriptor',
+    'MergingState'
+]
+
 T = TypeVar('T')
 K = TypeVar('K')
 V = TypeVar('V')
