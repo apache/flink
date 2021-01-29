@@ -21,6 +21,7 @@ package org.apache.flink.streaming.connectors.kafka.internal;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.connectors.kafka.internals.ClosableBlockingQueue;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaCommitCallback;
@@ -118,11 +119,19 @@ public class KafkaConsumerThread extends Thread {
 	/** Flag tracking whether the latest commit request has completed. */
 	private volatile boolean commitInProgress;
 
+
+	/** Used to communicate with the event time alignment thread running in the KafkaFetcher. */
+	private final EventTimeAlignmentHandover eventTimeAlignmentHandover;
+
+	/** Indicate if there are any paused partitions in the consumer. */
+	private List<TopicPartition> pausedPartitions;
+
 	public KafkaConsumerThread(
 			Logger log,
 			Handover handover,
 			Properties kafkaProperties,
 			ClosableBlockingQueue<KafkaTopicPartitionState<TopicPartition>> unassignedPartitionsQueue,
+			EventTimeAlignmentHandover eventTimeAlignmentHandover,
 			String threadName,
 			long pollTimeout,
 			boolean useMetrics,
@@ -139,6 +148,11 @@ public class KafkaConsumerThread extends Thread {
 		this.subtaskMetricGroup = checkNotNull(subtaskMetricGroup);
 
 		this.unassignedPartitionsQueue = checkNotNull(unassignedPartitionsQueue);
+		this.eventTimeAlignmentHandover = eventTimeAlignmentHandover;
+
+		this.consumerMetricGroup.gauge("pausedPartitions",
+			(Gauge<Integer>) () -> pausedPartitions == null ? 0 : pausedPartitions.size());
+		this.pausedPartitions = null;
 
 		this.pollTimeout = pollTimeout;
 		this.useMetrics = useMetrics;
@@ -247,6 +261,10 @@ public class KafkaConsumerThread extends Thread {
 					continue;
 				}
 
+				// Check if there is a need to pause/resume partitions
+				// for event time event time alignment
+				alignPartitions();
+
 				// get the next batch of records, unless we did not manage to hand the old batch over
 				if (records == null) {
 					try {
@@ -284,6 +302,39 @@ public class KafkaConsumerThread extends Thread {
 			catch (Throwable t) {
 				log.warn("Error while closing Kafka consumer", t);
 			}
+		}
+	}
+
+	/**
+	 * Unpause/Resume the previously paused kafka partition assignments, and pause the
+	 * latest set of partitions for the event-time re-alignment.
+	 */
+	private void alignPartitions() {
+		if (this.eventTimeAlignmentHandover == null) {
+			return;
+		}
+
+		List<TopicPartition> partitionsToPause = this.eventTimeAlignmentHandover.getPartitionsToPause();
+
+		if (partitionsToPause == null && this.pausedPartitions != null) {
+			log.info("Resuming all partitions");
+			// Resume all the partitions
+			this.consumer.resume(this.pausedPartitions);
+			this.pausedPartitions = null;
+			return;
+		}
+
+		if (partitionsToPause != null && !partitionsToPause.equals(this.pausedPartitions)) {
+
+			if (this.pausedPartitions != null) {
+				this.consumer.resume(this.pausedPartitions);
+			}
+
+			log.info("Suspending kafka topic partitions for event-time alignment - {}", partitionsToPause);
+
+			// Pause the partitions
+			this.consumer.pause(partitionsToPause);
+			this.pausedPartitions = partitionsToPause;
 		}
 	}
 
