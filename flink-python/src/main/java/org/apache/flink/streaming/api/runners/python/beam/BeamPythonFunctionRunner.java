@@ -204,7 +204,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
         this.jobOptions = Preconditions.checkNotNull(jobOptions);
         this.flinkMetricContainer = flinkMetricContainer;
         this.stateRequestHandler =
-                getStateRequestHandler(keyedStateBackend, keySerializer, jobOptions);
+                getStateRequestHandler(keyedStateBackend, keySerializer, null, jobOptions);
         this.memoryManager = memoryManager;
         this.managedMemoryFraction = managedMemoryFraction;
         this.resultTuple = new Tuple2<>();
@@ -543,12 +543,14 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     private static StateRequestHandler getStateRequestHandler(
             KeyedStateBackend keyedStateBackend,
             TypeSerializer keySerializer,
+            TypeSerializer windowSerializer,
             Map<String, String> jobOptions) {
         if (keyedStateBackend == null) {
             return StateRequestHandler.unsupported();
         } else {
             assert keySerializer != null;
-            return new SimpleStateRequestHandler(keyedStateBackend, keySerializer, jobOptions);
+            return new SimpleStateRequestHandler(
+                    keyedStateBackend, keySerializer, windowSerializer, jobOptions);
         }
     }
 
@@ -624,6 +626,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                         .setData(ByteString.copyFrom(new byte[] {NOT_EMPTY_FLAG}));
 
         private final TypeSerializer keySerializer;
+        private final TypeSerializer windowSerializer;
         private final TypeSerializer<byte[]> valueSerializer;
         private final KeyedStateBackend keyedStateBackend;
 
@@ -655,9 +658,11 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
         SimpleStateRequestHandler(
                 KeyedStateBackend keyedStateBackend,
                 TypeSerializer keySerializer,
+                TypeSerializer windowSerializer,
                 Map<String, String> config) {
             this.keyedStateBackend = keyedStateBackend;
             this.keySerializer = keySerializer;
+            this.windowSerializer = windowSerializer;
             this.valueSerializer =
                     PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO.createSerializer(
                             new ExecutionConfig());
@@ -806,12 +811,20 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                                         + "'%s' is used both as LIST state and '%s' state at the same time.",
                                 stateName, cachedStateDescriptor.getType()));
             }
-
-            return (ListState<byte[]>)
-                    keyedStateBackend.getPartitionedState(
-                            VoidNamespace.INSTANCE,
-                            VoidNamespaceSerializer.INSTANCE,
-                            listStateDescriptor);
+            byte[] windowBytes = bagUserState.getWindow().toByteArray();
+            if (windowBytes.length != 0) {
+                bais.setBuffer(windowBytes, 0, windowBytes.length);
+                Object window = windowSerializer.deserialize(baisWrapper);
+                return (ListState<byte[]>)
+                        keyedStateBackend.getPartitionedState(
+                                window, windowSerializer, listStateDescriptor);
+            } else {
+                return (ListState<byte[]>)
+                        keyedStateBackend.getPartitionedState(
+                                VoidNamespace.INSTANCE,
+                                VoidNamespaceSerializer.INSTANCE,
+                                listStateDescriptor);
+            }
         }
 
         private CompletionStage<BeamFnApi.StateResponse.Builder> handleMapState(
@@ -1098,12 +1111,20 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                                         + "'%s' is used both as MAP state and '%s' state at the same time.",
                                 stateName, cachedStateDescriptor.getType()));
             }
-
-            return (MapState<ByteArrayWrapper, byte[]>)
-                    keyedStateBackend.getPartitionedState(
-                            VoidNamespace.INSTANCE,
-                            VoidNamespaceSerializer.INSTANCE,
-                            mapStateDescriptor);
+            byte[] windowBytes = mapUserState.getWindow().toByteArray();
+            if (windowBytes.length != 0) {
+                bais.setBuffer(windowBytes, 0, windowBytes.length);
+                Object window = windowSerializer.deserialize(baisWrapper);
+                return (MapState<ByteArrayWrapper, byte[]>)
+                        keyedStateBackend.getPartitionedState(
+                                window, windowSerializer, mapStateDescriptor);
+            } else {
+                return (MapState<ByteArrayWrapper, byte[]>)
+                        keyedStateBackend.getPartitionedState(
+                                VoidNamespace.INSTANCE,
+                                VoidNamespaceSerializer.INSTANCE,
+                                mapStateDescriptor);
+            }
         }
 
         private BeamFnApi.ProcessBundleRequest.CacheToken createCacheToken() {
