@@ -183,7 +183,6 @@ class SharedSlot implements SlotOwner, PhysicalSlot.Payload {
         return new SingleLogicalSlot(
                 logicalSlotRequestId,
                 physicalSlot,
-                null,
                 Locality.UNKNOWN,
                 this,
                 slotWillBeOccupiedIndefinitely);
