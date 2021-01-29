@@ -105,19 +105,24 @@ Flink [shades away](https://maven.apache.org/plugins/maven-shade-plugin/) some o
 
 The dependency shading mechanism was recently changed in Maven and requires users to build Flink slightly differently, depending on their Maven version:
 
-**Maven 3.1.x and 3.2.x**
+**Maven and 3.2.x**
 It is sufficient to call `mvn clean install -DskipTests` in the root directory of Flink code base.
 
 **Maven 3.3.x**
-The build has to be done in two steps: First in the base directory, then in the distribution project:
+The build has to be done in two steps: First in the base directory, then in shaded modules, such as the distribution and the filesystems:
 
 {% highlight bash %}
 mvn clean install -DskipTests
 cd flink-dist
 mvn clean install
+cd ../flink-filesystems/flink-s3-fs-presto/
+mvn clean install -DskipTests
+...
 {% endhighlight %}
 
 *Note:* To check your Maven version, run `mvn --version`.
+
+*Note:* We recommend using the latest Maven 3.2.x version for building production grade Flink distributions, as this is the version the Flink developers are using for the official releases and testing.
 
 {% top %}
 
