@@ -100,6 +100,20 @@ public class CsvFormatFactoryTest extends TestLogger {
                             opts.remove("csv.quote-character");
                         });
 
+        final CsvRowDataDeserializationSchema expectedDeser =
+                new CsvRowDataDeserializationSchema.Builder(ROW_TYPE, InternalTypeInfo.of(ROW_TYPE))
+                        .setFieldDelimiter(';')
+                        .setAllowComments(true)
+                        .setIgnoreParseErrors(true)
+                        .setArrayElementDelimiter("|")
+                        .setEscapeCharacter('\\')
+                        .setNullLiteral("n/a")
+                        .disableQuoteCharacter()
+                        .build();
+        DeserializationSchema<RowData> actualDeser = createDeserializationSchema(options);
+
+        assertEquals(expectedDeser, actualDeser);
+
         final CsvRowDataSerializationSchema expectedSer =
                 new CsvRowDataSerializationSchema.Builder(ROW_TYPE)
                         .setFieldDelimiter(';')
