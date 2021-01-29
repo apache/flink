@@ -50,7 +50,9 @@ public class AppendOnlyWriter implements JDBCWriter {
 
 	@Override
 	public void open(Connection connection) throws SQLException {
-		this.cachedRows = new ArrayList<>();
+		if (this.cachedRows == null) {
+			this.cachedRows = new ArrayList<>();
+		}
 		this.statement = connection.prepareStatement(insertSQL);
 	}
 
@@ -78,5 +80,6 @@ public class AppendOnlyWriter implements JDBCWriter {
 			statement.close();
 			statement = null;
 		}
+		cachedRows = null;
 	}
 }

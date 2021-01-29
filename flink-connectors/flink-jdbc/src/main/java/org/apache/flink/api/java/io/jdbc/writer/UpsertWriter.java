@@ -87,7 +87,9 @@ public abstract class UpsertWriter implements JDBCWriter {
 
 	@Override
 	public void open(Connection connection) throws SQLException {
-		this.keyToRows = new HashMap<>();
+		if (this.keyToRows == null) {
+			this.keyToRows = new HashMap<>();
+		}
 		this.deleteStatement = connection.prepareStatement(deleteSQL);
 	}
 
@@ -125,6 +127,7 @@ public abstract class UpsertWriter implements JDBCWriter {
 			deleteStatement.close();
 			deleteStatement = null;
 		}
+		keyToRows = null;
 	}
 
 	private Row getPrimaryKey(Row row) {
