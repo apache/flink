@@ -770,8 +770,8 @@ Given this, when trying to restore from an old checkpoint/savepoint which assume
 by subsequent successful checkpoints, the `StreamingFileSink` will refuse to resume and it will throw an exception as it cannot locate the 
 in-progress file.
 
-<span class="label label-danger">Important Note 4</span>: Currently, the `StreamingFileSink` only supports three filesystems: 
-HDFS, S3, and Local. Flink will throw an exception when using an unsupported filesystem at runtime.
+<span class="label label-danger">Important Note 4</span>: Currently, the `StreamingFileSink` only supports four filesystems: 
+HDFS, S3, Google Storage (GS), and Local. Flink will throw an exception when using an unsupported filesystem at runtime.
 
 ### S3-specific
 
@@ -793,4 +793,14 @@ aggressively and take a savepoint with some part-files being not fully uploaded,
 before the job is restarted. This will result in your job not being able to restore from that savepoint as the
 pending part-files are no longer there and Flink will fail with an exception as it tries to fetch them and fails.
 
+### Google-Storage-specific
+
+<span class="label label-danger">Important Note 1</span>: To guarantee exactly-once semantics while
+being efficient, the `StreamingFileSink` uses the [Resumable Upload](https://cloud.google.com/storage/docs/resumable-uploads)
+feature of Google Storage. A resumable upload must be completed within one week of being initiated; attempts to resume uploads
+beyond one week will fail, and savepoints that reference such in-progress, timed-out uploads not be usable.
+
+
 {% top %}
+
+
