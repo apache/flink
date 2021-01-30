@@ -101,4 +101,9 @@ public class ResourceCounter {
     public void clear() {
         resources.clear();
     }
+
+    @Override
+    public String toString() {
+        return String.format("ResourceCounter%s", resources);
+    }
 }
