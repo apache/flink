@@ -23,6 +23,7 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.api.common.resources.Resource;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -558,6 +559,17 @@ public class ResourceProfile implements Serializable {
 
     public static Builder newBuilder() {
         return new Builder();
+    }
+
+    public static Builder newBuilder(ResourceProfile resourceProfile) {
+        Preconditions.checkArgument(!resourceProfile.equals(UNKNOWN));
+        return newBuilder()
+                .setCpuCores(resourceProfile.cpuCores)
+                .setTaskHeapMemory(resourceProfile.taskHeapMemory)
+                .setTaskOffHeapMemory(resourceProfile.taskOffHeapMemory)
+                .setManagedMemory(resourceProfile.managedMemory)
+                .setNetworkMemory(resourceProfile.networkMemory)
+                .addExtendedResources(resourceProfile.extendedResources);
     }
 
     /** Builder for the {@link ResourceProfile}. */
