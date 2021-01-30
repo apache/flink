@@ -42,7 +42,7 @@ export PYTHONPATH="$PY4J_ZIP:$CLOUDPICKLE_ZIP:$PYTHONPATH"
 
 PARSER="org.apache.flink.client.python.PythonShellParser"
 function parse_options() {
-    ${JAVA_RUN} ${JVM_ARGS} -cp ${FLINK_CLASSPATH}:${PYTHON_JAR_PATH} ${PARSER} "$@"
+    "${JAVA_RUN}" ${JVM_ARGS} -cp ${FLINK_CLASSPATH}:${PYTHON_JAR_PATH} ${PARSER} "$@"
     printf "%d\0" $?
 }
 
@@ -51,7 +51,7 @@ set +o posix
 # If the command has option --help | -h, the script will directly
 # run the PythonShellParser program to stdout the help message.
 if [[ "$@" =~ '--help' ]] || [[ "$@" =~ '-h' ]]; then
-    ${JAVA_RUN} ${JVM_ARGS} -cp ${FLINK_CLASSPATH}:${PYTHON_JAR_PATH} ${PARSER} "$@"
+    "${JAVA_RUN}" ${JVM_ARGS} -cp ${FLINK_CLASSPATH}:${PYTHON_JAR_PATH} ${PARSER} "$@"
     exit 0
 fi
 OPTIONS=()
