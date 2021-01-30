@@ -20,6 +20,7 @@
 import logging
 import unittest
 
+from pyflink.fn_execution.window import TimeWindow, CountWindow
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 try:
@@ -229,6 +230,18 @@ class CodersTest(PyFlinkTestCase):
         self.check_cython_coder(python_field_coders, cython_field_coders, data)
         row.set_row_kind(RowKind.DELETE)
         self.check_cython_coder(python_field_coders, cython_field_coders, data)
+
+    def test_cython_time_window_coder(self):
+        fast_coder = coder_impl_fast.TimeWindowCoderImpl()
+        slow_coder = coder_impl.TimeWindowCoderImpl()
+        window = TimeWindow(100, 200)
+        self.assertEqual(fast_coder.encode_nested(window), slow_coder.encode_nested(window))
+
+    def test_cython_count_window_coder(self):
+        fast_coder = coder_impl_fast.CountWindowCoderImpl()
+        slow_coder = coder_impl.CountWindowCoderImpl()
+        window = CountWindow(100)
+        self.assertEqual(fast_coder.encode_nested(window), slow_coder.encode_nested(window))
 
 
 if __name__ == '__main__':

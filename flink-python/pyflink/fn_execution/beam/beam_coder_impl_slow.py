@@ -28,9 +28,32 @@ from apache_beam.coders.coder_impl import StreamCoderImpl, create_InputStream, c
 
 from pyflink.fn_execution.ResettableIO import ResettableIO
 from pyflink.common import Row, RowKind
+from pyflink.fn_execution.window import TimeWindow, CountWindow
 from pyflink.table.utils import pandas_to_arrow, arrow_to_pandas
 
 ROW_KIND_BIT_SIZE = 2
+
+
+class TimeWindowCoderImpl(StreamCoderImpl):
+
+    def encode_to_stream(self, value: TimeWindow, stream, nested):
+        stream.write_bigendian_int64(value.start)
+        stream.write_bigendian_int64(value.end)
+
+    def decode_from_stream(self, stream, nested):
+        start = stream.read_bigendian_int64()
+        end = stream.read_bigendian_int64()
+        return TimeWindow(start, end)
+
+
+class CountWindowCoderImpl(StreamCoderImpl):
+
+    def encode_to_stream(self, value: CountWindow, stream, nested):
+        stream.write_bigendian_int64(value.id)
+
+    def decode_from_stream(self, stream, nested):
+        id = stream.read_bigendian_int64()
+        return CountWindow(id)
 
 
 class FlattenRowCoderImpl(StreamCoderImpl):
