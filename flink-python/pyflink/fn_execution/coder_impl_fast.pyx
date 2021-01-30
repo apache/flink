@@ -25,6 +25,8 @@ from libc.string cimport memcpy
 
 import datetime
 import decimal
+
+from pyflink.fn_execution.window import TimeWindow, CountWindow
 from pyflink.table import Row
 from pyflink.table.types import RowKind
 
@@ -810,6 +812,41 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
             free(self._field_type)
         if self._field_coder_type:
             free(self._field_coder_type)
+
+cdef class WindowCoderImpl(BaseCoderImpl):
+    def __init__(self):
+        self._tmp_output_pos = 0
+        self._tmp_output_data = <char*> malloc(16)
+
+    cpdef bytes encode_nested(self, value):
+        pass
+
+    cdef void _encode_bigint(self, libc.stdint.int64_t v):
+        self._tmp_output_data[self._tmp_output_pos] = <unsigned char> (v >> 56)
+        self._tmp_output_data[self._tmp_output_pos + 1] = <unsigned char> (v >> 48)
+        self._tmp_output_data[self._tmp_output_pos + 2] = <unsigned char> (v >> 40)
+        self._tmp_output_data[self._tmp_output_pos + 3] = <unsigned char> (v >> 32)
+        self._tmp_output_data[self._tmp_output_pos + 4] = <unsigned char> (v >> 24)
+        self._tmp_output_data[self._tmp_output_pos + 5] = <unsigned char> (v >> 16)
+        self._tmp_output_data[self._tmp_output_pos + 6] = <unsigned char> (v >> 8)
+        self._tmp_output_data[self._tmp_output_pos + 7] = <unsigned char> v
+        self._tmp_output_pos += 8
+
+    def __dealloc__(self):
+        if self._tmp_output_data:
+            free(self._tmp_output_data)
+
+cdef class TimeWindowCoderImpl(WindowCoderImpl):
+    cpdef bytes encode_nested(self, value: TimeWindow):
+        self._encode_bigint(value.start)
+        self._encode_bigint(value.end)
+        return self._tmp_output_data[:16]
+
+
+cdef class CountWindowCoderImpl(WindowCoderImpl):
+    cpdef bytes encode_nested(self, value: CountWindow):
+        self._encode_bigint(value.id)
+        return self._tmp_output_data[:8]
 
 cdef class FieldCoder:
     cpdef CoderType coder_type(self):

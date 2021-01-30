@@ -127,6 +127,19 @@ cdef class DataStreamFlatMapCoderImpl(BaseCoderImpl):
 cdef class DataStreamCoFlatMapCoderImpl(BaseCoderImpl):
     cdef readonly object _single_field_coder
 
+cdef class WindowCoderImpl(BaseCoderImpl):
+    cdef size_t _tmp_output_pos
+    cdef char*_tmp_output_data
+
+    cpdef bytes encode_nested(self, value)
+    cdef void _encode_bigint(self, libc.stdint.int64_t v)
+
+cdef class TimeWindowCoderImpl(WindowCoderImpl):
+    pass
+
+cdef class CountWindowCoderImpl(WindowCoderImpl):
+    pass
+
 cdef enum CoderType:
     UNDEFINED = -1
     SIMPLE = 0
