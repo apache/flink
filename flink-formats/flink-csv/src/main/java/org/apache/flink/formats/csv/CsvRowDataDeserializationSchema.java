@@ -209,4 +209,3 @@ public final class CsvRowDataDeserializationSchema implements DeserializationSch
                 csvSchema.getNullValue());
     }
 }
-

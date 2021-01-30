@@ -248,4 +248,3 @@ public final class CsvFormatFactory
         formatOptions.getOptional(NULL_LITERAL).ifPresent(schemaBuilder::setNullLiteral);
     }
 }
-
