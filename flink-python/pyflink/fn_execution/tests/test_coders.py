@@ -24,7 +24,9 @@ import unittest
 from pyflink.fn_execution.coders import BigIntCoder, TinyIntCoder, BooleanCoder, \
     SmallIntCoder, IntCoder, FloatCoder, DoubleCoder, BinaryCoder, CharCoder, DateCoder, \
     TimeCoder, TimestampCoder, BasicArrayCoder, MapCoder, DecimalCoder, FlattenRowCoder, RowCoder, \
-    LocalZonedTimestampCoder, BigDecimalCoder, TupleCoder, PrimitiveArrayCoder
+    LocalZonedTimestampCoder, BigDecimalCoder, TupleCoder, PrimitiveArrayCoder, TimeWindowCoder, \
+    CountWindowCoder
+from pyflink.fn_execution.window import TimeWindow, CountWindow
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 try:
@@ -179,6 +181,12 @@ class CodersTest(PyFlinkTestCase):
         tuple_coder = TupleCoder(field_coders=field_coders)
         data = (1, "Hello", "Hi")
         self.check_coder(tuple_coder, data)
+
+    def test_window_coder(self):
+        coder = TimeWindowCoder()
+        self.check_coder(coder, TimeWindow(100, 1000))
+        coder = CountWindowCoder()
+        self.check_coder(coder, CountWindow(100))
 
 
 if __name__ == '__main__':
