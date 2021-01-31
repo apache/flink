@@ -1806,6 +1806,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
   "type" : "object",
   "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointConfigInfo",
   "properties" : {
+    "checkpoint_storage" : {
+      "type" : "string"
+    },
     "externalization" : {
       "type" : "object",
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointConfigInfo:ExternalizedCheckpointInfo",
@@ -3073,6 +3076,12 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           "backpressure-level" : {
             "type" : "string",
             "enum" : [ "ok", "low", "high" ]
+          },
+          "busyRatio" : {
+            "type" : "number"
+          },
+          "idleRatio" : {
+            "type" : "number"
           },
           "ratio" : {
             "type" : "number"
