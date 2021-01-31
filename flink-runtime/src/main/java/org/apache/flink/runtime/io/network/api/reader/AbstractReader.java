@@ -22,6 +22,7 @@ import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
+import org.apache.flink.runtime.io.network.api.FinalizeBarrier;
 import org.apache.flink.runtime.io.network.api.TaskEventHandler;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.util.event.EventListener;
@@ -88,6 +89,9 @@ public abstract class AbstractReader implements ReaderBase {
             // channel, at which it was received.
             if (eventType == EndOfPartitionEvent.class) {
                 return true;
+            } else if (eventType == FinalizeBarrier.class) {
+                // Batch tasks do not have checkpoints and should ignore FinalizeBarrier event.
+                return false;
             } else if (eventType == EndOfSuperstepEvent.class) {
                 return incrementEndOfSuperstepEventAndCheck();
             }

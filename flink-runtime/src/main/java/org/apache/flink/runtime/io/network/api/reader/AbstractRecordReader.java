@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.api.reader;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
+import org.apache.flink.runtime.io.network.api.FinalizeBarrier;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult;
 import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
@@ -129,6 +130,11 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
                 currentRecordDeserializer = recordDeserializers.get(bufferOrEvent.getChannelInfo());
                 currentRecordDeserializer.setNextBuffer(bufferOrEvent.getBuffer());
             } else {
+                // Batch tasks do not have checkpoints and should ignore FinalizeBarrier event.
+                if (bufferOrEvent.getEvent() instanceof FinalizeBarrier) {
+                    continue;
+                }
+
                 // sanity check for leftover data in deserializers. events should only come between
                 // records, not in the middle of a fragment
                 if (recordDeserializers.get(bufferOrEvent.getChannelInfo()).hasUnfinishedData()) {

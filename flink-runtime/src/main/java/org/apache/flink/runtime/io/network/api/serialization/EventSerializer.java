@@ -30,6 +30,7 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
 import org.apache.flink.runtime.io.network.api.EventAnnouncement;
+import org.apache.flink.runtime.io.network.api.FinalizeBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
@@ -64,6 +65,8 @@ public class EventSerializer {
     private static final int END_OF_CHANNEL_STATE_EVENT = 5;
 
     private static final int ANNOUNCEMENT_EVENT = 6;
+
+    private static final int FINALIZE_BARRIER_EVENT = 7;
 
     private static final int CHECKPOINT_TYPE_CHECKPOINT = 0;
 
@@ -105,6 +108,13 @@ public class EventSerializer {
             serializedAnnouncement.put(serializedAnnouncedEvent);
             serializedAnnouncement.flip();
             return serializedAnnouncement;
+        } else if (eventClass == FinalizeBarrier.class) {
+            FinalizeBarrier finalizeBarrier = (FinalizeBarrier) event;
+
+            ByteBuffer buf = ByteBuffer.allocate(12);
+            buf.putInt(0, FINALIZE_BARRIER_EVENT);
+            buf.putLong(4, finalizeBarrier.getNextBarrierId());
+            return buf;
         } else {
             try {
                 final DataOutputSerializer serializer = new DataOutputSerializer(128);
@@ -145,6 +155,9 @@ public class EventSerializer {
                 int sequenceNumber = buffer.getInt();
                 AbstractEvent announcedEvent = fromSerializedEvent(buffer, classLoader);
                 return new EventAnnouncement(announcedEvent, sequenceNumber);
+            } else if (type == FINALIZE_BARRIER_EVENT) {
+                long nextBarrierId = buffer.getLong();
+                return new FinalizeBarrier(nextBarrierId);
             } else if (type == OTHER_EVENT) {
                 try {
                     final DataInputDeserializer deserializer = new DataInputDeserializer(buffer);
