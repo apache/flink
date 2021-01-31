@@ -131,7 +131,7 @@ public class SynchronousCheckpointITCase {
      * A {@link StreamTask} which makes sure that the different phases of a synchronous checkpoint
      * are reflected in the {@link SynchronousCheckpointITCase#eventQueue}.
      */
-    public static class SynchronousCheckpointTestingTask extends StreamTask {
+    public static class SynchronousCheckpointTestingTask extends AbstractSourceStreamTask {
         // Flag to emit the first event only once.
         private boolean isRunning;
 

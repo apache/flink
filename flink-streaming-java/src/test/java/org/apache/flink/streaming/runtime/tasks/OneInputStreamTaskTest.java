@@ -573,7 +573,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 
         final OneInputStreamTaskTestHarness<String, String> testHarness =
                 new OneInputStreamTaskTestHarness<>(
-                        OneInputStreamTask::new,
+                        CheckpointableOneInputStreamTask::new,
                         BasicTypeInfo.STRING_TYPE_INFO,
                         BasicTypeInfo.STRING_TYPE_INFO);
 

@@ -218,7 +218,7 @@ public class RestoreStreamTaskTest extends TestLogger {
 
         final OneInputStreamTaskTestHarness<String, String> testHarness =
                 new OneInputStreamTaskTestHarness<>(
-                        OneInputStreamTask::new,
+                        CheckpointableOneInputStreamTask::new,
                         1,
                         1,
                         BasicTypeInfo.STRING_TYPE_INFO,
