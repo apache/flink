@@ -47,7 +47,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Base class for cluster entry points targeting executing applications in "Application Mode". The
- * lifecycle of the enrtypoint is bound to that of the specific application being executed, and the
+ * lifecycle of the entry point is bound to that of the specific application being executed, and the
  * {@code main()} method of the application is run on the cluster.
  */
 public class ApplicationClusterEntryPoint extends ClusterEntrypoint {
@@ -113,5 +113,16 @@ public class ApplicationClusterEntryPoint extends ClusterEntrypoint {
         classpath.addAll(program.getClasspaths());
         return Collections.unmodifiableList(
                 classpath.stream().distinct().collect(Collectors.toList()));
+    }
+
+    @Override
+    public void close() throws Exception {
+        try {
+            // Close the packaged program explicitly to clean up temporary jars.
+            program.close();
+        } catch (Exception e) {
+            LOG.debug("Error while closing the packaged program.", e);
+            throw e;
+        }
     }
 }
