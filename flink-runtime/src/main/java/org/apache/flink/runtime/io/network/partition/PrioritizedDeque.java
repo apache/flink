@@ -189,6 +189,10 @@ public final class PrioritizedDeque<T> implements Iterable<T> {
         return deque.peek();
     }
 
+    public T removeLast() {
+        return deque.removeLast();
+    }
+
     /** Returns the current number of priority elements ([0; {@link #size()}]). */
     public int getNumPriorityElements() {
         return numPriorityElements;

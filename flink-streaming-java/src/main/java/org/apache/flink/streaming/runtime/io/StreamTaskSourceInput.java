@@ -135,6 +135,10 @@ public class StreamTaskSourceInput<T> implements StreamTaskInput<T>, Checkpointa
     public void convertToPriorityEvent(int channelIndex, int sequenceNumber) throws IOException {}
 
     @Override
+    public void insertBarrierBeforeEndOfPartition(int channelIndex, CheckpointBarrier barrier)
+            throws IOException {}
+
+    @Override
     public int getInputIndex() {
         return inputIndex;
     }

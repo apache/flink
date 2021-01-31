@@ -46,4 +46,7 @@ public interface CheckpointableInput {
     int getInputGateIndex();
 
     void convertToPriorityEvent(int channelIndex, int sequenceNumber) throws IOException;
+
+    void insertBarrierBeforeEndOfPartition(int channelIndex, CheckpointBarrier barrier)
+            throws IOException;
 }

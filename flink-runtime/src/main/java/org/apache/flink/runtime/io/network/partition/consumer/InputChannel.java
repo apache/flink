@@ -24,6 +24,9 @@ import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.FinalizeBarrier;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.PartitionException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -48,6 +51,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * </ol>
  */
 public abstract class InputChannel {
+    protected static final int NONE = -1;
+
     /** The info of the input channel to identify it globally within a task. */
     protected final InputChannelInfo channelInfo;
 
@@ -182,6 +187,8 @@ public abstract class InputChannel {
 
     public void convertToPriorityEvent(int sequenceNumber) throws IOException {}
 
+    public void insertBarrierBeforeEndOfPartition(CheckpointBarrier barrier) throws IOException {}
+
     // ------------------------------------------------------------------------
     // Task events
     // ------------------------------------------------------------------------
@@ -288,6 +295,37 @@ public abstract class InputChannel {
     }
 
     // ------------------------------------------------------------------------
+    // Barrier Insertion
+    // ------------------------------------------------------------------------
+
+    boolean isEndOfPartitionEvent(Buffer buffer) throws IOException {
+        return buffer.getDataType().isEvent()
+                && EventSerializer.fromBuffer(buffer, getClass().getClassLoader())
+                        instanceof EndOfPartitionEvent;
+    }
+
+    Buffer createFinalizeBarrierEvent(long nextBarrierId) throws IOException {
+        return EventSerializer.toBuffer(new FinalizeBarrier(nextBarrierId), true);
+    }
+
+    // ------------------------------------------------------------------------
+
+    static final class SequenceBuffer {
+        final Buffer buffer;
+        final int sequenceNumber;
+
+        SequenceBuffer(Buffer buffer, int sequenceNumber) {
+            this.buffer = buffer;
+            this.sequenceNumber = sequenceNumber;
+        }
+
+        @Override
+        public String toString() {
+            return String.format(
+                    "SequenceBuffer(isEvent = %s, dataType = %s, sequenceNumber = %s)",
+                    !buffer.isBuffer(), buffer.getDataType(), sequenceNumber);
+        }
+    }
 
     /**
      * A combination of a {@link Buffer} and a flag indicating availability of further buffers, and

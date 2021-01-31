@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.io.network.ConnectionID;
@@ -31,6 +32,9 @@ import org.apache.flink.runtime.io.network.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.TestingConnectionManager;
 import org.apache.flink.runtime.io.network.TestingPartitionRequestClient;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.EventAnnouncement;
+import org.apache.flink.runtime.io.network.api.FinalizeBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
 import org.apache.flink.runtime.io.network.buffer.BufferListener.NotificationResult;
@@ -44,6 +48,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TestTaskBuilder;
@@ -82,6 +87,7 @@ import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.
 import static org.apache.flink.runtime.io.network.partition.AvailabilityUtil.assertAvailability;
 import static org.apache.flink.runtime.io.network.partition.AvailabilityUtil.assertPriorityAvailability;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
+import static org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannelTest.checkReturnedBuffer;
 import static org.apache.flink.runtime.io.network.util.TestBufferFactory.createBuffer;
 import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -1488,6 +1494,106 @@ public class RemoteInputChannelTest {
         sendBuffer(channel, sequenceNumber++, bufferSize++);
         assertGetNextBufferSequenceNumbers(channel, 2, 0);
         assertInflightBufferSizes(channel, 2);
+    }
+
+    @Test
+    public void testInsertFinalizeBarrierOnEndOfPartition() throws IOException {
+        int bufferSize = 1;
+        int sequenceNumber = 0;
+        final RemoteInputChannel channel = buildInputGateAndGetChannel(sequenceNumber);
+
+        sendBuffer(channel, sequenceNumber, bufferSize);
+        sendEndOfPartition(channel, sequenceNumber + 1);
+
+        checkReturnedBuffer(
+                channel.getNextBuffer().get(), new FinalizeBarrier(0), true, sequenceNumber + 1);
+        checkReturnedBuffer(
+                channel.getNextBuffer().get(), createBuffer(bufferSize), sequenceNumber);
+        checkReturnedBuffer(
+                channel.getNextBuffer().get(),
+                EndOfPartitionEvent.INSTANCE,
+                false,
+                sequenceNumber + 2);
+        assertFalse(channel.getNextBuffer().isPresent());
+    }
+
+    @Test
+    public void testInsertFinalizeBarrierAfterReceivedBarrier() throws IOException {
+        int sequenceNumber = 0;
+        final RemoteInputChannel channel = buildInputGateAndGetChannel(sequenceNumber);
+
+        CheckpointBarrier barrier =
+                new CheckpointBarrier(10, 1L, CheckpointOptions.forCheckpointWithDefaultLocation());
+        send(channel, sequenceNumber, toBuffer(barrier, false));
+        sendEndOfPartition(channel, sequenceNumber + 1);
+
+        checkReturnedBuffer(
+                channel.getNextBuffer().get(), new FinalizeBarrier(11), true, sequenceNumber + 1);
+        checkReturnedBuffer(channel.getNextBuffer().get(), barrier, false, sequenceNumber);
+        checkReturnedBuffer(
+                channel.getNextBuffer().get(),
+                EndOfPartitionEvent.INSTANCE,
+                false,
+                sequenceNumber + 2);
+        assertFalse(channel.getNextBuffer().isPresent());
+    }
+
+    @Test
+    public void testInsertBarriersBeforeEndOfPartition() throws IOException {
+        int sequenceNumber = 0;
+        final RemoteInputChannel channel = buildInputGateAndGetChannel(sequenceNumber);
+
+        sendEndOfPartition(channel, sequenceNumber);
+        checkReturnedBuffer(
+                channel.getNextBuffer().get(), new FinalizeBarrier(0), true, sequenceNumber);
+
+        CheckpointBarrier[] barriers =
+                new CheckpointBarrier[] {
+                    new CheckpointBarrier(
+                            2, 1L, CheckpointOptions.forCheckpointWithDefaultLocation()),
+                    new CheckpointBarrier(
+                            3,
+                            1L,
+                            CheckpointOptions.alignedWithTimeout(
+                                    CheckpointStorageLocationReference.getDefault(), 30000L)),
+                    new CheckpointBarrier(
+                            5,
+                            1L,
+                            CheckpointOptions.unaligned(
+                                    CheckpointStorageLocationReference.getDefault()))
+                };
+
+        for (CheckpointBarrier barrier : barriers) {
+            channel.insertBarrierBeforeEndOfPartition(barrier);
+        }
+
+        // Read the remaining buffers
+        EventAnnouncement eventAnnouncement =
+                new EventAnnouncement(barriers[1], sequenceNumber + 2);
+        AbstractEvent[] expectedEvents = {eventAnnouncement, barriers[2], barriers[0], barriers[1]};
+        long[] expectedSequenceNumbers = {
+            sequenceNumber + 2, sequenceNumber + 3, sequenceNumber + 1, sequenceNumber + 2
+        };
+        boolean[] expectedIsPriority = {true, true, false, false};
+
+        for (int i = 0; i < expectedEvents.length; ++i) {
+            checkReturnedBuffer(
+                    channel.getNextBuffer().get(),
+                    expectedEvents[i],
+                    expectedIsPriority[i],
+                    expectedSequenceNumbers[i]);
+        }
+        checkReturnedBuffer(
+                channel.getNextBuffer().get(),
+                EndOfPartitionEvent.INSTANCE,
+                false,
+                sequenceNumber + 4);
+        assertFalse(channel.getNextBuffer().isPresent());
+    }
+
+    private void sendEndOfPartition(RemoteInputChannel channel, int sequenceNumber)
+            throws IOException {
+        send(channel, sequenceNumber, toBuffer(EndOfPartitionEvent.INSTANCE, false));
     }
 
     private void sendBarrier(

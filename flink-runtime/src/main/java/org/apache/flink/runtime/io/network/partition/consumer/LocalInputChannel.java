@@ -26,6 +26,8 @@ import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FileRegionBuffer;
 import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
@@ -42,7 +44,9 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.Optional;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -71,6 +75,12 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
     private volatile boolean isReleased;
 
     private final ChannelStatePersister channelStatePersister;
+
+    private long maxBarrierId = NONE;
+
+    private boolean receivedEndOfPartition;
+
+    private final Deque<SequenceBuffer> cachedBuffers = new ArrayDeque<>();
 
     public LocalInputChannel(
             SingleInputGate inputGate,
@@ -237,6 +247,10 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
             subpartitionView = checkAndWaitForSubpartitionView();
         }
 
+        if (cachedBuffers.size() > 0) {
+            return pollNextCachedBuffer();
+        }
+
         BufferAndBacklog next = subpartitionView.getNextBuffer();
 
         if (next == null) {
@@ -256,8 +270,20 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 
         numBytesIn.inc(buffer.getSize());
         numBuffersIn.inc();
-        channelStatePersister.checkForBarrier(buffer);
+
+        Optional<Long> barrierId = channelStatePersister.checkForBarrier(buffer);
+        barrierId.ifPresent(
+                id -> {
+                    if (id > maxBarrierId) {
+                        maxBarrierId = id;
+                    }
+                });
         channelStatePersister.maybePersist(buffer);
+
+        if (isEndOfPartitionEvent(buffer)) {
+            return cacheEndOfPartitionAndCreateFinalizeBarrier(next.getSequenceNumber());
+        }
+
         NetworkActionsLogger.traceInput(
                 "LocalInputChannel#getNextBuffer",
                 buffer,
@@ -271,6 +297,51 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
                         next.getNextDataType(),
                         next.buffersInBacklog(),
                         next.getSequenceNumber()));
+    }
+
+    private Optional<BufferAndAvailability> pollNextCachedBuffer() {
+        SequenceBuffer next = cachedBuffers.poll();
+        Buffer.DataType nextDataType =
+                cachedBuffers.peek() != null
+                        ? cachedBuffers.peek().buffer.getDataType()
+                        : Buffer.DataType.NONE;
+
+        NetworkActionsLogger.traceInput(
+                "LocalInputChannel#getNextBuffer",
+                next.buffer,
+                inputGate.getOwningTaskName(),
+                channelInfo,
+                channelStatePersister,
+                next.sequenceNumber);
+        return Optional.of(
+                new BufferAndAvailability(next.buffer, nextDataType, 0, next.sequenceNumber));
+    }
+
+    private Optional<BufferAndAvailability> cacheEndOfPartitionAndCreateFinalizeBarrier(
+            int endOfPartitionSequenceNumber) throws IOException {
+        receivedEndOfPartition = true;
+        // Considering the case of {@link FileRegionBuffer}, the received buffer should never be
+        // cached for local input channel since its content might be changed afterwards.
+        cachedBuffers.push(
+                new SequenceBuffer(
+                        EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE, false),
+                        endOfPartitionSequenceNumber + 1));
+
+        Buffer finalizeBarrierBuffer = createFinalizeBarrierEvent(maxBarrierId + 1);
+
+        NetworkActionsLogger.traceInput(
+                "LocalInputChannel#getNextBuffer",
+                finalizeBarrierBuffer,
+                inputGate.getOwningTaskName(),
+                channelInfo,
+                channelStatePersister,
+                endOfPartitionSequenceNumber);
+        return Optional.of(
+                new BufferAndAvailability(
+                        finalizeBarrierBuffer,
+                        Buffer.DataType.EVENT_BUFFER,
+                        1,
+                        endOfPartitionSequenceNumber));
     }
 
     @Override
@@ -292,13 +363,37 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
     }
 
     @Override
+    public void insertBarrierBeforeEndOfPartition(CheckpointBarrier barrier) throws IOException {
+        checkState(cachedBuffers.size() > 0);
+        SequenceBuffer endOfPartitionBuffer = cachedBuffers.removeLast();
+        checkState(isEndOfPartitionEvent(endOfPartitionBuffer.buffer));
+
+        // We would not let the prioritized barriers go beyond the non-prioritized barriers
+        // so that the LocalInputChannel would not involved with prioritized event.
+        Buffer barrierEventBuffer =
+                EventSerializer.toBuffer(
+                        barrier, barrier.getCheckpointOptions().isUnalignedCheckpoint());
+        cachedBuffers.add(
+                new SequenceBuffer(barrierEventBuffer, endOfPartitionBuffer.sequenceNumber));
+
+        cachedBuffers.add(
+                new SequenceBuffer(
+                        endOfPartitionBuffer.buffer, endOfPartitionBuffer.sequenceNumber + 1));
+    }
+
+    @Override
     public void resumeConsumption() {
-        checkState(!isReleased, "Channel released.");
+        // If some checkpoints get aligned with inserted barrier after this channel has
+        // received EndOfPartition, we do not need to resume consumption since there is
+        // no more buffers to receive and the upstream task might has been released.
+        if (!receivedEndOfPartition) {
+            checkState(!isReleased, "Channel released.");
 
-        subpartitionView.resumeConsumption();
+            subpartitionView.resumeConsumption();
 
-        if (subpartitionView.isAvailable(Integer.MAX_VALUE)) {
-            notifyChannelNonEmpty();
+            if (subpartitionView.isAvailable(Integer.MAX_VALUE)) {
+                notifyChannelNonEmpty();
+            }
         }
     }
 

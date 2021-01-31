@@ -60,4 +60,10 @@ public abstract class IndexedInputGate extends InputGate implements Checkpointab
     public void convertToPriorityEvent(int channelIndex, int sequenceNumber) throws IOException {
         getChannel(channelIndex).convertToPriorityEvent(sequenceNumber);
     }
+
+    @Override
+    public void insertBarrierBeforeEndOfPartition(int channelIndex, CheckpointBarrier barrier)
+            throws IOException {
+        getChannel(channelIndex).insertBarrierBeforeEndOfPartition(barrier);
+    }
 }

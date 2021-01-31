@@ -22,10 +22,12 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
+import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
@@ -35,6 +37,9 @@ import org.apache.flink.runtime.io.network.TaskEventPublisher;
 import org.apache.flink.runtime.io.network.TestingConnectionManager;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.EventAnnouncement;
+import org.apache.flink.runtime.io.network.api.FinalizeBarrier;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
@@ -67,13 +72,17 @@ import org.junit.Test;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static java.util.Arrays.asList;
 import static org.apache.flink.runtime.checkpoint.CheckpointOptions.alignedNoTimeout;
+import static org.apache.flink.runtime.checkpoint.CheckpointOptions.alignedWithTimeout;
 import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createLocalInputChannel;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
@@ -94,6 +103,11 @@ import static org.junit.Assert.fail;
 
 /** Tests for {@link SingleInputGate}. */
 public class SingleInputGateTest extends InputGateTestBase {
+    private static final CheckpointOptions UNALIGNED = CheckpointOptions.unaligned(getDefault());
+    private static final CheckpointOptions ALIGNED_WITHOUT_TIMEOUT =
+            alignedNoTimeout(CHECKPOINT, getDefault());
+    private static final CheckpointOptions ALIGNED_WITH_TIMEOUT =
+            alignedWithTimeout(getDefault(), 10);
 
     @Test(expected = CheckpointException.class)
     public void testCheckpointsDeclinedUnlessAllChannelsAreKnown() throws CheckpointException {
@@ -885,7 +899,124 @@ public class SingleInputGateTest extends InputGateTestBase {
         }
     }
 
+    @Test
+    public void testInsertBarriersBeforeEndofPartition() throws Exception {
+        try (NettyShuffleEnvironment network =
+                new NettyShuffleEnvironmentBuilder().setNumNetworkBuffers(2).build()) {
+            BufferWritingResultPartition resultPartition =
+                    (BufferWritingResultPartition)
+                            new ResultPartitionBuilder()
+                                    .setResultPartitionManager(network.getResultPartitionManager())
+                                    .setupBufferPoolFactoryFromNettyShuffleEnvironment(network)
+                                    .build();
+            network.getResultPartitionManager().registerResultPartition(resultPartition);
+
+            SingleInputGate inputGate = createInputGate(network, 2, ResultPartitionType.PIPELINED);
+            ResultPartitionID localResultPartitionId = resultPartition.getPartitionId();
+
+            LocalInputChannel localInputChannel =
+                    InputChannelBuilder.newBuilder()
+                            .setChannelIndex(0)
+                            .setPartitionId(localResultPartitionId)
+                            .setupFromNettyShuffleEnvironment(network)
+                            .setConnectionManager(new TestingConnectionManager())
+                            .buildLocalChannel(inputGate);
+            RemoteInputChannel remoteInputChannel =
+                    InputChannelBuilder.newBuilder()
+                            .setChannelIndex(1)
+                            .setupFromNettyShuffleEnvironment(network)
+                            .setConnectionManager(new TestingConnectionManager())
+                            .buildRemoteChannel(inputGate);
+            inputGate.setInputChannels(localInputChannel, remoteInputChannel);
+            inputGate.setBufferPool(network.getNetworkBufferPool().createBufferPool(2, 2));
+            inputGate.requestPartitions();
+
+            // Read till EndOfPartition for the LocalInputChannel
+            resultPartition.broadcastEvent(
+                    new CheckpointBarrier(5, 1L, ALIGNED_WITH_TIMEOUT), false);
+            resultPartition.finish();
+            checkEvent(
+                    inputGate.pollNext().get(),
+                    new CheckpointBarrier(5, 1L, ALIGNED_WITH_TIMEOUT),
+                    0);
+            inputGate.resumeConsumption(new InputChannelInfo(0, 0));
+            checkEvent(inputGate.pollNext().get(), new FinalizeBarrier(6), 0);
+
+            // RemoteInputChannel received EndOfPartition
+            remoteInputChannel.onBuffer(
+                    EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE, false), 0, 0);
+            checkEvent(inputGate.pollNext().get(), new FinalizeBarrier(0), 1);
+
+            // Now insert barriers
+            CheckpointBarrier[] barriers = {
+                new CheckpointBarrier(9, 1L, ALIGNED_WITHOUT_TIMEOUT),
+                new CheckpointBarrier(10, 1L, UNALIGNED),
+                new CheckpointBarrier(11, 1L, ALIGNED_WITH_TIMEOUT),
+                new CheckpointBarrier(12, 1L, ALIGNED_WITHOUT_TIMEOUT),
+                new CheckpointBarrier(14, 1L, UNALIGNED),
+                new CheckpointBarrier(16, 1L, ALIGNED_WITH_TIMEOUT),
+            };
+            for (CheckpointBarrier barrier : barriers) {
+                inputGate.insertBarrierBeforeEndOfPartition(0, barrier);
+                inputGate.insertBarrierBeforeEndOfPartition(1, barrier);
+            }
+
+            List<AbstractEvent> localInputChannelOutput = new ArrayList<>();
+            List<AbstractEvent> remoteInputChannelOutput = new ArrayList<>();
+            while (true) {
+                Optional<BufferOrEvent> next = inputGate.pollNext();
+                if (!next.isPresent()) {
+                    break;
+                }
+
+                assertTrue(next.get().isEvent());
+
+                if (next.get().getChannelInfo().getInputChannelIdx() == 0) {
+                    localInputChannelOutput.add(next.get().getEvent());
+                } else {
+                    remoteInputChannelOutput.add(next.get().getEvent());
+                }
+            }
+
+            List<AbstractEvent> expectedLocalInputChannelOutput =
+                    Arrays.asList(
+                            barriers[0],
+                            barriers[1],
+                            barriers[2],
+                            barriers[3],
+                            barriers[4],
+                            barriers[5],
+                            EndOfPartitionEvent.INSTANCE);
+            List<AbstractEvent> expectedRemoteInputChannelOutput =
+                    Arrays.asList(
+                            barriers[1],
+                            new EventAnnouncement(barriers[2], 3),
+                            barriers[4],
+                            new EventAnnouncement(barriers[5], 6),
+                            barriers[0],
+                            barriers[2],
+                            barriers[3],
+                            barriers[5],
+                            EndOfPartitionEvent.INSTANCE);
+
+            assertEquals(expectedLocalInputChannelOutput, localInputChannelOutput);
+            assertEquals(expectedRemoteInputChannelOutput, remoteInputChannelOutput);
+
+            assertTrue(inputGate.isFinished());
+            // Resume consumption after input gate finished should not throw exception
+            inputGate.resumeConsumption(new InputChannelInfo(0, 0));
+            inputGate.resumeConsumption(new InputChannelInfo(0, 1));
+        }
+    }
+
     // ---------------------------------------------------------------------------------------------
+
+    private static void checkEvent(
+            BufferOrEvent next, AbstractEvent expected, int expectedChannelIndex) {
+        assertTrue(next.isEvent());
+        assertEquals(expected, next.getEvent());
+        assertEquals(expectedChannelIndex, next.getChannelInfo().getInputChannelIdx());
+    }
 
     private static Map<InputGateID, SingleInputGate> createInputGateWithLocalChannels(
             NettyShuffleEnvironment network,

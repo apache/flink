@@ -108,8 +108,8 @@ public class InputGateFairnessTest {
 
         setupInputGate(gate, inputChannels);
 
-        // read all the buffers and the EOF event
-        for (int i = numberOfChannels * (buffersPerChannel + 1); i > 0; --i) {
+        // read all the buffers, finalize barriers and the EOF event
+        for (int i = numberOfChannels * (buffersPerChannel + 2); i > 0; --i) {
             assertNotNull(gate.getNext());
 
             int min = Integer.MAX_VALUE;
@@ -229,8 +229,8 @@ public class InputGateFairnessTest {
         gate.setup();
         gate.requestPartitions();
 
-        // read all the buffers and the EOF event
-        for (int i = numberOfChannels * (buffersPerChannel + 1); i > 0; --i) {
+        // read all the buffers, finalize barriers and the EOF event
+        for (int i = numberOfChannels * (buffersPerChannel + 2); i > 0; --i) {
             assertNotNull(gate.getNext());
 
             int min = Integer.MAX_VALUE;
