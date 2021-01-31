@@ -146,6 +146,15 @@ under the License.
 		</dependency>
 
 		<dependency>
+			<!-- necessary for loading the rest snapshot -->
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-runtime-web_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
 			<!-- Used for parsing HTML -->
 			<groupId>org.jsoup</groupId>
 			<artifactId>jsoup</artifactId>

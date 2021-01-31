@@ -18,8 +18,10 @@
 
 package org.apache.flink.runtime.rest.compatibility;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
+import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
@@ -45,7 +47,7 @@ import java.util.stream.Collectors;
  * Contains the compatibility checks that are applied by the {@link RestAPIStabilityTest}. New
  * checks must be added to the {@link CompatibilityRoutines#ROUTINES} collection.
  */
-enum CompatibilityRoutines {
+public enum CompatibilityRoutines {
     ;
 
     private static final CompatibilityRoutine<String> URL_ROUTINE =
@@ -69,6 +71,13 @@ enum CompatibilityRoutines {
                     header -> header.getResponseStatusCode().toString(),
                     Assert::assertEquals);
 
+    private static final CompatibilityRoutine<String> METHOD_DESCRIPTION_ROUTINE =
+            new CompatibilityRoutine<>(
+                    "method-description",
+                    String.class,
+                    MessageHeaders::getDescription,
+                    Assert::assertEquals);
+
     private static final CompatibilityRoutine<Boolean> FILE_UPLOAD_ROUTINE =
             new CompatibilityRoutine<>(
                     "file-upload",
@@ -86,7 +95,8 @@ enum CompatibilityRoutines {
                                         .map(
                                                 param ->
                                                         new PathParameterContainer.PathParameter(
-                                                                param.getKey()))
+                                                                param.getKey(),
+                                                                param.getDescription()))
                                         .collect(Collectors.toList());
                         return new PathParameterContainer(pathParameters);
                     },
@@ -104,7 +114,8 @@ enum CompatibilityRoutines {
                                                 param ->
                                                         new QueryParameterContainer.QueryParameter(
                                                                 param.getKey(),
-                                                                param.isMandatory()))
+                                                                param.isMandatory(),
+                                                                param.getDescription()))
                                         .collect(Collectors.toList());
                         return new QueryParameterContainer(pathParameters);
                     },
@@ -130,6 +141,7 @@ enum CompatibilityRoutines {
                             URL_ROUTINE,
                             METHOD_ROUTINE,
                             STATUS_CODE_ROUTINE,
+                            METHOD_DESCRIPTION_ROUTINE,
                             FILE_UPLOAD_ROUTINE,
                             PATH_PARAMETER_ROUTINE,
                             QUERY_PARAMETER_ROUTINE,
@@ -142,18 +154,27 @@ enum CompatibilityRoutines {
 
     private static void assertCompatible(
             final PathParameterContainer old, final PathParameterContainer cur) {
+        final Map<String, String> curPathParameters =
+                cur.pathParameters.stream()
+                        .collect(Collectors.toMap(p -> p.key, p -> p.description));
         for (final PathParameterContainer.PathParameter oldParam : old.pathParameters) {
-            if (cur.pathParameters.stream().noneMatch(param -> param.key.equals(oldParam.key))) {
+            String curDescription = curPathParameters.remove(oldParam.key);
+            if (curDescription == null) {
                 Assert.fail(String.format("Existing Path parameter %s was removed.", oldParam.key));
             }
-        }
-        // contrary to other routines path parameters must be completely identical between versions,
-        // so we have to
-        // check both directions
-        for (final PathParameterContainer.PathParameter curParam : cur.pathParameters) {
-            if (old.pathParameters.stream().noneMatch(param -> param.key.equals(curParam.key))) {
-                Assert.fail(String.format("New path parameter %s was added.", curParam.key));
+            if (!curDescription.equals(oldParam.description)) {
+                Assert.fail(
+                        String.format(
+                                "Existing description of path parameter %s has changed.",
+                                oldParam.key));
             }
+        }
+        // contrary to other routines path parameters must be completely identical between versions.
+        if (curPathParameters.size() > 0) {
+            Assert.fail(
+                    String.format(
+                            "New path parameters: %s were added.",
+                            String.join(", ", curPathParameters.keySet())));
         }
     }
 
@@ -171,6 +192,13 @@ enum CompatibilityRoutines {
                     Assert.fail(
                             String.format(
                                     "Previously optional query parameter %s is now mandatory.",
+                                    oldParam.key));
+                }
+
+                if (!newParam.description.equals(oldParam.description)) {
+                    Assert.fail(
+                            String.format(
+                                    "Previously description of query parameter %s is now changed.",
                                     oldParam.key));
                 }
             } else {
@@ -247,7 +275,9 @@ enum CompatibilityRoutines {
         }
     }
 
-    static final class PathParameterContainer {
+    /** Container of path parameters. */
+    @VisibleForTesting
+    public static final class PathParameterContainer {
         public Collection<PathParameterContainer.PathParameter> pathParameters;
 
         private PathParameterContainer() {
@@ -258,20 +288,26 @@ enum CompatibilityRoutines {
             this.pathParameters = pathParameters;
         }
 
-        static final class PathParameter {
+        /** Path parameter of rest API. */
+        @VisibleForTesting
+        public static final class PathParameter {
             public String key;
+            public String description;
 
             private PathParameter() {
                 // required by jackson
             }
 
-            PathParameter(String key) {
+            PathParameter(String key, String description) {
                 this.key = key;
+                this.description = description;
             }
         }
     }
 
-    static final class QueryParameterContainer {
+    /** Container of query parameters. */
+    @VisibleForTesting
+    public static final class QueryParameterContainer {
         public Collection<QueryParameterContainer.QueryParameter> queryParameters;
 
         private QueryParameterContainer() {
@@ -283,15 +319,19 @@ enum CompatibilityRoutines {
             this.queryParameters = queryParameters;
         }
 
-        static final class QueryParameter {
+        /** Query parameter of rest API. */
+        @VisibleForTesting
+        public static final class QueryParameter {
             public String key;
             public boolean mandatory;
+            public String description;
 
             private QueryParameter() {}
 
-            QueryParameter(String key, boolean mandatory) {
+            QueryParameter(String key, boolean mandatory, String description) {
                 this.key = key;
                 this.mandatory = mandatory;
+                this.description = description;
             }
         }
     }

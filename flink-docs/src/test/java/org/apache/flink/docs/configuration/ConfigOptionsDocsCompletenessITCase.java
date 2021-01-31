@@ -23,6 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.description.Formatter;
 import org.apache.flink.configuration.description.HtmlFormatter;
+import org.apache.flink.docs.TestUtils;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -47,7 +48,6 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.COMMON_SECTION_FILE_NAME;
 import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.DEFAULT_PATH_PREFIX;
 import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.LOCATIONS;
 import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.extractConfigOptions;
@@ -222,18 +222,8 @@ public class ConfigOptionsDocsCompletenessITCase {
         }
     }
 
-    private static Map<String, List<DocumentedOption>> parseDocumentedCommonOptions()
-            throws IOException {
-        final String rootDir = ConfigOptionsDocGeneratorTest.getProjectRootDir();
-
-        Path commonSection =
-                Paths.get(rootDir, "docs", "_includes", "generated", COMMON_SECTION_FILE_NAME);
-        return parseDocumentedOptionsFromFile(commonSection).stream()
-                .collect(Collectors.groupingBy(option -> option.key, Collectors.toList()));
-    }
-
     private static Map<String, List<DocumentedOption>> parseDocumentedOptions() throws IOException {
-        final String rootDir = ConfigOptionsDocGeneratorTest.getProjectRootDir();
+        final String rootDir = TestUtils.getProjectRootDir();
 
         Path includeFolder = Paths.get(rootDir, "docs", "_includes", "generated").toAbsolutePath();
         return Files.list(includeFolder)
@@ -285,7 +275,7 @@ public class ConfigOptionsDocsCompletenessITCase {
     private static Map<String, List<ExistingOption>> findExistingOptions(
             Predicate<ConfigOptionsDocGenerator.OptionWithMetaInfo> predicate)
             throws IOException, ClassNotFoundException {
-        final String rootDir = ConfigOptionsDocGeneratorTest.getProjectRootDir();
+        final String rootDir = TestUtils.getProjectRootDir();
         final Collection<ExistingOption> existingOptions = new ArrayList<>();
 
         for (OptionsClassLocation location : LOCATIONS) {

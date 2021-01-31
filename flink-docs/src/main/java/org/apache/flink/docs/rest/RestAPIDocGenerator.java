@@ -28,9 +28,11 @@ import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
+import org.apache.flink.runtime.rest.messages.job.coordination.ClientCoordinationHeaders;
 import org.apache.flink.runtime.rest.util.DocumentingDispatcherRestEndpoint;
 import org.apache.flink.runtime.rest.util.DocumentingRestEndpoint;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.SerializableString;
@@ -52,6 +54,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -85,6 +88,13 @@ public class RestAPIDocGenerator {
 
     private static final ObjectMapper mapper;
     private static final JsonSchemaGenerator schemaGen;
+    private static final String MANDATORY_TAG = "mandatory";
+
+    public static final String PATH_PARAMETERS = "Path parameters";
+    public static final String QUERY_PARAMETERS = "Query parameters";
+    // TODO remember to update this collection if more rest options should not be documented.
+    public static final Collection<String> UNDOCUMENTED_APIS =
+            Collections.singletonList(ClientCoordinationHeaders.URL);
 
     static {
         mapper = new ObjectMapper();
@@ -112,8 +122,13 @@ public class RestAPIDocGenerator {
                     apiVersion,
                     Paths.get(
                             outputDirectory,
-                            "rest_" + apiVersion.getURLVersionPrefix() + "_dispatcher.html"));
+                            getRestDispatcherFileName(apiVersion.getURLVersionPrefix())));
         }
+    }
+
+    @VisibleForTesting
+    public static String getRestDispatcherFileName(String urlVersionPrefix) {
+        return "rest_" + urlVersionPrefix + "_dispatcher.html";
     }
 
     @VisibleForTesting
@@ -187,7 +202,9 @@ public class RestAPIDocGenerator {
         }
         if (!pathParameterList.isEmpty()) {
             sb.append("    <tr>\n");
-            sb.append("      <td colspan=\"2\">Path parameters</td>\n");
+            sb.append("      <td colspan=\"2\">");
+            sb.append(PATH_PARAMETERS);
+            sb.append("</td>\n");
             sb.append("    </tr>\n");
             sb.append("    <tr>\n");
             sb.append("      <td colspan=\"2\">\n");
@@ -199,7 +216,9 @@ public class RestAPIDocGenerator {
         }
         if (!queryParameterList.isEmpty()) {
             sb.append("    <tr>\n");
-            sb.append("      <td colspan=\"2\">Query parameters</td>\n");
+            sb.append("      <td colspan=\"2\">");
+            sb.append(QUERY_PARAMETERS);
+            sb.append("</td>\n");
             sb.append("    </tr>\n");
             sb.append("    <tr>\n");
             sb.append("      <td colspan=\"2\">\n");
@@ -281,9 +300,31 @@ public class RestAPIDocGenerator {
                                         String.format(
                                                 "<li><code>%s</code> (%s): %s</li>\n",
                                                 parameter.getKey(),
-                                                parameter.isMandatory() ? "mandatory" : "optional",
+                                                parameter.isMandatory()
+                                                        ? MANDATORY_TAG
+                                                        : "optional",
                                                 parameter.getDescription())));
         return queryParameterList.toString();
+    }
+
+    @VisibleForTesting
+    public static PathParameter unformatPathParameterViaLiTagText(String text) {
+        int keyEnd = text.indexOf(" - ");
+        Preconditions.checkArgument(keyEnd > 0);
+        String key = text.substring(0, keyEnd);
+        String description = text.substring(keyEnd + 3);
+        return new PathParameter(key, description);
+    }
+
+    @VisibleForTesting
+    public static QueryParameter unformatQueryParameterViaLiTagText(String text) {
+        int keyEnd = text.indexOf(" (");
+        Preconditions.checkArgument(keyEnd > 0);
+        String key = text.substring(0, keyEnd);
+        int mandatoryEnd = text.indexOf("): ");
+        boolean isMandatory = text.substring(keyEnd + 2, mandatoryEnd).equals(MANDATORY_TAG);
+        String description = text.substring(mandatoryEnd + 3);
+        return new QueryParameter(key, isMandatory, description);
     }
 
     private static String createMessageHtmlEntry(
@@ -331,6 +372,32 @@ public class RestAPIDocGenerator {
                             + messageClass.getCanonicalName()
                             + ".",
                     e);
+        }
+    }
+
+    /** Query parameters for rest API. */
+    @VisibleForTesting
+    public static final class QueryParameter {
+        public String key;
+        public boolean isMandatory;
+        public String description;
+
+        QueryParameter(String key, boolean isMandatory, String description) {
+            this.key = key;
+            this.isMandatory = isMandatory;
+            this.description = description;
+        }
+    }
+
+    /** Path parameters for rest API. */
+    @VisibleForTesting
+    public static final class PathParameter {
+        public String key;
+        public String description;
+
+        PathParameter(String key, String description) {
+            this.key = key;
+            this.description = description;
         }
     }
 

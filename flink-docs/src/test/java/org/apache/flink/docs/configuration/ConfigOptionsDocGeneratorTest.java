@@ -27,6 +27,7 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.description.Formatter;
 import org.apache.flink.configuration.description.HtmlFormatter;
+import org.apache.flink.docs.TestUtils;
 import org.apache.flink.docs.configuration.data.TestCommonOptions;
 import org.apache.flink.util.FileUtils;
 
@@ -428,7 +429,7 @@ public class ConfigOptionsDocGeneratorTest {
 
     @Test
     public void testSections() throws IOException, ClassNotFoundException {
-        final String projectRootDir = getProjectRootDir();
+        final String projectRootDir = TestUtils.getProjectRootDir();
         final String outputDirectory = TMP.newFolder().getAbsolutePath();
 
         final OptionsClassLocation[] locations =
@@ -584,16 +585,5 @@ public class ConfigOptionsDocGeneratorTest {
         assertEquals("rocks_options", ConfigOptionsDocGenerator.toSnakeCase("RocksOptions"));
         assertEquals("rocksdb_options", ConfigOptionsDocGenerator.toSnakeCase("RocksDBOptions"));
         assertEquals("db_options", ConfigOptionsDocGenerator.toSnakeCase("DBOptions"));
-    }
-
-    static String getProjectRootDir() {
-        final String dirFromProperty = System.getProperty("rootDir");
-        if (dirFromProperty != null) {
-            return dirFromProperty;
-        }
-
-        // to make this work in the IDE use a default fallback
-        final String currentDir = System.getProperty("user.dir");
-        return new File(currentDir).getParent();
     }
 }

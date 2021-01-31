@@ -3,6 +3,7 @@
     "url" : "/cluster",
     "method" : "DELETE",
     "status-code" : "200 OK",
+    "method-description" : "Shuts down the cluster",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ ]
@@ -20,6 +21,7 @@
     "url" : "/config",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns the configuration of the WebUI.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ ]
@@ -64,6 +66,7 @@
     "url" : "/datasets",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns all cluster data sets.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ ]
@@ -99,10 +102,12 @@
     "url" : "/datasets/delete/:triggerid",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns the status for the delete operation of a cluster data set.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "triggerid"
+        "key" : "triggerid",
+        "description" : "32-character hexadecimal string that identifies an asynchronous operation trigger ID. The ID was returned then the operation was triggered."
       } ]
     },
     "query-parameters" : {
@@ -135,10 +140,12 @@
     "url" : "/datasets/:datasetid",
     "method" : "DELETE",
     "status-code" : "202 Accepted",
+    "method-description" : "Triggers the deletion of a cluster data set. This async operation would return a 'triggerid' for further query identifier.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "datasetid"
+        "key" : "datasetid",
+        "description" : "32-character hexadecimal string value that identifies a cluster data set."
       } ]
     },
     "query-parameters" : {
@@ -160,6 +167,7 @@
     "url" : "/jars",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns a list of all jars previously uploaded via '/jars/upload'.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ ]
@@ -216,6 +224,7 @@
     "url" : "/jars/upload",
     "method" : "POST",
     "status-code" : "200 OK",
+    "method-description" : "Uploads a jar to the cluster. The jar must be sent as multi-part data. Make sure that the \"Content-Type\" header is set to \"application/x-java-archive\", as some http libraries do not add the header by default.\nUsing 'curl' you can upload a jar via 'curl -X POST -H \"Expect:\" -F \"jarfile=@path/to/flink-job.jar\" http://hostname:port/jars/upload'.",
     "file-upload" : true,
     "path-parameters" : {
       "pathParameters" : [ ]
@@ -243,10 +252,12 @@
     "url" : "/jars/:jarid",
     "method" : "DELETE",
     "status-code" : "200 OK",
+    "method-description" : "Deletes a jar previously uploaded via '/jars/upload'.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jarid"
+        "key" : "jarid",
+        "description" : "String value that identifies a jar. When uploading the jar a path is returned, where the filename is the ID. This value is equivalent to the `id` field in the list of uploaded jars (/jars)."
       } ]
     },
     "query-parameters" : {
@@ -262,25 +273,31 @@
     "url" : "/jars/:jarid/plan",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns the dataflow plan of a job contained in a jar previously uploaded via '/jars/upload'. Program arguments can be passed both via the JSON request (recommended) or query parameters.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jarid"
+        "key" : "jarid",
+        "description" : "String value that identifies a jar. When uploading the jar a path is returned, where the filename is the ID. This value is equivalent to the `id` field in the list of uploaded jars (/jars)."
       } ]
     },
     "query-parameters" : {
       "queryParameters" : [ {
         "key" : "program-args",
-        "mandatory" : false
+        "mandatory" : false,
+        "description" : "Deprecated, please use 'programArg' instead. String value that specifies the arguments for the program or plan"
       }, {
         "key" : "programArg",
-        "mandatory" : false
+        "mandatory" : false,
+        "description" : "Comma-separated list of program arguments."
       }, {
         "key" : "entry-class",
-        "mandatory" : false
+        "mandatory" : false,
+        "description" : "String value that specifies the fully qualified name of the entry point class. Overrides the class defined in the jar file manifest."
       }, {
         "key" : "parallelism",
-        "mandatory" : false
+        "mandatory" : false,
+        "description" : "Positive integer value that specifies the desired parallelism for the job."
       } ]
     },
     "request" : {
@@ -320,25 +337,31 @@
     "url" : "/jars/:jarid/plan",
     "method" : "POST",
     "status-code" : "200 OK",
+    "method-description" : "Returns the dataflow plan of a job contained in a jar previously uploaded via '/jars/upload'. Program arguments can be passed both via the JSON request (recommended) or query parameters.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jarid"
+        "key" : "jarid",
+        "description" : "String value that identifies a jar. When uploading the jar a path is returned, where the filename is the ID. This value is equivalent to the `id` field in the list of uploaded jars (/jars)."
       } ]
     },
     "query-parameters" : {
       "queryParameters" : [ {
         "key" : "program-args",
-        "mandatory" : false
+        "mandatory" : false,
+        "description" : "Deprecated, please use 'programArg' instead. String value that specifies the arguments for the program or plan"
       }, {
         "key" : "programArg",
-        "mandatory" : false
+        "mandatory" : false,
+        "description" : "Comma-separated list of program arguments."
       }, {
         "key" : "entry-class",
-        "mandatory" : false
+        "mandatory" : false,
+        "description" : "String value that specifies the fully qualified name of the entry point class. Overrides the class defined in the jar file manifest."
       }, {
         "key" : "parallelism",
-        "mandatory" : false
+        "mandatory" : false,
+        "description" : "Positive integer value that specifies the desired parallelism for the job."
       } ]
     },
     "request" : {
@@ -378,31 +401,39 @@
     "url" : "/jars/:jarid/run",
     "method" : "POST",
     "status-code" : "200 OK",
+    "method-description" : "Submits a job by running a jar previously uploaded via '/jars/upload'. Program arguments can be passed both via the JSON request (recommended) or query parameters.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jarid"
+        "key" : "jarid",
+        "description" : "String value that identifies a jar. When uploading the jar a path is returned, where the filename is the ID. This value is equivalent to the `id` field in the list of uploaded jars (/jars)."
       } ]
     },
     "query-parameters" : {
       "queryParameters" : [ {
         "key" : "allowNonRestoredState",
-        "mandatory" : false
+        "mandatory" : false,
+        "description" : "Boolean value that specifies whether the job submission should be rejected if the savepoint contains state that cannot be mapped back to the job."
       }, {
         "key" : "savepointPath",
-        "mandatory" : false
+        "mandatory" : false,
+        "description" : "String value that specifies the path of the savepoint to restore the job from."
       }, {
         "key" : "program-args",
-        "mandatory" : false
+        "mandatory" : false,
+        "description" : "Deprecated, please use 'programArg' instead. String value that specifies the arguments for the program or plan"
       }, {
         "key" : "programArg",
-        "mandatory" : false
+        "mandatory" : false,
+        "description" : "Comma-separated list of program arguments."
       }, {
         "key" : "entry-class",
-        "mandatory" : false
+        "mandatory" : false,
+        "description" : "String value that specifies the fully qualified name of the entry point class. Overrides the class defined in the jar file manifest."
       }, {
         "key" : "parallelism",
-        "mandatory" : false
+        "mandatory" : false,
+        "description" : "Positive integer value that specifies the desired parallelism for the job."
       } ]
     },
     "request" : {
@@ -448,6 +479,7 @@
     "url" : "/jobmanager/config",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns the cluster configuration.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ ]
@@ -477,6 +509,7 @@
     "url" : "/jobmanager/logs",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns the list of log files on the JobManager.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ ]
@@ -512,6 +545,7 @@
     "url" : "/jobmanager/metrics",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Provides access to job manager metrics.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ ]
@@ -519,7 +553,8 @@
     "query-parameters" : {
       "queryParameters" : [ {
         "key" : "get",
-        "mandatory" : false
+        "mandatory" : false,
+        "description" : "Comma-separated list of string values to select specific metrics."
       } ]
     },
     "request" : {
@@ -532,6 +567,7 @@
     "url" : "/jobs",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns an overview over all jobs and their current state.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ ]
@@ -568,6 +604,7 @@
     "url" : "/jobs",
     "method" : "POST",
     "status-code" : "202 Accepted",
+    "method-description" : "Submits a job. This call is primarily intended to be used by the Flink client. This call expects a multipart/form-data request that consists of file uploads for the serialized JobGraph, jars and distributed cache artifacts and an attribute named \"request\" for the JSON payload.",
     "file-upload" : true,
     "path-parameters" : {
       "pathParameters" : [ ]
@@ -618,6 +655,7 @@
     "url" : "/jobs/metrics",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Provides access to aggregated job metrics.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ ]
@@ -625,13 +663,16 @@
     "query-parameters" : {
       "queryParameters" : [ {
         "key" : "get",
-        "mandatory" : false
+        "mandatory" : false,
+        "description" : "Comma-separated list of string values to select specific metrics."
       }, {
         "key" : "agg",
-        "mandatory" : false
+        "mandatory" : false,
+        "description" : "Comma-separated list of aggregation modes which should be calculated. Available aggregations are: \"min, max, sum, avg\"."
       }, {
         "key" : "jobs",
-        "mandatory" : false
+        "mandatory" : false,
+        "description" : "Comma-separated list of 32-character hexadecimal strings to select specific jobs."
       } ]
     },
     "request" : {
@@ -644,6 +685,7 @@
     "url" : "/jobs/overview",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns an overview over all jobs.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ ]
@@ -670,10 +712,12 @@
     "url" : "/jobs/:jobid",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns details of a job.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jobid"
+        "key" : "jobid",
+        "description" : "32-character hexadecimal string value that identifies a job."
       } ]
     },
     "query-parameters" : {
@@ -799,16 +843,19 @@
     "url" : "/jobs/:jobid",
     "method" : "PATCH",
     "status-code" : "202 Accepted",
+    "method-description" : "Terminates a job.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jobid"
+        "key" : "jobid",
+        "description" : "32-character hexadecimal string value that identifies a job."
       } ]
     },
     "query-parameters" : {
       "queryParameters" : [ {
         "key" : "mode",
-        "mandatory" : false
+        "mandatory" : false,
+        "description" : "String value that specifies the termination mode. The only supported value is: \"cancel\"."
       } ]
     },
     "request" : {
@@ -821,16 +868,19 @@
     "url" : "/jobs/:jobid/accumulators",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns the accumulators for all tasks of a job, aggregated across the respective subtasks.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jobid"
+        "key" : "jobid",
+        "description" : "32-character hexadecimal string value that identifies a job."
       } ]
     },
     "query-parameters" : {
       "queryParameters" : [ {
         "key" : "includeSerializedValue",
-        "mandatory" : false
+        "mandatory" : false,
+        "description" : "Boolean value that specifies whether serialized user task accumulators should be included in the response."
       } ]
     },
     "request" : {
@@ -876,10 +926,12 @@
     "url" : "/jobs/:jobid/checkpoints",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns checkpointing statistics for a job.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jobid"
+        "key" : "jobid",
+        "description" : "32-character hexadecimal string value that identifies a job."
       } ]
     },
     "query-parameters" : {
@@ -1194,10 +1246,12 @@
     "url" : "/jobs/:jobid/checkpoints/config",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns the checkpointing configuration.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jobid"
+        "key" : "jobid",
+        "description" : "32-character hexadecimal string value that identifies a job."
       } ]
     },
     "query-parameters" : {
@@ -1255,12 +1309,15 @@
     "url" : "/jobs/:jobid/checkpoints/details/:checkpointid",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns details for a checkpoint.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jobid"
+        "key" : "jobid",
+        "description" : "32-character hexadecimal string value that identifies a job."
       }, {
-        "key" : "checkpointid"
+        "key" : "checkpointid",
+        "description" : "Long value that identifies a checkpoint."
       } ]
     },
     "query-parameters" : {
@@ -1360,14 +1417,18 @@
     "url" : "/jobs/:jobid/checkpoints/details/:checkpointid/subtasks/:vertexid",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns checkpoint statistics for a task and its subtasks.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jobid"
+        "key" : "jobid",
+        "description" : "32-character hexadecimal string value that identifies a job."
       }, {
-        "key" : "checkpointid"
+        "key" : "checkpointid",
+        "description" : "Long value that identifies a checkpoint."
       }, {
-        "key" : "vertexid"
+        "key" : "vertexid",
+        "description" : "32-character hexadecimal string value that identifies a job vertex."
       } ]
     },
     "query-parameters" : {
@@ -1497,10 +1558,12 @@
     "url" : "/jobs/:jobid/config",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns the configuration of a job.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jobid"
+        "key" : "jobid",
+        "description" : "32-character hexadecimal string value that identifies a job."
       } ]
     },
     "query-parameters" : {
@@ -1516,12 +1579,15 @@
     "url" : "/jobs/:jobid/coordinators/:operatorid",
     "method" : "POST",
     "status-code" : "200 OK",
+    "method-description" : "Send a request to a specified coordinator of the specified job and get the response. This API is for internal use only.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jobid"
+        "key" : "jobid",
+        "description" : "32-character hexadecimal string value that identifies a job."
       }, {
-        "key" : "operatorid"
+        "key" : "operatorid",
+        "description" : "string value that identifies an operator."
       } ]
     },
     "query-parameters" : {
@@ -1549,16 +1615,19 @@
     "url" : "/jobs/:jobid/exceptions",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns the non-recoverable exceptions that have been observed by the job. The truncated flag defines whether more exceptions occurred, but are not listed, because the response would otherwise get too big.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jobid"
+        "key" : "jobid",
+        "description" : "32-character hexadecimal string value that identifies a job."
       } ]
     },
     "query-parameters" : {
       "queryParameters" : [ {
         "key" : "maxExceptions",
-        "mandatory" : false
+        "mandatory" : false,
+        "description" : "Comma-separated list of integer values that specifies the upper limit of exceptions to return."
       } ]
     },
     "request" : {
@@ -1604,10 +1673,12 @@
     "url" : "/jobs/:jobid/execution-result",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns the result of a job execution. Gives access to the execution time of the job and to all accumulators created by this job.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jobid"
+        "key" : "jobid",
+        "description" : "32-character hexadecimal string value that identifies a job."
       } ]
     },
     "query-parameters" : {
@@ -1641,16 +1712,19 @@
     "url" : "/jobs/:jobid/metrics",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Provides access to job metrics.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jobid"
+        "key" : "jobid",
+        "description" : "32-character hexadecimal string value that identifies a job."
       } ]
     },
     "query-parameters" : {
       "queryParameters" : [ {
         "key" : "get",
-        "mandatory" : false
+        "mandatory" : false,
+        "description" : "Comma-separated list of string values to select specific metrics."
       } ]
     },
     "request" : {
@@ -1663,10 +1737,12 @@
     "url" : "/jobs/:jobid/plan",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns the dataflow plan of a job.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jobid"
+        "key" : "jobid",
+        "description" : "32-character hexadecimal string value that identifies a job."
       } ]
     },
     "query-parameters" : {
@@ -1688,16 +1764,19 @@
     "url" : "/jobs/:jobid/rescaling",
     "method" : "PATCH",
     "status-code" : "200 OK",
+    "method-description" : "Triggers the rescaling of a job. This async operation would return a 'triggerid' for further query identifier.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jobid"
+        "key" : "jobid",
+        "description" : "32-character hexadecimal string value that identifies a job."
       } ]
     },
     "query-parameters" : {
       "queryParameters" : [ {
         "key" : "parallelism",
-        "mandatory" : true
+        "mandatory" : true,
+        "description" : "Positive integer value that specifies the desired parallelism."
       } ]
     },
     "request" : {
@@ -1716,12 +1795,15 @@
     "url" : "/jobs/:jobid/rescaling/:triggerid",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns the status of a rescaling operation.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jobid"
+        "key" : "jobid",
+        "description" : "32-character hexadecimal string value that identifies a job."
       }, {
-        "key" : "triggerid"
+        "key" : "triggerid",
+        "description" : "32-character hexadecimal string that identifies an asynchronous operation trigger ID. The ID was returned then the operation was triggered."
       } ]
     },
     "query-parameters" : {
@@ -1754,10 +1836,12 @@
     "url" : "/jobs/:jobid/savepoints",
     "method" : "POST",
     "status-code" : "202 Accepted",
+    "method-description" : "Triggers a savepoint, and optionally cancels the job afterwards. This async operation would return a 'triggerid' for further query identifier.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jobid"
+        "key" : "jobid",
+        "description" : "32-character hexadecimal string value that identifies a job."
       } ]
     },
     "query-parameters" : {
@@ -1788,12 +1872,15 @@
     "url" : "/jobs/:jobid/savepoints/:triggerid",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns the status of a savepoint operation.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jobid"
+        "key" : "jobid",
+        "description" : "32-character hexadecimal string value that identifies a job."
       }, {
-        "key" : "triggerid"
+        "key" : "triggerid",
+        "description" : "32-character hexadecimal string that identifies an asynchronous operation trigger ID. The ID was returned then the operation was triggered."
       } ]
     },
     "query-parameters" : {
@@ -1826,10 +1913,12 @@
     "url" : "/jobs/:jobid/stop",
     "method" : "POST",
     "status-code" : "202 Accepted",
+    "method-description" : "Stops a job with a savepoint. Optionally, it can also emit a MAX_WATERMARK before taking the savepoint to flush out any state waiting for timers to fire. This async operation would return a 'triggerid' for further query identifier.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jobid"
+        "key" : "jobid",
+        "description" : "32-character hexadecimal string value that identifies a job."
       } ]
     },
     "query-parameters" : {
@@ -1860,12 +1949,15 @@
     "url" : "/jobs/:jobid/vertices/:vertexid",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns details for a task, with a summary for each of its subtasks.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jobid"
+        "key" : "jobid",
+        "description" : "32-character hexadecimal string value that identifies a job."
       }, {
-        "key" : "vertexid"
+        "key" : "vertexid",
+        "description" : "32-character hexadecimal string value that identifies a job vertex."
       } ]
     },
     "query-parameters" : {
@@ -1963,12 +2055,15 @@
     "url" : "/jobs/:jobid/vertices/:vertexid/accumulators",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns user-defined accumulators of a task, aggregated across all subtasks.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jobid"
+        "key" : "jobid",
+        "description" : "32-character hexadecimal string value that identifies a job."
       }, {
-        "key" : "vertexid"
+        "key" : "vertexid",
+        "description" : "32-character hexadecimal string value that identifies a job vertex."
       } ]
     },
     "query-parameters" : {
@@ -2008,12 +2103,15 @@
     "url" : "/jobs/:jobid/vertices/:vertexid/backpressure",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns back-pressure information for a job, and may initiate back-pressure sampling if necessary.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jobid"
+        "key" : "jobid",
+        "description" : "32-character hexadecimal string value that identifies a job."
       }, {
-        "key" : "vertexid"
+        "key" : "vertexid",
+        "description" : "32-character hexadecimal string value that identifies a job vertex."
       } ]
     },
     "query-parameters" : {
@@ -2068,18 +2166,22 @@
     "url" : "/jobs/:jobid/vertices/:vertexid/metrics",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Provides access to task metrics.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jobid"
+        "key" : "jobid",
+        "description" : "32-character hexadecimal string value that identifies a job."
       }, {
-        "key" : "vertexid"
+        "key" : "vertexid",
+        "description" : "32-character hexadecimal string value that identifies a job vertex."
       } ]
     },
     "query-parameters" : {
       "queryParameters" : [ {
         "key" : "get",
-        "mandatory" : false
+        "mandatory" : false,
+        "description" : "Comma-separated list of string values to select specific metrics."
       } ]
     },
     "request" : {
@@ -2092,12 +2194,15 @@
     "url" : "/jobs/:jobid/vertices/:vertexid/subtasks/accumulators",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns all user-defined accumulators for all subtasks of a task.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jobid"
+        "key" : "jobid",
+        "description" : "32-character hexadecimal string value that identifies a job."
       }, {
-        "key" : "vertexid"
+        "key" : "vertexid",
+        "description" : "32-character hexadecimal string value that identifies a job vertex."
       } ]
     },
     "query-parameters" : {
@@ -2158,24 +2263,30 @@
     "url" : "/jobs/:jobid/vertices/:vertexid/subtasks/metrics",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Provides access to aggregated subtask metrics.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jobid"
+        "key" : "jobid",
+        "description" : "32-character hexadecimal string value that identifies a job."
       }, {
-        "key" : "vertexid"
+        "key" : "vertexid",
+        "description" : "32-character hexadecimal string value that identifies a job vertex."
       } ]
     },
     "query-parameters" : {
       "queryParameters" : [ {
         "key" : "get",
-        "mandatory" : false
+        "mandatory" : false,
+        "description" : "Comma-separated list of string values to select specific metrics."
       }, {
         "key" : "agg",
-        "mandatory" : false
+        "mandatory" : false,
+        "description" : "Comma-separated list of aggregation modes which should be calculated. Available aggregations are: \"min, max, sum, avg\"."
       }, {
         "key" : "subtasks",
-        "mandatory" : false
+        "mandatory" : false,
+        "description" : "Comma-separated list of integer ranges (e.g. \"1,3,5-9\") to select specific subtasks."
       } ]
     },
     "request" : {
@@ -2188,14 +2299,18 @@
     "url" : "/jobs/:jobid/vertices/:vertexid/subtasks/:subtaskindex",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns details of the current or latest execution attempt of a subtask.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jobid"
+        "key" : "jobid",
+        "description" : "32-character hexadecimal string value that identifies a job."
       }, {
-        "key" : "vertexid"
+        "key" : "vertexid",
+        "description" : "32-character hexadecimal string value that identifies a job vertex."
       }, {
-        "key" : "subtaskindex"
+        "key" : "subtaskindex",
+        "description" : "Positive integer value that identifies a subtask."
       } ]
     },
     "query-parameters" : {
@@ -2272,16 +2387,21 @@
     "url" : "/jobs/:jobid/vertices/:vertexid/subtasks/:subtaskindex/attempts/:attempt",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns details of an execution attempt of a subtask. Multiple execution attempts happen in case of failure/recovery.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jobid"
+        "key" : "jobid",
+        "description" : "32-character hexadecimal string value that identifies a job."
       }, {
-        "key" : "vertexid"
+        "key" : "vertexid",
+        "description" : "32-character hexadecimal string value that identifies a job vertex."
       }, {
-        "key" : "subtaskindex"
+        "key" : "subtaskindex",
+        "description" : "Positive integer value that identifies a subtask."
       }, {
-        "key" : "attempt"
+        "key" : "attempt",
+        "description" : "Positive integer value that identifies an execution attempt."
       } ]
     },
     "query-parameters" : {
@@ -2358,16 +2478,21 @@
     "url" : "/jobs/:jobid/vertices/:vertexid/subtasks/:subtaskindex/attempts/:attempt/accumulators",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns the accumulators of an execution attempt of a subtask. Multiple execution attempts happen in case of failure/recovery.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jobid"
+        "key" : "jobid",
+        "description" : "32-character hexadecimal string value that identifies a job."
       }, {
-        "key" : "vertexid"
+        "key" : "vertexid",
+        "description" : "32-character hexadecimal string value that identifies a job vertex."
       }, {
-        "key" : "subtaskindex"
+        "key" : "subtaskindex",
+        "description" : "Positive integer value that identifies a subtask."
       }, {
-        "key" : "attempt"
+        "key" : "attempt",
+        "description" : "Positive integer value that identifies an execution attempt."
       } ]
     },
     "query-parameters" : {
@@ -2413,20 +2538,25 @@
     "url" : "/jobs/:jobid/vertices/:vertexid/subtasks/:subtaskindex/metrics",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Provides access to subtask metrics.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jobid"
+        "key" : "jobid",
+        "description" : "32-character hexadecimal string value that identifies a job."
       }, {
-        "key" : "vertexid"
+        "key" : "vertexid",
+        "description" : "32-character hexadecimal string value that identifies a job vertex."
       }, {
-        "key" : "subtaskindex"
+        "key" : "subtaskindex",
+        "description" : "Positive integer value that identifies a subtask."
       } ]
     },
     "query-parameters" : {
       "queryParameters" : [ {
         "key" : "get",
-        "mandatory" : false
+        "mandatory" : false,
+        "description" : "Comma-separated list of string values to select specific metrics."
       } ]
     },
     "request" : {
@@ -2439,12 +2569,15 @@
     "url" : "/jobs/:jobid/vertices/:vertexid/subtasktimes",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns time-related information for all subtasks of a task.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jobid"
+        "key" : "jobid",
+        "description" : "32-character hexadecimal string value that identifies a job."
       }, {
-        "key" : "vertexid"
+        "key" : "vertexid",
+        "description" : "32-character hexadecimal string value that identifies a job vertex."
       } ]
     },
     "query-parameters" : {
@@ -2496,12 +2629,15 @@
     "url" : "/jobs/:jobid/vertices/:vertexid/taskmanagers",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns task information aggregated by task manager.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jobid"
+        "key" : "jobid",
+        "description" : "32-character hexadecimal string value that identifies a job."
       }, {
-        "key" : "vertexid"
+        "key" : "vertexid",
+        "description" : "32-character hexadecimal string value that identifies a job vertex."
       } ]
     },
     "query-parameters" : {
@@ -2593,12 +2729,15 @@
     "url" : "/jobs/:jobid/vertices/:vertexid/watermarks",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns the watermarks for all subtasks of a task.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "jobid"
+        "key" : "jobid",
+        "description" : "32-character hexadecimal string value that identifies a job."
       }, {
-        "key" : "vertexid"
+        "key" : "vertexid",
+        "description" : "32-character hexadecimal string value that identifies a job vertex."
       } ]
     },
     "query-parameters" : {
@@ -2614,6 +2753,7 @@
     "url" : "/overview",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns an overview over the Flink cluster.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ ]
@@ -2661,6 +2801,7 @@
     "url" : "/savepoint-disposal",
     "method" : "POST",
     "status-code" : "200 OK",
+    "method-description" : "Triggers the desposal of a savepoint. This async operation would return a 'triggerid' for further query identifier.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ ]
@@ -2690,10 +2831,12 @@
     "url" : "/savepoint-disposal/:triggerid",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns the status of a savepoint disposal operation.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "triggerid"
+        "key" : "triggerid",
+        "description" : "32-character hexadecimal string that identifies an asynchronous operation trigger ID. The ID was returned then the operation was triggered."
       } ]
     },
     "query-parameters" : {
@@ -2726,6 +2869,7 @@
     "url" : "/taskmanagers",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns an overview over all task managers.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ ]
@@ -2861,6 +3005,7 @@
     "url" : "/taskmanagers/metrics",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Provides access to aggregated task manager metrics.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ ]
@@ -2868,13 +3013,16 @@
     "query-parameters" : {
       "queryParameters" : [ {
         "key" : "get",
-        "mandatory" : false
+        "mandatory" : false,
+        "description" : "Comma-separated list of string values to select specific metrics."
       }, {
         "key" : "agg",
-        "mandatory" : false
+        "mandatory" : false,
+        "description" : "Comma-separated list of aggregation modes which should be calculated. Available aggregations are: \"min, max, sum, avg\"."
       }, {
         "key" : "taskmanagers",
-        "mandatory" : false
+        "mandatory" : false,
+        "description" : "Comma-separated list of 32-character hexadecimal strings to select specific task managers."
       } ]
     },
     "request" : {
@@ -2887,10 +3035,12 @@
     "url" : "/taskmanagers/:taskmanagerid",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns details for a task manager. \"metrics.memorySegmentsAvailable\" and \"metrics.memorySegmentsTotal\" are deprecated. Please use \"metrics.nettyShuffleMemorySegmentsAvailable\" and \"metrics.nettyShuffleMemorySegmentsTotal\" instead.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "taskmanagerid"
+        "key" : "taskmanagerid",
+        "description" : "32-character hexadecimal string that identifies a task manager."
       } ]
     },
     "query-parameters" : {
@@ -3099,10 +3249,12 @@
     "url" : "/taskmanagers/:taskmanagerid/logs",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns the list of log files on a TaskManager.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "taskmanagerid"
+        "key" : "taskmanagerid",
+        "description" : "32-character hexadecimal string that identifies a task manager."
       } ]
     },
     "query-parameters" : {
@@ -3136,16 +3288,19 @@
     "url" : "/taskmanagers/:taskmanagerid/metrics",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Provides access to task manager metrics.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "taskmanagerid"
+        "key" : "taskmanagerid",
+        "description" : "32-character hexadecimal string that identifies a task manager."
       } ]
     },
     "query-parameters" : {
       "queryParameters" : [ {
         "key" : "get",
-        "mandatory" : false
+        "mandatory" : false,
+        "description" : "Comma-separated list of string values to select specific metrics."
       } ]
     },
     "request" : {
@@ -3158,10 +3313,12 @@
     "url" : "/taskmanagers/:taskmanagerid/thread-dump",
     "method" : "GET",
     "status-code" : "200 OK",
+    "method-description" : "Returns the thread dump of the requested TaskManager.",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {
-        "key" : "taskmanagerid"
+        "key" : "taskmanagerid",
+        "description" : "32-character hexadecimal string that identifies a task manager."
       } ]
     },
     "query-parameters" : {
