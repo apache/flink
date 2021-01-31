@@ -37,16 +37,19 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.TaskThreadInfoResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rest.messages.LogInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.ThreadDumpInfo;
+import org.apache.flink.runtime.webmonitor.threadinfo.ThreadInfoSamplesRequest;
 import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.function.TriConsumer;
 import org.apache.flink.util.function.TriFunction;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -102,6 +105,9 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
     private final Supplier<CompletableFuture<ThreadDumpInfo>> requestThreadDumpSupplier;
 
+    private final Supplier<CompletableFuture<TaskThreadInfoResponse>>
+            requestThreadInfoSamplesSupplier;
+
     TestingTaskExecutorGateway(
             String address,
             String hostname,
@@ -134,7 +140,8 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
                             SerializedValue<OperatorEvent>,
                             CompletableFuture<Acknowledge>>
                     operatorEventHandler,
-            Supplier<CompletableFuture<ThreadDumpInfo>> requestThreadDumpSupplier) {
+            Supplier<CompletableFuture<ThreadDumpInfo>> requestThreadDumpSupplier,
+            Supplier<CompletableFuture<TaskThreadInfoResponse>> requestThreadInfoSamplesSupplier) {
 
         this.address = Preconditions.checkNotNull(address);
         this.hostname = Preconditions.checkNotNull(hostname);
@@ -153,6 +160,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
         this.releaseClusterPartitionsConsumer = releaseClusterPartitionsConsumer;
         this.operatorEventHandler = operatorEventHandler;
         this.requestThreadDumpSupplier = requestThreadDumpSupplier;
+        this.requestThreadInfoSamplesSupplier = requestThreadInfoSamplesSupplier;
     }
 
     @Override
@@ -299,6 +307,14 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
     @Override
     public String getAddress() {
         return address;
+    }
+
+    @Override
+    public CompletableFuture<TaskThreadInfoResponse> requestThreadInfoSamples(
+            ExecutionAttemptID taskExecutionAttemptId,
+            ThreadInfoSamplesRequest threadInfoSamplesRequest,
+            Duration timeout) {
+        return requestThreadInfoSamplesSupplier.get();
     }
 
     @Override
