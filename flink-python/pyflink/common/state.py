@@ -27,7 +27,7 @@ __all__ = [
     'ListStateDescriptor',
     'ListState',
     'MapStateDescriptor',
-    'MergingState'
+    'MapState'
 ]
 
 T = TypeVar('T')
