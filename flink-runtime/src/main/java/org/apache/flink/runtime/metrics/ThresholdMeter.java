@@ -16,7 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.metrics;
+package org.apache.flink.runtime.metrics;
+
+import org.apache.flink.metrics.Meter;
+import org.apache.flink.util.clock.Clock;
+import org.apache.flink.util.clock.SystemClock;
 
 import java.time.Duration;
 import java.util.ArrayDeque;
@@ -25,12 +29,18 @@ import java.util.Queue;
 /** A timestamp queue based threshold meter. */
 public class ThresholdMeter implements Meter {
     private static final double MILLISECONDS_PER_SECOND = 1000.0;
+    private final Clock clock;
     private final double maxEventsPerInterval;
     private final Duration interval;
     private final Queue<Long> eventTimestamps;
     private long eventCount = 0;
 
     public ThresholdMeter(double maxEventsPerInterval, Duration interval) {
+        this(maxEventsPerInterval, interval, SystemClock.getInstance());
+    }
+
+    public ThresholdMeter(double maxEventsPerInterval, Duration interval, Clock clock) {
+        this.clock = clock;
         this.maxEventsPerInterval = maxEventsPerInterval;
         this.interval = interval;
         this.eventTimestamps = new ArrayDeque<>();
@@ -41,13 +51,13 @@ public class ThresholdMeter implements Meter {
 
     @Override
     public void markEvent() {
-        eventTimestamps.add(System.currentTimeMillis());
+        eventTimestamps.add(clock.absoluteTimeMillis());
         eventCount++;
     }
 
     @Override
     public void markEvent(long n) {
-        long timestamp = System.currentTimeMillis();
+        long timestamp = clock.absoluteTimeMillis();
         for (int i = 0; i < n; i++) {
             eventTimestamps.add(timestamp);
         }
@@ -74,7 +84,7 @@ public class ThresholdMeter implements Meter {
     }
 
     private int getEventCountsRecentInterval() {
-        Long currentTimeStamp = System.currentTimeMillis();
+        Long currentTimeStamp = clock.absoluteTimeMillis();
         while (!eventTimestamps.isEmpty()
                 && currentTimeStamp - eventTimestamps.peek() > interval.toMillis()) {
             eventTimestamps.remove();
