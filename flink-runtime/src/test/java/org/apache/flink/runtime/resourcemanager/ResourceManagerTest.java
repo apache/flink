@@ -169,6 +169,34 @@ public class ResourceManagerTest extends TestLogger {
         assertThat(taskManagerInfoWithSlots.getAllocatedSlots(), is(empty()));
     }
 
+    /**
+     * Tests that we can retrieve the correct {@link TaskExecutorGateway} from the {@link
+     * ResourceManager}.
+     */
+    @Test
+    public void testRequestTaskExecutorGateway() throws Exception {
+        final ResourceID taskManagerId = ResourceID.generate();
+        final TaskExecutorGateway taskExecutorGateway =
+                new TestingTaskExecutorGatewayBuilder()
+                        .setAddress(UUID.randomUUID().toString())
+                        .createTestingTaskExecutorGateway();
+        rpcService.registerGateway(taskExecutorGateway.getAddress(), taskExecutorGateway);
+
+        resourceManager = createAndStartResourceManager(heartbeatServices);
+        final ResourceManagerGateway resourceManagerGateway =
+                resourceManager.getSelfGateway(ResourceManagerGateway.class);
+
+        registerTaskExecutor(
+                resourceManagerGateway, taskManagerId, taskExecutorGateway.getAddress());
+
+        CompletableFuture<TaskExecutorGateway> taskExecutorGatewayFuture =
+                resourceManagerGateway.requestTaskExecutorGateway(taskManagerId);
+
+        TaskExecutorGateway taskExecutorGatewayResult = taskExecutorGatewayFuture.get();
+
+        assertEquals(taskExecutorGateway.getAddress(), taskExecutorGatewayResult.getAddress());
+    }
+
     private void registerTaskExecutor(
             ResourceManagerGateway resourceManagerGateway,
             ResourceID taskExecutorId,

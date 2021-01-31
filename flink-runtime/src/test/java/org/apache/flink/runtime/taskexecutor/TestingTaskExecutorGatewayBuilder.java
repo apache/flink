@@ -33,6 +33,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.TaskThreadInfoResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rest.messages.taskmanager.ThreadDumpInfo;
@@ -88,6 +89,10 @@ public class TestingTaskExecutorGatewayBuilder {
     private static final Supplier<CompletableFuture<ThreadDumpInfo>> DEFAULT_THREAD_DUMP_SUPPLIER =
             () -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
 
+    private static final Supplier<CompletableFuture<TaskThreadInfoResponse>>
+            DEFAULT_THREAD_INFO_SAMPLES_SUPPLIER =
+                    () -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
+
     private String address = "foobar:1234";
     private String hostname = "foobar";
     private BiConsumer<ResourceID, AllocatedSlotReport> heartbeatJobManagerConsumer =
@@ -123,6 +128,9 @@ public class TestingTaskExecutorGatewayBuilder {
             operatorEventHandler = DEFAULT_OPERATOR_EVENT_HANDLER;
     private Supplier<CompletableFuture<ThreadDumpInfo>> requestThreadDumpSupplier =
             DEFAULT_THREAD_DUMP_SUPPLIER;
+
+    private Supplier<CompletableFuture<TaskThreadInfoResponse>> requestThreadInfoSamplesSupplier =
+            DEFAULT_THREAD_INFO_SAMPLES_SUPPLIER;
 
     public TestingTaskExecutorGatewayBuilder setAddress(String address) {
         this.address = address;
@@ -233,6 +241,12 @@ public class TestingTaskExecutorGatewayBuilder {
         this.requestThreadDumpSupplier = requestThreadDumpSupplier;
     }
 
+    public TestingTaskExecutorGatewayBuilder setRequestThreadInfoSamplesSupplier(
+            Supplier<CompletableFuture<TaskThreadInfoResponse>> requestThreadInfoSamplesSupplier) {
+        this.requestThreadInfoSamplesSupplier = requestThreadInfoSamplesSupplier;
+        return this;
+    }
+
     public TestingTaskExecutorGateway createTestingTaskExecutorGateway() {
         return new TestingTaskExecutorGateway(
                 address,
@@ -250,6 +264,7 @@ public class TestingTaskExecutorGatewayBuilder {
                 releaseOrPromotePartitionsConsumer,
                 releaseClusterPartitionsConsumer,
                 operatorEventHandler,
-                requestThreadDumpSupplier);
+                requestThreadDumpSupplier,
+                requestThreadInfoSamplesSupplier);
     }
 }

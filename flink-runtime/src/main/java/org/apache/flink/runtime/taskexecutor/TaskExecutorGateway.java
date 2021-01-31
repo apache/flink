@@ -36,6 +36,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.TaskThreadInfoResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rest.messages.LogInfo;
@@ -43,9 +44,11 @@ import org.apache.flink.runtime.rest.messages.taskmanager.ThreadDumpInfo;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskmanager.Task;
+import org.apache.flink.runtime.webmonitor.threadinfo.ThreadInfoSamplesRequest;
 import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.SerializedValue;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -274,4 +277,17 @@ public interface TaskExecutorGateway extends RpcGateway, TaskExecutorOperatorEve
      * @return the {@link ThreadDumpInfo} for this TaskManager.
      */
     CompletableFuture<ThreadDumpInfo> requestThreadDump(@RpcTimeout Time timeout);
+
+    /**
+     * Request a thread info sample from the given task.
+     *
+     * @param taskExecutionAttemptId identifying the task to sample
+     * @param requestParams parameters of the request
+     * @param timeout of the request
+     * @return Future of stack trace sample response
+     */
+    CompletableFuture<TaskThreadInfoResponse> requestThreadInfoSamples(
+            ExecutionAttemptID taskExecutionAttemptId,
+            ThreadInfoSamplesRequest requestParams,
+            Duration timeout);
 }
