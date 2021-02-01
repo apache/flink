@@ -48,6 +48,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -57,6 +59,7 @@ import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -554,6 +557,16 @@ public class UnalignedControllerTest {
     }
 
     @Test
+    public void testNotifyAbortCheckpointBeforeCanellingAsyncCheckpoint() throws Exception {
+        ValidateAsyncFutureNotCompleted handler = new ValidateAsyncFutureNotCompleted(1);
+        inputGate = createInputGate(2, handler);
+        handler.setInputGate(inputGate);
+        addSequence(inputGate, createBarrier(1, 0), createCancellationBarrier(1, 1));
+
+        addSequence(inputGate, createEndOfPartition(0), createEndOfPartition(1));
+    }
+
+    @Test
     public void testSingleChannelAbortCheckpoint() throws Exception {
         ValidatingCheckpointHandler handler = new ValidatingCheckpointHandler(1);
         inputGate = createInputGate(1, handler);
@@ -971,6 +984,25 @@ public class UnalignedControllerTest {
         public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) {
             super.abortCheckpointOnBarrier(checkpointId, cause);
             nextExpectedCheckpointId = -1;
+        }
+    }
+
+    static class ValidateAsyncFutureNotCompleted extends ValidatingCheckpointHandler {
+        private @Nullable CheckpointedInputGate inputGate;
+
+        public ValidateAsyncFutureNotCompleted(long nextExpectedCheckpointId) {
+            super(nextExpectedCheckpointId);
+        }
+
+        @Override
+        public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) {
+            super.abortCheckpointOnBarrier(checkpointId, cause);
+            checkState(inputGate != null);
+            assertFalse(inputGate.getAllBarriersReceivedFuture(checkpointId).isDone());
+        }
+
+        public void setInputGate(CheckpointedInputGate inputGate) {
+            this.inputGate = inputGate;
         }
     }
 
