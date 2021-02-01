@@ -100,7 +100,9 @@ public class AsyncCheckpointRunnableTest {
                 createAsyncRunnable(snapshotsInProgress, environment, true);
         runnable.run();
 
-        Assert.assertSame(((CheckpointException) environment.getCause()).getCheckpointFailureReason(), originalReason);
+        Assert.assertSame(
+                ((CheckpointException) environment.getCause()).getCheckpointFailureReason(),
+                originalReason);
     }
 
     private AsyncCheckpointRunnable createAsyncRunnable(
