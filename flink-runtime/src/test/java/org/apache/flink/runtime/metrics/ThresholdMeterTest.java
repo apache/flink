@@ -20,9 +20,9 @@ package org.apache.flink.runtime.metrics;
 
 import org.apache.flink.runtime.metrics.ThresholdMeter.ThresholdExceedException;
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.ManualClock;
 
+import org.junit.Before;
 import org.junit.Test;
 
 import java.time.Duration;
@@ -33,7 +33,7 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-/** Tests for {@link org.apache.flink.runtime.metrics.ThresholdMeter}. */
+/** Tests for {@link ThresholdMeter}. */
 public class ThresholdMeterTest extends TestLogger {
     private static final double THRESHOLD_LARGE = 1000.0;
     private static final double THRESHOLD_SMALL = 5.0;
@@ -41,10 +41,16 @@ public class ThresholdMeterTest extends TestLogger {
     private static final long SLEEP = 10;
     private static final double ERROR = 1e-6;
 
+    private static ManualClock clock;
+
+    @Before
+    public void setup() {
+        clock = new ManualClock(42_000_000);
+    }
+
     @Test
     public void testMarkEvent() {
-        ManualClock clock = new ManualClock(42_000_000);
-        final ThresholdMeter thresholdMeter = createLargeThresholdMeter(clock);
+        final ThresholdMeter thresholdMeter = createLargeThresholdMeter();
 
         thresholdMeter.markEvent();
         clock.advanceTime(SLEEP, TimeUnit.MILLISECONDS);
@@ -59,8 +65,7 @@ public class ThresholdMeterTest extends TestLogger {
 
     @Test
     public void testMarkMultipleEvents() {
-        ManualClock clock = new ManualClock(42_000_000);
-        final ThresholdMeter thresholdMeter = createLargeThresholdMeter(clock);
+        final ThresholdMeter thresholdMeter = createLargeThresholdMeter();
         thresholdMeter.markEvent(2);
         clock.advanceTime(SLEEP * 2, TimeUnit.MILLISECONDS);
         assertThat(thresholdMeter.getCount(), is(2L));
@@ -69,8 +74,7 @@ public class ThresholdMeterTest extends TestLogger {
 
     @Test
     public void testCheckAgainstThresholdNotExceeded() {
-        ManualClock clock = new ManualClock(42_000_000);
-        final ThresholdMeter thresholdMeter = createSmallThresholdMeter(clock);
+        final ThresholdMeter thresholdMeter = createSmallThresholdMeter();
         for (int i = 0; i < THRESHOLD_SMALL - 1; ++i) {
             thresholdMeter.markEvent();
             clock.advanceTime(SLEEP, TimeUnit.MILLISECONDS);
@@ -80,8 +84,7 @@ public class ThresholdMeterTest extends TestLogger {
 
     @Test
     public void testCheckAgainstThreshold() {
-        ManualClock clock = new ManualClock(42_000_000);
-        final ThresholdMeter thresholdMeter = createSmallThresholdMeter(clock);
+        final ThresholdMeter thresholdMeter = createSmallThresholdMeter();
 
         // first THRESHOLD_SMALL - 1 events should not exceed threshold
         for (int i = 0; i < THRESHOLD_SMALL - 1; ++i) {
@@ -101,9 +104,8 @@ public class ThresholdMeterTest extends TestLogger {
     }
 
     @Test
-    public void testUpdateInterval() throws InterruptedException {
-        ManualClock clock = new ManualClock(42_000_000);
-        final ThresholdMeter thresholdMeter = createSmallThresholdMeter(clock);
+    public void testUpdateInterval() {
+        final ThresholdMeter thresholdMeter = createSmallThresholdMeter();
 
         thresholdMeter.markEvent();
         clock.advanceTime(INTERVAL.toMillis() * 2, TimeUnit.MILLISECONDS);
@@ -119,11 +121,11 @@ public class ThresholdMeterTest extends TestLogger {
         thresholdMeter.checkAgainstThreshold();
     }
 
-    private static ThresholdMeter createLargeThresholdMeter(Clock clock) {
+    private static ThresholdMeter createLargeThresholdMeter() {
         return new ThresholdMeter(THRESHOLD_LARGE, INTERVAL, clock);
     }
 
-    private static ThresholdMeter createSmallThresholdMeter(Clock clock) {
+    private static ThresholdMeter createSmallThresholdMeter() {
         return new ThresholdMeter(THRESHOLD_SMALL, INTERVAL, clock);
     }
 

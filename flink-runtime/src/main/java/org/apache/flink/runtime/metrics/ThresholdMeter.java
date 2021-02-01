@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.metrics;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.SystemClock;
@@ -39,6 +40,7 @@ public class ThresholdMeter implements Meter {
         this(maxEventsPerInterval, interval, SystemClock.getInstance());
     }
 
+    @VisibleForTesting
     public ThresholdMeter(double maxEventsPerInterval, Duration interval, Clock clock) {
         this.clock = clock;
         this.maxEventsPerInterval = maxEventsPerInterval;
