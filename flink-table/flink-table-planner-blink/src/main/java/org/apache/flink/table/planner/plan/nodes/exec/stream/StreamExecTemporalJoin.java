@@ -31,7 +31,7 @@ import org.apache.flink.table.planner.codegen.ExprCodeGenerator;
 import org.apache.flink.table.planner.codegen.FunctionCodeGenerator;
 import org.apache.flink.table.planner.codegen.GeneratedExpression;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.JoinSpec;
@@ -92,11 +92,10 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
     @Override
     @SuppressWarnings("unchecked")
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-
-        ExecNode<RowData> leftInput = (ExecNode<RowData>) getInputNodes().get(0);
-        ExecNode<RowData> rightInput = (ExecNode<RowData>) getInputNodes().get(1);
-        RowType leftInputType = (RowType) leftInput.getOutputType();
-        RowType rightInputType = (RowType) rightInput.getOutputType();
+        ExecEdge leftInputEdge = getInputEdges().get(0);
+        ExecEdge rightInputEdge = getInputEdges().get(1);
+        RowType leftInputType = (RowType) leftInputEdge.getOutputType();
+        RowType rightInputType = (RowType) rightInputEdge.getOutputType();
 
         JoinUtil.validateJoinSpec(joinSpec, leftInputType, rightInputType, true);
 
@@ -123,8 +122,10 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
 
         TwoInputStreamOperator<RowData, RowData, RowData> joinOperator =
                 getJoinOperator(planner.getTableConfig(), leftInputType, rightInputType);
-        Transformation<RowData> leftTransform = leftInput.translateToPlan(planner);
-        Transformation<RowData> rightTransform = rightInput.translateToPlan(planner);
+        Transformation<RowData> leftTransform =
+                (Transformation<RowData>) leftInputEdge.translateToPlan(planner);
+        Transformation<RowData> rightTransform =
+                (Transformation<RowData>) rightInputEdge.translateToPlan(planner);
 
         TwoInputTransformation<RowData, RowData, RowData> ret =
                 new TwoInputTransformation<>(

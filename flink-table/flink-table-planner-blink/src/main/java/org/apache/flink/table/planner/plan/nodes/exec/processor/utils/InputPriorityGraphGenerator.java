@@ -138,7 +138,7 @@ public abstract class InputPriorityGraphGenerator {
         // group inputs by input priorities
         TreeMap<Integer, List<Integer>> inputPriorityGroupMap = new TreeMap<>();
         Preconditions.checkState(
-                node.getInputNodes().size() == node.getInputProperties().size(),
+                node.getInputEdges().size() == node.getInputProperties().size(),
                 "Number of inputs nodes does not equal to number of input edges for node "
                         + node.getClass().getName()
                         + ". This is a bug.");
@@ -162,8 +162,8 @@ public abstract class InputPriorityGraphGenerator {
     }
 
     private void addTopologyEdges(ExecNode<?> node, int higherInput, int lowerInput) {
-        ExecNode<?> higherNode = node.getInputNodes().get(higherInput);
-        ExecNode<?> lowerNode = node.getInputNodes().get(lowerInput);
+        ExecNode<?> higherNode = node.getInputEdges().get(higherInput).getSource();
+        ExecNode<?> lowerNode = node.getInputEdges().get(lowerInput).getSource();
         List<ExecNode<?>> lowerAncestors = calculatePipelinedAncestors(lowerNode);
 
         List<Tuple2<ExecNode<?>, ExecNode<?>>> linkedEdges = new ArrayList<>();
@@ -202,7 +202,7 @@ public abstract class InputPriorityGraphGenerator {
                                     continue;
                                 }
                                 hasAncestor = true;
-                                node.getInputNodes().get(i).accept(this);
+                                node.getInputEdges().get(i).getSource().accept(this);
                             }
                         }
 

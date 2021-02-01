@@ -49,29 +49,37 @@ public interface ExecNode<T> {
     LogicalType getOutputType();
 
     /**
-     * Returns a list of this node's input nodes. If there are no inputs, returns an empty list, not
-     * null.
+     * Returns a list of this node's input properties.
      *
-     * @return List of this node's input nodes
-     */
-    List<ExecNode<?>> getInputNodes();
-
-    /**
-     * Returns a list of this node's input properties. If there are no inputs, returns an empty
-     * list, not null.
+     * <p>NOTE: If there are no inputs, returns an empty list, not null.
      *
-     * @return List of this node's input properties
+     * @return List of this node's input properties.
      */
     List<InputProperty> getInputProperties();
 
     /**
-     * Replaces the <code>ordinalInParent</code><sup>th</sup> input. Once we introduce source node
-     * and target node for {@link InputProperty}, we will remove this method.
+     * Returns a list of this node's input {@link ExecEdge}s.
      *
-     * @param ordinalInParent Position of the child input, 0 is the first
-     * @param newInputNode New node that should be put at position ordinalInParent
+     * <p>NOTE: If there are no inputs, returns an empty list, not null.
      */
-    void replaceInputNode(int ordinalInParent, ExecNode<?> newInputNode);
+    List<ExecEdge> getInputEdges();
+
+    /**
+     * Sets the input {@link ExecEdge}s which connect this nodes and its input nodes.
+     *
+     * <p>NOTE: If there are no inputs, the given inputEdges should be empty, not null.
+     *
+     * @param inputEdges the input {@link ExecEdge}s.
+     */
+    void setInputEdges(List<ExecEdge> inputEdges);
+
+    /**
+     * Replaces the <code>ordinalInParent</code><sup>th</sup> input edge.
+     *
+     * @param index Position of the child input edge, 0 is the first.
+     * @param newInputEdge New edge that should be put at position `index`.
+     */
+    void replaceInputEdge(int index, ExecEdge newInputEdge);
 
     /**
      * Translates this node into a Flink operator.
@@ -85,7 +93,7 @@ public interface ExecNode<T> {
     /**
      * Accepts a visit from a {@link ExecNodeVisitor}.
      *
-     * @param visitor ExecNodeVisitor
+     * @param visitor ExecNodeVisitor.
      */
     void accept(ExecNodeVisitor visitor);
 }

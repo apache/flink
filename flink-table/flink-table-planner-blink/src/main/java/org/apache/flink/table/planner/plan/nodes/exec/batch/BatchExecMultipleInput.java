@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -79,8 +80,8 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
     @Override
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
         final List<Transformation<?>> inputTransforms = new ArrayList<>();
-        for (ExecNode<?> input : getInputNodes()) {
-            inputTransforms.add(input.translateToPlan(planner));
+        for (ExecEdge inputEdge : getInputEdges()) {
+            inputTransforms.add(inputEdge.translateToPlan(planner));
         }
         final Transformation<?> outputTransform = rootNode.translateToPlan(planner);
         final int[] readOrders =
