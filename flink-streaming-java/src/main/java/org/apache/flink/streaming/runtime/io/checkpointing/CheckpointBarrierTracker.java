@@ -21,8 +21,6 @@ package org.apache.flink.streaming.runtime.io.checkpointing;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
-import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -59,12 +57,6 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
     // ------------------------------------------------------------------------
 
     /**
-     * The number of channels. Once that many barriers have been received for a checkpoint, the
-     * checkpoint is considered complete.
-     */
-    private final int totalNumberOfInputChannels;
-
-    /**
      * All checkpoints for which some (but not all) barriers have been received, and that are not
      * yet known to be subsumed by newer checkpoints.
      */
@@ -74,17 +66,11 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
     private long latestPendingCheckpointID = -1;
 
     public CheckpointBarrierTracker(
-            int totalNumberOfInputChannels, AbstractInvokable toNotifyOnCheckpoint) {
-        super(toNotifyOnCheckpoint);
-        this.totalNumberOfInputChannels = totalNumberOfInputChannels;
+            int totalNumberOfInputChannels,
+            AbstractInvokable toNotifyOnCheckpoint,
+            FinalizeBarrierComplementProcessor finalizeBarrierComplementProcessor) {
+        super(toNotifyOnCheckpoint, finalizeBarrierComplementProcessor, totalNumberOfInputChannels);
         this.pendingCheckpoints = new ArrayDeque<>();
-    }
-
-    @Override
-    public boolean triggerCheckpoint(
-            CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions)
-            throws IOException {
-        throw new UnsupportedOperationException("not supported yet");
     }
 
     public void processBarrier(CheckpointBarrier receivedBarrier, InputChannelInfo channelInfo)
@@ -92,8 +78,8 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
         final long barrierId = receivedBarrier.getId();
 
         // fast path for single channel trackers
-        if (totalNumberOfInputChannels == 1) {
-            markAlignmentStartAndEnd(receivedBarrier.getTimestamp());
+        if (getNumOpenChannels() == 1) {
+            markAlignmentStartAndEnd(receivedBarrier);
             notifyCheckpoint(receivedBarrier);
             return;
         }
@@ -118,7 +104,7 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
         if (barrierCount != null) {
             // add one to the count to that barrier and check for completion
             int numBarriersNew = barrierCount.incrementBarrierCount();
-            if (numBarriersNew == totalNumberOfInputChannels) {
+            if (numBarriersNew == barrierCount.numberOfChannels) {
                 // checkpoint can be triggered (or is aborted and all barriers have been seen)
                 // first, remove this checkpoint and all all prior pending
                 // checkpoints (which are now subsumed)
@@ -131,7 +117,7 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
                     if (LOG.isDebugEnabled()) {
                         LOG.debug("Received all barriers for checkpoint {}", barrierId);
                     }
-                    markAlignmentEnd();
+                    markAlignmentEnd(barrierCount.checkpointId);
                     notifyCheckpoint(receivedBarrier);
                 }
             }
@@ -141,9 +127,10 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
             // if it is not newer than the latest checkpoint ID, then there cannot be a
             // successful checkpoint for that ID anyways
             if (barrierId > latestPendingCheckpointID) {
-                markAlignmentStart(receivedBarrier.getTimestamp());
+                markAlignmentStart(receivedBarrier);
                 latestPendingCheckpointID = barrierId;
-                pendingCheckpoints.addLast(new CheckpointBarrierCount(barrierId));
+                pendingCheckpoints.addLast(
+                        new CheckpointBarrierCount(barrierId, getNumOpenChannels()));
 
                 // make sure we do not track too many checkpoints
                 if (pendingCheckpoints.size() > MAX_CHECKPOINTS_TO_TRACK) {
@@ -170,7 +157,7 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
         }
 
         // fast path for single channel trackers
-        if (totalNumberOfInputChannels == 1) {
+        if (getNumOpenChannels() == 1) {
             notifyAbortOnCancellationBarrier(checkpointId);
             return;
         }
@@ -199,7 +186,7 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
 
             // we still count the barriers to be able to remove the entry once all barriers have
             // been seen
-            if (cbc.incrementBarrierCount() == totalNumberOfInputChannels) {
+            if (cbc.incrementBarrierCount() == cbc.numberOfChannels) {
                 // we can remove this entry
                 pendingCheckpoints.removeFirst();
             }
@@ -208,7 +195,8 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
 
             latestPendingCheckpointID = checkpointId;
 
-            CheckpointBarrierCount abortedMarker = new CheckpointBarrierCount(checkpointId);
+            CheckpointBarrierCount abortedMarker =
+                    new CheckpointBarrierCount(checkpointId, getNumOpenChannels());
             abortedMarker.markAborted();
             pendingCheckpoints.addFirst(abortedMarker);
 
@@ -220,14 +208,19 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
     }
 
     @Override
-    public void processEndOfPartition() throws IOException {
-        while (!pendingCheckpoints.isEmpty()) {
-            CheckpointBarrierCount barrierCount = pendingCheckpoints.removeFirst();
-            if (barrierCount.markAborted()) {
-                notifyAbort(
-                        barrierCount.checkpointId(),
-                        new CheckpointException(
-                                CheckpointFailureReason.CHECKPOINT_DECLINED_INPUT_END_OF_STREAM));
+    public void processEndOfPartition(InputChannelInfo inputChannelInfo) throws IOException {
+        super.processEndOfPartition(inputChannelInfo);
+
+        if (!isAllowedComplementBarrier()) {
+            while (!pendingCheckpoints.isEmpty()) {
+                CheckpointBarrierCount barrierCount = pendingCheckpoints.removeFirst();
+                if (barrierCount.markAborted()) {
+                    notifyAbort(
+                            barrierCount.checkpointId(),
+                            new CheckpointException(
+                                    CheckpointFailureReason
+                                            .CHECKPOINT_DECLINED_INPUT_END_OF_STREAM));
+                }
             }
         }
     }
@@ -245,12 +238,15 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
 
         private final long checkpointId;
 
+        private final int numberOfChannels;
+
         private int barrierCount;
 
         private boolean aborted;
 
-        CheckpointBarrierCount(long checkpointId) {
+        CheckpointBarrierCount(long checkpointId, int numberOfChannels) {
             this.checkpointId = checkpointId;
+            this.numberOfChannels = numberOfChannels;
             this.barrierCount = 1;
         }
 

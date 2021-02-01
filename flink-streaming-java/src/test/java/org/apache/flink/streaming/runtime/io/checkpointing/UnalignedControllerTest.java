@@ -39,6 +39,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBui
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator;
@@ -380,7 +381,6 @@ public class UnalignedControllerTest {
 
         assertOutput(sequence);
         assertEquals(2L, channelStateWriter.getLastStartedCheckpointId());
-        // TODO: treat EndOfPartitionEvent as a special CheckpointBarrier?
         assertInflightData();
     }
 
@@ -793,12 +793,165 @@ public class UnalignedControllerTest {
         assertEquals(numberOfChannels, handler.getNumOpenChannels());
 
         // should abort current checkpoint while processing eof
-        handler.processEndOfPartition();
+        handler.processEndOfPartition(new InputChannelInfo(0, 0));
+    }
 
-        assertFalse(handler.isCheckpointPending());
-        assertEquals(DEFAULT_CHECKPOINT_ID, handler.getLatestCheckpointId());
-        assertEquals(numberOfChannels - 1, handler.getNumOpenChannels());
-        assertEquals(DEFAULT_CHECKPOINT_ID, invokable.getAbortedCheckpointId());
+    @Test
+    public void testComplementBarriersOnSomeChannelFinished() throws Exception {
+        ValidatingCheckpointHandler handler = new ValidatingCheckpointHandler(1);
+        int numberOfChannels = 3;
+        inputGate = createInputGate(numberOfChannels, handler);
+        inputGate
+                .getCheckpointBarrierHandler()
+                .getFinalizeBarrierComplementProcessor()
+                .setAllowComplementBarrier(true);
+
+        BufferOrEvent[] sequence =
+                addSequence(
+                        inputGate,
+                        createBuffer(0),
+                        createBarrier(1, 1),
+                        createBarrier(1, 0),
+                        createBuffer(1),
+                        createBarrier(2, 1),
+                        createBuffer(2),
+                        createBuffer(0),
+                        createBuffer(1),
+                        createEndOfPartition(0),
+                        createEndOfPartition(1),
+                        createEndOfPartition(2));
+
+        // Checkpoint 1 would be subsumed and checkpoint 2 would success via inserting barriers
+        assertEquals(1, handler.getAbortedCheckpointCounter());
+        assertEquals(1, handler.getLastCanceledCheckpointId());
+        assertEquals(3, handler.getNextExpectedCheckpointId());
+        assertOutput(sequence);
+        assertInflightData(sequence[5], sequence[6]);
+    }
+
+    @Test
+    public void testComplementBarriersWithCancellation() throws Exception {
+        ValidatingCheckpointHandler handler = new ValidatingCheckpointHandler(1);
+        int numberOfChannels = 3;
+        inputGate = createInputGate(numberOfChannels, handler);
+        inputGate
+                .getCheckpointBarrierHandler()
+                .getFinalizeBarrierComplementProcessor()
+                .setAllowComplementBarrier(true);
+
+        BufferOrEvent[] sequence1 =
+                addSequence(
+                        inputGate,
+                        createBuffer(0),
+                        createBarrier(1, 1),
+                        createCancellationBarrier(1, 0),
+                        createBuffer(1));
+        assertEquals(1, handler.getAbortedCheckpointCounter());
+        assertEquals(1, handler.getLastCanceledCheckpointId());
+        assertOutput(sequence1);
+        assertInflightData();
+
+        BufferOrEvent[] sequence2 =
+                addSequence(
+                        inputGate,
+                        createBarrier(2, 1),
+                        createBuffer(1),
+                        createEndOfPartition(2),
+                        createBuffer(1),
+                        createBuffer(0),
+                        createEndOfPartition(0),
+                        createBuffer(1),
+                        createEndOfPartition(1));
+        assertEquals(3, handler.getNextExpectedCheckpointId());
+        assertEquals(1, handler.getAbortedCheckpointCounter());
+        assertEquals(1, handler.getLastCanceledCheckpointId());
+        assertOutput(sequence2);
+        assertInflightData(sequence2[4]);
+    }
+
+    @Test
+    public void testComplementBarriersWithRpcTrigger() throws Exception {
+        ValidatingCheckpointHandler handler = new ValidatingCheckpointHandler(1);
+        int numberOfChannels = 3;
+
+        inputGate = createInputGate(numberOfChannels, handler);
+        inputGate
+                .getCheckpointBarrierHandler()
+                .getFinalizeBarrierComplementProcessor()
+                .setAllowComplementBarrier(true);
+
+        output = new ArrayList<>();
+        sequenceNumbers = new int[numberOfChannels];
+
+        BufferOrEvent[] sequence1 =
+                addSequence(
+                        inputGate,
+                        output,
+                        sequenceNumbers,
+                        false,
+                        createBuffer(0),
+                        createBarrier(1, 1),
+                        createBuffer(1),
+                        createEndOfPartition(2));
+
+        // Trigger checkpoint 2
+        inputGate
+                .getCheckpointBarrierHandler()
+                .triggerCheckpoint(
+                        new CheckpointMetaData(2, System.currentTimeMillis()),
+                        CheckpointOptions.unaligned(
+                                CheckpointStorageLocationReference.getDefault()));
+        // Process existing buffers
+        while (inputGate.pollNext().map(output::add).isPresent()) ;
+        assertEquals(2, inputGate.getCheckpointBarrierHandler().getNumOpenChannels());
+        assertOutput(sequence1);
+        // Sequence1[0] would be added for checkpoint 1 and checkpoint 2 distinctly
+        assertInflightData(sequence1[0], sequence1[0], sequence1[2]);
+
+        BufferOrEvent[] sequence2 =
+                addSequence(
+                        inputGate,
+                        createBuffer(0),
+                        createBuffer(1),
+                        createEndOfPartition(0),
+                        createEndOfPartition(1));
+        assertEquals(1, handler.getAbortedCheckpointCounter());
+        assertEquals(1, handler.getLastCanceledCheckpointId());
+        assertEquals(3, handler.getNextExpectedCheckpointId());
+        assertOutput(sequence2);
+        assertInflightData(sequence2[0], sequence2[1]);
+    }
+
+    @Test
+    public void testTriggerCheckpointsAfterAllChannelsFinished() throws Exception {
+        ValidatingCheckpointHandler handler = new ValidatingCheckpointHandler(2);
+        int numberOfChannels = 3;
+
+        inputGate = createInputGate(numberOfChannels, handler);
+        inputGate
+                .getCheckpointBarrierHandler()
+                .getFinalizeBarrierComplementProcessor()
+                .setAllowComplementBarrier(true);
+
+        BufferOrEvent[] sequence =
+                addSequence(
+                        inputGate,
+                        createBuffer(0),
+                        createEndOfPartition(0),
+                        createEndOfPartition(1),
+                        createEndOfPartition(2));
+
+        handler.setNextExpectedCheckpointId(2);
+        // Trigger checkpoint 2
+        inputGate
+                .getCheckpointBarrierHandler()
+                .triggerCheckpoint(
+                        new CheckpointMetaData(2, System.currentTimeMillis()),
+                        CheckpointOptions.unaligned(
+                                CheckpointStorageLocationReference.getDefault()));
+        assertEquals(3, handler.getNextExpectedCheckpointId());
+        assertOutput(sequence);
+        assertInflightData();
     }
 
     // ------------------------------------------------------------------------
@@ -880,6 +1033,17 @@ public class UnalignedControllerTest {
             int[] sequenceNumbers,
             BufferOrEvent... sequence)
             throws Exception {
+
+        return addSequence(inputGate, output, sequenceNumbers, true, sequence);
+    }
+
+    static BufferOrEvent[] addSequence(
+            CheckpointedInputGate inputGate,
+            List<BufferOrEvent> output,
+            int[] sequenceNumbers,
+            boolean processBuffer,
+            BufferOrEvent... sequence)
+            throws Exception {
         for (BufferOrEvent bufferOrEvent : sequence) {
             if (bufferOrEvent.isEvent()) {
                 bufferOrEvent =
@@ -899,7 +1063,9 @@ public class UnalignedControllerTest {
                             sequenceNumbers[bufferOrEvent.getChannelInfo().getInputChannelIdx()]++,
                             0);
 
-            while (inputGate.pollNext().map(output::add).isPresent()) {}
+            if (processBuffer) {
+                while (inputGate.pollNext().map(output::add).isPresent()) {}
+            }
         }
         return sequence;
     }

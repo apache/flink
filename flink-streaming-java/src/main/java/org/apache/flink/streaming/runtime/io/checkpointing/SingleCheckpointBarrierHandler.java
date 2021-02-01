@@ -22,8 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
-import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
@@ -71,9 +69,9 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
      */
     private long currentCheckpointId = -1L;
 
-    private long lastCancelledOrCompletedCheckpointId = -1L;
+    private int currentCheckpointNumberOfChannel;
 
-    private int numOpenChannels;
+    private long lastCancelledOrCompletedCheckpointId = -1L;
 
     private CompletableFuture<Void> allBarriersReceivedFuture = FutureUtils.completedVoidFuture();
 
@@ -90,26 +88,20 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
                         Arrays.stream(inputs)
                                 .flatMap(gate -> gate.getChannelInfos().stream())
                                 .count(),
-                new UnalignedController(checkpointCoordinator, inputs));
+                new UnalignedController(checkpointCoordinator, inputs),
+                new FinalizeBarrierComplementProcessor(inputs));
     }
 
     SingleCheckpointBarrierHandler(
             String taskName,
             AbstractInvokable toNotifyOnCheckpoint,
             int numOpenChannels,
-            CheckpointBarrierBehaviourController controller) {
-        super(toNotifyOnCheckpoint);
+            CheckpointBarrierBehaviourController controller,
+            FinalizeBarrierComplementProcessor finalizeBarrierComplementProcessor) {
+        super(toNotifyOnCheckpoint, finalizeBarrierComplementProcessor, numOpenChannels);
 
         this.taskName = taskName;
-        this.numOpenChannels = numOpenChannels;
         this.controller = controller;
-    }
-
-    @Override
-    public boolean triggerCheckpoint(
-            CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions)
-            throws IOException {
-        throw new UnsupportedOperationException("not supported yet");
     }
 
     @Override
@@ -128,9 +120,9 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 
         if (numBarriersReceived == 0) {
             if (getNumOpenChannels() == 1) {
-                markAlignmentStartAndEnd(barrier.getTimestamp());
+                markAlignmentStartAndEnd(barrier);
             } else {
-                markAlignmentStart(barrier.getTimestamp());
+                markAlignmentStart(barrier);
             }
             allBarriersReceivedFuture = new CompletableFuture<>();
 
@@ -148,9 +140,9 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
         }
 
         if (currentCheckpointId == barrierId) {
-            if (++numBarriersReceived == numOpenChannels) {
+            if (++numBarriersReceived == currentCheckpointNumberOfChannel) {
                 if (getNumOpenChannels() > 1) {
-                    markAlignmentEnd();
+                    markAlignmentEnd(currentCheckpointId);
                 }
                 numBarriersReceived = 0;
                 lastCancelledOrCompletedCheckpointId = currentCheckpointId;
@@ -234,6 +226,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
                 cancelSubsumedCheckpoint(barrierId);
             }
             currentCheckpointId = barrierId;
+            currentCheckpointNumberOfChannel = getNumOpenChannels();
             numBarriersReceived = 0;
             controller.preProcessFirstBarrierOrAnnouncement(barrier);
         }
@@ -264,6 +257,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
         currentCheckpointId = Math.max(cancelledId, currentCheckpointId);
         lastCancelledOrCompletedCheckpointId =
                 Math.max(lastCancelledOrCompletedCheckpointId, cancelledId);
+        currentCheckpointNumberOfChannel = 0;
         numBarriersReceived = 0;
         controller.abortPendingCheckpoint(cancelledId, exception);
         allBarriersReceivedFuture.completeExceptionally(exception);
@@ -271,15 +265,17 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
     }
 
     @Override
-    public void processEndOfPartition() throws IOException {
-        numOpenChannels--;
+    public void processEndOfPartition(InputChannelInfo inputChannelInfo) throws IOException {
+        super.processEndOfPartition(inputChannelInfo);
 
-        if (isCheckpointPending()) {
-            LOG.warn(
-                    "{}: Received EndOfPartition(-1) before completing current checkpoint {}. Skipping current checkpoint.",
-                    taskName,
-                    currentCheckpointId);
-            abortInternal(currentCheckpointId, CHECKPOINT_DECLINED_INPUT_END_OF_STREAM);
+        if (!isAllowedComplementBarrier()) {
+            if (isCheckpointPending()) {
+                LOG.warn(
+                        "{}: Received EndOfPartition(-1) before completing current checkpoint {}. Skipping current checkpoint.",
+                        taskName,
+                        currentCheckpointId);
+                abortInternal(currentCheckpointId, CHECKPOINT_DECLINED_INPUT_END_OF_STREAM);
+            }
         }
     }
 
@@ -321,15 +317,10 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
         return allBarriersReceivedFuture;
     }
 
-    @VisibleForTesting
-    int getNumOpenChannels() {
-        return numOpenChannels;
-    }
-
     @Override
     public String toString() {
         return String.format(
                 "%s: current checkpoint: %d, current barriers: %d, open channels: %d",
-                taskName, currentCheckpointId, numBarriersReceived, numOpenChannels);
+                taskName, currentCheckpointId, numBarriersReceived, getNumOpenChannels());
     }
 }

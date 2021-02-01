@@ -729,7 +729,8 @@ public class AlternatingControllerTest {
                 new AlternatingController(
                         new AlignedController(inputGate),
                         new UnalignedController(
-                                new TestSubtaskCheckpointCoordinator(stateWriter), inputGate)));
+                                new TestSubtaskCheckpointCoordinator(stateWriter), inputGate)),
+                new FinalizeBarrierComplementProcessor(inputGate));
     }
 
     private static CheckpointedInputGate buildGate(AbstractInvokable target, int numChannels) {

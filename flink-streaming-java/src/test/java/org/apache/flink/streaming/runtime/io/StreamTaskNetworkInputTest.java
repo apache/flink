@@ -43,6 +43,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierTracker;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
+import org.apache.flink.streaming.runtime.io.checkpointing.FinalizeBarrierComplementProcessor;
 import org.apache.flink.streaming.runtime.io.checkpointing.SingleCheckpointBarrierHandler;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
@@ -193,7 +194,11 @@ public class StreamTaskNetworkInputTest {
                 new StreamTaskNetworkInput<>(
                         new CheckpointedInputGate(
                                 inputGate.getInputGate(),
-                                new CheckpointBarrierTracker(1, new DummyCheckpointInvokable()),
+                                new CheckpointBarrierTracker(
+                                        1,
+                                        new DummyCheckpointInvokable(),
+                                        new FinalizeBarrierComplementProcessor(
+                                                inputGate.getInputGate())),
                                 new SyncMailboxExecutor()),
                         inSerializer,
                         new StatusWatermarkValve(1),
@@ -218,10 +223,14 @@ public class StreamTaskNetworkInputTest {
     }
 
     private StreamTaskNetworkInput createStreamTaskNetworkInput(List<BufferOrEvent> buffers) {
+        MockInputGate inputGate = new MockInputGate(1, buffers, false);
         return new StreamTaskNetworkInput<>(
                 new CheckpointedInputGate(
-                        new MockInputGate(1, buffers, false),
-                        new CheckpointBarrierTracker(1, new DummyCheckpointInvokable()),
+                        inputGate,
+                        new CheckpointBarrierTracker(
+                                1,
+                                new DummyCheckpointInvokable(),
+                                new FinalizeBarrierComplementProcessor(inputGate)),
                         new SyncMailboxExecutor()),
                 LongSerializer.INSTANCE,
                 ioManager,

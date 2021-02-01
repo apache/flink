@@ -334,7 +334,8 @@ public class CheckpointedInputGateTest {
                         new AbstractInvokable(new DummyEnvironment()) {
                             @Override
                             public void invoke() {}
-                        });
+                        },
+                        new FinalizeBarrierComplementProcessor(singleInputGate));
 
         CheckpointedInputGate checkpointedInputGate =
                 new CheckpointedInputGate(

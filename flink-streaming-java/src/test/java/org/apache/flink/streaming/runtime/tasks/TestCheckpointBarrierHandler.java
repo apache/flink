@@ -25,6 +25,7 @@ import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHandler;
+import org.apache.flink.streaming.runtime.io.checkpointing.FinalizeBarrierComplementProcessor;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -37,7 +38,7 @@ public class TestCheckpointBarrierHandler extends CheckpointBarrierHandler {
     private final List<CheckpointBarrier> triggeredCheckpoints = new ArrayList<>();
 
     public TestCheckpointBarrierHandler(AbstractInvokable toNotifyOnCheckpoint) {
-        super(toNotifyOnCheckpoint);
+        super(toNotifyOnCheckpoint, new FinalizeBarrierComplementProcessor(), 0);
     }
 
     @Override
@@ -70,7 +71,7 @@ public class TestCheckpointBarrierHandler extends CheckpointBarrierHandler {
             throws IOException {}
 
     @Override
-    public void processEndOfPartition() throws IOException {}
+    public void processEndOfPartition(InputChannelInfo inputChannelInfo) throws IOException {}
 
     @Override
     public long getLatestCheckpointId() {
