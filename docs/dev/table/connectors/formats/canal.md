@@ -193,7 +193,7 @@ metadata fields for its value format.
     <tr>
       <td><code>event-timestamp</code></td>
       <td><code>TIMESTAMP(3) WITH LOCAL TIME ZONE NULL</code></td>
-      <td>The timestamp at which the connector produced the event. Corresponds to the <code>es</code>
+      <td>The timestamp when the corresponding change was executed in MySQL server. Corresponds to the <code>es</code>
       field in the Canal record.</td>
     </tr>
     </tbody>

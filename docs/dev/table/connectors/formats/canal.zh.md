@@ -186,7 +186,7 @@ metadata fields for its value format.
     <tr>
       <td><code>ingestion-timestamp</code></td>
       <td><code>TIMESTAMP(3) WITH LOCAL TIME ZONE NULL</code></td>
-      <td>The timestamp at which the connector processed the event. Corresponds to the <code>ts</code>
+      <td>The timestamp when the corresponding change was executed in MySQL server. Corresponds to the <code>ts</code>
       field in the Canal record.</td>
     </tr>
     <tr>
