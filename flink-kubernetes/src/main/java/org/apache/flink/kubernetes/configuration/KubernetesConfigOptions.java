@@ -96,13 +96,20 @@ public class KubernetesConfigOptions {
                     .asList()
                     .noDefaultValue()
                     .withDescription(
-                            "The user-specified owner reference to be set to the JobManager Deployment. "
-                                    + "The owner reference is used to delete deployment when controlling resource is deleted. Deployment deletion will trigger deletion of all instances of Job manager. "
-                                    + "Job manager deletion will delete all of the Task managers that it controls. As a result usage owner reference will delete a cluster when controlling resource is deleted. "
-                                    + "The value should be in the form of key:value, where keys define owner reference parameters: apiVersion, "
-                                    + "blockOwnerDeletion, controller, kind, name, uid. Example of setting owner reference looks like following: "
-                                    + "-Dkubernetes.jobmanager.owner.reference=apiversion:flink.io/v1beta1,blockownerdeletion:true,controller:true,kind:FlinkApplication,name:testapp,uid:e3c9aa3f-cc42-4178-814a-64aa15c82373. "
-                                    + "Multiple owner references are not currently supported.");
+                            Description.builder()
+                                    .text(
+                                            "The user-specified %s to be set to the JobManager Deployment. "
+                                                    + "When all the owner resources are deleted, the JobManager Deployment "
+                                                    + "will be deleted automatically, which also deletes all the resources "
+                                                    + "created by this Flink cluster. The value should be formatted as a "
+                                                    + "semicolon-separated list of owner references, where each owner "
+                                                    + "reference is a comma-separated list of `key:value` pairs. E.g., "
+                                                    + "apiVersion:v1,blockOwnerDeletion:true,controller:true,kind:FlinkApplication,name:flink-app-name,uid:flink-app-uid;"
+                                                    + "apiVersion:v1,kind:Deployment,name:deploy-name,uid:deploy-uid",
+                                            link(
+                                                    "https://ci.apache.org/projects/flink/flink-docs-master/deployment/resource-providers/native_kubernetes.html#manual-resource-cleanup",
+                                                    "Owner References"))
+                                    .build());
     public static final ConfigOption<Double> JOB_MANAGER_CPU =
             key("kubernetes.jobmanager.cpu")
                     .doubleType()
