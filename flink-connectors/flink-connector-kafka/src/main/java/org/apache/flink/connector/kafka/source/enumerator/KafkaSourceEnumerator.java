@@ -64,6 +64,8 @@ public class KafkaSourceEnumerator
     private final Properties properties;
     private final long partitionDiscoveryIntervalMs;
     private final SplitEnumeratorContext<KafkaPartitionSplit> context;
+    private volatile boolean partitionDiscoveryFinished = false;
+    private final Set<Integer> finishedReaders;
 
     // The internal states of the enumerator.
     /**
@@ -125,7 +127,12 @@ public class KafkaSourceEnumerator
                         properties,
                         KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS,
                         Long::parseLong);
+        if (partitionDiscoveryIntervalMs < 0) {
+            LOG.debug("Partition discovery is disabled.");
+            noMoreNewPartitionSplits = true;
+        }
         this.consumerGroupId = properties.getProperty(ConsumerConfig.GROUP_ID_CONFIG);
+        this.finishedReaders = new HashSet<>();
     }
 
     @Override
@@ -162,7 +169,6 @@ public class KafkaSourceEnumerator
     public void addSplitsBack(List<KafkaPartitionSplit> splits, int subtaskId) {
         addPartitionSplitChangeToPendingAssignments(splits);
         assignPendingPartitionSplits();
-        maybeSignalNoMoreSplits(subtaskId);
     }
 
     @Override
@@ -172,7 +178,6 @@ public class KafkaSourceEnumerator
                 subtaskId,
                 consumerGroupId);
         assignPendingPartitionSplits();
-        maybeSignalNoMoreSplits(subtaskId);
     }
 
     @Override
@@ -191,18 +196,6 @@ public class KafkaSourceEnumerator
     }
 
     // ----------------- private methods -------------------
-
-    private void maybeSignalNoMoreSplits(int subtaskId) {
-        if (noMoreNewPartitionSplits) {
-            LOG.debug(
-                    "No more KafkaPartitionSplits to assign. Sending NoMoreSplitsEvent to "
-                            + "reader {} in consumer group {}.",
-                    subtaskId,
-                    consumerGroupId);
-            context.signalNoMoreSplits(subtaskId);
-        }
-    }
-
     private PartitionSplitChange discoverAndInitializePartitionSplit() {
         // Make a copy of the partitions to owners
         KafkaSubscriber.PartitionChange partitionChange =
@@ -235,12 +228,9 @@ public class KafkaSourceEnumerator
         if (t != null) {
             throw new FlinkRuntimeException("Failed to handle partition splits change due to ", t);
         }
-        if (partitionDiscoveryIntervalMs < 0) {
-            LOG.debug("");
-            noMoreNewPartitionSplits = true;
-        }
         // TODO: Handle removed partitions.
         addPartitionSplitChangeToPendingAssignments(partitionSplitChange.newPartitionSplits);
+        partitionDiscoveryFinished = true;
         assignPendingPartitionSplits();
     }
 
@@ -263,6 +253,11 @@ public class KafkaSourceEnumerator
 
     // This method should only be invoked in the coordinator executor thread.
     private void assignPendingPartitionSplits() {
+        // If partition discovery hasn't finished, we don't need to assign anything to readers.
+        if (!partitionDiscoveryFinished) {
+            return;
+        }
+
         Map<Integer, List<KafkaPartitionSplit>> incrementalAssignment = new HashMap<>();
         pendingPartitionSplitAssignment.forEach(
                 (ownerReader, pendingSplits) -> {
@@ -290,6 +285,20 @@ public class KafkaSourceEnumerator
                     // Clear the pending splits for the reader owner.
                     pendingPartitionSplitAssignment.remove(readerOwner);
                 });
+        if (noMoreNewPartitionSplits) {
+            signalNoMoreSplitsToNotNotifiedReaders();
+        }
+    }
+
+    private void signalNoMoreSplitsToNotNotifiedReaders() {
+        context.registeredReaders()
+                .forEach(
+                        (readerId, ignore) -> {
+                            if (!finishedReaders.contains(readerId)) {
+                                context.signalNoMoreSplits(readerId);
+                                finishedReaders.add(readerId);
+                            }
+                        });
     }
 
     private KafkaConsumer<byte[], byte[]> getKafkaConsumer() {
