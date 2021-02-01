@@ -101,6 +101,18 @@ public abstract class TableColumn {
         return new MetadataColumn(name, type, metadataAlias, isVirtual);
     }
 
+    /** @deprecated Use {@link #physical(String, DataType)} instead. */
+    @Deprecated
+    public static TableColumn of(String name, DataType type) {
+        return physical(name, type);
+    }
+
+    /** @deprecated Use {@link #computed(String, DataType, String)} instead. */
+    @Deprecated
+    public static TableColumn of(String name, DataType type, String expression) {
+        return computed(name, type, expression);
+    }
+
     /**
      * Returns whether the given column is a physical column of a table; neither computed nor
      * metadata.
