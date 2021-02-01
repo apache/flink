@@ -46,6 +46,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.LookupJoinCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -161,8 +162,8 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
     @Override
     @SuppressWarnings("unchecked")
     public Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-        ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
-        RowType inputRowType = (RowType) inputNode.getOutputType();
+        final ExecEdge inputEdge = getInputEdges().get(0);
+        RowType inputRowType = (RowType) inputEdge.getOutputType();
         RowType tableSourceRowType = FlinkTypeFactory.toLogicalRowType(temporalTable.getRowType());
         RowType resultRowType = (RowType) getOutputType();
         validateLookupKeyType(lookupKeys, inputRowType, tableSourceRowType);
@@ -204,7 +205,8 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
                             planner.getExecEnv().getConfig().isObjectReuseEnabled());
         }
 
-        Transformation<RowData> inputTransformation = inputNode.translateToPlan(planner);
+        Transformation<RowData> inputTransformation =
+                (Transformation<RowData>) inputEdge.translateToPlan(planner);
         OneInputTransformation<RowData, RowData> transform =
                 new OneInputTransformation<>(
                         inputTransformation,

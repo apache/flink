@@ -72,8 +72,12 @@ public class ExecNodeGraphGenerator {
         }
 
         execNode = rel.translateToExecNode();
-        // connects the input/output nodes
-        ((ExecNodeBase<?>) execNode).setInputNodes(inputNodes);
+        // connects the input nodes
+        List<ExecEdge> inputEdges = new ArrayList<>(inputNodes.size());
+        for (ExecNode<?> inputNode : inputNodes) {
+            inputEdges.add(ExecEdge.builder().source(inputNode).target(execNode).build());
+        }
+        execNode.setInputEdges(inputEdges);
 
         visitedRels.put(rel, execNode);
         return execNode;

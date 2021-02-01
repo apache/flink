@@ -26,7 +26,7 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.sort.SortCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
@@ -58,11 +58,12 @@ public class BatchExecSort extends ExecNodeBase<RowData> implements BatchExecNod
     @SuppressWarnings("unchecked")
     @Override
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-        ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
-        Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
+        ExecEdge inputEdge = getInputEdges().get(0);
+        Transformation<RowData> inputTransform =
+                (Transformation<RowData>) inputEdge.translateToPlan(planner);
 
         TableConfig config = planner.getTableConfig();
-        RowType inputType = (RowType) inputNode.getOutputType();
+        RowType inputType = (RowType) inputEdge.getOutputType();
         SortCodeGenerator codeGen = new SortCodeGenerator(config, inputType, sortSpec);
 
         SortOperator operator =

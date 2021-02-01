@@ -28,7 +28,7 @@ import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.planner.codegen.sort.SortCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
@@ -89,12 +89,12 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
     @Override
     @SuppressWarnings("unchecked")
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-        ExecNode<RowData> leftInputNode = (ExecNode<RowData>) getInputNodes().get(0);
-        ExecNode<RowData> rightInputNode = (ExecNode<RowData>) getInputNodes().get(1);
+        ExecEdge leftInputEdge = getInputEdges().get(0);
+        ExecEdge rightInputEdge = getInputEdges().get(1);
 
-        // get type
-        RowType leftType = (RowType) leftInputNode.getOutputType();
-        RowType rightType = (RowType) rightInputNode.getOutputType();
+        // get input types
+        RowType leftType = (RowType) leftInputEdge.getOutputType();
+        RowType rightType = (RowType) rightInputEdge.getOutputType();
 
         LogicalType[] keyFieldTypes =
                 IntStream.of(leftKeys).mapToObj(leftType::getTypeAt).toArray(LogicalType[]::new);
@@ -149,8 +149,10 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
                                 .generateRecordComparator("KeyComparator"),
                         filterNulls);
 
-        Transformation<RowData> leftInputTransform = leftInputNode.translateToPlan(planner);
-        Transformation<RowData> rightInputTransform = rightInputNode.translateToPlan(planner);
+        Transformation<RowData> leftInputTransform =
+                (Transformation<RowData>) leftInputEdge.translateToPlan(planner);
+        Transformation<RowData> rightInputTransform =
+                (Transformation<RowData>) rightInputEdge.translateToPlan(planner);
         TwoInputTransformation<RowData, RowData, RowData> transform =
                 ExecNodeUtil.createTwoInputTransformation(
                         leftInputTransform,

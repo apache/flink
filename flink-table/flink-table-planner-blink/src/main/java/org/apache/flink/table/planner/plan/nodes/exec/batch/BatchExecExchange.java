@@ -34,6 +34,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.HashCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty.HashDistribution;
@@ -51,7 +52,7 @@ import java.util.Optional;
 /**
  * This {@link ExecNode} represents a change of partitioning of the input elements for batch.
  *
- * <p>TODO Remove this class once its functionality is replaced by ExecEdge.
+ * <p>TODO Remove this class once FLINK-21224 is finished.
  */
 public class BatchExecExchange extends CommonExecExchange implements BatchExecNode<RowData> {
     // the required shuffle mode for reusable BatchExecExchange
@@ -78,7 +79,7 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
         }
         sb.append("distribution=[").append(type);
         if (requiredDistribution.getType() == InputProperty.DistributionType.HASH) {
-            RowType inputRowType = (RowType) getInputNodes().get(0).getOutputType();
+            RowType inputRowType = (RowType) getInputEdges().get(0).getOutputType();
             HashDistribution hashDistribution = (HashDistribution) requiredDistribution;
             String[] fieldNames =
                     Arrays.stream(hashDistribution.getKeys())
@@ -96,9 +97,9 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
     @SuppressWarnings("unchecked")
     @Override
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-        final ExecNode<?> inputNode = getInputNodes().get(0);
+        final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
-                (Transformation<RowData>) inputNode.translateToPlan(planner);
+                (Transformation<RowData>) inputEdge.translateToPlan(planner);
 
         final StreamPartitioner<RowData> partitioner;
         final int parallelism;
@@ -120,7 +121,7 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
                 break;
             case HASH:
                 int[] keys = ((HashDistribution) inputProperty.getRequiredDistribution()).getKeys();
-                RowType inputType = (RowType) inputNode.getOutputType();
+                RowType inputType = (RowType) inputEdge.getOutputType();
                 String[] fieldNames =
                         Arrays.stream(keys)
                                 .mapToObj(i -> inputType.getFieldNames().get(i))
@@ -129,7 +130,7 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
                         new BinaryHashPartitioner(
                                 HashCodeGenerator.generateRowHash(
                                         new CodeGeneratorContext(planner.getTableConfig()),
-                                        inputNode.getOutputType(),
+                                        inputEdge.getOutputType(),
                                         "HashPartitioner",
                                         keys),
                                 fieldNames);

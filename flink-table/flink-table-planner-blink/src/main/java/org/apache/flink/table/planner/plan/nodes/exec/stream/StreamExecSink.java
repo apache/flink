@@ -25,6 +25,7 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecSink;
@@ -64,9 +65,10 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
     @SuppressWarnings("unchecked")
     @Override
     protected Transformation<Object> translateToPlanInternal(PlannerBase planner) {
-        final ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
-        final Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
-        final RowType inputRowType = (RowType) inputNode.getOutputType();
+        final ExecEdge inputEdge = getInputEdges().get(0);
+        final Transformation<RowData> inputTransform =
+                (Transformation<RowData>) inputEdge.translateToPlan(planner);
+        final RowType inputRowType = (RowType) inputEdge.getOutputType();
 
         final List<Integer> rowtimeFieldIndices = new ArrayList<>();
         for (int i = 0; i < inputRowType.getFieldCount(); ++i) {

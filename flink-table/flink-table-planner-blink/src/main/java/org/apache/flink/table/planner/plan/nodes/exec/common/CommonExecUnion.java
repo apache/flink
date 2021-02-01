@@ -22,6 +22,7 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -45,8 +46,8 @@ public abstract class CommonExecUnion extends ExecNodeBase<RowData> {
     @Override
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
         final List<Transformation<RowData>> inputTransforms = new ArrayList<>();
-        for (ExecNode<?> input : getInputNodes()) {
-            inputTransforms.add((Transformation<RowData>) input.translateToPlan(planner));
+        for (ExecEdge inputEdge : getInputEdges()) {
+            inputTransforms.add((Transformation<RowData>) inputEdge.translateToPlan(planner));
         }
         return new UnionTransformation(inputTransforms);
     }

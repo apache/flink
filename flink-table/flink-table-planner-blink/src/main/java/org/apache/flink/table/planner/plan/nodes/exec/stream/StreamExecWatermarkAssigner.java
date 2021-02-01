@@ -25,6 +25,7 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.WatermarkGeneratorCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -59,15 +60,15 @@ public class StreamExecWatermarkAssigner extends ExecNodeBase<RowData>
     @SuppressWarnings("unchecked")
     @Override
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-        final ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
-        final Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
+        final ExecEdge inputEdge = getInputEdges().get(0);
+        final Transformation<RowData> inputTransform =
+                (Transformation<RowData>) inputEdge.translateToPlan(planner);
 
         final TableConfig tableConfig = planner.getTableConfig();
-
         final GeneratedWatermarkGenerator watermarkGenerator =
                 WatermarkGeneratorCodeGenerator.generateWatermarkGenerator(
                         tableConfig,
-                        (RowType) inputNode.getOutputType(),
+                        (RowType) inputEdge.getOutputType(),
                         watermarkExpr,
                         JavaScalaConversionUtil.toScala(Optional.empty()));
 

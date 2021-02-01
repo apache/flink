@@ -39,7 +39,7 @@ public class TopologyGraphTest {
         //             \-> 6 -> 7
         TestingBatchExecNode[] nodes = new TestingBatchExecNode[8];
         for (int i = 0; i < nodes.length; i++) {
-            nodes[i] = new TestingBatchExecNode();
+            nodes[i] = new TestingBatchExecNode("TestingBatchExecNode" + i);
         }
         nodes[1].addInput(nodes[0]);
         nodes[2].addInput(nodes[1]);

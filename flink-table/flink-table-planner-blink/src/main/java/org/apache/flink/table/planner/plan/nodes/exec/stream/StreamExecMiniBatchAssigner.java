@@ -64,7 +64,7 @@ public class StreamExecMiniBatchAssigner extends ExecNodeBase<RowData>
     @Override
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
         final Transformation<RowData> inputTransform =
-                (Transformation<RowData>) getInputNodes().get(0).translateToPlan(planner);
+                (Transformation<RowData>) getInputEdges().get(0).translateToPlan(planner);
 
         final OneInputStreamOperator<RowData, RowData> operator;
         if (miniBatchInterval.mode() == MiniBatchMode.ProcTime()) {

@@ -24,6 +24,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.ExpandCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -56,13 +57,14 @@ public abstract class CommonExecExpand extends ExecNodeBase<RowData> {
     @SuppressWarnings("unchecked")
     @Override
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-        final ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
-        final Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
+        final ExecEdge inputEdge = getInputEdges().get(0);
+        final Transformation<RowData> inputTransform =
+                (Transformation<RowData>) inputEdge.translateToPlan(planner);
 
         final CodeGenOperatorFactory<RowData> operatorFactory =
                 ExpandCodeGenerator.generateExpandOperator(
                         new CodeGeneratorContext(planner.getTableConfig()),
-                        (RowType) inputNode.getOutputType(),
+                        (RowType) inputEdge.getOutputType(),
                         (RowType) getOutputType(),
                         projects,
                         retainHeader,

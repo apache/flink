@@ -44,7 +44,7 @@ public class InputOrderCalculatorTest {
         // 5 -P-> 6 -B-/
         TestingBatchExecNode[] nodes = new TestingBatchExecNode[7];
         for (int i = 0; i < nodes.length; i++) {
-            nodes[i] = new TestingBatchExecNode();
+            nodes[i] = new TestingBatchExecNode("TestingBatchExecNode" + i);
         }
         nodes[1].addInput(nodes[0]);
         nodes[3].addInput(nodes[1]);
@@ -82,7 +82,7 @@ public class InputOrderCalculatorTest {
         // 2 -(P1)-> 5 -(P1)-/
         TestingBatchExecNode[] nodes = new TestingBatchExecNode[9];
         for (int i = 0; i < nodes.length; i++) {
-            nodes[i] = new TestingBatchExecNode();
+            nodes[i] = new TestingBatchExecNode("TestingBatchExecNode" + i);
         }
         nodes[3].addInput(nodes[0], InputProperty.builder().priority(1).build());
         nodes[4].addInput(nodes[1], InputProperty.builder().priority(1).build());
@@ -131,7 +131,7 @@ public class InputOrderCalculatorTest {
         //           3 -(P1)-/           6 -(B0)-/
         TestingBatchExecNode[] nodes = new TestingBatchExecNode[7];
         for (int i = 0; i < nodes.length; i++) {
-            nodes[i] = new TestingBatchExecNode();
+            nodes[i] = new TestingBatchExecNode("TestingBatchExecNode" + i);
         }
         nodes[1].addInput(nodes[0]);
         nodes[2].addInput(
@@ -169,7 +169,7 @@ public class InputOrderCalculatorTest {
         //                     7 --(B0)--/
         TestingBatchExecNode[] nodes = new TestingBatchExecNode[8];
         for (int i = 0; i < nodes.length; i++) {
-            nodes[i] = new TestingBatchExecNode();
+            nodes[i] = new TestingBatchExecNode("TestingBatchExecNode" + i);
         }
         nodes[1].addInput(nodes[0]);
         nodes[2].addInput(
@@ -204,8 +204,8 @@ public class InputOrderCalculatorTest {
 
     @Test(expected = IllegalStateException.class)
     public void testCalculateInputOrderWithLoop() {
-        TestingBatchExecNode a = new TestingBatchExecNode();
-        TestingBatchExecNode b = new TestingBatchExecNode();
+        TestingBatchExecNode a = new TestingBatchExecNode("TestingBatchExecNode0");
+        TestingBatchExecNode b = new TestingBatchExecNode("TestingBatchExecNode1");
         for (int i = 0; i < 2; i++) {
             b.addInput(a, InputProperty.builder().priority(i).build());
         }

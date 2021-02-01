@@ -36,6 +36,11 @@ public class StreamExecExpand extends CommonExecExpand implements StreamExecNode
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(projects, true, inputProperty, outputType, description);
+        super(
+                projects,
+                true, // retainHeader
+                inputProperty,
+                outputType,
+                description);
     }
 }

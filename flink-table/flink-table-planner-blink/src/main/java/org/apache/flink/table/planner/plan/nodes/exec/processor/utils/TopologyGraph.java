@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.processor.utils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecBoundedStreamScan;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.AbstractExecNodeExactlyOnceVisitor;
@@ -59,8 +60,8 @@ class TopologyGraph {
                         if (boundaries.contains(node)) {
                             return;
                         }
-                        for (ExecNode<?> input : node.getInputNodes()) {
-                            link(input, node);
+                        for (ExecEdge inputEdge : node.getInputEdges()) {
+                            link(inputEdge.getSource(), node);
                         }
                         visitInputs(node);
                     }

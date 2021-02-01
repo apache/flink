@@ -41,7 +41,7 @@ import static org.apache.flink.runtime.state.KeyGroupRangeAssignment.DEFAULT_LOW
 /**
  * This {@link ExecNode} represents a change of partitioning of the input elements for stream.
  *
- * <p>TODO Remove this class once its functionality is replaced by ExecEdge.
+ * <p>TODO Remove this class once FLINK-21224 is finished.
  */
 public class StreamExecExchange extends CommonExecExchange implements StreamExecNode<RowData> {
 
@@ -53,7 +53,7 @@ public class StreamExecExchange extends CommonExecExchange implements StreamExec
     @Override
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
         final Transformation<RowData> inputTransform =
-                (Transformation<RowData>) getInputNodes().get(0).translateToPlan(planner);
+                (Transformation<RowData>) getInputEdges().get(0).translateToPlan(planner);
 
         final StreamPartitioner<RowData> partitioner;
         final int parallelism;

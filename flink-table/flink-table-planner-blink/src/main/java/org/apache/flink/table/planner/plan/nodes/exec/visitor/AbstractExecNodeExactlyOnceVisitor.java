@@ -43,6 +43,6 @@ public abstract class AbstractExecNodeExactlyOnceVisitor implements ExecNodeVisi
     protected abstract void visitNode(ExecNode<?> node);
 
     protected void visitInputs(ExecNode<?> node) {
-        node.getInputNodes().forEach(n -> n.accept(this));
+        node.getInputEdges().forEach(n -> n.getSource().accept(this));
     }
 }

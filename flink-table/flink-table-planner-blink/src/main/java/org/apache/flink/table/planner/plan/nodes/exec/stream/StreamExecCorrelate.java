@@ -48,7 +48,7 @@ public class StreamExecCorrelate extends CommonExecCorrelate implements StreamEx
                 invocation,
                 condition,
                 TableStreamOperator.class,
-                true,
+                true, // retainHeader
                 inputProperty,
                 outputType,
                 description);

@@ -52,7 +52,7 @@ public abstract class BatchExecOverAggregateBase extends ExecNodeBase<RowData>
     }
 
     protected RowType getInputTypeWithConstants() {
-        final RowType inputRowType = (RowType) getInputNodes().get(0).getOutputType();
+        final RowType inputRowType = (RowType) getInputEdges().get(0).getOutputType();
         final List<LogicalType> inputTypesWithConstants =
                 new ArrayList<>(inputRowType.getChildren());
         final List<String> inputTypeNamesWithConstants =
