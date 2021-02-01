@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -222,11 +223,20 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
                     // Otherwise this followup exception could race the original exception in
                     // failing the task.
                     try {
+                        Optional<CheckpointException> underlyingCheckpointException =
+                                ExceptionUtils.findThrowable(
+                                        checkpointException, CheckpointException.class);
+
+                        // If this failure is already a CheckpointException, do not overwrite the
+                        // original CheckpointFailureReason
+                        CheckpointFailureReason reportedFailureReason =
+                                underlyingCheckpointException
+                                        .map(exception -> exception.getCheckpointFailureReason())
+                                        .orElse(CheckpointFailureReason.CHECKPOINT_ASYNC_EXCEPTION);
                         taskEnvironment.declineCheckpoint(
                                 checkpointMetaData.getCheckpointId(),
                                 new CheckpointException(
-                                        CheckpointFailureReason.CHECKPOINT_ASYNC_EXCEPTION,
-                                        checkpointException));
+                                        reportedFailureReason, checkpointException));
                     } catch (Exception unhandled) {
                         AsynchronousException asyncException = new AsynchronousException(unhandled);
                         asyncExceptionHandler.handleAsyncException(
