@@ -157,6 +157,9 @@ under the License.
 		<japicmp.referenceVersion>1.12.0</japicmp.referenceVersion>
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
 		<spotless.version>2.4.2</spotless.version>
+
+		<!-- Can be set to any value to reproduce a specific build. -->
+		<test.randomization.seed>${git.commit.id}</test.randomization.seed>
 	</properties>
 
 	<dependencies>
@@ -1354,6 +1357,33 @@ under the License.
 			</plugin>
 
 			<plugin>
+				<!-- Description: https://github.com/git-commit-id/git-commit-id-maven-plugin
+					Used to show the git ref when starting the jobManager. -->
+				<groupId>pl.project13.maven</groupId>
+				<artifactId>git-commit-id-plugin</artifactId>
+				<version>4.0.2</version>
+				<executions>
+					<execution>
+						<id>get-the-git-infos</id>
+						<phase>validate</phase>
+						<goals>
+							<goal>revision</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<skipPoms>false</skipPoms>
+					<failOnNoGitDirectory>false</failOnNoGitDirectory>
+					<failOnUnableToExtractRepoInfo>false</failOnUnableToExtractRepoInfo>
+					<gitDescribe>
+						<!-- Don't generate the describe property -->
+						<!-- It is useless due to the way Flink does branches and tags -->
+						<skip>true</skip>
+					</gitDescribe>
+				</configuration>
+			</plugin>
+
+			<plugin>
 				<groupId>org.apache.rat</groupId>
 				<artifactId>apache-rat-plugin</artifactId>
 				<version>0.12</version><!--$NO-MVN-MAN-VER$-->
@@ -1557,8 +1587,10 @@ under the License.
 					<systemPropertyVariables>
 						<forkNumber>0${surefire.forkNumber}</forkNumber>
 						<hadoop.version>${hadoop.version}</hadoop.version>
-						<execution.checkpointing.unaligned>true</execution.checkpointing.unaligned>
+						<checkpointing.randomization>true</checkpointing.randomization>
 						<project.basedir>${project.basedir}</project.basedir>
+						<!--suppress MavenModelInspection -->
+						<test.randomization.seed>${test.randomization.seed}</test.randomization.seed>
 					</systemPropertyVariables>
 					<argLine>-Xms256m -Xmx2048m -Dmvn.forkNumber=${surefire.forkNumber} -XX:+UseG1GC</argLine>
 				</configuration>
@@ -1937,24 +1969,6 @@ under the License.
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-shade-plugin</artifactId>
 					<version>3.1.1</version>
-				</plugin>
-
-				<plugin>
-					<groupId>pl.project13.maven</groupId>
-					<artifactId>git-commit-id-plugin</artifactId>
-					<version>4.0.0</version>
-					<configuration>
-						<excludeProperties>
-							<excludeProperty>git.build.user.*</excludeProperty>
-							<excludeProperty>git.commit.user.*</excludeProperty>
-							<excludeProperty>git.branch.*</excludeProperty>
-							<excludeProperty>git.remote.*</excludeProperty>
-						</excludeProperties>
-
-						<!-- This is the same as the default date time format of this plugin.      -->
-						<!-- Because we want to parse the result we are fixing it to avoid problems. -->
-						<dateFormat>yyyy-MM-dd'T'HH:mm:ssZ</dateFormat>
-					</configuration>
 				</plugin>
 
 				<plugin>
