@@ -109,7 +109,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object> {
         final SinkNotNullEnforcer enforcer =
                 new SinkNotNullEnforcer(notNullEnforcer, notNullFieldIndices, fieldNames);
         final InternalTypeInfo<RowData> inputTypeInfo =
-                InternalTypeInfo.of(getInputNodes().get(0).getOutputType());
+                InternalTypeInfo.of(getInputEdges().get(0).getOutputType());
 
         if (runtimeProvider instanceof DataStreamSinkProvider) {
             if (runtimeProvider instanceof ParallelismProvider) {

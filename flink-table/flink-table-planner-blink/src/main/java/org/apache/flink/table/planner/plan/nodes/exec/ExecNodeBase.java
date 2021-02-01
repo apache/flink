@@ -41,9 +41,7 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
     private final String description;
     private final List<InputProperty> inputProperties;
     private final LogicalType outputType;
-    // TODO remove this field once edge support `source` and `target`,
-    //  and then we can get/set `inputNodes` through `inputEdges`.
-    private List<ExecNode<?>> inputNodes;
+    private List<ExecEdge> inputEdges;
 
     private transient Transformation<T> transformation;
 
@@ -65,27 +63,28 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
     }
 
     @Override
-    public List<ExecNode<?>> getInputNodes() {
-        checkNotNull(inputNodes, "inputNodes should not be null, please call setInputNodes first.");
-        return inputNodes;
-    }
-
-    @Override
     public List<InputProperty> getInputProperties() {
         return inputProperties;
     }
 
-    // TODO remove this method once edge support `source` and `target`,
-    //  and then we can get/set `inputNodes` through `inputEdges`.
-    public void setInputNodes(List<ExecNode<?>> inputNodes) {
-        checkArgument(checkNotNull(inputNodes).size() == inputProperties.size());
-        this.inputNodes = new ArrayList<>(inputNodes);
+    @Override
+    public List<ExecEdge> getInputEdges() {
+        return checkNotNull(
+                inputEdges,
+                "inputEdges should not null, please call `setInputEdges(List<ExecEdge>)` first.");
     }
 
     @Override
-    public void replaceInputNode(int ordinalInParent, ExecNode<?> newInputNode) {
-        checkArgument(ordinalInParent >= 0 && ordinalInParent < inputNodes.size());
-        inputNodes.set(ordinalInParent, newInputNode);
+    public void setInputEdges(List<ExecEdge> inputEdges) {
+        checkNotNull(inputEdges, "inputEdges should not be null.");
+        this.inputEdges = new ArrayList<>(inputEdges);
+    }
+
+    @Override
+    public void replaceInputEdge(int index, ExecEdge newInputEdge) {
+        List<ExecEdge> edges = getInputEdges();
+        checkArgument(index >= 0 && index < edges.size());
+        edges.set(index, newInputEdge);
     }
 
     public Transformation<T> translateToPlan(Planner planner) {
@@ -105,7 +104,8 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
 
     /** Whether there is singleton exchange node as input. */
     protected boolean inputsContainSingleton() {
-        return getInputNodes().stream()
+        return getInputEdges().stream()
+                .map(ExecEdge::getSource)
                 .anyMatch(
                         i ->
                                 i instanceof CommonExecExchange

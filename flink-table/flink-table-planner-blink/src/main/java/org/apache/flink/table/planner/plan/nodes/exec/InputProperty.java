@@ -21,6 +21,8 @@ package org.apache.flink.table.planner.plan.nodes.exec;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.Input;
 
+import java.util.Arrays;
+
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -70,6 +72,18 @@ public class InputProperty {
         return priority;
     }
 
+    @Override
+    public String toString() {
+        return "InputProperty{"
+                + "requiredDistribution="
+                + requiredDistribution
+                + ", damBehavior="
+                + damBehavior
+                + ", priority="
+                + priority
+                + '}';
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -117,6 +131,11 @@ public class InputProperty {
         public DistributionType getType() {
             return type;
         }
+
+        @Override
+        public String toString() {
+            return type.name();
+        }
     }
 
     /**
@@ -134,6 +153,11 @@ public class InputProperty {
 
         public int[] getKeys() {
             return keys;
+        }
+
+        @Override
+        public String toString() {
+            return "HASH" + Arrays.toString(keys);
         }
     }
 

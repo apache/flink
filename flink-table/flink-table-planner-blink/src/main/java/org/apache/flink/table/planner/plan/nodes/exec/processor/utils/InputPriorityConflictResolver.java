@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.processor.utils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecExchange;
@@ -67,8 +68,9 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
 
     @Override
     protected void resolveInputPriorityConflict(ExecNode<?> node, int higherInput, int lowerInput) {
-        ExecNode<?> higherNode = node.getInputNodes().get(higherInput);
-        ExecNode<?> lowerNode = node.getInputNodes().get(lowerInput);
+        ExecNode<?> higherNode = node.getInputEdges().get(higherInput).getSource();
+        ExecNode<?> lowerNode = node.getInputEdges().get(lowerInput).getSource();
+        final ExecNode<?> newNode;
         if (lowerNode instanceof BatchExecExchange) {
             BatchExecExchange exchange = (BatchExecExchange) lowerNode;
             InputProperty inputEdge = exchange.getInputProperties().get(0);
@@ -85,8 +87,8 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
                         new BatchExecExchange(
                                 inputProperty, (RowType) exchange.getOutputType(), "Exchange");
                 newExchange.setRequiredShuffleMode(shuffleMode);
-                newExchange.setInputNodes(exchange.getInputNodes());
-                node.replaceInputNode(lowerInput, newExchange);
+                newExchange.setInputEdges(exchange.getInputEdges());
+                newNode = newExchange;
             } else {
                 // create new BatchExecExchange with new inputProperty
                 BatchExecExchange newExchange =
@@ -95,12 +97,15 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
                                 (RowType) exchange.getOutputType(),
                                 exchange.getDescription());
                 newExchange.setRequiredShuffleMode(shuffleMode);
-                newExchange.setInputNodes(exchange.getInputNodes());
-                node.replaceInputNode(lowerInput, newExchange);
+                newExchange.setInputEdges(exchange.getInputEdges());
+                newNode = newExchange;
             }
         } else {
-            node.replaceInputNode(lowerInput, createExchange(node, lowerInput));
+            newNode = createExchange(node, lowerInput);
         }
+
+        ExecEdge newEdge = ExecEdge.builder().source(newNode).target(node).build();
+        node.replaceInputEdge(lowerInput, newEdge);
     }
 
     private boolean isConflictCausedByExchange(
@@ -113,7 +118,7 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
     }
 
     private BatchExecExchange createExchange(ExecNode<?> node, int idx) {
-        ExecNode<?> inputNode = node.getInputNodes().get(idx);
+        ExecNode<?> inputNode = node.getInputEdges().get(idx).getSource();
         InputProperty inputProperty = node.getInputProperties().get(idx);
         InputProperty.RequiredDistribution requiredDistribution =
                 inputProperty.getRequiredDistribution();
@@ -132,8 +137,9 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
         BatchExecExchange exchange =
                 new BatchExecExchange(
                         newInputProperty, (RowType) inputNode.getOutputType(), "Exchange");
-        exchange.setInputNodes(Collections.singletonList(inputNode));
         exchange.setRequiredShuffleMode(shuffleMode);
+        ExecEdge execEdge = ExecEdge.builder().source(inputNode).target(exchange).build();
+        exchange.setInputEdges(Collections.singletonList(execEdge));
         return exchange;
     }
 
@@ -152,8 +158,8 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
             if (node == exchange) {
                 found = true;
             }
-            for (ExecNode<?> inputNode : node.getInputNodes()) {
-                visit(inputNode);
+            for (ExecEdge inputEdge : node.getInputEdges()) {
+                visit(inputEdge.getSource());
                 if (found) {
                     return;
                 }

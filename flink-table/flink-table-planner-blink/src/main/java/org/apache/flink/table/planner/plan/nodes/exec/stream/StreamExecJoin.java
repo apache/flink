@@ -24,7 +24,7 @@ import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.JoinSpec;
@@ -73,16 +73,16 @@ public class StreamExecJoin extends ExecNodeBase<RowData> implements StreamExecN
     @Override
     @SuppressWarnings("unchecked")
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-        final TableConfig tableConfig = planner.getTableConfig();
+        final ExecEdge leftInputEdge = getInputEdges().get(0);
+        final ExecEdge rightInputEdge = getInputEdges().get(1);
 
-        final ExecNode<RowData> leftInput = (ExecNode<RowData>) getInputNodes().get(0);
-        final ExecNode<RowData> rightInput = (ExecNode<RowData>) getInputNodes().get(1);
+        final Transformation<RowData> leftTransform =
+                (Transformation<RowData>) leftInputEdge.translateToPlan(planner);
+        final Transformation<RowData> rightTransform =
+                (Transformation<RowData>) rightInputEdge.translateToPlan(planner);
 
-        final Transformation<RowData> leftTransform = leftInput.translateToPlan(planner);
-        final Transformation<RowData> rightTransform = rightInput.translateToPlan(planner);
-
-        final RowType leftType = (RowType) leftInput.getOutputType();
-        final RowType rightType = (RowType) rightInput.getOutputType();
+        final RowType leftType = (RowType) leftInputEdge.getOutputType();
+        final RowType rightType = (RowType) rightInputEdge.getOutputType();
         JoinUtil.validateJoinSpec(joinSpec, leftType, rightType, true);
 
         final int[] leftJoinKey = joinSpec.getLeftKeys();
@@ -96,6 +96,7 @@ public class StreamExecJoin extends ExecNodeBase<RowData> implements StreamExecN
         final JoinInputSideSpec rightInputSpec =
                 JoinUtil.analyzeJoinInput(rightTypeInfo, rightJoinKey, rightUniqueKeys);
 
+        final TableConfig tableConfig = planner.getTableConfig();
         GeneratedJoinCondition generatedCondition =
                 JoinUtil.generateConditionFunction(tableConfig, joinSpec, leftType, rightType);
 
