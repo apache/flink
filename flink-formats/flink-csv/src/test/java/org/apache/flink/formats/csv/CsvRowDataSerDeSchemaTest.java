@@ -300,24 +300,12 @@ public class CsvRowDataSerDeSchemaTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void testDeserializationWithDisableQuoteCharacter() throws Exception {
-        DataType dataType =
-                ROW(FIELD("f0", STRING()), FIELD("f1", STRING()), FIELD("f2", STRING()));
-        RowType rowType = (RowType) dataType.getLogicalType();
-        String csv = "BEGIN,\"abc,END";
-        Row expectedRow = Row.of("BEGIN", "\"abc", "END");
+        Consumer<CsvRowDataDeserializationSchema.Builder> deserConfig =
+                (deserSchemaBuilder) ->
+                        deserSchemaBuilder.disableQuoteCharacter().setFieldDelimiter(',');
 
-        // deserialization
-        CsvRowDataDeserializationSchema.Builder deserSchemaBuilder =
-                new CsvRowDataDeserializationSchema.Builder(rowType, InternalTypeInfo.of(rowType));
-        deserSchemaBuilder.disableQuoteCharacter();
-        RowData deserializedRow = deserialize(deserSchemaBuilder, csv);
-        Row actualRow =
-                (Row)
-                        DataFormatConverters.getConverterForDataType(dataType)
-                                .toExternal(deserializedRow);
-        assertEquals(expectedRow, actualRow);
+        testFieldDeserialization(STRING(), "\"abc", "\"abc", deserConfig, ",");
     }
 
     private void testNullableField(DataType fieldType, String string, Object value)
