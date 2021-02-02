@@ -111,12 +111,6 @@
             <td>The node selector to be set for JobManager pod. Specified as key:value pairs separated by commas. For example, environment:production,disk:ssd.</td>
         </tr>
         <tr>
-            <td><h5>kubernetes.jobmanager.owner.reference</h5></td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>List&lt;Map&gt;</td>
-            <td>The user-specified <a href="https://ci.apache.org/projects/flink/flink-docs-master/deployment/resource-providers/native_kubernetes.html#manual-resource-cleanup">Owner References</a> to be set to the JobManager Deployment. When all the owner resources are deleted, the JobManager Deployment will be deleted automatically, which also deletes all the resources created by this Flink cluster. The value should be formatted as a semicolon-separated list of owner references, where each owner reference is a comma-separated list of `key:value` pairs. E.g., apiVersion:v1,blockOwnerDeletion:true,controller:true,kind:FlinkApplication,name:flink-app-name,uid:flink-app-uid;apiVersion:v1,kind:Deployment,name:deploy-name,uid:deploy-uid</td>
-        </tr>
-        <tr>
             <td><h5>kubernetes.jobmanager.service-account</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
