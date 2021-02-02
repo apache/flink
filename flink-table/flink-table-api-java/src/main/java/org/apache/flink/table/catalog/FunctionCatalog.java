@@ -137,16 +137,6 @@ public final class FunctionCatalog {
         final ObjectIdentifier normalizedIdentifier =
                 FunctionIdentifier.normalizeObjectIdentifier(identifier);
 
-        try {
-            validateAndPrepareFunction(catalogFunction);
-        } catch (Throwable t) {
-            throw new ValidationException(
-                    String.format(
-                            "Could not register temporary catalog function '%s' due to implementation errors.",
-                            identifier.asSummaryString()),
-                    t);
-        }
-
         if (!tempCatalogFunctions.containsKey(normalizedIdentifier)) {
             Optional<TemporaryOperationListener> listener =
                     catalogManager.getTemporaryOperationListener(normalizedIdentifier);
@@ -155,6 +145,15 @@ public final class FunctionCatalog {
                         listener.get()
                                 .onCreateTemporaryFunction(
                                         normalizedIdentifier.toObjectPath(), catalogFunction);
+            }
+            try {
+                validateAndPrepareFunction(catalogFunction);
+            } catch (Throwable t) {
+                throw new ValidationException(
+                        String.format(
+                                "Could not register temporary catalog function '%s' due to implementation errors.",
+                                identifier.asSummaryString()),
+                        t);
             }
             tempCatalogFunctions.put(normalizedIdentifier, catalogFunction);
         } else if (!ignoreIfExists) {
@@ -169,23 +168,7 @@ public final class FunctionCatalog {
     public boolean dropTemporaryCatalogFunction(
             UnresolvedIdentifier unresolvedIdentifier, boolean ignoreIfNotExist) {
         final ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
-        final ObjectIdentifier normalizedIdentifier =
-                FunctionIdentifier.normalizeObjectIdentifier(identifier);
-        final CatalogFunction definition = tempCatalogFunctions.remove(normalizedIdentifier);
-
-        if (definition != null) {
-            catalogManager
-                    .getTemporaryOperationListener(identifier)
-                    .ifPresent(l -> l.onDropTemporaryFunction(normalizedIdentifier.toObjectPath()));
-            return true;
-        } else if (ignoreIfNotExist) {
-            return false;
-        } else {
-            throw new ValidationException(
-                    String.format(
-                            "Could not drop temporary catalog function. A function '%s' doesn't exist.",
-                            identifier.asSummaryString()));
-        }
+        return dropTempCatalogFunction(identifier, ignoreIfNotExist) != null;
     }
 
     /** Registers a catalog function by also considering temporary catalog functions. */
@@ -447,20 +430,25 @@ public final class FunctionCatalog {
      * @param identifier identifier of the function
      * @param ignoreIfNotExist Flag to specify behavior when the function does not exist: if set to
      *     false, throw an exception, if set to true, do nothing.
+     * @return the removed catalog function, which is null if function doesn't exist and
+     *     ignoreIfNotExist is true.
      */
-    public void dropTempCatalogFunction(ObjectIdentifier identifier, boolean ignoreIfNotExist) {
+    public CatalogFunction dropTempCatalogFunction(
+            ObjectIdentifier identifier, boolean ignoreIfNotExist) {
         ObjectIdentifier normalizedName = FunctionIdentifier.normalizeObjectIdentifier(identifier);
 
-        CatalogFunction fd = tempCatalogFunctions.remove(normalizedName);
+        CatalogFunction fd = tempCatalogFunctions.get(normalizedName);
 
         if (fd != null) {
             catalogManager
-                    .getTemporaryOperationListener(identifier)
+                    .getTemporaryOperationListener(normalizedName)
                     .ifPresent(l -> l.onDropTemporaryFunction(normalizedName.toObjectPath()));
+            tempCatalogFunctions.remove(normalizedName);
         } else if (!ignoreIfNotExist) {
             throw new ValidationException(
                     String.format("Temporary catalog function %s doesn't exist", identifier));
         }
+        return fd;
     }
 
     /**

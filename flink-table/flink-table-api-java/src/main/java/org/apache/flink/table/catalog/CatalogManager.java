@@ -702,10 +702,9 @@ public final class CatalogManager {
             boolean ignoreIfNotExists) {
         CatalogBaseTable catalogBaseTable = temporaryTables.get(objectIdentifier);
         if (filter.test(catalogBaseTable)) {
+            getTemporaryOperationListener(objectIdentifier)
+                    .ifPresent(l -> l.onDropTemporaryTable(objectIdentifier.toObjectPath()));
             temporaryTables.remove(objectIdentifier);
-            Optional<TemporaryOperationListener> listener =
-                    getTemporaryOperationListener(objectIdentifier);
-            listener.ifPresent(l -> l.onDropTemporaryTable(objectIdentifier.toObjectPath()));
         } else if (!ignoreIfNotExists) {
             throw new ValidationException(
                     String.format(
@@ -714,7 +713,7 @@ public final class CatalogManager {
         }
     }
 
-    public Optional<TemporaryOperationListener> getTemporaryOperationListener(
+    protected Optional<TemporaryOperationListener> getTemporaryOperationListener(
             ObjectIdentifier identifier) {
         return getCatalog(identifier.getCatalogName())
                 .map(

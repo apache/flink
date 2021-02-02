@@ -43,11 +43,12 @@ public interface TemporaryOperationListener {
             throws CatalogException;
 
     /**
-     * This method is called when a temporary table or view in this catalog has been dropped.
+     * This method is called when a temporary table or view in this catalog is to be dropped.
      *
-     * @param tablePath path of the table or view that has been dropped
+     * @param tablePath path of the table or view to be dropped
+     * @throws CatalogException in case of any runtime exception
      */
-    void onDropTemporaryTable(ObjectPath tablePath);
+    void onDropTemporaryTable(ObjectPath tablePath) throws CatalogException;
 
     /**
      * This method is called when a temporary function is to be created in this catalog. The catalog
@@ -63,9 +64,10 @@ public interface TemporaryOperationListener {
             throws CatalogException;
 
     /**
-     * This method is called when a temporary function in this catalog has been dropped.
+     * This method is called when a temporary function in this catalog is to be dropped.
      *
-     * @param functionPath path of the function that has been dropped
+     * @param functionPath path of the function to be dropped
+     * @throws CatalogException in case of any runtime exception
      */
-    void onDropTemporaryFunction(ObjectPath functionPath);
+    void onDropTemporaryFunction(ObjectPath functionPath) throws CatalogException;
 }
