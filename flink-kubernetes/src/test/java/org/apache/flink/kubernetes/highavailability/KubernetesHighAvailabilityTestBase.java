@@ -92,6 +92,8 @@ public class KubernetesHighAvailabilityTestBase extends TestLogger {
         final List<CompletableFuture<FlinkKubeClient.WatchCallbackHandler<KubernetesConfigMap>>>
                 configMapCallbackFutures = new ArrayList<>();
 
+        final List<TestingFlinkKubeClient.MockKubernetesWatch> configMapWatches = new ArrayList<>();
+
         final CompletableFuture<Map<String, String>> deleteConfigMapByLabelsFuture =
                 new CompletableFuture<>();
         final CompletableFuture<Void> closeKubeClientFuture = new CompletableFuture<>();
@@ -205,7 +207,10 @@ public class KubernetesHighAvailabilityTestBase extends TestLogger {
                                                 new TestingFlinkKubeClient.MockKubernetesConfigMap(
                                                         LEADER_CONFIGMAP_NAME)));
                                 configMapCallbackFutures.add(future);
-                                return new TestingFlinkKubeClient.MockKubernetesWatch();
+                                final TestingFlinkKubeClient.MockKubernetesWatch watch =
+                                        new TestingFlinkKubeClient.MockKubernetesWatch();
+                                configMapWatches.add(watch);
+                                return watch;
                             })
                     .setDeleteConfigMapFunction(
                             name -> {

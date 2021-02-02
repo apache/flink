@@ -26,6 +26,8 @@ import io.fabric8.kubernetes.client.Watcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static java.net.HttpURLConnection.HTTP_GONE;
+
 /** Watcher for resources in Kubernetes. */
 public abstract class AbstractKubernetesWatcher<
                 T extends HasMetadata, K extends KubernetesResource<T>>
@@ -45,7 +47,19 @@ public abstract class AbstractKubernetesWatcher<
         if (cause == null) {
             logger.info("The watcher is closing.");
         } else {
-            callbackHandler.handleFatalError(cause);
+            // Fabric8 Kubernetes client will directly close the watcher when received a HTTP_GONE
+            // status code, so this should be handled by the caller. Refer to
+            // https://github.com/fabric8io/kubernetes-client/blob/v4.9.2/kubernetes-client/src/main/java/io/fabric8/kubernetes/client/dsl/internal/WatchConnectionManager.java#L255
+            // for more information about the implementation.
+            if (cause.getCode() == HTTP_GONE) {
+                logger.debug(
+                        "Got a http code 'HTTP_GONE' which means the Kubernetes client has the "
+                                + "too old resource version.",
+                        cause);
+                callbackHandler.handleError(new KubernetesTooOldResourceVersionException(cause));
+            } else {
+                callbackHandler.handleError(cause);
+            }
         }
     }
 }

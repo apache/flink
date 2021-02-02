@@ -200,6 +200,6 @@ public interface FlinkKubeClient extends AutoCloseable {
 
         void onError(List<T> resources);
 
-        void handleFatalError(Throwable throwable);
+        void handleError(Throwable throwable);
     }
 }
