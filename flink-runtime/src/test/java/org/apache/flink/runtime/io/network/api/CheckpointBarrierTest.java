@@ -23,8 +23,6 @@ import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import static org.junit.Assert.fail;
 
@@ -55,16 +53,6 @@ public class CheckpointBarrierTest {
             fail("should throw an exception");
         } catch (UnsupportedOperationException e) {
             // expected
-        }
-    }
-
-    private static final Logger LOG = LoggerFactory.getLogger(CheckpointBarrierTest.class);
-
-    @Test
-    public void testStall() throws InterruptedException {
-        while (true) {
-            Thread.sleep(60000);
-            LOG.info("Still working");
         }
     }
 }
