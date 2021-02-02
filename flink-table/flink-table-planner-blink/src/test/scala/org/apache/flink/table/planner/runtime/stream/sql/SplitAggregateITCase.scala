@@ -390,6 +390,28 @@ class SplitAggregateITCase(
     val expected = List("1,1,50", "1,ALL,50")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
+
+  @Test
+  def testMultipleDistinctAggOnSameColumn(): Unit = {
+    val t1 = tEnv.sqlQuery(
+      s"""
+         |SELECT
+         |  a,
+         |  COUNT(DISTINCT b),
+         |  COUNT(DISTINCT b) filter (where not b = 2),
+         |  MAX(b) filter (where not b = 5),
+         |  MIN(b) filter (where not b = 2)
+         |FROM T
+         |GROUP BY a
+       """.stripMargin)
+
+    val sink = new TestingRetractSink
+    t1.toRetractStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = List("1,2,1,2,1", "2,4,3,4,3", "3,1,1,null,5", "4,2,2,6,5")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
 }
 
 object SplitAggregateITCase {
