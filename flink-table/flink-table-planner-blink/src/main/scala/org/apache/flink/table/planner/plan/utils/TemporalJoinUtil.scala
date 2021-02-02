@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.{isProctimeIndicatorType, isRowtimeIndicatorType}
-import org.apache.flink.table.planner.plan.nodes.exec.utils.JoinSpec
+import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec
 import org.apache.flink.util.Preconditions.checkState
 
 import org.apache.calcite.rel.core.JoinInfo

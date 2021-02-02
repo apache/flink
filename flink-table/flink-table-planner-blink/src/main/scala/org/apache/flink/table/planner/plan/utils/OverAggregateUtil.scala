@@ -20,8 +20,8 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.JArrayList
-import org.apache.flink.table.planner.plan.nodes.exec.utils.OverSpec.GroupSpec
-import org.apache.flink.table.planner.plan.nodes.exec.utils.{OverSpec, PartitionSpec}
+import org.apache.flink.table.planner.plan.nodes.exec.spec.OverSpec.GroupSpec
+import org.apache.flink.table.planner.plan.nodes.exec.spec.{OverSpec, PartitionSpec}
 
 import org.apache.calcite.rel.RelFieldCollation.{Direction, NullDirection}
 import org.apache.calcite.rel.core.Window

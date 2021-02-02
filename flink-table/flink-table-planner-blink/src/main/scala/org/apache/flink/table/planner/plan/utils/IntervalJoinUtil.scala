@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RelTimeIndicatorConverter}
 import org.apache.flink.table.planner.codegen._
-import org.apache.flink.table.planner.plan.nodes.exec.utils.IntervalJoinSpec.WindowBounds
+import org.apache.flink.table.planner.plan.nodes.exec.spec.IntervalJoinSpec.WindowBounds
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType
 
 import org.apache.calcite.plan.RelOptUtil

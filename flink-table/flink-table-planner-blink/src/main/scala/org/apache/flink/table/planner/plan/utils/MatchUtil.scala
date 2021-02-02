@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.planner.codegen.MatchCodeGenerator.ALL_PATTERN_VARIABLE
 import org.apache.flink.table.planner.plan.logical.MatchRecognize
-import org.apache.flink.table.planner.plan.nodes.exec.utils.{MatchSpec, PartitionSpec}
+import org.apache.flink.table.planner.plan.nodes.exec.spec.{MatchSpec, PartitionSpec}
 
 import org.apache.calcite.rex.{RexCall, RexNode, RexPatternFieldRef}
 

@@ -19,17 +19,18 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.calcite.Rank
+import org.apache.flink.table.planner.plan.nodes.exec.spec.PartitionSpec
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecRank
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.runtime.operators.rank._
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.`type`.RelDataTypeField
 import org.apache.calcite.util.ImmutableBitSet
-import java.util
 
-import org.apache.flink.table.planner.plan.nodes.exec.utils.PartitionSpec
+import java.util
 
 import scala.collection.JavaConversions._
 

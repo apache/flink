@@ -23,7 +23,7 @@ import org.apache.flink.table.data.{DecimalData, TimestampData}
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{ROW_DATA, SEGMENT, newName}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
-import org.apache.flink.table.planner.plan.nodes.exec.utils.SortSpec
+import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec
 import org.apache.flink.table.runtime.generated.{GeneratedNormalizedKeyComputer, GeneratedRecordComparator, NormalizedKeyComputer, RecordComparator}
 import org.apache.flink.table.runtime.operators.sort.SortUtil
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
