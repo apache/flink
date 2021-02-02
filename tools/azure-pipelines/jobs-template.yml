@@ -144,7 +144,7 @@ jobs:
       source ./tools/azure-pipelines/debug_files_utils.sh
       prepare_debug_files $(module)
       
-      ${{parameters.environment}} ./tools/ci/test_controller.sh $(module) ; TEST_EXIT_CODE=$?
+      ${{parameters.environment}} ./tools/azure-pipelines/e2e_uploading_watchdog.sh ./tools/ci/test_controller.sh $(module) ; TEST_EXIT_CODE=$?
     
       compress_debug_files
       exit $TEST_EXIT_CODE
