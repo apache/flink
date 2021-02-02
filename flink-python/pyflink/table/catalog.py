@@ -15,7 +15,6 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import warnings
 from typing import Dict, List, Optional
 
 from py4j.java_gateway import java_import
