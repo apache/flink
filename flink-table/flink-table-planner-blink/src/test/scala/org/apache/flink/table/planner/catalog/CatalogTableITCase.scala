@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.catalog
 
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, TableConfigOptions}
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
-import org.apache.flink.table.api.{DataTypes, EnvironmentSettings, TableEnvironment, ValidationException}
+import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment, ValidationException}
 import org.apache.flink.table.catalog.{CatalogDatabaseImpl, CatalogFunctionImpl, GenericInMemoryCatalog, ObjectPath}
 import org.apache.flink.table.planner.expressions.utils.Func0
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
@@ -29,7 +29,6 @@ import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 import org.apache.flink.util.FileUtils
-
 import org.junit.Assert.{assertEquals, assertTrue, fail}
 import org.junit.rules.ExpectedException
 import org.junit.runner.RunWith
@@ -1121,27 +1120,6 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     expectedProperty.put("k1", "a")
     expectedProperty.put("k2", "b")
     assertEquals(expectedProperty, database.getProperties)
-  }
-
-  @Test
-  def testFloatIn(): Unit = {
-    val source = tableEnv.fromValues(
-      DataTypes.ROW(
-        DataTypes.FIELD("f0", DataTypes.FLOAT()),
-        DataTypes.FIELD("f1", DataTypes.FLOAT()),
-        DataTypes.FIELD("f2", DataTypes.FLOAT())),
-      toRow(1.0f, 11.0f, 12.0f),
-      toRow(2.0f, 21.0f, 22.0f),
-      toRow(3.0f, 31.0f, 32.0f),
-      toRow(4.0f, 41.0f, 42.0f),
-      toRow(5.0f, 51.0f, 52.0f)
-    )
-    tableEnv.createTemporaryView("myTable", source)
-    val query =
-      """
-        |select * from myTable where f0 in (1.0, 2.0, 3.0)
-        |""".stripMargin
-    tableEnv.executeSql(query).collect()
   }
 }
 
