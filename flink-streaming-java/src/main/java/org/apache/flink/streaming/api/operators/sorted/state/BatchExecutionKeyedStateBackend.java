@@ -244,8 +244,8 @@ class BatchExecutionKeyedStateBackend<K> implements CheckpointableKeyedStateBack
 
     @Nonnull
     @Override
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    public <T extends HeapPriorityQueueElement & PriorityComparable & Keyed>
+    @SuppressWarnings({"unchecked"})
+    public <T extends HeapPriorityQueueElement & PriorityComparable<? super T> & Keyed<?>>
             KeyGroupedInternalPriorityQueue<T> create(
                     @Nonnull String stateName,
                     @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
