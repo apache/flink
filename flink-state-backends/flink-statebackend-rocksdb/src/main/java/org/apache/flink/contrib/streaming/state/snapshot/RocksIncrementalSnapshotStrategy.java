@@ -177,18 +177,12 @@ public class RocksIncrementalSnapshotStrategy<K>
             return registry -> SnapshotResult.empty();
         }
 
-        List<StateMetaInfoSnapshot> stateMetaInfoSnapshots =
-                snapshotResources.stateMetaInfoSnapshots;
-        if (stateMetaInfoSnapshots.isEmpty()) {
-            return snapshotCloseableRegistry -> SnapshotResult.empty();
-        }
-
         return new RocksDBIncrementalSnapshotOperation(
                 checkpointId,
                 checkpointStreamFactory,
                 snapshotResources.snapshotDirectory,
                 snapshotResources.baseSstFiles,
-                stateMetaInfoSnapshots);
+                snapshotResources.stateMetaInfoSnapshots);
     }
 
     @Override
