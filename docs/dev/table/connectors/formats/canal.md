@@ -190,6 +190,12 @@ metadata fields for its value format.
       <td>The timestamp at which the connector processed the event. Corresponds to the <code>ts</code>
       field in the Canal record.</td>
     </tr>
+    <tr>
+      <td><code>event-timestamp</code></td>
+      <td><code>TIMESTAMP(3) WITH LOCAL TIME ZONE NULL</code></td>
+      <td>The timestamp when the corresponding change was executed in MySQL server. Corresponds to the <code>es</code>
+      field in the Canal record.</td>
+    </tr>
     </tbody>
 </table>
 
@@ -204,9 +210,11 @@ CREATE TABLE KafkaTable (
   origin_sql_type MAP<STRING, INT> METADATA FROM 'value.sql-type' VIRTUAL,
   origin_pk_names ARRAY<STRING> METADATA FROM 'value.pk-names' VIRTUAL,
   origin_ts TIMESTAMP(3) METADATA FROM 'value.ingestion-timestamp' VIRTUAL,
+  origin_es TIMESTAMP(3) METADATA FROM 'value.event-timestamp' VIRTUAL,
   user_id BIGINT,
   item_id BIGINT,
-  behavior STRING
+  behavior STRING,
+  WATERMARK FOR origin_es AS origin_es - INTERVAL '5' SECOND
 ) WITH (
   'connector' = 'kafka',
   'topic' = 'user_behavior',
