@@ -20,6 +20,7 @@ package org.apache.flink.connectors.hive.read;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connectors.hive.ConsumeOrder;
+import org.apache.flink.connectors.hive.HiveTablePartition;
 import org.apache.flink.connectors.hive.JobConfWrapper;
 import org.apache.flink.connectors.hive.util.HiveConfUtils;
 import org.apache.flink.connectors.hive.util.HivePartitionUtils;
@@ -27,7 +28,6 @@ import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.data.TimestampData;
-import org.apache.flink.table.filesystem.PartitionFetcher;
 import org.apache.flink.table.filesystem.PartitionTimeExtractor;
 import org.apache.flink.table.types.DataType;
 
@@ -50,12 +50,8 @@ import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME
 import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_PARTITION_ORDER;
 import static org.apache.flink.table.utils.PartitionPathUtils.extractPartitionValues;
 
-/**
- * Base class for table partition fetcher context.
- *
- * @param <P> The type of partition.
- */
-public abstract class HivePartitionFetcherContextBase<P> implements PartitionFetcher.Context<P> {
+/** Base class for table partition fetcher context. */
+public abstract class HivePartitionFetcherContextBase<P> implements HivePartitionContext<P> {
 
     private static final long serialVersionUID = 1L;
     protected final ObjectPath tablePath;
@@ -209,5 +205,10 @@ public abstract class HivePartitionFetcherContextBase<P> implements PartitionFet
         if (this.metaStoreClient != null) {
             this.metaStoreClient.close();
         }
+    }
+
+    @Override
+    public HiveTablePartition toHiveTablePartition(P partition) {
+        return null;
     }
 }

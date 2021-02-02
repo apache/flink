@@ -18,6 +18,7 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
@@ -25,6 +26,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.PendingSplitsCheckpoint;
 import org.apache.flink.connector.file.src.assigners.FileSplitAssigner;
+import org.apache.flink.connectors.hive.read.HiveContinuousPartitionContext;
 import org.apache.flink.connectors.hive.read.HiveSourceSplit;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.filesystem.ContinuousPartitionFetcher;
@@ -184,7 +186,7 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>>
         private final ObjectPath tablePath;
         private final JobConf jobConf;
         private final ContinuousPartitionFetcher<Partition, T> fetcher;
-        private final HiveTableSource.HiveContinuousPartitionFetcherContext<T> fetcherContext;
+        private final HiveContinuousPartitionContext<Partition, T> fetcherContext;
 
         PartitionMonitor(
                 T currentReadOffset,
@@ -192,7 +194,7 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>>
                 ObjectPath tablePath,
                 JobConf jobConf,
                 ContinuousPartitionFetcher<Partition, T> fetcher,
-                HiveTableSource.HiveContinuousPartitionFetcherContext<T> fetcherContext) {
+                HiveContinuousPartitionContext<Partition, T> fetcherContext) {
             this.currentReadOffset = currentReadOffset;
             this.seenPartitionsSinceOffset = new HashSet<>(seenPartitionsSinceOffset);
             this.tablePath = tablePath;
@@ -249,9 +251,9 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>>
 
     /** The result passed from monitor thread to main thread. */
     static class NewSplitsAndState<T extends Comparable<T>> {
-        final T offset;
-        final Collection<List<String>> seenPartitions;
-        final Collection<HiveSourceSplit> newSplits;
+        private final T offset;
+        private final Collection<List<String>> seenPartitions;
+        private final Collection<HiveSourceSplit> newSplits;
 
         private NewSplitsAndState(
                 Collection<HiveSourceSplit> newSplits,
@@ -260,6 +262,11 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>>
             this.newSplits = newSplits;
             this.offset = offset;
             this.seenPartitions = new ArrayList<>(seenPartitions);
+        }
+
+        @VisibleForTesting
+        Collection<List<String>> getSeenPartitions() {
+            return seenPartitions;
         }
     }
 }

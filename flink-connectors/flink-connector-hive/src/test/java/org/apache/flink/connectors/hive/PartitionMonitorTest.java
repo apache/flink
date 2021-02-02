@@ -21,6 +21,7 @@ package org.apache.flink.connectors.hive;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connectors.hive.read.HiveContinuousPartitionContext;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.filesystem.ContinuousPartitionFetcher;
 import org.apache.flink.table.filesystem.PartitionFetcher;
@@ -29,12 +30,12 @@ import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.http.util.Asserts;
-import org.apache.thrift.TException;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,24 +49,25 @@ import static org.junit.Assert.assertTrue;
 /** Test for {@link ContinuousHiveSplitEnumerator.PartitionMonitor}. */
 public class PartitionMonitorTest {
 
-    private ContinuousHiveSplitEnumerator.PartitionMonitor partitionMonitor;
+    private ContinuousHiveSplitEnumerator.PartitionMonitor<Long> partitionMonitor;
     private List<Partition> testPartitionWithOffset = new ArrayList<>();
 
     @Test
     public void testPartitionWithSameCreateTime() throws Exception {
-        preparePartitionMonitor(0L);
+        preparePartitionMonitor();
         commitPartitionWithGivenCreateTime(Arrays.asList("p1=A1", "p2=B1"), 1);
         commitPartitionWithGivenCreateTime(Arrays.asList("p1=A1", "p2=B2"), 2);
         ContinuousHiveSplitEnumerator.NewSplitsAndState<Long> newSplitsAndState =
                 partitionMonitor.call();
         assertPartitionEquals(
                 Arrays.asList(Arrays.asList("p1=A1", "p2=B1"), Arrays.asList("p1=A1", "p2=B2")),
-                newSplitsAndState.seenPartitions);
+                newSplitsAndState.getSeenPartitions());
 
         commitPartitionWithGivenCreateTime(Arrays.asList("p1=A1", "p2=B3"), 3);
         newSplitsAndState = partitionMonitor.call();
         assertPartitionEquals(
-                Arrays.asList(Arrays.asList("p1=A1", "p2=B3")), newSplitsAndState.seenPartitions);
+                Collections.singletonList(Arrays.asList("p1=A1", "p2=B3")),
+                newSplitsAndState.getSeenPartitions());
 
         // check the partition with same create time can be monitored
         commitPartitionWithGivenCreateTime(Arrays.asList("p1=A1", "p2=B4"), 3);
@@ -73,29 +75,21 @@ public class PartitionMonitorTest {
         newSplitsAndState = partitionMonitor.call();
         assertPartitionEquals(
                 Arrays.asList(Arrays.asList("p1=A1", "p2=B4"), Arrays.asList("p1=A1", "p2=B5")),
-                newSplitsAndState.seenPartitions);
+                newSplitsAndState.getSeenPartitions());
     }
 
     private void assertPartitionEquals(
             Collection<List<String>> expected, Collection<List<String>> actual) {
         assertTrue(expected != null && actual != null && expected.size() == actual.size());
         assertArrayEquals(
-                expected.stream()
-                        .map(p -> p.toString())
-                        .sorted()
-                        .collect(Collectors.toList())
-                        .toArray(),
-                actual.stream()
-                        .map(p -> p.toString())
-                        .sorted()
-                        .collect(Collectors.toList())
-                        .toArray());
+                expected.stream().map(Object::toString).sorted().toArray(),
+                actual.stream().map(Object::toString).sorted().toArray());
     }
 
     private void commitPartitionWithGivenCreateTime(
             List<String> partitionValues, Integer createTime) {
         StorageDescriptor sd = new StorageDescriptor();
-        sd.setLocation("/test");
+        sd.setLocation("/tmp/test");
         Partition partition =
                 new Partition(
                         partitionValues, "testDb", "testTable", createTime, createTime, sd, null);
@@ -104,33 +98,16 @@ public class PartitionMonitorTest {
         testPartitionWithOffset.add(partition);
     }
 
-    private void preparePartitionMonitor(Long currentReadOffset) {
+    private void preparePartitionMonitor() {
         List<List<String>> seenPartitionsSinceOffset = new ArrayList<>();
         JobConf jobConf = new JobConf();
         Configuration configuration = new Configuration();
 
         ObjectPath tablePath = new ObjectPath("testDb", "testTable");
         configuration.setString("streaming-source.consume-order", "create-time");
-        HiveTableSource.HiveContinuousPartitionFetcherContext<Long> fetcherContext =
-                new HiveTableSource.HiveContinuousPartitionFetcherContext<Long>(
-                        null, null, null, null, null, null, configuration, null) {
 
-                    @Override
-                    public Optional<Partition> getPartition(List<String> partValues)
-                            throws TException {
-                        return super.getPartition(partValues);
-                    }
-
-                    @Override
-                    public ObjectPath getTablePath() {
-                        return super.getTablePath();
-                    }
-
-                    @Override
-                    public long getModificationTime(Partition partition, Long partitionOffset) {
-                        return super.getModificationTime(partition, partitionOffset);
-                    }
-
+        HiveContinuousPartitionContext<Partition, Long> fetcherContext =
+                new HiveContinuousPartitionContext<Partition, Long>() {
                     @Override
                     public HiveTablePartition toHiveTablePartition(Partition partition) {
                         StorageDescriptor sd = partition.getSd();
@@ -145,42 +122,51 @@ public class PartitionMonitorTest {
                     }
 
                     @Override
+                    public ObjectPath getTablePath() {
+                        return null;
+                    }
+
+                    @Override
                     public TypeSerializer<Long> getTypeSerializer() {
-                        return super.getTypeSerializer();
+                        return null;
                     }
 
                     @Override
                     public Long getConsumeStartOffset() {
-                        return super.getConsumeStartOffset();
+                        return null;
                     }
 
                     @Override
-                    public void close() throws Exception {
-                        super.close();
-                    }
+                    public void open() throws Exception {}
 
                     @Override
-                    public void open() throws Exception {
-                        super.open();
+                    public Optional<Partition> getPartition(List<String> partValues)
+                            throws Exception {
+                        return Optional.empty();
                     }
 
                     @Override
                     public List<ComparablePartitionValue> getComparablePartitionValueList()
                             throws Exception {
-                        return super.getComparablePartitionValueList();
+                        return null;
                     }
+
+                    @Override
+                    public void close() throws Exception {}
                 };
 
         ContinuousPartitionFetcher<Partition, Long> continuousPartitionFetcher =
                 new ContinuousPartitionFetcher<Partition, Long>() {
+
+                    private static final long serialVersionUID = 1L;
 
                     @Override
                     public List<Tuple2<Partition, Long>> fetchPartitions(
                             Context<Partition, Long> context, Long previousOffset)
                             throws Exception {
                         return testPartitionWithOffset.stream()
-                                .filter(p -> Long.valueOf(p.getCreateTime()) >= previousOffset)
-                                .map(p -> Tuple2.of(p, Long.valueOf(p.getCreateTime())))
+                                .filter(p -> (long) p.getCreateTime() >= previousOffset)
+                                .map(p -> Tuple2.of(p, (long) p.getCreateTime()))
                                 .collect(Collectors.toList());
                     }
 
@@ -192,8 +178,8 @@ public class PartitionMonitorTest {
                 };
 
         partitionMonitor =
-                new ContinuousHiveSplitEnumerator.PartitionMonitor(
-                        currentReadOffset,
+                new ContinuousHiveSplitEnumerator.PartitionMonitor<>(
+                        0L,
                         seenPartitionsSinceOffset,
                         tablePath,
                         jobConf,
