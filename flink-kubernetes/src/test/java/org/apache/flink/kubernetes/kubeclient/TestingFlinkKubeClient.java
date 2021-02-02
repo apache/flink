@@ -356,13 +356,20 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
 
     /** Testing implementation of {@link KubernetesWatch}. */
     public static class MockKubernetesWatch extends KubernetesWatch {
+        private boolean isClosed;
+
         public MockKubernetesWatch() {
             super(null);
+            this.isClosed = false;
         }
 
         @Override
         public void close() {
-            // noop
+            this.isClosed = true;
+        }
+
+        public boolean isClosed() {
+            return isClosed;
         }
     }
 

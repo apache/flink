@@ -18,38 +18,18 @@
 
 package org.apache.flink.kubernetes.kubeclient.resources;
 
-import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
+import org.apache.flink.util.FlinkException;
 
-import java.util.List;
+/** Kubernetes too old resource version exception. */
+public class KubernetesTooOldResourceVersionException extends FlinkException {
 
-/**
- * Empty implementation of {@link FlinkKubeClient.WatchCallbackHandler}.
- *
- * @param <T> Type of resource to be watched
- */
-public class NoOpWatchCallbackHandler<T> implements FlinkKubeClient.WatchCallbackHandler<T> {
-    @Override
-    public void onAdded(List<T> resources) {
-        // noop
+    private static final long serialVersionUID = 1L;
+
+    public KubernetesTooOldResourceVersionException(Throwable cause) {
+        super(cause);
     }
 
-    @Override
-    public void onModified(List<T> resources) {
-        // noop
-    }
-
-    @Override
-    public void onDeleted(List<T> resources) {
-        // noop
-    }
-
-    @Override
-    public void onError(List<T> resources) {
-        // noop
-    }
-
-    @Override
-    public void handleError(Throwable throwable) {
-        // noop
+    public KubernetesTooOldResourceVersionException(String message, Throwable cause) {
+        super(message, cause);
     }
 }
