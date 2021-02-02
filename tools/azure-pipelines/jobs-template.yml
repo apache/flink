@@ -142,14 +142,7 @@ jobs:
     displayName: Set coredump pattern
 
   # Test
-  - script: |
-      source ./tools/azure-pipelines/debug_files_utils.sh
-      prepare_debug_files $(module)
-      
-      ${{parameters.environment}} ./tools/ci/test_controller.sh $(module) ; TEST_EXIT_CODE=$?
-    
-      compress_debug_files
-      exit $TEST_EXIT_CODE
+  - script: ${{parameters.environment}} ./tools/azure-pipelines/uploading_watchdog.sh ./tools/ci/test_controller.sh $(module)
     displayName: Test - $(module)
     env:
       IT_CASE_S3_BUCKET: $(SECRET_S3_BUCKET)
@@ -163,11 +156,11 @@ jobs:
 
   # upload debug artifacts
   - task: PublishPipelineArtifact@1
-    condition: and(succeededOrFailed(), not(eq('$(DEBUG_FILES_OUTPUT_DIR)', '')))
+    condition: not(eq('$(DEBUG_FILES_OUTPUT_DIR)', ''))
     displayName: Upload Logs
     inputs:
       targetPath: $(DEBUG_FILES_OUTPUT_DIR)
-      artifact: logs-${{parameters.stage_name}}-$(DEBUG_FILES_NAME)
+      artifact: logs-$(DEBUG_FILES_NAME)
 
 - job: e2e_${{parameters.stage_name}}
   # uncomment below condition to run the e2e tests only on request.
@@ -220,26 +213,24 @@ jobs:
         ./tools/azure-pipelines/free_disk_space.sh
 
         echo "Installing required software"
-        sudo apt-get install -y bc moreutils
       displayName: Prepare E2E run
       condition: not(eq(variables['SKIP'], '1'))
     - script: ${{parameters.environment}} ./tools/ci/compile.sh
       displayName: Build Flink
       condition: not(eq(variables['SKIP'], '1'))
-    - script: ${{parameters.environment}} FLINK_DIR=`pwd`/build-target ./tools/azure-pipelines/e2e_uploading_watchdog.sh flink-end-to-end-tests/run-nightly-tests.sh
-      timeoutInMinutes: 250
+    - script: ${{parameters.environment}} FLINK_DIR=`pwd`/build-target ./tools/azure-pipelines/uploading_watchdog.sh flink-end-to-end-tests/run-nightly-tests.sh e2e
       displayName: Run e2e tests
       env:
         IT_CASE_S3_BUCKET: $(SECRET_S3_BUCKET)
         IT_CASE_S3_ACCESS_KEY: $(SECRET_S3_ACCESS_KEY)
         IT_CASE_S3_SECRET_KEY: $(SECRET_S3_SECRET_KEY)
-      condition: and(succeeded(),not(eq(variables['SKIP'], '1')))
+      condition: and(succeeded(), not(eq(variables['SKIP'], '1')))
       # upload debug artifacts
     - task: PublishPipelineArtifact@1
-      condition: and(succeededOrFailed(), not(eq(variables['SKIP'], '1')), not(eq(variables['ARTIFACT_DIR'], '')))
+      condition: and(not(eq(variables['SKIP'], '1')), not(eq(variables['DEBUG_FILES_OUTPUT_DIR'], '')))
       displayName: Upload Logs
       inputs:
-        targetPath: $(ARTIFACT_DIR)
-        artifact: logs-${{parameters.stage_name}}-e2e
-        
+        targetPath: $(DEBUG_FILES_OUTPUT_DIR)
+        artifact: logs-$(DEBUG_FILES_NAME)
+
 
