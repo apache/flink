@@ -21,7 +21,6 @@ package org.apache.flink.runtime.webmonitor;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.WebOptions;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.rest.handler.legacy.files.StaticFileServerHandler;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
@@ -40,7 +39,6 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.net.URI;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -220,33 +218,6 @@ public final class WebMonitorUtils {
         } catch (Exception e) {
             throw new RuntimeException(e.getMessage(), e);
         }
-    }
-
-    /**
-     * Checks and normalizes the given URI. This method first checks the validity of the URI (scheme
-     * and path are not null) and then normalizes the URI to a path.
-     *
-     * @param archiveDirUri The URI to check and normalize.
-     * @return A normalized URI as a Path.
-     * @throws IllegalArgumentException Thrown, if the URI misses scheme or path.
-     */
-    public static Path validateAndNormalizeUri(URI archiveDirUri) {
-        final String scheme = archiveDirUri.getScheme();
-        final String path = archiveDirUri.getPath();
-
-        // some validity checks
-        if (scheme == null) {
-            throw new IllegalArgumentException(
-                    "The scheme (hdfs://, file://, etc) is null. "
-                            + "Please specify the file system scheme explicitly in the URI.");
-        }
-        if (path == null) {
-            throw new IllegalArgumentException(
-                    "The path to store the job archive data in is null. "
-                            + "Please specify a directory path for the archiving the job data.");
-        }
-
-        return new Path(archiveDirUri);
     }
 
     /** Private constructor to prevent instantiation. */

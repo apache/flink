@@ -23,7 +23,6 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 
 import java.util.concurrent.CompletableFuture;
@@ -45,9 +44,7 @@ public interface HistoryServerArchivist {
         final String configuredArchivePath = configuration.getString(JobManagerOptions.ARCHIVE_DIR);
 
         if (configuredArchivePath != null) {
-            final Path archivePath =
-                    WebMonitorUtils.validateAndNormalizeUri(
-                            new Path(configuredArchivePath).toUri());
+            final Path archivePath = new Path(configuredArchivePath);
 
             return new JsonResponseHistoryServerArchivist(jsonArchivist, archivePath, ioExecutor);
         } else {
