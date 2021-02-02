@@ -74,6 +74,8 @@ public final class PythonDriver {
         GatewayServer gatewayServer = PythonEnvUtils.startGatewayServer();
         PythonEnvUtils.setGatewayServer(gatewayServer);
 
+        PythonEnvUtils.PythonProcessShutdownHook shutdownHook = null;
+
         // commands which will be exec in python progress.
         final List<String> commands = constructPythonCommands(pythonDriverOptions);
         try {
@@ -93,6 +95,11 @@ public final class PythonDriver {
                             pythonDriverOptions.getEntryPointScript().orElse(null),
                             tmpDir,
                             true);
+            shutdownHook =
+                    new PythonEnvUtils.PythonProcessShutdownHook(
+                            pythonProcess, gatewayServer, tmpDir);
+            Runtime.getRuntime().addShutdownHook(shutdownHook);
+
             BufferedReader in =
                     new BufferedReader(new InputStreamReader(pythonProcess.getInputStream()));
             LOG.info(
@@ -125,7 +132,9 @@ public final class PythonDriver {
             }
         } finally {
             PythonEnvUtils.setGatewayServer(null);
-            gatewayServer.shutdown();
+            if (Runtime.getRuntime().removeShutdownHook(shutdownHook)) {
+                shutdownHook.run();
+            }
         }
     }
 

@@ -29,8 +29,8 @@ import java.nio.file.Files;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
-import static org.apache.flink.client.python.PythonFunctionFactory.CHECK_INTERVAL;
-import static org.apache.flink.client.python.PythonFunctionFactory.TIMEOUT_MILLIS;
+import static org.apache.flink.client.python.PythonEnvUtils.CHECK_INTERVAL;
+import static org.apache.flink.client.python.PythonEnvUtils.TIMEOUT_MILLIS;
 
 /** The Py4j Gateway Server provides RPC service for user's python process. */
 public class PythonGatewayServer {

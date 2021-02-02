@@ -154,10 +154,10 @@ public class PythonFunctionFactoryTest {
         Field field = clazz.getDeclaredField("hooks");
         field.setAccessible(true);
         Map<Thread, Thread> hooks = (Map<Thread, Thread>) field.get(null);
-        PythonFunctionFactory.PythonProcessShutdownHook shutdownHook = null;
+        PythonEnvUtils.PythonProcessShutdownHook shutdownHook = null;
         for (Thread t : hooks.keySet()) {
-            if (t instanceof PythonFunctionFactory.PythonProcessShutdownHook) {
-                shutdownHook = (PythonFunctionFactory.PythonProcessShutdownHook) t;
+            if (t instanceof PythonEnvUtils.PythonProcessShutdownHook) {
+                shutdownHook = (PythonEnvUtils.PythonProcessShutdownHook) t;
                 break;
             }
         }
