@@ -38,7 +38,7 @@ import java.util.List;
  *   name STRING,
  *   amount INT,
  *   price DOUBLE,
- *   type STRING,
+ *   type STRING
  * )
  * }</pre>
  *
@@ -46,14 +46,14 @@ import java.util.List;
  *
  * <pre>{@code
  * SELECT
- *   sum(amount),
- *   max(price),
- *   avg(price),
- *   count(1),
+ *   SUM(amount),
+ *   MAX(price),
+ *   AVG(price),
+ *   COUNT(1),
  *   name,
  *   type
  * FROM inventory
- *   group by name, type
+ * GROUP BY name, type
  * }</pre>
  *
  * <p>In the example above, {@code sum(amount), max(price), avg(price), count(1)} and {@code group
@@ -100,11 +100,11 @@ import java.util.List;
  *
  * <pre>{@code
  * SELECT
- *   sum(amount) FILTER(where amount > 0),
+ *   SUM(amount) FILTER(WHERE amount > 0),
  *   name,
- *   type,
+ *   type
  * FROM inventory
- *   group by name, type
+ * GROUP BY name, type
  * }</pre>
  *
  * <p>Since there is a filter after the sum aggregate function. And the optimized plan as shown below.
@@ -141,7 +141,9 @@ public interface SupportsAggregatePushDown {
      * The passed data type pattern is {@code grouping sets} + {@code aggregate function result},
      * downstream storage need to organize the returned aggregate data strictly in this manner.
      *
-     * @param groupingSets a array list of the grouping sets.
+     * @param groupingSets a array list of the grouping sets. In the example mentioned in
+     *     {@link SupportsAggregatePushDown}, this method would receive the groupingSets of
+     *     {code List([1, 4]) which is equivalent to {@code List(["name", "type"])}.
      * @param aggregateExpressions a list contains all of aggregates, you should check if all of
      *     aggregate functions can be processed by downstream system. The applying strategy is all
      *     or nothing.
