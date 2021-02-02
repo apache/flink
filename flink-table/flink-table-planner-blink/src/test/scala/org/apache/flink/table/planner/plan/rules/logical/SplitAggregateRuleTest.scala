@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.Test
 
-/**
+/**IncrementalAggregateTest
   * Test for [[SplitAggregateRule]].
   */
 class SplitAggregateRuleTest extends TableTestBase {
@@ -166,6 +166,24 @@ class SplitAggregateRuleTest extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration.setInteger(
       OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_BUCKET_NUM, 100)
     val sqlQuery = "SELECT COUNT(DISTINCT c) FROM MyTable"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testMultipleDistinctAggOnSameColumn(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+    val sqlQuery =
+      s"""
+         |SELECT
+         |  a,
+         |  COUNT(DISTINCT b),
+         |  COUNT(DISTINCT b) FILTER(WHERE b <> 5),
+         |  SUM(b),
+         |  AVG(b)
+         |FROM MyTable
+         |GROUP BY a
+         |""".stripMargin
     util.verifyRelPlan(sqlQuery)
   }
 }

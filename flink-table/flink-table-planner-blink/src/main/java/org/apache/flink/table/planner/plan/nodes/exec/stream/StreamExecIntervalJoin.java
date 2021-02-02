@@ -32,7 +32,7 @@ import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.IntervalJoinSpec;
@@ -76,13 +76,15 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
     @Override
     @SuppressWarnings("unchecked")
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-        ExecNode<RowData> leftInput = (ExecNode<RowData>) getInputNodes().get(0);
-        ExecNode<RowData> rightInput = (ExecNode<RowData>) getInputNodes().get(1);
+        ExecEdge leftInputEdge = getInputEdges().get(0);
+        ExecEdge rightInputEdge = getInputEdges().get(1);
 
-        RowType leftRowType = (RowType) leftInput.getOutputType();
-        RowType rightRowType = (RowType) rightInput.getOutputType();
-        Transformation<RowData> leftInputTransform = leftInput.translateToPlan(planner);
-        Transformation<RowData> rightInputTransform = rightInput.translateToPlan(planner);
+        RowType leftRowType = (RowType) leftInputEdge.getOutputType();
+        RowType rightRowType = (RowType) rightInputEdge.getOutputType();
+        Transformation<RowData> leftInputTransform =
+                (Transformation<RowData>) leftInputEdge.translateToPlan(planner);
+        Transformation<RowData> rightInputTransform =
+                (Transformation<RowData>) rightInputEdge.translateToPlan(planner);
 
         RowType returnType = (RowType) getOutputType();
         InternalTypeInfo<RowData> returnTypeInfo = InternalTypeInfo.of(returnType);
@@ -164,6 +166,7 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
 
     private static class FilterAllFlatMapFunction
             implements FlatMapFunction<RowData, RowData>, ResultTypeQueryable<RowData> {
+        private static final long serialVersionUID = 1L;
 
         private final InternalTypeInfo<RowData> outputTypeInfo;
 
@@ -182,6 +185,7 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
 
     private static class PaddingLeftMapFunction
             implements MapFunction<RowData, RowData>, ResultTypeQueryable<RowData> {
+        private static final long serialVersionUID = 1L;
 
         private final OuterJoinPaddingUtil paddingUtil;
         private final InternalTypeInfo<RowData> outputTypeInfo;
@@ -205,6 +209,7 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
 
     private static class PaddingRightMapFunction
             implements MapFunction<RowData, RowData>, ResultTypeQueryable<RowData> {
+        private static final long serialVersionUID = 1L;
 
         private final OuterJoinPaddingUtil paddingUtil;
         private final InternalTypeInfo<RowData> outputTypeInfo;

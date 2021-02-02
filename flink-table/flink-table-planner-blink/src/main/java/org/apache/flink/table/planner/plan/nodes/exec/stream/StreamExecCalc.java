@@ -35,6 +35,12 @@ public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<Row
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(calcProgram, TableStreamOperator.class, true, inputProperty, outputType, description);
+        super(
+                calcProgram,
+                TableStreamOperator.class,
+                true, // retainHeader
+                inputProperty,
+                outputType,
+                description);
     }
 }

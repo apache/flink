@@ -31,6 +31,6 @@ public class ExecNodeVisitorImpl implements ExecNodeVisitor {
     }
 
     protected void visitInputs(ExecNode<?> node) {
-        node.getInputNodes().forEach(n -> n.accept(this));
+        node.getInputEdges().forEach(n -> n.getSource().accept(this));
     }
 }

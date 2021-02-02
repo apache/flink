@@ -299,6 +299,15 @@ public class CsvRowDataSerDeSchemaTest {
         testSerDeConsistency(nullRow, serSchemaBuilder, deserSchemaBuilder);
     }
 
+    @Test
+    public void testDeserializationWithDisableQuoteCharacter() throws Exception {
+        Consumer<CsvRowDataDeserializationSchema.Builder> deserConfig =
+                (deserSchemaBuilder) ->
+                        deserSchemaBuilder.disableQuoteCharacter().setFieldDelimiter(',');
+
+        testFieldDeserialization(STRING(), "\"abc", "\"abc", deserConfig, ",");
+    }
+
     private void testNullableField(DataType fieldType, String string, Object value)
             throws Exception {
         testField(

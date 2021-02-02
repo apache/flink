@@ -23,6 +23,7 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -107,10 +108,11 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
                     protected void visitNode(ExecNode<?> node) {
                         ExecNodeWrapper wrapper =
                                 wrapperMap.computeIfAbsent(node, k -> new ExecNodeWrapper(node));
-                        for (ExecNode<?> input : node.getInputNodes()) {
+                        for (ExecEdge inputEdge : node.getInputEdges()) {
+                            ExecNode<?> inputNode = inputEdge.getSource();
                             ExecNodeWrapper inputWrapper =
                                     wrapperMap.computeIfAbsent(
-                                            input, k -> new ExecNodeWrapper(input));
+                                            inputNode, k -> new ExecNodeWrapper(inputNode));
                             wrapper.inputs.add(inputWrapper);
                             inputWrapper.outputs.add(wrapper);
                         }
@@ -465,8 +467,10 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
         }
 
         for (int i = 0; i < wrapper.inputs.size(); i++) {
-            wrapper.execNode.replaceInputNode(
-                    i, getMultipleInputNode(wrapper.inputs.get(i), visitedMap));
+            ExecNode<?> multipleInputNode = getMultipleInputNode(wrapper.inputs.get(i), visitedMap);
+            ExecEdge execEdge =
+                    ExecEdge.builder().source(multipleInputNode).target(wrapper.execNode).build();
+            wrapper.execNode.replaceInputEdge(i, execEdge);
         }
 
         ExecNode<?> ret;
@@ -523,7 +527,12 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
                                 .collect(Collectors.toList()),
                         rootNode,
                         description);
-        multipleInput.setInputNodes(inputNodes);
+
+        List<ExecEdge> inputEdges = new ArrayList<>(inputNodes.size());
+        for (ExecNode<?> inputNode : inputNodes) {
+            inputEdges.add(ExecEdge.builder().source(inputNode).target(multipleInput).build());
+        }
+        multipleInput.setInputEdges(inputEdges);
         return multipleInput;
     }
 
@@ -559,7 +568,12 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
                 ExecNodeUtil.getMultipleInputDescription(rootNode, inputNodes, inputProperties);
         BatchExecMultipleInput multipleInput =
                 new BatchExecMultipleInput(inputProperties, rootNode, description);
-        multipleInput.setInputNodes(inputNodes);
+
+        List<ExecEdge> inputEdges = new ArrayList<>(inputNodes.size());
+        for (ExecNode<?> inputNode : inputNodes) {
+            inputEdges.add(ExecEdge.builder().source(inputNode).target(multipleInput).build());
+        }
+        multipleInput.setInputEdges(inputEdges);
         return multipleInput;
     }
 

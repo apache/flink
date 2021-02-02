@@ -26,7 +26,7 @@ import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.common.typeinfo.Types.INSTANT
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.{DataTypes, ValidationException}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.{DecimalDataUtils, TimestampData}
 import org.apache.flink.table.data.util.DataFormatConverters.LocalDateConverter
@@ -42,6 +42,8 @@ import org.apache.flink.table.planner.utils.DateTimeTestUtil
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
 import org.apache.flink.types.Row
+import org.apache.flink.util.CollectionUtil
+
 import org.junit.Assert.assertEquals
 import org.junit._
 
@@ -1307,6 +1309,35 @@ class CalcITCase extends BatchTestBase {
       Seq(row(1, "HI", 1111, true, 111),
         row(2, "HELLO", 2222, false, 222),
         row(3, "HELLO WORLD", 3333, true, 333))
+    )
+  }
+
+  @Test
+  def testFloatIn(): Unit = {
+    val source = tEnv.fromValues(
+      DataTypes.ROW(
+        DataTypes.FIELD("f0", DataTypes.FLOAT()),
+        DataTypes.FIELD("f1", DataTypes.FLOAT()),
+        DataTypes.FIELD("f2", DataTypes.FLOAT())),
+      row(1.0f, 11.0f, 12.0f),
+      row(2.0f, 21.0f, 22.0f),
+      row(3.0f, 31.0f, 32.0f),
+      row(4.0f, 41.0f, 42.0f),
+      row(5.0f, 51.0f, 52.0f)
+    )
+
+    tEnv.createTemporaryView("myTable", source)
+
+    val query = """
+                  |select * from myTable where f0 in (1.0, 2.0, 3.0)
+                  |""".stripMargin;
+
+    checkResult(
+      query,
+      Seq(
+        row(1.0f, 11.0f, 12.0f),
+        row(2.0f, 21.0f, 22.0f),
+        row(3.0f, 31.0f, 32.0f))
     )
   }
 

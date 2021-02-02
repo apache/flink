@@ -28,7 +28,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.SortSpec;
@@ -75,15 +75,16 @@ public class StreamExecSort extends ExecNodeBase<RowData> implements StreamExecN
             throw new TableException("Sort on a non-time-attribute field is not supported.");
         }
 
-        ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
-        RowType inputType = (RowType) inputNode.getOutputType();
+        ExecEdge inputEdge = getInputEdges().get(0);
+        RowType inputType = (RowType) inputEdge.getOutputType();
         // sort code gen
         GeneratedRecordComparator rowComparator =
                 ComparatorCodeGenerator.gen(
                         config, "StreamExecSortComparator", inputType, sortSpec);
         StreamSortOperator sortOperator =
                 new StreamSortOperator(InternalTypeInfo.of(inputType), rowComparator);
-        Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
+        Transformation<RowData> inputTransform =
+                (Transformation<RowData>) inputEdge.translateToPlan(planner);
 
         Transformation<RowData> transform =
                 new OneInputTransformation<>(

@@ -162,7 +162,7 @@ public class InputOrderCalculator extends InputPriorityGraphGenerator {
                         .stricterOrEqual(InputProperty.DamBehavior.END_INPUT)) {
                     continue;
                 }
-                visit(node.getInputNodes().get(i));
+                visit(node.getInputEdges().get(i).getSource());
                 if (res) {
                     return;
                 }

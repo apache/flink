@@ -248,13 +248,15 @@ public class KafkaChangelogTableITCase extends KafkaTestBaseWithFlink {
                                 + " origin_sql_type MAP<STRING, INT> METADATA FROM 'value.sql-type' VIRTUAL,"
                                 + " origin_pk_names ARRAY<STRING> METADATA FROM 'value.pk-names' VIRTUAL,"
                                 + " origin_ts TIMESTAMP(3) METADATA FROM 'value.ingestion-timestamp' VIRTUAL,"
+                                + " origin_es TIMESTAMP(3) METADATA FROM 'value.event-timestamp' VIRTUAL,"
                                 + " id INT NOT NULL,"
                                 + " name STRING,"
                                 + " description STRING,"
                                 + " weight DECIMAL(10,3),"
                                 // test connector metadata
                                 + " origin_topic STRING METADATA FROM 'topic' VIRTUAL,"
-                                + " origin_partition STRING METADATA FROM 'partition' VIRTUAL" // unused
+                                + " origin_partition STRING METADATA FROM 'partition' VIRTUAL," // unused
+                                + " WATERMARK FOR origin_es AS origin_es - INTERVAL '5' SECOND"
                                 + ") WITH ("
                                 + " 'connector' = 'kafka',"
                                 + " 'topic' = '%s',"
@@ -271,6 +273,7 @@ public class KafkaChangelogTableITCase extends KafkaTestBaseWithFlink {
                         + " origin_sql_type MAP<STRING, INT>,"
                         + " origin_pk_names ARRAY<STRING>,"
                         + " origin_ts TIMESTAMP(3),"
+                        + " origin_es TIMESTAMP(3),"
                         + " name STRING,"
                         + " PRIMARY KEY (name) NOT ENFORCED"
                         + ") WITH ("
@@ -283,7 +286,7 @@ public class KafkaChangelogTableITCase extends KafkaTestBaseWithFlink {
                 tEnv.executeSql(
                         "INSERT INTO sink "
                                 + "SELECT origin_topic, origin_database, origin_table, origin_sql_type, "
-                                + "origin_pk_names, origin_ts, name "
+                                + "origin_pk_names, origin_ts, origin_es, name "
                                 + "FROM canal_source");
 
         /*
@@ -336,11 +339,11 @@ public class KafkaChangelogTableITCase extends KafkaTestBaseWithFlink {
 
         List<String> expected =
                 Arrays.asList(
-                        "+I[changelog_canal, inventory, products2, {name=12, weight=7, description=12, id=4}, [id], 2020-05-13T12:38:35.477, spare tire]",
-                        "+I[changelog_canal, inventory, products2, {name=12, weight=7, description=12, id=4}, [id], 2020-05-13T12:39:06.301, hammer]",
-                        "+I[changelog_canal, inventory, products2, {name=12, weight=7, description=12, id=4}, [id], 2020-05-13T12:39:09.489, rocks]",
-                        "+I[changelog_canal, inventory, products2, {name=12, weight=7, description=12, id=4}, [id], 2020-05-13T12:39:18.230, jacket]",
-                        "+I[changelog_canal, inventory, products2, {name=12, weight=7, description=12, id=4}, [id], 2020-05-13T12:42:33.939, scooter]");
+                        "+I[changelog_canal, inventory, products2, {name=12, weight=7, description=12, id=4}, [id], 2020-05-13T12:38:35.477, 2020-05-13T12:38:35, spare tire]",
+                        "+I[changelog_canal, inventory, products2, {name=12, weight=7, description=12, id=4}, [id], 2020-05-13T12:39:06.301, 2020-05-13T12:39:06, hammer]",
+                        "+I[changelog_canal, inventory, products2, {name=12, weight=7, description=12, id=4}, [id], 2020-05-13T12:39:09.489, 2020-05-13T12:39:09, rocks]",
+                        "+I[changelog_canal, inventory, products2, {name=12, weight=7, description=12, id=4}, [id], 2020-05-13T12:39:18.230, 2020-05-13T12:39:18, jacket]",
+                        "+I[changelog_canal, inventory, products2, {name=12, weight=7, description=12, id=4}, [id], 2020-05-13T12:42:33.939, 2020-05-13T12:42:33, scooter]");
 
         waitingExpectedResults("sink", expected, Duration.ofSeconds(10));
 

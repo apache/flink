@@ -109,6 +109,7 @@ public class CanalJsonSerDeSchemaTest {
                     assertThat(row.getMap(6).size(), equalTo(4));
                     assertThat(row.getArray(7).getString(0).toString(), equalTo("id"));
                     assertThat(row.getTimestamp(8, 3).getMillisecond(), equalTo(1589373515477L));
+                    assertThat(row.getTimestamp(9, 3).getMillisecond(), equalTo(1589373515000L));
                 });
         testDeserializationWithMetadata(
                 "canal-data-filter-table.txt",
@@ -124,6 +125,7 @@ public class CanalJsonSerDeSchemaTest {
                     assertThat(row.getMap(6).size(), equalTo(4));
                     assertThat(row.getArray(7).getString(0).toString(), equalTo("id"));
                     assertThat(row.getTimestamp(8, 3).getMillisecond(), equalTo(1598944146308L));
+                    assertThat(row.getTimestamp(9, 3).getMillisecond(), equalTo(1598944132000L));
                 });
     }
 
