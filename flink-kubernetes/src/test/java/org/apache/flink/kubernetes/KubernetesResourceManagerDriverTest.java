@@ -143,7 +143,7 @@ public class KubernetesResourceManagerDriverTest
                 runTest(
                         () -> {
                             final Throwable testingError = new Throwable("testing error");
-                            getPodCallbackHandler().handleFatalError(testingError);
+                            getPodCallbackHandler().handleError(testingError);
                             assertThat(
                                     onErrorFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
                                     is(testingError));
