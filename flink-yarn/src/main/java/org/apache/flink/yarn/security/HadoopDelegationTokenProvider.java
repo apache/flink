@@ -22,28 +22,25 @@ import org.apache.flink.configuration.Configuration;
 
 import org.apache.hadoop.security.Credentials;
 
-/**
- * Hadoop delegation token provider.
- */
+/** Hadoop delegation token provider. */
 public interface HadoopDelegationTokenProvider {
 
-    /**
-     * Name of the service to provide delegation tokens. This name should be unique.
-     */
+    /** Name of the service to provide delegation tokens. This name should be unique. */
     String serviceName();
 
     /**
      * Return true if delegation tokens are required for this service.
+     *
      * @param flinkConf Flink configuration
      * @param hadoopConf Hadoop configuration
      * @return true if delegation tokens are required
      */
     boolean delegationTokensRequired(
-            Configuration flinkConf,
-            org.apache.hadoop.conf.Configuration hadoopConf);
+            Configuration flinkConf, org.apache.hadoop.conf.Configuration hadoopConf);
 
     /**
      * Obtain delegation tokens for this service
+     *
      * @param flinkConf Flink configuration
      * @param hadoopConf Hadoop configuration
      * @param credentials Credentials to add tokens and security keys to.
