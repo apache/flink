@@ -20,6 +20,7 @@ package org.apache.flink.kubernetes.highavailability;
 
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesTooOldResourceVersionException;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesWatch;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalDriver;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalEventHandler;
@@ -28,6 +29,8 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.concurrent.GuardedBy;
 
 import java.util.List;
 
@@ -46,22 +49,27 @@ public class KubernetesLeaderRetrievalDriver implements LeaderRetrievalDriver {
     private static final Logger LOG =
             LoggerFactory.getLogger(KubernetesLeaderRetrievalDriver.class);
 
+    private final Object watchLock = new Object();
+
+    private final FlinkKubeClient kubeClient;
+
     private final String configMapName;
 
     private final LeaderRetrievalEventHandler leaderRetrievalEventHandler;
 
-    private final KubernetesWatch kubernetesWatch;
-
     private final FatalErrorHandler fatalErrorHandler;
 
     private volatile boolean running;
+
+    @GuardedBy("watchLock")
+    private KubernetesWatch kubernetesWatch;
 
     public KubernetesLeaderRetrievalDriver(
             FlinkKubeClient kubeClient,
             String configMapName,
             LeaderRetrievalEventHandler leaderRetrievalEventHandler,
             FatalErrorHandler fatalErrorHandler) {
-        checkNotNull(kubeClient, "Kubernetes client");
+        this.kubeClient = checkNotNull(kubeClient, "Kubernetes client");
         this.configMapName = checkNotNull(configMapName, "ConfigMap name");
         this.leaderRetrievalEventHandler =
                 checkNotNull(leaderRetrievalEventHandler, "LeaderRetrievalEventHandler");
@@ -81,7 +89,12 @@ public class KubernetesLeaderRetrievalDriver implements LeaderRetrievalDriver {
         running = false;
 
         LOG.info("Stopping {}.", this);
-        kubernetesWatch.close();
+
+        synchronized (watchLock) {
+            if (kubernetesWatch != null) {
+                kubernetesWatch.close();
+            }
+        }
     }
 
     private class ConfigMapCallbackHandlerImpl
@@ -114,10 +127,24 @@ public class KubernetesLeaderRetrievalDriver implements LeaderRetrievalDriver {
         }
 
         @Override
-        public void handleFatalError(Throwable throwable) {
-            fatalErrorHandler.onFatalError(
-                    new LeaderRetrievalException(
-                            "Error while watching the ConfigMap " + configMapName));
+        public void handleError(Throwable throwable) {
+            if (throwable instanceof KubernetesTooOldResourceVersionException) {
+                synchronized (watchLock) {
+                    if (running) {
+                        if (kubernetesWatch != null) {
+                            kubernetesWatch.close();
+                        }
+                        LOG.info("Creating a new watch on ConfigMap {}.", configMapName);
+                        kubernetesWatch =
+                                kubeClient.watchConfigMaps(
+                                        configMapName, new ConfigMapCallbackHandlerImpl());
+                    }
+                }
+            } else {
+                fatalErrorHandler.onFatalError(
+                        new LeaderRetrievalException(
+                                "Error while watching the ConfigMap " + configMapName, throwable));
+            }
         }
     }
 
