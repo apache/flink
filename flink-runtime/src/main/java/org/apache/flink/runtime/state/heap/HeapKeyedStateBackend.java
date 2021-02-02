@@ -157,13 +157,13 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
     @SuppressWarnings("unchecked")
     @Nonnull
     @Override
-    public <T extends HeapPriorityQueueElement & PriorityComparable & Keyed>
+    public <T extends HeapPriorityQueueElement & PriorityComparable<? super T> & Keyed<?>>
             KeyGroupedInternalPriorityQueue<T> create(
                     @Nonnull String stateName,
                     @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
 
-        final HeapPriorityQueueSnapshotRestoreWrapper existingState =
-                registeredPQStates.get(stateName);
+        final HeapPriorityQueueSnapshotRestoreWrapper<T> existingState =
+                (HeapPriorityQueueSnapshotRestoreWrapper<T>) registeredPQStates.get(stateName);
 
         if (existingState != null) {
             // TODO we implement the simple way of supporting the current functionality, mimicking
@@ -197,7 +197,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
     }
 
     @Nonnull
-    private <T extends HeapPriorityQueueElement & PriorityComparable & Keyed>
+    private <T extends HeapPriorityQueueElement & PriorityComparable<? super T> & Keyed<?>>
             KeyGroupedInternalPriorityQueue<T> createInternal(
                     RegisteredPriorityQueueStateBackendMetaInfo<T> metaInfo) {
 
