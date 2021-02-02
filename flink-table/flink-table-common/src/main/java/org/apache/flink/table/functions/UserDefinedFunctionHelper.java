@@ -204,7 +204,7 @@ public final class UserDefinedFunctionHelper {
                     }
                     return (UserDefinedFunction)
                             PythonFunctionUtils.getPythonFunction(
-                                    catalogFunction.getClassName(), config);
+                                    catalogFunction.getClassName(), config, classLoader);
                 case JAVA:
                 case SCALA:
                     final Class<?> functionClass =

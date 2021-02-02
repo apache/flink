@@ -116,7 +116,9 @@ public class FunctionService {
             case FunctionDescriptorValidator.FROM_VALUE_PYTHON:
                 String fullyQualifiedName =
                         properties.getString(PythonFunctionValidator.FULLY_QUALIFIED_NAME);
-                instance = PythonFunctionUtils.getPythonFunction(fullyQualifiedName, config);
+                instance =
+                        PythonFunctionUtils.getPythonFunction(
+                                fullyQualifiedName, config, classLoader);
                 break;
             default:
                 throw new ValidationException(

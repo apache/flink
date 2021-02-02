@@ -61,6 +61,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.python.PythonOptions.PYTHON_CLIENT_EXECUTABLE;
@@ -73,6 +74,12 @@ final class PythonEnvUtils {
 
     static final String PYFLINK_CLIENT_EXECUTABLE = "PYFLINK_CLIENT_EXECUTABLE";
 
+    static final long CHECK_INTERVAL = 100;
+
+    static final long TIMEOUT_MILLIS = 10000;
+
+    public static int maxConcurrentPythonFunctionFactories = 10;
+
     static volatile Throwable capturedJavaException = null;
 
     /** Wraps Python exec environment. */
@@ -84,30 +91,6 @@ final class PythonEnvUtils {
         String pythonPath;
 
         Map<String, String> systemEnv = new HashMap<>();
-    }
-
-    /**
-     * The hook thread that delete the tmp working dir of python process after the python process
-     * shutdown.
-     */
-    private static class ShutDownPythonHook extends Thread {
-        private Process p;
-        private String pyFileDir;
-
-        ShutDownPythonHook(Process p, String pyFileDir) {
-            this.p = p;
-            this.pyFileDir = pyFileDir;
-        }
-
-        public void run() {
-
-            p.destroyForcibly();
-
-            if (pyFileDir != null) {
-                File pyDir = new File(pyFileDir);
-                FileUtils.deleteDirectoryQuietly(pyDir);
-            }
-        }
     }
 
     /**
@@ -302,10 +285,6 @@ final class PythonEnvUtils {
             throw new RuntimeException("Failed to start Python process. ");
         }
 
-        // Make sure that the python sub process will be killed when JVM exit
-        ShutDownPythonHook hook = new ShutDownPythonHook(process, pythonEnv.tempDirectory);
-        Runtime.getRuntime().addShutdownHook(hook);
-
         return process;
     }
 
@@ -374,11 +353,12 @@ final class PythonEnvUtils {
      * @param callbackServerListeningPort the listening port of the callback server.
      */
     public static void resetCallbackClient(
-            String callbackServerListeningAddress, int callbackServerListeningPort)
+            GatewayServer gatewayServer,
+            String callbackServerListeningAddress,
+            int callbackServerListeningPort)
             throws UnknownHostException, InvocationTargetException, NoSuchMethodException,
                     IllegalAccessException, NoSuchFieldException {
 
-        gatewayServer = getGatewayServer();
         gatewayServer.resetCallbackClient(
                 InetAddress.getByName(callbackServerListeningAddress), callbackServerListeningPort);
         resetCallbackClientExecutorService(gatewayServer);
@@ -421,6 +401,47 @@ final class PythonEnvUtils {
         if (ExceptionUtils.findThrowable(pythonException, UnsuccessfulExecutionException.class)
                 .isPresent()) {
             capturedJavaException = pythonException;
+        }
+    }
+
+    public static void shutdownPythonProcess(Process pythonProcess, long timeoutMillis) {
+        pythonProcess.destroy();
+        try {
+            pythonProcess.waitFor(timeoutMillis, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(
+                    "Interrupt while waiting for the python process to stop.", e);
+        }
+        if (pythonProcess.isAlive()) {
+            pythonProcess.destroyForcibly();
+        }
+    }
+
+    /** The shutdown hook used to destroy the Python process. */
+    public static class PythonProcessShutdownHook extends Thread {
+
+        private Process process;
+        private GatewayServer gatewayServer;
+        private String tmpDir;
+
+        public PythonProcessShutdownHook(
+                Process process, GatewayServer gatewayServer, String tmpDir) {
+            this.process = process;
+            this.gatewayServer = gatewayServer;
+            this.tmpDir = tmpDir;
+        }
+
+        @Override
+        public void run() {
+            if (tmpDir != null) {
+                FileUtils.deleteDirectoryQuietly(new File(tmpDir));
+            }
+
+            try {
+                shutdownPythonProcess(process, TIMEOUT_MILLIS);
+            } finally {
+                gatewayServer.shutdown();
+            }
         }
     }
 }
