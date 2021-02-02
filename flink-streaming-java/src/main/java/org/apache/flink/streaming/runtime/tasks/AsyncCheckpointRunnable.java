@@ -270,10 +270,9 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
                 } else {
                     // We never decline checkpoint after task is not running to avoid unexpected job
                     // failover, which caused by exceeding checkpoint tolerable failure threshold.
-                    LOG.warn(
-                            "As task is already not running, no longer decline checkpoint {}.",
-                            checkpointMetaData.getCheckpointId(),
-                            checkpointException);
+                    LOG.info(
+                            "Ignore decline of checkpoint {} as task is not running anymore.",
+                            checkpointMetaData.getCheckpointId());
                 }
 
                 currentState = AsyncCheckpointState.DISCARDED;
