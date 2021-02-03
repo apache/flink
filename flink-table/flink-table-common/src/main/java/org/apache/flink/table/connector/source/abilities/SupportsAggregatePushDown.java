@@ -143,8 +143,8 @@ public interface SupportsAggregatePushDown {
      * aggregate data strictly in this manner.
      *
      * @param groupingSets a array list of the grouping sets. In the example mentioned in {@link
-     *     SupportsAggregatePushDown}, this method would receive the groupingSets of {code List([1,
-     *     4]) which is equivalent to {@code List(["name", "type"])}.
+     *     SupportsAggregatePushDown}, this method would receive the groupingSets of {@code List([1,
+     *     4])} which is equivalent to {@code List(["name", "type"])}.
      * @param aggregateExpressions a list contains all of aggregates, you should check if all of
      *     aggregate functions can be processed by downstream system. The applying strategy is all
      *     or nothing.
