@@ -104,10 +104,10 @@ public class MapDataSerializer extends TypeSerializer<MapData> {
      */
     @Override
     public MapData copy(MapData from) {
-        if (from instanceof GenericMapData) {
-            return toBinaryMap(from);
-        } else {
+        if(from instanceof BinaryMapData) {
             return ((BinaryMapData) from).copy();
+        } else{
+            return toBinaryMap(from);
         }
     }
 
