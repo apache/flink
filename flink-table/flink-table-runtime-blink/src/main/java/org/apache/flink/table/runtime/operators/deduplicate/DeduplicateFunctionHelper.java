@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.operators.deduplicate;
 
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
@@ -41,7 +42,9 @@ class DeduplicateFunctionHelper {
             boolean generateUpdateBefore,
             boolean generateInsert,
             ValueState<RowData> state,
-            Collector<RowData> out)
+            Collector<RowData> out,
+            boolean isStateTTLEnabled,
+            RecordEqualiser equaliser)
             throws Exception {
 
         checkInsertOnly(currentRow);
@@ -55,12 +58,22 @@ class DeduplicateFunctionHelper {
                 currentRow.setRowKind(RowKind.INSERT);
                 out.collect(currentRow);
             } else {
-                if (generateUpdateBefore) {
-                    preRow.setRowKind(RowKind.UPDATE_BEFORE);
-                    out.collect(preRow);
+                boolean isEqualsWithPrevious = preRow.equals(currentRow);
+
+                if (!isStateTTLEnabled && equaliser.equals(preRow, currentRow)) {
+                    // currentRow is the same as preRow and state cleaning is not enabled.
+                    // We do not emit retraction and update message.
+                    // If state cleaning is enabled, we have to emit messages to prevent too early
+                    // state eviction of downstream operators.
+                    return;
+                } else {
+                    if (generateUpdateBefore) {
+                        preRow.setRowKind(RowKind.UPDATE_BEFORE);
+                        out.collect(preRow);
+                    }
+                    currentRow.setRowKind(RowKind.UPDATE_AFTER);
+                    out.collect(currentRow);
                 }
-                currentRow.setRowKind(RowKind.UPDATE_AFTER);
-                out.collect(currentRow);
             }
         } else {
             // always send UPDATE_AFTER if INSERT is not needed
@@ -86,7 +99,9 @@ class DeduplicateFunctionHelper {
             RowData currentRow,
             boolean generateUpdateBefore,
             ValueState<RowData> state,
-            Collector<RowData> out)
+            Collector<RowData> out,
+            boolean isStateTTLEnabled,
+            RecordEqualiser equaliser)
             throws Exception {
         RowData preRow = state.value();
         RowKind currentKind = currentRow.getRowKind();

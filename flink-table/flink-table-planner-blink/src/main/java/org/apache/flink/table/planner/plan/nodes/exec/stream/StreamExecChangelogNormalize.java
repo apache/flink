@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
@@ -33,12 +34,14 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
+import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator;
 import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigger;
 import org.apache.flink.table.runtime.operators.deduplicate.ProcTimeDeduplicateKeepLastRowFunction;
 import org.apache.flink.table.runtime.operators.deduplicate.ProcTimeMiniBatchDeduplicateKeepLastRowFunction;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
 import java.util.Collections;
@@ -81,6 +84,17 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
                 tableConfig
                         .getConfiguration()
                         .getBoolean(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED);
+
+        RowType inputRowType = (RowType) inputNode.getOutputType();
+        final EqualiserCodeGenerator equaliserCodeGen =
+                new EqualiserCodeGenerator(
+                        inputRowType.getFields().stream()
+                                .map(RowType.RowField::getType)
+                                .toArray(LogicalType[]::new));
+        GeneratedRecordEqualiser generatedEqualiser = equaliserCodeGen.generateRecordEqualiser(
+                "DeduplicateRowEqualiser");
+
+
         if (isMiniBatchEnabled) {
             TypeSerializer<RowData> rowSerializer =
                     rowTypeInfo.createSerializer(planner.getExecEnv().getConfig());
@@ -91,7 +105,8 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
                             stateIdleTime,
                             generateUpdateBefore,
                             true, // generateInsert
-                            false); // inputInsertOnly
+                            false,
+                            generatedEqualiser); // inputInsertOnly
             CountBundleTrigger<RowData> trigger = AggregateUtil.createMiniBatchTrigger(tableConfig);
             operator = new KeyedMapBundleOperator<>(processFunction, trigger);
         } else {
@@ -101,7 +116,8 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
                             stateIdleTime,
                             generateUpdateBefore,
                             true, // generateInsert
-                            false); // inputInsertOnly
+                            false,
+                            generatedEqualiser); // inputInsertOnly
             operator = new KeyedProcessOperator<>(processFunction);
         }
 

@@ -39,7 +39,12 @@ public class ProcTimeDeduplicateKeepLastRowFunctionTest
     private ProcTimeDeduplicateKeepLastRowFunction createFunction(
             boolean generateUpdateBefore, boolean generateInsert) {
         return new ProcTimeDeduplicateKeepLastRowFunction(
-                inputRowType, minTime.toMilliseconds(), generateUpdateBefore, generateInsert, true);
+                inputRowType,
+                minTime.toMilliseconds(),
+                generateUpdateBefore,
+                generateInsert,
+                true,
+                generatedEqualiser);
     }
 
     private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(

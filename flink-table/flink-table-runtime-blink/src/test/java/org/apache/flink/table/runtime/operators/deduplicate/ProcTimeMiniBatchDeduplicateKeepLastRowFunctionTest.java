@@ -46,13 +46,15 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunctionTest
 
     private ProcTimeMiniBatchDeduplicateKeepLastRowFunction createFunction(
             boolean generateUpdateBefore, boolean generateInsert, long minRetentionTime) {
+
         return new ProcTimeMiniBatchDeduplicateKeepLastRowFunction(
                 inputRowType,
                 typeSerializer,
                 minRetentionTime,
                 generateUpdateBefore,
                 generateInsert,
-                true);
+                true,
+                generatedEqualiser);
     }
 
     private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(

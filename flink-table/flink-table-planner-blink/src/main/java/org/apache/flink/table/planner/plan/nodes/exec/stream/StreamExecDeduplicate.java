@@ -29,12 +29,14 @@ import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
+import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator;
 import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigger;
@@ -46,6 +48,7 @@ import org.apache.flink.table.runtime.operators.deduplicate.RowTimeDeduplicateFu
 import org.apache.flink.table.runtime.operators.deduplicate.RowTimeMiniBatchDeduplicateFunction;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
@@ -106,6 +109,7 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
         final TypeSerializer<RowData> rowSerializer =
                 rowTypeInfo.createSerializer(planner.getExecEnv().getConfig());
         final OneInputStreamOperator<RowData, RowData> operator;
+
         if (isRowtime) {
             operator =
                     new RowtimeDeduplicateOperatorTranslator(
@@ -122,6 +126,7 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
                                     planner.getTableConfig(),
                                     rowTypeInfo,
                                     rowSerializer,
+                                    inputRowType,
                                     keepLastRow,
                                     generateUpdateBefore)
                             .createDeduplicateOperator();
@@ -260,14 +265,24 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
     /** Translator to create process time deduplicate operator. */
     private static class ProcTimeDeduplicateOperatorTranslator
             extends DeduplicateOperatorTranslator {
+        private final GeneratedRecordEqualiser generatedEqualiser;
 
         protected ProcTimeDeduplicateOperatorTranslator(
                 TableConfig tableConfig,
                 InternalTypeInfo<RowData> rowTypeInfo,
                 TypeSerializer<RowData> typeSerializer,
+                RowType inputRowType,
                 boolean keepLastRow,
                 boolean generateUpdateBefore) {
             super(tableConfig, rowTypeInfo, typeSerializer, keepLastRow, generateUpdateBefore);
+            final EqualiserCodeGenerator equaliserCodeGen =
+                    new EqualiserCodeGenerator(
+                            inputRowType.getFields().stream()
+                                    .map(RowType.RowField::getType)
+                                    .toArray(LogicalType[]::new));
+            generatedEqualiser = equaliserCodeGen.generateRecordEqualiser(
+                    "DeduplicateRowEqualiser");
+
         }
 
         @Override
@@ -282,7 +297,8 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
                                     getMinRetentionTime(),
                                     generateUpdateBefore,
                                     generateInsert(),
-                                    true);
+                                    true,
+                                    generatedEqualiser);
                     return new KeyedMapBundleOperator<>(processFunction, trigger);
                 } else {
                     ProcTimeMiniBatchDeduplicateKeepFirstRowFunction processFunction =
@@ -298,7 +314,8 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
                                     getMinRetentionTime(),
                                     generateUpdateBefore,
                                     generateInsert(),
-                                    true);
+                                    true,
+                                    generatedEqualiser);
                     return new KeyedProcessOperator<>(processFunction);
                 } else {
                     ProcTimeDeduplicateKeepFirstRowFunction processFunction =
