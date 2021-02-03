@@ -23,7 +23,7 @@ import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
-import org.apache.flink.table.runtime.operators.python.aggregate.PythonStreamGroupWindowAggregateOperatorTest;
+import org.apache.flink.table.runtime.operators.python.aggregate.PassThroughPythonStreamGroupWindowAggregateOperator;
 import org.apache.flink.table.runtime.runners.python.beam.BeamTableStatefulPythonFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -39,9 +39,7 @@ import java.util.Map;
 public class PassThroughStreamGroupWindowAggregatePythonFunctionRunner
         extends BeamTableStatefulPythonFunctionRunner {
 
-    private final PythonStreamGroupWindowAggregateOperatorTest
-                    .PassThroughPythonStreamGroupWindowAggregateOperator
-            operator;
+    private final PassThroughPythonStreamGroupWindowAggregateOperator operator;
 
     public PassThroughStreamGroupWindowAggregatePythonFunctionRunner(
             String taskName,
@@ -55,9 +53,7 @@ public class PassThroughStreamGroupWindowAggregatePythonFunctionRunner
             FlinkMetricContainer flinkMetricContainer,
             KeyedStateBackend keyedStateBackend,
             TypeSerializer keySerializer,
-            PythonStreamGroupWindowAggregateOperatorTest
-                            .PassThroughPythonStreamGroupWindowAggregateOperator
-                    operator) {
+            PassThroughPythonStreamGroupWindowAggregateOperator operator) {
         super(
                 taskName,
                 environmentManager,

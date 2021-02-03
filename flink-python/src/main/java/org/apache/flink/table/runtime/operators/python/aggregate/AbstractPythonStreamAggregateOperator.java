@@ -56,8 +56,8 @@ import java.util.stream.Collectors;
 import static org.apache.flink.table.runtime.typeutils.PythonTypeUtils.toProtoType;
 
 /**
- * Base class for {@link PythonStreamGroupAggregateOperator} and {@link
- * PythonStreamGroupTableAggregateOperator}.
+ * Base class for {@link AbstractPythonStreamGroupAggregateOperator} and {@link
+ * PythonStreamGroupWindowAggregateOperator}.
  */
 @Internal
 public abstract class AbstractPythonStreamAggregateOperator

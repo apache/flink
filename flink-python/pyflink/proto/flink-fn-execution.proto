@@ -162,11 +162,11 @@ message GroupWindow {
 
   int64 window_size = 4;
 
-  bool is_row_time = 5;
+  int64 window_gap = 5;
 
-  int32 time_field_index = 6;
+  bool is_row_time = 6;
 
-  int64 allowedLateness = 7;
+  int32 time_field_index = 7;
 
   repeated int32 namedProperties = 8;
 }

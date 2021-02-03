@@ -67,24 +67,13 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
 
     @VisibleForTesting static final byte DELETE_EVENT_TIMER = 2;
 
-    @VisibleForTesting static final byte DELETE_PROCESSING_TIMER = 4;
+    @VisibleForTesting static final byte DELETE_PROCESSING_TIMER = 3;
 
     /** True if the count(*) agg is inserted by the planner. */
     private final boolean countStarInserted;
 
     /** The row time index of the input data. */
     @VisibleForTesting final int inputTimeFieldIndex;
-
-    /**
-     * The allowed lateness for elements. This is used for:
-     *
-     * <ul>
-     *   <li>Deciding if an element should be dropped from a window due to lateness.
-     *   <li>Clearing the state of a window if the system time passes the {@code window.maxTimestamp
-     *       + allowedLateness} landmark.
-     * </ul>
-     */
-    @VisibleForTesting final long allowedLateness;
 
     /**
      * The Infos of the Window. 0 -> start of the Window. 1 -> end of the Window. 2 -> row time of
@@ -110,17 +99,20 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
     /** Window slide. */
     private transient long slide;
 
+    /** Session Window gap. */
+    private transient long gap;
+
     /** For serializing the window in checkpoints. */
     @VisibleForTesting transient TypeSerializer<W> windowSerializer;
 
     /** Interface for working with time and timers. */
     private transient InternalTimerService<W> internalTimerService;
 
-    private UpdatableRowData reuseTimerData;
+    private transient UpdatableRowData reuseTimerData;
 
-    private int timerDataLength;
+    private transient int timerDataLength;
 
-    private int keyLength;
+    private transient int keyLength;
 
     public PythonStreamGroupWindowAggregateOperator(
             Configuration config,
@@ -135,7 +127,6 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
             int inputTimeFieldIndex,
             WindowAssigner<W> windowAssigner,
             LogicalWindow window,
-            long allowedLateness,
             int[] namedProperties) {
         super(
                 config,
@@ -149,7 +140,6 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
         this.countStarInserted = countStarInserted;
         this.inputTimeFieldIndex = inputTimeFieldIndex;
         this.windowAssigner = windowAssigner;
-        this.allowedLateness = allowedLateness;
         this.namedProperties = namedProperties;
         buildWindow(window);
     }
@@ -158,6 +148,12 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
     public void open() throws Exception {
         windowSerializer = windowAssigner.getWindowSerializer(new ExecutionConfig());
         internalTimerService = getInternalTimerService("window-timers", windowSerializer, this);
+        // The structure is:  [timer_type]|[row key]|[optional field]...
+        // If the window is 'TimeWindow', store the TimeWindow start in the 2nd column and
+        // TimeWindow end in the 3rd Column. e.g. the [optional field]s are
+        // [Time Window start][Time Window end].
+        // If the window is 'CountWindow', store the CountWindow id in the 2rd column. e.g.
+        // the [optional field]s are [Count Window id].
         if (isTimeWindow) {
             reuseTimerData = new UpdatableRowData(GenericRowData.of(0, null, 0, 0), 4);
         } else {
@@ -274,9 +270,9 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
         windowBuilder.setIsTimeWindow(isTimeWindow);
         windowBuilder.setIsRowTime(isRowTime);
         windowBuilder.setTimeFieldIndex(inputTimeFieldIndex);
-        windowBuilder.setAllowedLateness(allowedLateness);
         windowBuilder.setWindowSize(size);
         windowBuilder.setWindowSlide(slide);
+        windowBuilder.setWindowGap(gap);
         for (int namedProperty : namedProperties) {
             windowBuilder.addNamedProperties(namedProperty);
         }
@@ -295,8 +291,9 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
     }
 
     private void buildWindow(LogicalWindow window) {
-        ValueLiteralExpression size;
+        ValueLiteralExpression size = null;
         ValueLiteralExpression slide = null;
+        ValueLiteralExpression gap = null;
         if (window instanceof TumblingGroupWindow) {
             this.windowType = FlinkFnApi.GroupWindow.WindowType.TUMBLING_GROUP_WINDOW;
             size = ((TumblingGroupWindow) window).size();
@@ -306,17 +303,26 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
             slide = ((SlidingGroupWindow) window).slide();
         } else if (window instanceof SessionGroupWindow) {
             this.windowType = FlinkFnApi.GroupWindow.WindowType.SESSION_GROUP_WINDOW;
-            size = ((SessionGroupWindow) window).gap();
+            gap = ((SessionGroupWindow) window).gap();
         } else {
             throw new RuntimeException(String.format("Unsupported LogicWindow Type %s", window));
         }
         this.isRowTime = AggregateUtil.isRowtimeAttribute(window.timeAttribute());
         this.isTimeWindow = AggregateUtil.hasTimeIntervalType(size);
-        this.size = AggregateUtil.toDuration(size).toMillis();
+        if (size != null) {
+            this.size = AggregateUtil.toDuration(size).toMillis();
+        } else {
+            this.size = 0L;
+        }
         if (slide != null) {
             this.slide = AggregateUtil.toDuration(slide).toMillis();
         } else {
             this.slide = 0L;
+        }
+        if (gap != null) {
+            this.gap = AggregateUtil.toDuration(gap).toMillis();
+        } else {
+            this.gap = 0L;
         }
     }
 
