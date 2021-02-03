@@ -36,13 +36,6 @@ interface State {
     /** This method is called whenever one transitions into this state. */
     default void onEnter() {}
 
-    /**
-     * This method is called whenever one transitions out of this state.
-     *
-     * @param newState newState is the state into which the scheduler transitions
-     */
-    default void onLeave(State newState) {}
-
     /** Cancels the job execution. */
     void cancel();
 
