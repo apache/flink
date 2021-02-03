@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
@@ -52,7 +53,7 @@ public enum ClientUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(ClientUtils.class);
 
-    public static ClassLoader buildUserCodeClassLoader(
+    public static URLClassLoader buildUserCodeClassLoader(
             List<URL> jars, List<URL> classpaths, ClassLoader parent, Configuration configuration) {
         URL[] urls = new URL[jars.size() + classpaths.size()];
         for (int i = 0; i < jars.size(); i++) {
