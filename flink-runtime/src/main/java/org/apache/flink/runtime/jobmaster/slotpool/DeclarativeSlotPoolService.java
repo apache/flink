@@ -140,11 +140,6 @@ public class DeclarativeSlotPoolService implements SlotPoolService {
     }
 
     @Override
-    public void suspend() {
-        throw new UnsupportedOperationException("This method should not be needed.");
-    }
-
-    @Override
     public final void close() {
         if (state != State.CLOSED) {
 
