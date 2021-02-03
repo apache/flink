@@ -232,25 +232,6 @@ public class SlotPoolImpl implements SlotPool, SlotPoolService {
         }
     }
 
-    /** Suspends this pool, meaning it has lost its authority to accept and distribute slots. */
-    @Override
-    public void suspend() {
-
-        componentMainThreadExecutor.assertRunningInMainThread();
-
-        log.info("Suspending SlotPool.");
-
-        cancelPendingSlotRequests();
-
-        // do not accept any requests
-        jobMasterId = null;
-        resourceManagerGateway = null;
-
-        // Clear (but not release!) the available slots. The TaskManagers should re-register them
-        // at the new leader JobManager/SlotPool
-        clear();
-    }
-
     private void cancelPendingSlotRequests() {
         if (resourceManagerGateway != null) {
             // cancel all pending allocations --> we can request these slots

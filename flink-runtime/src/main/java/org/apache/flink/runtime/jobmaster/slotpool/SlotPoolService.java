@@ -66,9 +66,6 @@ public interface SlotPoolService extends AutoCloseable {
             JobMasterId jobMasterId, String address, ComponentMainThreadExecutor mainThreadExecutor)
             throws Exception;
 
-    /** Suspend the slot pool service. */
-    void suspend();
-
     /** Close the slot pool service. */
     void close();
 

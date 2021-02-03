@@ -107,14 +107,6 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
     }
 
     @Override
-    public void suspend() {
-        assertRunningInMainThread();
-        log.info("Suspending slot pool.");
-
-        cancelPendingRequests(request -> true, new FlinkException("Suspending slot pool."));
-    }
-
-    @Override
     protected void onClose() {
         final FlinkException cause = new FlinkException("Closing slot pool");
         cancelPendingRequests(request -> true, cause);

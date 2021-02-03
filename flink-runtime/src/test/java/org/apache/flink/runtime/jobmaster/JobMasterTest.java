@@ -554,11 +554,6 @@ public class JobMasterTest extends TestLogger {
                 ComponentMainThreadExecutor jmMainThreadScheduledExecutor) {}
 
         @Override
-        public void suspend() {
-            clear();
-        }
-
-        @Override
         public void close() {
             clear();
         }
