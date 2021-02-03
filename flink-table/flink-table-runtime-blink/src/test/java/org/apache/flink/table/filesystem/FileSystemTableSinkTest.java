@@ -37,6 +37,7 @@ import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -55,6 +56,40 @@ public class FileSystemTableSinkTest {
                     .build();
 
     @Test
+    public void testFileSytemTableSinkWithParaallelismInChangeLogMode() {
+
+        int parallelism = 2;
+
+        DescriptorProperties descriptor = new DescriptorProperties();
+        descriptor.putString(FactoryUtil.CONNECTOR.key(), "filesystem");
+        descriptor.putString("path", "/tmp");
+        descriptor.putString("format", "testcsv");
+        descriptor.putString(
+                TestCsvFileSystemFormatFactory.IDENTIFIER
+                        + "."
+                        + TestCsvFileSystemFormatFactory.USE_UPSERT_CHANGELOG_MODE.key(),
+                "true");
+        descriptor.putString(FactoryUtil.SINK_PARALLELISM.key(), String.valueOf(parallelism));
+
+        final DynamicTableSink tableSink = createSink(descriptor);
+        Assert.assertTrue(tableSink instanceof FileSystemTableSink);
+
+        final DynamicTableSink.SinkRuntimeProvider provider =
+                tableSink.getSinkRuntimeProvider(new MockSinkContext(false));
+        Assert.assertTrue(provider instanceof DataStreamSinkProvider);
+
+        final DataStreamSinkProvider dataStreamSinkProvider = (DataStreamSinkProvider) provider;
+        try {
+            dataStreamSinkProvider.consumeDataStream(createInputDataStream());
+        } catch (Exception e) {
+            Assert.assertTrue(
+                    ExceptionUtils.findThrowableWithMessage(
+                                    e, "is configured, which is different from input parallelism")
+                            .isPresent());
+        }
+    }
+
+    @Test
     public void testFileSystemTableSinkWithParallelismInStreaming() {
 
         int parallelism = 2;
@@ -63,7 +98,7 @@ public class FileSystemTableSinkTest {
         descriptor.putString(FactoryUtil.CONNECTOR.key(), "filesystem");
         descriptor.putString("path", "/tmp");
         descriptor.putString("format", "testcsv");
-        descriptor.putString("sink.parallelism", String.valueOf(parallelism));
+        descriptor.putString(FactoryUtil.SINK_PARALLELISM.key(), String.valueOf(parallelism));
 
         final DynamicTableSink tableSink = createSink(descriptor);
         Assert.assertTrue(tableSink instanceof FileSystemTableSink);
@@ -88,7 +123,7 @@ public class FileSystemTableSinkTest {
         descriptor.putString(FactoryUtil.CONNECTOR.key(), "filesystem");
         descriptor.putString("path", "/tmp");
         descriptor.putString("format", "testcsv");
-        descriptor.putString("sink.parallelism", String.valueOf(parallelism));
+        descriptor.putString(FactoryUtil.SINK_PARALLELISM.key(), String.valueOf(parallelism));
 
         final DynamicTableSink tableSink = createSink(descriptor);
         Assert.assertTrue(tableSink instanceof FileSystemTableSink);

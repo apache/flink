@@ -21,6 +21,7 @@ package org.apache.flink.table.filesystem;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -35,6 +36,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -50,9 +52,18 @@ import static org.apache.flink.api.java.io.CsvOutputFormat.DEFAULT_LINE_DELIMITE
 public class TestCsvFileSystemFormatFactory
         implements FileSystemFormatFactory, BulkWriterFormatFactory {
 
+    static final String IDENTIFIER = "testcsv";
+
+    static final ConfigOption<Boolean> USE_UPSERT_CHANGELOG_MODE =
+            ConfigOptions.key("upsert-changelog-mode")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "use upsert changelog mode, row kinds contain I, U, D. This is only for test.");
+
     @Override
     public String factoryIdentifier() {
-        return "testcsv";
+        return IDENTIFIER;
     }
 
     @Override
@@ -62,7 +73,9 @@ public class TestCsvFileSystemFormatFactory
 
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
-        return new HashSet<>();
+        final HashSet<ConfigOption<?>> configOptions = new HashSet<>();
+        configOptions.add(USE_UPSERT_CHANGELOG_MODE);
+        return configOptions;
     }
 
     @Override
@@ -114,7 +127,15 @@ public class TestCsvFileSystemFormatFactory
 
             @Override
             public ChangelogMode getChangelogMode() {
-                return ChangelogMode.insertOnly();
+
+                return formatOptions.get(USE_UPSERT_CHANGELOG_MODE)
+                        ? ChangelogMode.newBuilder()
+                                .addContainedKind(RowKind.INSERT)
+                                .addContainedKind(RowKind.DELETE)
+                                .addContainedKind(RowKind.UPDATE_AFTER)
+                                .addContainedKind(RowKind.UPDATE_BEFORE)
+                                .build()
+                        : ChangelogMode.insertOnly();
             }
         };
     }

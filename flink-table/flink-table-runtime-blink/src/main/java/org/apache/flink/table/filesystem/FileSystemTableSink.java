@@ -67,6 +67,7 @@ import org.apache.flink.table.filesystem.stream.compact.CompactReader;
 import org.apache.flink.table.filesystem.stream.compact.FileInputFormatCompactReader;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.PartitionPathUtils;
+import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -80,6 +81,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -93,6 +95,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable
         implements DynamicTableSink, SupportsPartitioning, SupportsOverwrite {
 
     // For compaction reading
+
     @Nullable private final DecodingFormat<BulkFormat<RowData, FileSourceSplit>> bulkReaderFormat;
     @Nullable private final DecodingFormat<DeserializationSchema<RowData>> deserializationFormat;
     @Nullable private final FileSystemFormatFactory formatFactory;
@@ -135,14 +138,21 @@ public class FileSystemTableSink extends AbstractFileSystemTable
     }
 
     private DataStreamSink<?> consume(DataStream<RowData> dataStream, Context sinkContext) {
+
+        final int inputParallelism = dataStream.getParallelism();
+        int parallelism =
+                Optional.ofNullable(tableOptions.get(FileSystemOptions.SINK_PARALLELISM))
+                        .orElse(inputParallelism);
+        checkAllowanceOfSettingParallelism(inputParallelism, parallelism);
+
         if (sinkContext.isBounded()) {
-            return createBatchSink(dataStream, sinkContext);
+            return createBatchSink(dataStream, sinkContext, parallelism);
         } else {
             if (overwrite) {
                 throw new IllegalStateException("Streaming mode not support overwrite.");
             }
 
-            return createStreamingSink(dataStream, sinkContext);
+            return createStreamingSink(dataStream, sinkContext, parallelism);
         }
     }
 
@@ -155,7 +165,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable
     }
 
     private DataStreamSink<RowData> createBatchSink(
-            DataStream<RowData> inputStream, Context sinkContext) {
+            DataStream<RowData> inputStream, Context sinkContext, int parallelism) {
         FileSystemOutputFormat.Builder<RowData> builder = new FileSystemOutputFormat.Builder<>();
         builder.setPartitionComputer(partitionComputer());
         builder.setDynamicGrouped(dynamicGrouping);
@@ -169,20 +179,14 @@ public class FileSystemTableSink extends AbstractFileSystemTable
                 OutputFileConfig.builder()
                         .withPartPrefix("part-" + UUID.randomUUID().toString())
                         .build());
-        int parallelism =
-                Optional.ofNullable(tableOptions.get(FileSystemOptions.SINK_PARALLELISM))
-                        .orElse(inputStream.getParallelism());
         return inputStream.writeUsingOutputFormat(builder.build()).setParallelism(parallelism);
     }
 
     private DataStreamSink<?> createStreamingSink(
-            DataStream<RowData> dataStream, Context sinkContext) {
+            DataStream<RowData> dataStream, Context sinkContext, int parallelism) {
         FileSystemFactory fsFactory = FileSystem::get;
         RowDataPartitionComputer computer = partitionComputer();
 
-        int parallelism =
-                Optional.ofNullable(tableOptions.get(FileSystemOptions.SINK_PARALLELISM))
-                        .orElse(dataStream.getParallelism());
         boolean autoCompaction = tableOptions.getBoolean(FileSystemOptions.AUTO_COMPACTION);
         Object writer = createWriter(sinkContext);
         boolean isEncoder = writer instanceof Encoder;
@@ -383,6 +387,33 @@ public class FileSystemTableSink extends AbstractFileSystemTable
                     serializationFormat.createRuntimeEncoder(sinkContext, getFormatDataType()));
         } else {
             throw new TableException("Can not find format factory.");
+        }
+    }
+
+    private void checkAllowanceOfSettingParallelism(
+            int inputParallelism, int configuredParallelism) {
+
+        if (inputParallelism != configuredParallelism) {
+            ChangelogMode mode;
+            if (bulkWriterFormat != null) {
+                mode = bulkWriterFormat.getChangelogMode();
+            } else if (serializationFormat != null) {
+                mode = serializationFormat.getChangelogMode();
+            } else {
+                throw new TableException("Can not find format factory.");
+            }
+
+            if (!mode.containsOnly(RowKind.INSERT)) {
+                throw new ValidationException(
+                        String.format(
+                                "sink parallelism: [%d] is configured, which is different from input parallelism: [%d]. "
+                                        + "In this case, only INSERT_ONLY mode is supported, but current row kind are {%s}",
+                                configuredParallelism,
+                                inputParallelism,
+                                mode.getContainedKinds().stream()
+                                        .map(x -> x.shortString())
+                                        .collect(Collectors.joining(","))));
+            }
         }
     }
 
