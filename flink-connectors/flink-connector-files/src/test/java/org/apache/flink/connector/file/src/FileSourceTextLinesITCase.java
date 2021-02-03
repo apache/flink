@@ -20,9 +20,11 @@ package org.apache.flink.connector.file.src;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.connector.file.src.reader.TextLineFormat;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.highavailability.nonha.embedded.HaLeadershipControl;
+import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -34,6 +36,7 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.FunctionWithException;
 
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
@@ -65,8 +68,8 @@ public class FileSourceTextLinesITCase extends TestLogger {
 
     @ClassRule public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
 
-    @ClassRule
-    public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE =
+    @Rule
+    public final MiniClusterWithClientResource miniClusterResource =
             new MiniClusterWithClientResource(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(1)
@@ -119,6 +122,7 @@ public class FileSourceTextLinesITCase extends TestLogger {
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);
+        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
 
         final DataStream<String> stream =
                 env.fromSource(source, WatermarkStrategy.noWatermarks(), "file-source");
@@ -132,7 +136,11 @@ public class FileSourceTextLinesITCase extends TestLogger {
         final JobID jobId = client.client.getJobID();
 
         RecordCounterToFail.waitToFail();
-        triggerFailover(failoverType, jobId, RecordCounterToFail::continueProcessing);
+        triggerFailover(
+                failoverType,
+                jobId,
+                RecordCounterToFail::continueProcessing,
+                miniClusterResource.getMiniCluster());
 
         final List<String> result = new ArrayList<>();
         while (client.iterator.hasNext()) {
@@ -205,7 +213,7 @@ public class FileSourceTextLinesITCase extends TestLogger {
             writeFile(testDir, i);
             final boolean failAfterHalfOfInput = i == LINES_PER_FILE.length / 2;
             if (failAfterHalfOfInput) {
-                triggerFailover(type, jobId, () -> {});
+                triggerFailover(type, jobId, () -> {}, miniClusterResource.getMiniCluster());
             }
         }
 
@@ -229,34 +237,35 @@ public class FileSourceTextLinesITCase extends TestLogger {
         JM
     }
 
-    private static void triggerFailover(FailoverType type, JobID jobId, Runnable afterFailAction)
+    private static void triggerFailover(
+            FailoverType type, JobID jobId, Runnable afterFailAction, MiniCluster miniCluster)
             throws Exception {
         switch (type) {
             case NONE:
                 afterFailAction.run();
                 break;
             case TM:
-                restartTaskManager(afterFailAction);
+                restartTaskManager(afterFailAction, miniCluster);
                 break;
             case JM:
-                triggerJobManagerFailover(jobId, afterFailAction);
+                triggerJobManagerFailover(jobId, afterFailAction, miniCluster);
                 break;
         }
     }
 
-    private static void triggerJobManagerFailover(JobID jobId, Runnable afterFailAction)
-            throws Exception {
-        final HaLeadershipControl haLeadershipControl =
-                MINI_CLUSTER_RESOURCE.getMiniCluster().getHaLeadershipControl().get();
+    private static void triggerJobManagerFailover(
+            JobID jobId, Runnable afterFailAction, MiniCluster miniCluster) throws Exception {
+        final HaLeadershipControl haLeadershipControl = miniCluster.getHaLeadershipControl().get();
         haLeadershipControl.revokeJobMasterLeadership(jobId).get();
         afterFailAction.run();
         haLeadershipControl.grantJobMasterLeadership(jobId).get();
     }
 
-    private static void restartTaskManager(Runnable afterFailAction) throws Exception {
-        MINI_CLUSTER_RESOURCE.getMiniCluster().terminateTaskManager(0).get();
+    private static void restartTaskManager(Runnable afterFailAction, MiniCluster miniCluster)
+            throws Exception {
+        miniCluster.terminateTaskManager(0).get();
         afterFailAction.run();
-        MINI_CLUSTER_RESOURCE.getMiniCluster().startTaskManager();
+        miniCluster.startTaskManager();
     }
 
     // ------------------------------------------------------------------------
