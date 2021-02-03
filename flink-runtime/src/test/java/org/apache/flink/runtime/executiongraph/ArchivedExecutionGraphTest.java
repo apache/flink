@@ -38,6 +38,7 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguratio
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
+import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
@@ -115,8 +116,17 @@ public class ArchivedExecutionGraphTest extends TestLogger {
         runtimeGraph = scheduler.getExecutionGraph();
 
         scheduler.startScheduling();
-        scheduler.handleGlobalFailure(
-                new RuntimeException("This exception was thrown on purpose."));
+        scheduler.updateTaskExecutionState(
+                new TaskExecutionState(
+                        jobGraph.getJobID(),
+                        runtimeGraph
+                                .getAllExecutionVertices()
+                                .iterator()
+                                .next()
+                                .getCurrentExecutionAttempt()
+                                .getAttemptId(),
+                        ExecutionState.FAILED,
+                        new RuntimeException("Local failure")));
     }
 
     @Test
