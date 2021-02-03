@@ -30,7 +30,6 @@ import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableExceptio
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.RpcTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.util.TestLogger;
@@ -42,12 +41,10 @@ import javax.annotation.Nonnull;
 
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.CoreMatchers.is;
@@ -216,23 +213,5 @@ public class DeclarativeSlotPoolBridgeTest extends TestLogger {
                 new RpcTaskManagerGateway(
                         new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway(),
                         JobMasterId.generate()));
-    }
-
-    static final class TestingDeclarativeSlotPoolFactory implements DeclarativeSlotPoolFactory {
-
-        final TestingDeclarativeSlotPoolBuilder builder;
-
-        public TestingDeclarativeSlotPoolFactory(TestingDeclarativeSlotPoolBuilder builder) {
-            this.builder = builder;
-        }
-
-        @Override
-        public DeclarativeSlotPool create(
-                JobID jobId,
-                Consumer<? super Collection<ResourceRequirement>> notifyNewResourceRequirements,
-                Time idleSlotTimeout,
-                Time rpcTimeout) {
-            return builder.build();
-        }
     }
 }
