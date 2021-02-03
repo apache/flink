@@ -117,7 +117,7 @@ public interface TableEnvironmentInternal extends TableEnvironment {
      *
      * <p>NOTES: Only the Blink planner supports this method.
      *
-     * <p><b>NOTES:</b>: This is an experimental feature now.
+     * <p><b>NOTES</b>: This is an experimental feature now.
      *
      * @param stmt The SQL statement to generate json plan.
      * @return the string json representation of an optimized ExecNode plan for the given statement.
@@ -131,7 +131,7 @@ public interface TableEnvironmentInternal extends TableEnvironment {
      *
      * <p>NOTES: Only the Blink planner supports this method.
      *
-     * <p><b>NOTES:</b>: This is an experimental feature now.
+     * <p><b>NOTES</b>: This is an experimental feature now.
      *
      * @param operations the {@link ModifyOperation}s to generate json plan.
      * @return the string json representation of an optimized ExecNode plan for the given
@@ -146,7 +146,7 @@ public interface TableEnvironmentInternal extends TableEnvironment {
      *
      * <p>NOTES: Only the Blink planner supports this method.
      *
-     * <p><b>NOTES:</b>: This is an experimental feature now.
+     * <p><b>NOTES</b>: This is an experimental feature now.
      *
      * @param jsonPlan The json plan to be explained.
      * @param extraDetails The extra explain details which the explain result should include, e.g.
@@ -162,7 +162,7 @@ public interface TableEnvironmentInternal extends TableEnvironment {
      *
      * <p>NOTES: Only the Blink planner supports this method.
      *
-     * <p><b>NOTES:</b>: This is an experimental feature now.
+     * <p><b>NOTES</b>: This is an experimental feature now.
      *
      * @param jsonPlan The json plan to be executed.
      * @return the affected row count for `DML` (-1 means unknown).

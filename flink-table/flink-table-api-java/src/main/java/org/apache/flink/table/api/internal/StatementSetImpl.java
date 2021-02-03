@@ -109,19 +109,17 @@ class StatementSetImpl implements StatementSet {
      * statements and Tables. An ExecNode plan can be serialized to json plan, and a json plan can
      * be deserialized to an ExecNode plan.
      *
+     * <p>The added statements and Tables will NOT be cleared when executing this method.
+     *
      * <p>NOTES: Only the Blink planner supports this method.
      *
-     * <p><b>NOTES:</b>: This is an experimental feature now.
+     * <p><b>NOTES</b>: This is an experimental feature now.
      *
      * @return the string json representation of an optimized ExecNode plan for the statements and
      *     Tables.
      */
     @Experimental
     public String getJsonPlan() {
-        try {
-            return tableEnvironment.getJsonPlan(operations);
-        } finally {
-            operations.clear();
-        }
+        return tableEnvironment.getJsonPlan(operations);
     }
 }
