@@ -181,7 +181,7 @@ public class DeclarativeSlotPoolBridgeTest extends TestLogger {
                                     })
                             .collect(Collectors.toList());
 
-            declarativeSlotPoolBridge.suspend();
+            declarativeSlotPoolBridge.close();
 
             try {
                 FutureUtils.waitForAll(slotFutures).get();
