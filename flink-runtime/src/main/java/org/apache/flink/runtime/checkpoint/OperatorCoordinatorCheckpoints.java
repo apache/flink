@@ -99,6 +99,9 @@ final class OperatorCoordinatorCheckpoints {
                     throws CompletionException {
 
         try {
+            if (coordinators.isEmpty()) {
+                return CompletableFuture.completedFuture(null);
+            }
             return triggerAndAcknowledgeAllCoordinatorCheckpoints(
                     coordinators, checkpoint, acknowledgeExecutor);
         } catch (Exception e) {
