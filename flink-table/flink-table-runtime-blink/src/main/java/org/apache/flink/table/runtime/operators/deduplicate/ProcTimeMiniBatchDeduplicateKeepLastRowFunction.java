@@ -64,7 +64,7 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunction
         this.generateInsert = generateInsert;
         this.inputInsertOnly = inputInsertOnly;
         this.genRecordEqualiser = genRecordEqualiser;
-        this.isStateTtlEnabled = minRetentionTime > 0;
+        this.isStateTtlEnabled = stateRetentionTime > 0;
     }
 
     @Override
