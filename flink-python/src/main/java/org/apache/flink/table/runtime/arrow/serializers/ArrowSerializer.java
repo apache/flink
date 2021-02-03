@@ -80,12 +80,10 @@ public abstract class ArrowSerializer<T> {
 
     public void open(InputStream bais, OutputStream baos) throws Exception {
         allocator = ArrowUtils.getRootAllocator().newChildAllocator("allocator", 0, Long.MAX_VALUE);
-        arrowStreamReader = new ArrowStreamReader(bais, allocator);
-
+        initializeReader(bais);
         rootWriter = VectorSchemaRoot.create(ArrowUtils.toArrowSchema(inputType), allocator);
         arrowWriter = createArrowWriter();
-        arrowStreamWriter = new ArrowStreamWriter(rootWriter, null, baos);
-        arrowStreamWriter.start();
+        initializeWriter(baos);
     }
 
     public int load() throws IOException {
@@ -125,5 +123,24 @@ public abstract class ArrowSerializer<T> {
         arrowWriter.finish();
         arrowStreamWriter.writeBatch();
         arrowWriter.reset();
+    }
+
+    public void reinitializeReader(InputStream bais) throws IOException {
+        arrowReader = null;
+        arrowStreamReader.close();
+        initializeReader(bais);
+    }
+
+    public void reInitializeWriter(OutputStream baos) throws IOException {
+        initializeWriter(baos);
+    }
+
+    private void initializeReader(InputStream bais) {
+        arrowStreamReader = new ArrowStreamReader(bais, allocator);
+    }
+
+    private void initializeWriter(OutputStream baos) throws IOException {
+        arrowStreamWriter = new ArrowStreamWriter(rootWriter, null, baos);
+        arrowStreamWriter.start();
     }
 }

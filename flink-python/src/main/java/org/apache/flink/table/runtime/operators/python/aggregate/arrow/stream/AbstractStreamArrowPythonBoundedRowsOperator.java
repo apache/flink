@@ -154,6 +154,7 @@ public abstract class AbstractStreamArrowPythonBoundedRowsOperator<K>
             reuseJoinedRow.setRowKind(key.getRowKind());
             rowDataWrapper.collect(reuseJoinedRow.replace(key, data));
         }
+        arrowSerializer.reinitializeReader(bais);
     }
 
     void registerProcessingCleanupTimer(long currentTime) throws Exception {

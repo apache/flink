@@ -125,6 +125,7 @@ public abstract class AbstractStreamArrowPythonBoundedRangeOperator<K>
                 rowDataWrapper.collect(reuseJoinedRow.replace(ele, data));
             }
         }
+        arrowSerializer.reinitializeReader(bais);
     }
 
     void registerCleanupTimer(long timestamp, TimeDomain domain) throws Exception {
