@@ -21,8 +21,8 @@ package org.apache.flink.table.api
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.descriptors.ConnectorDescriptor
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR
-import org.apache.flink.table.descriptors.{ConnectorDescriptor, Schema}
 import org.apache.flink.table.expressions.utils._
 import org.apache.flink.table.runtime.utils.CommonTestData
 import org.apache.flink.table.sources.{CsvTableSource, TableSource}
@@ -394,7 +394,7 @@ class TableSourceTest extends TableTestBase {
         context
       }
     }).withSchema(
-        new Schema()
+        new org.apache.flink.table.descriptors.Schema()
           .schema(TableSchema.builder()
             .field("id", DataTypes.INT())
             .field("name", DataTypes.STRING())

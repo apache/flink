@@ -53,10 +53,15 @@ final class ResolveSqlCallRule implements ResolverRule {
             final SqlExpressionResolver resolver = resolutionContext.sqlExpressionResolver();
 
             final TableSchema.Builder builder = TableSchema.builder();
+            // input references
             resolutionContext
                     .referenceLookup()
                     .getAllInputFields()
                     .forEach(f -> builder.field(f.getName(), f.getOutputDataType()));
+            // local references
+            resolutionContext
+                    .getLocalReferences()
+                    .forEach(refs -> builder.field(refs.getName(), refs.getOutputDataType()));
             return resolver.resolveExpression(sqlCall.getSqlExpression(), builder.build());
         }
 
