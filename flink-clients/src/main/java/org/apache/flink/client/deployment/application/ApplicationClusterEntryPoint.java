@@ -37,6 +37,7 @@ import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerCo
 import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
 import org.apache.flink.runtime.rest.JobRestEndpointFactory;
 
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Collections;
@@ -116,7 +117,7 @@ public class ApplicationClusterEntryPoint extends ClusterEntrypoint {
     }
 
     @Override
-    public void close() throws Exception {
+    public void cleanupDirectories() throws IOException {
         try {
             // Close the packaged program explicitly to clean up temporary jars.
             program.close();
@@ -124,5 +125,6 @@ public class ApplicationClusterEntryPoint extends ClusterEntrypoint {
             LOG.debug("Error while closing the packaged program.", e);
             throw e;
         }
+        super.cleanupDirectories();
     }
 }
