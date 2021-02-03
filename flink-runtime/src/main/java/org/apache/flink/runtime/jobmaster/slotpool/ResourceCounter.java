@@ -34,7 +34,7 @@ import java.util.Set;
  * <p>ResourceCounter contains a set of {@link ResourceProfile ResourceProfiles} and their
  * associated counts. The counts are always positive (> 0).
  */
-final class ResourceCounter {
+public final class ResourceCounter {
 
     private final Map<ResourceProfile, Integer> resources;
 
