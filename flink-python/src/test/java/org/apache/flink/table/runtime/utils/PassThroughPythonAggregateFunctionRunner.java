@@ -127,13 +127,16 @@ public class PassThroughPythonAggregateFunctionRunner
                             RowData firstData = arrowSerializer.read(lowerBoundary);
                             arrowSerializer.write(firstData);
                         }
+                        arrowSerializer.resetReader();
                     } else {
                         arrowSerializer.load();
                         arrowSerializer.write(arrowSerializer.read(0));
+                        arrowSerializer.resetReader();
                     }
                     arrowSerializer.finishCurrentBatch();
                     buffer.add(baos.toByteArray());
                     baos.reset();
+                    arrowSerializer.resetWriter();
                 };
     }
 

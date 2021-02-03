@@ -610,13 +610,13 @@ class ArrowCoderImpl(StreamCoderImpl):
         self._timezone = timezone
         self._resettable_io = ResettableIO()
         self._batch_reader = ArrowCoderImpl._load_from_stream(self._resettable_io)
-        self._batch_writer = pa.RecordBatchStreamWriter(self._resettable_io, self._schema)
         self.data_out_stream = create_OutputStream()
         self._resettable_io.set_output_stream(self.data_out_stream)
 
     def encode_to_stream(self, cols, out_stream, nested):
         data_out_stream = self.data_out_stream
-        self._batch_writer.write_batch(
+        batch_writer = pa.RecordBatchStreamWriter(self._resettable_io, self._schema)
+        batch_writer.write_batch(
             pandas_to_arrow(self._schema, self._timezone, self._field_types, cols))
         out_stream.write_var_int64(data_out_stream.size())
         out_stream.write(data_out_stream.get())
@@ -628,9 +628,9 @@ class ArrowCoderImpl(StreamCoderImpl):
 
     @staticmethod
     def _load_from_stream(stream):
-        reader = pa.ipc.open_stream(stream)
-        for batch in reader:
-            yield batch
+        while stream.readable():
+            reader = pa.ipc.open_stream(stream)
+            yield reader.read_next_batch()
 
     def _decode_one_batch_from_stream(self, in_stream: create_InputStream, size: int) -> List:
         self._resettable_io.set_input_bytes(in_stream.read(size))
