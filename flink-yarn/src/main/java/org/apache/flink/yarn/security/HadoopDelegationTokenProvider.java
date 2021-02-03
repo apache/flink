@@ -39,7 +39,7 @@ public interface HadoopDelegationTokenProvider {
             Configuration flinkConf, org.apache.hadoop.conf.Configuration hadoopConf);
 
     /**
-     * Obtain delegation tokens for this service
+     * Obtain delegation tokens for this service.
      *
      * @param flinkConf Flink configuration
      * @param hadoopConf Hadoop configuration

@@ -36,6 +36,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/** Delegation token provider implementation for Hadoop FileSystems. */
 public class HadoopFSDelegationTokenProvider implements HadoopDelegationTokenProvider {
 
     private static final Logger LOG =
@@ -58,20 +59,7 @@ public class HadoopFSDelegationTokenProvider implements HadoopDelegationTokenPro
             org.apache.hadoop.conf.Configuration hadoopConf,
             Credentials credentials) {
         try {
-            Set<FileSystem> fileSystemsToAccess = new HashSet<>();
-            // add default FS
-            fileSystemsToAccess.add(FileSystem.get(hadoopConf));
-
-            // add additional FSs
-            Set<FileSystem> additionalFileSystems =
-                    ConfigUtils.decodeListFromConfig(
-                                    flinkConf, YarnConfigOptions.YARN_ACCESS, Path::new)
-                            .stream()
-                            .map(
-                                    FunctionUtils.uncheckedFunction(
-                                            path -> path.getFileSystem(hadoopConf)))
-                            .collect(Collectors.toSet());
-            fileSystemsToAccess.addAll(additionalFileSystems);
+            Set<FileSystem> fileSystemsToAccess = getSystemsToAccess(flinkConf, hadoopConf);
 
             final String renewer = getTokenRenewer(hadoopConf);
             fileSystemsToAccess.forEach(
@@ -86,6 +74,26 @@ public class HadoopFSDelegationTokenProvider implements HadoopDelegationTokenPro
         } catch (IOException e) {
             LOG.error("Failed to obtain tokens for Hadoop FileSystems: {}", e.getMessage());
         }
+    }
+
+    private Set<FileSystem> getSystemsToAccess(
+            Configuration flinkConf, org.apache.hadoop.conf.Configuration hadoopConf)
+            throws IOException {
+        Set<FileSystem> fileSystemsToAccess = new HashSet<>();
+        // add default FS
+        fileSystemsToAccess.add(FileSystem.get(hadoopConf));
+
+        // add additional FSs
+        Set<FileSystem> additionalFileSystems =
+                ConfigUtils.decodeListFromConfig(
+                                flinkConf, YarnConfigOptions.YARN_ACCESS, Path::new)
+                        .stream()
+                        .map(
+                                FunctionUtils.uncheckedFunction(
+                                        path -> path.getFileSystem(hadoopConf)))
+                        .collect(Collectors.toSet());
+        fileSystemsToAccess.addAll(additionalFileSystems);
+        return fileSystemsToAccess;
     }
 
     private String getTokenRenewer(org.apache.hadoop.conf.Configuration hadoopConf)

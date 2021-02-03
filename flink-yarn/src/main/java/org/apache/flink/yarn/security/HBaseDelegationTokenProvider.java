@@ -30,6 +30,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 
+/** Delegation token provider implementation for HBase. */
 public class HBaseDelegationTokenProvider implements HadoopDelegationTokenProvider {
 
     private static final Logger LOG = LoggerFactory.getLogger(HBaseDelegationTokenProvider.class);

@@ -29,6 +29,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ServiceLoader;
 
+/**
+ * HadoopDelegationTokenManager is responsible for managing delegation tokens. It can be used to
+ * obtain delegation tokens by calling `obtainDelegationTokens` method.
+ */
 public class HadoopDelegationTokenManager {
     private static final Logger LOG = LoggerFactory.getLogger(HadoopDelegationTokenManager.class);
 
@@ -43,6 +47,12 @@ public class HadoopDelegationTokenManager {
         delegationTokenProviders = loadProviders();
     }
 
+    /**
+     * Obtain delegation tokens using HadoopDelegationProviders, and store them in the give
+     * credentials.
+     *
+     * @param credentials Credentials object where to store the delegation tokens.
+     */
     public void obtainDelegationTokens(Credentials credentials) {
         Credentials creds = new Credentials();
         delegationTokenProviders.forEach(
@@ -58,7 +68,7 @@ public class HadoopDelegationTokenManager {
         credentials.addAll(creds);
     }
 
-    public List<HadoopDelegationTokenProvider> loadProviders() {
+    private List<HadoopDelegationTokenProvider> loadProviders() {
         ServiceLoader<HadoopDelegationTokenProvider> serviceLoader =
                 ServiceLoader.load(HadoopDelegationTokenProvider.class);
 
