@@ -73,10 +73,8 @@ public class DeclarativeSlotPoolBridgeResourceDeclarationTest extends TestLogger
                                 (allocationID, e) ->
                                         ResourceCounter.withResource(ResourceProfile.UNKNOWN, 1));
 
-        final DeclarativeSlotPoolBridgeTest.TestingDeclarativeSlotPoolFactory
-                declarativeSlotPoolFactory =
-                        new DeclarativeSlotPoolBridgeTest.TestingDeclarativeSlotPoolFactory(
-                                slotPoolBuilder);
+        final TestingDeclarativeSlotPoolFactory declarativeSlotPoolFactory =
+                new TestingDeclarativeSlotPoolFactory(slotPoolBuilder);
         declarativeSlotPoolBridge = createDeclarativeSlotPoolBridge(declarativeSlotPoolFactory);
     }
 
