@@ -95,7 +95,7 @@ public class UnsignedTypeConversionITCase extends AbstractTestBase {
                     }
                 }
             } catch (Exception e) {
-                logger.warn("Initialize DB fail caused by {}", e);
+                logger.warn("Initialize DB fail caused by ", e);
                 stopDb();
             }
             if (initDbSuccess) {
@@ -106,7 +106,7 @@ public class UnsignedTypeConversionITCase extends AbstractTestBase {
         if (!initDbSuccess) {
             throw new IllegalStateException(
                     String.format(
-                            "Initialize MySQL database instance failed after {} attempts,"
+                            "Initialize MySQL database instance failed after %s attempts,"
                                     + " please open an issue.",
                             INITIALIZE_DB_MAX_RETRY));
         }
@@ -249,7 +249,7 @@ public class UnsignedTypeConversionITCase extends AbstractTestBase {
         try {
             db.stop();
         } catch (ManagedProcessException e1) {
-            logger.warn("Stop DB instance fail caused by {}", e1);
+            logger.warn("Stop DB instance fail caused by ", e1);
         }
     }
 }
