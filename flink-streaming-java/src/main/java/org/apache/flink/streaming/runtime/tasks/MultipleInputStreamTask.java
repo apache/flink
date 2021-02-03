@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
@@ -169,6 +170,12 @@ public class MultipleInputStreamTask<OUT>
                         operatorChain);
     }
 
+    @Nullable
+    @VisibleForTesting
+    CheckpointBarrierHandler getCheckpointBarrierHandler() {
+        return checkpointBarrierHandler;
+    }
+
     @Override
     public Future<Boolean> triggerCheckpointAsync(
             CheckpointMetaData metadata,
@@ -204,9 +211,9 @@ public class MultipleInputStreamTask<OUT>
                                             options));
                         } else {
                             checkState(
-                                    checkpointBarrierHandler != null,
+                                    getCheckpointBarrierHandler() != null,
                                     "Trigger checkpoint to non-source task without checkpoint barrier handler");
-                            checkpointBarrierHandler.triggerCheckpoint(metadata, options);
+                            getCheckpointBarrierHandler().triggerCheckpoint(metadata, options);
                         }
 
                     } catch (Exception ex) {
@@ -277,5 +284,10 @@ public class MultipleInputStreamTask<OUT>
             resultFuture.completeExceptionally(cause);
         }
         super.abortCheckpointOnBarrier(checkpointId, cause);
+    }
+
+    @VisibleForTesting
+    HashMap<Long, CompletableFuture<Boolean>> getPendingCheckpointCompletedFutures() {
+        return pendingCheckpointCompletedFutures;
     }
 }

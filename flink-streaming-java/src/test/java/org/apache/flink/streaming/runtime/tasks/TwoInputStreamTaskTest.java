@@ -24,7 +24,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -36,6 +38,7 @@ import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.metrics.util.InterceptingOperatorMetricGroup;
 import org.apache.flink.runtime.metrics.util.InterceptingTaskMetricGroup;
+import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
@@ -48,6 +51,7 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.operators.co.CoStreamMap;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor;
+import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHandler;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.util.TestHarnessUtil;
@@ -64,10 +68,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for {@link TwoInputStreamTask}. Theses tests implicitly also test the {@link
@@ -749,6 +756,54 @@ public class TwoInputStreamTaskTest {
 
         assertThat(metrics, IsMapContaining.hasKey(MetricNames.CHECKPOINT_ALIGNMENT_TIME));
         assertThat(metrics, IsMapContaining.hasKey(MetricNames.CHECKPOINT_START_DELAY_TIME));
+
+        testHarness.endInput();
+        testHarness.waitForTaskCompletion();
+    }
+
+    @Test
+    public void testTriggerCheckpointViaRpcMessage() throws Exception {
+        // A global barrier handler to record the history of checkpoint trigger.
+        TestCheckpointBarrierHandler barrierHandler =
+                new TestCheckpointBarrierHandler(new DummyInvokable());
+        TwoInputStreamTaskTestHarness<String, Integer, String> testHarness =
+                new TwoInputStreamTaskTestHarness<>(
+                        (Environment env) ->
+                                new TwoInputStreamTask<String, Integer, String>(env) {
+                                    @Override
+                                    protected CheckpointBarrierHandler
+                                            getCheckpointBarrierHandler() {
+                                        return barrierHandler;
+                                    }
+                                },
+                        BasicTypeInfo.STRING_TYPE_INFO,
+                        BasicTypeInfo.INT_TYPE_INFO,
+                        BasicTypeInfo.STRING_TYPE_INFO);
+
+        StreamConfig streamConfig = testHarness.getStreamConfig();
+        CoStreamMap<String, Integer, String> coMapOperator = new CoStreamMap<>(new IdentityMap());
+        testHarness.setupOutputForSingletonOperatorChain();
+        streamConfig.setStreamOperator(coMapOperator);
+
+        StreamMockEnvironment environment = testHarness.createEnvironment();
+        testHarness.invoke(environment);
+        testHarness.waitForTaskRunning();
+
+        AbstractTwoInputStreamTask<String, Integer, String> task = testHarness.getTask();
+        CheckpointOptions checkpointOptions = CheckpointOptions.forCheckpointWithDefaultLocation();
+        CheckpointMetaData checkpointMetaData = new CheckpointMetaData(2, 101L);
+        Future<Boolean> resultFuture =
+                task.triggerCheckpointAsync(checkpointMetaData, checkpointOptions, false);
+        boolean result = resultFuture.get(60, TimeUnit.SECONDS);
+        assertTrue(result);
+
+        assertEquals(1, barrierHandler.getTriggeredCheckpoints().size());
+        assertEquals(
+                new CheckpointBarrier(
+                        checkpointMetaData.getCheckpointId(),
+                        checkpointMetaData.getTimestamp(),
+                        checkpointOptions),
+                barrierHandler.getTriggeredCheckpoints().get(0));
 
         testHarness.endInput();
         testHarness.waitForTaskCompletion();

@@ -34,7 +34,9 @@ import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -46,6 +48,7 @@ import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.metrics.util.InterceptingOperatorMetricGroup;
 import org.apache.flink.runtime.metrics.util.InterceptingTaskMetricGroup;
+import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.runtime.source.event.NoMoreSplitsEvent;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -63,6 +66,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.StreamMultipleInputProcessor;
+import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHandler;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
@@ -857,6 +861,53 @@ public class MultipleInputStreamTaskTest {
             expectedOutput.add(latencyMarker);
 
             assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
+
+            testHarness.endInput();
+            testHarness.waitForTaskCompletion();
+        }
+    }
+
+    @Test(timeout = 60000)
+    public void testTriggerCheckpointViaRpcMessageWithoutSourceChain() throws Exception {
+        final Map<String, Metric> metrics = new ConcurrentHashMap<>();
+        final TaskMetricGroup taskMetricGroup =
+                new StreamTaskTestHarness.TestTaskMetricGroup(metrics);
+
+        // A global barrier handler to record the history of checkpoint trigger.
+        TestCheckpointBarrierHandler barrierHandler =
+                new TestCheckpointBarrierHandler(new DummyInvokable());
+        try (StreamTaskMailboxTestHarness<String> testHarness =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                (Environment env) ->
+                                        new MultipleInputStreamTask<String>(env) {
+                                            @Override
+                                            CheckpointBarrierHandler getCheckpointBarrierHandler() {
+                                                return barrierHandler;
+                                            }
+                                        },
+                                BasicTypeInfo.STRING_TYPE_INFO)
+                        .addInput(BasicTypeInfo.STRING_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.DOUBLE_TYPE_INFO)
+                        .setupOutputForSingletonOperatorChain(
+                                new MapToStringMultipleInputOperatorFactory(3))
+                        .setTaskMetricGroup(taskMetricGroup)
+                        .build()) {
+
+            StreamTask<String, ?> task = testHarness.getStreamTask();
+            CheckpointOptions checkpointOptions =
+                    CheckpointOptions.forCheckpointWithDefaultLocation();
+            CheckpointMetaData checkpointMetaData = new CheckpointMetaData(2, 101L);
+            task.triggerCheckpointAsync(checkpointMetaData, checkpointOptions, false);
+            testHarness.processAll();
+
+            assertEquals(1, barrierHandler.getTriggeredCheckpoints().size());
+            assertEquals(
+                    new CheckpointBarrier(
+                            checkpointMetaData.getCheckpointId(),
+                            checkpointMetaData.getTimestamp(),
+                            checkpointOptions),
+                    barrierHandler.getTriggeredCheckpoints().get(0));
 
             testHarness.endInput();
             testHarness.waitForTaskCompletion();
