@@ -19,6 +19,8 @@
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.types.logical.BinaryType;
+import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -26,6 +28,8 @@ import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.SymbolType;
 import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.UnresolvedUserDefinedType;
+import org.apache.flink.table.types.logical.VarBinaryType;
+import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -41,14 +45,16 @@ import java.io.IOException;
  */
 public class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
     private static final long serialVersionUID = 1L;
-
+    // common fields
+    public static final String FIELD_NAME_TYPE_NAME = "type";
     public static final String FIELD_NAME_NULLABLE = "nullable";
+    // CharType's field
+    public static final String FIELD_NAME_LENGTH = "length";
     // SymbolType's field
     public static final String FIELD_NAME_SYMBOL_CLASS = "symbolClass";
     // TypeInformationRawType's field
     public static final String FIELD_NAME_TYPE_INFO = "typeInfo";
     // StructuredType's fields
-    public static final String FIELD_NAME_TYPE_NAME = "type";
     public static final String FIELD_NAME_IDENTIFIER = "identifier";
     public static final String FIELD_NAME_IMPLEMENTATION_CLASS = "implementationClass";
     public static final String FIELD_NAME_ATTRIBUTES = "attributes";
@@ -72,7 +78,19 @@ public class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
             JsonGenerator jsonGenerator,
             SerializerProvider serializerProvider)
             throws IOException {
-        if (logicalType instanceof SymbolType) {
+        if (logicalType instanceof CharType) {
+            // Zero-length character strings have no serializable string representation.
+            serialize((CharType) logicalType, jsonGenerator);
+        } else if (logicalType instanceof VarCharType) {
+            // Zero-length character strings have no serializable string representation.
+            serialize((VarCharType) logicalType, jsonGenerator);
+        } else if (logicalType instanceof BinaryType) {
+            // Zero-length binary strings have no serializable string representation.
+            serialize((BinaryType) logicalType, jsonGenerator);
+        } else if (logicalType instanceof VarBinaryType) {
+            // Zero-length binary strings have no serializable string representation.
+            serialize((VarBinaryType) logicalType, jsonGenerator);
+        } else if (logicalType instanceof SymbolType) {
             // SymbolType does not support `asSerializableString`
             serialize((SymbolType<?>) logicalType, jsonGenerator);
         } else if (logicalType instanceof TypeInformationRawType) {
@@ -90,6 +108,61 @@ public class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
                             + "It needs to be resolved into a proper user-defined type.\"");
         } else {
             jsonGenerator.writeObject(logicalType.asSerializableString());
+        }
+    }
+
+    private void serialize(CharType charType, JsonGenerator jsonGenerator) throws IOException {
+        // Zero-length character strings have no serializable string representation.
+        if (charType.getLength() == CharType.EMPTY_LITERAL_LENGTH) {
+            jsonGenerator.writeStartObject();
+            jsonGenerator.writeBooleanField(FIELD_NAME_NULLABLE, charType.isNullable());
+            jsonGenerator.writeNumberField(FIELD_NAME_LENGTH, charType.getLength());
+            jsonGenerator.writeStringField(FIELD_NAME_TYPE_NAME, charType.getTypeRoot().name());
+            jsonGenerator.writeEndObject();
+        } else {
+            jsonGenerator.writeObject(charType.asSerializableString());
+        }
+    }
+
+    private void serialize(VarCharType varCharType, JsonGenerator jsonGenerator)
+            throws IOException {
+        // Zero-length character strings have no serializable string representation.
+        if (varCharType.getLength() == VarCharType.EMPTY_LITERAL_LENGTH) {
+            jsonGenerator.writeStartObject();
+            jsonGenerator.writeBooleanField(FIELD_NAME_NULLABLE, varCharType.isNullable());
+            jsonGenerator.writeNumberField(FIELD_NAME_LENGTH, varCharType.getLength());
+            jsonGenerator.writeStringField(FIELD_NAME_TYPE_NAME, varCharType.getTypeRoot().name());
+            jsonGenerator.writeEndObject();
+        } else {
+            jsonGenerator.writeObject(varCharType.asSerializableString());
+        }
+    }
+
+    private void serialize(BinaryType binaryType, JsonGenerator jsonGenerator) throws IOException {
+        // Zero-length binary strings have no serializable string representation.
+        if (binaryType.getLength() == BinaryType.EMPTY_LITERAL_LENGTH) {
+            jsonGenerator.writeStartObject();
+            jsonGenerator.writeBooleanField(FIELD_NAME_NULLABLE, binaryType.isNullable());
+            jsonGenerator.writeNumberField(FIELD_NAME_LENGTH, binaryType.getLength());
+            jsonGenerator.writeStringField(FIELD_NAME_TYPE_NAME, binaryType.getTypeRoot().name());
+            jsonGenerator.writeEndObject();
+        } else {
+            jsonGenerator.writeObject(binaryType.asSerializableString());
+        }
+    }
+
+    private void serialize(VarBinaryType varBinaryType, JsonGenerator jsonGenerator)
+            throws IOException {
+        // Zero-length binary strings have no serializable string representation.
+        if (varBinaryType.getLength() == VarBinaryType.EMPTY_LITERAL_LENGTH) {
+            jsonGenerator.writeStartObject();
+            jsonGenerator.writeBooleanField(FIELD_NAME_NULLABLE, varBinaryType.isNullable());
+            jsonGenerator.writeNumberField(FIELD_NAME_LENGTH, varBinaryType.getLength());
+            jsonGenerator.writeStringField(
+                    FIELD_NAME_TYPE_NAME, varBinaryType.getTypeRoot().name());
+            jsonGenerator.writeEndObject();
+        } else {
+            jsonGenerator.writeObject(varBinaryType.asSerializableString());
         }
     }
 

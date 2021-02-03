@@ -21,12 +21,16 @@ package org.apache.flink.table.planner.plan.nodes.exec.serde;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.types.logical.BinaryType;
+import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.SymbolType;
 import org.apache.flink.table.types.logical.TypeInformationRawType;
+import org.apache.flink.table.types.logical.VarBinaryType;
+import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
 import org.apache.flink.table.utils.EncodingUtils;
 
@@ -47,6 +51,7 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJs
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_IDENTIFIER;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_IMPLEMENTATION_CLASS;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_INSTANTIABLE;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_LENGTH;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_LOGICAL_TYPE;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_NAME;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_NULLABLE;
@@ -76,26 +81,75 @@ public class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalType> {
     }
 
     public LogicalType deserialize(JsonNode logicalTypeNode, SerdeContext serdeCtx) {
-        if (logicalTypeNode.get(FIELD_NAME_SYMBOL_CLASS) != null) {
+        if (logicalTypeNode.get(FIELD_NAME_TYPE_NAME) != null) {
+            String typeName = logicalTypeNode.get(FIELD_NAME_TYPE_NAME).asText().toUpperCase();
+            LogicalTypeRoot root = LogicalTypeRoot.valueOf(typeName);
+            switch (root) {
+                case CHAR:
+                    // Zero-length character strings have no serializable string representation.
+                    return deserializeCharType(logicalTypeNode);
+                case VARCHAR:
+                    // Zero-length character strings have no serializable string representation.
+                    return deserializeVarCharType(logicalTypeNode);
+                case BINARY:
+                    // Zero-length binary strings have no serializable string representation.
+                    return deserializeBinaryType(logicalTypeNode);
+                case VARBINARY:
+                    // Zero-length binary strings have no serializable string representation.
+                    return deserializeVarBinaryType(logicalTypeNode);
+                case DISTINCT_TYPE:
+                    return deserializeDistinctType(logicalTypeNode, serdeCtx);
+                case STRUCTURED_TYPE:
+                    return deserializeStructuredType(logicalTypeNode, serdeCtx);
+                default:
+                    throw new TableException("Unsupported type name:" + typeName);
+            }
+        } else if (logicalTypeNode.get(FIELD_NAME_SYMBOL_CLASS) != null) {
             return deserializeSymbolType(logicalTypeNode);
         } else if (logicalTypeNode.get(FIELD_NAME_TYPE_INFO) != null) {
             return deserializeTypeInformationRawType(logicalTypeNode, serdeCtx);
-        } else if (logicalTypeNode.get(FIELD_NAME_TYPE_NAME) != null
-                && logicalTypeNode
-                        .get(FIELD_NAME_TYPE_NAME)
-                        .asText()
-                        .toUpperCase()
-                        .equals(LogicalTypeRoot.STRUCTURED_TYPE.name())) {
-            return deserializeStructuredType(logicalTypeNode, serdeCtx);
-        } else if (logicalTypeNode.get(FIELD_NAME_TYPE_NAME) != null
-                && logicalTypeNode
-                        .get(FIELD_NAME_TYPE_NAME)
-                        .asText()
-                        .toUpperCase()
-                        .equals(LogicalTypeRoot.DISTINCT_TYPE.name())) {
-            return deserializeDistinctType(logicalTypeNode, serdeCtx);
         } else {
             return LogicalTypeParser.parse(logicalTypeNode.asText());
+        }
+    }
+
+    private CharType deserializeCharType(JsonNode logicalTypeNode) {
+        boolean nullable = logicalTypeNode.get(FIELD_NAME_NULLABLE).asBoolean();
+        int length = logicalTypeNode.get(FIELD_NAME_LENGTH).asInt();
+        if (length == CharType.EMPTY_LITERAL_LENGTH) {
+            return (CharType) CharType.ofEmptyLiteral().copy(nullable);
+        } else {
+            return new CharType(nullable, length);
+        }
+    }
+
+    private VarCharType deserializeVarCharType(JsonNode logicalTypeNode) {
+        boolean nullable = logicalTypeNode.get(FIELD_NAME_NULLABLE).asBoolean();
+        int length = logicalTypeNode.get(FIELD_NAME_LENGTH).asInt();
+        if (length == VarCharType.EMPTY_LITERAL_LENGTH) {
+            return (VarCharType) VarCharType.ofEmptyLiteral().copy(nullable);
+        } else {
+            return new VarCharType(nullable, length);
+        }
+    }
+
+    private BinaryType deserializeBinaryType(JsonNode logicalTypeNode) {
+        boolean nullable = logicalTypeNode.get(FIELD_NAME_NULLABLE).asBoolean();
+        int length = logicalTypeNode.get(FIELD_NAME_LENGTH).asInt();
+        if (length == BinaryType.EMPTY_LITERAL_LENGTH) {
+            return (BinaryType) BinaryType.ofEmptyLiteral().copy(nullable);
+        } else {
+            return new BinaryType(nullable, length);
+        }
+    }
+
+    private VarBinaryType deserializeVarBinaryType(JsonNode logicalTypeNode) {
+        boolean nullable = logicalTypeNode.get(FIELD_NAME_NULLABLE).asBoolean();
+        int length = logicalTypeNode.get(FIELD_NAME_LENGTH).asInt();
+        if (length == VarBinaryType.EMPTY_LITERAL_LENGTH) {
+            return (VarBinaryType) VarBinaryType.ofEmptyLiteral().copy(nullable);
+        } else {
+            return new VarBinaryType(nullable, length);
         }
     }
 
