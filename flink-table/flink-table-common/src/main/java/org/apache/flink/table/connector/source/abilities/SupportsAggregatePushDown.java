@@ -69,11 +69,11 @@ import java.util.List;
  *          +- TableSourceScan(table=[[inventory, project=[name, type, amount, price]]], fields=[name, type, amount, price])
  * }</pre>
  *
- * <p>For efficiency, a source can push the local aggregates further down into underlying database or
- * storage system to reduce the network and computing overhead. The passed aggregate functions and
- * grouping sets are in the order defined by the query. The source can directly return the aggregated
- * values if the underlying database or storage system has aggregation capability. The optimized
- * plan will be changed to the following pattern with local aggregate push down:
+ * <p>For efficiency, a source can push the local aggregates further down into underlying database
+ * or storage system to reduce the network and computing overhead. The passed aggregate functions
+ * and grouping sets are in the order defined by the query. The source can directly return the
+ * aggregated values if the underlying database or storage system has aggregation capability. The
+ * optimized plan will be changed to the following pattern with local aggregate push down:
  *
  * <pre>{@code
  * Calc(select=[EXPR$0, EXPR$1, EXPR$2, EXPR$3, name, type])
@@ -107,8 +107,8 @@ import java.util.List;
  * GROUP BY name, type
  * }</pre>
  *
- * <p>Since there is a filter after the sum aggregate function. And the optimized plan as shown below.
- * The local aggregate will not be pushed down in this scenario.
+ * <p>Since there is a filter after the sum aggregate function. And the optimized plan as shown
+ * below. The local aggregate will not be pushed down in this scenario.
  *
  * <pre>{@code
  * Calc(select=[EXPR$0, name, type])
@@ -135,15 +135,16 @@ public interface SupportsAggregatePushDown {
      * the aggregates or nothing and return whether all the aggregates have been pushed down into
      * the source.
      *
-     * <p>Note: Use the passed {@code producedDataType} instead of {@link TableSchema#toPhysicalRowDataType()}
-     * for describing the final output data type when creating {@link TypeInformation}. The projection
-     * of grouping keys and aggregate values is already considered in the given output data type.
-     * The passed data type pattern is {@code grouping sets} + {@code aggregate function result},
-     * downstream storage need to organize the returned aggregate data strictly in this manner.
+     * <p>Note: Use the passed {@code producedDataType} instead of {@link
+     * TableSchema#toPhysicalRowDataType()} for describing the final output data type when creating
+     * {@link TypeInformation}. The projection of grouping keys and aggregate values is already
+     * considered in the given output data type. The passed data type pattern is {@code grouping
+     * sets} + {@code aggregate function result}, downstream storage need to organize the returned
+     * aggregate data strictly in this manner.
      *
-     * @param groupingSets a array list of the grouping sets. In the example mentioned in
-     *     {@link SupportsAggregatePushDown}, this method would receive the groupingSets of
-     *     {code List([1, 4]) which is equivalent to {@code List(["name", "type"])}.
+     * @param groupingSets a array list of the grouping sets. In the example mentioned in {@link
+     *     SupportsAggregatePushDown}, this method would receive the groupingSets of {code List([1,
+     *     4]) which is equivalent to {@code List(["name", "type"])}.
      * @param aggregateExpressions a list contains all of aggregates, you should check if all of
      *     aggregate functions can be processed by downstream system. The applying strategy is all
      *     or nothing.
