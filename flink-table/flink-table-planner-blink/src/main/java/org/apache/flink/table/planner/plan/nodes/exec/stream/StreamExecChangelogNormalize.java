@@ -90,9 +90,8 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
                         rowTypeInfo.toRowType().getFields().stream()
                                 .map(RowType.RowField::getType)
                                 .toArray(LogicalType[]::new));
-        GeneratedRecordEqualiser generatedEqualiser = equaliserCodeGen.generateRecordEqualiser(
-                "DeduplicateRowEqualiser");
-
+        GeneratedRecordEqualiser generatedEqualiser =
+                equaliserCodeGen.generateRecordEqualiser("DeduplicateRowEqualiser");
 
         if (isMiniBatchEnabled) {
             TypeSerializer<RowData> rowSerializer =

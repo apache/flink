@@ -38,12 +38,7 @@ public class ProcTimeDeduplicateKeepLastRowFunctionTest
     private ProcTimeDeduplicateKeepLastRowFunction createFunctionWithoutStateTtl(
             boolean generateUpdateBefore, boolean generateInsert) {
         return new ProcTimeDeduplicateKeepLastRowFunction(
-                inputRowType,
-                0,
-                generateUpdateBefore,
-                generateInsert,
-                true,
-                generatedEqualiser);
+                inputRowType, 0, generateUpdateBefore, generateInsert, true, generatedEqualiser);
     }
 
     private ProcTimeDeduplicateKeepLastRowFunction createFunction(

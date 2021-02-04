@@ -36,14 +36,10 @@ public class ProcTimeDeduplicateKeepLastRowFunction
     private final boolean generateUpdateBefore;
     private final boolean generateInsert;
     private final boolean inputIsInsertOnly;
-    /**
-     * function used to equal RowData.
-     */
+    /** function used to equal RowData. */
     private transient RecordEqualiser equaliser;
 
-    /**
-     * The code generated equaliser used to equal RowData.
-     */
+    /** The code generated equaliser used to equal RowData. */
     private final GeneratedRecordEqualiser genRecordEqualiser;
 
     private final boolean isStateTtlEnabled;
@@ -61,7 +57,6 @@ public class ProcTimeDeduplicateKeepLastRowFunction
         this.inputIsInsertOnly = inputInsertOnly;
         this.genRecordEqualiser = genRecordEqualiser;
         isStateTtlEnabled = stateRetentionTime > 0;
-
     }
 
     @Override
