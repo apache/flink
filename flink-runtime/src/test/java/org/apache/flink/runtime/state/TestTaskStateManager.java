@@ -119,7 +119,9 @@ public class TestTaskStateManager implements TaskStateManager {
 
     @Override
     public void reportIncompleteTaskStateSnapshots(
-            CheckpointMetaData checkpointMetaData, CheckpointMetrics checkpointMetrics) {}
+            CheckpointMetaData checkpointMetaData, CheckpointMetrics checkpointMetrics) {
+        reportedCheckpointId = checkpointMetaData.getCheckpointId();
+    }
 
     @Nonnull
     @Override
