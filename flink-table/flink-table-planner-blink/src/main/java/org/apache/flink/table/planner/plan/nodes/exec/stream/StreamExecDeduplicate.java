@@ -282,7 +282,6 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
                                     .toArray(LogicalType[]::new));
             generatedEqualiser =
                     equaliserCodeGen.generateRecordEqualiser("DeduplicateRowEqualiser");
-
         }
 
         @Override
