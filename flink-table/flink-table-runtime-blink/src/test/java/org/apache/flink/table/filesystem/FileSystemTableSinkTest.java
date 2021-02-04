@@ -18,32 +18,34 @@
 
 package org.apache.flink.table.filesystem;
 
-import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.FactoryUtil;
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
+import org.apache.flink.types.RowKind;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.Collections;
 import java.util.List;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /** Test for {@link FileSystemTableSink}. */
 public class FileSystemTableSinkTest {
@@ -56,7 +58,7 @@ public class FileSystemTableSinkTest {
                     .build();
 
     @Test
-    public void testFileSytemTableSinkWithParaallelismInChangeLogMode() {
+    public void testFileSytemTableSinkWithParallelismInChangeLogMode() {
 
         int parallelism = 2;
 
@@ -64,29 +66,26 @@ public class FileSystemTableSinkTest {
         descriptor.putString(FactoryUtil.CONNECTOR.key(), "filesystem");
         descriptor.putString("path", "/tmp");
         descriptor.putString("format", "testcsv");
-        descriptor.putString(
-                TestCsvFileSystemFormatFactory.IDENTIFIER
-                        + "."
-                        + TestCsvFileSystemFormatFactory.USE_UPSERT_CHANGELOG_MODE.key(),
-                "true");
         descriptor.putString(FactoryUtil.SINK_PARALLELISM.key(), String.valueOf(parallelism));
 
         final DynamicTableSink tableSink = createSink(descriptor);
-        Assert.assertTrue(tableSink instanceof FileSystemTableSink);
+        assertTrue(tableSink instanceof FileSystemTableSink);
 
         final DynamicTableSink.SinkRuntimeProvider provider =
-                tableSink.getSinkRuntimeProvider(new MockSinkContext(false));
-        Assert.assertTrue(provider instanceof DataStreamSinkProvider);
+                tableSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(false));
+        assertTrue(provider instanceof DataStreamSinkProvider);
 
-        final DataStreamSinkProvider dataStreamSinkProvider = (DataStreamSinkProvider) provider;
         try {
-            dataStreamSinkProvider.consumeDataStream(createInputDataStream());
+            tableSink.getChangelogMode(ChangelogMode.newBuilder().addContainedKind(RowKind.INSERT).addContainedKind( RowKind.DELETE).build());
+            fail();
         } catch (Exception e) {
-            Assert.assertTrue(
+            assertTrue(
                     ExceptionUtils.findThrowableWithMessage(
-                                    e, "is configured, which is different from input parallelism")
+                                    e, "when the input stream is not INSERT only")
                             .isPresent());
         }
+
+
     }
 
     @Test
@@ -104,14 +103,14 @@ public class FileSystemTableSinkTest {
         Assert.assertTrue(tableSink instanceof FileSystemTableSink);
 
         final DynamicTableSink.SinkRuntimeProvider provider =
-                tableSink.getSinkRuntimeProvider(new MockSinkContext(false));
+                tableSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(false));
         Assert.assertTrue(provider instanceof DataStreamSinkProvider);
 
         final DataStreamSinkProvider dataStreamSinkProvider = (DataStreamSinkProvider) provider;
         final DataStreamSink<?> dataStreamSink =
                 dataStreamSinkProvider.consumeDataStream(createInputDataStream());
         final List<Transformation<?>> inputs = dataStreamSink.getTransformation().getInputs();
-        Assert.assertTrue(inputs.get(0).getParallelism() == parallelism);
+        assertEquals(inputs.get(0).getParallelism(), parallelism);
     }
 
     @Test
@@ -126,24 +125,21 @@ public class FileSystemTableSinkTest {
         descriptor.putString(FactoryUtil.SINK_PARALLELISM.key(), String.valueOf(parallelism));
 
         final DynamicTableSink tableSink = createSink(descriptor);
-        Assert.assertTrue(tableSink instanceof FileSystemTableSink);
+        assertTrue(tableSink instanceof FileSystemTableSink);
 
         final DynamicTableSink.SinkRuntimeProvider provider =
-                tableSink.getSinkRuntimeProvider(new MockSinkContext(true));
-        Assert.assertTrue(provider instanceof DataStreamSinkProvider);
+                tableSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(true));
+        assertTrue(provider instanceof DataStreamSinkProvider);
 
         final DataStreamSinkProvider dataStreamSinkProvider = (DataStreamSinkProvider) provider;
         final DataStreamSink<?> dataStreamSink =
                 dataStreamSinkProvider.consumeDataStream(createInputDataStream());
-        Assert.assertTrue(dataStreamSink.getTransformation().getParallelism() == parallelism);
+        assertEquals(dataStreamSink.getTransformation().getParallelism(), parallelism);
     }
 
     private static DataStream<RowData> createInputDataStream() {
-        final MockTransformation<RowData> mockTransformation =
-                MockTransformation.createMockTransformation();
-        final DummyStreamExecutionEnvironment mockEnv = new DummyStreamExecutionEnvironment();
-
-        return new DataStream<>(mockEnv, mockTransformation);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        return env.fromElements(new GenericRowData(3));
     }
 
     private static DynamicTableSink createSink(DescriptorProperties properties) {
@@ -156,59 +152,5 @@ public class FileSystemTableSinkTest {
                 false);
     }
 
-    private static class MockSinkContext implements DynamicTableSink.Context {
 
-        private final boolean bounded;
-
-        public MockSinkContext(boolean bounded) {
-            this.bounded = bounded;
-        }
-
-        @Override
-        public boolean isBounded() {
-            return bounded;
-        }
-
-        @Override
-        public TypeInformation<?> createTypeInformation(DataType consumedDataType) {
-            return null;
-        }
-
-        @Override
-        public DynamicTableSink.DataStructureConverter createDataStructureConverter(
-                DataType consumedDataType) {
-            return null;
-        }
-    }
-
-    private static class MockTransformation<T> extends Transformation<T> {
-
-        public static MockTransformation<RowData> createMockTransformation() {
-            final InternalTypeInfo<RowData> typeInfo =
-                    InternalTypeInfo.of(TEST_SCHEMA.toPhysicalRowDataType().getLogicalType());
-            return new MockTransformation<RowData>(typeInfo);
-        }
-
-        public MockTransformation(TypeInformation<T> typeInfo) {
-            super("MockTransform", typeInfo, 1);
-        }
-
-        @Override
-        public List<Transformation<?>> getTransitivePredecessors() {
-            return null;
-        }
-
-        @Override
-        public List<Transformation<?>> getInputs() {
-            return Collections.emptyList();
-        }
-    }
-
-    private static class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment {
-
-        @Override
-        public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
-            return null;
-        }
-    }
 }

@@ -250,7 +250,6 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                         conf.get(SINK_ROLLING_POLICY_ROLLOVER_INTERVAL).toMillis());
 
         boolean autoCompaction = conf.getBoolean(FileSystemOptions.AUTO_COMPACTION);
-        // todo hive set parallelism, will be implemented in case of FLINK-19945 being finished.
         int parallelism = dataStream.getParallelism();
         if (autoCompaction) {
             fileNamingBuilder.withPartPrefix(

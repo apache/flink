@@ -21,7 +21,6 @@ package org.apache.flink.table.filesystem;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -36,7 +35,6 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
-import org.apache.flink.types.RowKind;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -50,20 +48,11 @@ import static org.apache.flink.api.java.io.CsvOutputFormat.DEFAULT_LINE_DELIMITE
 
 /** Test csv {@link FileSystemFormatFactory}. */
 public class TestCsvFileSystemFormatFactory
-        implements FileSystemFormatFactory, BulkWriterFormatFactory {
-
-    static final String IDENTIFIER = "testcsv";
-
-    static final ConfigOption<Boolean> USE_UPSERT_CHANGELOG_MODE =
-            ConfigOptions.key("upsert-changelog-mode")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription(
-                            "use upsert changelog mode, row kinds contain I, U, D. This is only for test.");
+    implements FileSystemFormatFactory, BulkWriterFormatFactory {
 
     @Override
     public String factoryIdentifier() {
-        return IDENTIFIER;
+        return "testcsv";
     }
 
     @Override
@@ -73,29 +62,27 @@ public class TestCsvFileSystemFormatFactory
 
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
-        final HashSet<ConfigOption<?>> configOptions = new HashSet<>();
-        configOptions.add(USE_UPSERT_CHANGELOG_MODE);
-        return configOptions;
+        return new HashSet<>();
     }
 
     @Override
     public InputFormat<RowData, ?> createReader(ReaderContext context) {
         return new TestRowDataCsvInputFormat(
-                context.getPaths(),
-                context.getSchema(),
-                context.getPartitionKeys(),
-                context.getDefaultPartName(),
-                context.getProjectFields(),
-                context.getPushedDownLimit());
+            context.getPaths(),
+            context.getSchema(),
+            context.getPartitionKeys(),
+            context.getDefaultPartName(),
+            context.getProjectFields(),
+            context.getPushedDownLimit());
     }
 
     private static void writeCsvToStream(DataType[] types, RowData rowData, OutputStream stream)
-            throws IOException {
+        throws IOException {
         LogicalType[] fieldTypes =
-                Arrays.stream(types).map(DataType::getLogicalType).toArray(LogicalType[]::new);
+            Arrays.stream(types).map(DataType::getLogicalType).toArray(LogicalType[]::new);
         DataFormatConverters.DataFormatConverter converter =
-                DataFormatConverters.getConverterForDataType(
-                        TypeConversions.fromLogicalToDataType(RowType.of(fieldTypes)));
+            DataFormatConverters.getConverterForDataType(
+                TypeConversions.fromLogicalToDataType(RowType.of(fieldTypes)));
 
         Row row = (Row) converter.toExternal(rowData);
         StringBuilder builder = new StringBuilder();
@@ -115,27 +102,19 @@ public class TestCsvFileSystemFormatFactory
 
     @Override
     public EncodingFormat<BulkWriter.Factory<RowData>> createEncodingFormat(
-            DynamicTableFactory.Context context, ReadableConfig formatOptions) {
+        DynamicTableFactory.Context context, ReadableConfig formatOptions) {
         return new EncodingFormat<BulkWriter.Factory<RowData>>() {
             @Override
             public BulkWriter.Factory<RowData> createRuntimeEncoder(
-                    DynamicTableSink.Context context, DataType consumedDataType) {
+                DynamicTableSink.Context context, DataType consumedDataType) {
                 return out ->
-                        new CsvBulkWriter(
-                                consumedDataType.getChildren().toArray(new DataType[0]), out);
+                    new CsvBulkWriter(
+                        consumedDataType.getChildren().toArray(new DataType[0]), out);
             }
 
             @Override
             public ChangelogMode getChangelogMode() {
-
-                return formatOptions.get(USE_UPSERT_CHANGELOG_MODE)
-                        ? ChangelogMode.newBuilder()
-                                .addContainedKind(RowKind.INSERT)
-                                .addContainedKind(RowKind.DELETE)
-                                .addContainedKind(RowKind.UPDATE_AFTER)
-                                .addContainedKind(RowKind.UPDATE_BEFORE)
-                                .build()
-                        : ChangelogMode.insertOnly();
+                return ChangelogMode.insertOnly();
             }
         };
     }
