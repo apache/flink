@@ -188,7 +188,11 @@ public class DefaultExecutionTopologyTest extends TestLogger {
                             .map(originalGraph::getResultPartition)
                             .collect(Collectors.toList());
             Iterable<DefaultResultPartition> adaptedConsumedPartitions =
-                    adaptedVertex.getConsumedResults();
+                    adaptedVertex.getGroupedConsumedResults().stream()
+                            .map(ConsumedPartitionGroup::getResultPartitions)
+                            .flatMap(Collection::stream)
+                            .map(adaptedTopology::getResultPartition)
+                            .collect(Collectors.toList());
 
             assertPartitionsEquals(originalConsumedPartitions, adaptedConsumedPartitions);
 
@@ -233,7 +237,11 @@ public class DefaultExecutionTopologyTest extends TestLogger {
                             .map(ConsumerVertexGroup::getVertices)
                             .flatMap(Collection::stream)
                             .collect(Collectors.toList());
-            Iterable<DefaultExecutionVertex> adaptedConsumers = adaptedPartition.getConsumers();
+            List<ExecutionVertexID> adaptedConsumerIds =
+                    adaptedPartition.getGroupedConsumers().stream()
+                            .map(ConsumerVertexGroup::getVertices)
+                            .flatMap(Collection::stream)
+                            .collect(Collectors.toList());
 
             for (ExecutionVertexID originalId : originalConsumerIds) {
                 // it is sufficient to verify that some vertex exists with the correct ID here,
@@ -242,10 +250,8 @@ public class DefaultExecutionTopologyTest extends TestLogger {
                 // the topology are
                 // identical to those stored in the partition
                 assertTrue(
-                        IterableUtils.toStream(adaptedConsumers)
-                                .anyMatch(
-                                        adaptedConsumer ->
-                                                adaptedConsumer.getId().equals(originalId)));
+                        IterableUtils.toStream(adaptedConsumerIds)
+                                .anyMatch(adaptedId -> adaptedId.equals(originalId)));
             }
         }
     }
