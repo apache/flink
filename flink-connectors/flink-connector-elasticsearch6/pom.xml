@@ -86,7 +86,7 @@ under the License.
 		<dependency>
 			<groupId>org.testcontainers</groupId>
 			<artifactId>elasticsearch</artifactId>
-			<version>1.15.0</version>
+			<version>1.15.1</version>
 			<scope>test</scope>
 		</dependency>
 
