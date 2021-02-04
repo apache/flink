@@ -22,7 +22,6 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
-import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.TestingPayload;
@@ -39,6 +38,7 @@ import org.apache.flink.util.function.BiConsumerWithException;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -51,7 +51,6 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createRandomExecutionVertexId;
 import static org.hamcrest.CoreMatchers.is;
@@ -504,17 +503,7 @@ public class SlotSharingExecutionSlotAllocatorTest extends TestLogger {
         }
 
         private List<SlotExecutionVertexAssignment> allocateSlotsFor(ExecutionVertexID... ids) {
-            List<ExecutionVertexSchedulingRequirements> requirements =
-                    Stream.of(ids)
-                            .map(
-                                    id ->
-                                            new ExecutionVertexSchedulingRequirements.Builder()
-                                                    .withExecutionVertexId(id)
-                                                    .withSlotSharingGroupId(
-                                                            new SlotSharingGroupId())
-                                                    .build())
-                            .collect(Collectors.toList());
-            return allocator.allocateSlotsFor(requirements);
+            return allocator.allocateSlotsFor(Arrays.asList(ids));
         }
 
         private TestingSlotSharingStrategy getSlotSharingStrategy() {
