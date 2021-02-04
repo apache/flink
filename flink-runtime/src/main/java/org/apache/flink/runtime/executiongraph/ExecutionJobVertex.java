@@ -69,6 +69,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.executiongraph.EdgeManagerBuildUtil.registerToExecutionEdgeManager;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -452,12 +453,7 @@ public class ExecutionJobVertex
 
             this.inputs.add(ires);
 
-            int consumerIndex = ires.registerConsumer();
-
-            for (int i = 0; i < parallelism; i++) {
-                ExecutionVertex ev = taskVertices[i];
-                ev.connectSource(num, ires, edge, consumerIndex);
-            }
+            registerToExecutionEdgeManager(taskVertices, ires, num, edge.getDistributionPattern());
         }
     }
 

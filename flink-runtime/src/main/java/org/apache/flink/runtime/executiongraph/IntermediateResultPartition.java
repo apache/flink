@@ -20,8 +20,8 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.scheduler.strategy.ConsumerVertexGroup;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class IntermediateResultPartition {
@@ -32,8 +32,6 @@ public class IntermediateResultPartition {
 
     private final IntermediateResultPartitionID partitionId;
 
-    private List<List<ExecutionEdge>> consumers;
-
     /** Whether this partition has produced some data. */
     private boolean hasDataProduced = false;
 
@@ -41,8 +39,9 @@ public class IntermediateResultPartition {
             IntermediateResult totalResult, ExecutionVertex producer, int partitionNumber) {
         this.totalResult = totalResult;
         this.producer = producer;
-        this.consumers = new ArrayList<List<ExecutionEdge>>(0);
         this.partitionId = new IntermediateResultPartitionID(totalResult.getId(), partitionNumber);
+
+        producer.getExecutionGraph().registerResultPartition(partitionId, this);
     }
 
     public ExecutionVertex getProducer() {
@@ -50,7 +49,7 @@ public class IntermediateResultPartition {
     }
 
     public int getPartitionNumber() {
-        return partitionId.getPartitionNum();
+        return partitionId.getPartitionNumber();
     }
 
     public IntermediateResult getIntermediateResult() {
@@ -65,8 +64,8 @@ public class IntermediateResultPartition {
         return totalResult.getResultType();
     }
 
-    public List<List<ExecutionEdge>> getConsumers() {
-        return consumers;
+    public List<ConsumerVertexGroup> getConsumers() {
+        return getEdgeManager().getPartitionConsumers(partitionId);
     }
 
     public void markDataProduced() {
@@ -90,21 +89,12 @@ public class IntermediateResultPartition {
         hasDataProduced = false;
     }
 
-    int addConsumerGroup() {
-        int pos = consumers.size();
-
-        // NOTE: currently we support only one consumer per result!!!
-        if (pos != 0) {
-            throw new RuntimeException(
-                    "Currently, each intermediate result can only have one consumer.");
-        }
-
-        consumers.add(new ArrayList<ExecutionEdge>());
-        return pos;
+    public void setConsumers(ConsumerVertexGroup consumers) {
+        producer.getExecutionGraph().getEdgeManager().addPartitionConsumers(partitionId, consumers);
     }
 
-    void addConsumer(ExecutionEdge edge, int consumerNumber) {
-        consumers.get(consumerNumber).add(edge);
+    EdgeManager getEdgeManager() {
+        return producer.getExecutionGraph().getEdgeManager();
     }
 
     boolean markFinished() {
