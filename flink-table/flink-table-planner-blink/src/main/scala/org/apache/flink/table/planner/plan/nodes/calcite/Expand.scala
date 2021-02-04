@@ -22,9 +22,9 @@ import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTra
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.calcite.rex.{RexInputRef, RexLiteral, RexNode}
-import org.apache.calcite.sql.SqlExplainLevel
+import org.apache.calcite.rex.{RexLiteral, RexNode}
 import org.apache.calcite.util.Litmus
+import org.apache.flink.table.planner.plan.utils.RelExplainUtil
 
 import java.util
 
@@ -82,21 +82,8 @@ abstract class Expand(
   override def deriveRowType(): RelDataType = outputRowType
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    val names = outputRowType.getFieldNames
-    val terms = if (pw.getDetailLevel == SqlExplainLevel.EXPPLAN_ATTRIBUTES) {
-      // improve the readability
-      names.mkString(", ")
-    } else {
-      projects.map {
-        project =>
-          project.zipWithIndex.map {
-            case (r: RexInputRef, i: Int) => s"${names.get(i)}=[${r.getName}]"
-            case (l: RexLiteral, i: Int) => s"${names.get(i)}=[${l.getValue3}]"
-            case (o, _) => s"$o"
-          }.mkString("{", ", ", "}")
-      }.mkString(", ")
-    }
-    super.explainTerms(pw).item("projects", terms)
+    super.explainTerms(pw)
+      .item("projects", RelExplainUtil.projectsToString(projects, input.getRowType, getRowType))
   }
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
