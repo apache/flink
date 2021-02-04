@@ -397,8 +397,6 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         return executionSlotAllocator.allocateSlotsFor(
                 executionVertexDeploymentOptions.stream()
                         .map(ExecutionVertexDeploymentOption::getExecutionVertexId)
-                        .map(this::getExecutionVertex)
-                        .map(ExecutionVertexSchedulingRequirementsMapper::from)
                         .collect(Collectors.toList()));
     }
 
