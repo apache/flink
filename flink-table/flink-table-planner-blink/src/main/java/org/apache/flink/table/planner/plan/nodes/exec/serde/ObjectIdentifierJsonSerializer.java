@@ -34,7 +34,7 @@ public class ObjectIdentifierJsonSerializer extends StdSerializer<ObjectIdentifi
     public static final String FIELD_NAME_DATABASE_NAME = "databaseName";
     public static final String FIELD_NAME_TABLE_NAME = "tableName";
 
-    protected ObjectIdentifierJsonSerializer() {
+    public ObjectIdentifierJsonSerializer() {
         super(ObjectIdentifier.class);
     }
 

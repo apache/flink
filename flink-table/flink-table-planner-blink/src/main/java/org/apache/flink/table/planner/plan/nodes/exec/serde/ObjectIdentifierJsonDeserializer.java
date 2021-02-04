@@ -36,7 +36,7 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.ObjectIdentif
 public class ObjectIdentifierJsonDeserializer extends StdDeserializer<ObjectIdentifier> {
     private static final long serialVersionUID = 1L;
 
-    protected ObjectIdentifierJsonDeserializer() {
+    public ObjectIdentifierJsonDeserializer() {
         super(ObjectIdentifier.class);
     }
 
