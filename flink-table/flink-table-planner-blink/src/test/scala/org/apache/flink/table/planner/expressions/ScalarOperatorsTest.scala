@@ -41,6 +41,9 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
       "true"
     )
 
+    /**
+     * i think in this test must expected false
+     */
     testSqlApi(
       "f14 IN ('This is a test String.', 'String', 'Hello world')",
       "null"
@@ -179,5 +182,10 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
 
     testSqlApi("CASE WHEN f2 = 1 THEN CAST ('' as INT) ELSE 0 END", "null")
     testSqlApi("IF(true, CAST ('non-numeric' AS BIGINT), 0)", "null")
+  }
+
+  @Test
+  def testMyExpressions(): Unit = {
+    testSqlApi("IF(f14 = '0' or f14 IS NULL, 'a', 'b')", expected = "a")
   }
 }
