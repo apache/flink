@@ -20,6 +20,7 @@ package org.apache.flink.table.connector.source;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.source.abilities.SupportsAggregatePushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
@@ -49,6 +50,7 @@ import java.io.Serializable;
  * <ul>
  *   <li>{@link SupportsWatermarkPushDown}
  *   <li>{@link SupportsFilterPushDown}
+ *   <li>{@link SupportsAggregatePushDown}
  *   <li>{@link SupportsProjectionPushDown}
  *   <li>{@link SupportsPartitionPushDown}
  *   <li>{@link SupportsReadingMetadata}
