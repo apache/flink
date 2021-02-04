@@ -358,6 +358,17 @@ public class JobManagerOptions {
                                     .list(text("'ng': new generation scheduler"))
                                     .build());
 
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Integer> MIN_PARALLELISM_INCREASE =
+            key("jobmanager.declarative-scheduler.min-parallelism-increase")
+                    .intType()
+                    .defaultValue(1)
+                    .withDescription(
+                            "Configure the minimum increase in parallelism for a job to scale up.");
+
     /**
      * Config parameter controlling whether partitions should already be released during the job
      * execution.
