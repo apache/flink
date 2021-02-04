@@ -118,20 +118,21 @@ public class RocksKeyGroupsRocksSingleStateIteratorTest {
                 totalKeysExpected += numKeys;
             }
 
+            CloseableRegistry closeableRegistry = new CloseableRegistry();
             int id = 0;
             for (Tuple2<ColumnFamilyHandle, Integer> columnFamilyHandle :
                     columnFamilyHandlesWithKeyCount) {
-                rocksIteratorsWithKVStateId.add(
-                        new Tuple2<>(
-                                RocksDBOperationUtils.getRocksIterator(
-                                        rocksDB, columnFamilyHandle.f0, readOptions),
-                                id));
+                RocksIteratorWrapper rocksIterator =
+                        RocksDBOperationUtils.getRocksIterator(
+                                rocksDB, columnFamilyHandle.f0, readOptions);
+                closeableRegistry.registerCloseable(rocksIterator);
+                rocksIteratorsWithKVStateId.add(new Tuple2<>(rocksIterator, id));
                 ++id;
             }
 
             try (RocksStatesPerKeyGroupMergeIterator mergeIterator =
                     new RocksStatesPerKeyGroupMergeIterator(
-                            new CloseableRegistry(),
+                            closeableRegistry,
                             rocksIteratorsWithKVStateId,
                             maxParallelism <= Byte.MAX_VALUE ? 1 : 2)) {
 
