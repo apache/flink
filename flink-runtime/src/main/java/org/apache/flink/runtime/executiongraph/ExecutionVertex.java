@@ -403,8 +403,10 @@ public class ExecutionVertex
      *     input-based preference.
      */
     public Collection<CompletableFuture<TaskManagerLocation>> getPreferredLocationsBasedOnInputs() {
+        final List<ConsumedPartitionGroup> allConsumedPartitions = getAllConsumedPartitions();
+
         // otherwise, base the preferred locations on the input connections
-        if (inputEdges == null) {
+        if (allConsumedPartitions == null) {
             return Collections.emptySet();
         } else {
             Set<CompletableFuture<TaskManagerLocation>> locations =
@@ -413,16 +415,15 @@ public class ExecutionVertex
                     new HashSet<>(getTotalNumberOfParallelSubtasks());
 
             // go over all inputs
-            for (int i = 0; i < inputEdges.length; i++) {
+            for (ConsumedPartitionGroup sources : allConsumedPartitions) {
                 inputLocations.clear();
-                ExecutionEdge[] sources = inputEdges[i];
                 if (sources != null) {
                     // go over all input sources
-                    for (int k = 0; k < sources.length; k++) {
+                    for (IntermediateResultPartitionID sourceId : sources.getResultPartitions()) {
                         // look-up assigned slot of input source
                         CompletableFuture<TaskManagerLocation> locationFuture =
-                                sources[k]
-                                        .getSource()
+                                getExecutionGraph()
+                                        .getResultPartition(sourceId)
                                         .getProducer()
                                         .getCurrentTaskManagerLocationFuture();
                         // add input location

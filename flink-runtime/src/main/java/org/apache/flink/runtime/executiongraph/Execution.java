@@ -48,6 +48,8 @@ import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
+import org.apache.flink.runtime.scheduler.strategy.ConsumerVertexGroup;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.ProducerDescriptor;
@@ -439,7 +441,9 @@ public class Execution
 
         for (IntermediateResultPartition partition : partitions) {
             PartitionDescriptor partitionDescriptor = PartitionDescriptor.from(partition);
-            int maxParallelism = getPartitionMaxParallelism(partition);
+            int maxParallelism =
+                    getPartitionMaxParallelism(
+                            partition, vertex.getExecutionGraph().getExecutionVertexMapping());
             CompletableFuture<? extends ShuffleDescriptor> shuffleDescriptorFuture =
                     vertex.getExecutionGraph()
                             .getShuffleMaster()
@@ -471,15 +475,15 @@ public class Execution
                         });
     }
 
-    private static int getPartitionMaxParallelism(IntermediateResultPartition partition) {
-        final List<List<ExecutionEdge>> consumers = partition.getConsumers();
+    private static int getPartitionMaxParallelism(
+            IntermediateResultPartition partition,
+            Map<ExecutionVertexID, ExecutionVertex> verticesById) {
+        final List<ConsumerVertexGroup> consumers = partition.getConsumers();
         Preconditions.checkArgument(
-                !consumers.isEmpty(),
+                consumers.size() == 1,
                 "Currently there has to be exactly one consumer in real jobs");
-        List<ExecutionEdge> consumer = consumers.get(0);
-        ExecutionJobVertex consumerVertex = consumer.get(0).getTarget().getJobVertex();
-        int maxParallelism = consumerVertex.getMaxParallelism();
-        return maxParallelism;
+        final List<ExecutionVertexID> consumerIds = consumers.get(0).getVertices();
+        return verticesById.get(consumerIds.get(0)).getJobVertex().getMaxParallelism();
     }
 
     /**
@@ -711,7 +715,9 @@ public class Execution
         return releaseFuture;
     }
 
-    private void updatePartitionConsumers(final List<List<ExecutionEdge>> allConsumers) {
+    private void updatePartitionConsumers(
+            final IntermediateResultPartition partition,
+            final List<ConsumerVertexGroup> allConsumers) {
         if (allConsumers.size() == 0) {
             return;
         }
@@ -722,8 +728,9 @@ public class Execution
             return;
         }
 
-        for (ExecutionEdge edge : allConsumers.get(0)) {
-            final ExecutionVertex consumerVertex = edge.getTarget();
+        for (ExecutionVertexID consumerVertexId : allConsumers.get(0).getVertices()) {
+            final ExecutionVertex consumerVertex =
+                    vertex.getExecutionGraph().getVertex(consumerVertexId);
             final Execution consumer = consumerVertex.getCurrentExecutionAttempt();
             final ExecutionState consumerState = consumer.getState();
 
@@ -733,7 +740,7 @@ public class Execution
             // sent after switching to running
             // ----------------------------------------------------------------
             if (consumerState == DEPLOYING || consumerState == RUNNING) {
-                final PartitionInfo partitionInfo = createPartitionInfo(edge);
+                final PartitionInfo partitionInfo = createPartitionInfo(partition);
 
                 if (consumerState == DEPLOYING) {
                     consumerVertex.cachePartitionInfo(partitionInfo);
@@ -744,11 +751,12 @@ public class Execution
         }
     }
 
-    private static PartitionInfo createPartitionInfo(ExecutionEdge executionEdge) {
+    private static PartitionInfo createPartitionInfo(
+            IntermediateResultPartition consumedPartition) {
         IntermediateDataSetID intermediateDataSetID =
-                executionEdge.getSource().getIntermediateResult().getId();
+                consumedPartition.getIntermediateResult().getId();
         ShuffleDescriptor shuffleDescriptor =
-                getConsumedPartitionShuffleDescriptor(executionEdge, false);
+                getConsumedPartitionShuffleDescriptor(consumedPartition, false);
         return new PartitionInfo(intermediateDataSetID, shuffleDescriptor);
     }
 
@@ -972,7 +980,7 @@ public class Execution
                     finishedPartition.getIntermediateResult().getPartitions();
 
             for (IntermediateResultPartition partition : allPartitionsOfNewlyFinishedResults) {
-                updatePartitionConsumers(partition.getConsumers());
+                updatePartitionConsumers(partition, partition.getConsumers());
             }
         }
     }
