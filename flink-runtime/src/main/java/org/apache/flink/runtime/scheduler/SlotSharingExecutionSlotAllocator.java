@@ -115,15 +115,11 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
      *       returns the results.
      * </ol>
      *
-     * @param executionVertexSchedulingRequirements the requirements for scheduling the executions.
+     * @param executionVertexIds Execution vertices to allocate slots for
      */
     @Override
     public List<SlotExecutionVertexAssignment> allocateSlotsFor(
-            List<ExecutionVertexSchedulingRequirements> executionVertexSchedulingRequirements) {
-        List<ExecutionVertexID> executionVertexIds =
-                executionVertexSchedulingRequirements.stream()
-                        .map(ExecutionVertexSchedulingRequirements::getExecutionVertexId)
-                        .collect(Collectors.toList());
+            List<ExecutionVertexID> executionVertexIds) {
 
         SharedSlotProfileRetriever sharedSlotProfileRetriever =
                 sharedSlotProfileRetrieverFactory.createFromBulk(new HashSet<>(executionVertexIds));
