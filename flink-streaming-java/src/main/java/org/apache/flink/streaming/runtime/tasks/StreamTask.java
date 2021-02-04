@@ -759,6 +759,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         // make sure all buffered data is flushed
         operatorChain.flushOutputs();
 
+        // No new checkpoints could be triggered since mailbox has been drained.
+        subtaskCheckpointCoordinator.waitForPendingCheckpoints();
+        LOG.debug("All pending checkpoints are finished");
+
         // make an attempt to dispose the operators such that failures in the dispose call
         // still let the computation fail
         closeAllOperators();
