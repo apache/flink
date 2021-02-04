@@ -187,12 +187,6 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
             snapshot2 =
                     AbstractStreamOperatorTestHarness.repackageState(
                             harness2[0].snapshot(0, 0), harness2[1].snapshot(0, 0));
-
-            validHarnessResult(
-                    harness2[0], 1, records[5], records[6], records[7], records[8], records[9]);
-
-            validHarnessResult(
-                    harness2[1], 1, records[0], records[1], records[2], records[3], records[4]);
         } finally {
             closeHarness(harness2);
         }
@@ -253,36 +247,6 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
             validHarnessResult(harness3[0], 3, records[0], records[1], records[2], records[3]);
             validHarnessResult(harness3[1], 3, records[4], records[5], records[6]);
             validHarnessResult(harness3[2], 3, records[7], records[8], records[9]);
-
-            validHarnessResult(
-                    harness3[0],
-                    1,
-                    records[4],
-                    records[5],
-                    records[6],
-                    records[7],
-                    records[8],
-                    records[9]);
-            validHarnessResult(
-                    harness3[1],
-                    1,
-                    records[0],
-                    records[1],
-                    records[2],
-                    records[3],
-                    records[7],
-                    records[8],
-                    records[9]);
-            validHarnessResult(
-                    harness3[2],
-                    1,
-                    records[0],
-                    records[1],
-                    records[2],
-                    records[3],
-                    records[4],
-                    records[5],
-                    records[6]);
         } finally {
             closeHarness(harness3);
         }
@@ -390,12 +354,6 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
             snapshot2 =
                     AbstractStreamOperatorTestHarness.repackageState(
                             harness2[0].snapshot(0, 0), harness2[1].snapshot(0, 0));
-
-            validHarnessResult(
-                    harness2[0], 1, records[5], records[6], records[7], records[8], records[9]);
-
-            validHarnessResult(
-                    harness2[1], 1, records[0], records[1], records[2], records[3], records[4]);
         } finally {
             closeHarness(harness2);
         }
