@@ -35,7 +35,6 @@ import static org.junit.Assert.assertThat;
 
 /** Tests for the {@link Created} state. */
 public class CreatedTest extends TestLogger {
-    static final JobID testJobId = new JobID();
 
     @Test
     public void testCancel() throws Exception {
@@ -103,11 +102,11 @@ public class CreatedTest extends TestLogger {
                 new StateValidator<>("WaitingForResources");
 
         public void setExpectFinished(Consumer<ArchivedExecutionGraph> asserter) {
-            finishedStateValidator.activate(asserter);
+            finishedStateValidator.expectInput(asserter);
         }
 
         public void setExpectWaitingForResources() {
-            waitingForResourcesStateValidator.activate((none) -> {});
+            waitingForResourcesStateValidator.expectInput((none) -> {});
         }
 
         @Override
@@ -119,7 +118,7 @@ public class CreatedTest extends TestLogger {
         public ArchivedExecutionGraph getArchivedExecutionGraph(
                 JobStatus jobStatus, @Nullable Throwable cause) {
             return ArchivedExecutionGraph.createFromInitializingJob(
-                    testJobId, "testJob", jobStatus, cause, 0L);
+                    new JobID(), "testJob", jobStatus, cause, 0L);
         }
 
         @Override
