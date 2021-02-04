@@ -23,6 +23,7 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -509,13 +510,15 @@ public class ExecutionGraphTestUtils {
                 assertEquals(inputJobVertices.size(), ev.getNumberOfInputs());
 
                 for (int i = 0; i < inputJobVertices.size(); i++) {
-                    ExecutionEdge[] inputEdges = ev.getInputEdges(i);
-                    assertEquals(inputJobVertices.get(i).getParallelism(), inputEdges.length);
+                    List<IntermediateResultPartitionID> consumedPartitions =
+                            ev.getConsumedPartitions(i).getResultPartitions();
+                    assertEquals(
+                            inputJobVertices.get(i).getParallelism(), consumedPartitions.size());
 
                     int expectedPartitionNum = 0;
-                    for (ExecutionEdge inEdge : inputEdges) {
-                        assertEquals(i, inEdge.getInputNum());
-                        assertEquals(expectedPartitionNum, inEdge.getSource().getPartitionNumber());
+                    for (IntermediateResultPartitionID consumedPartitionId : consumedPartitions) {
+                        assertEquals(
+                                expectedPartitionNum, consumedPartitionId.getPartitionNumber());
 
                         expectedPartitionNum++;
                     }
