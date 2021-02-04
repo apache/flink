@@ -344,14 +344,12 @@ object ScalarOperatorGens {
            |boolean $nullTerm = true;
            |if (!${castedNeedle.nullTerm}) {
            |  $resultTerm = $setTerm.contains(${castedNeedle.resultTerm});
-           |  // if $setTerm.containsNull() == true, i think it must not be a $nullTerm
-           |  $nullTerm = !$resultTerm && $setTerm.containsNull();
            |}else{
            |  $resultTerm = $setTerm.containsNull();
-           |  // in this way，i think $setTerm has null element,so i think $nullTerm must be true
-           |  // but the ScalarOperatorsTest neet null in ('a','b','c') return null,so it must be true
-           |  $nullTerm = true;
            |}
+           |  // in this way，i think $setTerm has null element,so i think $nullTerm must be true
+           |  // in InGenerator,it's always return true or false,so it nullTerm must be false.
+           |  $nullTerm = false;
            |""".stripMargin.trim
       }
       else {

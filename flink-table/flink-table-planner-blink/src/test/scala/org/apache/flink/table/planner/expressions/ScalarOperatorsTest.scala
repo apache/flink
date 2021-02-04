@@ -46,7 +46,7 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
      */
     testSqlApi(
       "f14 IN ('This is a test String.', 'String', 'Hello world')",
-      "null"
+      "false"
     )
 
     testSqlApi(
