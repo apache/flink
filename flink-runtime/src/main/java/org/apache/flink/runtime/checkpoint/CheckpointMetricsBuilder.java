@@ -139,4 +139,16 @@ public class CheckpointMetricsBuilder {
                 unalignedCheckpoint,
                 totalBytesPersisted);
     }
+
+    public CheckpointMetrics buildIncomplete() {
+        return new CheckpointMetrics(
+                bytesProcessedDuringAlignment.getNow(CheckpointMetrics.UNSET),
+                bytesPersistedDuringAlignment,
+                alignmentDurationNanos.getNow(CheckpointMetrics.UNSET),
+                syncDurationMillis,
+                asyncDurationMillis,
+                checkpointStartDelayNanos,
+                unalignedCheckpoint,
+                totalBytesPersisted);
+    }
 }

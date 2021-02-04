@@ -221,7 +221,8 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
     }
 
     private void reportAbortedSnapshotStats(long stateSize) {
-        CheckpointMetrics metrics = checkpointMetrics.setTotalBytesPersisted(stateSize).build();
+        CheckpointMetrics metrics =
+                checkpointMetrics.setTotalBytesPersisted(stateSize).buildIncomplete();
         LOG.trace(
                 "{} - report failed checkpoint stats: {} {}",
                 taskName,
