@@ -394,6 +394,11 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
     }
 
     @Override
+    public boolean supportConcurrentModification() {
+        return false;
+    }
+
+    @Override
     public String toString() {
         return "HeapKeyedStateBackend";
     }

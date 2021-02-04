@@ -274,7 +274,7 @@ public abstract class AbstractKeyedStateBackend<K>
         return (S) kvState;
     }
 
-    private void publishQueryableStateIfEnabled(
+    public void publishQueryableStateIfEnabled(
             StateDescriptor<?, ?> stateDescriptor, InternalKvState<?, ?, ?> kvState) {
         if (stateDescriptor.isQueryable()) {
             if (kvStateRegistry == null) {
@@ -335,10 +335,6 @@ public abstract class AbstractKeyedStateBackend<K>
         return keyGroupCompressionDecorator;
     }
 
-    /** Returns the total number of state entries across all keys/namespaces. */
-    @VisibleForTesting
-    public abstract int numKeyValueStateEntries();
-
     @VisibleForTesting
     public int numKeyValueStatesByName() {
         return keyValueStatesByName.size();
@@ -347,5 +343,9 @@ public abstract class AbstractKeyedStateBackend<K>
     // TODO remove this once heap-based timers are working with RocksDB incremental snapshots!
     public boolean requiresLegacySynchronousTimerSnapshots() {
         return false;
+    }
+
+    public boolean supportConcurrentModification() {
+        return true;
     }
 }

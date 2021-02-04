@@ -19,6 +19,7 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
@@ -26,7 +27,7 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
@@ -98,12 +99,21 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
     private ValueState<Integer> testState1;
     private ValueState<String> testState2;
 
-    @Parameterized.Parameters(name = "Incremental checkpointing: {0}")
-    public static Collection<Boolean> parameters() {
-        return Arrays.asList(false, true);
+    @Parameterized.Parameters(name = "Incremental checkpointing: {0}, useProxyStateBackend = {1}")
+    public static Collection<Object[]> parameters() {
+        return Arrays.asList(
+                new Object[][] {{true, true}, {true, false}, {false, true}, {false, false}});
     }
 
     @Parameterized.Parameter public boolean enableIncrementalCheckpointing;
+
+    @Parameterized.Parameter(1)
+    public boolean useProxyStateBackend;
+
+    @Override
+    protected boolean useProxyStateBackend() {
+        return useProxyStateBackend;
+    }
 
     @Rule public final TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -460,7 +470,8 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 
     @Test
     public void testDisposeDeletesAllDirectories() throws Exception {
-        AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
         Collection<File> allFilesInDbDir =
                 FileUtils.listFilesAndDirs(
                         new File(dbPath), new AcceptAllFilter(), new AcceptAllFilter());
@@ -494,7 +505,8 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
     @Test
     public void testSharedIncrementalStateDeRegistration() throws Exception {
         if (enableIncrementalCheckpointing) {
-            AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+            CheckpointableKeyedStateBackend<Integer> backend =
+                    createKeyedBackend(IntSerializer.INSTANCE);
             try {
                 ValueStateDescriptor<String> kvId =
                         new ValueStateDescriptor<>("id", String.class, null);
@@ -543,7 +555,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
                     }
 
                     previousStateHandles.add(stateHandle);
-                    backend.notifyCheckpointComplete(checkpointId);
+                    ((CheckpointListener) backend).notifyCheckpointComplete(checkpointId);
 
                     // -----------------------------------------------------------------
 

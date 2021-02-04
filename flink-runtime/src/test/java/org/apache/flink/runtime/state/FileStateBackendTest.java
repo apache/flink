@@ -29,7 +29,7 @@ import org.junit.runners.Parameterized;
 
 import java.io.File;
 import java.util.Arrays;
-import java.util.List;
+import java.util.Collection;
 
 /**
  * Tests for the keyed state backend and operator state backend, as created by the {@link
@@ -38,12 +38,16 @@ import java.util.List;
 @RunWith(Parameterized.class)
 public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 
-    @Parameterized.Parameters
-    public static List<Boolean> modes() {
-        return Arrays.asList(true, false);
+    @Parameterized.Parameters(name = "useAsyncmode = {0}, useProxyStateBackend = {1}")
+    public static Collection<Object[]> modes() {
+        return Arrays.asList(
+                new Object[][] {{true, true}, {true, false}, {false, true}, {false, false}});
     }
 
     @Parameterized.Parameter public boolean useAsyncMode;
+
+    @Parameterized.Parameter(1)
+    public boolean useProxyStateBackend;
 
     @Rule public final TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -61,6 +65,11 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
     @Override
     protected boolean supportsAsynchronousSnapshots() {
         return useAsyncMode;
+    }
+
+    @Override
+    protected boolean useProxyStateBackend() {
+        return useProxyStateBackend;
     }
 
     // disable these because the verification does not work for this state backend

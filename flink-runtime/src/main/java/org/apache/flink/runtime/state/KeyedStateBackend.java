@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -135,6 +136,10 @@ public interface KeyedStateBackend<K>
      * @return returns true iff listener was registered before.
      */
     boolean deregisterKeySelectionListener(KeySelectionListener<K> listener);
+
+    /** Returns the total number of state entries across all keys/namespaces. */
+    @VisibleForTesting
+    int numKeyValueStateEntries();
 
     /** Listener is given a callback when {@link #setCurrentKey} is called (key context changes). */
     @FunctionalInterface

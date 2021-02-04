@@ -23,6 +23,7 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.runtime.state.proxy.ProxyStateBackend;
 import org.apache.flink.util.DynamicCodeLoadingException;
 import org.apache.flink.util.Preconditions;
 
@@ -162,14 +163,19 @@ public class CheckpointStorageLoader {
         Preconditions.checkNotNull(classLoader, "classLoader");
         Preconditions.checkNotNull(configuredStateBackend, "statebackend");
 
-        if (configuredStateBackend instanceof CheckpointStorage) {
+        StateBackend rootStateBackend =
+                (configuredStateBackend instanceof ProxyStateBackend)
+                        ? ((ProxyStateBackend) configuredStateBackend).getProxiedStateBackend()
+                        : configuredStateBackend;
+
+        if (rootStateBackend instanceof CheckpointStorage) {
             if (logger != null) {
                 logger.info(
                         "Using legacy state backend {} as Job checkpoint storage",
-                        configuredStateBackend);
+                        rootStateBackend);
             }
 
-            return (CheckpointStorage) configuredStateBackend;
+            return (CheckpointStorage) rootStateBackend;
         } else if (fromApplication instanceof ConfigurableCheckpointStorage) {
             if (logger != null) {
                 logger.info(

@@ -26,18 +26,22 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.Arrays;
-import java.util.List;
+import java.util.Collection;
 
 /** Tests for the {@link org.apache.flink.runtime.state.memory.MemoryStateBackend}. */
 @RunWith(Parameterized.class)
 public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBackend> {
 
-    @Parameterized.Parameters(name = "useAsyncmode")
-    public static List<Boolean> modes() {
-        return Arrays.asList(true, false);
+    @Parameterized.Parameters(name = "useAsyncmode = {0}, useProxyStateBackend = {1}")
+    public static Collection<Object[]> modes() {
+        return Arrays.asList(
+                new Object[][] {{true, true}, {true, false}, {false, true}, {false, false}});
     }
 
     @Parameterized.Parameter public boolean useAsyncmode;
+
+    @Parameterized.Parameter(1)
+    public boolean useProxyStateBackend;
 
     @Override
     protected MemoryStateBackend getStateBackend() {
@@ -52,6 +56,11 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
     @Override
     protected boolean supportsAsynchronousSnapshots() {
         return useAsyncmode;
+    }
+
+    @Override
+    protected boolean useProxyStateBackend() {
+        return useProxyStateBackend;
     }
 
     // disable these because the verification does not work for this state backend

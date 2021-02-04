@@ -215,6 +215,12 @@ class BatchExecutionKeyedStateBackend<K> implements CheckpointableKeyedStateBack
         return keySelectionListeners.remove(listener);
     }
 
+    @Override
+    public int numKeyValueStateEntries() {
+        throw new UnsupportedOperationException(
+                "numKeyValueStateEntries not supported in BATCH runtime mode");
+    }
+
     @Nonnull
     @Override
     public <N, SV, SEV, S extends State, IS extends S> IS createInternalState(

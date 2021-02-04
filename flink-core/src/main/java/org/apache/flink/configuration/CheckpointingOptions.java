@@ -44,6 +44,16 @@ public class CheckpointingOptions {
                     .noDefaultValue()
                     .withDescription("The state backend to be used to checkpoint state.");
 
+    /** Whether to enable state change log. */
+    @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS)
+    @Documentation.ExcludeFromDocumentation("Hidden for now")
+    public static final ConfigOption<Boolean> ENABLE_STATE_CHANGE_LOG =
+            ConfigOptions.key("state.backend.enable-statechangelog")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Whether to enable state backend to write state changes to StateChangeLog.");
+
     /** The maximum number of completed checkpoints to retain. */
     @Documentation.Section(Documentation.Sections.COMMON_STATE_BACKENDS)
     public static final ConfigOption<Integer> MAX_RETAINED_CHECKPOINTS =

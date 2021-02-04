@@ -29,8 +29,10 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.runtime.state.KeyGroupsList;
+import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.PriorityQueueSetFactory;
+import org.apache.flink.runtime.state.proxy.ProxyKeyedStateBackend;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.Preconditions;
@@ -99,23 +101,30 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
      * <p><b>IMPORTANT:</b> Keep in sync with {@link InternalTimeServiceManager.Provider}.
      */
     public static <K> InternalTimeServiceManagerImpl<K> create(
-            CheckpointableKeyedStateBackend<K> keyedStatedBackend,
+            CheckpointableKeyedStateBackend<K> keyedStateBackend,
             ClassLoader userClassloader,
             KeyContext keyContext,
             ProcessingTimeService processingTimeService,
             Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates)
             throws Exception {
-        final KeyGroupRange keyGroupRange = keyedStatedBackend.getKeyGroupRange();
+        final KeyGroupRange keyGroupRange = keyedStateBackend.getKeyGroupRange();
+
+        KeyedStateBackend<?> rootKeyedStateBackend =
+                keyedStateBackend instanceof ProxyKeyedStateBackend
+                        ? ((ProxyKeyedStateBackend<?>) keyedStateBackend)
+                                .getProxiedKeyedStateBackend()
+                        : keyedStateBackend;
+
         final boolean requiresSnapshotLegacyTimers =
-                keyedStatedBackend instanceof AbstractKeyedStateBackend
-                        && ((AbstractKeyedStateBackend<K>) keyedStatedBackend)
+                rootKeyedStateBackend instanceof AbstractKeyedStateBackend
+                        && ((AbstractKeyedStateBackend<K>) rootKeyedStateBackend)
                                 .requiresLegacySynchronousTimerSnapshots();
 
         final InternalTimeServiceManagerImpl<K> timeServiceManager =
                 new InternalTimeServiceManagerImpl<>(
                         keyGroupRange,
                         keyContext,
-                        keyedStatedBackend,
+                        keyedStateBackend,
                         processingTimeService,
                         requiresSnapshotLegacyTimers);
 

@@ -27,6 +27,7 @@ import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackendFactory;
+import org.apache.flink.runtime.state.proxy.ProxyStateBackend;
 import org.apache.flink.util.DynamicCodeLoadingException;
 
 import org.slf4j.Logger;
@@ -35,8 +36,12 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** This class contains utility methods to load state backends from configurations. */
@@ -46,6 +51,13 @@ public class StateBackendLoader {
     // ------------------------------------------------------------------------
     //  Configuration shortcut names
     // ------------------------------------------------------------------------
+
+    private static final Set<String> STATE_BACKEND_CAN_BE_PROXIED =
+            new HashSet<>(
+                    Arrays.asList(
+                            "org.apache.flink.contrib.streaming.state.RocksDBStateBackend",
+                            "org.apache.flink.runtime.state.memory.MemoryStateBackend",
+                            "org.apache.flink.runtime.state.filesystem.FsStateBackend"));
 
     /**
      * The shortcut configuration name for the MemoryState backend that checkpoints to the
@@ -204,6 +216,11 @@ public class StateBackendLoader {
 
         // (1) the application defined state backend has precedence
         if (fromApplication != null) {
+
+            checkArgument(
+                    !(fromApplication instanceof ProxyStateBackend),
+                    "Proxy state backend can not be proxied!");
+
             // see if this is supposed to pick up additional configuration parameters
             if (fromApplication instanceof ConfigurableStateBackend) {
                 // needs to pick up configuration
@@ -240,6 +257,34 @@ public class StateBackendLoader {
         }
 
         return backend;
+    }
+
+    public static StateBackend loadStateBackend(
+            @Nullable StateBackend fromApplication,
+            Configuration config,
+            ClassLoader classLoader,
+            @Nullable Logger logger)
+            throws IllegalConfigurationException, DynamicCodeLoadingException, IOException {
+
+        final StateBackend backend =
+                fromApplicationOrConfigOrDefault(fromApplication, config, classLoader, logger);
+
+        if (needToProxyStateBackend(backend, config)) {
+            LOG.info(
+                    "Proxy State Backend used, and the root State Backend is {}",
+                    backend.getClass().getSimpleName());
+            return new ProxyStateBackend(backend);
+        } else {
+            LOG.info(
+                    "Proxy State Backend not used, and the State Backend is {}",
+                    backend.getClass().getSimpleName());
+            return backend;
+        }
+    }
+
+    private static boolean needToProxyStateBackend(StateBackend backend, Configuration config) {
+        return config.get(CheckpointingOptions.ENABLE_STATE_CHANGE_LOG)
+                && STATE_BACKEND_CAN_BE_PROXIED.contains(backend.getClass().getCanonicalName());
     }
 
     /**
