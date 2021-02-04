@@ -19,14 +19,22 @@
 
 package org.apache.flink.runtime.scheduler.adapter;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingPipelinedRegion;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
 import org.apache.flink.util.Preconditions;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
 
 /** Default implementation of {@link SchedulingPipelinedRegion}. */
@@ -34,15 +42,27 @@ public class DefaultSchedulingPipelinedRegion implements SchedulingPipelinedRegi
 
     private final Map<ExecutionVertexID, DefaultExecutionVertex> executionVertices;
 
-    private Set<DefaultResultPartition> consumedResults;
+    private List<ConsumedPartitionGroup> consumedResultIds;
 
-    public DefaultSchedulingPipelinedRegion(Set<DefaultExecutionVertex> defaultExecutionVertices) {
+    private final Map<IntermediateResultPartitionID, DefaultResultPartition> resultPartitionsById;
+
+    public DefaultSchedulingPipelinedRegion(
+            Set<DefaultExecutionVertex> defaultExecutionVertices,
+            Map<IntermediateResultPartitionID, DefaultResultPartition> resultPartitionsById) {
+
         Preconditions.checkNotNull(defaultExecutionVertices);
 
         this.executionVertices = new HashMap<>();
         for (DefaultExecutionVertex executionVertex : defaultExecutionVertices) {
             this.executionVertices.put(executionVertex.getId(), executionVertex);
         }
+
+        this.resultPartitionsById = resultPartitionsById;
+    }
+
+    @VisibleForTesting
+    public DefaultSchedulingPipelinedRegion(Set<DefaultExecutionVertex> defaultExecutionVertices) {
+        this(defaultExecutionVertices, null);
     }
 
     @Override
@@ -62,21 +82,71 @@ public class DefaultSchedulingPipelinedRegion implements SchedulingPipelinedRegi
 
     @Override
     public Iterable<DefaultResultPartition> getConsumedResults() {
-        if (consumedResults == null) {
+        if (consumedResultIds == null) {
             initializeConsumedResults();
         }
-        return consumedResults;
+        final List<ConsumedPartitionGroup> consumers = getGroupedConsumedResults();
+
+        return () ->
+                new Iterator<DefaultResultPartition>() {
+                    private int groupIdx = 0;
+                    private int idx = 0;
+
+                    @Override
+                    public boolean hasNext() {
+                        if (groupIdx < consumers.size()
+                                && idx >= consumers.get(groupIdx).getResultPartitions().size()) {
+                            ++groupIdx;
+                            idx = 0;
+                        }
+                        return groupIdx < consumers.size()
+                                && idx < consumers.get(groupIdx).getResultPartitions().size();
+                    }
+
+                    @Override
+                    public DefaultResultPartition next() {
+                        if (hasNext()) {
+                            return (DefaultResultPartition)
+                                    getResultPartition(
+                                            consumers
+                                                    .get(groupIdx)
+                                                    .getResultPartitions()
+                                                    .get(idx++));
+                        } else {
+                            throw new NoSuchElementException();
+                        }
+                    }
+                };
     }
 
     private void initializeConsumedResults() {
-        final Set<DefaultResultPartition> consumedResults = new HashSet<>();
+        final Set<ConsumedPartitionGroup> consumedResultIds = new HashSet<>();
         for (DefaultExecutionVertex executionVertex : executionVertices.values()) {
-            for (DefaultResultPartition resultPartition : executionVertex.getConsumedResults()) {
+            for (ConsumedPartitionGroup consumedResultIdGroup :
+                    executionVertex.getGroupedConsumedResults()) {
+                SchedulingResultPartition resultPartition =
+                        executionVertex.getResultPartition(
+                                consumedResultIdGroup.getResultPartitions().get(0));
                 if (!executionVertices.containsKey(resultPartition.getProducer().getId())) {
-                    consumedResults.add(resultPartition);
+                    consumedResultIds.add(consumedResultIdGroup);
                 }
             }
         }
-        this.consumedResults = Collections.unmodifiableSet(consumedResults);
+
+        this.consumedResultIds = new ArrayList<>();
+        this.consumedResultIds.addAll(consumedResultIds);
+    }
+
+    @Override
+    public List<ConsumedPartitionGroup> getGroupedConsumedResults() {
+        if (consumedResultIds == null) {
+            initializeConsumedResults();
+        }
+        return Collections.unmodifiableList(consumedResultIds);
+    }
+
+    @Override
+    public SchedulingResultPartition getResultPartition(IntermediateResultPartitionID id) {
+        return resultPartitionsById.get(id);
     }
 }

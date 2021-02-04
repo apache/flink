@@ -40,7 +40,7 @@ public final class StronglyConnectedComponentsComputeUtils {
 
     private StronglyConnectedComponentsComputeUtils() {}
 
-    static Set<Set<Integer>> computeStronglyConnectedComponents(
+    public static Set<Set<Integer>> computeStronglyConnectedComponents(
             final int numVertex, final List<List<Integer>> outEdges) {
         final Set<Set<Integer>> stronglyConnectedComponents = new HashSet<>();
 

@@ -92,7 +92,7 @@ public final class PipelinedRegionComputeUtil {
         return vertexToRegion;
     }
 
-    private static <V extends Vertex<?, ?, V, ?>> Set<V> mergeRegions(
+    public static <V extends Vertex<?, ?, V, ?>> Set<V> mergeRegions(
             final Set<V> region1, final Set<V> region2, final Map<V, Set<V>> vertexToRegion) {
 
         // merge the smaller region into the larger one to reduce the cost
@@ -112,7 +112,7 @@ public final class PipelinedRegionComputeUtil {
         return largerSet;
     }
 
-    private static <V extends Vertex<?, ?, V, ?>> Set<Set<V>> uniqueRegions(
+    public static <V extends Vertex<?, ?, V, ?>> Set<Set<V>> uniqueRegions(
             final Map<V, Set<V>> vertexToRegion) {
         final Set<Set<V>> distinctRegions = Collections.newSetFromMap(new IdentityHashMap<>());
         distinctRegions.addAll(vertexToRegion.values());

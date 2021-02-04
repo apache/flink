@@ -23,10 +23,22 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.topology.PipelinedRegion;
 
+import java.util.List;
+
 /** Pipelined region on execution level, i.e., {@link ExecutionGraph} level. */
 public interface SchedulingPipelinedRegion
         extends PipelinedRegion<
                 ExecutionVertexID,
                 IntermediateResultPartitionID,
                 SchedulingExecutionVertex,
-                SchedulingResultPartition> {}
+                SchedulingResultPartition> {
+    /**
+     * Get the grouped consumed result partitions.
+     *
+     * @return list of grouped intermediate result partition IDs
+     */
+    List<ConsumedPartitionGroup> getGroupedConsumedResults();
+
+    /** Get {@link SchedulingResultPartition} by {@link IntermediateResultPartitionID}. */
+    SchedulingResultPartition getResultPartition(IntermediateResultPartitionID id);
+}

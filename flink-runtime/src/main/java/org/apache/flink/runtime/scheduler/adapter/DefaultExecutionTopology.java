@@ -22,7 +22,6 @@ import org.apache.flink.runtime.executiongraph.EdgeManager;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
-import org.apache.flink.runtime.executiongraph.failover.flip1.PipelinedRegionComputeUtil;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
@@ -141,7 +140,9 @@ public class DefaultExecutionTopology implements SchedulingTopology {
                         edgeManager);
 
         IndexedPipelinedRegions indexedPipelinedRegions =
-                computePipelinedRegions(executionGraphIndex.executionVerticesList);
+                computePipelinedRegions(
+                        executionGraphIndex.executionVerticesList,
+                        executionGraphIndex.resultPartitionsById);
 
         ensureCoLocatedVerticesInSameRegion(
                 indexedPipelinedRegions.pipelinedRegions, executionGraph);
@@ -238,11 +239,13 @@ public class DefaultExecutionTopology implements SchedulingTopology {
     }
 
     private static IndexedPipelinedRegions computePipelinedRegions(
-            Iterable<DefaultExecutionVertex> topologicallySortedVertexes) {
+            Iterable<DefaultExecutionVertex> topologicallySortedVertexes,
+            Map<IntermediateResultPartitionID, DefaultResultPartition> resultPartitionsById) {
         long buildRegionsStartTime = System.nanoTime();
 
         Set<Set<SchedulingExecutionVertex>> rawPipelinedRegions =
-                PipelinedRegionComputeUtil.computePipelinedRegions(topologicallySortedVertexes);
+                DefaultSchedulingPipelinedRegionComputeUtil.computePipelinedRegions(
+                        topologicallySortedVertexes);
 
         Map<ExecutionVertexID, DefaultSchedulingPipelinedRegion> pipelinedRegionsByVertex =
                 new HashMap<>();
@@ -252,7 +255,7 @@ public class DefaultExecutionTopology implements SchedulingTopology {
             //noinspection unchecked
             final DefaultSchedulingPipelinedRegion pipelinedRegion =
                     new DefaultSchedulingPipelinedRegion(
-                            (Set<DefaultExecutionVertex>) rawPipelinedRegion);
+                            (Set<DefaultExecutionVertex>) rawPipelinedRegion, resultPartitionsById);
             pipelinedRegions.add(pipelinedRegion);
 
             for (SchedulingExecutionVertex executionVertex : rawPipelinedRegion) {

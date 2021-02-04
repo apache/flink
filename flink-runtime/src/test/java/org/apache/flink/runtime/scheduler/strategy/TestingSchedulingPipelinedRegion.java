@@ -18,9 +18,13 @@
 
 package org.apache.flink.runtime.scheduler.strategy;
 
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -32,6 +36,11 @@ public class TestingSchedulingPipelinedRegion implements SchedulingPipelinedRegi
 
     private final Set<TestingSchedulingResultPartition> consumedPartitions = new HashSet<>();
 
+    private final List<ConsumedPartitionGroup> consumedGroupPartitions = new ArrayList<>();
+
+    private final Map<IntermediateResultPartitionID, TestingSchedulingResultPartition>
+            resultPartitionsById = new HashMap<>();
+
     public TestingSchedulingPipelinedRegion(final Set<TestingSchedulingExecutionVertex> vertices) {
         for (TestingSchedulingExecutionVertex vertex : vertices) {
             regionVertices.put(vertex.getId(), vertex);
@@ -39,6 +48,16 @@ public class TestingSchedulingPipelinedRegion implements SchedulingPipelinedRegi
             for (TestingSchedulingResultPartition consumedPartition : vertex.getConsumedResults()) {
                 if (!vertices.contains(consumedPartition.getProducer())) {
                     consumedPartitions.add(consumedPartition);
+                }
+                resultPartitionsById.putIfAbsent(consumedPartition.getId(), consumedPartition);
+            }
+            for (ConsumedPartitionGroup consumedGroup : vertex.getGroupedConsumedResults()) {
+                for (IntermediateResultPartitionID consumerId :
+                        consumedGroup.getResultPartitions()) {
+                    if (!vertices.contains(vertex.getResultPartition(consumerId).getProducer())) {
+                        consumedGroupPartitions.add(consumedGroup);
+                    }
+                    break;
                 }
             }
         }
@@ -62,5 +81,15 @@ public class TestingSchedulingPipelinedRegion implements SchedulingPipelinedRegi
     @Override
     public Iterable<TestingSchedulingResultPartition> getConsumedResults() {
         return Collections.unmodifiableSet(consumedPartitions);
+    }
+
+    @Override
+    public List<ConsumedPartitionGroup> getGroupedConsumedResults() {
+        return consumedGroupPartitions;
+    }
+
+    @Override
+    public SchedulingResultPartition getResultPartition(IntermediateResultPartitionID id) {
+        return resultPartitionsById.get(id);
     }
 }
