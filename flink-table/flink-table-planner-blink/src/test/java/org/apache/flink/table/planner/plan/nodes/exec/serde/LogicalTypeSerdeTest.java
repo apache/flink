@@ -21,9 +21,10 @@ package org.apache.flink.table.planner.plan.nodes.exec.serde;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
+import org.apache.flink.table.planner.calcite.FlinkContextImpl;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.types.logical.ArrayType;
@@ -87,9 +88,8 @@ public class LogicalTypeSerdeTest {
     public void testLogicalTypeSerde() throws IOException {
         SerdeContext serdeCtx =
                 new SerdeContext(
-                        new Configuration(),
+                        new FlinkContextImpl(TableConfig.getDefault(), null, null, null),
                         Thread.currentThread().getContextClassLoader(),
-                        null, // FlinkContext
                         FlinkTypeFactory.INSTANCE(),
                         FlinkSqlOperatorTable.instance());
         ObjectMapper mapper = JsonSerdeUtil.createObjectMapper(serdeCtx);
