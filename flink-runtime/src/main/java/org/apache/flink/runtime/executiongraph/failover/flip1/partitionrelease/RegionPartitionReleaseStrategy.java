@@ -20,21 +20,21 @@
 package org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease;
 
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.runtime.scheduler.strategy.ConsumerVertexGroup;
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingPipelinedRegion;
-import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
-import org.apache.flink.util.IterableUtils;
 
-import java.util.Collection;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.Set;
 
+import static org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyUtils.initPartitionGroupConsumerRegions;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -49,10 +49,58 @@ public class RegionPartitionReleaseStrategy implements PartitionReleaseStrategy 
     private final Map<ExecutionVertexID, PipelinedRegionExecutionView> regionExecutionViewByVertex =
             new HashMap<>();
 
+    private final Map<ConsumedPartitionGroup, Set<SchedulingPipelinedRegion>>
+            partitionGroupConsumerRegions = new HashMap<>();
+
+    /** PartitionID -> PartitionID group. */
+    private final Map<IntermediateResultPartitionID, List<ConsumedPartitionGroup>>
+            partitionGroupsById = new HashMap<>();
+
+    /** Region -> Region set. Only contains regions with consumed results. */
+    private final Map<SchedulingPipelinedRegion, List<Set<SchedulingPipelinedRegion>>>
+            consumerRegionSetMapping = new HashMap<>();
+
+    /** The progress of Region set. Only contains regions with consumed results. */
+    private final Map<Set<SchedulingPipelinedRegion>, Set<SchedulingPipelinedRegion>>
+            consumerRegionFinishProgress = new HashMap<>();
+
+    /** The progress of PartitionID group. */
+    private final Map<ConsumedPartitionGroup, Boolean> partitionGroupFinishProgress =
+            new HashMap<>();
+
     public RegionPartitionReleaseStrategy(final SchedulingTopology schedulingTopology) {
         this.schedulingTopology = checkNotNull(schedulingTopology);
+        init();
+    }
 
+    private void init() {
         initRegionExecutionViewByVertex();
+
+        initPartitionGroupConsumerRegions(
+                schedulingTopology.getAllPipelinedRegions(), partitionGroupConsumerRegions);
+
+        for (ConsumedPartitionGroup group : partitionGroupConsumerRegions.keySet()) {
+            for (IntermediateResultPartitionID partitionId : group.getResultPartitions()) {
+                partitionGroupsById
+                        .computeIfAbsent(partitionId, id -> new ArrayList<>())
+                        .add(group);
+            }
+        }
+
+        for (Set<SchedulingPipelinedRegion> schedulingPipelinedRegionSet :
+                partitionGroupConsumerRegions.values()) {
+            for (SchedulingPipelinedRegion schedulingRegion : schedulingPipelinedRegionSet) {
+                consumerRegionSetMapping
+                        .computeIfAbsent(schedulingRegion, region -> new ArrayList<>())
+                        .add(schedulingPipelinedRegionSet);
+            }
+            consumerRegionFinishProgress.computeIfAbsent(
+                    schedulingPipelinedRegionSet, set -> new HashSet<>());
+        }
+
+        for (ConsumedPartitionGroup partitionIdGroup : partitionGroupConsumerRegions.keySet()) {
+            partitionGroupFinishProgress.putIfAbsent(partitionIdGroup, Boolean.FALSE);
+        }
     }
 
     private void initRegionExecutionViewByVertex() {
@@ -76,7 +124,16 @@ public class RegionPartitionReleaseStrategy implements PartitionReleaseStrategy 
         if (regionExecutionView.isFinished()) {
             final SchedulingPipelinedRegion pipelinedRegion =
                     schedulingTopology.getPipelinedRegionOfVertex(finishedVertex);
-            return filterReleasablePartitions(pipelinedRegion.getConsumedResults());
+
+            for (Set<SchedulingPipelinedRegion> regionSet :
+                    consumerRegionSetMapping.getOrDefault(
+                            pipelinedRegion, Collections.emptyList())) {
+                consumerRegionFinishProgress
+                        .computeIfAbsent(regionSet, set -> new HashSet<>())
+                        .add(pipelinedRegion);
+            }
+
+            return filterReleasablePartitions(pipelinedRegion.getGroupedConsumedResults());
         }
         return Collections.emptyList();
     }
@@ -85,7 +142,17 @@ public class RegionPartitionReleaseStrategy implements PartitionReleaseStrategy 
     public void vertexUnfinished(final ExecutionVertexID executionVertexId) {
         final PipelinedRegionExecutionView regionExecutionView =
                 getPipelinedRegionExecutionViewForVertex(executionVertexId);
+
         regionExecutionView.vertexUnfinished(executionVertexId);
+        final SchedulingPipelinedRegion pipelinedRegion =
+                schedulingTopology.getPipelinedRegionOfVertex(executionVertexId);
+
+        for (Set<SchedulingPipelinedRegion> regionSet :
+                consumerRegionSetMapping.getOrDefault(pipelinedRegion, Collections.emptyList())) {
+            consumerRegionFinishProgress
+                    .computeIfAbsent(regionSet, set -> new HashSet<>())
+                    .remove(pipelinedRegion);
+        }
     }
 
     private PipelinedRegionExecutionView getPipelinedRegionExecutionViewForVertex(
@@ -100,27 +167,24 @@ public class RegionPartitionReleaseStrategy implements PartitionReleaseStrategy 
     }
 
     private List<IntermediateResultPartitionID> filterReleasablePartitions(
-            final Iterable<? extends SchedulingResultPartition> schedulingResultPartitions) {
-        return IterableUtils.toStream(schedulingResultPartitions)
-                .map(SchedulingResultPartition::getId)
-                .filter(this::areConsumerRegionsFinished)
-                .collect(Collectors.toList());
-    }
-
-    private boolean areConsumerRegionsFinished(
-            final IntermediateResultPartitionID resultPartitionId) {
-        final SchedulingResultPartition resultPartition =
-                schedulingTopology.getResultPartition(resultPartitionId);
-        return IterableUtils.toStream(resultPartition.getGroupedConsumers())
-                .map(ConsumerVertexGroup::getVertices)
-                .flatMap(Collection::stream)
-                .allMatch(this::isRegionOfVertexFinished);
-    }
-
-    private boolean isRegionOfVertexFinished(final ExecutionVertexID executionVertexId) {
-        final PipelinedRegionExecutionView regionExecutionView =
-                getPipelinedRegionExecutionViewForVertex(executionVertexId);
-        return regionExecutionView.isFinished();
+            final List<ConsumedPartitionGroup> schedulingResultPartitions) {
+        final List<IntermediateResultPartitionID> filteredPartitions = new ArrayList<>();
+        for (ConsumedPartitionGroup group : schedulingResultPartitions) {
+            final Set<SchedulingPipelinedRegion> consumerRegionSet =
+                    partitionGroupConsumerRegions.get(group);
+            if (consumerRegionFinishProgress.get(consumerRegionSet).size()
+                    == consumerRegionSet.size()) {
+                partitionGroupFinishProgress.replace(group, Boolean.TRUE);
+                for (IntermediateResultPartitionID partitionId : group.getResultPartitions()) {
+                    if (partitionGroupsById.get(partitionId).stream()
+                            .map(partitionGroupFinishProgress::get)
+                            .allMatch(progress -> progress == Boolean.TRUE)) {
+                        filteredPartitions.add(partitionId);
+                    }
+                }
+            }
+        }
+        return filteredPartitions;
     }
 
     /** Factory for {@link PartitionReleaseStrategy}. */
