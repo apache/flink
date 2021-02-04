@@ -18,7 +18,9 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -29,12 +31,22 @@ class ExecutionSlotSharingGroup {
 
     private final Set<ExecutionVertexID> executionVertexIds;
 
+    private ResourceProfile resourceProfile = ResourceProfile.UNKNOWN;
+
     ExecutionSlotSharingGroup() {
         this.executionVertexIds = new HashSet<>();
     }
 
     void addVertex(final ExecutionVertexID executionVertexId) {
         executionVertexIds.add(executionVertexId);
+    }
+
+    void setResourceProfile(ResourceProfile resourceProfile) {
+        this.resourceProfile = Preconditions.checkNotNull(resourceProfile);
+    }
+
+    ResourceProfile getResourceProfile() {
+        return resourceProfile;
     }
 
     Set<ExecutionVertexID> getExecutionVertexIds() {
