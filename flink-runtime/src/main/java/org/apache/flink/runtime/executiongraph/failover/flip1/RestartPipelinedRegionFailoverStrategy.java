@@ -21,6 +21,8 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.io.network.partition.PartitionException;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
+import org.apache.flink.runtime.scheduler.strategy.ConsumerVertexGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingPipelinedRegion;
@@ -164,6 +166,11 @@ public class RestartPipelinedRegionFailoverStrategy implements FailoverStrategy 
         Set<SchedulingPipelinedRegion> visitedRegions =
                 Collections.newSetFromMap(new IdentityHashMap<>());
 
+        Set<ConsumedPartitionGroup> visitedConsumedResultGroups =
+                Collections.newSetFromMap(new IdentityHashMap<>());
+        Set<ConsumerVertexGroup> visitedConsumerVertexGroups =
+                Collections.newSetFromMap(new IdentityHashMap<>());
+
         // start from the failed region to visit all involved regions
         Queue<SchedulingPipelinedRegion> regionsToVisit = new ArrayDeque<>();
         visitedRegions.add(failedRegion);
@@ -175,16 +182,22 @@ public class RestartPipelinedRegionFailoverStrategy implements FailoverStrategy 
             regionsToRestart.add(regionToRestart);
 
             // if a needed input result partition is not available, its producer region is involved
-            for (SchedulingExecutionVertex vertex : regionToRestart.getVertices()) {
-                for (SchedulingResultPartition consumedPartition : vertex.getConsumedResults()) {
-                    if (!resultPartitionAvailabilityChecker.isAvailable(
-                            consumedPartition.getId())) {
-                        SchedulingPipelinedRegion producerRegion =
-                                topology.getPipelinedRegionOfVertex(
-                                        consumedPartition.getProducer().getId());
-                        if (!visitedRegions.contains(producerRegion)) {
-                            visitedRegions.add(producerRegion);
-                            regionsToVisit.add(producerRegion);
+            for (ConsumedPartitionGroup consumedResultGroup :
+                    regionToRestart.getGroupedConsumedResults()) {
+                if (!visitedConsumedResultGroups.contains(consumedResultGroup)) {
+                    visitedConsumedResultGroups.add(consumedResultGroup);
+                    for (IntermediateResultPartitionID consumedPartitionId :
+                            consumedResultGroup.getResultPartitions()) {
+                        if (!resultPartitionAvailabilityChecker.isAvailable(consumedPartitionId)) {
+                            SchedulingResultPartition consumedPartition =
+                                    regionToRestart.getResultPartition(consumedPartitionId);
+                            SchedulingPipelinedRegion producerRegion =
+                                    topology.getPipelinedRegionOfVertex(
+                                            consumedPartition.getProducer().getId());
+                            if (!visitedRegions.contains(producerRegion)) {
+                                visitedRegions.add(producerRegion);
+                                regionsToVisit.add(producerRegion);
+                            }
                         }
                     }
                 }
@@ -193,13 +206,19 @@ public class RestartPipelinedRegionFailoverStrategy implements FailoverStrategy 
             // all consumer regions of an involved region should be involved
             for (SchedulingExecutionVertex vertex : regionToRestart.getVertices()) {
                 for (SchedulingResultPartition producedPartition : vertex.getProducedResults()) {
-                    for (SchedulingExecutionVertex consumerVertex :
-                            producedPartition.getConsumers()) {
-                        SchedulingPipelinedRegion consumerRegion =
-                                topology.getPipelinedRegionOfVertex(consumerVertex.getId());
-                        if (!visitedRegions.contains(consumerRegion)) {
-                            visitedRegions.add(consumerRegion);
-                            regionsToVisit.add(consumerRegion);
+                    for (ConsumerVertexGroup consumerVertexGroup :
+                            producedPartition.getGroupedConsumers()) {
+                        if (!visitedConsumerVertexGroups.contains(consumerVertexGroup)) {
+                            visitedConsumerVertexGroups.add(consumerVertexGroup);
+                            for (ExecutionVertexID consumerVertexId :
+                                    consumerVertexGroup.getVertices()) {
+                                SchedulingPipelinedRegion consumerRegion =
+                                        topology.getPipelinedRegionOfVertex(consumerVertexId);
+                                if (!visitedRegions.contains(consumerRegion)) {
+                                    visitedRegions.add(consumerRegion);
+                                    regionsToVisit.add(consumerRegion);
+                                }
+                            }
                         }
                     }
                 }
