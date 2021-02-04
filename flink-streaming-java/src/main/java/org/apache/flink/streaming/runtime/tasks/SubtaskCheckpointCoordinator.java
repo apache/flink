@@ -91,4 +91,7 @@ public interface SubtaskCheckpointCoordinator extends Closeable {
     void notifyCheckpointAborted(
             long checkpointId, OperatorChain<?, ?> operatorChain, Supplier<Boolean> isRunning)
             throws Exception;
+
+    /** Waits for all the pending checkpoints to finish their asynchronous step. */
+    void waitForPendingCheckpoints() throws Exception;
 }

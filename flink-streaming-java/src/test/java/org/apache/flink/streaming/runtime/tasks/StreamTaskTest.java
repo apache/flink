@@ -94,6 +94,7 @@ import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
+import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import org.apache.flink.runtime.taskmanager.TestTaskBuilder;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -176,6 +177,7 @@ import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.
 import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MAX_PRIORITY;
 import static org.apache.flink.streaming.util.StreamTaskUtil.waitTaskIsRunning;
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.sameInstance;
@@ -1824,10 +1826,10 @@ public class StreamTaskTest extends TestLogger {
                                 });
 
                 // The checkpoint 6 would be triggered successfully.
-                // TODO: Would also check the checkpoint succeed after we also waiting
-                // for the asynchronous step to finish on finish.
                 testHarness.finishProcessing();
                 assertTrue(checkpointFuture.isDone());
+                testHarness.getTaskStateManager().getWaitForReportLatch().await();
+                assertEquals(6, testHarness.getTaskStateManager().getReportedCheckpointId());
 
                 // Each result partition should have emitted 3 barriers and 1 EndOfUserRecordsEvent.
                 for (ResultPartition resultPartition : partitionWriters) {
@@ -1862,6 +1864,61 @@ public class StreamTaskTest extends TestLogger {
             testHarness.processSingleStep();
         }
         testHarness.getTaskStateManager().getWaitForReportLatch().await();
+    }
+
+    @Test
+    public void testWaitingForPendingCheckpointsOnFinished() throws Exception {
+        AtomicInteger asyncCheckpointExecuted = new AtomicInteger(0);
+        TestCheckpointResponder responder =
+                new TestCheckpointResponder() {
+                    @Override
+                    public void acknowledgeCheckpoint(
+                            JobID jobID,
+                            ExecutionAttemptID executionAttemptID,
+                            long checkpointId,
+                            CheckpointMetrics checkpointMetrics,
+                            TaskStateSnapshot subtaskState) {
+
+                        try {
+                            // Slightly extend the running time for the AsyncRunnable
+                            try {
+                                Thread.sleep(1000);
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                            asyncCheckpointExecuted.incrementAndGet();
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+                };
+
+        try (StreamTaskMailboxTestHarness<String> harness =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+                        .addInput(BasicTypeInfo.STRING_TYPE_INFO, 3)
+                        .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
+                        .setCheckpointResponder(responder)
+                        .setupOperatorChain(new EmptyOperator())
+                        .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
+                        .build()) {
+
+            harness.streamTask
+                    .getCheckpointCoordinator()
+                    .setEnableCheckpointAfterTasksFinished(true);
+
+            harness.streamTask.triggerCheckpointOnBarrier(
+                    new CheckpointMetaData(1, 101),
+                    CheckpointOptions.forCheckpointWithDefaultLocation(),
+                    new CheckpointMetricsBuilder()
+                            .setBytesProcessedDuringAlignment(0L)
+                            .setAlignmentDurationNanos(0L));
+
+            harness.waitForTaskCompletion();
+            harness.finishProcessing();
+
+            assertThat(asyncCheckpointExecuted.get(), equalTo(1));
+        }
     }
 
     private MockEnvironment setupEnvironment(boolean... outputAvailabilities) {

@@ -406,6 +406,31 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
         }
     }
 
+    public void waitForPendingCheckpoints() throws Exception {
+        if (!enableCheckpointAfterTasksFinished) {
+            return;
+        }
+
+        List<AsyncCheckpointRunnable> asyncCheckpointRunnables;
+        synchronized (lock) {
+            asyncCheckpointRunnables = new ArrayList<>(checkpoints.values());
+        }
+
+        // Waits for each checkpoint independently.
+        asyncCheckpointRunnables.forEach(
+                ar -> {
+                    try {
+                        ar.getFinishedFuture().get();
+                    } catch (Exception e) {
+                        LOG.error(
+                                "Async runnable for checkpoint "
+                                        + ar.getCheckpointId()
+                                        + " throws exception and exit",
+                                e);
+                    }
+                });
+    }
+
     @Override
     public void close() throws IOException {
         List<AsyncCheckpointRunnable> asyncCheckpointRunnables = null;
@@ -527,20 +552,22 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             CheckpointMetaData metadata,
             CheckpointMetricsBuilder metrics,
             Supplier<Boolean> isRunning) {
-        // we are transferring ownership over snapshotInProgressList for cleanup to the thread,
-        // active on submit
-        asyncOperationsThreadPool.execute(
+        AsyncCheckpointRunnable asyncCheckpointRunnable =
                 new AsyncCheckpointRunnable(
                         snapshotFutures,
                         metadata,
                         metrics,
                         System.nanoTime(),
                         taskName,
-                        registerConsumer(),
                         unregisterConsumer(),
                         env,
                         asyncExceptionHandler,
-                        isRunning));
+                        isRunning);
+        registerConsumer().accept(asyncCheckpointRunnable);
+
+        // we are transferring ownership over snapshotInProgressList for cleanup to the thread,
+        // active on submit
+        asyncOperationsThreadPool.execute(asyncCheckpointRunnable);
     }
 
     private Consumer<AsyncCheckpointRunnable> registerConsumer() {

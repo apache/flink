@@ -910,10 +910,10 @@ public class MultipleInputStreamTaskTest {
                                 });
 
                 // The checkpoint 6 would be triggered successfully.
-                // TODO: Would also check the checkpoint succeed after we also waiting
-                // for the asynchronous step to finish on finish.
                 testHarness.finishProcessing();
                 assertTrue(checkpointFuture.isDone());
+                testHarness.getTaskStateManager().getWaitForReportLatch().await();
+                assertEquals(6, testHarness.getTaskStateManager().getReportedCheckpointId());
 
                 // Each result partition should have emitted 3 barriers and 1 EndOfUserRecordsEvent.
                 for (ResultPartition resultPartition : partitionWriters) {
