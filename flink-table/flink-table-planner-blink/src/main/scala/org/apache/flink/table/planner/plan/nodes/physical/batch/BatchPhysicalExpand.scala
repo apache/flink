@@ -22,11 +22,10 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.calcite.Expand
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecExpand
 import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
-import org.apache.flink.table.planner.plan.utils.RelExplainUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.{RelNode, RelWriter}
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex.RexNode
 
 import java.util
@@ -53,11 +52,6 @@ class BatchPhysicalExpand(
       projects,
       expandIdIndex
     )
-  }
-
-  override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw)
-      .item("projects", RelExplainUtil.projectsToString(projects, input.getRowType, getRowType))
   }
 
   override def translateToExecNode(): ExecNode[_] = {

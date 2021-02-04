@@ -40,7 +40,7 @@ LogicalUnion(all=[true])
 FlinkLogicalUnion(all=[true])
 :- FlinkLogicalCalc(select=[a, 0:BIGINT AS g, c])
 :  +- FlinkLogicalAggregate(group=[{0, 1}], c=[COUNT()])
-:     +- FlinkLogicalExpand(projects=[a, $e])
+:     +- FlinkLogicalExpand(projects=[{a, 0 AS $e}, {null AS a, 1 AS $e}])
 :        +- FlinkLogicalCalc(select=[a])
 :           +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- FlinkLogicalCalc(select=[a, 1:BIGINT AS g, c])
@@ -77,7 +77,7 @@ LogicalProject(b=[$0], c=[$1], a=[$2], g=[0:BIGINT], gb=[$3], gc=[$4], gib=[$5],
       <![CDATA[
 FlinkLogicalCalc(select=[b, c, a, 0:BIGINT AS g, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT) AS gb, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gc, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT) AS gib, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gic, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 2:BIGINT, 3:BIGINT) AS gid])
 +- FlinkLogicalAggregate(group=[{1, 2, 3}], a=[AVG($0)])
-   +- FlinkLogicalExpand(projects=[a, b, c, $e])
+   +- FlinkLogicalExpand(projects=[{a, b, c, 0 AS $e}, {a, b, null AS c, 1 AS $e}, {a, null AS b, c, 2 AS $e}, {a, null AS b, null AS c, 3 AS $e}])
       +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -130,7 +130,7 @@ LogicalProject(b=[$0], c=[$1], a=[$2], g=[0:BIGINT])
       <![CDATA[
 FlinkLogicalCalc(select=[b, c, a, 0:BIGINT AS g])
 +- FlinkLogicalAggregate(group=[{1, 2, 3}], a=[AVG($0)])
-   +- FlinkLogicalExpand(projects=[a, b, c, $e])
+   +- FlinkLogicalExpand(projects=[{a, b, null AS c, 1 AS $e}, {a, null AS b, c, 2 AS $e}])
       +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -153,7 +153,7 @@ LogicalProject(a=[$3], b=[$4], c=[$5])
       <![CDATA[
 FlinkLogicalCalc(select=[a_0 AS a, b_0 AS b, c_0 AS c])
 +- FlinkLogicalAggregate(group=[{0, 1, 2, 3}], a=[COUNT($0)], b=[COUNT($4)], c=[COUNT($5)])
-   +- FlinkLogicalExpand(projects=[a, b, c, $e, b_0, c_0])
+   +- FlinkLogicalExpand(projects=[{a, b, null AS c, 1 AS $e, b AS b_0, c AS c_0}, {a, null AS b, c, 2 AS $e, b AS b_0, c AS c_0}])
       +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -185,7 +185,7 @@ LogicalProject(b=[$0], c=[$1], a=[$2], g=[0:BIGINT], gb=[$3], gc=[$4], gib=[$5],
       <![CDATA[
 FlinkLogicalCalc(select=[b, c, a, 0:BIGINT AS g, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT) AS gb, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS gc, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT) AS gib, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS gic, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, 3:BIGINT) AS gid])
 +- FlinkLogicalAggregate(group=[{1, 2, 3}], a=[AVG($0)])
-   +- FlinkLogicalExpand(projects=[a, b, c, $e])
+   +- FlinkLogicalExpand(projects=[{a, b, c, 0 AS $e}, {a, b, null AS c, 1 AS $e}, {a, null AS b, null AS c, 3 AS $e}])
       +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -208,7 +208,7 @@ LogicalProject(b=[$2], c=[$3])
       <![CDATA[
 FlinkLogicalCalc(select=[b_0 AS b, c_0 AS c])
 +- FlinkLogicalAggregate(group=[{0, 1, 2}], b=[COUNT($3)], c=[COUNT($4)])
-   +- FlinkLogicalExpand(projects=[b, c, $e, b_0, c_0])
+   +- FlinkLogicalExpand(projects=[{b, null AS c, 1 AS $e, b AS b_0, c AS c_0}, {null AS b, c, 2 AS $e, b AS b_0, c AS c_0}])
       +- FlinkLogicalCalc(select=[b, c])
          +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
