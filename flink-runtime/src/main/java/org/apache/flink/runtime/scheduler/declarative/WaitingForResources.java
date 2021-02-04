@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.jobmaster.slotpool.ResourceCounter;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 
@@ -36,19 +37,28 @@ class WaitingForResources implements State, ResourceConsumer {
 
     private final Context context;
 
-    private final Logger logger;
+    private final Logger log;
 
     private final ResourceCounter desiredResources;
 
-    WaitingForResources(Context context, Logger logger, ResourceCounter desiredResources) {
-        this.context = context;
-        this.logger = logger;
-        this.desiredResources = desiredResources;
+    private final Duration resourceTimeout;
+
+    WaitingForResources(
+            Context context,
+            Logger log,
+            ResourceCounter desiredResources,
+            Duration resourceTimeout) {
+        this.context = Preconditions.checkNotNull(context);
+        this.log = Preconditions.checkNotNull(log);
+        this.desiredResources = Preconditions.checkNotNull(desiredResources);
+        this.resourceTimeout = Preconditions.checkNotNull(resourceTimeout);
+        Preconditions.checkArgument(
+                !desiredResources.isEmpty(), "Desired resources must not be empty");
     }
 
     @Override
     public void onEnter() {
-        context.runIfState(this, this::resourceTimeout, Duration.ofSeconds(10L));
+        context.runIfState(this, this::resourceTimeout, resourceTimeout);
         notifyNewResourcesAvailable();
     }
 
@@ -79,7 +89,7 @@ class WaitingForResources implements State, ResourceConsumer {
 
     @Override
     public Logger getLogger() {
-        return logger;
+        return log;
     }
 
     @Override
@@ -100,7 +110,6 @@ class WaitingForResources implements State, ResourceConsumer {
 
             context.goToExecuting(executionGraph);
         } catch (Exception exception) {
-            logger.error("handling initialization failure", exception);
             context.goToFinished(context.getArchivedExecutionGraph(JobStatus.FAILED, exception));
         }
     }

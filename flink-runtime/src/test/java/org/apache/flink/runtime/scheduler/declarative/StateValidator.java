@@ -22,6 +22,8 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.function.Consumer;
 
+import static org.junit.Assert.fail;
+
 /**
  * Utility for state test classes (e.g. {@link WaitingForResourcesTest}) to track if correct input
  * has been presented and if the state transition happened.
@@ -31,24 +33,25 @@ import java.util.function.Consumer;
 public class StateValidator<T> {
 
     private Runnable trap = () -> {};
-    private Consumer<T> consumer = null;
+    private Consumer<T> consumer;
     private final String stateName;
 
     public StateValidator(String stateName) {
         this.stateName = stateName;
+        expectNoStateTransition();
     }
 
     /**
-     * Activate this validator (if the state transition hasn't been validated, it will fail in the
-     * close method).
+     * Expect an input, and validate it with the given asserter (if the state transition hasn't been
+     * validated, it will fail in the close method).
      *
      * @param asserter Consumer which validates the input to the state transition.
      */
-    public void activate(Consumer<T> asserter) {
+    public void expectInput(Consumer<T> asserter) {
         consumer = Preconditions.checkNotNull(asserter);
         trap =
                 () -> {
-                    throw new AssertionError("no transition to " + stateName);
+                    throw new AssertionError("No transition to " + stateName);
                 };
     }
 
@@ -57,13 +60,13 @@ public class StateValidator<T> {
      * arguments.
      *
      * @param input Argument(s) of the state transition.
-     * @throws NullPointerException If no comsumer has been set (an unexpected state transition
+     * @throws NullPointerException If no consumer has been set (an unexpected state transition
      *     occurred)
      */
     public void validateInput(T input) {
-        Preconditions.checkNotNull(consumer, "No consumer set. Unexpected state transition?");
         trap = () -> {};
         consumer.accept(input);
+        expectNoStateTransition();
     }
 
     /**
@@ -72,5 +75,9 @@ public class StateValidator<T> {
      */
     public void close() {
         trap.run();
+    }
+
+    public final void expectNoStateTransition() {
+        consumer = (T) -> fail("No consumer has been set. Unexpected state transition");
     }
 }
