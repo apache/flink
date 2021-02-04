@@ -149,7 +149,10 @@ class TaskExecutorManager implements AutoCloseable {
     }
 
     public boolean registerTaskManager(
-            final TaskExecutorConnection taskExecutorConnection, SlotReport initialSlotReport) {
+            final TaskExecutorConnection taskExecutorConnection,
+            SlotReport initialSlotReport,
+            ResourceProfile totalResourceProfile,
+            ResourceProfile defaultSlotResourceProfile) {
         if (isMaxSlotNumExceededAfterRegistration(initialSlotReport)) {
             LOG.info(
                     "The total number of slots exceeds the max limitation {}, releasing the excess task executor.",
@@ -165,7 +168,9 @@ class TaskExecutorManager implements AutoCloseable {
                         taskExecutorConnection,
                         StreamSupport.stream(initialSlotReport.spliterator(), false)
                                 .map(SlotStatus::getSlotID)
-                                .collect(Collectors.toList()));
+                                .collect(Collectors.toList()),
+                        totalResourceProfile,
+                        defaultSlotResourceProfile);
 
         taskManagerRegistrations.put(
                 taskExecutorConnection.getInstanceID(), taskManagerRegistration);
@@ -402,27 +407,35 @@ class TaskExecutorManager implements AutoCloseable {
     // ---------------------------------------------------------------------------------------------
 
     public ResourceProfile getTotalRegisteredResources() {
-        return getResourceFromNumSlots(getNumberRegisteredSlots());
+        return taskManagerRegistrations.values().stream()
+                .map(TaskManagerRegistration::getTotalResource)
+                .reduce(ResourceProfile.ZERO, ResourceProfile::merge);
     }
 
     public ResourceProfile getTotalRegisteredResourcesOf(InstanceID instanceID) {
-        return getResourceFromNumSlots(getNumberRegisteredSlotsOf(instanceID));
+        return Optional.ofNullable(taskManagerRegistrations.get(instanceID))
+                .map(TaskManagerRegistration::getTotalResource)
+                .orElse(ResourceProfile.ZERO);
     }
 
     public ResourceProfile getTotalFreeResources() {
-        return getResourceFromNumSlots(getNumberFreeSlots());
+        return taskManagerRegistrations.values().stream()
+                .map(
+                        taskManagerRegistration ->
+                                taskManagerRegistration
+                                        .getDefaultSlotResourceProfile()
+                                        .multiply(taskManagerRegistration.getNumberFreeSlots()))
+                .reduce(ResourceProfile.ZERO, ResourceProfile::merge);
     }
 
     public ResourceProfile getTotalFreeResourcesOf(InstanceID instanceID) {
-        return getResourceFromNumSlots(getNumberFreeSlotsOf(instanceID));
-    }
-
-    private ResourceProfile getResourceFromNumSlots(int numSlots) {
-        if (numSlots < 0 || defaultSlotResourceProfile == null) {
-            return ResourceProfile.UNKNOWN;
-        } else {
-            return defaultSlotResourceProfile.multiply(numSlots);
-        }
+        return Optional.ofNullable(taskManagerRegistrations.get(instanceID))
+                .map(
+                        taskManagerRegistration ->
+                                taskManagerRegistration
+                                        .getDefaultSlotResourceProfile()
+                                        .multiply(taskManagerRegistration.getNumberFreeSlots()))
+                .orElse(ResourceProfile.ZERO);
     }
 
     public Iterable<SlotID> getSlotsOf(InstanceID instanceId) {

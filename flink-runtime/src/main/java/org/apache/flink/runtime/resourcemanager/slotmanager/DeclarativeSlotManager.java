@@ -296,7 +296,10 @@ public class DeclarativeSlotManager implements SlotManager {
             return false;
         } else {
             if (!taskExecutorManager.registerTaskManager(
-                    taskExecutorConnection, initialSlotReport)) {
+                    taskExecutorConnection,
+                    initialSlotReport,
+                    totalResourceProfile,
+                    defaultSlotResourceProfile)) {
                 LOG.debug(
                         "Task executor {} could not be registered.",
                         taskExecutorConnection.getResourceID());
