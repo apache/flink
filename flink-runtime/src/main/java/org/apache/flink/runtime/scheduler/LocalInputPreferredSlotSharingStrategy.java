@@ -23,6 +23,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
@@ -214,21 +215,26 @@ class LocalInputPreferredSlotSharingStrategy implements SlotSharingStrategy {
 
             final ExecutionVertexID executionVertexId = executionVertex.getId();
 
-            for (SchedulingResultPartition partition : executionVertex.getConsumedResults()) {
-                final ExecutionVertexID producerVertexId = partition.getProducer().getId();
-                if (!inSameLogicalSlotSharingGroup(producerVertexId, executionVertexId)) {
-                    continue;
-                }
+            for (ConsumedPartitionGroup partitionIdGroup :
+                    executionVertex.getGroupedConsumedResults()) {
+                if (partitionIdGroup.getResultPartitions().size() > 0) {
+                    final SchedulingResultPartition partition =
+                            executionVertex.getResultPartition(
+                                    partitionIdGroup.getResultPartitions().get(0));
+                    final ExecutionVertexID producerVertexId = partition.getProducer().getId();
+                    if (!inSameLogicalSlotSharingGroup(producerVertexId, executionVertexId)) {
+                        continue;
+                    }
 
-                final ExecutionSlotSharingGroup producerGroup =
-                        executionSlotSharingGroupMap.get(producerVertexId);
+                    final ExecutionSlotSharingGroup producerGroup =
+                            executionSlotSharingGroupMap.get(producerVertexId);
 
-                checkState(producerGroup != null);
-                if (isGroupAvailableForVertex(producerGroup, executionVertexId)) {
-                    return producerGroup;
+                    checkState(producerGroup != null);
+                    if (isGroupAvailableForVertex(producerGroup, executionVertexId)) {
+                        return producerGroup;
+                    }
                 }
             }
-
             return null;
         }
 

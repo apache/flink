@@ -18,12 +18,18 @@
 
 package org.apache.flink.runtime.scheduler.adapter;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
 
-import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -33,20 +39,33 @@ class DefaultExecutionVertex implements SchedulingExecutionVertex {
 
     private final ExecutionVertexID executionVertexId;
 
-    private final List<DefaultResultPartition> consumedResults;
-
     private final List<DefaultResultPartition> producedResults;
 
     private final Supplier<ExecutionState> stateSupplier;
 
+    private final List<ConsumedPartitionGroup> consumedPartitionIds;
+
+    private final Map<IntermediateResultPartitionID, DefaultResultPartition> resultPartitionsById;
+
+    DefaultExecutionVertex(
+            ExecutionVertexID executionVertexId,
+            List<DefaultResultPartition> producedPartitions,
+            Supplier<ExecutionState> stateSupplier,
+            List<ConsumedPartitionGroup> consumedPartitionIds,
+            Map<IntermediateResultPartitionID, DefaultResultPartition> resultPartitionsById) {
+        this.executionVertexId = checkNotNull(executionVertexId);
+        this.stateSupplier = checkNotNull(stateSupplier);
+        this.producedResults = checkNotNull(producedPartitions);
+        this.consumedPartitionIds = consumedPartitionIds;
+        this.resultPartitionsById = resultPartitionsById;
+    }
+
+    @VisibleForTesting
     DefaultExecutionVertex(
             ExecutionVertexID executionVertexId,
             List<DefaultResultPartition> producedPartitions,
             Supplier<ExecutionState> stateSupplier) {
-        this.executionVertexId = checkNotNull(executionVertexId);
-        this.consumedResults = new ArrayList<>();
-        this.stateSupplier = checkNotNull(stateSupplier);
-        this.producedResults = checkNotNull(producedPartitions);
+        this(executionVertexId, producedPartitions, stateSupplier, null, null);
     }
 
     @Override
@@ -61,15 +80,52 @@ class DefaultExecutionVertex implements SchedulingExecutionVertex {
 
     @Override
     public Iterable<DefaultResultPartition> getConsumedResults() {
-        return consumedResults;
+        final List<ConsumedPartitionGroup> consumers = getGroupedConsumedResults();
+
+        return () ->
+                new Iterator<DefaultResultPartition>() {
+                    private int groupIdx = 0;
+                    private int idx = 0;
+
+                    @Override
+                    public boolean hasNext() {
+                        if (groupIdx < consumers.size()
+                                && idx >= consumers.get(groupIdx).getResultPartitions().size()) {
+                            ++groupIdx;
+                            idx = 0;
+                        }
+                        return groupIdx < consumers.size()
+                                && idx < consumers.get(groupIdx).getResultPartitions().size();
+                    }
+
+                    @Override
+                    public DefaultResultPartition next() {
+                        if (hasNext()) {
+                            return (DefaultResultPartition)
+                                    getResultPartition(
+                                            consumers
+                                                    .get(groupIdx)
+                                                    .getResultPartitions()
+                                                    .get(idx++));
+                        } else {
+                            throw new NoSuchElementException();
+                        }
+                    }
+                };
+    }
+
+    @Override
+    public List<ConsumedPartitionGroup> getGroupedConsumedResults() {
+        return consumedPartitionIds;
+    }
+
+    @Override
+    public SchedulingResultPartition getResultPartition(IntermediateResultPartitionID id) {
+        return resultPartitionsById.get(id);
     }
 
     @Override
     public Iterable<DefaultResultPartition> getProducedResults() {
         return producedResults;
-    }
-
-    void addConsumedResult(DefaultResultPartition result) {
-        consumedResults.add(result);
     }
 }

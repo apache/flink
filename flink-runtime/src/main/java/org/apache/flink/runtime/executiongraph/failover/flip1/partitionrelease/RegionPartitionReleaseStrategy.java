@@ -20,6 +20,7 @@
 package org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease;
 
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.scheduler.strategy.ConsumerVertexGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingPipelinedRegion;
@@ -27,6 +28,7 @@ import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.util.IterableUtils;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -109,8 +111,9 @@ public class RegionPartitionReleaseStrategy implements PartitionReleaseStrategy 
             final IntermediateResultPartitionID resultPartitionId) {
         final SchedulingResultPartition resultPartition =
                 schedulingTopology.getResultPartition(resultPartitionId);
-        return IterableUtils.toStream(resultPartition.getConsumers())
-                .map(SchedulingExecutionVertex::getId)
+        return IterableUtils.toStream(resultPartition.getGroupedConsumers())
+                .map(ConsumerVertexGroup::getVertices)
+                .flatMap(Collection::stream)
                 .allMatch(this::isRegionOfVertexFinished);
     }
 

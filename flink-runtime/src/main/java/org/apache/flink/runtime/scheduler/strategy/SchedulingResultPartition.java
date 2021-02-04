@@ -23,6 +23,8 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.topology.Result;
 
+import java.util.List;
+
 /** Representation of {@link IntermediateResultPartition}. */
 public interface SchedulingResultPartition
         extends Result<
@@ -44,4 +46,14 @@ public interface SchedulingResultPartition
      * @return result partition state
      */
     ResultPartitionState getState();
+
+    /**
+     * Get the grouped {@link ExecutionVertexID}.
+     *
+     * @return List of grouped Execution Vertex IDs.
+     */
+    List<ConsumerVertexGroup> getGroupedConsumers();
+
+    /** Get {@link SchedulingExecutionVertex} by {@link ExecutionVertexID}. */
+    SchedulingExecutionVertex getVertex(ExecutionVertexID id);
 }
