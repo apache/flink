@@ -103,8 +103,8 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
                             stateIdleTime,
                             generateUpdateBefore,
                             true, // generateInsert
-                            false,
-                            generatedEqualiser); // inputInsertOnly
+                            false, // inputInsertOnly
+                            generatedEqualiser);
             CountBundleTrigger<RowData> trigger = AggregateUtil.createMiniBatchTrigger(tableConfig);
             operator = new KeyedMapBundleOperator<>(processFunction, trigger);
         } else {
@@ -114,8 +114,8 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
                             stateIdleTime,
                             generateUpdateBefore,
                             true, // generateInsert
-                            false,
-                            generatedEqualiser); // inputInsertOnly
+                            false, // inputInsertOnly
+                            generatedEqualiser);
             operator = new KeyedProcessOperator<>(processFunction);
         }
 

@@ -43,7 +43,7 @@ class DeduplicateFunctionHelper {
             boolean generateInsert,
             ValueState<RowData> state,
             Collector<RowData> out,
-            boolean isStateTTLEnabled,
+            boolean isStateTtlEnabled,
             RecordEqualiser equaliser)
             throws Exception {
 
@@ -58,7 +58,7 @@ class DeduplicateFunctionHelper {
                 currentRow.setRowKind(RowKind.INSERT);
                 out.collect(currentRow);
             } else {
-                if (!isStateTTLEnabled && equaliser.equals(preRow, currentRow)) {
+                if (!isStateTtlEnabled && equaliser.equals(preRow, currentRow)) {
                     // currentRow is the same as preRow and state cleaning is not enabled.
                     // We do not emit retraction and update message.
                     // If state cleaning is enabled, we have to emit messages to prevent too early
@@ -98,7 +98,7 @@ class DeduplicateFunctionHelper {
             boolean generateUpdateBefore,
             ValueState<RowData> state,
             Collector<RowData> out,
-            boolean isStateTTLEnabled,
+            boolean isStateTtlEnabled,
             RecordEqualiser equaliser)
             throws Exception {
         RowData preRow = state.value();
@@ -109,7 +109,7 @@ class DeduplicateFunctionHelper {
                 currentRow.setRowKind(RowKind.INSERT);
                 out.collect(currentRow);
             } else {
-                if (!isStateTTLEnabled && equaliser.equals(preRow, currentRow)) {
+                if (!isStateTtlEnabled && equaliser.equals(preRow, currentRow)) {
                     // currentRow is the same as preRow and state cleaning is not enabled.
                     // We do not emit retraction and update message.
                     // If state cleaning is enabled, we have to emit messages to prevent too early

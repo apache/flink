@@ -43,12 +43,12 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunction
     private final boolean generateInsert;
     private final boolean inputInsertOnly;
     // function used to equal RowData
-    private transient RecordEqualiser equaliser = null;
+    private transient RecordEqualiser equaliser;
 
     // The code generated equaliser used to equal RowData.
-    private transient GeneratedRecordEqualiser genRecordEqualiser = null;
+    private final GeneratedRecordEqualiser genRecordEqualiser;
 
-    private transient boolean isStateTTLEnabled = false;
+    private final boolean isStateTtlEnabled;
 
     public ProcTimeMiniBatchDeduplicateKeepLastRowFunction(
             InternalTypeInfo<RowData> typeInfo,
@@ -64,6 +64,7 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunction
         this.generateInsert = generateInsert;
         this.inputInsertOnly = inputInsertOnly;
         this.genRecordEqualiser = genRecordEqualiser;
+        this.isStateTtlEnabled = minRetentionTime > 0;
     }
 
     @Override
@@ -86,11 +87,11 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunction
                         generateInsert,
                         state,
                         out,
-                        isStateTTLEnabled,
+                        isStateTtlEnabled,
                         equaliser);
             } else {
                 processLastRowOnChangelog(
-                        currentRow, generateUpdateBefore, state, out, isStateTTLEnabled, equaliser);
+                        currentRow, generateUpdateBefore, state, out, isStateTtlEnabled, equaliser);
             }
         }
     }
@@ -100,6 +101,5 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunction
         super.open(ctx);
         equaliser =
                 genRecordEqualiser.newInstance(ctx.getRuntimeContext().getUserCodeClassLoader());
-        isStateTTLEnabled = this.minRetentionTime > 0;
     }
 }
