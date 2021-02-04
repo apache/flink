@@ -109,14 +109,19 @@ public class ArrowPythonScalarFunctionOperator extends AbstractRowPythonScalarFu
             bais.setBuffer(udfResult, 0, udfResult.length);
             reader.loadNextBatch();
             VectorSchemaRoot root = reader.getVectorSchemaRoot();
-            if (arrowReader == null) {
-                arrowReader = ArrowUtils.createRowArrowReader(root, outputType);
-            }
+            arrowReader = ArrowUtils.createRowArrowReader(root, outputType);
             for (int i = 0; i < root.getRowCount(); i++) {
                 CRow input = forwardedInputQueue.poll();
                 cRowWrapper.setChange(input.change());
                 cRowWrapper.collect(Row.join(input.row(), arrowReader.read(i)));
             }
+            resetReader();
         }
+    }
+
+    private void resetReader() throws IOException {
+        arrowReader = null;
+        reader.close();
+        reader = new ArrowStreamReader(bais, allocator);
     }
 }

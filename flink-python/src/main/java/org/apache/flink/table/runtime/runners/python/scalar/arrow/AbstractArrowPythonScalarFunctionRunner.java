@@ -37,6 +37,7 @@ import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
 
+import java.io.IOException;
 import java.util.Map;
 
 /**
@@ -173,7 +174,13 @@ public abstract class AbstractArrowPythonScalarFunctionRunner<IN>
 
             mainInputReceiver.accept(WindowedValue.valueInGlobalWindow(baos.toByteArray()));
             baos.reset();
+            resetWriter();
         }
         currentBatchCount = 0;
+    }
+
+    private void resetWriter() throws IOException {
+        arrowStreamWriter = new ArrowStreamWriter(root, null, baos);
+        arrowStreamWriter.start();
     }
 }

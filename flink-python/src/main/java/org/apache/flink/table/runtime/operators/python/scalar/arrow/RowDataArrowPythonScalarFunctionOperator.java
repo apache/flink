@@ -109,14 +109,19 @@ public class RowDataArrowPythonScalarFunctionOperator
             bais.setBuffer(udfResult, 0, udfResult.length);
             reader.loadNextBatch();
             VectorSchemaRoot root = reader.getVectorSchemaRoot();
-            if (arrowReader == null) {
-                arrowReader = ArrowUtils.createRowDataArrowReader(root, outputType);
-            }
+            arrowReader = ArrowUtils.createRowDataArrowReader(root, outputType);
             for (int i = 0; i < root.getRowCount(); i++) {
                 RowData input = forwardedInputQueue.poll();
                 reuseJoinedRow.setRowKind(input.getRowKind());
                 rowDataWrapper.collect(reuseJoinedRow.replace(input, arrowReader.read(i)));
             }
+            resetReader();
         }
+    }
+
+    private void resetReader() throws IOException {
+        arrowReader = null;
+        reader.close();
+        reader = new ArrowStreamReader(bais, allocator);
     }
 }
