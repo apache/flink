@@ -18,9 +18,12 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.planner.calcite.FlinkContextImpl;
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
@@ -51,7 +54,12 @@ public class DynamicTableSourceSpecSerdeTest {
     @Test
     public void testDynamicTableSourceSpecSerde() throws IOException {
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-        SerdeContext serdeCtx = new SerdeContext(new Configuration(), classLoader);
+        SerdeContext serdeCtx =
+                new SerdeContext(
+                        new FlinkContextImpl(TableConfig.getDefault(), null, null, null),
+                        classLoader,
+                        FlinkTypeFactory.INSTANCE(),
+                        FlinkSqlOperatorTable.instance());
         ObjectMapper mapper = JsonSerdeUtil.createObjectMapper(serdeCtx);
         SimpleModule module = new SimpleModule();
         module.addDeserializer(
