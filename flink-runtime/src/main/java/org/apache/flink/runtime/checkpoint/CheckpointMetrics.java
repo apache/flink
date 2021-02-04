@@ -29,6 +29,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public class CheckpointMetrics implements Serializable {
 
     private static final long serialVersionUID = 1L;
+    public static final long UNSET = -1L;
 
     private final long bytesProcessedDuringAlignment;
 
@@ -52,7 +53,7 @@ public class CheckpointMetrics implements Serializable {
 
     @VisibleForTesting
     public CheckpointMetrics() {
-        this(-1L, -1L, -1L, -1L, -1L, -1L, false, 0L);
+        this(UNSET, UNSET, UNSET, UNSET, UNSET, UNSET, false, 0L);
     }
 
     public CheckpointMetrics(

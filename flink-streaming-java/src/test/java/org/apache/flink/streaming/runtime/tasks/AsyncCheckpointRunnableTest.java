@@ -38,8 +38,31 @@ import org.junit.Test;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.junit.Assert.assertEquals;
+
 /** Tests for {@link AsyncCheckpointRunnable}. */
 public class AsyncCheckpointRunnableTest {
+
+    @Test
+    public void testReportIncompleteStats() {
+        long checkpointId = 1000L;
+        TestEnvironment env = new TestEnvironment();
+        new AsyncCheckpointRunnable(
+                        new HashMap<>(),
+                        new CheckpointMetaData(checkpointId, 1),
+                        new CheckpointMetricsBuilder(),
+                        0,
+                        "Task Name",
+                        r -> {},
+                        r -> {},
+                        env,
+                        (msg, ex) -> {},
+                        () -> true)
+                .close();
+        assertEquals(
+                checkpointId,
+                ((TestTaskStateManager) env.getTaskStateManager()).getReportedCheckpointId());
+    }
 
     @Test
     public void testDeclineWithAsyncCheckpointExceptionWhenRunning() {
