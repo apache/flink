@@ -109,12 +109,20 @@ class DeduplicateFunctionHelper {
                 currentRow.setRowKind(RowKind.INSERT);
                 out.collect(currentRow);
             } else {
-                if (generateUpdateBefore) {
-                    preRow.setRowKind(RowKind.UPDATE_BEFORE);
-                    out.collect(preRow);
+                if (!isStateTTLEnabled && equaliser.equals(preRow, currentRow)) {
+                    // currentRow is the same as preRow and state cleaning is not enabled.
+                    // We do not emit retraction and update message.
+                    // If state cleaning is enabled, we have to emit messages to prevent too early
+                    // state eviction of downstream operators.
+                    return;
+                } else {
+                    if (generateUpdateBefore) {
+                        preRow.setRowKind(RowKind.UPDATE_BEFORE);
+                        out.collect(preRow);
+                    }
+                    currentRow.setRowKind(RowKind.UPDATE_AFTER);
+                    out.collect(currentRow);
                 }
-                currentRow.setRowKind(RowKind.UPDATE_AFTER);
-                out.collect(currentRow);
             }
             // normalize row kind
             currentRow.setRowKind(RowKind.INSERT);
