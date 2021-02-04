@@ -36,13 +36,17 @@ public class ProcTimeDeduplicateKeepLastRowFunction
     private final boolean generateUpdateBefore;
     private final boolean generateInsert;
     private final boolean inputIsInsertOnly;
-    // function used to equal RowData
-    private transient RecordEqualiser equaliser = null;
+    /**
+     * function used to equal RowData.
+     */
+    private transient RecordEqualiser equaliser;
 
-    // The code generated equaliser used to equal RowData.
-    private transient GeneratedRecordEqualiser genRecordEqualiser = null;
+    /**
+     * The code generated equaliser used to equal RowData.
+     */
+    private final GeneratedRecordEqualiser genRecordEqualiser;
 
-    private transient boolean isStateTTLEnabled = false;
+    private final boolean isStateTtlEnabled;
 
     public ProcTimeDeduplicateKeepLastRowFunction(
             InternalTypeInfo<RowData> typeInfo,
@@ -56,6 +60,8 @@ public class ProcTimeDeduplicateKeepLastRowFunction
         this.generateInsert = generateInsert;
         this.inputIsInsertOnly = inputInsertOnly;
         this.genRecordEqualiser = genRecordEqualiser;
+        isStateTtlEnabled = stateRetentionTime > 0;
+
     }
 
     @Override
@@ -68,11 +74,11 @@ public class ProcTimeDeduplicateKeepLastRowFunction
                     generateInsert,
                     state,
                     out,
-                    isStateTTLEnabled,
+                    isStateTtlEnabled,
                     equaliser);
         } else {
             processLastRowOnChangelog(
-                    input, generateUpdateBefore, state, out, isStateTTLEnabled, equaliser);
+                    input, generateUpdateBefore, state, out, isStateTtlEnabled, equaliser);
         }
     }
 
@@ -80,6 +86,5 @@ public class ProcTimeDeduplicateKeepLastRowFunction
     public void open(Configuration configure) throws Exception {
         super.open(configure);
         equaliser = genRecordEqualiser.newInstance(getRuntimeContext().getUserCodeClassLoader());
-        isStateTTLEnabled = this.stateRetentionTime > 0;
     }
 }

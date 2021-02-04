@@ -85,10 +85,9 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
                         .getConfiguration()
                         .getBoolean(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED);
 
-        RowType inputRowType = (RowType) inputNode.getOutputType();
         final EqualiserCodeGenerator equaliserCodeGen =
                 new EqualiserCodeGenerator(
-                        inputRowType.getFields().stream()
+                        rowTypeInfo.toRowType().getFields().stream()
                                 .map(RowType.RowField::getType)
                                 .toArray(LogicalType[]::new));
         GeneratedRecordEqualiser generatedEqualiser = equaliserCodeGen.generateRecordEqualiser(

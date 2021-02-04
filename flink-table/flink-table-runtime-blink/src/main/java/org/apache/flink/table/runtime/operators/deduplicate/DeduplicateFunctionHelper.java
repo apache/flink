@@ -58,8 +58,6 @@ class DeduplicateFunctionHelper {
                 currentRow.setRowKind(RowKind.INSERT);
                 out.collect(currentRow);
             } else {
-                boolean isEqualsWithPrevious = preRow.equals(currentRow);
-
                 if (!isStateTTLEnabled && equaliser.equals(preRow, currentRow)) {
                     // currentRow is the same as preRow and state cleaning is not enabled.
                     // We do not emit retraction and update message.

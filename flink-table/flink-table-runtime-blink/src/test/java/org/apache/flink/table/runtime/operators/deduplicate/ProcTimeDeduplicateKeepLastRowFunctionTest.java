@@ -35,6 +35,16 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBefore
 /** Tests for {@link ProcTimeDeduplicateKeepLastRowFunction}. */
 public class ProcTimeDeduplicateKeepLastRowFunctionTest
         extends ProcTimeDeduplicateFunctionTestBase {
+    private ProcTimeDeduplicateKeepLastRowFunction createFunctionWithoutStateTtl(
+            boolean generateUpdateBefore, boolean generateInsert) {
+        return new ProcTimeDeduplicateKeepLastRowFunction(
+                inputRowType,
+                0,
+                generateUpdateBefore,
+                generateInsert,
+                true,
+                generatedEqualiser);
+    }
 
     private ProcTimeDeduplicateKeepLastRowFunction createFunction(
             boolean generateUpdateBefore, boolean generateInsert) {
@@ -97,14 +107,31 @@ public class ProcTimeDeduplicateKeepLastRowFunctionTest
         testHarness.open();
         testHarness.processElement(insertRecord("book", 1L, 12));
         testHarness.processElement(insertRecord("book", 2L, 11));
-        testHarness.processElement(insertRecord("book", 1L, 13));
+        testHarness.processElement(insertRecord("book", 1L, 12));
         testHarness.close();
 
         // Keep LastRow in deduplicate may send UPDATE_BEFORE
         List<Object> expectedOutput = new ArrayList<>();
         expectedOutput.add(insertRecord("book", 1L, 12));
         expectedOutput.add(updateBeforeRecord("book", 1L, 12));
-        expectedOutput.add(updateAfterRecord("book", 1L, 13));
+        expectedOutput.add(updateAfterRecord("book", 1L, 12));
+        expectedOutput.add(insertRecord("book", 2L, 11));
+        assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+    }
+
+    @Test
+    public void testDeduplicateWithGenerateUpdateBefore() throws Exception {
+        ProcTimeDeduplicateKeepLastRowFunction func = createFunctionWithoutStateTtl(true, true);
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
+        testHarness.open();
+        testHarness.processElement(insertRecord("book", 1L, 12));
+        testHarness.processElement(insertRecord("book", 2L, 11));
+        testHarness.processElement(insertRecord("book", 1L, 12));
+        testHarness.close();
+
+        // Keep LastRow in deduplicate may send UPDATE_BEFORE
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(insertRecord("book", 1L, 12));
         expectedOutput.add(insertRecord("book", 2L, 11));
         assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
     }
