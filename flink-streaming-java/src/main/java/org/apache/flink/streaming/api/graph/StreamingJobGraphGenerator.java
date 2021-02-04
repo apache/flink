@@ -1146,7 +1146,6 @@ public class StreamingJobGraphGenerator {
                 final Set<ManagedMemoryUseCase> slotScopeUseCases =
                         slotScopeManagedMemoryUseCasesRetriever.apply(operatorNodeId);
                 setManagedMemoryFractionForOperator(
-                        slotSharingGroup.getResourceSpec(),
                         operatorScopeUseCaseWeights,
                         slotScopeUseCases,
                         groupOperatorScopeUseCaseWeights,
@@ -1163,7 +1162,6 @@ public class StreamingJobGraphGenerator {
     }
 
     private static void setManagedMemoryFractionForOperator(
-            final ResourceSpec groupResourceSpec,
             final Map<ManagedMemoryUseCase, Integer> operatorScopeUseCaseWeights,
             final Set<ManagedMemoryUseCase> slotScopeUseCases,
             final Map<ManagedMemoryUseCase, Integer> groupManagedMemoryWeights,
@@ -1171,36 +1169,22 @@ public class StreamingJobGraphGenerator {
             final StreamConfig operatorConfig) {
 
         // For each operator, make sure fractions are set for all use cases in the group, even if
-        // the operator does not
-        // have the use case (set the fraction to 0.0). This allows us to learn which use cases
-        // exist in the group from
-        // either one of the stream configs.
-        if (groupResourceSpec.equals(ResourceSpec.UNKNOWN)) {
-            for (Map.Entry<ManagedMemoryUseCase, Integer> entry :
-                    groupManagedMemoryWeights.entrySet()) {
-                final ManagedMemoryUseCase useCase = entry.getKey();
-                final int groupWeight = entry.getValue();
-                final int operatorWeight = operatorScopeUseCaseWeights.getOrDefault(useCase, 0);
-                operatorConfig.setManagedMemoryFractionOperatorOfUseCase(
-                        useCase,
-                        operatorWeight > 0
-                                ? ManagedMemoryUtils.getFractionRoundedDown(
-                                        operatorWeight, groupWeight)
-                                : 0.0);
-            }
-            for (ManagedMemoryUseCase useCase : groupSlotScopeUseCases) {
-                operatorConfig.setManagedMemoryFractionOperatorOfUseCase(
-                        useCase, slotScopeUseCases.contains(useCase) ? 1.0 : 0.0);
-            }
-        } else {
-            // Supporting for fine grained resource specs is still under developing.
-            // This branch should not be executed in production. Not throwing exception for testing
-            // purpose.
-            // TODO: support calculating managed memory fractions for fine grained resource specs
-            LOG.error(
-                    "Failed setting managed memory fractions. "
-                            + " Operators may not be able to use managed memory properly."
-                            + " Calculating managed memory fractions with fine grained resource spec is currently not supported.");
+        // the operator does not have the use case (set the fraction to 0.0). This allows us to
+        // learn which use cases exist in the group from either one of the stream configs.
+        for (Map.Entry<ManagedMemoryUseCase, Integer> entry :
+                groupManagedMemoryWeights.entrySet()) {
+            final ManagedMemoryUseCase useCase = entry.getKey();
+            final int groupWeight = entry.getValue();
+            final int operatorWeight = operatorScopeUseCaseWeights.getOrDefault(useCase, 0);
+            operatorConfig.setManagedMemoryFractionOperatorOfUseCase(
+                    useCase,
+                    operatorWeight > 0
+                            ? ManagedMemoryUtils.getFractionRoundedDown(operatorWeight, groupWeight)
+                            : 0.0);
+        }
+        for (ManagedMemoryUseCase useCase : groupSlotScopeUseCases) {
+            operatorConfig.setManagedMemoryFractionOperatorOfUseCase(
+                    useCase, slotScopeUseCases.contains(useCase) ? 1.0 : 0.0);
         }
     }
 
