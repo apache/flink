@@ -221,7 +221,6 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                             outputRowType,
                             inputTimeFieldIndex,
                             windowAssigner,
-                            emitStrategy.getAllowLateness(),
                             namePropertyTypeArray,
                             aggInfoList,
                             config);
@@ -347,7 +346,6 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                     RowType outputRowType,
                     int inputTimeFieldIndex,
                     WindowAssigner<?> windowAssigner,
-                    long allowance,
                     int[] namePropertyTypeArray,
                     AggregateInfoList aggInfoList,
                     Configuration config) {
@@ -366,7 +364,6 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                         windowAssigner,
                         pythonFunctionInfos,
                         dataViewSpecs,
-                        allowance,
                         inputTimeFieldIndex,
                         namePropertyTypeArray,
                         inputCountIndex,
@@ -442,7 +439,6 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                     WindowAssigner<?> windowAssigner,
                     PythonAggregateFunctionInfo[] aggregateFunctions,
                     DataViewUtils.DataViewSpec[][] dataViewSpecs,
-                    long allowance,
                     int inputTimeFieldIndex,
                     int[] namedProperties,
                     int indexOfCountStar,
@@ -466,7 +462,6 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                             int.class,
                             WindowAssigner.class,
                             LogicalWindow.class,
-                            long.class,
                             int[].class);
             return ctor.newInstance(
                     config,
@@ -481,7 +476,6 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                     inputTimeFieldIndex,
                     windowAssigner,
                     window,
-                    allowance,
                     namedProperties);
         } catch (NoSuchMethodException
                 | IllegalAccessException

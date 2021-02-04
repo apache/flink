@@ -104,7 +104,8 @@ public class StreamPhysicalPythonGroupWindowAggregateRule extends ConverterRule 
                         .anyMatch(x -> PythonUtil.isPythonAggregate(x, PythonFunctionKind.PANDAS));
 
         if (isPandasPythonUDAF && window instanceof SessionGroupWindow) {
-            throw new TableException("Session Group Window is currently not supported.");
+            throw new TableException(
+                    "Session Group Window is currently not supported for Pandas UDAF.");
         }
         RelNode input = agg.getInput();
         RelOptCluster cluster = rel.getCluster();
@@ -125,6 +126,11 @@ public class StreamPhysicalPythonGroupWindowAggregateRule extends ConverterRule 
         TableConfig config =
                 cluster.getPlanner().getContext().unwrap(FlinkContext.class).getTableConfig();
         WindowEmitStrategy emitStrategy = WindowEmitStrategy.apply(config, agg.getWindow());
+
+        if (emitStrategy.produceUpdates()) {
+            throw new TableException(
+                    "Python Group Window Aggregate Function is currently not supported for early fired or lately fired.");
+        }
 
         return new StreamPhysicalPythonGroupWindowAggregate(
                 cluster,
