@@ -25,21 +25,29 @@ import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecCalc;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.apache.calcite.rex.RexProgram;
+import org.apache.calcite.rex.RexNode;
+
+import javax.annotation.Nullable;
+
+import java.util.Collections;
+import java.util.List;
 
 /** Batch {@link ExecNode} for Calc. */
 public class BatchExecCalc extends CommonExecCalc implements BatchExecNode<RowData> {
 
     public BatchExecCalc(
-            RexProgram calcProgram,
+            List<RexNode> projection,
+            @Nullable RexNode condition,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
         super(
-                calcProgram,
+                projection,
+                condition,
                 TableStreamOperator.class,
                 false, // retainHeader
-                inputProperty,
+                getNewNodeId(),
+                Collections.singletonList(inputProperty),
                 outputType,
                 description);
     }

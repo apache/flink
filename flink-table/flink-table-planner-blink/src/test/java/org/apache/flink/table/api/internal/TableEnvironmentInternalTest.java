@@ -22,41 +22,26 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 
 /** Test for {@link TableEnvironmentInternal}. */
-public class TableEnvironmentInternalTest {
-
-    @Rule public ExpectedException exception = ExpectedException.none();
-
-    @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
-
-    private TableEnvironmentInternal tableEnv;
+public class TableEnvironmentInternalTest extends JsonPlanTestBase {
 
     @Before
     public void setup() {
-        EnvironmentSettings settings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
-        tableEnv = (TableEnvironmentInternal) TableEnvironment.create(settings);
+        super.setup();
 
         String srcTableDdl =
                 "CREATE TABLE MyTable (\n"
@@ -91,54 +76,15 @@ public class TableEnvironmentInternalTest {
     }
 
     @Test
-    public void testExecuteJsonPlan() throws ExecutionException, InterruptedException, IOException {
-        File sourceFile = tmpFolder.newFile();
+    public void testExecuteJsonPlan() throws Exception {
         List<String> data = Arrays.asList("1,1,hi", "2,1,hello", "3,2,hello world");
-        Collections.shuffle(data);
-        Files.write(sourceFile.toPath(), String.join("\n", data).getBytes());
-
-        String srcTableDdl =
-                String.format(
-                        "CREATE TABLE src (\n"
-                                + "  a bigint,\n"
-                                + "  b int,\n"
-                                + "  c varchar\n"
-                                + ") with (\n"
-                                + "  'connector' = 'filesystem',\n"
-                                + "  'path' = '%s',\n"
-                                + "  'format' = 'testcsv')",
-                        sourceFile.getAbsolutePath());
-        tableEnv.executeSql(srcTableDdl);
-
-        File sinkPath = tmpFolder.newFolder();
-        String sinkTableDdl =
-                String.format(
-                        "CREATE TABLE sink (\n"
-                                + "  a bigint,\n"
-                                + "  b int,\n"
-                                + "  c varchar\n"
-                                + ") with (\n"
-                                + "  'connector' = 'filesystem',\n"
-                                + "  'path' = '%s',\n"
-                                + "  'format' = 'testcsv')",
-                        sinkPath.getAbsolutePath());
-        tableEnv.executeSql(sinkTableDdl);
+        createTestCsvSourceTable("src", data, "a bigint", "b int", "c varchar");
+        File sinkPath = createTestCsvSinkTable("sink", "a bigint", "b int", "c varchar");
 
         String jsonPlan = tableEnv.getJsonPlan("insert into sink select * from src");
-        TableResult tableResult = tableEnv.executeJsonPlan(jsonPlan);
-        tableResult.await();
+        tableEnv.executeJsonPlan(jsonPlan).await();
 
-        // read result data
-        List<String> result = new ArrayList<>();
-        for (File file : checkNotNull(sinkPath.listFiles())) {
-            if (file.isFile()) {
-                String value = new String(Files.readAllBytes(file.toPath()));
-                result.addAll(Arrays.asList(value.split("\n")));
-            }
-        }
-        Collections.sort(data);
-        Collections.sort(result);
-        assertEquals(data, result);
+        assertResult(data, sinkPath);
     }
 
     @Test
@@ -150,19 +96,20 @@ public class TableEnvironmentInternalTest {
     }
 
     @Test
-    public void testProjectPushDown() {
-        String sinkTableDdl =
-                "CREATE TABLE sink (\n"
-                        + "  a bigint,\n"
-                        + "  b int\n"
-                        + ") with (\n"
-                        + "  'connector' = 'values',\n"
-                        + "  'table-sink-class' = 'DEFAULT')";
-        tableEnv.executeSql(sinkTableDdl);
-        exception.expect(TableException.class);
-        exception.expectMessage(
-                "DynamicTableSource with project push-down is not supported for JSON serialization now");
-        tableEnv.getJsonPlan("insert into sink select a, b from MyTable");
+    public void testProjectPushDown() throws Exception {
+        List<String> data = Arrays.asList("1,1,hi", "2,1,hello", "3,2,hello world");
+        createTestCsvSourceTable("src", data, "a bigint", "b int", "c varchar");
+        File sinkPath = createTestCsvSinkTable("sink", "a bigint", "c varchar");
+
+        String jsonPlan = tableEnv.getJsonPlan("insert into sink select a, c from src");
+        tableEnv.executeJsonPlan(jsonPlan).await();
+
+        // read result data
+        List<String> result = readLines(sinkPath);
+        List<String> expected = Arrays.asList("1,hi", "2,hello", "3,hello world");
+        Collections.sort(expected);
+        Collections.sort(result);
+        assertEquals(expected, result);
     }
 
     @Test
@@ -207,10 +154,8 @@ public class TableEnvironmentInternalTest {
                         + "  'partition-list' = 'p:A')";
         tableEnv.executeSql(srcTableDdl);
         exception.expect(TableException.class);
-        // currently, there is a StreamExecCalc in the plan, once StreamExecCalc does support
-        // json serialization/deserialization, the following exception message should be updated.
         exception.expectMessage(
-                "StreamExecCalc does not implement @JsonCreator annotation on constructor");
+                "DynamicTableSource with partition push-down is not supported for JSON serialization now.");
         tableEnv.getJsonPlan("insert into MySink select * from PartitionTable where p = 'A'");
     }
 
@@ -257,7 +202,7 @@ public class TableEnvironmentInternalTest {
 
         exception.expect(TableException.class);
         exception.expectMessage(
-                "StreamExecCalc does not implement @JsonCreator annotation on constructor");
+                "StreamExecJoin does not implement @JsonCreator annotation on constructor");
         tableEnv.getJsonPlan(
                 "insert into MySink select a, b2, c2 from MyTable, src where a = a2 and b2 > 10");
     }

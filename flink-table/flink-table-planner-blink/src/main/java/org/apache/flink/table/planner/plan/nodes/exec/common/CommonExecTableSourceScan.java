@@ -103,4 +103,8 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData> {
             InputFormat<RowData, ?> inputFormat,
             InternalTypeInfo<RowData> outputTypeInfo,
             String name);
+
+    public DynamicTableSourceSpec getTableSourceSpec() {
+        return tableSourceSpec;
+    }
 }

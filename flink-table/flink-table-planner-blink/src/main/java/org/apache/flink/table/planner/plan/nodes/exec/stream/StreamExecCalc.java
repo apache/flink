@@ -25,21 +25,51 @@ import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecCalc;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.apache.calcite.rex.RexProgram;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
+import org.apache.calcite.rex.RexNode;
+
+import javax.annotation.Nullable;
+
+import java.util.Collections;
+import java.util.List;
 
 /** Stream {@link ExecNode} for Calc. */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<RowData> {
 
     public StreamExecCalc(
-            RexProgram calcProgram,
+            List<RexNode> projection,
+            @Nullable RexNode condition,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
+        this(
+                projection,
+                condition,
+                getNewNodeId(),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
+    }
+
+    @JsonCreator
+    public StreamExecCalc(
+            @JsonProperty(FIELD_NAME_PROJECTION) List<RexNode> projection,
+            @JsonProperty(FIELD_NAME_CONDITION) @Nullable RexNode condition,
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
         super(
-                calcProgram,
+                projection,
+                condition,
                 TableStreamOperator.class,
                 true, // retainHeader
-                inputProperty,
+                id,
+                inputProperties,
                 outputType,
                 description);
     }

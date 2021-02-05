@@ -69,13 +69,14 @@ import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.{SqlExplainLevel, SqlIntervalQualifier}
-import org.junit.Assert.{assertEquals, assertTrue}
+import org.junit.Assert.{assertEquals, assertTrue, fail}
 import org.junit.Rule
 import org.junit.rules.{ExpectedException, TemporaryFolder, TestName}
 
 import _root_.java.math.{BigDecimal => JBigDecimal}
 import _root_.java.util
-import java.io.IOException
+import java.io.{File, IOException}
+import java.nio.file.{Files, Paths}
 import java.time.Duration
 
 import _root_.scala.collection.JavaConversions._
@@ -730,6 +731,33 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     doVerifyExplain(
       stmtSet.explain(extraDetails: _*),
       extraDetails.contains(ExplainDetail.ESTIMATED_COST))
+  }
+
+  /**
+   * Verify the json plan for the given insert statement.
+   */
+  def verifyJsonPlan(insert: String): Unit = {
+    val jsonPlan = getTableEnv.asInstanceOf[TableEnvironmentInternal].getJsonPlan(insert)
+    val jsonPlanWithoutFlinkVersion = TableTestUtil.replaceFlinkVersion(jsonPlan)
+    // add the postfix to the path to avoid conflicts
+    // between the test class name and the result file name
+    val path = test.getClass.getName.replaceAll("\\.", "/") + "_jsonplan"
+    val fileName = test.testName.getMethodName + ".out"
+    val file = new File(s"./src/test/resources/$path/$fileName")
+    if (file.exists()) {
+      val expected = TableTestUtil.readFromResource(s"/$path/$fileName")
+      assertEquals(
+        TableTestUtil.replaceExecNodeId(
+          TableTestUtil.getFormattedJson(expected)),
+        TableTestUtil.replaceExecNodeId(
+          TableTestUtil.getFormattedJson(jsonPlanWithoutFlinkVersion)))
+    } else {
+      file.getParentFile.mkdirs()
+      assertTrue(file.createNewFile())
+      val prettyJson = TableTestUtil.getPrettyJson(jsonPlanWithoutFlinkVersion)
+      Files.write(Paths.get(file.toURI), prettyJson.getBytes)
+      fail(s"$fileName does not exist.")
+    }
   }
 
   /**
@@ -1618,6 +1646,13 @@ object TableTestUtil {
     jsonNode.toString
   }
 
+  @throws[IOException]
+  def getPrettyJson(json: String): String = {
+    val parser = new ObjectMapper().getFactory.createParser(json)
+    val jsonNode: JsonNode = parser.readValueAsTree[JsonNode]
+    jsonNode.toPrettyString
+  }
+
   def readFromResourceAndRemoveLastLinkBreak(path: String): String = {
     readFromResource(path).stripSuffix("\n")
   }
@@ -1642,15 +1677,15 @@ object TableTestUtil {
    * ExecNode {id} is ignored, because id keeps incrementing in test class.
    */
   def replaceExecNodeId(s: String): String = {
-    s.replaceAll("\"id\":\\d+", "\"id\" :")
-      .replaceAll("\"source\":\\d+", "\"source\" :")
-      .replaceAll("\"target\":\\d+", "\"target\" :")
+    s.replaceAll("\"id\"\\s*:\\s*\\d+", "\"id\":")
+      .replaceAll("\"source\"\\s*:\\s*\\d+", "\"source\":")
+      .replaceAll("\"target\"\\s*:\\s*\\d+", "\"target\":")
   }
 
   /**
    * Ignore flink version value.
    */
   def replaceFlinkVersion(s: String): String = {
-    s.replaceAll("\"flinkVersion\":\"\\d+.\\d+(-SNAPSHOT)?\"", "\"flinkVersion\":\"\"")
+    s.replaceAll("\"flinkVersion\"\\s*:\\s*\"\\d+.\\d+(-SNAPSHOT)?\"", "\"flinkVersion\":\"\"")
   }
 }

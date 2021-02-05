@@ -49,7 +49,7 @@ public class JavaUserDefinedScalarFunctions {
 
     /** Concatenate inputs as strings. */
     public static class JavaFunc1 extends ScalarFunction {
-        public String eval(Integer a, int b, TimestampData c) {
+        public String eval(Integer a, int b, @DataTypeHint("TIMESTAMP(3)") TimestampData c) {
             Long ts = (c == null) ? null : c.getMillisecond();
             return a + " and " + b + " and " + ts;
         }

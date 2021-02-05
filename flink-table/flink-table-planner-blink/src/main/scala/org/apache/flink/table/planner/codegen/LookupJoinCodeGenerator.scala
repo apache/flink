@@ -508,8 +508,9 @@ object LookupJoinCodeGenerator {
       calcProgram: Option[RexProgram],
       tableSourceRowType: RowType)
     : GeneratedFunction[FlatMapFunction[RowData, RowData]] = {
-
+    require(calcProgram.isDefined)
     val program = calcProgram.get
+    val projection = program.getProjectList.asScala.map(program.expandLocalRef)
     val condition = if (program.getCondition != null) {
       Some(program.expandLocalRef(program.getCondition))
     } else {
@@ -520,7 +521,7 @@ object LookupJoinCodeGenerator {
       "TableCalcMapFunction",
       FlinkTypeFactory.toLogicalRowType(program.getOutputRowType),
       classOf[GenericRowData],
-      program,
+      projection,
       condition,
       config)
   }
