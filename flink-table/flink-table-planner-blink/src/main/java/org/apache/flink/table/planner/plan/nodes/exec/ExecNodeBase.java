@@ -101,7 +101,6 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
         return inputProperties;
     }
 
-    @JsonIgnore
     @Override
     public List<ExecEdge> getInputEdges() {
         return checkNotNull(
@@ -109,7 +108,6 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
                 "inputEdges should not null, please call `setInputEdges(List<ExecEdge>)` first.");
     }
 
-    @JsonIgnore
     @Override
     public void setInputEdges(List<ExecEdge> inputEdges) {
         checkNotNull(inputEdges, "inputEdges should not be null.");

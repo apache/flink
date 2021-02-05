@@ -32,27 +32,44 @@ import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.rex.RexProgram;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.util.Collections;
+import org.apache.calcite.rex.RexNode;
+
+import javax.annotation.Nullable;
+
+import java.util.List;
 import java.util.Optional;
 
 /** Base class for exec Calc. */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public abstract class CommonExecCalc extends ExecNodeBase<RowData> {
-    private final RexProgram calcProgram;
-    private final Class<?> operatorBaseClass;
-    private final boolean retainHeader;
+    public static final String FIELD_NAME_PROJECTION = "projection";
+    public static final String FIELD_NAME_CONDITION = "condition";
 
-    public CommonExecCalc(
-            RexProgram calcProgram,
+    @JsonProperty(FIELD_NAME_PROJECTION)
+    private final List<RexNode> projection;
+
+    @JsonProperty(FIELD_NAME_CONDITION)
+    private final @Nullable RexNode condition;
+
+    @JsonIgnore private final Class<?> operatorBaseClass;
+    @JsonIgnore private final boolean retainHeader;
+
+    protected CommonExecCalc(
+            List<RexNode> projection,
+            @Nullable RexNode condition,
             Class<?> operatorBaseClass,
             boolean retainHeader,
-            InputProperty inputProperty,
+            int id,
+            List<InputProperty> inputProperties,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
-        this.calcProgram = calcProgram;
+        super(id, inputProperties, outputType, description);
+        this.projection = projection;
+        this.condition = condition;
         this.operatorBaseClass = operatorBaseClass;
         this.retainHeader = retainHeader;
     }
@@ -67,20 +84,13 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData> {
                 new CodeGeneratorContext(planner.getTableConfig())
                         .setOperatorBaseClass(operatorBaseClass);
 
-        final Optional<RexNode> condition;
-        if (calcProgram.getCondition() != null) {
-            condition = Optional.of(calcProgram.expandLocalRef(calcProgram.getCondition()));
-        } else {
-            condition = Optional.empty();
-        }
-
         final CodeGenOperatorFactory<RowData> substituteStreamOperator =
                 CalcCodeGenerator.generateCalcOperator(
                         ctx,
                         inputTransform,
                         (RowType) getOutputType(),
-                        calcProgram,
-                        JavaScalaConversionUtil.toScala(condition),
+                        JavaScalaConversionUtil.toScala(projection),
+                        JavaScalaConversionUtil.toScala(Optional.ofNullable(this.condition)),
                         retainHeader,
                         getClass().getSimpleName());
         final Transformation<RowData> transformation =
