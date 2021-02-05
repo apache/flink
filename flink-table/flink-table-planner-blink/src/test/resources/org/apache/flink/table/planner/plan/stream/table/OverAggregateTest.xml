@@ -152,6 +152,40 @@ Calc(select=[c, w0$o0 AS _c1, w0$o1 AS _c2])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testRowTimeBoundedDistinctWithPartitionedRangeOver">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(c=[$2], _c1=[AS(COUNT(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST RANGE 7200000 PRECEDING), _UTF-16LE'_c1')], _c2=[AS(SUM(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST RANGE 7200000 PRECEDING), _UTF-16LE'_c2')], _c3=[AS(AVG(DISTINCT AS(CAST($0):FLOAT, _UTF-16LE'a')) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST RANGE 7200000 PRECEDING), _UTF-16LE'_c3')])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[c, w0$o0 AS _c1, w0$o1 AS _c2, w0$o2 AS _c3])
++- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ RANG BETWEEN 7200000 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, $3, COUNT(DISTINCT a) AS w0$o0, SUM(DISTINCT a) AS w0$o1, AVG(DISTINCT $3) AS w0$o2])
+   +- Exchange(distribution=[hash[c]])
+      +- Calc(select=[a, c, rowtime, CAST(a) AS $3])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRowTimeBoundedDistinctWithPartitionedRowsOver">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(c=[$2], _c1=[AS(COUNT(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS 2 PRECEDING), _UTF-16LE'_c1')], _c2=[AS(SUM(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS 2 PRECEDING), _UTF-16LE'_c2')], _c3=[AS(AVG(DISTINCT AS(CAST($0):FLOAT, _UTF-16LE'a')) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS 2 PRECEDING), _UTF-16LE'_c3')])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[c, w0$o0 AS _c1, w0$o1 AS _c2, w0$o2 AS _c3])
++- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, $3, COUNT(DISTINCT a) AS w0$o0, SUM(DISTINCT a) AS w0$o1, AVG(DISTINCT $3) AS w0$o2])
+   +- Exchange(distribution=[hash[c]])
+      +- Calc(select=[a, c, rowtime, CAST(a) AS $3])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testRowTimeBoundedNonPartitionedRangeOver">
     <Resource name="ast">
       <![CDATA[
@@ -216,6 +250,40 @@ Calc(select=[c, w0$o0 AS _c1, w0$o1 AS wAvg])
 +- OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[b, c, rowtime, $3, COUNT(b) AS w0$o0, org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvgWithRetract$081f8b23180a56edc2515c53c561ebf0(c, $3) AS w0$o1])
    +- Exchange(distribution=[hash[b]])
       +- Calc(select=[b, c, rowtime, CAST(a) AS $3])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRowTimeUnboundedDistinctWithPartitionedRangeOver">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(c=[$2], _c1=[AS(COUNT(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST), _UTF-16LE'_c1')], _c2=[AS(SUM(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST), _UTF-16LE'_c2')], _c3=[AS(AVG(DISTINCT AS(CAST($0):FLOAT, _UTF-16LE'a')) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST), _UTF-16LE'_c3')])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[c, w0$o0 AS _c1, w0$o1 AS _c2, w0$o2 AS _c3])
++- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, $3, COUNT(DISTINCT a) AS w0$o0, SUM(DISTINCT a) AS w0$o1, AVG(DISTINCT $3) AS w0$o2])
+   +- Exchange(distribution=[hash[c]])
+      +- Calc(select=[a, c, rowtime, CAST(a) AS $3])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRowTimeUnboundedDistinctWithPartitionedRowsOver">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(c=[$2], _c1=[AS(COUNT(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'_c1')], _c2=[AS(SUM(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'_c2')], _c3=[AS(AVG(DISTINCT AS(CAST($0):FLOAT, _UTF-16LE'a')) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'_c3')])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[c, w0$o0 AS _c1, w0$o1 AS _c2, w0$o2 AS _c3])
++- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, $3, COUNT(DISTINCT a) AS w0$o0, SUM(DISTINCT a) AS w0$o1, AVG(DISTINCT $3) AS w0$o2])
+   +- Exchange(distribution=[hash[c]])
+      +- Calc(select=[a, c, rowtime, CAST(a) AS $3])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>

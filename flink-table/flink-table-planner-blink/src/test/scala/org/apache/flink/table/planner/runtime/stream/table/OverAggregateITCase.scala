@@ -194,6 +194,226 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
   }
 
   @Test
+  def testRowTimeBoundedDistinctPartitionedRangeOver(): Unit = {
+    val data: Seq[Either[(Long, (Int, Long, String)), Long]] = Seq(
+      Left(14000005L, (1, 1L, "Hi")),
+      Left(14000000L, (2, 1L, "Hello")),
+      Left(14000001L, (1, 1L, "Hello")),
+      Left(14000002L, (1, 2L, "Hello")),
+      Left(14000002L, (1, 3L, "Hello world")),
+      Left(14000003L, (2, 2L, "Hello world")),
+      Left(14000003L, (2, 3L, "Hello world")),
+      Right(14000020L),
+      Left(14000021L, (1, 4L, "Hello world")),
+      Left(14000022L, (1, 5L, "Hello world")),
+      Left(14000022L, (1, 6L, "Hello world")),
+      Left(14000022L, (1, 7L, "Hello world")),
+      Left(14000023L, (2, 4L, "Hello world")),
+      Left(14000023L, (2, 5L, "Hello world")),
+      Right(14000030L)
+    )
+
+    val source = failingDataSource(data)
+    val table = source.transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
+      .setParallelism(source.parallelism)
+      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
+
+    val windowedTable = table
+      .window(Over partitionBy 'c orderBy 'rowtime
+        preceding 1.seconds following CURRENT_RANGE as 'w)
+      .select(
+        'c,
+        'b.count.distinct over 'w,
+        'b.sum.distinct over 'w,
+        ('b.cast(DataTypes.FLOAT) as 'b).avg.distinct over 'w)
+
+    val sink = new TestingAppendSink
+    windowedTable.toAppendStream[Row].addSink(sink)
+    env.execute()
+    val expected = Seq(
+      "Hello,1,1,1.0",
+      "Hello,1,1,1.0",
+      "Hello,2,3,1.5",
+      "Hello world,1,3,3.0",
+      "Hello world,2,5,2.5",
+      "Hello world,2,5,2.5",
+      "Hi,1,1,1.0",
+      "Hello world,3,9,3.0",
+      "Hello world,6,27,4.5",
+      "Hello world,6,27,4.5",
+      "Hello world,6,27,4.5",
+      "Hello world,6,27,4.5",
+      "Hello world,6,27,4.5"
+    )
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testRowTimeUnBoundedDistinctPartitionedRangeOver(): Unit = {
+    val data: Seq[Either[(Long, (Int, Long, String)), Long]] = Seq(
+      Left(14000005L, (1, 1L, "Hi")),
+      Left(14000000L, (2, 1L, "Hello")),
+      Left(14000001L, (1, 1L, "Hello")),
+      Left(14000002L, (1, 2L, "Hello")),
+      Left(14000002L, (1, 3L, "Hello world")),
+      Left(14000003L, (2, 2L, "Hello world")),
+      Left(14000003L, (2, 3L, "Hello world")),
+      Right(14000020L),
+      Left(14000021L, (1, 4L, "Hello world")),
+      Left(14000022L, (1, 5L, "Hello world")),
+      Left(14000022L, (1, 6L, "Hello world")),
+      Left(14000022L, (1, 7L, "Hello world")),
+      Left(14000023L, (2, 4L, "Hello world")),
+      Left(14000023L, (2, 5L, "Hello world")),
+      Right(14000030L)
+    )
+
+    val source = failingDataSource(data)
+    val table = source.transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
+      .setParallelism(source.parallelism)
+      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
+
+    val windowedTable = table
+      .window(Over partitionBy 'c orderBy 'rowtime preceding UNBOUNDED_RANGE as 'w)
+      .select(
+        'c,
+        'b.count.distinct over 'w,
+        'b.sum.distinct over 'w,
+        ('b.cast(DataTypes.FLOAT) as 'b).avg.distinct over 'w
+      )
+
+    val sink = new TestingAppendSink
+    windowedTable.toAppendStream[Row].addSink(sink)
+    env.execute()
+    val expected = Seq(
+      "Hello,1,1,1.0",
+      "Hello,1,1,1.0",
+      "Hello,2,3,1.5",
+      "Hello world,1,3,3.0",
+      "Hello world,2,5,2.5",
+      "Hello world,2,5,2.5",
+      "Hi,1,1,1.0",
+      "Hello world,3,9,3.0",
+      "Hello world,6,27,4.5",
+      "Hello world,6,27,4.5",
+      "Hello world,6,27,4.5",
+      "Hello world,6,27,4.5",
+      "Hello world,6,27,4.5"
+    )
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testRowTimeBoundedDistinctPartitionedRowsOver(): Unit = {
+    val data: Seq[Either[(Long, (Int, Long, String)), Long]] = Seq(
+      Left(14000005L, (1, 1L, "Hi")),
+      Left(14000000L, (2, 1L, "Hello")),
+      Left(14000001L, (1, 1L, "Hello")),
+      Left(14000002L, (1, 2L, "Hello")),
+      Left(14000002L, (1, 3L, "Hello world")),
+      Left(14000003L, (2, 2L, "Hello world")),
+      Left(14000003L, (2, 3L, "Hello world")),
+      Right(14000020L),
+      Left(14000021L, (1, 4L, "Hello world")),
+      Left(14000022L, (1, 5L, "Hello world")),
+      Left(14000022L, (1, 6L, "Hello world")),
+      Left(14000022L, (1, 7L, "Hello world")),
+      Left(14000023L, (2, 4L, "Hello world")),
+      Left(14000023L, (2, 5L, "Hello world")),
+      Right(14000030L)
+    )
+
+    val source = failingDataSource(data)
+    val table = source.transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
+      .setParallelism(source.parallelism)
+      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
+
+    val windowedTable = table
+      .window(Over partitionBy 'c orderBy 'rowtime preceding 2.rows following CURRENT_ROW as 'w)
+      .select(
+        'c,
+        'b.count.distinct over 'w,
+        'b.sum.distinct over 'w,
+        ('b.cast(DataTypes.FLOAT) as 'b).avg.distinct over 'w)
+
+    val sink = new TestingAppendSink
+    windowedTable.toAppendStream[Row].addSink(sink)
+    env.execute()
+    val expected = Seq(
+      "Hello,1,1,1.0",
+      "Hello,1,1,1.0",
+      "Hello,2,3,1.5",
+      "Hello world,1,3,3.0",
+      "Hello world,2,5,2.5",
+      "Hello world,2,5,2.5",
+      "Hi,1,1,1.0",
+      "Hello world,3,9,3.0",
+      "Hello world,3,12,4.0",
+      "Hello world,3,15,5.0",
+      "Hello world,3,16,5.3333335",
+      "Hello world,3,17,5.6666665",
+      "Hello world,3,18,6.0"
+    )
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testRowTimeUnBoundedDistinctPartitionedRowsOver(): Unit = {
+    val data: Seq[Either[(Long, (Int, Long, String)), Long]] = Seq(
+      Left(14000005L, (1, 1L, "Hi")),
+      Left(14000000L, (2, 1L, "Hello")),
+      Left(14000001L, (1, 1L, "Hello")),
+      Left(14000002L, (1, 2L, "Hello")),
+      Left(14000002L, (1, 3L, "Hello world")),
+      Left(14000003L, (2, 2L, "Hello world")),
+      Left(14000003L, (2, 3L, "Hello world")),
+      Right(14000020L),
+      Left(14000021L, (1, 4L, "Hello world")),
+      Left(14000022L, (1, 5L, "Hello world")),
+      Left(14000022L, (1, 6L, "Hello world")),
+      Left(14000022L, (1, 7L, "Hello world")),
+      Left(14000023L, (2, 4L, "Hello world")),
+      Left(14000023L, (2, 5L, "Hello world")),
+      Right(14000030L)
+    )
+
+    val source = failingDataSource(data)
+    val table = source.transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
+      .setParallelism(source.parallelism)
+      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
+
+    val windowedTable = table
+      .window(Over partitionBy 'c orderBy 'rowtime preceding UNBOUNDED_ROW following
+         CURRENT_ROW as 'w)
+      .select(
+        'c,
+        'b.count.distinct over 'w,
+        'b.sum.distinct over 'w,
+        ('b.cast(DataTypes.FLOAT) as 'b).avg.distinct over 'w)
+
+    val sink = new TestingAppendSink
+    windowedTable.toAppendStream[Row].addSink(sink)
+    env.execute()
+    val expected = Seq(
+      "Hello,1,1,1.0",
+      "Hello,1,1,1.0",
+      "Hello,2,3,1.5",
+      "Hello world,1,3,3.0",
+      "Hello world,2,5,2.5",
+      "Hello world,2,5,2.5",
+      "Hi,1,1,1.0",
+      "Hello world,3,9,3.0",
+      "Hello world,4,14,3.5",
+      "Hello world,5,20,4.0",
+      "Hello world,6,27,4.5",
+      "Hello world,6,27,4.5",
+      "Hello world,6,27,4.5"
+    )
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+
+  @Test
   def testProcTimeBoundedPartitionedRowsOver(): Unit = {
 
     val data = List(
