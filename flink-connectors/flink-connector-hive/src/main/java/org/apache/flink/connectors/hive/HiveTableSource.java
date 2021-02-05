@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.connectors.hive.read.HiveContinuousPartitionContext;
 import org.apache.flink.connectors.hive.read.HiveContinuousPartitionFetcher;
 import org.apache.flink.connectors.hive.read.HivePartitionFetcherContextBase;
 import org.apache.flink.connectors.hive.util.HivePartitionUtils;
@@ -320,7 +321,7 @@ public class HiveTableSource
     @SuppressWarnings("unchecked")
     public static class HiveContinuousPartitionFetcherContext<T extends Comparable<T>>
             extends HivePartitionFetcherContextBase<Partition>
-            implements ContinuousPartitionFetcher.Context<Partition, T> {
+            implements HiveContinuousPartitionContext<Partition, T> {
 
         private static final long serialVersionUID = 1L;
         private static final Long DEFAULT_MIN_TIME_OFFSET = 0L;
@@ -399,7 +400,7 @@ public class HiveTableSource
          *
          * <p>the time is the the folder/file modification time in filesystem when fetched in
          * create-time order, the time is extracted from partition name when fetched in
-         * partition-time order, the time is partion create time in metaStore when fetched in
+         * partition-time order, the time is partition create time in metaStore when fetched in
          * partition-name order.
          */
         public long getModificationTime(Partition partition, T partitionOffset) {
