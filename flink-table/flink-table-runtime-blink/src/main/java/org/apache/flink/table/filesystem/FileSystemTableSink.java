@@ -390,7 +390,9 @@ public class FileSystemTableSink extends AbstractFileSystemTable
 
     private void checkConfiguredParallelismAllowed(ChangelogMode requestChangelogMode) {
         final Integer parallelism = this.configuredParallelism;
-        if (parallelism == null) return;
+        if (parallelism == null) {
+            return;
+        }
         final ChangelogMode mode = requestChangelogMode;
         if (!mode.containsOnly(RowKind.INSERT)) {
             throw new ValidationException(
