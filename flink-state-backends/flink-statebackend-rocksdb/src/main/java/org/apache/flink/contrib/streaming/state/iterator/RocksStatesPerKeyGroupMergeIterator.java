@@ -40,14 +40,14 @@ import java.util.PriorityQueue;
 public class RocksStatesPerKeyGroupMergeIterator implements KeyValueStateIterator {
 
     private final CloseableRegistry closeableRegistry;
-    private final PriorityQueue<RocksSingleStateIterator> heap;
+    private final PriorityQueue<SingleStateIterator> heap;
     private final int keyGroupPrefixByteCount;
     private boolean newKeyGroup;
     private boolean newKVState;
     private boolean valid;
-    private RocksSingleStateIterator currentSubIterator;
+    private SingleStateIterator currentSubIterator;
 
-    private static final List<Comparator<RocksSingleStateIterator>> COMPARATORS;
+    private static final List<Comparator<SingleStateIterator>> COMPARATORS;
 
     static {
         int maxBytes = 2;
@@ -57,8 +57,7 @@ public class RocksStatesPerKeyGroupMergeIterator implements KeyValueStateIterato
             COMPARATORS.add(
                     (o1, o2) -> {
                         int arrayCmpRes =
-                                compareKeyGroupsForByteArrays(
-                                        o1.getCurrentKey(), o2.getCurrentKey(), currentBytes);
+                                compareKeyGroupsForByteArrays(o1.key(), o2.key(), currentBytes);
                         return arrayCmpRes == 0
                                 ? o1.getKvStateId() - o2.getKvStateId()
                                 : arrayCmpRes;
@@ -103,18 +102,14 @@ public class RocksStatesPerKeyGroupMergeIterator implements KeyValueStateIterato
         newKeyGroup = false;
         newKVState = false;
 
-        final RocksIteratorWrapper rocksIterator = currentSubIterator.getIterator();
-        rocksIterator.next();
-
-        byte[] oldKey = currentSubIterator.getCurrentKey();
-        if (rocksIterator.isValid()) {
-
-            currentSubIterator.setCurrentKey(rocksIterator.key());
-
-            if (isDifferentKeyGroup(oldKey, currentSubIterator.getCurrentKey())) {
+        byte[] oldKey = currentSubIterator.key();
+        currentSubIterator.next();
+        if (currentSubIterator.isValid()) {
+            if (isDifferentKeyGroup(oldKey, currentSubIterator.key())) {
+                SingleStateIterator oldIterator = currentSubIterator;
                 heap.offer(currentSubIterator);
                 currentSubIterator = heap.remove();
-                newKVState = currentSubIterator.getIterator() != rocksIterator;
+                newKVState = currentSubIterator != oldIterator;
                 detectNewKeyGroup(oldKey);
             }
         } else {
@@ -133,13 +128,13 @@ public class RocksStatesPerKeyGroupMergeIterator implements KeyValueStateIterato
         }
     }
 
-    private PriorityQueue<RocksSingleStateIterator> buildIteratorHeap(
+    private PriorityQueue<SingleStateIterator> buildIteratorHeap(
             List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators) throws IOException {
 
-        Comparator<RocksSingleStateIterator> iteratorComparator =
+        Comparator<SingleStateIterator> iteratorComparator =
                 COMPARATORS.get(keyGroupPrefixByteCount - 1);
 
-        PriorityQueue<RocksSingleStateIterator> iteratorPriorityQueue =
+        PriorityQueue<SingleStateIterator> iteratorPriorityQueue =
                 new PriorityQueue<>(kvStateIterators.size(), iteratorComparator);
 
         for (Tuple2<RocksIteratorWrapper, Integer> rocksIteratorWithKVStateId : kvStateIterators) {
@@ -165,14 +160,14 @@ public class RocksStatesPerKeyGroupMergeIterator implements KeyValueStateIterato
     }
 
     private void detectNewKeyGroup(byte[] oldKey) {
-        if (isDifferentKeyGroup(oldKey, currentSubIterator.getCurrentKey())) {
+        if (isDifferentKeyGroup(oldKey, currentSubIterator.key())) {
             newKeyGroup = true;
         }
     }
 
     @Override
     public int keyGroup() {
-        final byte[] currentKey = currentSubIterator.getCurrentKey();
+        final byte[] currentKey = currentSubIterator.key();
         int result = 0;
         // big endian decode
         for (int i = 0; i < keyGroupPrefixByteCount; ++i) {
@@ -184,12 +179,12 @@ public class RocksStatesPerKeyGroupMergeIterator implements KeyValueStateIterato
 
     @Override
     public byte[] key() {
-        return currentSubIterator.getCurrentKey();
+        return currentSubIterator.key();
     }
 
     @Override
     public byte[] value() {
-        return currentSubIterator.getIterator().value();
+        return currentSubIterator.value();
     }
 
     @Override
