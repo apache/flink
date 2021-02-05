@@ -252,7 +252,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
         }
     }
 
-    private static class SubmitFailingSimpleAckingTaskManagerGateway
+    public static class SubmitFailingSimpleAckingTaskManagerGateway
             extends SimpleAckingTaskManagerGateway {
         @Override
         public CompletableFuture<Acknowledge> submitTask(

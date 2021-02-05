@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.Archiveable;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
@@ -124,7 +125,8 @@ public class ExecutionJobVertex
 
     private InputSplitAssigner splitAssigner;
 
-    ExecutionJobVertex(
+    @VisibleForTesting
+    public ExecutionJobVertex(
             ExecutionGraph graph,
             JobVertex jobVertex,
             int defaultParallelism,
