@@ -127,7 +127,7 @@ public abstract class AbstractStreamArrowPythonOverWindowAggregateFunctionOperat
             checkInvokeFinishBundleByCount();
             currentBatchCount = 0;
             baos.reset();
-            arrowSerializer.reInitializeWriter(baos);
+            arrowSerializer.resetWriter(baos);
         }
     }
 }

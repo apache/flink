@@ -235,7 +235,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
             windowAggResult.replace(key, arrowSerializer.read(i));
             rowDataWrapper.collect(reuseJoinedRow.replace(windowAggResult, windowProperty));
         }
-        arrowSerializer.reinitializeReader(bais);
+        arrowSerializer.resetReader(bais);
     }
 
     @Override
@@ -314,7 +314,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
                 checkInvokeFinishBundleByCount();
                 currentBatchCount = 0;
                 baos.reset();
-                arrowSerializer.reInitializeWriter(baos);
+                arrowSerializer.resetWriter(baos);
             }
         }
     }

@@ -71,7 +71,7 @@ public class BatchArrowPythonGroupAggregateFunctionOperator
             elementCount += currentBatchCount;
             checkInvokeFinishBundleByCount();
             currentBatchCount = 0;
-            arrowSerializer.reInitializeWriter(baos);
+            arrowSerializer.resetWriter(baos);
         }
     }
 
@@ -107,6 +107,6 @@ public class BatchArrowPythonGroupAggregateFunctionOperator
             RowData result = arrowSerializer.read(i);
             rowDataWrapper.collect(reuseJoinedRow.replace(key, result));
         }
-        arrowSerializer.reinitializeReader(bais);
+        arrowSerializer.resetReader(bais);
     }
 }

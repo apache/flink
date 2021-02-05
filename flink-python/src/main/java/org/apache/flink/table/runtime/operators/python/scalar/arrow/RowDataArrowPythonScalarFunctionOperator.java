@@ -103,7 +103,7 @@ public class RowDataArrowPythonScalarFunctionOperator
             reuseJoinedRow.setRowKind(input.getRowKind());
             rowDataWrapper.collect(reuseJoinedRow.replace(input, arrowSerializer.read(i)));
         }
-        arrowSerializer.reinitializeReader(bais);
+        arrowSerializer.resetReader(bais);
     }
 
     @Override
@@ -127,7 +127,7 @@ public class RowDataArrowPythonScalarFunctionOperator
             pythonFunctionRunner.process(baos.toByteArray());
             checkInvokeFinishBundleByCount();
             baos.reset();
-            arrowSerializer.reInitializeWriter(baos);
+            arrowSerializer.resetWriter(baos);
         }
     }
 }
