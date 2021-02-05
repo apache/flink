@@ -76,7 +76,11 @@ public class FileSystemTableSinkTest {
         assertTrue(provider instanceof DataStreamSinkProvider);
 
         try {
-            tableSink.getChangelogMode(ChangelogMode.newBuilder().addContainedKind(RowKind.INSERT).addContainedKind( RowKind.DELETE).build());
+            tableSink.getChangelogMode(
+                    ChangelogMode.newBuilder()
+                            .addContainedKind(RowKind.INSERT)
+                            .addContainedKind(RowKind.DELETE)
+                            .build());
             fail();
         } catch (Exception e) {
             assertTrue(
@@ -84,8 +88,6 @@ public class FileSystemTableSinkTest {
                                     e, "when the input stream is not INSERT only")
                             .isPresent());
         }
-
-
     }
 
     @Test
@@ -151,6 +153,4 @@ public class FileSystemTableSinkTest {
                 Thread.currentThread().getContextClassLoader(),
                 false);
     }
-
-
 }

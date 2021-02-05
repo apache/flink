@@ -95,7 +95,6 @@ public class FileSystemTableSink extends AbstractFileSystemTable
         implements DynamicTableSink, SupportsPartitioning, SupportsOverwrite {
 
     // For compaction reading
-
     @Nullable private final DecodingFormat<BulkFormat<RowData, FileSourceSplit>> bulkReaderFormat;
     @Nullable private final DecodingFormat<DeserializationSchema<RowData>> deserializationFormat;
     @Nullable private final FileSystemFormatFactory formatFactory;
@@ -141,7 +140,6 @@ public class FileSystemTableSink extends AbstractFileSystemTable
     }
 
     private DataStreamSink<?> consume(DataStream<RowData> dataStream, Context sinkContext) {
-
         final int inputParallelism = dataStream.getParallelism();
         final int parallelism = Optional.ofNullable(configuredParallelism).orElse(inputParallelism);
 

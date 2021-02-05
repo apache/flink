@@ -48,7 +48,7 @@ import static org.apache.flink.api.java.io.CsvOutputFormat.DEFAULT_LINE_DELIMITE
 
 /** Test csv {@link FileSystemFormatFactory}. */
 public class TestCsvFileSystemFormatFactory
-    implements FileSystemFormatFactory, BulkWriterFormatFactory {
+        implements FileSystemFormatFactory, BulkWriterFormatFactory {
 
     @Override
     public String factoryIdentifier() {
@@ -68,21 +68,21 @@ public class TestCsvFileSystemFormatFactory
     @Override
     public InputFormat<RowData, ?> createReader(ReaderContext context) {
         return new TestRowDataCsvInputFormat(
-            context.getPaths(),
-            context.getSchema(),
-            context.getPartitionKeys(),
-            context.getDefaultPartName(),
-            context.getProjectFields(),
-            context.getPushedDownLimit());
+                context.getPaths(),
+                context.getSchema(),
+                context.getPartitionKeys(),
+                context.getDefaultPartName(),
+                context.getProjectFields(),
+                context.getPushedDownLimit());
     }
 
     private static void writeCsvToStream(DataType[] types, RowData rowData, OutputStream stream)
-        throws IOException {
+            throws IOException {
         LogicalType[] fieldTypes =
-            Arrays.stream(types).map(DataType::getLogicalType).toArray(LogicalType[]::new);
+                Arrays.stream(types).map(DataType::getLogicalType).toArray(LogicalType[]::new);
         DataFormatConverters.DataFormatConverter converter =
-            DataFormatConverters.getConverterForDataType(
-                TypeConversions.fromLogicalToDataType(RowType.of(fieldTypes)));
+                DataFormatConverters.getConverterForDataType(
+                        TypeConversions.fromLogicalToDataType(RowType.of(fieldTypes)));
 
         Row row = (Row) converter.toExternal(rowData);
         StringBuilder builder = new StringBuilder();
@@ -102,14 +102,14 @@ public class TestCsvFileSystemFormatFactory
 
     @Override
     public EncodingFormat<BulkWriter.Factory<RowData>> createEncodingFormat(
-        DynamicTableFactory.Context context, ReadableConfig formatOptions) {
+            DynamicTableFactory.Context context, ReadableConfig formatOptions) {
         return new EncodingFormat<BulkWriter.Factory<RowData>>() {
             @Override
             public BulkWriter.Factory<RowData> createRuntimeEncoder(
-                DynamicTableSink.Context context, DataType consumedDataType) {
+                    DynamicTableSink.Context context, DataType consumedDataType) {
                 return out ->
-                    new CsvBulkWriter(
-                        consumedDataType.getChildren().toArray(new DataType[0]), out);
+                        new CsvBulkWriter(
+                                consumedDataType.getChildren().toArray(new DataType[0]), out);
             }
 
             @Override
