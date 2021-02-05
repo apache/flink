@@ -140,7 +140,6 @@ public class OperatorCoordinatorHolder
         this.operatorMaxParallelism = operatorMaxParallelism;
     }
 
-    @VisibleForTesting
     public void lazyInitialize(
             Consumer<Throwable> globalFailureHandler,
             ComponentMainThreadExecutor mainThreadExecutor) {
