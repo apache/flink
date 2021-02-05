@@ -102,7 +102,7 @@ public class ArrowPythonScalarFunctionOperator extends AbstractRowPythonScalarFu
             cRowWrapper.setChange(input.change());
             cRowWrapper.collect(Row.join(input.row(), arrowSerializer.read(i)));
         }
-        arrowSerializer.resetReader(bais);
+        arrowSerializer.resetReader();
     }
 
     @Override
@@ -126,7 +126,7 @@ public class ArrowPythonScalarFunctionOperator extends AbstractRowPythonScalarFu
             pythonFunctionRunner.process(baos.toByteArray());
             checkInvokeFinishBundleByCount();
             baos.reset();
-            arrowSerializer.resetWriter(baos);
+            arrowSerializer.resetWriter();
         }
     }
 }

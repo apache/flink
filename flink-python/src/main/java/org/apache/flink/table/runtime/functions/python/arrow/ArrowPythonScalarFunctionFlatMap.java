@@ -92,7 +92,7 @@ public final class ArrowPythonScalarFunctionFlatMap extends AbstractPythonScalar
         for (int i = 0; i < rowCount; i++) {
             resultCollector.collect(Row.join(forwardedInputQueue.poll(), arrowSerializer.read(i)));
         }
-        arrowSerializer.resetReader(bais);
+        arrowSerializer.resetReader();
     }
 
     @Override
@@ -122,7 +122,7 @@ public final class ArrowPythonScalarFunctionFlatMap extends AbstractPythonScalar
             pythonFunctionRunner.process(baos.toByteArray());
             checkInvokeFinishBundleByCount();
             baos.reset();
-            arrowSerializer.resetWriter(baos);
+            arrowSerializer.resetWriter();
         }
     }
 }

@@ -175,7 +175,7 @@ public class BatchArrowPythonGroupWindowAggregateFunctionOperator
             windowAggResult.replace(key, arrowSerializer.read(i));
             rowDataWrapper.collect(reuseJoinedRow.replace(windowAggResult, windowProperty));
         }
-        arrowSerializer.resetReader(bais);
+        arrowSerializer.resetReader();
     }
 
     private void triggerWindowProcess() throws Exception {
@@ -196,7 +196,7 @@ public class BatchArrowPythonGroupWindowAggregateFunctionOperator
                 checkInvokeFinishBundleByCount();
                 currentBatchCount = 0;
                 baos.reset();
-                arrowSerializer.resetWriter(baos);
+                arrowSerializer.resetWriter();
             }
         }
     }

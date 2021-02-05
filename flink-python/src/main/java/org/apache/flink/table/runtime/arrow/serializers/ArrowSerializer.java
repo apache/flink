@@ -73,12 +73,20 @@ public abstract class ArrowSerializer<T> {
     /** Writer which is responsible for convert the arrow format data into byte array. */
     private transient ArrowStreamWriter arrowStreamWriter;
 
+    /** Reusable InputStream used to holding the execution results to be deserialized. */
+    private transient InputStream bais;
+
+    /** Reusable OutputStream used to holding the serialized input elements. */
+    private transient OutputStream baos;
+
     public ArrowSerializer(RowType inputType, RowType outputType) {
         this.inputType = inputType;
         this.outputType = outputType;
     }
 
     public void open(InputStream bais, OutputStream baos) throws Exception {
+        this.bais = bais;
+        this.baos = baos;
         allocator = ArrowUtils.getRootAllocator().newChildAllocator("allocator", 0, Long.MAX_VALUE);
         arrowStreamReader = new ArrowStreamReader(bais, allocator);
 
@@ -127,13 +135,13 @@ public abstract class ArrowSerializer<T> {
         arrowWriter.reset();
     }
 
-    public void resetReader(InputStream bais) throws IOException {
+    public void resetReader() throws IOException {
         arrowReader = null;
         arrowStreamReader.close();
         arrowStreamReader = new ArrowStreamReader(bais, allocator);
     }
 
-    public void resetWriter(OutputStream baos) throws IOException {
+    public void resetWriter() throws IOException {
         arrowStreamWriter = new ArrowStreamWriter(rootWriter, null, baos);
         arrowStreamWriter.start();
     }

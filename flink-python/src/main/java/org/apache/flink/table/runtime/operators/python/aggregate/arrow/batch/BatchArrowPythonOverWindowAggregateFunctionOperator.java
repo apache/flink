@@ -225,7 +225,7 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
             elementCount += currentBatchCount;
             checkInvokeFinishBundleByCount();
             currentBatchCount = 0;
-            arrowSerializer.resetWriter(baos);
+            arrowSerializer.resetWriter();
         }
         lastKeyDataStartPos = forwardedInputQueue.size();
     }
@@ -249,7 +249,7 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
             reuseJoinedRow.setRowKind(input.getRowKind());
             rowDataWrapper.collect(reuseJoinedRow.replace(input, arrowSerializer.read(i)));
         }
-        arrowSerializer.resetReader(bais);
+        arrowSerializer.resetReader();
     }
 
     @Override
