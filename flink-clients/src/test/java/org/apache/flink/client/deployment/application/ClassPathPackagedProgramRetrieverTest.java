@@ -41,6 +41,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.FunctionUtils;
 
+import org.hamcrest.MatcherAssert;
 import org.hamcrest.core.IsInstanceOf;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -59,6 +60,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.Matchers.contains;
@@ -396,6 +398,32 @@ public class ClassPathPackagedProgramRetrieverTest extends TestLogger {
         assertThat(
                 retriever.getPackagedProgram().getUserCodeClassLoader(),
                 IsInstanceOf.instanceOf(FlinkUserCodeClassLoaders.ParentFirstClassLoader.class));
+    }
+
+    @Test
+    public void testRetrieveCorrectUserClasspathsWithPipelineClasspaths() throws Exception {
+        final Configuration configuration = new Configuration();
+        final List<String> pipelineJars = new ArrayList<>();
+        final Collection<URL> expectedMergedURLs = new ArrayList<>();
+
+        expectedMergedURLs.add(new URL("file://foobar"));
+        expectedMergedURLs.add(new URL("file://barfoo"));
+
+        for (URL expectedMergedURL : expectedMergedURLs) {
+            pipelineJars.add(expectedMergedURL.toString());
+        }
+
+        configuration.set(PipelineOptions.CLASSPATHS, pipelineJars);
+
+        final ClassPathPackagedProgramRetriever retrieverUnderTest =
+                ClassPathPackagedProgramRetriever.newBuilder(PROGRAM_ARGUMENTS, configuration)
+                        .setJarFile(TestJob.getTestJobJar())
+                        .setJobClassName(TestJobInfo.JOB_CLASS)
+                        .build();
+
+        final JobGraph jobGraph = retrieveJobGraph(retrieverUnderTest, new Configuration());
+        MatcherAssert.assertThat(
+                jobGraph.getClasspaths(), containsInAnyOrder(expectedMergedURLs.toArray()));
     }
 
     private JobGraph retrieveJobGraph(

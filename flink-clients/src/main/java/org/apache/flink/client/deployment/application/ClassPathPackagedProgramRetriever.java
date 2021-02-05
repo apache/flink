@@ -24,7 +24,9 @@ import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramRetriever;
 import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
@@ -38,12 +40,14 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.function.Supplier;
 import java.util.jar.JarEntry;
@@ -91,12 +95,28 @@ public class ClassPathPackagedProgramRetriever implements PackagedProgramRetriev
         this.programArguments = requireNonNull(programArguments, "programArguments");
         this.jobClassName = jobClassName;
         this.jarsOnClassPath = requireNonNull(jarsOnClassPath);
-        this.userClassPaths = discoverUserClassPaths(userLibDirectory);
+        this.userClassPaths = getUserClasspaths(configuration, userLibDirectory);
         this.jarFile = jarFile;
         this.configuration = configuration;
     }
 
-    private Collection<URL> discoverUserClassPaths(@Nullable File jobDir) throws IOException {
+    private static Collection<URL> getUserClasspaths(
+            Configuration configuration, @Nullable File jobDir) throws IOException {
+        List<URL> userClasspaths;
+        final Collection<URL> classpathsFromUserLibDir = getClasspathsFromUserLibDir(jobDir);
+        final Collection<URL> classpathsFromConfiguration =
+                getClasspathsFromConfiguration(configuration);
+
+        final List<URL> classpaths = new ArrayList<>();
+        classpaths.addAll(classpathsFromUserLibDir);
+        classpaths.addAll(classpathsFromConfiguration);
+
+        userClasspaths = Collections.unmodifiableList(classpaths);
+
+        return userClasspaths;
+    }
+
+    private static Collection<URL> getClasspathsFromUserLibDir(File jobDir) throws IOException {
         if (jobDir == null) {
             return Collections.emptyList();
         }
@@ -108,6 +128,15 @@ public class ClassPathPackagedProgramRetriever implements PackagedProgramRetriev
                         .map(FunctionUtils.uncheckedFunction(FileUtils::toURL))
                         .collect(Collectors.toList());
         return Collections.unmodifiableCollection(relativeJarURLs);
+    }
+
+    private static Collection<URL> getClasspathsFromConfiguration(Configuration configuration)
+            throws MalformedURLException {
+        if (configuration == null) {
+            return Collections.emptyList();
+        }
+        return ConfigUtils.decodeListFromConfig(
+                configuration, PipelineOptions.CLASSPATHS, URL::new);
     }
 
     @Override
