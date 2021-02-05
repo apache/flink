@@ -499,7 +499,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
      *
      * @throws IOException if the temporary directories could not be cleaned up
      */
-    private void cleanupDirectories() throws IOException {
+    protected void cleanupDirectories() throws IOException {
         ShutdownHookUtil.removeShutdownHook(shutDownHook, getClass().getSimpleName(), LOG);
 
         final String webTmpDir = configuration.getString(WebOptions.TMP_DIR);
