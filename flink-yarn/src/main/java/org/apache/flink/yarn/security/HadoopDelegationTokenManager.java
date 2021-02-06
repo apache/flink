@@ -60,7 +60,7 @@ public class HadoopDelegationTokenManager {
                     if (provider.delegationTokensRequired(flinkConf, hadoopConf)) {
                         provider.obtainDelegationTokens(flinkConf, hadoopConf, creds);
                     } else {
-                        LOG.debug(
+                        LOG.info(
                                 "Service {} does not need to require a token,",
                                 provider.serviceName());
                     }
