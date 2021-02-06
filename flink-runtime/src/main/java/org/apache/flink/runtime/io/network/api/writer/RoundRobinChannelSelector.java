@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.api.writer;
 
 import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.runtime.event.AbstractEvent;
 
 /**
  * This is the default implementation of the {@link ChannelSelector} interface. It represents a simple round-robin
@@ -49,4 +50,7 @@ public class RoundRobinChannelSelector<T extends IOReadableWritable> implements 
 	public boolean isBroadcast() {
 		return false;
 	}
+
+	@Override
+	public void handleEvent(AbstractEvent event) { }
 }

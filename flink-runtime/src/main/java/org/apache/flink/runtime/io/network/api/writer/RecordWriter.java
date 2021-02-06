@@ -66,6 +66,8 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 	@VisibleForTesting
 	public static final String DEFAULT_OUTPUT_FLUSH_THREAD_NAME = "OutputFlusher";
 
+	public final String taskName;
+
 	private static final Logger LOG = LoggerFactory.getLogger(RecordWriter.class);
 
 	private final ResultPartitionWriter targetPartition;
@@ -109,6 +111,8 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 			outputFlusher = new OutputFlusher(threadName, timeout);
 			outputFlusher.start();
 		}
+
+		this.taskName = taskName;
 	}
 
 	protected void emit(T record, int targetChannel) throws IOException, InterruptedException {

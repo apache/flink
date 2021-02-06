@@ -26,6 +26,8 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.io.network.api.RepartitionTaskEvent;
+import org.apache.flink.runtime.io.network.api.writer.ChannelSelectorRecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriterDelegate;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -67,6 +69,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -545,6 +548,23 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 	@Nullable
 	StreamOperator<?> getTailOperator() {
 		return (tailOperatorWrapper == null) ? null : tailOperatorWrapper.getStreamOperator();
+	}
+
+	public void handleTaskEvent(AbstractEvent event) {
+			if (event instanceof RepartitionTaskEvent){
+				LOG.trace("OperatorChain handleTaskEvent chain {} event {} RepartitionTaskEvent {}",
+					this, event.toString(), ((RepartitionTaskEvent) event).getInteger());
+				try {
+					Arrays.stream(streamOutputs).forEach(x->{
+						if( x.getRecordWriter() instanceof ChannelSelectorRecordWriter){
+							((ChannelSelectorRecordWriter)x.getRecordWriter()).handleEvent(((RepartitionTaskEvent) event));
+						}
+					});
+					broadcastEvent(new RepartitionTaskEvent(((RepartitionTaskEvent) event).getInteger()));
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
 	}
 
 	// ------------------------------------------------------------------------

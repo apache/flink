@@ -133,6 +133,17 @@ public class PipelineOptions {
 				" analyze as POJO. In some cases this might be preferable. For example, when using interfaces" +
 				" with subclasses that cannot be analyzed as POJO.");
 
+	public static final ConfigOption<Boolean> USE_DYNAMIC_PARTITIONING =
+		key("pipeline.use-dynamic-partitioning")
+			.booleanType()
+			.defaultValue(false)
+			.withDescription("If enabled, uses dynamic key partitioning using RepartitionTaskEvent");
+
+	public static final ConfigOption<Long> EVENT_DISPATCHING_INTERVAL =
+		key("pipeline.event-dispatching-interval")
+			.defaultValue(0L)
+			.withDescription("Event dispatching interval");
+
 	public static final ConfigOption<Boolean> GENERIC_TYPES =
 		key("pipeline.generic-types")
 			.booleanType()

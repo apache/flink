@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.partitioner;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -44,7 +45,10 @@ public class BroadcastPartitioner<T> extends StreamPartitioner<T> {
 		return true;
 	}
 
-	@Override
+    @Override
+    public void handleEvent(AbstractEvent event) { }
+
+    @Override
 	public StreamPartitioner<T> copy() {
 		return this;
 	}

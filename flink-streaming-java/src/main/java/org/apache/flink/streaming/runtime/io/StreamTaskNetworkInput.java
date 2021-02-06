@@ -27,7 +27,6 @@ import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
-import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult;
 import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
@@ -41,6 +40,11 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+
+import org.apache.flink.streaming.runtime.tasks.OperatorChain;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
@@ -69,6 +73,8 @@ import static org.apache.flink.util.Preconditions.checkState;
 @Internal
 public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 
+	protected static final Logger LOG = LoggerFactory.getLogger(StreamTaskNetworkInput.class);
+
 	private final CheckpointedInputGate checkpointedInputGate;
 
 	private final DeserializationDelegate<StreamElement> deserializationDelegate;
@@ -86,13 +92,16 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 
 	private RecordDeserializer<DeserializationDelegate<StreamElement>> currentRecordDeserializer = null;
 
+	private final OperatorChain operatorChain;
+
 	@SuppressWarnings("unchecked")
 	public StreamTaskNetworkInput(
 			CheckpointedInputGate checkpointedInputGate,
 			TypeSerializer<?> inputSerializer,
 			IOManager ioManager,
 			StatusWatermarkValve statusWatermarkValve,
-			int inputIndex) {
+			int inputIndex,
+			OperatorChain chain) {
 		this.checkpointedInputGate = checkpointedInputGate;
 		this.deserializationDelegate = new NonReusingDeserializationDelegate<>(
 			new StreamElementSerializer<>(inputSerializer));
@@ -107,6 +116,8 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 		this.statusWatermarkValve = checkNotNull(statusWatermarkValve);
 		this.inputIndex = inputIndex;
 		this.channelIndexes = getChannelIndexes(checkpointedInputGate);
+		this.operatorChain = chain;
+		LOG.info("StreamTaskNetworkInput init  inputIndex {} operator {}", inputIndex, chain.toString());
 	}
 
 	@Nonnull
@@ -126,7 +137,8 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 		TypeSerializer<?> inputSerializer,
 		StatusWatermarkValve statusWatermarkValve,
 		int inputIndex,
-		RecordDeserializer<DeserializationDelegate<StreamElement>>[] recordDeserializers) {
+		RecordDeserializer<DeserializationDelegate<StreamElement>>[] recordDeserializers,
+		OperatorChain operatorChain) {
 
 		this.checkpointedInputGate = checkpointedInputGate;
 		this.deserializationDelegate = new NonReusingDeserializationDelegate<>(
@@ -135,6 +147,7 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 		this.statusWatermarkValve = statusWatermarkValve;
 		this.inputIndex = inputIndex;
 		this.channelIndexes = getChannelIndexes(checkpointedInputGate);
+		this.operatorChain = operatorChain;
 	}
 
 	@Override
@@ -174,6 +187,7 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 	}
 
 	private void processElement(StreamElement recordOrMark, DataOutput<T> output) throws Exception {
+		LOG.trace("StreamTaskNetworkInput processElement record {} tid {}:{}", recordOrMark, Thread.currentThread().getId(), Thread.currentThread().getName());
 		if (recordOrMark.isRecord()){
 			output.emitRecord(recordOrMark.asRecord());
 		} else if (recordOrMark.isWatermark()) {
@@ -201,13 +215,7 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 			// Event received
 			final AbstractEvent event = bufferOrEvent.getEvent();
 			// TODO: with checkpointedInputGate.isFinished() we might not need to support any events on this level.
-			if (event.getClass() != EndOfPartitionEvent.class) {
-				throw new IOException("Unexpected event: " + event);
-			}
-
-			// release the record deserializer immediately,
-			// which is very valuable in case of bounded stream
-			releaseDeserializer(channelIndexes.get(bufferOrEvent.getChannelInfo()));
+			operatorChain.handleTaskEvent(event);
 		}
 	}
 
