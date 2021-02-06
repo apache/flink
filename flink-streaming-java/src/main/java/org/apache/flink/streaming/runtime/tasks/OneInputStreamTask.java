@@ -128,7 +128,8 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 			inSerializer,
 			getEnvironment().getIOManager(),
 			statusWatermarkValve,
-			0);
+			0,
+			operatorChain);
 	}
 
 	/**

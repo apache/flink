@@ -19,7 +19,11 @@
 package org.apache.flink.runtime.io.network.api.writer;
 
 import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
@@ -36,6 +40,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  * @param <T> the type of the record that can be emitted with this record writer
  */
 public final class ChannelSelectorRecordWriter<T extends IOReadableWritable> extends RecordWriter<T> {
+
+	private static final Logger LOG = LoggerFactory.getLogger(ChannelSelectorRecordWriter.class);
 
 	private final ChannelSelector<T> channelSelector;
 
@@ -57,7 +63,10 @@ public final class ChannelSelectorRecordWriter<T extends IOReadableWritable> ext
 
 	@Override
 	public void emit(T record) throws IOException, InterruptedException {
-		emit(record, channelSelector.selectChannel(record));
+		int channel = channelSelector.selectChannel(record);
+		LOG.trace("ChannelSelectorRecordWriter emit task {} record {} channel {} channelSelector {}",
+			this.taskName, record, channel, channelSelector );
+		emit(record, channel);
 	}
 
 	@Override
@@ -135,5 +144,9 @@ public final class ChannelSelectorRecordWriter<T extends IOReadableWritable> ext
 		for (int index = 0; index < numberOfChannels; index++) {
 			closeBufferBuilder(index);
 		}
+	}
+
+	public void handleEvent(AbstractEvent event){
+		channelSelector.handleEvent(event);
 	}
 }

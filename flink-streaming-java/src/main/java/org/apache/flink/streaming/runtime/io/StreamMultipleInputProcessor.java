@@ -104,7 +104,8 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 					inputSerializers[i],
 					ioManager,
 					new StatusWatermarkValve(checkpointedInputGates[i].getNumberOfInputChannels(), dataOutput),
-					i));
+					i,
+					operatorChain));
 		}
 
 		this.operatorChain = checkNotNull(operatorChain);

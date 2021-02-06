@@ -18,8 +18,12 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
+import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.io.network.api.RepartitionTaskEvent;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -74,6 +78,9 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>> extends Abstract
 		final long latencyTrackingInterval = getExecutionConfig().isLatencyTrackingConfigured()
 			? getExecutionConfig().getLatencyTrackingInterval()
 			: configuration.getLong(MetricOptions.LATENCY_INTERVAL);
+		long eventDispatchingInterval = getExecutionConfig().isDispatchRebalanceEnabled()
+			? getExecutionConfig().getDispatchRebalanceEventInterval()
+			: configuration.getLong(PipelineOptions.EVENT_DISPATCHING_INTERVAL);
 
 		LatencyMarksEmitter<OUT> latencyEmitter = null;
 		if (latencyTrackingInterval > 0) {
@@ -83,6 +90,18 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>> extends Abstract
 				latencyTrackingInterval,
 				this.getOperatorID(),
 				getRuntimeContext().getIndexOfThisSubtask());
+		}
+
+		ProcessingTimeRepartitionEventDispatcher<OUT> dispatcher = null;
+		if (eventDispatchingInterval > 0) {
+			dispatcher = new ProcessingTimeRepartitionEventDispatcher<>(
+				getProcessingTimeService(),
+				collector,
+				eventDispatchingInterval,
+				this.getOperatorID(),
+				getRuntimeContext().getIndexOfThisSubtask(),
+				operatorChain,
+				getExecutionConfig());
 		}
 
 		final long watermarkInterval = getRuntimeContext().getExecutionConfig().getAutoWatermarkInterval();
@@ -113,6 +132,9 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>> extends Abstract
 		} finally {
 			if (latencyEmitter != null) {
 				latencyEmitter.close();
+			}
+			if(dispatcher != null){
+				dispatcher.close();
 			}
 		}
 	}
@@ -200,6 +222,51 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>> extends Abstract
 
 		public void close() {
 			latencyMarkTimer.cancel(true);
+		}
+	}
+
+	private static class ProcessingTimeRepartitionEventDispatcher<OUT> {
+		private final ScheduledFuture<?> dispatchTimer;
+		private final int parallelism;
+		private int count;
+
+		public ProcessingTimeRepartitionEventDispatcher(
+			final ProcessingTimeService processingTimeService,
+			final Output<StreamRecord<OUT>> output,
+			long dispatchInterval,
+			final OperatorID operatorId,
+			final int subtaskIndex,
+			OperatorChain<?, ?> operatorChain,
+			ExecutionConfig config) {
+			count = 0;
+			parallelism = config.getParallelism();
+
+			dispatchTimer = processingTimeService.scheduleAtFixedRate(
+				new ProcessingTimeCallback() {
+					@Override
+					public void onProcessingTime(long timestamp) throws Exception {
+						try {
+							// ProcessingTimeService callbacks are executed under the checkpointing lock
+							//output.emitLatencyMarker(new LatencyMarker(processingTimeService.getCurrentProcessingTime(), operatorId, subtaskIndex));
+							count = (count + 1) % parallelism;
+							LOG.info("SourceStreamTask init: broadcast from operator chain {}", count);
+							AbstractEvent event = new RepartitionTaskEvent(count);
+							//operatorChain.broadcastEvent(event);
+							operatorChain.handleTaskEvent(event);
+
+						} catch (Throwable t) {
+							// we catch the Throwables here so that we don't trigger the processing
+							// timer services async exception handler
+							LOG.warn("Error while emitting latency marker.", t);
+						}
+					}
+				},
+				0L,
+				dispatchInterval);
+		}
+
+		public void close() {
+			dispatchTimer.cancel(true);
 		}
 	}
 }

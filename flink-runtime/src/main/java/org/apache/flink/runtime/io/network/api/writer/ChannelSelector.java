@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.api.writer;
 
 import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.runtime.event.AbstractEvent;
 
 /**
  * The {@link ChannelSelector} determines to which logical channels a record
@@ -53,4 +54,6 @@ public interface ChannelSelector<T extends IOReadableWritable> {
 	 * @return true if the selector is for broadcast mode.
 	 */
 	boolean isBroadcast();
+
+	void handleEvent(AbstractEvent event);
 }

@@ -112,13 +112,15 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 			inputSerializer1,
 			ioManager,
 			new StatusWatermarkValve(checkpointedInputGates[0].getNumberOfInputChannels(), output1),
-			0);
+			0,
+			operatorChain);
 		this.input2 = new StreamTaskNetworkInput<>(
 			checkpointedInputGates[1],
 			inputSerializer2,
 			ioManager,
 			new StatusWatermarkValve(checkpointedInputGates[1].getNumberOfInputChannels(), output2),
-			1);
+			1,
+			operatorChain);
 
 		this.operatorChain = checkNotNull(operatorChain);
 	}

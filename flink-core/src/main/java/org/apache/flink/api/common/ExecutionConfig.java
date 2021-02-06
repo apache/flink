@@ -32,6 +32,8 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.util.Preconditions;
 
 import com.esotericsoftware.kryo.Serializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.Collections;
@@ -166,6 +168,10 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	/** The default input dependency constraint to schedule tasks. */
 	private InputDependencyConstraint defaultInputDependencyConstraint = InputDependencyConstraint.ANY;
+
+	private boolean useDynamicPartitioning = false;
+
+	private long dispatchRebalanceEventInterval = 0;
 
 	// ------------------------------- User code values --------------------------------------------
 
@@ -978,6 +984,26 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 		this.failTaskOnCheckpointError = failTaskOnCheckpointError;
 	}
 
+	public void setUseDynamicPartitioning(boolean useDynamicPartitioning) {
+		this.useDynamicPartitioning = useDynamicPartitioning;
+	}
+
+	public boolean getUseDynamicPartitioning() {
+		return useDynamicPartitioning;
+	}
+
+	public void setDispatchRebalanceEventInterval(long interval) {
+		this.dispatchRebalanceEventInterval = interval;
+	}
+
+	public long getDispatchRebalanceEventInterval() {
+		return this.dispatchRebalanceEventInterval;
+	}
+
+	public boolean isDispatchRebalanceEnabled() {
+		return this.dispatchRebalanceEventInterval > 0 && useDynamicPartitioning;
+	}
+
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof ExecutionConfig) {
@@ -1003,8 +1029,9 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 				registeredPojoTypes.equals(other.registeredPojoTypes) &&
 				taskCancellationIntervalMillis == other.taskCancellationIntervalMillis &&
 				useSnapshotCompression == other.useSnapshotCompression &&
-				defaultInputDependencyConstraint == other.defaultInputDependencyConstraint;
-
+				defaultInputDependencyConstraint == other.defaultInputDependencyConstraint &&
+				useDynamicPartitioning == other.useDynamicPartitioning &&
+				dispatchRebalanceEventInterval == other.dispatchRebalanceEventInterval;
 		} else {
 			return false;
 		}
@@ -1031,7 +1058,9 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 			registeredPojoTypes,
 			taskCancellationIntervalMillis,
 			useSnapshotCompression,
-			defaultInputDependencyConstraint);
+			defaultInputDependencyConstraint,
+			useDynamicPartitioning,
+			dispatchRebalanceEventInterval);
 	}
 
 	@Override
@@ -1066,6 +1095,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 			", defaultKryoSerializerClasses=" + defaultKryoSerializerClasses +
 			", registeredKryoTypes=" + registeredKryoTypes +
 			", registeredPojoTypes=" + registeredPojoTypes +
+			", useDynamicPartitioning=" + useDynamicPartitioning +
+			", dispatchRebalanceEventInterval=" + dispatchRebalanceEventInterval +
 			'}';
 	}
 
@@ -1176,6 +1207,10 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 			.ifPresent(b -> this.disableGenericTypes = !b);
 		configuration.getOptional(PipelineOptions.FORCE_KRYO)
 			.ifPresent(b -> this.forceKryo = b);
+		configuration.getOptional(PipelineOptions.USE_DYNAMIC_PARTITIONING)
+			.ifPresent(this::setUseDynamicPartitioning);
+		configuration.getOptional(PipelineOptions.EVENT_DISPATCHING_INTERVAL)
+			.ifPresent(this::setDispatchRebalanceEventInterval);
 		configuration.getOptional(PipelineOptions.GLOBAL_JOB_PARAMETERS)
 			.<GlobalJobParameters>map(MapBasedJobParameters::new)
 			.ifPresent(this::setGlobalJobParameters);

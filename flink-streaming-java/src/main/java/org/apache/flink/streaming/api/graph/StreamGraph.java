@@ -43,6 +43,7 @@ import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
+import org.apache.flink.streaming.runtime.partitioner.DynamicFixedPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
@@ -551,7 +552,10 @@ public class StreamGraph implements Pipeline {
 			if (partitioner == null && upstreamNode.getParallelism() == downstreamNode.getParallelism()) {
 				partitioner = new ForwardPartitioner<Object>();
 			} else if (partitioner == null) {
-				partitioner = new RebalancePartitioner<Object>();
+				if (getExecutionConfig().getUseDynamicPartitioning())
+				partitioner = getExecutionConfig().getUseDynamicPartitioning()?
+					new DynamicFixedPartitioner<Object>():
+					new RebalancePartitioner<Object>();
 			}
 
 			if (partitioner instanceof ForwardPartitioner) {

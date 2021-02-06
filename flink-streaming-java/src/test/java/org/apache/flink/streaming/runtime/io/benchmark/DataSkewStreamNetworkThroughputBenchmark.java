@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.io.benchmark;
 
 import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
 
@@ -61,5 +62,8 @@ public class DataSkewStreamNetworkThroughputBenchmark extends StreamNetworkThrou
 		public boolean isBroadcast() {
 			return false;
 		}
-	}
+
+        @Override
+        public void handleEvent(AbstractEvent event) { }
+    }
 }
