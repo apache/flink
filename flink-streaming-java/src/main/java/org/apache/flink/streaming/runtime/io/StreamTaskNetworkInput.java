@@ -73,8 +73,6 @@ import static org.apache.flink.util.Preconditions.checkState;
 @Internal
 public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 
-	protected static final Logger LOG = LoggerFactory.getLogger(StreamTaskNetworkInput.class);
-
 	private final CheckpointedInputGate checkpointedInputGate;
 
 	private final DeserializationDelegate<StreamElement> deserializationDelegate;
@@ -117,7 +115,6 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 		this.inputIndex = inputIndex;
 		this.channelIndexes = getChannelIndexes(checkpointedInputGate);
 		this.operatorChain = chain;
-		LOG.info("StreamTaskNetworkInput init  inputIndex {} operator {}", inputIndex, chain.toString());
 	}
 
 	@Nonnull
@@ -187,7 +184,6 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 	}
 
 	private void processElement(StreamElement recordOrMark, DataOutput<T> output) throws Exception {
-		LOG.trace("StreamTaskNetworkInput processElement record {} tid {}:{}", recordOrMark, Thread.currentThread().getId(), Thread.currentThread().getName());
 		if (recordOrMark.isRecord()){
 			output.emitRecord(recordOrMark.asRecord());
 		} else if (recordOrMark.isWatermark()) {

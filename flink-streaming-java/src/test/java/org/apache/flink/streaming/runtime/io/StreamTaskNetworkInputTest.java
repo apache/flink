@@ -174,8 +174,7 @@ public class StreamTaskNetworkInputTest {
 			LongSerializer.INSTANCE,
 			new StatusWatermarkValve(inputGate.getNumberOfInputChannels(), new NoOpDataOutput<>()),
 			inputGate.getGateIndex(),
-			createDeserializers(inputGate.getNumberOfInputChannels()),
-			null);
+			createDeserializers(inputGate.getNumberOfInputChannels()), null);
 	}
 
 	private TestRecordDeserializer[] createDeserializers(int numberOfInputChannels) {
@@ -205,8 +204,7 @@ public class StreamTaskNetworkInputTest {
 			inSerializer,
 			new StatusWatermarkValve(numInputChannels, output),
 			0,
-			deserializers,
-			null);
+			deserializers, null);
 
 		inputGate.sendEvent(
 			new CheckpointBarrier(checkpointId, 0L, CheckpointOptions.forCheckpointWithDefaultLocation()),
@@ -249,8 +247,7 @@ public class StreamTaskNetworkInputTest {
 			inSerializer,
 			new StatusWatermarkValve(1, output),
 			0,
-			deserializers,
-			null);
+			deserializers, null);
 
 		for (int i = 0; i < numInputChannels; i++) {
 			assertNotNull(deserializers[i]);
@@ -278,8 +275,7 @@ public class StreamTaskNetworkInputTest {
 			LongSerializer.INSTANCE,
 			ioManager,
 			new StatusWatermarkValve(1, output),
-			0,
-			null);
+			0, null);
 	}
 
 	private void serializeRecord(long value, BufferBuilder bufferBuilder) throws IOException {
