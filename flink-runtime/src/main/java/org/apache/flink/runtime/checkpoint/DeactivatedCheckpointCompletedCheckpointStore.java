@@ -24,7 +24,8 @@ import java.util.List;
 
 /**
  * This class represents a {@link CompletedCheckpointStore} if checkpointing has been enabled.
- * Consequently, no component should use methods other than {@link #shutdown}.
+ * Consequently, no component should use methods other than {@link
+ * CompletedCheckpointStore#shutdown}.
  */
 public enum DeactivatedCheckpointCompletedCheckpointStore implements CompletedCheckpointStore {
     INSTANCE;
@@ -44,8 +45,7 @@ public enum DeactivatedCheckpointCompletedCheckpointStore implements CompletedCh
     }
 
     @Override
-    public void shutdown(
-            JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner, Runnable postCleanup)
+    public void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner)
             throws Exception {}
 
     @Override

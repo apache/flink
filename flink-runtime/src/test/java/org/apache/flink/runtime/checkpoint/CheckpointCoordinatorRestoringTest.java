@@ -200,7 +200,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
         assertEquals(1, completedCheckpoints.size());
 
         // shutdown the store
-        store.shutdown(JobStatus.SUSPENDED, new CheckpointsCleaner(), () -> {});
+        store.shutdown(JobStatus.SUSPENDED, new CheckpointsCleaner());
 
         // restore the store
         Set<ExecutionJobVertex> tasks = new HashSet<>();

@@ -181,8 +181,7 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
         }
 
         @Override
-        public void shutdown(
-                JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner, Runnable postCleanup)
+        public void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner)
                 throws Exception {
             throw new UnsupportedOperationException("Not implemented.");
         }

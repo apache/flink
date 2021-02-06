@@ -96,8 +96,7 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
     }
 
     @Override
-    public void shutdown(
-            JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner, Runnable postCleanup)
+    public void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner)
             throws Exception {
         try {
             LOG.info("Shutting down");

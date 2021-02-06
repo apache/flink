@@ -62,7 +62,7 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
         assertEquals(1, store.getNumberOfRetainedCheckpoints());
         verifyCheckpointRegistered(operatorStates, sharedStateRegistry);
 
-        store.shutdown(JobStatus.FINISHED, new CheckpointsCleaner(), () -> {});
+        store.shutdown(JobStatus.FINISHED, new CheckpointsCleaner());
         assertEquals(0, store.getNumberOfRetainedCheckpoints());
         assertTrue(checkpoint.isDiscarded());
         verifyCheckpointDiscarded(operatorStates);
@@ -83,7 +83,7 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
         assertEquals(1, store.getNumberOfRetainedCheckpoints());
         verifyCheckpointRegistered(taskStates, sharedStateRegistry);
 
-        store.shutdown(JobStatus.SUSPENDED, new CheckpointsCleaner(), () -> {});
+        store.shutdown(JobStatus.SUSPENDED, new CheckpointsCleaner());
         assertEquals(0, store.getNumberOfRetainedCheckpoints());
         assertTrue(checkpoint.isDiscarded());
         verifyCheckpointDiscarded(taskStates);

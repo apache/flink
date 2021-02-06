@@ -246,8 +246,7 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
         }
 
         @Override
-        public void shutdown(
-                JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner, Runnable postCleanup) {
+        public void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner) {
             shutdownStatus.complete(jobStatus);
         }
 

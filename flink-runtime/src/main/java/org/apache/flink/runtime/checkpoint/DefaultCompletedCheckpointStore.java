@@ -259,8 +259,7 @@ public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
     }
 
     @Override
-    public void shutdown(
-            JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner, Runnable postCleanup)
+    public void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner)
             throws Exception {
         if (jobStatus.isGloballyTerminalState()) {
             LOG.info("Shutting down");
@@ -270,7 +269,7 @@ public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
                         checkpoint,
                         checkpoint.shouldBeDiscardedOnShutdown(jobStatus),
                         checkpointsCleaner,
-                        postCleanup);
+                        () -> {});
             }
 
             completedCheckpoints.clear();

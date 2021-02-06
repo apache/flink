@@ -241,7 +241,7 @@ public class DefaultCompletedCheckpointStoreTest extends TestLogger {
         completedCheckpointStore.recover();
         assertThat(completedCheckpointStore.getAllCheckpoints().size(), is(num));
 
-        completedCheckpointStore.shutdown(JobStatus.CANCELED, new CheckpointsCleaner(), () -> {});
+        completedCheckpointStore.shutdown(JobStatus.CANCELED, new CheckpointsCleaner());
         assertThat(removeCalledNum.get(), is(num));
         assertThat(clearEntriesAllFuture.isDone(), is(true));
         assertThat(completedCheckpointStore.getAllCheckpoints().size(), is(0));
@@ -269,7 +269,7 @@ public class DefaultCompletedCheckpointStoreTest extends TestLogger {
         completedCheckpointStore.recover();
         assertThat(completedCheckpointStore.getAllCheckpoints().size(), is(3));
 
-        completedCheckpointStore.shutdown(JobStatus.CANCELLING, new CheckpointsCleaner(), () -> {});
+        completedCheckpointStore.shutdown(JobStatus.CANCELLING, new CheckpointsCleaner());
         try {
             removeAllFuture.get(timeout, TimeUnit.MILLISECONDS);
             fail("We should get an expected timeout because the job is not globally terminated.");
