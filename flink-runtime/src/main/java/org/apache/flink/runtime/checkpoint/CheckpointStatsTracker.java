@@ -255,6 +255,16 @@ public class CheckpointStatsTracker {
         }
     }
 
+    public PendingCheckpointStats getPendingCheckpointStats(long checkpointId) {
+        statsReadWriteLock.lock();
+        try {
+            AbstractCheckpointStats stats = history.getCheckpointById(checkpointId);
+            return stats instanceof PendingCheckpointStats ? (PendingCheckpointStats) stats : null;
+        } finally {
+            statsReadWriteLock.unlock();
+        }
+    }
+
     public void reportIncompleteStats(
             long checkpointId, ExecutionVertex vertex, CheckpointMetrics metrics) {
         statsReadWriteLock.lock();
