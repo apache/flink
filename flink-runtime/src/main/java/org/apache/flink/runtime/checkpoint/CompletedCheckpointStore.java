@@ -92,6 +92,7 @@ public interface CompletedCheckpointStore {
      * or kept.
      *
      * @param jobStatus Job state on shut down
+     * @param checkpointsCleaner that will cleanup copmpleted checkpoints if needed
      */
     void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner) throws Exception;
 
