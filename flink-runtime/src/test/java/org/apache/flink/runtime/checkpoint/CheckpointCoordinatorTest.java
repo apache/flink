@@ -1345,8 +1345,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
             verify(subtaskState13, times(1)).discardState();
 
             checkpointCoordinator.shutdown();
-            completedCheckpointStore.shutdown(
-                    JobStatus.FINISHED, new CheckpointsCleaner(), () -> {});
+            completedCheckpointStore.shutdown(JobStatus.FINISHED, new CheckpointsCleaner());
 
             // validate that the states in the second checkpoint have been discarded
             verify(subtaskState21, times(1)).discardState();
@@ -2689,7 +2688,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
         }
 
         // shutdown the store
-        store.shutdown(JobStatus.SUSPENDED, new CheckpointsCleaner(), () -> {});
+        store.shutdown(JobStatus.SUSPENDED, new CheckpointsCleaner());
 
         // restore the store
         Set<ExecutionJobVertex> tasks = new HashSet<>();

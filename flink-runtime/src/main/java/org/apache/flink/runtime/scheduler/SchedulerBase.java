@@ -246,12 +246,7 @@ public abstract class SchedulerBase implements SchedulerNG {
         Exception exception = null;
 
         try {
-            completedCheckpointStore.shutdown(
-                    jobStatus,
-                    checkpointsCleaner,
-                    () -> {
-                        // don't schedule anything on shutdown
-                    });
+            completedCheckpointStore.shutdown(jobStatus, checkpointsCleaner);
         } catch (Exception e) {
             exception = e;
         }

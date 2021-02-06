@@ -93,8 +93,7 @@ public interface CompletedCheckpointStore {
      *
      * @param jobStatus Job state on shut down
      */
-    void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner, Runnable postCleanup)
-            throws Exception;
+    void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner) throws Exception;
 
     /**
      * Returns all {@link CompletedCheckpoint} instances.
