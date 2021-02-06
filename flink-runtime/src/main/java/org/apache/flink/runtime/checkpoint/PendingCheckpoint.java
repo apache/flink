@@ -116,9 +116,6 @@ public class PendingCheckpoint implements Checkpoint {
 
     private boolean discarded;
 
-    /** Optional stats tracker callback. */
-    @Nullable private PendingCheckpointStats statsCallback;
-
     private volatile ScheduledFuture<?> cancellerHandle;
 
     private CheckpointException failureCause;
@@ -257,15 +254,6 @@ public class PendingCheckpoint implements Checkpoint {
     }
 
     /**
-     * Sets the callback for tracking this pending checkpoint.
-     *
-     * @param trackerCallback Callback for collecting subtask stats.
-     */
-    void setStatsCallback(@Nullable PendingCheckpointStats trackerCallback) {
-        this.statsCallback = trackerCallback;
-    }
-
-    /**
      * Sets the handle for the canceller to this pending checkpoint. This method fails with an
      * exception if a handle has already been set.
      *
@@ -304,7 +292,10 @@ public class PendingCheckpoint implements Checkpoint {
     }
 
     public CompletedCheckpoint finalizeCheckpoint(
-            CheckpointsCleaner checkpointsCleaner, Runnable postCleanup, Executor executor)
+            CheckpointsCleaner checkpointsCleaner,
+            Runnable postCleanup,
+            Executor executor,
+            @Nullable PendingCheckpointStats statsCallback)
             throws IOException {
 
         synchronized (lock) {
@@ -340,7 +331,6 @@ public class PendingCheckpoint implements Checkpoint {
                 onCompletionPromise.complete(completed);
 
                 // to prevent null-pointers from concurrent modification, copy reference onto stack
-                PendingCheckpointStats statsCallback = this.statsCallback;
                 if (statsCallback != null) {
                     // Finalize the statsCallback and give the completed checkpoint a
                     // callback for discards.
@@ -373,7 +363,8 @@ public class PendingCheckpoint implements Checkpoint {
     public TaskAcknowledgeResult acknowledgeTask(
             ExecutionAttemptID executionAttemptId,
             TaskStateSnapshot operatorSubtaskStates,
-            CheckpointMetrics metrics) {
+            CheckpointMetrics metrics,
+            @Nullable PendingCheckpointStats statsCallback) {
 
         synchronized (lock) {
             if (disposed) {
@@ -428,7 +419,6 @@ public class PendingCheckpoint implements Checkpoint {
 
             // publish the checkpoint statistics
             // to prevent null-pointers from concurrent modification, copy reference onto stack
-            final PendingCheckpointStats statsCallback = this.statsCallback;
             if (statsCallback != null) {
                 // Do this in millis because the web frontend works with them
                 long alignmentDurationMillis = metrics.getAlignmentDurationNanos() / 1_000_000;
@@ -518,11 +508,12 @@ public class PendingCheckpoint implements Checkpoint {
             @Nullable Throwable cause,
             CheckpointsCleaner checkpointsCleaner,
             Runnable postCleanup,
-            Executor executor) {
+            Executor executor,
+            PendingCheckpointStats statsCallback) {
         try {
             failureCause = new CheckpointException(reason, cause);
             onCompletionPromise.completeExceptionally(failureCause);
-            reportFailedCheckpoint(failureCause);
+            reportFailedCheckpoint(failureCause, statsCallback);
             assertAbortSubsumedForced(reason);
         } finally {
             dispose(true, checkpointsCleaner, postCleanup, executor);
@@ -605,9 +596,8 @@ public class PendingCheckpoint implements Checkpoint {
      *
      * @param cause The failure cause or <code>null</code>.
      */
-    private void reportFailedCheckpoint(Exception cause) {
+    private void reportFailedCheckpoint(Exception cause, PendingCheckpointStats statsCallback) {
         // to prevent null-pointers from concurrent modification, copy reference onto stack
-        final PendingCheckpointStats statsCallback = this.statsCallback;
         if (statsCallback != null) {
             long failureTimestamp = System.currentTimeMillis();
             statsCallback.reportFailedCheckpoint(failureTimestamp, cause);
