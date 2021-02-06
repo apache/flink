@@ -29,6 +29,8 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 
+import static org.apache.flink.runtime.state.StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME;
+
 /**
  * Tests for the partitioned state part of {@link RocksDBStateBackend}.
  */
@@ -54,7 +56,7 @@ public class RocksDBStateBackendMigrationTest extends StateBackendMigrationTestB
 
 		Configuration configuration = new Configuration();
 		configuration.set(RocksDBOptions.TIMER_SERVICE_FACTORY, RocksDBStateBackend.PriorityQueueStateType.ROCKSDB);
-		backend = backend.configure(configuration, Thread.currentThread().getContextClassLoader());
+		backend = backend.configure(configuration, Thread.currentThread().getContextClassLoader(), ROCKSDB_STATE_BACKEND_NAME);
 		backend.setDbStoragePath(dbPath);
 		return backend;
 	}

@@ -59,7 +59,7 @@ public abstract class AbstractHeapState<K, N, SV> implements InternalKvState<K, 
 	 * @param namespaceSerializer The serializer for the namespace.
 	 * @param defaultValue The default value for the state.
 	 */
-	AbstractHeapState(
+	public AbstractHeapState(
 			StateTable<K, N, SV> stateTable,
 			TypeSerializer<K> keySerializer,
 			TypeSerializer<SV> valueSerializer,

@@ -26,7 +26,7 @@ import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
  *
  * @param <K> The data type that the serializer serializes.
  */
-class AsyncSnapshotStrategySynchronicityBehavior<K> implements SnapshotStrategySynchronicityBehavior<K> {
+public class AsyncSnapshotStrategySynchronicityBehavior<K> implements SnapshotStrategySynchronicityBehavior<K> {
 
 	@Override
 	public boolean isAsynchronous() {

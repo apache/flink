@@ -56,7 +56,7 @@ public class BackendForTestStream extends MemoryStateBackend {
 
 	// make no reconfiguration!
 	@Override
-	public MemoryStateBackend configure(ReadableConfig config, ClassLoader classLoader) {
+	public MemoryStateBackend configure(ReadableConfig config, ClassLoader classLoader, String backendType) {
 		return this;
 	}
 

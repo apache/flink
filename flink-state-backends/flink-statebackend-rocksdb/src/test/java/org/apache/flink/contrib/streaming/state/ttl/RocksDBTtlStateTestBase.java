@@ -38,6 +38,7 @@ import org.rocksdb.RocksDBException;
 
 import java.io.IOException;
 
+import static org.apache.flink.runtime.state.StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
@@ -70,7 +71,7 @@ public abstract class RocksDBTtlStateTestBase extends TtlStateTestBase {
 		}
 		RocksDBStateBackend backend = new RocksDBStateBackend(new FsStateBackend(checkpointPath), enableIncrementalCheckpointing);
 		Configuration config = new Configuration();
-		backend = backend.configure(config, Thread.currentThread().getContextClassLoader());
+		backend = backend.configure(config, Thread.currentThread().getContextClassLoader(), ROCKSDB_STATE_BACKEND_NAME);
 		backend.setDbStoragePath(dbPath);
 		return backend;
 	}

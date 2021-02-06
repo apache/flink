@@ -49,6 +49,9 @@ public class StateBackendLoader {
 	/** The shortcut configuration name for the MemoryState backend that checkpoints to the JobManager */
 	public static final String MEMORY_STATE_BACKEND_NAME = "jobmanager";
 
+	/** The shortcut configuration name for the MemoryState backend that checkpoints to the remote heap */
+	public static final String REMOTE_HEAP_STATE_BACKEND_NAME = "remoteheap";
+
 	/** The shortcut configuration name for the FileSystem State backend */
 	public static final String FS_STATE_BACKEND_NAME = "filesystem";
 
@@ -66,7 +69,7 @@ public class StateBackendLoader {
 	 * <p>The state backends can be specified either via their shortcut name, or via the class name
 	 * of a {@link StateBackendFactory}. If a StateBackendFactory class name is specified, the factory
 	 * is instantiated (via its zero-argument constructor) and its
-	 * {@link StateBackendFactory#createFromConfig(ReadableConfig, ClassLoader)} method is called.
+	 * {@link StateBackendFactory#createFromConfig(ReadableConfig, ClassLoader, String)} method is called.
 	 *
 	 * <p>Recognized shortcut names are '{@value StateBackendLoader#MEMORY_STATE_BACKEND_NAME}',
 	 * '{@value StateBackendLoader#FS_STATE_BACKEND_NAME}', and
@@ -102,10 +105,12 @@ public class StateBackendLoader {
 
 		// by default the factory class is the backend name 
 		String factoryClassName = backendName;
+		String backendType = "";
 
 		switch (backendName.toLowerCase()) {
 			case MEMORY_STATE_BACKEND_NAME:
-				MemoryStateBackend memBackend = new MemoryStateBackendFactory().createFromConfig(config, classLoader);
+				backendType = MEMORY_STATE_BACKEND_NAME;
+				MemoryStateBackend memBackend = new MemoryStateBackendFactory().createFromConfig(config, classLoader, backendType);
 
 				if (logger != null) {
 					Path memExternalized = memBackend.getCheckpointPath();
@@ -115,8 +120,21 @@ public class StateBackendLoader {
 				}
 				return memBackend;
 
+			case REMOTE_HEAP_STATE_BACKEND_NAME:
+				backendType = REMOTE_HEAP_STATE_BACKEND_NAME;
+				MemoryStateBackend remoteHeapBackend = new MemoryStateBackendFactory().createFromConfig(config, classLoader, backendType);
+
+				if (logger != null) {
+					Path memExternalized = remoteHeapBackend.getCheckpointPath();
+					String extern = memExternalized == null ? "" :
+						" (externalized to " + memExternalized + ')';
+					logger.info("State backend is set to heap memory (checkpoint to JobManager) {}", extern);
+				}
+				return remoteHeapBackend;
+
 			case FS_STATE_BACKEND_NAME:
-				FsStateBackend fsBackend = new FsStateBackendFactory().createFromConfig(config, classLoader);
+				backendType = FS_STATE_BACKEND_NAME;
+				FsStateBackend fsBackend = new FsStateBackendFactory().createFromConfig(config, classLoader, backendType);
 				if (logger != null) {
 					logger.info("State backend is set to heap memory (checkpoints to filesystem \"{}\")",
 							fsBackend.getCheckpointPath());
@@ -124,6 +142,7 @@ public class StateBackendLoader {
 				return fsBackend;
 
 			case ROCKSDB_STATE_BACKEND_NAME:
+				backendType = ROCKSDB_STATE_BACKEND_NAME;
 				factoryClassName = "org.apache.flink.contrib.streaming.state.RocksDBStateBackendFactory";
 				// fall through to the 'default' case that uses reflection to load the backend
 				// that way we can keep RocksDB in a separate module
@@ -152,7 +171,7 @@ public class StateBackendLoader {
 							backendName + ')', e);
 				}
 
-				return factory.createFromConfig(config, classLoader);
+				return factory.createFromConfig(config, classLoader, backendType);
 		}
 	}
 
@@ -163,7 +182,7 @@ public class StateBackendLoader {
 	 * default state backend (the {@link MemoryStateBackend}). 
 	 *
 	 * <p>If an application-defined state backend is found, and the state backend is a
-	 * {@link ConfigurableStateBackend}, this methods calls {@link ConfigurableStateBackend#configure(ReadableConfig, ClassLoader)}
+	 * {@link ConfigurableStateBackend}, this methods calls {@link ConfigurableStateBackend#configure(ReadableConfig, ClassLoader, String)}
 	 * on the state backend.
 	 *
 	 * <p>Refer to {@link #loadStateBackendFromConfig(ReadableConfig, ClassLoader, Logger)} for details on
@@ -208,7 +227,7 @@ public class StateBackendLoader {
 					logger.info("Configuring application-defined state backend with job/cluster config");
 				}
 
-				backend = ((ConfigurableStateBackend) fromApplication).configure(config, classLoader);
+				backend = ((ConfigurableStateBackend) fromApplication).configure(config, classLoader, config.get(CheckpointingOptions.STATE_BACKEND).toLowerCase());
 			}
 			else {
 				// keep as is!
@@ -223,7 +242,7 @@ public class StateBackendLoader {
 			}
 			else {
 				// (3) use the default
-				backend = new MemoryStateBackendFactory().createFromConfig(config, classLoader);
+				backend = new MemoryStateBackendFactory().createFromConfig(config, classLoader, MEMORY_STATE_BACKEND_NAME);
 				if (logger != null) {
 					logger.info("No state backend has been configured, using default (Memory / JobManager) {}", backend);
 				}

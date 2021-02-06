@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.heap;
+package org.apache.flink.runtime.state.heap.remote;
 
 import org.apache.flink.api.common.state.MergingState;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -34,33 +34,35 @@ import java.util.Collection;
  * @param <SV> The type of the values in the state.
  * @param <OUT> The type of the output elements.
  */
-public abstract class AbstractHeapMergingState<K, N, IN, SV, OUT>
-	extends AbstractHeapAppendingState<K, N, IN, SV, OUT>
+public abstract class AbstractRemoteHeapMergingState<K, N, IN, SV, OUT>
+	extends AbstractRemoteHeapAppendingState<K, N, IN, SV, OUT>
 	implements InternalMergingState<K, N, IN, SV, OUT> {
-
-	/**
-	 * The merge transformation function that implements the merge logic.
-	 */
-	private final MergeTransformation mergeTransformation;
 
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
 	 *
-	 * @param stateTable The state table for which this state is associated to.
 	 * @param keySerializer The serializer for the keys.
 	 * @param valueSerializer The serializer for the state.
 	 * @param namespaceSerializer The serializer for the namespace.
+	 * @param kvStateInfo StateInfo containing descriptors
 	 * @param defaultValue The default value for the state.
+	 * @param backend KeyBackend
 	 */
-	protected AbstractHeapMergingState(
-			StateTable<K, N, SV> stateTable,
-			TypeSerializer<K> keySerializer,
-			TypeSerializer<SV> valueSerializer,
-			TypeSerializer<N> namespaceSerializer,
-			SV defaultValue) {
+	protected AbstractRemoteHeapMergingState(
+		TypeSerializer<K> keySerializer,
+		TypeSerializer<SV> valueSerializer,
+		TypeSerializer<N> namespaceSerializer,
+		RemoteHeapKeyedStateBackend.RemoteHeapKvStateInfo kvStateInfo,
+		SV defaultValue,
+		RemoteHeapKeyedStateBackend backend) {
 
-		super(stateTable, keySerializer, valueSerializer, namespaceSerializer, defaultValue);
-		this.mergeTransformation = new MergeTransformation();
+		super(
+			keySerializer,
+			valueSerializer,
+			namespaceSerializer,
+			kvStateInfo,
+			defaultValue,
+			backend);
 	}
 
 	@Override
@@ -69,26 +71,55 @@ public abstract class AbstractHeapMergingState<K, N, IN, SV, OUT>
 			return; // nothing to do
 		}
 
-		final StateTable<K, N, SV> map = stateTable;
-
-		SV merged = null;
-
-		// merge the sources
+		SV current = null;
 		for (N source : sources) {
 
-			// get and remove the next source per namespace/key
-			SV sourceState = map.removeAndGetOld(source);
+			if (source != null) {
+				setCurrentNamespace(source);
+				final byte[] sourceKey = serializeCurrentKeyWithGroupAndNamespace();
+				final byte[] valueBytes = backend.remoteKVStore.hget(
+					kvStateInfo.nameBytes,
+					sourceKey);
 
-			if (merged != null && sourceState != null) {
-				merged = mergeState(merged, sourceState);
-			} else if (merged == null) {
-				merged = sourceState;
+				if (valueBytes != null) {
+					backend.remoteKVStore.del(sourceKey);
+					dataInputView.setBuffer(valueBytes);
+					SV value = valueSerializer.deserialize(dataInputView);
+
+					if (current != null) {
+						current = mergeState(current, value);
+					} else {
+						current = value;
+					}
+				}
 			}
 		}
 
-		// merge into the target, if needed
-		if (merged != null) {
-			map.transform(target, merged, mergeTransformation);
+		if (current != null) {
+			setCurrentNamespace(target);
+			// create the target full-binary-key
+			final byte[] targetKey = serializeCurrentKeyWithGroupAndNamespace();
+			final byte[] targetValueBytes = backend.remoteKVStore.hget(
+				kvStateInfo.nameBytes,
+				targetKey);
+
+			if (targetValueBytes != null) {
+				// target also had a value, merge
+				dataInputView.setBuffer(targetValueBytes);
+				SV value = valueSerializer.deserialize(dataInputView);
+
+				current = mergeState(current, value);
+			}
+
+			// serialize the resulting value
+			dataOutputView.clear();
+			valueSerializer.serialize(current, dataOutputView);
+
+			// write the resulting value
+			backend.remoteKVStore.hset(
+				kvStateInfo.nameBytes,
+				targetKey,
+				dataOutputView.getCopyOfBuffer());
 		}
 	}
 

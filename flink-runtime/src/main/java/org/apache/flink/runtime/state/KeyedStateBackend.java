@@ -23,6 +23,7 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.util.Disposable;
 
+import java.io.IOException;
 import java.util.stream.Stream;
 
 /**
@@ -73,7 +74,7 @@ public interface KeyedStateBackend<K>
 	 * @param state State variable for which existing keys will be returned.
 	 * @param namespace Namespace for which existing keys will be returned.
 	 */
-	<N> Stream<K> getKeys(String state, N namespace);
+	<N> Stream<K> getKeys(String state, N namespace) throws IOException;
 
 	/**
 	 * Creates or retrieves a keyed state backed by this state backend.

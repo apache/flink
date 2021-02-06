@@ -42,6 +42,7 @@ import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.filesystem.AbstractFileStateBackend;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
+import org.apache.flink.runtime.state.heap.remote.RemoteHeapKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.TernaryBoolean;
 
@@ -51,6 +52,8 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.Collection;
 
+import static org.apache.flink.runtime.state.StateBackendLoader.MEMORY_STATE_BACKEND_NAME;
+import static org.apache.flink.runtime.state.StateBackendLoader.REMOTE_HEAP_STATE_BACKEND_NAME;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -100,7 +103,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * parameters from the Flink configuration. For example, if the backend if configured in the application
  * without a default savepoint directory, it will pick up a default savepoint directory specified in the
  * Flink configuration of the running job/cluster. That behavior is implemented via the
- * {@link #configure(ReadableConfig, ClassLoader)} method.
+ * {@link #configure(ReadableConfig, ClassLoader, String)} method.
  */
 @PublicEvolving
 public class MemoryStateBackend extends AbstractFileStateBackend implements ConfigurableStateBackend {
@@ -117,6 +120,7 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 	 * A value of 'UNDEFINED' means not yet configured, in which case the default will be used. */
 	private final TernaryBoolean asynchronousSnapshots;
 
+	private final String backendType;
 	// ------------------------------------------------------------------------
 
 	/**
@@ -127,7 +131,7 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 	 * runtime configuration.
 	 */
 	public MemoryStateBackend() {
-		this(null, null, DEFAULT_MAX_STATE_SIZE, TernaryBoolean.UNDEFINED);
+		this(null, null, DEFAULT_MAX_STATE_SIZE, TernaryBoolean.UNDEFINED, MEMORY_STATE_BACKEND_NAME);
 	}
 
 	/**
@@ -141,7 +145,7 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 	 * @param asynchronousSnapshots Switch to enable asynchronous snapshots.
 	 */
 	public MemoryStateBackend(boolean asynchronousSnapshots) {
-		this(null, null, DEFAULT_MAX_STATE_SIZE, TernaryBoolean.fromBoolean(asynchronousSnapshots));
+		this(null, null, DEFAULT_MAX_STATE_SIZE, TernaryBoolean.fromBoolean(asynchronousSnapshots), MEMORY_STATE_BACKEND_NAME);
 	}
 
 	/**
@@ -159,7 +163,7 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 	 * @param maxStateSize The maximal size of the serialized state
 	 */
 	public MemoryStateBackend(int maxStateSize) {
-		this(null, null, maxStateSize, TernaryBoolean.UNDEFINED);
+		this(null, null, maxStateSize, TernaryBoolean.UNDEFINED, MEMORY_STATE_BACKEND_NAME);
 	}
 
 	/**
@@ -178,7 +182,7 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 	 * @param asynchronousSnapshots Switch to enable asynchronous snapshots.
 	 */
 	public MemoryStateBackend(int maxStateSize, boolean asynchronousSnapshots) {
-		this(null, null, maxStateSize, TernaryBoolean.fromBoolean(asynchronousSnapshots));
+		this(null, null, maxStateSize, TernaryBoolean.fromBoolean(asynchronousSnapshots), MEMORY_STATE_BACKEND_NAME);
 	}
 
 	/**
@@ -191,7 +195,7 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 	 *                       the runtime configuration will be used.
 	 */
 	public MemoryStateBackend(@Nullable String checkpointPath, @Nullable String savepointPath) {
-		this(checkpointPath, savepointPath, DEFAULT_MAX_STATE_SIZE, TernaryBoolean.UNDEFINED);
+		this(checkpointPath, savepointPath, DEFAULT_MAX_STATE_SIZE, TernaryBoolean.UNDEFINED, MEMORY_STATE_BACKEND_NAME);
 	}
 
 	/**
@@ -216,7 +220,8 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 			@Nullable String checkpointPath,
 			@Nullable String savepointPath,
 			int maxStateSize,
-			TernaryBoolean asynchronousSnapshots) {
+			TernaryBoolean asynchronousSnapshots,
+			String backendType) {
 
 		super(checkpointPath == null ? null : new Path(checkpointPath),
 				savepointPath == null ? null : new Path(savepointPath));
@@ -225,6 +230,7 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 		this.maxStateSize = maxStateSize;
 
 		this.asynchronousSnapshots = asynchronousSnapshots;
+		this.backendType = backendType;
 	}
 
 	/**
@@ -234,7 +240,7 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 	 * @param configuration The configuration
 	 * @param classLoader The class loader
 	 */
-	private MemoryStateBackend(MemoryStateBackend original, ReadableConfig configuration, ClassLoader classLoader) {
+	private MemoryStateBackend(MemoryStateBackend original, ReadableConfig configuration, ClassLoader classLoader, String backendType) {
 		super(original.getCheckpointPath(), original.getSavepointPath(), configuration);
 
 		this.maxStateSize = original.maxStateSize;
@@ -243,6 +249,7 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 		// else check the configuration
 		this.asynchronousSnapshots = original.asynchronousSnapshots.resolveUndefined(
 				configuration.get(CheckpointingOptions.ASYNC_SNAPSHOTS));
+		this.backendType = backendType;
 	}
 
 	// ------------------------------------------------------------------------
@@ -282,8 +289,12 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 	 * @return The re-configured variant of the state backend
 	 */
 	@Override
+	public MemoryStateBackend configure(ReadableConfig config, ClassLoader classLoader, String backendType) {
+		return new MemoryStateBackend(this, config, classLoader, backendType);
+	}
+
 	public MemoryStateBackend configure(ReadableConfig config, ClassLoader classLoader) {
-		return new MemoryStateBackend(this, config, classLoader);
+		return new MemoryStateBackend(this, config, classLoader, "");
 	}
 
 	// ------------------------------------------------------------------------
@@ -331,20 +342,38 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 		TaskStateManager taskStateManager = env.getTaskStateManager();
 		HeapPriorityQueueSetFactory priorityQueueSetFactory =
 			new HeapPriorityQueueSetFactory(keyGroupRange, numberOfKeyGroups, 128);
-		return new HeapKeyedStateBackendBuilder<>(
-			kvStateRegistry,
-			keySerializer,
-			env.getUserClassLoader(),
-			numberOfKeyGroups,
-			keyGroupRange,
-			env.getExecutionConfig(),
-			ttlTimeProvider,
-			stateHandles,
-			AbstractStateBackend.getCompressionDecorator(env.getExecutionConfig()),
-			taskStateManager.createLocalRecoveryConfig(),
-			priorityQueueSetFactory,
-			isUsingAsynchronousSnapshots(),
-			cancelStreamRegistry).build();
+		if (this.backendType.equals(REMOTE_HEAP_STATE_BACKEND_NAME)) {
+			return new RemoteHeapKeyedStateBackendBuilder<>(
+				kvStateRegistry,
+				keySerializer,
+				env.getUserClassLoader(),
+				numberOfKeyGroups,
+				keyGroupRange,
+				env.getExecutionConfig(),
+				ttlTimeProvider,
+				stateHandles,
+				AbstractStateBackend.getCompressionDecorator(env.getExecutionConfig()),
+				taskStateManager.createLocalRecoveryConfig(),
+				priorityQueueSetFactory,
+				isUsingAsynchronousSnapshots(),
+				cancelStreamRegistry).build();
+		}
+		else{
+			return new HeapKeyedStateBackendBuilder<>(
+				kvStateRegistry,
+				keySerializer,
+				env.getUserClassLoader(),
+				numberOfKeyGroups,
+				keyGroupRange,
+				env.getExecutionConfig(),
+				ttlTimeProvider,
+				stateHandles,
+				AbstractStateBackend.getCompressionDecorator(env.getExecutionConfig()),
+				taskStateManager.createLocalRecoveryConfig(),
+				priorityQueueSetFactory,
+				isUsingAsynchronousSnapshots(),
+				cancelStreamRegistry).build();
+		}
 	}
 
 	// ------------------------------------------------------------------------

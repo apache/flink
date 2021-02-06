@@ -363,7 +363,7 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
 		}
 
 		@Override
-		public DeclineSinkFailingStateBackend configure(ReadableConfig config, ClassLoader classLoader) {
+		public DeclineSinkFailingStateBackend configure(ReadableConfig config, ClassLoader classLoader, String backendType) {
 			return new DeclineSinkFailingStateBackend(checkpointPath);
 		}
 

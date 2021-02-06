@@ -48,5 +48,5 @@ public interface StateBackendFactory<T extends StateBackend> {
 	 * @throws IOException
 	 *             If the state backend initialization failed due to an I/O exception
 	 */
-	T createFromConfig(ReadableConfig config, ClassLoader classLoader) throws IllegalConfigurationException, IOException;
+	T createFromConfig(ReadableConfig config, ClassLoader classLoader, String backendType) throws IllegalConfigurationException, IOException;
 }

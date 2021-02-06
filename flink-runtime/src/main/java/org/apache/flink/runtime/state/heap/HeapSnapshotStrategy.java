@@ -60,7 +60,7 @@ import java.util.concurrent.RunnableFuture;
  * Base class for the snapshots of the heap backend that outlines the algorithm and offers some hooks to realize
  * the concrete strategies. Subclasses must be threadsafe.
  */
-class HeapSnapshotStrategy<K>
+public class HeapSnapshotStrategy<K>
 	extends AbstractSnapshotStrategy<KeyedStateHandle> implements SnapshotStrategySynchronicityBehavior<K> {
 
 	private final SnapshotStrategySynchronicityBehavior<K> snapshotStrategySynchronicityTrait;
@@ -72,7 +72,7 @@ class HeapSnapshotStrategy<K>
 	private final CloseableRegistry cancelStreamRegistry;
 	private final StateSerializerProvider<K> keySerializerProvider;
 
-	HeapSnapshotStrategy(
+	public HeapSnapshotStrategy(
 		SnapshotStrategySynchronicityBehavior<K> snapshotStrategySynchronicityTrait,
 		Map<String, StateTable<K, ?, ?>> registeredKVStates,
 		Map<String, HeapPriorityQueueSnapshotRestoreWrapper> registeredPQStates,

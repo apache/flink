@@ -76,6 +76,7 @@ import java.util.concurrent.RunnableFuture;
 
 import static junit.framework.TestCase.assertNotNull;
 import static org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackendBuilder.DB_INSTANCE_DIR_STRING;
+import static org.apache.flink.runtime.state.StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -134,7 +135,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		RocksDBStateBackend backend = new RocksDBStateBackend(new FsStateBackend(checkpointPath), enableIncrementalCheckpointing);
 		Configuration configuration = new Configuration();
 		configuration.set(RocksDBOptions.TIMER_SERVICE_FACTORY, RocksDBStateBackend.PriorityQueueStateType.ROCKSDB);
-		backend = backend.configure(configuration, Thread.currentThread().getContextClassLoader());
+		backend = backend.configure(configuration, Thread.currentThread().getContextClassLoader(), ROCKSDB_STATE_BACKEND_NAME);
 		backend.setDbStoragePath(dbPath);
 		return backend;
 	}

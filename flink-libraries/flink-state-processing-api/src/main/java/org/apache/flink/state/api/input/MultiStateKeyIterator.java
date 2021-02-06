@@ -26,6 +26,7 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.util.Preconditions;
 
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 
@@ -53,7 +54,14 @@ public final class MultiStateKeyIterator<K> implements Iterator<K> {
 
 		this.internal = descriptors
 			.stream()
-			.flatMap(descriptor -> backend.getKeys(descriptor.getName(), VoidNamespace.INSTANCE))
+			.flatMap(descriptor -> {
+				try {
+					return backend.getKeys(descriptor.getName(), VoidNamespace.INSTANCE);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				return null;
+			})
 			.iterator();
 	}
 

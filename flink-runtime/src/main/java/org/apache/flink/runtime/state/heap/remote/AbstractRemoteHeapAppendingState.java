@@ -16,11 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.heap;
+package org.apache.flink.runtime.state.heap.remote;
 
 import org.apache.flink.api.common.state.AppendingState;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalAppendingState;
+import org.apache.flink.util.FlinkRuntimeException;
 
 /**
  * Base class for {@link AppendingState} ({@link InternalAppendingState}) that is stored on the heap.
@@ -31,34 +32,65 @@ import org.apache.flink.runtime.state.internal.InternalAppendingState;
  * @param <SV> The type of the values in the state.
  * @param <OUT> The type of the output elements.
  */
-public abstract class AbstractHeapAppendingState<K, N, IN, SV, OUT>
-	extends AbstractHeapState<K, N, SV>
+public abstract class AbstractRemoteHeapAppendingState<K, N, IN, SV, OUT>
+	extends AbstractRemoteHeapState<K, N, SV>
 	implements InternalAppendingState<K, N, IN, SV, OUT> {
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
 	 *
-	 * @param stateTable          The state table for which this state is associated to.
-	 * @param keySerializer       The serializer for the keys.
-	 * @param valueSerializer     The serializer for the state.
+	 * @param keySerializer The serializer for the keys.
+	 * @param valueSerializer The serializer for the state.
 	 * @param namespaceSerializer The serializer for the namespace.
-	 * @param defaultValue        The default value for the state.
+	 * @param kvStateInfo StateInfo containing descriptors
+	 * @param defaultValue The default value for the state.
+	 * @param backend KeyBackend
 	 */
-	public AbstractHeapAppendingState(
-		StateTable<K, N, SV> stateTable,
+	public AbstractRemoteHeapAppendingState(
 		TypeSerializer<K> keySerializer,
 		TypeSerializer<SV> valueSerializer,
 		TypeSerializer<N> namespaceSerializer,
-		SV defaultValue) {
-		super(stateTable, keySerializer, valueSerializer, namespaceSerializer, defaultValue);
+		RemoteHeapKeyedStateBackend.RemoteHeapKvStateInfo kvStateInfo,
+		SV defaultValue,
+		RemoteHeapKeyedStateBackend backend) {
+		super(keySerializer,
+			valueSerializer,
+			namespaceSerializer,
+			kvStateInfo,
+			defaultValue,
+			backend);
 	}
 
 	@Override
 	public SV getInternal() {
-		return stateTable.get(currentNamespace);
+		byte[] prefixBytes = serializeCurrentKeyWithGroupAndNamespace();
+		return getInternal(prefixBytes);
+	}
+
+	SV getInternal(byte[] key) {
+		try {
+			byte[] valueBytes = backend.remoteKVStore.hget(kvStateInfo.nameBytes, key);
+			if (valueBytes == null) {
+				return null;
+			}
+			dataInputView.setBuffer(valueBytes);
+			return valueSerializer.deserialize(dataInputView);
+		} catch (Exception e) {
+			throw new FlinkRuntimeException("Error while retrieving data from remote heap", e);
+		}
 	}
 
 	@Override
 	public void updateInternal(SV valueToStore) {
-		stateTable.put(currentNamespace, valueToStore);
+		byte[] prefixBytes = serializeCurrentKeyWithGroupAndNamespace();
+		updateInternal(prefixBytes, valueToStore);
+	}
+
+	void updateInternal(byte[] key, SV valueToStore) {
+		try {
+			// write the new value to RocksDB
+			backend.remoteKVStore.hset(kvStateInfo.nameBytes, key, getValueBytes(valueToStore));
+		} catch (Exception e) {
+			throw new FlinkRuntimeException("Error while adding value to remote heap", e);
+		}
 	}
 }

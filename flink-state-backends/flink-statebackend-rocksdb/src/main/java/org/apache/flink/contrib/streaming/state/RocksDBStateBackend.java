@@ -74,6 +74,7 @@ import java.util.UUID;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.WRITE_BATCH_SIZE;
 import static org.apache.flink.contrib.streaming.state.RocksDBOptions.CHECKPOINT_TRANSFER_THREAD_NUM;
 import static org.apache.flink.contrib.streaming.state.RocksDBOptions.TIMER_SERVICE_FACTORY;
+import static org.apache.flink.runtime.state.StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -298,7 +299,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		// reconfigure the state backend backing the streams
 		final StateBackend originalStreamBackend = original.checkpointStreamBackend;
 		this.checkpointStreamBackend = originalStreamBackend instanceof ConfigurableStateBackend ?
-				((ConfigurableStateBackend) originalStreamBackend).configure(config, classLoader) :
+				((ConfigurableStateBackend) originalStreamBackend).configure(config, classLoader, ROCKSDB_STATE_BACKEND_NAME) :
 				originalStreamBackend;
 
 		// configure incremental checkpoints
@@ -378,6 +379,10 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 * @return The re-configured variant of the state backend
 	 */
 	@Override
+	public RocksDBStateBackend configure(ReadableConfig config, ClassLoader classLoader, String backendType) {
+		return new RocksDBStateBackend(this, config, classLoader);
+	}
+
 	public RocksDBStateBackend configure(ReadableConfig config, ClassLoader classLoader) {
 		return new RocksDBStateBackend(this, config, classLoader);
 	}
