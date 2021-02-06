@@ -184,12 +184,7 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
         try {
             test.accept(store, checkpointsInZk, sharedStateRegistry);
         } finally {
-            store.shutdown(
-                    JobStatus.FINISHED,
-                    new CheckpointsCleaner(),
-                    () -> {
-                        /* no op */
-                    });
+            store.shutdown(JobStatus.FINISHED, new CheckpointsCleaner());
             sharedStateRegistry.close();
         }
     }
@@ -254,7 +249,7 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
             checkpointStore.addCheckpoint(checkpoint1, new CheckpointsCleaner(), () -> {});
             assertThat(checkpointStore.getAllCheckpoints(), Matchers.contains(checkpoint1));
 
-            checkpointStore.shutdown(JobStatus.FINISHED, new CheckpointsCleaner(), () -> {});
+            checkpointStore.shutdown(JobStatus.FINISHED, new CheckpointsCleaner());
 
             // verify that the checkpoint is discarded
             CompletedCheckpointStoreTest.verifyCheckpointDiscarded(checkpoint1);
