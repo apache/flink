@@ -1618,6 +1618,10 @@ object TableTestUtil {
     jsonNode.toString
   }
 
+  def readFromResourceAndRemoveLastLinkBreak(path:String):String = {
+    readFromResource(path).stripSuffix("\n")
+  }
+
   /**
    * Stage {id} is ignored, because id keeps incrementing in test class
    * while StreamExecutionEnvironment is up
