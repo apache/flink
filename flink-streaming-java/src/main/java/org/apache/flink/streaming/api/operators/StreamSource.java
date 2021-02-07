@@ -119,6 +119,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
                 // interface,
                 // so we still need the following call to end the input
                 synchronized (lockingObject) {
+                    operatorChain.setIsStoppingBySyncSavepoint(false);
                     operatorChain.endHeadOperatorInput(1);
                 }
             }
