@@ -427,7 +427,7 @@ public class SavepointITCase extends TestLogger {
 
         static void resetForTest(int parallelism, boolean allowSnapshots) {
             progressLatch = new CountDownLatch(parallelism);
-            snapshotAllowedLatch = new CountDownLatch(allowSnapshots ? 0 : parallelism);
+            snapshotAllowedLatch = new CountDownLatch(allowSnapshots ? 0 : 1);
             snapshotStartedLatch = new CountDownLatch(parallelism);
             inputEnded = false;
         }
@@ -760,10 +760,6 @@ public class SavepointITCase extends TestLogger {
                 new CopyOnWriteArrayList<>();
         private transient volatile CompletableFuture<Void> completeFuture;
 
-        public InfiniteTestSource() {
-            createdSources.add(this);
-        }
-
         @Override
         public void run(SourceContext<Integer> ctx) throws Exception {
             completeFuture = new CompletableFuture<>();
@@ -780,6 +776,7 @@ public class SavepointITCase extends TestLogger {
                 completeFuture.complete(null);
             } catch (Exception e) {
                 completeFuture.completeExceptionally(e);
+                throw e;
             }
         }
 
