@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -113,42 +112,5 @@ public class VertexSlotSharingTest {
             e.printStackTrace();
             fail(e.getMessage());
         }
-    }
-
-    @Test
-    public void testSlotSharingGroupWithSpecifiedResources() {
-        final ResourceSpec resource1 = ResourceSpec.newBuilder(0.1, 100).build();
-        final ResourceSpec resource2 = ResourceSpec.newBuilder(0.2, 200).build();
-
-        final JobVertex v1 = new JobVertex("v1");
-        final JobVertex v2 = new JobVertex("v2");
-
-        v1.setResources(resource1, resource1);
-        v2.setResources(resource2, resource2);
-
-        final SlotSharingGroup group1 = new SlotSharingGroup();
-        final SlotSharingGroup group2 = new SlotSharingGroup();
-
-        v1.setSlotSharingGroup(group1);
-        assertEquals(resource1, group1.getResourceSpec());
-
-        v2.setSlotSharingGroup(group1);
-        assertEquals(resource1.merge(resource2), group1.getResourceSpec());
-
-        // v1 is moved from group1 to group2
-        v1.setSlotSharingGroup(group2);
-        assertEquals(resource1, group2.getResourceSpec());
-        assertEquals(resource2, group1.getResourceSpec());
-    }
-
-    @Test
-    public void testSlotSharingGroupWithUnknownResources() {
-        final JobVertex v1 = new JobVertex("v1");
-        v1.setResources(ResourceSpec.UNKNOWN, ResourceSpec.UNKNOWN);
-
-        final SlotSharingGroup group1 = new SlotSharingGroup();
-
-        v1.setSlotSharingGroup(group1);
-        assertEquals(ResourceSpec.UNKNOWN, group1.getResourceSpec());
     }
 }
