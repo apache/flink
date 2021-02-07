@@ -30,6 +30,8 @@ import org.apache.flink.shaded.guava18.com.google.common.cache.CacheLoader;
 import org.apache.flink.shaded.guava18.com.google.common.cache.LoadingCache;
 import org.apache.flink.shaded.guava18.com.google.common.cache.RemovalListener;
 
+import org.apache.flink.util.FileUtils;
+
 import py4j.GatewayServer;
 
 import java.io.Closeable;
@@ -144,7 +146,7 @@ public interface PythonFunctionFactory {
         if (getGatewayServer() == null) {
             GatewayServer gatewayServer = null;
             Process pythonProcess = null;
-            String tmpDir;
+            String tmpDir = null;
             try {
                 gatewayServer = startGatewayServer();
                 List<String> commands = new ArrayList<>();
@@ -191,6 +193,10 @@ public interface PythonFunctionFactory {
                 } catch (Throwable e3) {
                     // ignore, do not swallow the origin exception.
                 }
+                if (tmpDir != null) {
+                    FileUtils.deleteDirectoryQuietly(new File(tmpDir));
+                }
+
                 throw e;
             }
             shutdownHook = new PythonProcessShutdownHook(pythonProcess, gatewayServer, tmpDir);
