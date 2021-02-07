@@ -70,7 +70,7 @@ public class GSFileSystemTest extends TestLogger {
     @Test
     public void testCreateWithNonDefaultOptions() throws IOException {
         final String specifiedBucket = "BUCKET";
-        final String specifiedPrefix = "PREFIX";
+        final String specifiedPrefix = "PREFIX/";
         final String specifiedContentTypE = "CONTENT_TYPE";
 
         Configuration flinkConfig = new Configuration();
@@ -110,14 +110,6 @@ public class GSFileSystemTest extends TestLogger {
     public void testCreateWithLeadingSeparatorPrefix() throws IOException {
         Configuration flinkConfig = new Configuration();
         flinkConfig.setString("gs.upload.temp.prefix", "/prefix");
-        fileSystemFactory.configure(flinkConfig);
-        fileSystemFactory.create(FS_URI);
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testCreateWithTrailingSeparatorPrefix() throws IOException {
-        Configuration flinkConfig = new Configuration();
-        flinkConfig.setString("gs.upload.temp.prefix", "prefix/");
         fileSystemFactory.configure(flinkConfig);
         fileSystemFactory.create(FS_URI);
     }

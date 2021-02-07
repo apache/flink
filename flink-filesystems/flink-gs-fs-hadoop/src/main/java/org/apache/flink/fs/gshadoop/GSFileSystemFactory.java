@@ -45,7 +45,7 @@ public class GSFileSystemFactory implements FileSystemFactory {
     @VisibleForTesting
     public static final String DEFAULT_UPLOAD_CONTENT_TYPE = "application/octet-stream";
 
-    @VisibleForTesting public static final String DEFAULT_UPLOAD_TEMP_PREFIX = ".inprogress";
+    @VisibleForTesting public static final String DEFAULT_UPLOAD_TEMP_PREFIX = ".inprogress/";
 
     private static final ConfigOption<String> UPLOAD_CONTENT_TYPE =
             ConfigOptions.key("gs.upload.content.type")
@@ -65,7 +65,7 @@ public class GSFileSystemFactory implements FileSystemFactory {
                     .stringType()
                     .defaultValue(DEFAULT_UPLOAD_TEMP_PREFIX)
                     .withDescription(
-                            "This option sets the prefix for temporary files for the recoverable writer");
+                            "This option sets the prefix for temporary files for the recoverable writer. This should not start with a slash.");
 
     private static final ConfigOption<Integer> UPLOAD_CHUNK_SIZE =
             ConfigOptions.key("gs.upload.chunk.size")

@@ -57,7 +57,7 @@ public class GSRecoverableWriterTest extends GSRecoverableWriterTestBase {
         // should be like .inprogress/FINAL_OBJECT_NAME/000ec763-72d7-4359-9d84-119eb5425691, except
         // different uuid
         String expectedStartsWith =
-                String.format("%s/%s/", recoverableOptions.uploadTempPrefix, FINAL_OBJECT_NAME);
+                String.format("%s%s/", recoverableOptions.uploadTempPrefix, FINAL_OBJECT_NAME);
         assertTrue(tempObjectName.startsWith(expectedStartsWith));
 
         // the remainder should be a UUID, make sure we can parse it, UUID.fromString throws an

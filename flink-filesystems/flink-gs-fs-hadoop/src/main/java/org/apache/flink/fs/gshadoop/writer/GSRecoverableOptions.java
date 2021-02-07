@@ -60,8 +60,8 @@ public class GSRecoverableOptions {
      * @param uploadContentType The upload content type
      * @param uploadTempBucket The bucket to use for temporary upload files. If null, the bucket of
      *     the target file is used.
-     * @param uploadTempPrefix The prefix to use for uploaded files, which must not have leading or
-     *     trailing slashes.
+     * @param uploadTempPrefix The prefix to use for uploaded files, which must not have leading
+     *     slash.
      * @param uploadChunkSize The chunk size to use for uploads
      */
     public GSRecoverableOptions(
@@ -78,10 +78,6 @@ public class GSRecoverableOptions {
         Preconditions.checkArgument(
                 !uploadTempPrefix.startsWith(Path.SEPARATOR),
                 "Upload temp prefix must not start with a separator: %s",
-                uploadTempPrefix);
-        Preconditions.checkArgument(
-                !uploadTempPrefix.endsWith(Path.SEPARATOR),
-                "Upload temp prefix must not end with a separator: %s",
                 uploadTempPrefix);
 
         this.uploadChunkSize = uploadChunkSize;
@@ -110,12 +106,8 @@ public class GSRecoverableOptions {
 
         UUID tempUniqueId = UUID.randomUUID();
         String tempObjectName =
-                String.join(
-                        org.apache.flink.core.fs.Path.SEPARATOR,
-                        uploadTempPrefix,
-                        finalObjectName,
-                        tempUniqueId.toString());
-
+                String.format(
+                        "%s%s/%s", uploadTempPrefix, finalObjectName, tempUniqueId.toString());
         BlobId tempBlobId = BlobId.of(tempBucketName, tempObjectName);
         BlobId finalBlobId = BlobId.of(finalBucketName, finalObjectName);
         return new GSRecoverablePlan(tempBlobId, finalBlobId);
