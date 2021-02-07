@@ -1491,7 +1491,7 @@ under the License.
 						<exclude>out/test/flink-avro/avro/user.avsc</exclude>
 						<exclude>flink-table/flink-table-planner/src/test/scala/resources/*.out</exclude>
 						<exclude>flink-table/flink-table-planner-blink/src/test/resources/digest/*.out</exclude>
-						<exclude>flink-table/flink-table-planner-blink/src/test/resources/explain/*.out</exclude>
+						<exclude>flink-table/flink-table-planner-blink/src/test/resources/explain/**</exclude>
 						<exclude>flink-table/flink-table-planner-blink/src/test/resources/jsonplan/*</exclude>
 						<exclude>flink-yarn/src/test/resources/krb5.keytab</exclude>
 						<exclude>flink-end-to-end-tests/test-scripts/test-data/**</exclude>
