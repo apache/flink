@@ -1,0 +1,69 @@
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>table.optimizer.agg-phase-strategy</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">"AUTO"</td>
+            <td>String</td>
+            <td>Strategy for aggregate phase. Only AUTO, TWO_PHASE or ONE_PHASE can be set.
+AUTO: No special enforcer for aggregate stage. Whether to choose two stage aggregate or one stage aggregate depends on cost. 
+TWO_PHASE: Enforce to use two stage aggregate which has localAggregate and globalAggregate. Note that if aggregate call does not support optimize into two phase, we will still use one stage aggregate.
+ONE_PHASE: Enforce to use one stage aggregate which only has CompleteGlobalAggregate.</td>
+        </tr>
+        <tr>
+            <td><h5>table.optimizer.distinct-agg.split.bucket-num</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">1024</td>
+            <td>Integer</td>
+            <td>Configure the number of buckets when splitting distinct aggregation. The number is used in the first level aggregation to calculate a bucket key 'hash_code(distinct_key) % BUCKET_NUM' which is used as an additional group key after splitting.</td>
+        </tr>
+        <tr>
+            <td><h5>table.optimizer.distinct-agg.split.enabled</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Tells the optimizer whether to split distinct aggregation (e.g. COUNT(DISTINCT col), SUM(DISTINCT col)) into two level. The first aggregation is shuffled by an additional key which is calculated using the hashcode of distinct_key and number of buckets. This optimization is very useful when there is data skew in distinct aggregation and gives the ability to scale-up the job. Default is false.</td>
+        </tr>
+        <tr>
+            <td><h5>table.optimizer.join-reorder-enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Enables join reorder in optimizer. Default is disabled.</td>
+        </tr>
+        <tr>
+            <td><h5>table.optimizer.join.broadcast-threshold</h5><br> <span class="label label-primary">Batch</span></td>
+            <td style="word-wrap: break-word;">1048576</td>
+            <td>Long</td>
+            <td>Configures the maximum size in bytes for a table that will be broadcast to all worker nodes when performing a join. By setting this value to -1 to disable broadcasting.</td>
+        </tr>
+        <tr>
+            <td><h5>table.optimizer.multiple-input-enabled</h5><br> <span class="label label-primary">Batch</span></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>When it is true, the optimizer will merge the operators with pipelined shuffling into a multiple input operator to reduce shuffling and improve performance. Default value is true.</td>
+        </tr>
+        <tr>
+            <td><h5>table.optimizer.reuse-source-enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>When it is true, the optimizer will try to find out duplicated table sources and reuse them. This works only when table.optimizer.reuse-sub-plan-enabled is true.</td>
+        </tr>
+        <tr>
+            <td><h5>table.optimizer.reuse-sub-plan-enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>When it is true, the optimizer will try to find out duplicated sub-plans and reuse them.</td>
+        </tr>
+        <tr>
+            <td><h5>table.optimizer.source.predicate-pushdown-enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>When it is true, the optimizer will push down predicates into the FilterableTableSource. Default value is true.</td>
+        </tr>
+    </tbody>
+</table>
