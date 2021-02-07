@@ -1408,15 +1408,17 @@ under the License.
 						<!-- External web libraries. -->
 						<exclude>docs/**/jquery*</exclude>
 						<exclude>docs/**/bootstrap*</exclude>
+						<exclude>docs/themes/book/**</exclude>
 						<exclude>docs/**/anchor*</exclude>
-						<exclude>docs/Gemfile.lock</exclude>
-						<exclude>docs/ruby2/Gemfile.lock</exclude>
-						<exclude>docs/img/*.svg</exclude>
-						<exclude>**/docs/page/fonts/**</exclude>
-						<exclude>**/docs/page/font-awesome/**</exclude>
+						<exclude>**/docs/assets/font-awesome/**</exclude>
 						<exclude>**/resources/**/font-awesome/**</exclude>
 						<exclude>**/resources/**/jquery*</exclude>
 						<exclude>**/resources/**/bootstrap*</exclude>
+						<exclude>docs/static/flink-header-logo.svg</exclude>
+						<exclude>docs/static/figs/*.svg</exclude>
+						<exclude>docs/resources/**</exclude>
+						<exclude>docs/public/**</exclude>
+						<exclude>docs/static/css/chroma.css</exclude>
 						<exclude>flink-clients/src/main/resources/web-docs/js/*d3.js</exclude>
 
 						<!-- the licenses that are re-bundled -->
@@ -1502,7 +1504,6 @@ under the License.
 						<!-- Generated content -->
 						<exclude>out/**</exclude>
 						<exclude>**/target/**</exclude>
-						<exclude>docs/content/**</exclude>
 						<exclude>**/scalastyle-output.xml</exclude>
 						<exclude>build-target/**</exclude>
 						<exclude>docs/_includes/generated/**</exclude>
