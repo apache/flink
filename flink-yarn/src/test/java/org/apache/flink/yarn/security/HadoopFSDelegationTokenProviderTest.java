@@ -75,6 +75,10 @@ public class HadoopFSDelegationTokenProviderTest {
                     "Hadoop FS delegation tokens are required when authentication is not simple",
                     provider.delegationTokensRequired(flinkConf, hadoopConf));
         } finally {
+            System.clearProperty("java.security.krb5.kdc");
+            System.clearProperty("java.security.krb5.realm");
+            System.clearProperty("java.security.krb5.conf");
+
             // restore the default UGI
             UserGroupInformation.setConfiguration(new Configuration());
         }

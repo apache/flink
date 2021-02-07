@@ -48,16 +48,20 @@ public class HBaseDelegationTokenProvider implements HadoopDelegationTokenProvid
             Configuration flinkConf, org.apache.hadoop.conf.Configuration hadoopConf) {
         if (UserGroupInformation.isSecurityEnabled()) {
             hbaseConf = createHBaseConfiguration(hadoopConf);
-            LOG.debug("HBase security setting: {}", hbaseConf.get("hbase.security.authentication"));
+            if (hbaseConf != null) {
+                LOG.info(
+                        "HBase security setting: {}",
+                        hbaseConf.get("hbase.security.authentication"));
 
-            boolean required = "kerberos".equals(hbaseConf.get("hbase.security.authentication"));
-            if (!required) {
-                LOG.debug("HBase has not been configured to use Kerberos.");
+                boolean required =
+                        "kerberos".equals(hbaseConf.get("hbase.security.authentication"));
+                if (!required) {
+                    LOG.info("HBase has not been configured to use Kerberos.");
+                }
+                return required;
             }
-            return required;
-        } else {
-            return false;
         }
+        return false;
     }
 
     private org.apache.hadoop.conf.Configuration createHBaseConfiguration(
@@ -80,7 +84,7 @@ public class HBaseDelegationTokenProvider implements HadoopDelegationTokenProvid
                     e.getClass().getSimpleName(),
                     e.getMessage());
         }
-        return conf;
+        return null;
     }
 
     @Override

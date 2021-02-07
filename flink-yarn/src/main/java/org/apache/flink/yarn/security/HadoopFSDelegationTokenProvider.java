@@ -21,6 +21,7 @@ package org.apache.flink.yarn.security;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.function.FunctionUtils;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
@@ -74,7 +75,7 @@ public class HadoopFSDelegationTokenProvider implements HadoopDelegationTokenPro
                         }
                     });
         } catch (IOException e) {
-            LOG.error("Failed to obtain tokens for Hadoop FileSystems: {}", e.getMessage());
+            throw new FlinkRuntimeException("Failed to obtain tokens for Hadoop FileSystems", e);
         }
         // Flink does not support to renew the delegation token currently
         return Optional.empty();
@@ -101,15 +102,17 @@ public class HadoopFSDelegationTokenProvider implements HadoopDelegationTokenPro
         return fileSystemsToAccess;
     }
 
-    private String getTokenRenewer(org.apache.hadoop.conf.Configuration hadoopConf)
-            throws IOException {
-        String tokenRenewer = Master.getMasterPrincipal(hadoopConf);
-        LOG.debug("Delegation token renewer is: " + tokenRenewer);
+    private String getTokenRenewer(org.apache.hadoop.conf.Configuration hadoopConf) {
+        String tokenRenewer = null;
+        try {
+            tokenRenewer = Master.getMasterPrincipal(hadoopConf);
+        } catch (IOException e) {
+            LOG.warn("Exception when getting Master principal: {}", e.getMessage());
+        }
 
+        LOG.debug("Delegation token renewer is: " + tokenRenewer);
         if (tokenRenewer == null || tokenRenewer.length() == 0) {
-            String errorMessage = "Can't get Master Kerberos principal for use as renewer.";
-            LOG.error(errorMessage);
-            throw new IOException(errorMessage);
+            LOG.warn("Can't get Master Kerberos principal for use as renewer.");
         }
 
         return tokenRenewer;

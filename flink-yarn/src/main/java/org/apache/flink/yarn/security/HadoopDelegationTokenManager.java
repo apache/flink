@@ -55,18 +55,16 @@ public class HadoopDelegationTokenManager {
      * @param credentials Credentials object where to store the delegation tokens.
      */
     public void obtainDelegationTokens(Credentials credentials) {
-        Credentials creds = new Credentials();
         delegationTokenProviders.forEach(
                 provider -> {
                     if (provider.delegationTokensRequired(flinkConf, hadoopConf)) {
-                        provider.obtainDelegationTokens(flinkConf, hadoopConf, creds);
+                        provider.obtainDelegationTokens(flinkConf, hadoopConf, credentials);
                     } else {
                         LOG.info(
                                 "Service {} does not need to require a token,",
                                 provider.serviceName());
                     }
                 });
-        credentials.addAll(creds);
     }
 
     private List<HadoopDelegationTokenProvider> loadProviders() {
