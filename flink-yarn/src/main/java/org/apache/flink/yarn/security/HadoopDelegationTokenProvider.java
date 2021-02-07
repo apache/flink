@@ -22,6 +22,8 @@ import org.apache.flink.configuration.Configuration;
 
 import org.apache.hadoop.security.Credentials;
 
+import java.util.Optional;
+
 /** Hadoop delegation token provider. */
 public interface HadoopDelegationTokenProvider {
 
@@ -44,8 +46,10 @@ public interface HadoopDelegationTokenProvider {
      * @param flinkConf Flink configuration
      * @param hadoopConf Hadoop configuration
      * @param credentials Credentials to add tokens and security keys to.
+     * @return If the returned tokens are renewable and can be renewed, return the time of the next
+     *     renewal, otherwise Optional.EMPTY should be returned.
      */
-    void obtainDelegationTokens(
+    Optional<Long> obtainDelegationTokens(
             Configuration flinkConf,
             org.apache.hadoop.conf.Configuration hadoopConf,
             Credentials credentials);

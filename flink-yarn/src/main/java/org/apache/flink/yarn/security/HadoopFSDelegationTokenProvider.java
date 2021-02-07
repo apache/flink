@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn.security;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.function.FunctionUtils;
@@ -33,6 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -54,12 +56,12 @@ public class HadoopFSDelegationTokenProvider implements HadoopDelegationTokenPro
     }
 
     @Override
-    public void obtainDelegationTokens(
+    public Optional<Long> obtainDelegationTokens(
             Configuration flinkConf,
             org.apache.hadoop.conf.Configuration hadoopConf,
             Credentials credentials) {
         try {
-            Set<FileSystem> fileSystemsToAccess = getSystemsToAccess(flinkConf, hadoopConf);
+            Set<FileSystem> fileSystemsToAccess = getFileSystemsToAccess(flinkConf, hadoopConf);
 
             final String renewer = getTokenRenewer(hadoopConf);
             fileSystemsToAccess.forEach(
@@ -74,9 +76,12 @@ public class HadoopFSDelegationTokenProvider implements HadoopDelegationTokenPro
         } catch (IOException e) {
             LOG.error("Failed to obtain tokens for Hadoop FileSystems: {}", e.getMessage());
         }
+        // Flink does not support to renew the delegation token currently
+        return Optional.empty();
     }
 
-    private Set<FileSystem> getSystemsToAccess(
+    @VisibleForTesting
+    Set<FileSystem> getFileSystemsToAccess(
             Configuration flinkConf, org.apache.hadoop.conf.Configuration hadoopConf)
             throws IOException {
         Set<FileSystem> fileSystemsToAccess = new HashSet<>();

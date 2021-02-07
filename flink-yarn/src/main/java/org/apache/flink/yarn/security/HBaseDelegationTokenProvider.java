@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Optional;
 
 /** Delegation token provider implementation for HBase. */
 public class HBaseDelegationTokenProvider implements HadoopDelegationTokenProvider {
@@ -83,7 +84,7 @@ public class HBaseDelegationTokenProvider implements HadoopDelegationTokenProvid
     }
 
     @Override
-    public void obtainDelegationTokens(
+    public Optional<Long> obtainDelegationTokens(
             Configuration flinkConf,
             org.apache.hadoop.conf.Configuration hadoopConf,
             Credentials credentials) {
@@ -145,5 +146,8 @@ public class HBaseDelegationTokenProvider implements HadoopDelegationTokenProvid
                     e.getClass().getSimpleName(),
                     e.getMessage());
         }
+
+        // Flink does not support to renew the delegation token currently
+        return Optional.empty();
     }
 }
