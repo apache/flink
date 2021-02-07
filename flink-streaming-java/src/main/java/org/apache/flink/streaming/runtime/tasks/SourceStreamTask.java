@@ -179,9 +179,6 @@ public class SourceStreamTask<
                             } else {
                                 // this is a "true" end of input regardless of whether
                                 // stop-with-savepoint was issued or not
-                                synchronized (lock) {
-                                    operatorChain.setIsStoppingBySyncSavepoint(false);
-                                }
                                 mailboxProcessor.allActionsCompleted();
                             }
                         });
@@ -254,6 +251,9 @@ public class SourceStreamTask<
         public void run() {
             try {
                 mainOperator.run(lock, getStreamStatusMaintainer(), operatorChain);
+                synchronized (lock) {
+                    operatorChain.setIsStoppingBySyncSavepoint(false);
+                }
                 completionFuture.complete(null);
             } catch (Throwable t) {
                 // Note, t can be also an InterruptedException
