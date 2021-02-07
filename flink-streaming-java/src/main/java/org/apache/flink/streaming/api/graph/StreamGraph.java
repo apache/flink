@@ -552,7 +552,6 @@ public class StreamGraph implements Pipeline {
 			if (partitioner == null && upstreamNode.getParallelism() == downstreamNode.getParallelism()) {
 				partitioner = new ForwardPartitioner<Object>();
 			} else if (partitioner == null) {
-				if (getExecutionConfig().getUseDynamicPartitioning())
 				partitioner = getExecutionConfig().getUseDynamicPartitioning()?
 					new DynamicFixedPartitioner<Object>():
 					new RebalancePartitioner<Object>();
