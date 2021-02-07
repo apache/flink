@@ -47,7 +47,6 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.COMMON_SECTION_FILE_NAME;
 import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.DEFAULT_PATH_PREFIX;
 import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.LOCATIONS;
 import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.extractConfigOptions;
@@ -222,20 +221,11 @@ public class ConfigOptionsDocsCompletenessITCase {
         }
     }
 
-    private static Map<String, List<DocumentedOption>> parseDocumentedCommonOptions()
-            throws IOException {
-        final String rootDir = ConfigOptionsDocGeneratorTest.getProjectRootDir();
-
-        Path commonSection =
-                Paths.get(rootDir, "docs", "_includes", "generated", COMMON_SECTION_FILE_NAME);
-        return parseDocumentedOptionsFromFile(commonSection).stream()
-                .collect(Collectors.groupingBy(option -> option.key, Collectors.toList()));
-    }
-
     private static Map<String, List<DocumentedOption>> parseDocumentedOptions() throws IOException {
         final String rootDir = ConfigOptionsDocGeneratorTest.getProjectRootDir();
 
-        Path includeFolder = Paths.get(rootDir, "docs", "_includes", "generated").toAbsolutePath();
+        Path includeFolder =
+                Paths.get(rootDir, "docs", "layouts", "shortcodes", "generated").toAbsolutePath();
         return Files.list(includeFolder)
                 .filter(
                         (path) -> {
