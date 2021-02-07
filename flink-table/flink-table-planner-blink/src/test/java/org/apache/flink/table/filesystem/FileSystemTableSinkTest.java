@@ -176,7 +176,7 @@ public class FileSystemTableSinkTest {
                         + ") WITH ("
                         + "  'connector'='values',"
                         + "  'bounded'='"
-                        + false
+                        + true
                         + "'"
                         + ")";
         final String sinkTableSql = createSinkTableSql(testSinkTableName, parallelism, false);
