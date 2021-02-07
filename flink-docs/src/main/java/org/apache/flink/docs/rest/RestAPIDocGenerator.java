@@ -160,7 +160,7 @@ public class RestAPIDocGenerator {
 
         StringBuilder sb = new StringBuilder();
         {
-            sb.append("<table class=\"table table-bordered\">\n");
+            sb.append("<table class=\"rest-api table table-bordered\">\n");
             sb.append("  <tbody>\n");
             sb.append("    <tr>\n");
             sb.append(
@@ -220,32 +220,44 @@ public class RestAPIDocGenerator {
         {
             sb.append("    <tr>\n");
             sb.append("      <td colspan=\"2\">\n");
-            sb.append(
-                    "        <button data-toggle=\"collapse\" data-target=\"#"
-                            + reqHash
-                            + "\">Request</button>\n");
-            sb.append("        <div id=\"" + reqHash + "\" class=\"collapse\">\n");
+            sb.append("      <div class=\"book-expand\">\n");
+            sb.append("        <label>\n");
+            sb.append("          <div class=\"book-expand-head flex justify-between\">\n");
+            sb.append("            <span>Request</span>\n");
+            sb.append("            &nbsp;");
+            sb.append("            <span>▾</span>\n");
+            sb.append("          </div>\n");
+            sb.append("          <input type=\"checkbox\" class=\"hidden\">\n");
+            sb.append("          <div class=\"book-expand-content markdown-inner\">\n");
             sb.append("          <pre>\n");
             sb.append("            <code>\n");
             sb.append(requestEntry);
             sb.append("            </code>\n");
             sb.append("          </pre>\n");
-            sb.append("         </div>\n");
+            sb.append("          </div>\n");
+            sb.append("        </label>\n");
+            sb.append("      </div>\n");
             sb.append("      </td>\n");
             sb.append("    </tr>\n");
             sb.append("    <tr>\n");
             sb.append("      <td colspan=\"2\">\n");
-            sb.append(
-                    "        <button data-toggle=\"collapse\" data-target=\"#"
-                            + resHash
-                            + "\">Response</button>\n");
-            sb.append("        <div id=\"" + resHash + "\" class=\"collapse\">\n");
+            sb.append("      <div class=\"book-expand\">\n");
+            sb.append("        <label>\n");
+            sb.append("          <div class=\"book-expand-head flex justify-between\">\n");
+            sb.append("            <span>Response</span>\n");
+            sb.append("            &nbsp;");
+            sb.append("            <span>▾</span>\n");
+            sb.append("          </div>\n");
+            sb.append("          <input type=\"checkbox\" class=\"hidden\">\n");
+            sb.append("          <div class=\"book-expand-content markdown-inner\">\n");
             sb.append("          <pre>\n");
             sb.append("            <code>\n");
             sb.append(responseEntry);
             sb.append("            </code>\n");
             sb.append("          </pre>\n");
-            sb.append("         </div>\n");
+            sb.append("          </div>\n");
+            sb.append("        </label>\n");
+            sb.append("      </div>\n");
             sb.append("      </td>\n");
             sb.append("    </tr>\n");
             sb.append("  </tbody>\n");
