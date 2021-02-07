@@ -378,10 +378,10 @@ public class JobVertex implements java.io.Serializable {
         checkNotNull(grp);
 
         if (this.slotSharingGroup != null) {
-            this.slotSharingGroup.removeVertexFromGroup(this.getID(), this.getMinResources());
+            this.slotSharingGroup.removeVertexFromGroup(this.getID());
         }
 
-        grp.addVertexToGroup(this.getID(), this.getMinResources());
+        grp.addVertexToGroup(this.getID());
         this.slotSharingGroup = grp;
     }
 
