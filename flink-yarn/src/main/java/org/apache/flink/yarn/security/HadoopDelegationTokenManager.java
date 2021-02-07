@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn.security;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 
 import org.apache.hadoop.security.Credentials;
@@ -83,5 +84,11 @@ public class HadoopDelegationTokenManager {
             }
         }
         return providers;
+    }
+
+    @VisibleForTesting
+    boolean isProviderLoaded(String serviceName) {
+        return delegationTokenProviders.stream()
+                .anyMatch(provider -> provider.serviceName().equals(serviceName));
     }
 }
