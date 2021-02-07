@@ -1618,7 +1618,7 @@ object TableTestUtil {
     jsonNode.toString
   }
 
-  def readFromResourceAndRemoveLastLinkBreak(path:String):String = {
+  def readFromResourceAndRemoveLastLinkBreak(path: String): String = {
     readFromResource(path).stripSuffix("\n")
   }
 
