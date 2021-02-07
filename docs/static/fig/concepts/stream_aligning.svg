@@ -1,0 +1,386 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+
+<!DOCTYPE svg
+        PUBLIC '-//W3C//DTD SVG 1.1//EN'
+        'http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd'>
+<svg content="&lt;mxfile modified=&quot;2020-06-19T07:12:00.833Z&quot; host=&quot;app.diagrams.net&quot; agent=&quot;5.0 (Macintosh)&quot; etag=&quot;05p1r_BUnWSHJGdrPjBS&quot; version=&quot;13.2.6&quot; type=&quot;google&quot;&gt;&lt;diagram id=&quot;n4wjEhElwpPeuiAcmKNk&quot; name=&quot;Page-1&quot;&gt;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&lt;/diagram&gt;&lt;/mxfile&gt;" height="291px" style="background-color: rgb(255, 255, 255);" version="1.1" viewBox="-0.5 -0.5 1311 291" width="1311px" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <defs>
+    <linearGradient id="mx-gradient-ffffff-1-ffffff00-1-e-0" x1="0%" x2="100%" y1="0%" y2="0%">
+      <stop offset="0%" style="stop-color:#FFFFFF"/>
+      <stop offset="100%" style="stop-color:#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <g>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="980" y="140"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="989.5" y="168.5">h</text>
+    </g>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="540" y="140"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="549.5" y="168.5">h</text>
+    </g>
+    <path d="M -20 90 C -20 123.14 6.86 150 40 150 C 73.14 150 100 123.14 100 90 Z" fill="#f5a030" pointer-events="all" stroke="#000000" stroke-miterlimit="10" transform="rotate(-90,40,120)"/>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="60" y="60"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="69.5" y="88.5">6</text>
+    </g>
+    <ellipse cx="280" cy="120" fill="#f5a030" pointer-events="all" rx="60" ry="60" stroke="#000000"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="279.5" y="128.5">Operator</text>
+    </g>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="80" y="60"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="89.5" y="88.5">5</text>
+    </g>
+    <path d="M 120 80 L 163.63 80" fill="none" pointer-events="stroke" stroke="#000000" stroke-miterlimit="10"/>
+    <path d="M 168.88 80 L 161.88 83.5 L 163.63 80 L 161.88 76.5 Z" fill="#000000" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="100" y="60"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="109.5" y="88.5">4</text>
+    </g>
+    <rect fill="#e6e6e6" fill-opacity="0.5" height="40" pointer-events="all" stroke="#000000" width="20" x="170" y="60"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="179.5" y="88.5">3</text>
+    </g>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="190" y="60"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="199.5" y="88.5">2</text>
+    </g>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="210" y="60"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="219.5" y="88.5">1</text>
+    </g>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="60" y="140"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="69.5" y="168.5">f</text>
+    </g>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="80" y="140"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="89.5" y="168.5">e</text>
+    </g>
+    <path d="M 120 160 L 163.63 160" fill="none" pointer-events="stroke" stroke="#000000" stroke-miterlimit="10"/>
+    <path d="M 168.88 160 L 161.88 163.5 L 163.63 160 L 161.88 156.5 Z" fill="#000000" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="100" y="140"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="109.5" y="168.5">d</text>
+    </g>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="170" y="140"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="179.5" y="168.5">c</text>
+    </g>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="190" y="140"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="199.5" y="168.5">b</text>
+    </g>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="210" y="140"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="219.5" y="168.5">a</text>
+    </g>
+    <path d="M 229 110 L 229 50" fill="none" pointer-events="stroke" stroke="#8a3142" stroke-miterlimit="10" stroke-width="3"/>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="340" y="100"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="349.5" y="128.5">z</text>
+    </g>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="360" y="100"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="369.5" y="128.5">y</text>
+    </g>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="380" y="100"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="389.5" y="128.5">x</text>
+    </g>
+    <rect fill="none" height="40" pointer-events="all" stroke="none" width="110" x="145" y="0"/>
+    <g fill="#000000" font-family="Helvetica" font-size="15px" text-anchor="middle">
+      <text x="199.5" y="17">Checkpoint</text>
+      <text x="199.5" y="35">barrier</text>
+    </g>
+    <rect fill="none" height="20" pointer-events="all" stroke="none" width="40" x="190" y="210"/>
+    <g fill="#000000" font-family="Helvetica" font-size="15px" text-anchor="middle">
+      <text x="209.5" y="217">Input</text>
+      <text x="209.5" y="235">buffers</text>
+    </g>
+    <path d="M 210 200 L 202.85 185.7" fill="none" pointer-events="stroke" stroke="#000000" stroke-dasharray="3 3" stroke-miterlimit="10"/>
+    <path d="M 200.5 181 L 206.76 185.7 L 202.85 185.7 L 200.5 188.83 Z" fill="#000000" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <path d="M 210 200 L 217.15 185.7" fill="none" pointer-events="stroke" stroke="#000000" stroke-dasharray="3 3" stroke-miterlimit="10"/>
+    <path d="M 219.5 181 L 219.5 188.83 L 217.15 185.7 L 213.24 185.7 Z" fill="#000000" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <path d="M 220 40 L 225.5 45.5" fill="none" pointer-events="stroke" stroke="#000000" stroke-dasharray="3 3" stroke-miterlimit="10"/>
+    <path d="M 229.21 49.21 L 221.78 46.73 L 225.5 45.5 L 226.73 41.78 Z" fill="#000000" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <path d="M 358.75 210 L 350.79 146.32" fill="none" pointer-events="stroke" stroke="#000000" stroke-dasharray="3 3" stroke-miterlimit="10"/>
+    <path d="M 350.14 141.11 L 354.48 147.62 L 350.79 146.32 L 347.53 148.49 Z" fill="#000000" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <path d="M 361 210 L 367.37 146.34" fill="none" pointer-events="stroke" stroke="#000000" stroke-dasharray="3 3" stroke-miterlimit="10"/>
+    <path d="M 367.89 141.11 L 370.67 148.43 L 367.37 146.34 L 363.71 147.73 Z" fill="#000000" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <rect fill="none" height="20" pointer-events="all" stroke="none" width="40" x="340" y="210"/>
+    <g fill="#000000" font-family="Helvetica" font-size="15px" text-anchor="middle">
+      <text x="359.5" y="217">Output</text>
+      <text x="359.5" y="235">buffers</text>
+    </g>
+    <path d="M 78.06 210 L 73.44 186.25" fill="none" pointer-events="stroke" stroke="#000000" stroke-dasharray="3 3" stroke-miterlimit="10"/>
+    <path d="M 72.44 181.1 L 77.21 187.3 L 73.44 186.25 L 70.34 188.64 Z" fill="#000000" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <path d="M 81.88 210 L 86.33 186.26" fill="none" pointer-events="stroke" stroke="#000000" stroke-dasharray="3 3" stroke-miterlimit="10"/>
+    <path d="M 87.29 181.1 L 89.44 188.62 L 86.33 186.26 L 82.56 187.33 Z" fill="#000000" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <rect fill="none" height="20" pointer-events="all" stroke="none" width="40" x="60" y="210"/>
+    <g fill="#000000" font-family="Helvetica" font-size="15px" text-anchor="middle">
+      <text x="79.5" y="217">Output</text>
+      <text x="79.5" y="235">buffers</text>
+    </g>
+    <path d="M 100 190 L 100 130" fill="none" pointer-events="stroke" stroke="#8a3142" stroke-miterlimit="10" stroke-width="3"/>
+    <rect fill="none" height="40" pointer-events="all" stroke="none" width="200" x="110" y="250"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="209.5" y="278.5">Begin alignment</text>
+    </g>
+    <path d="M 181.82 40 L 104.28 125.29" fill="none" pointer-events="stroke" stroke="#000000" stroke-dasharray="3 3" stroke-miterlimit="10"/>
+    <path d="M 100.75 129.17 L 102.87 121.64 L 104.28 125.29 L 108.05 126.35 Z" fill="#000000" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <path d="M 420 90 C 420 123.14 446.86 150 480 150 C 513.14 150 540 123.14 540 90 Z" fill="#f5a030" pointer-events="all" stroke="#000000" stroke-miterlimit="10" transform="rotate(-90,480,120)"/>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="500" y="60"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="509.5" y="88.5">6</text>
+    </g>
+    <ellipse cx="720" cy="120" fill="#f5a030" pointer-events="all" rx="60" ry="60" stroke="#000000"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="719.5" y="128.5">Operator</text>
+    </g>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="520" y="60"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="529.5" y="88.5">5</text>
+    </g>
+    <path d="M 560 80 L 603.63 80" fill="none" pointer-events="stroke" stroke="#000000" stroke-miterlimit="10"/>
+    <path d="M 608.88 80 L 601.88 83.5 L 603.63 80 L 601.88 76.5 Z" fill="#000000" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="540" y="60"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="549.5" y="88.5">4</text>
+    </g>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="610" y="60"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="619.5" y="88.5">3</text>
+    </g>
+    <path d="M 650 85 L 660.64 90.32" fill="none" pointer-events="stroke" stroke="#000000" stroke-dasharray="3 3" stroke-miterlimit="10"/>
+    <path d="M 665.33 92.67 L 657.51 92.67 L 660.64 90.32 L 660.64 86.41 Z" fill="#000000" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="630" y="60"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="639.5" y="88.5">2</text>
+    </g>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="650" y="60"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="659.5" y="88.5">1</text>
+    </g>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="500" y="140"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="509.5" y="168.5">j</text>
+    </g>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="520" y="140"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="529.5" y="168.5">i</text>
+    </g>
+    <path d="M 560 160 L 603.63 160" fill="none" pointer-events="stroke" stroke="#000000" stroke-miterlimit="10"/>
+    <path d="M 608.88 160 L 601.88 163.5 L 603.63 160 L 601.88 156.5 Z" fill="#000000" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="610" y="140"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="619.5" y="168.5">g</text>
+    </g>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="630" y="140"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="639.5" y="168.5">f</text>
+    </g>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="650" y="140"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="659.5" y="168.5">e</text>
+    </g>
+    <path d="M 669 110 L 669 50" fill="none" pointer-events="stroke" stroke="#8a3142" stroke-miterlimit="10" stroke-width="3"/>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="780" y="100"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="789.5" y="128.5">d</text>
+    </g>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="800" y="100"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="809.5" y="128.5">c</text>
+    </g>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="820" y="100"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="829.5" y="128.5">b</text>
+    </g>
+    <rect fill="none" height="40" pointer-events="all" stroke="none" width="110" x="585" y="0"/>
+    <g fill="#000000" font-family="Helvetica" font-size="15px" text-anchor="middle">
+      <text x="639.5" y="17">Checkpoint</text>
+      <text x="639.5" y="35">barrier</text>
+    </g>
+    <rect fill="none" height="20" pointer-events="all" stroke="none" width="40" x="630" y="210"/>
+    <g fill="#000000" font-family="Helvetica" font-size="15px" text-anchor="middle">
+      <text x="649.5" y="217">Input</text>
+      <text x="649.5" y="235">buffers</text>
+    </g>
+    <path d="M 650 200 L 642.85 185.7" fill="none" pointer-events="stroke" stroke="#000000" stroke-dasharray="3 3" stroke-miterlimit="10"/>
+    <path d="M 640.5 181 L 646.76 185.7 L 642.85 185.7 L 640.5 188.83 Z" fill="#000000" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <path d="M 650 200 L 657.15 185.7" fill="none" pointer-events="stroke" stroke="#000000" stroke-dasharray="3 3" stroke-miterlimit="10"/>
+    <path d="M 659.5 181 L 659.5 188.83 L 657.15 185.7 L 653.24 185.7 Z" fill="#000000" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <path d="M 660 40 L 665.5 45.5" fill="none" pointer-events="stroke" stroke="#000000" stroke-dasharray="3 3" stroke-miterlimit="10"/>
+    <path d="M 669.21 49.21 L 661.78 46.73 L 665.5 45.5 L 666.73 41.78 Z" fill="#000000" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <path d="M 798.75 210 L 790.79 146.32" fill="none" pointer-events="stroke" stroke="#000000" stroke-dasharray="3 3" stroke-miterlimit="10"/>
+    <path d="M 790.14 141.11 L 794.48 147.62 L 790.79 146.32 L 787.53 148.49 Z" fill="#000000" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <path d="M 801 210 L 807.37 146.34" fill="none" pointer-events="stroke" stroke="#000000" stroke-dasharray="3 3" stroke-miterlimit="10"/>
+    <path d="M 807.89 141.11 L 810.67 148.43 L 807.37 146.34 L 803.71 147.73 Z" fill="#000000" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <rect fill="none" height="20" pointer-events="all" stroke="none" width="40" x="780" y="210"/>
+    <g fill="#000000" font-family="Helvetica" font-size="15px" text-anchor="middle">
+      <text x="799.5" y="217">Output</text>
+      <text x="799.5" y="235">buffers</text>
+    </g>
+    <path d="M 518.06 210 L 513.44 186.25" fill="none" pointer-events="stroke" stroke="#000000" stroke-dasharray="3 3" stroke-miterlimit="10"/>
+    <path d="M 512.44 181.1 L 517.21 187.3 L 513.44 186.25 L 510.34 188.64 Z" fill="#000000" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <path d="M 521.88 210 L 526.33 186.26" fill="none" pointer-events="stroke" stroke="#000000" stroke-dasharray="3 3" stroke-miterlimit="10"/>
+    <path d="M 527.29 181.1 L 529.44 188.62 L 526.33 186.26 L 522.56 187.33 Z" fill="#000000" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <rect fill="none" height="20" pointer-events="all" stroke="none" width="40" x="500" y="210"/>
+    <g fill="#000000" font-family="Helvetica" font-size="15px" text-anchor="middle">
+      <text x="519.5" y="217">Output</text>
+      <text x="519.5" y="235">buffers</text>
+    </g>
+    <rect fill="none" height="40" pointer-events="all" stroke="none" width="200" x="550" y="250"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="649.5" y="278.5">End alignment</text>
+    </g>
+    <path d="M 645 40 L 668.46 133.82" fill="none" pointer-events="stroke" stroke="#000000" stroke-dasharray="3 3" stroke-miterlimit="10"/>
+    <path d="M 669.73 138.92 L 664.64 132.97 L 668.46 133.82 L 671.43 131.28 Z" fill="#000000" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <path d="M 670 190 L 670 130" fill="none" pointer-events="stroke" stroke="#8a3142" stroke-miterlimit="10" stroke-width="3"/>
+    <path d="M 860 90 C 860 123.14 886.86 150 920 150 C 953.14 150 980 123.14 980 90 Z" fill="#f5a030" pointer-events="all" stroke="#000000" stroke-miterlimit="10" transform="rotate(-90,920,120)"/>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="940" y="60"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="949.5" y="88.5">6</text>
+    </g>
+    <ellipse cx="1160" cy="120" fill="#f5a030" pointer-events="all" rx="60" ry="60" stroke="#000000"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="1159.5" y="128.5">Operator</text>
+    </g>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="960" y="60"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="969.5" y="88.5">5</text>
+    </g>
+    <path d="M 1000 80 L 1043.63 80" fill="none" pointer-events="stroke" stroke="#000000" stroke-miterlimit="10"/>
+    <path d="M 1048.88 80 L 1041.88 83.5 L 1043.63 80 L 1041.88 76.5 Z" fill="#000000" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="980" y="60"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="989.5" y="88.5">4</text>
+    </g>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="1050" y="60"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="1059.5" y="88.5">3</text>
+    </g>
+    <path d="M 1090 85 L 1100.64 90.32" fill="none" pointer-events="stroke" stroke="#000000" stroke-dasharray="3 3" stroke-miterlimit="10"/>
+    <path d="M 1105.33 92.67 L 1097.51 92.67 L 1100.64 90.32 L 1100.64 86.41 Z" fill="#000000" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="1070" y="60"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="1079.5" y="88.5">2</text>
+    </g>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="1090" y="60"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="1099.5" y="88.5">1</text>
+    </g>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="940" y="140"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="949.5" y="168.5">j</text>
+    </g>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="960" y="140"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="969.5" y="168.5">i</text>
+    </g>
+    <path d="M 1000 160 L 1043.63 160" fill="none" pointer-events="stroke" stroke="#000000" stroke-miterlimit="10"/>
+    <path d="M 1048.88 160 L 1041.88 163.5 L 1043.63 160 L 1041.88 156.5 Z" fill="#000000" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="1050" y="140"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="1059.5" y="168.5">g</text>
+    </g>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="1070" y="140"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="1079.5" y="168.5">f</text>
+    </g>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="1090" y="140"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="1099.5" y="168.5">e</text>
+    </g>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="1220" y="100"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="1229.5" y="128.5">d</text>
+    </g>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="1240" y="100"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="1249.5" y="128.5">c</text>
+    </g>
+    <rect fill="#e6e6e6" height="40" pointer-events="all" stroke="#000000" width="20" x="1260" y="100"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="1269.5" y="128.5">b</text>
+    </g>
+    <rect fill="none" height="40" pointer-events="all" stroke="none" width="110" x="1170" y="0"/>
+    <g fill="#000000" font-family="Helvetica" font-size="15px" text-anchor="middle">
+      <text x="1224.5" y="17">Checkpoint</text>
+      <text x="1224.5" y="35">barrier</text>
+    </g>
+    <rect fill="none" height="20" pointer-events="all" stroke="none" width="40" x="1070" y="210"/>
+    <g fill="#000000" font-family="Helvetica" font-size="15px" text-anchor="middle">
+      <text x="1089.5" y="217">Input</text>
+      <text x="1089.5" y="235">buffers</text>
+    </g>
+    <path d="M 1090 200 L 1082.85 185.7" fill="none" pointer-events="stroke" stroke="#000000" stroke-dasharray="3 3" stroke-miterlimit="10"/>
+    <path d="M 1080.5 181 L 1086.76 185.7 L 1082.85 185.7 L 1080.5 188.83 Z" fill="#000000" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <path d="M 1090 200 L 1097.15 185.7" fill="none" pointer-events="stroke" stroke="#000000" stroke-dasharray="3 3" stroke-miterlimit="10"/>
+    <path d="M 1099.5 181 L 1099.5 188.83 L 1097.15 185.7 L 1093.24 185.7 Z" fill="#000000" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <path d="M 1223.57 40 L 1220.45 83.65" fill="none" pointer-events="stroke" stroke="#000000" stroke-dasharray="3 3" stroke-miterlimit="10"/>
+    <path d="M 1220.08 88.88 L 1217.09 81.65 L 1220.45 83.65 L 1224.07 82.15 Z" fill="#000000" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <path d="M 958.06 210 L 953.44 186.25" fill="none" pointer-events="stroke" stroke="#000000" stroke-dasharray="3 3" stroke-miterlimit="10"/>
+    <path d="M 952.44 181.1 L 957.21 187.3 L 953.44 186.25 L 950.34 188.64 Z" fill="#000000" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <path d="M 961.88 210 L 966.33 186.26" fill="none" pointer-events="stroke" stroke="#000000" stroke-dasharray="3 3" stroke-miterlimit="10"/>
+    <path d="M 967.29 181.1 L 969.44 188.62 L 966.33 186.26 L 962.56 187.33 Z" fill="#000000" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <rect fill="none" height="20" pointer-events="all" stroke="none" width="40" x="940" y="210"/>
+    <g fill="#000000" font-family="Helvetica" font-size="15px" text-anchor="middle">
+      <text x="959.5" y="217">Output</text>
+      <text x="959.5" y="235">buffers</text>
+    </g>
+    <rect fill="none" height="40" pointer-events="all" stroke="none" width="200" x="990" y="250"/>
+    <g fill="#000000" font-family="Helvetica" font-size="20px" text-anchor="middle">
+      <text x="1089.5" y="278.5">Checkpoint</text>
+    </g>
+    <path d="M 1219 150 L 1219 90" fill="none" pointer-events="stroke" stroke="#8a3142" stroke-miterlimit="10" stroke-width="3"/>
+    <path d="M 1240 212 C 1240 196 1310 196 1310 212 L 1310 248 C 1310 264 1240 264 1240 248 Z" fill="#70ad47" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <path d="M 1240 212 C 1240 224 1310 224 1310 212" fill="none" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <g fill="#000000" font-family="Helvetica" font-size="15px" text-anchor="middle">
+      <text x="1274.5" y="236">State</text>
+      <text x="1274.5" y="254">backend</text>
+    </g>
+    <path d="M 250 146 C 250 138 310 138 310 146 L 310 164 C 310 172 250 172 250 164 Z" fill="#70ad47" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <path d="M 250 146 C 250 152 310 152 310 146" fill="none" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <g fill="#000000" font-family="Helvetica" font-size="15px" text-anchor="middle">
+      <text x="279.5" y="165.5">state</text>
+    </g>
+    <path d="M 690 146 C 690 138 750 138 750 146 L 750 164 C 750 172 690 172 690 164 Z" fill="#70ad47" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <path d="M 690 146 C 690 152 750 152 750 146" fill="none" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <g fill="#000000" font-family="Helvetica" font-size="15px" text-anchor="middle">
+      <text x="719.5" y="165.5">state</text>
+    </g>
+    <path d="M 1183 170 L 1233.1 202.67" fill="none" pointer-events="stroke" stroke="#724591" stroke-dasharray="6 2" stroke-miterlimit="10" stroke-width="2"/>
+    <path d="M 1238.13 205.95 L 1229.24 204.93 L 1233.1 202.67 L 1233.61 198.23 Z" fill="#724591" pointer-events="all" stroke="#724591" stroke-miterlimit="10" stroke-width="2"/>
+    <path d="M 1130 146 C 1130 138 1190 138 1190 146 L 1190 164 C 1190 172 1130 172 1130 164 Z" fill="#70ad47" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <path d="M 1130 146 C 1130 152 1190 152 1190 146" fill="none" pointer-events="all" stroke="#000000" stroke-miterlimit="10"/>
+    <g fill="#000000" font-family="Helvetica" font-size="15px" text-anchor="middle">
+      <text x="1159.5" y="165.5">state</text>
+    </g>
+    <rect fill="url(#mx-gradient-ffffff-1-ffffff00-1-e-0)" height="190" pointer-events="all" stroke="none" width="170" x="0" y="50"/>
+    <path d="M 420 285 L 420 5" fill="none" pointer-events="stroke" stroke="#000000" stroke-dasharray="3 3" stroke-miterlimit="10"/>
+    <path d="M 860 285 L 860 5" fill="none" pointer-events="stroke" stroke="#000000" stroke-dasharray="3 3" stroke-miterlimit="10"/>
+    <rect fill="url(#mx-gradient-ffffff-1-ffffff00-1-e-0)" height="190" pointer-events="all" stroke="none" width="170" x="440" y="50"/>
+    <rect fill="url(#mx-gradient-ffffff-1-ffffff00-1-e-0)" height="190" pointer-events="all" stroke="none" width="170" x="880" y="50"/>
+  </g>
+</svg>
