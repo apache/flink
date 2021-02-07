@@ -25,6 +25,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.junit.Test;
+import sun.security.krb5.KrbException;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -33,34 +34,50 @@ import java.util.List;
 import java.util.Set;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeTrue;
 
 /** Tests for {@link HadoopFSDelegationTokenProvider}. */
 public class HadoopFSDelegationTokenProviderTest {
 
     public static final String HADOOP_SECURITY_AUTHENTICATION = "hadoop.security.authentication";
+    private final org.apache.flink.configuration.Configuration flinkConf =
+            new org.apache.flink.configuration.Configuration();
 
     @Test
-    public void testDelegationTokensRequired() {
+    public void testShouldReturnFalseWhenSecurityIsNotEnabled() {
         HadoopFSDelegationTokenProvider provider = new HadoopFSDelegationTokenProvider();
 
-        final org.apache.flink.configuration.Configuration flinkConf =
-                new org.apache.flink.configuration.Configuration();
         final Configuration hadoopConf = new Configuration();
-        assertEquals("simple", hadoopConf.get(HADOOP_SECURITY_AUTHENTICATION));
+        assumeTrue("simple".equals(hadoopConf.get(HADOOP_SECURITY_AUTHENTICATION)));
         assertFalse(
                 "Hadoop FS delegation tokens are not required when authentication is simple",
                 provider.delegationTokensRequired(flinkConf, hadoopConf));
+    }
 
+    @Test
+    public void testShouldReturnTrueWhenSecurityIsEnabled() throws KrbException {
+        // fake the realm when kerberos is enabled
+        System.setProperty("java.security.krb5.kdc", "");
+        System.setProperty("java.security.krb5.realm", "DEFAULT.REALM");
+        System.setProperty("java.security.krb5.conf", "/dev/null");
+        sun.security.krb5.Config.refresh();
+
+        final Configuration hadoopConf = new Configuration();
+        // set new hadoop conf to UGI to re-initialize it
         hadoopConf.set(HADOOP_SECURITY_AUTHENTICATION, "kerberos");
-        // Set new hadoop conf to UGI to re-initialize it
-        UserGroupInformation.setConfiguration(hadoopConf);
-        assertTrue(
-                "Hadoop FS delegation tokens are required when authentication is not simple",
-                provider.delegationTokensRequired(flinkConf, hadoopConf));
+        try {
+            UserGroupInformation.setConfiguration(hadoopConf);
+            HadoopFSDelegationTokenProvider provider = new HadoopFSDelegationTokenProvider();
+            assertTrue(
+                    "Hadoop FS delegation tokens are required when authentication is not simple",
+                    provider.delegationTokensRequired(flinkConf, hadoopConf));
+        } finally {
+            // restore the default UGI
+            UserGroupInformation.setConfiguration(new Configuration());
+        }
     }
 
     @Test
