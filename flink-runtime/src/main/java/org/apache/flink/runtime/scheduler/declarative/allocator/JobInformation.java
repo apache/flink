@@ -24,6 +24,14 @@ import java.util.Collection;
 
 /** Information about the job. */
 public interface JobInformation {
+    /**
+     * Returns all slot-sharing groups of the job.
+     *
+     * <p>Attention: The returned slot sharing groups should never be modified (they are indeed
+     * mutable)!
+     *
+     * @return all slot-sharing groups of the job
+     */
     Collection<SlotSharingGroup> getSlotSharingGroups();
 
     VertexInformation getVertexInformation(JobVertexID jobVertexId);
