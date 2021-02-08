@@ -1196,6 +1196,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
     }
 
     private void onTerminalState(JobStatus status) {
+        LOG.debug("ExecutionGraph {} reached terminal state {}.", getJobID(), status);
+
         try {
             CheckpointCoordinator coord = this.checkpointCoordinator;
             this.checkpointCoordinator = null;
