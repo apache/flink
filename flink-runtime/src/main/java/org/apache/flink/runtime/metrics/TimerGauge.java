@@ -79,4 +79,9 @@ public class TimerGauge implements Gauge<Long>, View {
     public synchronized long getCount() {
         return currentCount;
     }
+
+    @VisibleForTesting
+    public synchronized boolean isMeasuring() {
+        return currentMeasurementStart != 0;
+    }
 }
