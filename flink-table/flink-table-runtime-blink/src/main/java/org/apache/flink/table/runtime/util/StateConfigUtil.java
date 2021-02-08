@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.util;
 
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 
@@ -56,7 +57,7 @@ public class StateConfigUtil {
             // indicates the underlying uses heap-bsased timer
             isHeapTimer =
                     ((AbstractKeyedStateBackend<?>) stateBackend)
-                            .requiresLegacySynchronousTimerSnapshots();
+                            .requiresLegacySynchronousTimerSnapshots(CheckpointType.CHECKPOINT);
         }
         return isRocksDbState && !isHeapTimer;
     }
