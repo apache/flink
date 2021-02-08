@@ -38,8 +38,6 @@ public class TestingLogicalSlot implements LogicalSlot {
 
     private final AtomicReference<Payload> payloadReference;
 
-    private final int slotNumber;
-
     private final CompletableFuture<?> releaseFuture;
 
     private final boolean automaticallyCompleteReleaseFuture;
@@ -55,7 +53,6 @@ public class TestingLogicalSlot implements LogicalSlot {
     TestingLogicalSlot(
             TaskManagerLocation taskManagerLocation,
             TaskManagerGateway taskManagerGateway,
-            int slotNumber,
             AllocationID allocationId,
             SlotRequestId slotRequestId,
             boolean automaticallyCompleteReleaseFuture,
@@ -64,7 +61,6 @@ public class TestingLogicalSlot implements LogicalSlot {
         this.taskManagerLocation = Preconditions.checkNotNull(taskManagerLocation);
         this.taskManagerGateway = Preconditions.checkNotNull(taskManagerGateway);
         this.payloadReference = new AtomicReference<>();
-        this.slotNumber = slotNumber;
         this.allocationId = Preconditions.checkNotNull(allocationId);
         this.slotRequestId = Preconditions.checkNotNull(slotRequestId);
         this.releaseFuture = new CompletableFuture<>();
@@ -119,11 +115,6 @@ public class TestingLogicalSlot implements LogicalSlot {
         }
 
         return releaseFuture;
-    }
-
-    @Override
-    public int getPhysicalSlotNumber() {
-        return slotNumber;
     }
 
     @Override
