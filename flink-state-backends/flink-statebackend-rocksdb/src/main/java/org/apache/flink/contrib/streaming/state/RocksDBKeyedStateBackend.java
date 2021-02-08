@@ -40,6 +40,7 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -853,8 +854,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
     }
 
     @Override
-    public boolean requiresLegacySynchronousTimerSnapshots() {
-        return priorityQueueFactory instanceof HeapPriorityQueueSetFactory;
+    public boolean requiresLegacySynchronousTimerSnapshots(CheckpointType checkpointType) {
+        return priorityQueueFactory instanceof HeapPriorityQueueSetFactory
+                && checkpointType == CheckpointType.CHECKPOINT;
     }
 
     /** Rocks DB specific information about the k/v states. */

@@ -30,6 +30,7 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.DefaultKeyedStateStore;
@@ -194,7 +195,13 @@ public class StreamOperatorStateHandler {
                         "keyedStateBackend should be available with timeServiceManager");
                 final InternalTimeServiceManager<?> manager = timeServiceManager.get();
 
-                if (manager.isUsingLegacyRawKeyedStateSnapshots()) {
+                boolean requiresLegacyRawKeyedStateSnapshots =
+                        keyedStateBackend instanceof AbstractKeyedStateBackend
+                                && ((AbstractKeyedStateBackend<?>) keyedStateBackend)
+                                        .requiresLegacySynchronousTimerSnapshots(
+                                                checkpointOptions.getCheckpointType());
+
+                if (requiresLegacyRawKeyedStateSnapshots) {
                     checkState(
                             !isUsingCustomRawKeyedState,
                             "Attempting to snapshot timers to raw keyed state, but this operator has custom raw keyed state to write.");
