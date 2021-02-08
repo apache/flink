@@ -156,7 +156,7 @@ CREATE TABLE user_created (
   'key.format' = 'raw',
   
   -- In this example, we want the Avro types of both the Kafka key and value to contain the field 'id'
-  -- => adding a prefix to the table column associated to the kafka key field to avoid clashes
+  -- => adding a prefix to the table column associated to the kafka key field avoids clashes
   'key.fields-prefix' = 'kafka_key_',
 
   'value.format' = 'avro-confluent',
