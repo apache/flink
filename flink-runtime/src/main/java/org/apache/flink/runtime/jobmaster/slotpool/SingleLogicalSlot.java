@@ -48,8 +48,6 @@ public class SingleLogicalSlot implements LogicalSlot, PhysicalSlot.Payload {
 
     private final SlotContext slotContext;
 
-    // null if the logical slot does not belong to a slot sharing group, otherwise non-null
-
     // locality of this slot wrt the requested preferred locations
     private final Locality locality;
 
