@@ -195,7 +195,8 @@ public class JobMasterBuilder {
                 highAvailabilityServices,
                 slotPoolFactory != null
                         ? slotPoolFactory
-                        : SlotPoolServiceFactory.fromConfiguration(configuration),
+                        : SlotPoolServiceFactory.fromConfiguration(
+                                configuration, jobGraph.getJobType()),
                 jobManagerSharedServices,
                 heartbeatServices,
                 UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
@@ -204,7 +205,8 @@ public class JobMasterBuilder {
                 JobMasterBuilder.class.getClassLoader(),
                 schedulerFactory != null
                         ? schedulerFactory
-                        : SchedulerNGFactoryFactory.createSchedulerNGFactory(configuration),
+                        : SchedulerNGFactoryFactory.createSchedulerNGFactory(
+                                configuration, jobGraph.getJobType()),
                 shuffleMaster,
                 partitionTrackerFactory,
                 executionDeploymentTracker,

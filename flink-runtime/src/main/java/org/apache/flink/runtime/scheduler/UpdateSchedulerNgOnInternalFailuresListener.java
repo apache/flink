@@ -31,7 +31,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Calls {@link SchedulerNG#updateTaskExecutionState(TaskExecutionStateTransition)} on task failure.
  * Calls {@link SchedulerNG#handleGlobalFailure(Throwable)} on global failures.
  */
-class UpdateSchedulerNgOnInternalFailuresListener implements InternalFailuresListener {
+public class UpdateSchedulerNgOnInternalFailuresListener implements InternalFailuresListener {
 
     private final SchedulerNG schedulerNg;
 

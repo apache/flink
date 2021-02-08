@@ -36,6 +36,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 /** Tests for the {@link SharedSlot}. */
 public class SharedSlotTest extends TestLogger {
@@ -194,6 +195,16 @@ public class SharedSlotTest extends TestLogger {
                         }));
 
         sharedSlot.release(new Exception("test"));
+
+        // if all logical slots were released, and the sharedSlot no longer allows the allocation of
+        // logical slots, then the slot release was completed
+        assertThat(logicalSlot1.isAlive(), is(false));
+        assertThat(logicalSlot2.isAlive(), is(false));
+        try {
+            sharedSlot.allocateLogicalSlot();
+            fail("Allocation of logical slot should have failed because the slot was released.");
+        } catch (IllegalStateException expected) {
+        }
     }
 
     @Test(expected = IllegalStateException.class)

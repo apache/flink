@@ -17,7 +17,6 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
@@ -122,8 +121,7 @@ public class ExecutionFailureHandler {
         }
     }
 
-    @VisibleForTesting
-    static boolean isUnrecoverableError(Throwable cause) {
+    public static boolean isUnrecoverableError(Throwable cause) {
         Optional<Throwable> unrecoverableError =
                 ThrowableClassifier.findThrowableOfThrowableType(
                         cause, ThrowableType.NonRecoverableError);

@@ -356,12 +356,16 @@ public class JobManagerOptions {
                             Description.builder()
                                     .text(
                                             "Determines which scheduler implementation is used to schedule tasks. Accepted values are:")
-                                    .list(text("'Ng': new generation scheduler"))
+                                    .list(
+                                            text("'Ng': new generation scheduler"),
+                                            text(
+                                                    "'Declarative': declarative scheduler; supports reactive mode"))
                                     .build());
 
     /** Type of scheduler implementation. */
     public enum SchedulerType {
-        Ng
+        Ng,
+        Declarative
     }
 
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
