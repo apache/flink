@@ -25,16 +25,28 @@ import org.junit.runners.Parameterized;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /** Tests for switching a RocksDB state backend to a different one. */
 @RunWith(Parameterized.class)
 public class RocksSavepointStateBackendSwitchTest extends SavepointStateBackendSwitchTestBase {
-    public RocksSavepointStateBackendSwitchTest(BackendSwitchSpec toBackend) {
-        super(BackendSwitchSpecs.ROCKS, toBackend);
+    public RocksSavepointStateBackendSwitchTest(
+            BackendSwitchSpec fromBackend, BackendSwitchSpec toBackend) {
+        super(fromBackend, toBackend);
     }
 
-    @Parameterized.Parameters(name = "to: {0}")
-    public static Collection<BackendSwitchSpec> targetBackends() {
-        return Arrays.asList(BackendSwitchSpecs.HEAP, BackendSwitchSpecs.ROCKS);
+    @Parameterized.Parameters(name = "from: {0} to: {1}")
+    public static Collection<BackendSwitchSpec[]> targetBackends() {
+        List<BackendSwitchSpec> fromBackends =
+                Arrays.asList(BackendSwitchSpecs.ROCKS_HEAP_TIMERS, BackendSwitchSpecs.ROCKS);
+        List<BackendSwitchSpec> toBackends =
+                Arrays.asList(
+                        BackendSwitchSpecs.HEAP,
+                        BackendSwitchSpecs.ROCKS,
+                        BackendSwitchSpecs.ROCKS_HEAP_TIMERS);
+        return fromBackends.stream()
+                .flatMap(from -> toBackends.stream().map(to -> new BackendSwitchSpec[] {from, to}))
+                .collect(Collectors.toList());
     }
 }

@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackendBuilder;
 import org.apache.flink.contrib.streaming.state.RocksDBResourceContainer;
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
+import org.apache.flink.contrib.streaming.state.RocksDBStateBackend.PriorityQueueStateType;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -66,7 +66,10 @@ public final class BackendSwitchSpecs {
     }
 
     /** Specification for a {@link RocksDBKeyedStateBackend}. */
-    static final BackendSwitchSpec ROCKS = new RocksSpec();
+    static final BackendSwitchSpec ROCKS = new RocksSpec(PriorityQueueStateType.ROCKSDB);
+
+    /** Specification for a {@link RocksDBKeyedStateBackend} which stores its timers on heap. */
+    static final BackendSwitchSpec ROCKS_HEAP_TIMERS = new RocksSpec(PriorityQueueStateType.HEAP);
 
     /** Specification for a {@link HeapKeyedStateBackend}. */
     static final BackendSwitchSpec HEAP = new HeapSpec();
@@ -74,6 +77,11 @@ public final class BackendSwitchSpecs {
     private static final class RocksSpec implements BackendSwitchSpec {
 
         private final TemporaryFolder temporaryFolder = new TemporaryFolder();
+        private final PriorityQueueStateType queueStateType;
+
+        public RocksSpec(PriorityQueueStateType queueStateType) {
+            this.queueStateType = queueStateType;
+        }
 
         @Override
         public CheckpointableKeyedStateBackend<String> createBackend(
@@ -97,7 +105,7 @@ public final class BackendSwitchSpecs {
                             keyGroupRange,
                             new ExecutionConfig(),
                             TestLocalRecoveryConfig.disabled(),
-                            RocksDBStateBackend.PriorityQueueStateType.ROCKSDB,
+                            queueStateType,
                             TtlTimeProvider.DEFAULT,
                             new UnregisteredMetricsGroup(),
                             stateHandles,
@@ -113,7 +121,7 @@ public final class BackendSwitchSpecs {
 
         @Override
         public String toString() {
-            return "ROCKS";
+            return "ROCKS(" + queueStateType + ")";
         }
     }
 

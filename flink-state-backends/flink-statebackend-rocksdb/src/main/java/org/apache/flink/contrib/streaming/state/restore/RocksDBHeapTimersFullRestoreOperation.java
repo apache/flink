@@ -22,11 +22,22 @@ import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.RocksDb
 import org.apache.flink.contrib.streaming.state.RocksDBNativeMetricOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBWriteBatchWrapper;
 import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersManager;
+import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
+import org.apache.flink.runtime.state.KeyExtractorFunction;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.Keyed;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.PriorityComparable;
+import org.apache.flink.runtime.state.RegisteredPriorityQueueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.StateSerializerProvider;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueSet;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueSnapshotRestoreWrapper;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
+import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot.BackendStateType;
 import org.apache.flink.runtime.state.restore.FullSnapshotRestoreOperation;
 import org.apache.flink.runtime.state.restore.KeyGroup;
 import org.apache.flink.runtime.state.restore.KeyGroupEntry;
@@ -46,22 +57,34 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
 /** Encapsulates the process of restoring a RocksDB instance from a full snapshot. */
-public class RocksDBFullRestoreOperation<K> implements RocksDBRestoreOperation {
+public class RocksDBHeapTimersFullRestoreOperation<K> implements RocksDBRestoreOperation {
     private final FullSnapshotRestoreOperation<K> savepointRestoreOperation;
     /** Write batch size used in {@link RocksDBWriteBatchWrapper}. */
     private final long writeBatchSize;
 
-    private final RocksDBHandle rocksHandle;
+    private final LinkedHashMap<String, HeapPriorityQueueSnapshotRestoreWrapper<?>>
+            registeredPQStates;
+    private final HeapPriorityQueueSetFactory priorityQueueFactory;
+    private final int numberOfKeyGroups;
+    private final DataInputDeserializer deserializer = new DataInputDeserializer();
 
-    public RocksDBFullRestoreOperation(
+    private final RocksDBHandle rocksHandle;
+    private final KeyGroupRange keyGroupRange;
+    private final int keyGroupPrefixBytes;
+
+    public RocksDBHeapTimersFullRestoreOperation(
             KeyGroupRange keyGroupRange,
+            int numberOfKeyGroups,
             ClassLoader userCodeClassLoader,
             Map<String, RocksDbKvStateInfo> kvStateInformation,
+            LinkedHashMap<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates,
+            HeapPriorityQueueSetFactory priorityQueueFactory,
             StateSerializerProvider<K> keySerializerProvider,
             File instanceRocksDBPath,
             DBOptions dbOptions,
@@ -89,6 +112,13 @@ public class RocksDBFullRestoreOperation<K> implements RocksDBRestoreOperation {
                         userCodeClassLoader,
                         restoreStateHandles,
                         keySerializerProvider);
+        this.registeredPQStates = registeredPQStates;
+        this.priorityQueueFactory = priorityQueueFactory;
+        this.numberOfKeyGroups = numberOfKeyGroups;
+        this.keyGroupRange = keyGroupRange;
+        this.keyGroupPrefixBytes =
+                CompositeKeySerializationUtils.computeRequiredBytesInKeyGroupPrefix(
+                        numberOfKeyGroups);
     }
 
     /** Restores all key-groups data that is referenced by the passed state handles. */
@@ -116,15 +146,29 @@ public class RocksDBFullRestoreOperation<K> implements RocksDBRestoreOperation {
         List<StateMetaInfoSnapshot> restoredMetaInfos =
                 savepointRestoreResult.getStateMetaInfoSnapshots();
         Map<Integer, ColumnFamilyHandle> columnFamilyHandles = new HashMap<>();
+        Map<Integer, HeapPriorityQueueSnapshotRestoreWrapper<?>> restoredPQStates = new HashMap<>();
         for (int i = 0; i < restoredMetaInfos.size(); i++) {
             StateMetaInfoSnapshot restoredMetaInfo = restoredMetaInfos.get(i);
-            RocksDbKvStateInfo registeredStateCFHandle =
-                    this.rocksHandle.getOrRegisterStateColumnFamilyHandle(null, restoredMetaInfo);
-            columnFamilyHandles.put(i, registeredStateCFHandle.columnFamilyHandle);
+            if (restoredMetaInfo.getBackendStateType() == BackendStateType.PRIORITY_QUEUE) {
+                String stateName = restoredMetaInfo.getName();
+                HeapPriorityQueueSnapshotRestoreWrapper<?> queueWrapper =
+                        registeredPQStates.computeIfAbsent(
+                                stateName,
+                                key ->
+                                        createInternal(
+                                                new RegisteredPriorityQueueStateBackendMetaInfo<>(
+                                                        restoredMetaInfo)));
+                restoredPQStates.put(i, queueWrapper);
+            } else {
+                RocksDbKvStateInfo registeredStateCFHandle =
+                        this.rocksHandle.getOrRegisterStateColumnFamilyHandle(
+                                null, restoredMetaInfo);
+                columnFamilyHandles.put(i, registeredStateCFHandle.columnFamilyHandle);
+            }
         }
 
         try (ThrowingIterator<KeyGroup> keyGroups = savepointRestoreResult.getRestoredKeyGroups()) {
-            restoreKVStateData(keyGroups, columnFamilyHandles);
+            restoreKVStateData(keyGroups, columnFamilyHandles, restoredPQStates);
         }
     }
 
@@ -133,11 +177,14 @@ public class RocksDBFullRestoreOperation<K> implements RocksDBRestoreOperation {
      * handle.
      */
     private void restoreKVStateData(
-            ThrowingIterator<KeyGroup> keyGroups, Map<Integer, ColumnFamilyHandle> columnFamilies)
+            ThrowingIterator<KeyGroup> keyGroups,
+            Map<Integer, ColumnFamilyHandle> columnFamilies,
+            Map<Integer, HeapPriorityQueueSnapshotRestoreWrapper<?>> restoredPQStates)
             throws IOException, RocksDBException, StateMigrationException {
         // for all key-groups in the current state handle...
         try (RocksDBWriteBatchWrapper writeBatchWrapper =
                 new RocksDBWriteBatchWrapper(this.rocksHandle.getDb(), writeBatchSize)) {
+            HeapPriorityQueueSnapshotRestoreWrapper<HeapPriorityQueueElement> restoredPQ = null;
             ColumnFamilyHandle handle = null;
             while (keyGroups.hasNext()) {
                 KeyGroup keyGroup = keyGroups.next();
@@ -149,12 +196,56 @@ public class RocksDBFullRestoreOperation<K> implements RocksDBRestoreOperation {
                         if (kvStateId != oldKvStateId) {
                             oldKvStateId = kvStateId;
                             handle = columnFamilies.get(kvStateId);
+                            restoredPQ = getRestoredPQ(restoredPQStates, kvStateId);
                         }
-                        writeBatchWrapper.put(handle, groupEntry.getKey(), groupEntry.getValue());
+                        if (restoredPQ != null) {
+                            restoreQueueElement(restoredPQ, groupEntry);
+                        } else if (handle != null) {
+                            writeBatchWrapper.put(
+                                    handle, groupEntry.getKey(), groupEntry.getValue());
+                        } else {
+                            throw new IllegalStateException("Unknown state id: " + kvStateId);
+                        }
                     }
                 }
             }
         }
+    }
+
+    private void restoreQueueElement(
+            HeapPriorityQueueSnapshotRestoreWrapper<HeapPriorityQueueElement> restoredPQ,
+            KeyGroupEntry groupEntry)
+            throws IOException {
+        deserializer.setBuffer(groupEntry.getKey());
+        deserializer.skipBytesToRead(keyGroupPrefixBytes);
+        HeapPriorityQueueElement queueElement =
+                restoredPQ.getMetaInfo().getElementSerializer().deserialize(deserializer);
+        restoredPQ.getPriorityQueue().add(queueElement);
+    }
+
+    @SuppressWarnings("unchecked")
+    private HeapPriorityQueueSnapshotRestoreWrapper<HeapPriorityQueueElement> getRestoredPQ(
+            Map<Integer, HeapPriorityQueueSnapshotRestoreWrapper<?>> restoredPQStates,
+            int kvStateId) {
+        return (HeapPriorityQueueSnapshotRestoreWrapper<HeapPriorityQueueElement>)
+                restoredPQStates.get(kvStateId);
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private <T extends HeapPriorityQueueElement & PriorityComparable<? super T> & Keyed<?>>
+            HeapPriorityQueueSnapshotRestoreWrapper<T> createInternal(
+                    RegisteredPriorityQueueStateBackendMetaInfo metaInfo) {
+
+        final String stateName = metaInfo.getName();
+        final HeapPriorityQueueSet<T> priorityQueue =
+                priorityQueueFactory.create(stateName, metaInfo.getElementSerializer());
+
+        return new HeapPriorityQueueSnapshotRestoreWrapper<>(
+                priorityQueue,
+                metaInfo,
+                KeyExtractorFunction.forKeyedObjects(),
+                keyGroupRange,
+                numberOfKeyGroups);
     }
 
     @Override

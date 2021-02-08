@@ -73,6 +73,7 @@ public class RocksStatesPerKeyGroupMergeIterator implements KeyValueStateIterato
     public RocksStatesPerKeyGroupMergeIterator(
             final CloseableRegistry closeableRegistry,
             List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators,
+            List<SingleStateIterator> heapPriorityQueueIterators,
             final int keyGroupPrefixByteCount)
             throws IOException {
         Preconditions.checkNotNull(closeableRegistry);
@@ -82,8 +83,8 @@ public class RocksStatesPerKeyGroupMergeIterator implements KeyValueStateIterato
         this.closeableRegistry = closeableRegistry;
         this.keyGroupPrefixByteCount = keyGroupPrefixByteCount;
 
-        if (kvStateIterators.size() > 0) {
-            this.heap = buildIteratorHeap(kvStateIterators);
+        if (kvStateIterators.size() > 0 || heapPriorityQueueIterators.size() > 0) {
+            this.heap = buildIteratorHeap(kvStateIterators, heapPriorityQueueIterators);
             this.valid = !heap.isEmpty();
             this.currentSubIterator = heap.poll();
             kvStateIterators.clear();
@@ -129,13 +130,17 @@ public class RocksStatesPerKeyGroupMergeIterator implements KeyValueStateIterato
     }
 
     private PriorityQueue<SingleStateIterator> buildIteratorHeap(
-            List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators) throws IOException {
+            List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators,
+            List<SingleStateIterator> heapPriorityQueueIterators)
+            throws IOException {
 
         Comparator<SingleStateIterator> iteratorComparator =
                 COMPARATORS.get(keyGroupPrefixByteCount - 1);
 
         PriorityQueue<SingleStateIterator> iteratorPriorityQueue =
-                new PriorityQueue<>(kvStateIterators.size(), iteratorComparator);
+                new PriorityQueue<>(
+                        kvStateIterators.size() + heapPriorityQueueIterators.size(),
+                        iteratorComparator);
 
         for (Tuple2<RocksIteratorWrapper, Integer> rocksIteratorWithKVStateId : kvStateIterators) {
             final RocksIteratorWrapper rocksIterator = rocksIteratorWithKVStateId.f0;
@@ -152,6 +157,16 @@ public class RocksStatesPerKeyGroupMergeIterator implements KeyValueStateIterato
                 }
             }
         }
+
+        for (SingleStateIterator heapQueueIterator : heapPriorityQueueIterators) {
+            if (heapQueueIterator.isValid()) {
+                iteratorPriorityQueue.offer(heapQueueIterator);
+                closeableRegistry.registerCloseable(heapQueueIterator);
+            } else {
+                IOUtils.closeQuietly(heapQueueIterator);
+            }
+        }
+
         return iteratorPriorityQueue;
     }
 

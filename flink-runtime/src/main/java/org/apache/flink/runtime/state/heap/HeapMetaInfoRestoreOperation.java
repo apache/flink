@@ -115,9 +115,10 @@ class HeapMetaInfoRestoreOperation<K> {
         return kvStatesById;
     }
 
-    private <T extends HeapPriorityQueueElement & PriorityComparable & Keyed>
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private <T extends HeapPriorityQueueElement & PriorityComparable<? super T> & Keyed<?>>
             HeapPriorityQueueSnapshotRestoreWrapper<T> createInternal(
-                    RegisteredPriorityQueueStateBackendMetaInfo<T> metaInfo) {
+                    RegisteredPriorityQueueStateBackendMetaInfo metaInfo) {
 
         final String stateName = metaInfo.getName();
         final HeapPriorityQueueSet<T> priorityQueue =

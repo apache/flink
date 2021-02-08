@@ -117,6 +117,11 @@ public class HeapPriorityQueueStateSnapshot<T> implements StateSnapshot {
         return metaInfo.snapshot();
     }
 
+    @Nonnull
+    public RegisteredPriorityQueueStateBackendMetaInfo<T> getMetaInfo() {
+        return metaInfo;
+    }
+
     @Override
     public void release() {}
 }
