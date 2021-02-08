@@ -52,6 +52,7 @@ import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.metrics.TimerGauge;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
@@ -1350,6 +1351,7 @@ public class StreamTaskTest extends TestLogger {
         private final RunnableWithException resumeTask;
         private final long sleepTimeInsideMail;
         private final long sleepTimeOutsideMail;
+        private final TimerGauge sleepOutsideMailTimer;
 
         @Nullable private Exception asyncException;
 
@@ -1357,16 +1359,25 @@ public class StreamTaskTest extends TestLogger {
                 MailboxExecutor executor,
                 RunnableWithException resumeTask,
                 long sleepTimeInsideMail,
-                long sleepTimeOutsideMail) {
+                long sleepTimeOutsideMail,
+                TimerGauge sleepOutsideMailTimer) {
             this.executor = executor;
             this.resumeTask = resumeTask;
             this.sleepTimeInsideMail = sleepTimeInsideMail;
             this.sleepTimeOutsideMail = sleepTimeOutsideMail;
+            this.sleepOutsideMailTimer = sleepOutsideMailTimer;
         }
 
         @Override
         public void run() {
             try {
+                // Make sure that the Task thread actually starts measuring the backpressure before
+                // we start the measured sleep. The WaitingThread is started from within the mailbox
+                // so we should first wait until mailbox loop starts idling before we enter the
+                // measured sleep
+                while (!sleepOutsideMailTimer.isMeasuring()) {
+                    Thread.sleep(1);
+                }
                 Thread.sleep(sleepTimeOutsideMail);
             } catch (InterruptedException e) {
                 asyncException = e;
@@ -1398,6 +1409,8 @@ public class StreamTaskTest extends TestLogger {
                             .setStreamInputProcessor(inputProcessor)
                             .build();
             final MailboxExecutor executor = task.mailboxProcessor.getMainMailboxExecutor();
+            TaskIOMetricGroup ioMetricGroup =
+                    task.getEnvironment().getMetricGroup().getIOMetricGroup();
 
             final RunnableWithException completeFutureTask =
                     () -> {
@@ -1411,15 +1424,15 @@ public class StreamTaskTest extends TestLogger {
                             executor,
                             completeFutureTask,
                             sleepTimeInsideMail,
-                            sleepTimeOutsideMail);
+                            sleepTimeOutsideMail,
+                            ioMetricGroup.getBackPressuredTimePerSecond());
             // Make sure WaitingThread is started after Task starts processing.
             executor.submit(
                     waitingThread::start,
                     "This task will submit another task to execute after processing input once.");
 
             long startTs = System.currentTimeMillis();
-            TaskIOMetricGroup ioMetricGroup =
-                    task.getEnvironment().getMetricGroup().getIOMetricGroup();
+
             task.invoke();
             long totalDuration = System.currentTimeMillis() - startTs;
             assertThat(
@@ -1450,6 +1463,8 @@ public class StreamTaskTest extends TestLogger {
                     new MockStreamTaskBuilder(environment)
                             .setStreamInputProcessor(inputProcessor)
                             .build();
+            TaskIOMetricGroup ioMetricGroup =
+                    task.getEnvironment().getMetricGroup().getIOMetricGroup();
 
             final MailboxExecutor executor = task.mailboxProcessor.getMainMailboxExecutor();
             final RunnableWithException completeFutureTask =
@@ -1465,15 +1480,14 @@ public class StreamTaskTest extends TestLogger {
                             executor,
                             completeFutureTask,
                             sleepTimeInsideMail,
-                            sleepTimeOutsideMail);
+                            sleepTimeOutsideMail,
+                            ioMetricGroup.getIdleTimeMsPerSecond());
             // Make sure WaitingThread is started after Task starts processing.
             executor.submit(
                     waitingThread::start,
                     "Start WaitingThread after Task starts processing input.");
 
             long startTs = System.currentTimeMillis();
-            TaskIOMetricGroup ioMetricGroup =
-                    task.getEnvironment().getMetricGroup().getIOMetricGroup();
             task.invoke();
             long totalDuration = System.currentTimeMillis() - startTs;
 
