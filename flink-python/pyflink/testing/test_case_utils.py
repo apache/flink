@@ -130,6 +130,8 @@ class PyFlinkStreamTableTestCase(PyFlinkTestCase):
                 .in_streaming_mode().use_old_planner().build())
         self.t_env.get_config().get_configuration().set_string(
             "taskmanager.memory.task.off-heap.size", "80mb")
+        self.t_env.get_config().get_configuration().set_string(
+            "python.fn-execution.bundle.size", "1")
 
 
 class PyFlinkBatchTableTestCase(PyFlinkTestCase):
@@ -144,6 +146,8 @@ class PyFlinkBatchTableTestCase(PyFlinkTestCase):
         self.t_env = BatchTableEnvironment.create(self.env, TableConfig())
         self.t_env.get_config().get_configuration().set_string(
             "taskmanager.memory.task.off-heap.size", "80mb")
+        self.t_env.get_config().get_configuration().set_string(
+            "python.fn-execution.bundle.size", "1")
 
     def collect(self, table):
         j_table = table._j_table
@@ -168,6 +172,8 @@ class PyFlinkBlinkStreamTableTestCase(PyFlinkTestCase):
                 .in_streaming_mode().use_blink_planner().build())
         self.t_env.get_config().get_configuration().set_string(
             "taskmanager.memory.task.off-heap.size", "80mb")
+        self.t_env.get_config().get_configuration().set_string(
+            "python.fn-execution.bundle.size", "1")
 
 
 class PyFlinkBlinkBatchTableTestCase(PyFlinkTestCase):
@@ -183,6 +189,8 @@ class PyFlinkBlinkBatchTableTestCase(PyFlinkTestCase):
         self.t_env.get_config().get_configuration().set_string(
             "taskmanager.memory.task.off-heap.size", "80mb")
         self.t_env._j_tenv.getPlanner().getExecEnv().setParallelism(2)
+        self.t_env.get_config().get_configuration().set_string(
+            "python.fn-execution.bundle.size", "1")
 
 
 class PythonAPICompletenessTestCase(object):

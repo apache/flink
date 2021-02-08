@@ -113,12 +113,17 @@ public final class ArrowPythonScalarFunctionFlatMap extends AbstractPythonScalar
             bais.setBuffer(udfResult, 0, udfResult.length);
             reader.loadNextBatch();
             VectorSchemaRoot root = reader.getVectorSchemaRoot();
-            if (arrowReader == null) {
-                arrowReader = ArrowUtils.createRowArrowReader(root, userDefinedFunctionOutputType);
-            }
+            arrowReader = ArrowUtils.createRowArrowReader(root, userDefinedFunctionOutputType);
             for (int i = 0; i < root.getRowCount(); i++) {
                 resultCollector.collect(Row.join(forwardedInputQueue.poll(), arrowReader.read(i)));
             }
+            resetReader();
         }
+    }
+
+    private void resetReader() throws IOException {
+        arrowReader = null;
+        reader.close();
+        reader = new ArrowStreamReader(bais, allocator);
     }
 }
