@@ -18,18 +18,33 @@
 
 package org.apache.flink.runtime.scheduler.declarative;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
+import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.JobInformation;
+import org.apache.flink.runtime.executiongraph.NoOpExecutionDeploymentListener;
 import org.apache.flink.runtime.executiongraph.TestingExecutionGraphBuilder;
+import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategyFactoryLoader;
+import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
+import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.io.IOException;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.scheduler.declarative.WaitingForResourcesTest.assertNonNull;
@@ -40,19 +55,29 @@ import static org.junit.Assert.assertThat;
 public class RestartingTest extends TestLogger {
 
     @Test
-    public void testOnEnter() throws Exception {
+    public void testExecutionGraphCancellationOnEnter() throws Exception {
         try (MockRestartingContext ctx = new MockRestartingContext()) {
-            Restarting restarting = getRestartingState(ctx);
-            ctx.setExpectedStateChecker((state) -> state == restarting);
-            ctx.setExpectWaitingForResources();
+            CancellableExecutionGraph cancellableExecutionGraph = new CancellableExecutionGraph();
+            Restarting restarting = createRestartingState(ctx, cancellableExecutionGraph);
+
             restarting.onEnter();
+            assertThat(cancellableExecutionGraph.isCancelled(), is(true));
+        }
+    }
+
+    @Test
+    public void testTransitionToWaitingForResourcesWhenCancellationComplete() throws Exception {
+        try (MockRestartingContext ctx = new MockRestartingContext()) {
+            Restarting restarting = createRestartingState(ctx);
+            ctx.setExpectWaitingForResources();
+            restarting.onTerminalState(JobStatus.CANCELED);
         }
     }
 
     @Test
     public void testCancel() throws Exception {
         try (MockRestartingContext ctx = new MockRestartingContext()) {
-            Restarting restarting = getRestartingState(ctx);
+            Restarting restarting = createRestartingState(ctx);
             ctx.setExpectCancelling(assertNonNull());
             restarting.cancel();
         }
@@ -61,27 +86,26 @@ public class RestartingTest extends TestLogger {
     @Test
     public void testSuspend() throws Exception {
         try (MockRestartingContext ctx = new MockRestartingContext()) {
-            Restarting restarting = getRestartingState(ctx);
-            ctx.setExpectedStateChecker((state) -> state == restarting);
+            Restarting restarting = createRestartingState(ctx);
             ctx.setExpectFinished(
                     archivedExecutionGraph ->
                             assertThat(archivedExecutionGraph.getState(), is(JobStatus.SUSPENDED)));
-            restarting.suspend(new RuntimeException("suspend"));
+            final Throwable cause = new RuntimeException("suspend");
+            restarting.suspend(cause);
         }
     }
 
     @Test
     public void testGlobalFailure() throws Exception {
         try (MockRestartingContext ctx = new MockRestartingContext()) {
-            Restarting restarting = getRestartingState(ctx);
+            Restarting restarting = createRestartingState(ctx);
             restarting.handleGlobalFailure(new RuntimeException());
-            // no state transition expected
+            ctx.assertNotStateTransition();
         }
     }
 
-    public Restarting getRestartingState(MockRestartingContext ctx)
-            throws JobException, JobExecutionException {
-        ExecutionGraph executionGraph = TestingExecutionGraphBuilder.newBuilder().build();
+    public Restarting createRestartingState(
+            MockRestartingContext ctx, ExecutionGraph executionGraph) {
         final ExecutionGraphHandler executionGraphHandler =
                 new ExecutionGraphHandler(
                         executionGraph,
@@ -101,6 +125,12 @@ public class RestartingTest extends TestLogger {
                 operatorCoordinatorHandler,
                 log,
                 Duration.ZERO);
+    }
+
+    public Restarting createRestartingState(MockRestartingContext ctx)
+            throws JobException, JobExecutionException {
+        ExecutionGraph executionGraph = TestingExecutionGraphBuilder.newBuilder().build();
+        return createRestartingState(ctx, executionGraph);
     }
 
     private static class MockRestartingContext extends MockStateWithExecutionGraphContext
@@ -128,16 +158,18 @@ public class RestartingTest extends TestLogger {
             cancellingStateValidator.validateInput(
                     new ExecutingTest.CancellingArguments(
                             executionGraph, executionGraphHandler, operatorCoordinatorHandler));
+            hadStateTransition = true;
         }
 
         @Override
         public void goToWaitingForResources() {
             waitingForResourcesStateValidator.validateInput(null);
+            hadStateTransition = true;
         }
 
         @Override
         public void runIfState(State expectedState, Runnable action, Duration delay) {
-            if (expectedStateChecker.apply(expectedState)) {
+            if (!hadStateTransition) {
                 action.run();
             }
         }
@@ -145,8 +177,51 @@ public class RestartingTest extends TestLogger {
         @Override
         public void close() throws Exception {
             super.close();
+            assertNotStateTransition();
+        }
+
+        public void assertNotStateTransition() {
+            super.assertNotStateTransition();
             cancellingStateValidator.close();
             waitingForResourcesStateValidator.close();
+        }
+    }
+
+    private static class CancellableExecutionGraph extends ExecutionGraph {
+        private boolean cancelled = false;
+
+        CancellableExecutionGraph() throws IOException {
+            super(
+                    new JobInformation(
+                            new JobID(),
+                            "Test Job",
+                            new SerializedValue<>(new ExecutionConfig()),
+                            new Configuration(),
+                            Collections.emptyList(),
+                            Collections.emptyList()),
+                    TestingUtils.defaultExecutor(),
+                    TestingUtils.defaultExecutor(),
+                    AkkaUtils.getDefaultTimeout(),
+                    1,
+                    ExecutionGraph.class.getClassLoader(),
+                    VoidBlobWriter.getInstance(),
+                    PartitionReleaseStrategyFactoryLoader.loadPartitionReleaseStrategyFactory(
+                            new Configuration()),
+                    NettyShuffleMaster.INSTANCE,
+                    NoOpJobMasterPartitionTracker.INSTANCE,
+                    ScheduleMode.EAGER,
+                    NoOpExecutionDeploymentListener.get(),
+                    (execution, newState) -> {},
+                    0L);
+        }
+
+        @Override
+        public void cancel() {
+            cancelled = true;
+        }
+
+        public boolean isCancelled() {
+            return cancelled;
         }
     }
 }

@@ -24,24 +24,16 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 class MockStateWithExecutionGraphContext implements StateWithExecutionGraph.Context, AutoCloseable {
 
     private final StateValidator<ArchivedExecutionGraph> finishedStateValidator =
             new StateValidator<>("finished");
 
-    Function<State, Boolean> expectedStateChecker =
-            (ign) -> {
-                throw new UnsupportedOperationException("Remember to set me");
-            };
-
     private final ManuallyTriggeredComponentMainThreadExecutor executor =
             new ManuallyTriggeredComponentMainThreadExecutor();
 
-    public void setExpectedStateChecker(Function<State, Boolean> function) {
-        this.expectedStateChecker = function;
-    }
+    protected boolean hadStateTransition = false;
 
     public void setExpectFinished(Consumer<ArchivedExecutionGraph> asserter) {
         finishedStateValidator.expectInput(asserter);
@@ -49,7 +41,7 @@ class MockStateWithExecutionGraphContext implements StateWithExecutionGraph.Cont
 
     @Override
     public void runIfState(State expectedState, Runnable action) {
-        if (expectedStateChecker.apply(expectedState)) {
+        if (!hadStateTransition) {
             action.run();
         }
     }
@@ -62,6 +54,7 @@ class MockStateWithExecutionGraphContext implements StateWithExecutionGraph.Cont
     @Override
     public void goToFinished(ArchivedExecutionGraph archivedExecutionGraph) {
         finishedStateValidator.validateInput(archivedExecutionGraph);
+        hadStateTransition = true;
     }
 
     @Override
@@ -75,6 +68,10 @@ class MockStateWithExecutionGraphContext implements StateWithExecutionGraph.Cont
         executor.triggerAll();
         executor.shutdown();
         executor.awaitTermination(10, TimeUnit.MINUTES);
+        assertNotStateTransition();
+    }
+
+    protected void assertNotStateTransition() {
         finishedStateValidator.close();
     }
 }

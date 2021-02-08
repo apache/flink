@@ -26,7 +26,7 @@ public class ManuallyTriggeredComponentMainThreadExecutor
 
     @Override
     public void assertRunningInMainThread() {
-        // always true
+        assert executorThread != null && Thread.currentThread() == executorThread;
     }
 
     @Override

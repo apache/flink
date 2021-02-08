@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.scheduler.declarative;
 
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
@@ -76,21 +75,8 @@ class Restarting extends StateWithExecutionGraph {
 
     @Override
     void onTerminalState(JobStatus terminalState) {
-        // TODO revisit this
-        switch (terminalState) {
-            case CANCELED:
-                context.runIfState(this, context::goToWaitingForResources, backoffTime);
-                break;
-            case SUSPENDED:
-                context.runIfState(
-                        this,
-                        () ->
-                                context.goToFinished(
-                                        ArchivedExecutionGraph.createFrom(getExecutionGraph())),
-                        Duration.ZERO);
-                break;
-            default:
-                throw new IllegalArgumentException("Unexpected terminal state " + terminalState);
+        if (terminalState == JobStatus.CANCELED) {
+            context.runIfState(this, context::goToWaitingForResources, backoffTime);
         }
     }
 

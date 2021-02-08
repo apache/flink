@@ -22,13 +22,11 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
-import org.apache.flink.runtime.scheduler.InternalFailuresListener;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.util.Preconditions;
 
@@ -39,8 +37,7 @@ import javax.annotation.Nullable;
 import java.time.Duration;
 
 /** State which represents a running job with an {@link ExecutionGraph} and assigned slots. */
-class Executing extends StateWithExecutionGraph
-        implements ResourceConsumer, InternalFailuresListener {
+class Executing extends StateWithExecutionGraph implements ResourceConsumer {
 
     private final Context context;
 
@@ -71,20 +68,6 @@ class Executing extends StateWithExecutionGraph
 
     @Override
     public void handleGlobalFailure(Throwable cause) {
-        handleAnyFailure(cause);
-    }
-
-    @Override
-    public void notifyTaskFailure(
-            ExecutionAttemptID attemptId,
-            Throwable cause,
-            boolean cancelTask,
-            boolean releasePartitions) {
-        handleAnyFailure(cause);
-    }
-
-    @Override
-    public void notifyGlobalFailure(Throwable cause) {
         handleAnyFailure(cause);
     }
 
@@ -127,7 +110,7 @@ class Executing extends StateWithExecutionGraph
 
     private void deploy() {
         final ExecutionGraph executionGraph = getExecutionGraph();
-        executionGraph.setInternalTaskFailuresListener(this);
+        executionGraph.transitionToRunning();
         for (ExecutionJobVertex executionJobVertex : executionGraph.getVerticesTopologically()) {
             for (ExecutionVertex executionVertex : executionJobVertex.getTaskVertices()) {
                 deploySafely(executionVertex);

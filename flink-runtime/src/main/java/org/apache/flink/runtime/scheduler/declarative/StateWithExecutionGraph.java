@@ -30,6 +30,7 @@ import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
@@ -51,6 +52,7 @@ import org.apache.flink.runtime.scheduler.KvStateHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 
@@ -95,7 +97,6 @@ abstract class StateWithExecutionGraph implements State {
                         .getTerminationFuture()
                         .thenAcceptAsync(
                                 jobStatus -> {
-                                    operatorCoordinatorHandler.disposeAllOperatorCoordinators();
                                     context.runIfState(this, () -> onTerminalState(jobStatus));
                                 },
                                 context.getMainThreadExecutor()));
@@ -114,6 +115,14 @@ abstract class StateWithExecutionGraph implements State {
     }
 
     @Override
+    public void onLeave(State newState) {
+        if (!StateWithExecutionGraph.class.isAssignableFrom(newState.getClass())) {
+            // we are leaving the StateWithExecutionGraph --> we need to dispose temporary services
+            operatorCoordinatorHandler.disposeAllOperatorCoordinators();
+        }
+    }
+
+    @Override
     public ArchivedExecutionGraph getJob() {
         return ArchivedExecutionGraph.createFrom(executionGraph);
     }
@@ -125,11 +134,9 @@ abstract class StateWithExecutionGraph implements State {
 
     @Override
     public void suspend(Throwable cause) {
-        executionGraph.suspend(
-                cause); // suspend will call the onTerminalState(JobStatus) callback, triggering a
-        // state transition.
-        // Preconditions.checkState(executionGraph.getState() == JobStatus.SUSPENDED);
-        // context.goToFinished(ArchivedExecutionGraph.createFrom(executionGraph));
+        executionGraph.suspend(cause);
+        Preconditions.checkState(executionGraph.getState() == JobStatus.SUSPENDED);
+        context.goToFinished(ArchivedExecutionGraph.createFrom(executionGraph));
     }
 
     @Override
@@ -331,10 +338,26 @@ abstract class StateWithExecutionGraph implements State {
                                 }
                                 throw new CompletionException(throwable);
                             }
+                            if (ensureAllExecutionsFinished()) {
+                                Throwable error =
+                                        new FlinkException(
+                                                "Not all executions were stopped with a savepoint.");
+                                handleGlobalFailure(error);
+                                throw new CompletionException(error);
+                            }
 
                             return path;
                         },
                         context.getMainThreadExecutor());
+    }
+
+    private boolean ensureAllExecutionsFinished() {
+        for (Execution e : executionGraph.getRegisteredExecutions().values()) {
+            if (e.getState() != ExecutionState.FINISHED) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void startCheckpointScheduler(final CheckpointCoordinator checkpointCoordinator) {
