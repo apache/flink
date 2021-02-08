@@ -79,6 +79,7 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.module.Module;
+import org.apache.flink.table.module.ModuleEntry;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.CatalogQueryOperation;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
@@ -371,6 +372,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     @Override
+    public void useModules(String... moduleNames) {
+        moduleManager.useModules(moduleNames);
+    }
+
+    @Override
     public void unloadModule(String moduleName) {
         moduleManager.unloadModule(moduleName);
     }
@@ -537,6 +543,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     @Override
     public String[] listModules() {
         return moduleManager.listModules().toArray(new String[0]);
+    }
+
+    @Override
+    public ModuleEntry[] listFullModules() {
+        return moduleManager.listFullModules().toArray(new ModuleEntry[0]);
     }
 
     @Override

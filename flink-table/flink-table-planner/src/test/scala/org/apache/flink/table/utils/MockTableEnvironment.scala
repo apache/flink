@@ -20,14 +20,13 @@ package org.apache.flink.table.utils
 
 import java.lang.{Iterable => JIterable}
 import java.util.Optional
-
 import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.table.api.{ExplainDetail, StatementSet, Table, TableConfig, TableEnvironment, TableResult}
 import org.apache.flink.table.catalog.Catalog
 import org.apache.flink.table.descriptors.{ConnectTableDescriptor, ConnectorDescriptor}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{ScalarFunction, UserDefinedFunction}
-import org.apache.flink.table.module.Module
+import org.apache.flink.table.module.{Module, ModuleEntry}
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.types.AbstractDataType
 
@@ -46,6 +45,8 @@ class MockTableEnvironment extends TableEnvironment {
   override def listCatalogs(): Array[String] = ???
 
   override def listModules(): Array[String] = ???
+
+  override def listFullModules(): Array[ModuleEntry] = ???
 
   override def listDatabases(): Array[String] = ???
 
@@ -101,6 +102,8 @@ class MockTableEnvironment extends TableEnvironment {
   override def execute(jobName: String): JobExecutionResult = ???
 
   override def loadModule(moduleName: String, module: Module): Unit = ???
+
+  override def useModules(moduleNames: String*): Unit = ???
 
   override def unloadModule(moduleName: String): Unit = ???
 

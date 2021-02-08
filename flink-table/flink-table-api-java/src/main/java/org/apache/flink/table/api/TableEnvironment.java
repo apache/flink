@@ -28,6 +28,7 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.module.Module;
+import org.apache.flink.table.module.ModuleEntry;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.types.AbstractDataType;
@@ -384,6 +385,14 @@ public interface TableEnvironment {
     void loadModule(String moduleName, Module module);
 
     /**
+     * Enable modules in use with declared name order. Modules that have been loaded but not exist
+     * in names varargs will become unused. There is no guarantee on unused module's order.
+     *
+     * @param moduleNames module names to be used
+     */
+    void useModules(String... moduleNames);
+
+    /**
      * Unloads a {@link Module} with given name. ValidationException is thrown when there is no
      * module with the given name.
      *
@@ -718,11 +727,19 @@ public interface TableEnvironment {
     String[] listCatalogs();
 
     /**
-     * Gets an array of names of all modules in this environment in the loaded order.
+     * Gets an array of names of all used modules in this environment in the most-recent use order.
      *
-     * @return A list of the names of all modules in the loaded order.
+     * @return A list of the names of used modules in the most-recent use order.
      */
     String[] listModules();
+
+    /**
+     * Gets an array of all loaded modules with use status in this environment. Used modules are
+     * kept in most-recent use order.
+     *
+     * @return A list of name and use status entries of all loaded modules.
+     */
+    ModuleEntry[] listFullModules();
 
     /**
      * Gets the names of all databases registered in the current catalog.
