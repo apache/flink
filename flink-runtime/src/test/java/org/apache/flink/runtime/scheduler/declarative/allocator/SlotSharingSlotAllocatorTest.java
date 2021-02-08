@@ -17,7 +17,6 @@
 
 package org.apache.flink.runtime.scheduler.declarative.allocator;
 
-import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
@@ -218,7 +217,7 @@ public class SlotSharingSlotAllocatorTest extends TestLogger {
             this.jobVertexId = jobVertexId;
             this.parallelism = parallelism;
             this.slotSharingGroup = slotSharingGroup;
-            slotSharingGroup.addVertexToGroup(jobVertexId, ResourceSpec.UNKNOWN);
+            slotSharingGroup.addVertexToGroup(jobVertexId);
         }
 
         @Override
