@@ -39,9 +39,9 @@ import java.util.Map;
  *
  * <p>The release process of a shared slot follows one of 2 code paths:
  *
- * <p>1)During normal execution all allocated logical slots will be returned, with the last return
+ * <p>1) During normal execution all allocated logical slots will be returned, with the last return
  * triggering the {@code externalReleaseCallback} which must eventually result in a {@link
- * #release(Throwable)} call. 2)
+ * #release(Throwable)} call.
  *
  * <p>2) If the backing physical is lost (e.g., because the providing TaskManager crashed) then
  * {@link #release(Throwable)} is called without all logical slots having been returned. The runtime
