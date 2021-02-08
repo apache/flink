@@ -36,6 +36,7 @@ import org.apache.flink.runtime.state.StateSnapshot;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
+import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -45,10 +46,11 @@ import java.util.Map;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A {@link org.apache.flink.runtime.state.KeyValueStateIterator} over a {@link
- * HeapKeyedStateBackend}.
+ * A {@link org.apache.flink.runtime.state.KeyValueStateIterator} over Heap backend snapshot
+ * resources.
  */
 @Internal
+@NotThreadSafe
 public final class HeapKeyValueStateIterator implements KeyValueStateIterator {
 
     private static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
@@ -78,8 +80,8 @@ public final class HeapKeyValueStateIterator implements KeyValueStateIterator {
      * <ul>
      *   <li>{@link QueueIterator} for iterating over entries in a priority queue
      *   <li>{@link StateTableIterator} for iterating over entries in a StateTable
-     *   <li>{@link MapStateIterator} for iterating over a entries in a user map, this one falls
-     *       back to the upper one automatically if exhausted
+     *   <li>{@link MapStateIterator} for iterating over entries in a user map, this one falls back
+     *       to the upper one automatically if exhausted
      * </ul>
      */
     private SingleStateIterator currentStateIterator;
