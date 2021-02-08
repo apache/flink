@@ -44,7 +44,7 @@ public class SchedulerNGFactoryFactoryTest extends TestLogger {
     @Test
     public void createSchedulerNGFactoryIfConfigured() {
         final Configuration configuration = new Configuration();
-        configuration.setString(JobManagerOptions.SCHEDULER, "ng");
+        configuration.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Ng);
 
         final SchedulerNGFactory schedulerNGFactory = createSchedulerNGFactory(configuration);
 
@@ -54,12 +54,14 @@ public class SchedulerNGFactoryFactoryTest extends TestLogger {
     @Test
     public void throwsExceptionIfSchedulerNameIsInvalid() {
         final Configuration configuration = new Configuration();
-        configuration.setString(JobManagerOptions.SCHEDULER, "invalid-scheduler-name");
+        configuration.setString(JobManagerOptions.SCHEDULER.key(), "invalid-scheduler-name");
 
         try {
             createSchedulerNGFactory(configuration);
         } catch (IllegalArgumentException e) {
-            assertThat(e.getMessage(), containsString("Illegal value [invalid-scheduler-name]"));
+            assertThat(
+                    e.getMessage(),
+                    containsString("Could not parse value 'invalid-scheduler-name'"));
         }
     }
 
