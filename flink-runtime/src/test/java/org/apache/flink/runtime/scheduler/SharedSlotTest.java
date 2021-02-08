@@ -88,14 +88,9 @@ public class SharedSlotTest extends TestLogger {
         AllocationID allocationId = new AllocationID();
         LocalTaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
         SimpleAckingTaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
-        int physicalSlotNumber = 3;
         slotContextFuture.complete(
                 new TestingPhysicalSlot(
-                        allocationId,
-                        taskManagerLocation,
-                        physicalSlotNumber,
-                        taskManagerGateway,
-                        RP));
+                        allocationId, taskManagerLocation, 3, taskManagerGateway, RP));
 
         assertThat(sharedSlot.isEmpty(), is(false));
         assertThat(released.isDone(), is(false));
@@ -104,7 +99,6 @@ public class SharedSlotTest extends TestLogger {
         assertThat(logicalSlot.getAllocationId(), is(allocationId));
         assertThat(logicalSlot.getTaskManagerLocation(), is(taskManagerLocation));
         assertThat(logicalSlot.getTaskManagerGateway(), is(taskManagerGateway));
-        assertThat(logicalSlot.getPhysicalSlotNumber(), is(physicalSlotNumber));
         assertThat(logicalSlot.getLocality(), is(Locality.UNKNOWN));
     }
 
