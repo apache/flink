@@ -101,7 +101,6 @@ public class HeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
                         registeredKVStates,
                         registeredPQStates,
                         keyGroupCompressionDecorator,
-                        localRecoveryConfig,
                         keyGroupRange,
                         keySerializerProvider,
                         numberOfKeyGroups);

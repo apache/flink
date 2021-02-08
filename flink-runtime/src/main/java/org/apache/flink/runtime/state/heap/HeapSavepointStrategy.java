@@ -27,11 +27,9 @@ import org.apache.flink.runtime.state.FullSnapshotAsyncWriter;
 import org.apache.flink.runtime.state.FullSnapshotResources;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
-import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.SnapshotStrategy;
 import org.apache.flink.runtime.state.StateSerializerProvider;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
-import org.apache.flink.util.function.SupplierWithException;
 
 import javax.annotation.Nonnull;
 
@@ -44,7 +42,6 @@ class HeapSavepointStrategy<K>
     private final Map<String, StateTable<K, ?, ?>> registeredKVStates;
     private final Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates;
     private final StreamCompressionDecorator keyGroupCompressionDecorator;
-    private final LocalRecoveryConfig localRecoveryConfig;
     private final KeyGroupRange keyGroupRange;
     private final StateSerializerProvider<K> keySerializerProvider;
     private final int totalKeyGroups;
@@ -53,14 +50,12 @@ class HeapSavepointStrategy<K>
             Map<String, StateTable<K, ?, ?>> registeredKVStates,
             Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates,
             StreamCompressionDecorator keyGroupCompressionDecorator,
-            LocalRecoveryConfig localRecoveryConfig,
             KeyGroupRange keyGroupRange,
             StateSerializerProvider<K> keySerializerProvider,
             int totalKeyGroups) {
         this.registeredKVStates = registeredKVStates;
         this.registeredPQStates = registeredPQStates;
         this.keyGroupCompressionDecorator = keyGroupCompressionDecorator;
-        this.localRecoveryConfig = localRecoveryConfig;
         this.keyGroupRange = keyGroupRange;
         this.keySerializerProvider = keySerializerProvider;
         this.totalKeyGroups = totalKeyGroups;
@@ -84,29 +79,14 @@ class HeapSavepointStrategy<K>
             long timestamp,
             @Nonnull CheckpointStreamFactory streamFactory,
             @Nonnull CheckpointOptions checkpointOptions) {
+
+        assert checkpointOptions.getCheckpointType().isSavepoint();
         return new FullSnapshotAsyncWriter<>(
                 checkpointOptions.getCheckpointType(),
-                createCheckpointStreamSupplier(checkpointId, streamFactory, checkpointOptions),
-                syncPartResource);
-    }
-
-    private SupplierWithException<CheckpointStreamWithResultProvider, Exception>
-            createCheckpointStreamSupplier(
-                    long checkpointId,
-                    CheckpointStreamFactory primaryStreamFactory,
-                    CheckpointOptions checkpointOptions) {
-
-        return localRecoveryConfig.isLocalRecoveryEnabled()
-                        && !checkpointOptions.getCheckpointType().isSavepoint()
-                ? () ->
-                        CheckpointStreamWithResultProvider.createDuplicatingStream(
-                                checkpointId,
-                                CheckpointedStateScope.EXCLUSIVE,
-                                primaryStreamFactory,
-                                localRecoveryConfig.getLocalStateDirectoryProvider())
-                : () ->
+                () ->
                         CheckpointStreamWithResultProvider.createSimpleStream(
-                                CheckpointedStateScope.EXCLUSIVE, primaryStreamFactory);
+                                CheckpointedStateScope.EXCLUSIVE, streamFactory),
+                syncPartResource);
     }
 
     public TypeSerializer<K> getKeySerializer() {
