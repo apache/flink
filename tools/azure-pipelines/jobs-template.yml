@@ -81,7 +81,7 @@ jobs:
   condition: and(succeeded(), not(eq(variables['MODE'], 'e2e')))
   pool: ${{parameters.test_pool_definition}}
   container: ${{parameters.container}}
-  timeoutInMinutes: 240
+  timeoutInMinutes: 60
   cancelTimeoutInMinutes: 1
   workspace:
     clean: all
@@ -167,7 +167,7 @@ jobs:
   #condition: or(eq(variables['MODE'], 'e2e'), eq(${{parameters.run_end_to_end}}, 'true'))
   # We are running this in a separate pool
   pool: ${{parameters.e2e_pool_definition}}
-  timeoutInMinutes: 310
+  timeoutInMinutes: 90
   cancelTimeoutInMinutes: 1
   workspace:
     clean: all
