@@ -31,6 +31,8 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueSnapshotRestoreWrapper;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueStateSnapshot;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.ResourceGuard;
 import org.apache.flink.util.function.SupplierWithException;
@@ -64,11 +66,17 @@ public class RocksFullSnapshotStrategy<K>
     /** This decorator is used to apply compression per key-group for the written snapshot data. */
     @Nonnull private final StreamCompressionDecorator keyGroupCompressionDecorator;
 
+    private final LinkedHashMap<String, HeapPriorityQueueSnapshotRestoreWrapper<?>>
+            registeredPQStates;
+
     public RocksFullSnapshotStrategy(
             @Nonnull RocksDB db,
             @Nonnull ResourceGuard rocksDBResourceGuard,
             @Nonnull TypeSerializer<K> keySerializer,
             @Nonnull LinkedHashMap<String, RocksDbKvStateInfo> kvStateInformation,
+            @Nonnull
+                    LinkedHashMap<String, HeapPriorityQueueSnapshotRestoreWrapper<?>>
+                            registeredPQStates,
             @Nonnull KeyGroupRange keyGroupRange,
             @Nonnegative int keyGroupPrefixBytes,
             @Nonnull LocalRecoveryConfig localRecoveryConfig,
@@ -84,6 +92,7 @@ public class RocksFullSnapshotStrategy<K>
                 localRecoveryConfig);
 
         this.keyGroupCompressionDecorator = keyGroupCompressionDecorator;
+        this.registeredPQStates = registeredPQStates;
     }
 
     @Override
@@ -99,6 +108,13 @@ public class RocksFullSnapshotStrategy<K>
             metaDataCopy.add(stateInfo);
         }
 
+        List<HeapPriorityQueueStateSnapshot<?>> heapPriorityQueuesSnapshots =
+                new ArrayList<>(registeredPQStates.size());
+        for (HeapPriorityQueueSnapshotRestoreWrapper<?> stateInfo : registeredPQStates.values()) {
+            stateMetaInfoSnapshots.add(stateInfo.getMetaInfo().snapshot());
+            heapPriorityQueuesSnapshots.add(stateInfo.stateSnapshot());
+        }
+
         final ResourceGuard.Lease lease = rocksDBResourceGuard.acquireResource();
         final Snapshot snapshot = db.getSnapshot();
 
@@ -106,6 +122,7 @@ public class RocksFullSnapshotStrategy<K>
                 lease,
                 snapshot,
                 metaDataCopy,
+                heapPriorityQueuesSnapshots,
                 stateMetaInfoSnapshots,
                 db,
                 keyGroupPrefixBytes,
