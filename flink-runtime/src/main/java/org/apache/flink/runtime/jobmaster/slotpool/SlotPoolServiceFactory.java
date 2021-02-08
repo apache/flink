@@ -43,8 +43,7 @@ public interface SlotPoolServiceFactory {
                 Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT));
 
         if (ClusterOptions.isDeclarativeResourceManagementEnabled(configuration)) {
-            if (configuration.get(JobManagerOptions.SCHEDULER)
-                            == JobManagerOptions.SchedulerType.Declarative
+            if (ClusterOptions.isDeclarativeSchedulerEnabled(configuration)
                     && jobType == JobType.STREAMING) {
                 return new DeclarativeSlotPoolServiceFactory(
                         SystemClock.getInstance(), slotIdleTimeout, rpcTimeout);

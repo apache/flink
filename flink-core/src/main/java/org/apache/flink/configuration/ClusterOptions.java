@@ -139,6 +139,23 @@ public class ClusterOptions {
         }
     }
 
+    public static JobManagerOptions.SchedulerType getSchedulerType(Configuration configuration) {
+        if (isDeclarativeSchedulerEnabled(configuration)) {
+            return JobManagerOptions.SchedulerType.Declarative;
+        } else {
+            return configuration.get(JobManagerOptions.SCHEDULER);
+        }
+    }
+
+    public static boolean isDeclarativeSchedulerEnabled(Configuration configuration) {
+        if (configuration.contains(JobManagerOptions.SCHEDULER)) {
+            return configuration.get(JobManagerOptions.SCHEDULER)
+                    == JobManagerOptions.SchedulerType.Declarative;
+        } else {
+            return System.getProperties().containsKey("flink.tests.enable-declarative-scheduler");
+        }
+    }
+
     public static boolean isFineGrainedResourceManagementEnabled(Configuration configuration) {
         // TODO We need to bind fine-grained with declarative because in the first step we implement
         // the feature base on the declarative protocol. We would be able to support both protocols
