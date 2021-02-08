@@ -43,7 +43,9 @@ public class KvStateEntry<K, N, V> {
 
     private final ConcurrentMap<Thread, KvStateInfo<K, N, V>> serializerCache;
 
-    public KvStateEntry(final InternalKvState<K, N, V> state) {
+    private final ClassLoader userClassLoader;
+
+    public KvStateEntry(final InternalKvState<K, N, V> state, ClassLoader userClassLoader) {
         this.state = Preconditions.checkNotNull(state);
         this.stateInfo =
                 new KvStateInfo<>(
@@ -51,11 +53,16 @@ public class KvStateEntry<K, N, V> {
                         state.getNamespaceSerializer(),
                         state.getValueSerializer());
         this.serializerCache = new ConcurrentHashMap<>();
+        this.userClassLoader = userClassLoader;
         this.areSerializersStateless = stateInfo.duplicate() == stateInfo;
     }
 
     public InternalKvState<K, N, V> getState() {
         return state;
+    }
+
+    public ClassLoader getUserClassLoader() {
+        return userClassLoader;
     }
 
     public KvStateInfo<K, N, V> getInfoForCurrentThread() {
