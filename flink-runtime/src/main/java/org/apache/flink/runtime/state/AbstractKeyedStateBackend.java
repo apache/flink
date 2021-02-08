@@ -281,7 +281,7 @@ public abstract class AbstractKeyedStateBackend<K>
                 throw new IllegalStateException("State backend has not been initialized for job.");
             }
             String name = stateDescriptor.getQueryableStateName();
-            kvStateRegistry.registerKvState(keyGroupRange, name, kvState);
+            kvStateRegistry.registerKvState(keyGroupRange, name, kvState, userCodeClassLoader);
         }
     }
 
