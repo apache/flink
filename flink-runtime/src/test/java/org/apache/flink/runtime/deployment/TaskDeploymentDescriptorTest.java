@@ -72,7 +72,6 @@ public class TaskDeploymentDescriptorTest extends TestLogger {
             new ArrayList<InputGateDeploymentDescriptor>(0);
     private static final List<PermanentBlobKey> requiredJars = new ArrayList<>(0);
     private static final List<URL> requiredClasspaths = new ArrayList<>(0);
-    private static final int targetSlotNumber = 47;
     private static final TaskStateSnapshot taskStateHandles = new TaskStateSnapshot();
     private static final JobManagerTaskRestore taskRestore =
             new JobManagerTaskRestore(1L, taskStateHandles);
@@ -123,7 +122,6 @@ public class TaskDeploymentDescriptorTest extends TestLogger {
         assertEquals(orig.getAllocationId(), copy.getAllocationId());
         assertEquals(orig.getSubtaskIndex(), copy.getSubtaskIndex());
         assertEquals(orig.getAttemptNumber(), copy.getAttemptNumber());
-        assertEquals(orig.getTargetSlotNumber(), copy.getTargetSlotNumber());
         assertEquals(
                 orig.getTaskRestore().getRestoreCheckpointId(),
                 copy.getTaskRestore().getRestoreCheckpointId());
@@ -165,7 +163,6 @@ public class TaskDeploymentDescriptorTest extends TestLogger {
                 allocationId,
                 indexInSubtaskGroup,
                 attemptNumber,
-                targetSlotNumber,
                 taskRestore,
                 producedResults,
                 inputGates);

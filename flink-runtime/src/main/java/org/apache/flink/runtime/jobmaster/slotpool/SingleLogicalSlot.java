@@ -135,11 +135,6 @@ public class SingleLogicalSlot implements LogicalSlot, PhysicalSlot.Payload {
     }
 
     @Override
-    public int getPhysicalSlotNumber() {
-        return slotContext.getPhysicalSlotNumber();
-    }
-
-    @Override
     public AllocationID getAllocationId() {
         return slotContext.getAllocationId();
     }

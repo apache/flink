@@ -304,7 +304,6 @@ public class Task
             int attemptNumber,
             List<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors,
             List<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors,
-            int targetSlotNumber,
             MemoryManager memManager,
             IOManager ioManager,
             ShuffleEnvironment<?, ?> shuffleEnvironment,
@@ -331,8 +330,6 @@ public class Task
 
         Preconditions.checkArgument(0 <= subtaskIndex, "The subtask index must be positive.");
         Preconditions.checkArgument(0 <= attemptNumber, "The attempt number must be positive.");
-        Preconditions.checkArgument(
-                0 <= targetSlotNumber, "The target slot number must be positive.");
 
         this.taskInfo =
                 new TaskInfo(

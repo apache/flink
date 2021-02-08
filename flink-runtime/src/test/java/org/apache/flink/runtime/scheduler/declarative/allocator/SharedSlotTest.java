@@ -66,7 +66,6 @@ public class SharedSlotTest extends TestLogger {
         assertThat(logicalSlot.getAllocationId(), equalTo(physicalSlot.getAllocationId()));
         assertThat(logicalSlot.getLocality(), is(Locality.UNKNOWN));
         assertThat(logicalSlot.getPayload(), nullValue());
-        assertThat(logicalSlot.getPhysicalSlotNumber(), is(physicalSlot.getPhysicalSlotNumber()));
         assertThat(
                 logicalSlot.getTaskManagerLocation(),
                 equalTo(physicalSlot.getTaskManagerLocation()));

@@ -570,7 +570,6 @@ public class Execution
                     TaskDeploymentDescriptorFactory.fromExecutionVertex(vertex, attemptNumber)
                             .createDeploymentDescriptor(
                                     slot.getAllocationId(),
-                                    slot.getPhysicalSlotNumber(),
                                     taskRestore,
                                     producedPartitions.values());
 

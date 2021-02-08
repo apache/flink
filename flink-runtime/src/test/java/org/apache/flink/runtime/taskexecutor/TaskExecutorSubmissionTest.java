@@ -691,8 +691,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
                 producedPartitions,
                 inputGates,
                 Collections.emptyList(),
-                Collections.emptyList(),
-                0);
+                Collections.emptyList());
     }
 
     static TaskDeploymentDescriptor createTaskDeploymentDescriptor(
@@ -711,8 +710,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
             List<ResultPartitionDeploymentDescriptor> producedPartitions,
             List<InputGateDeploymentDescriptor> inputGates,
             Collection<PermanentBlobKey> requiredJarFiles,
-            Collection<URL> requiredClasspaths,
-            int targetSlotNumber)
+            Collection<URL> requiredClasspaths)
             throws IOException {
 
         JobInformation jobInformation =
@@ -746,7 +744,6 @@ public class TaskExecutorSubmissionTest extends TestLogger {
                 new AllocationID(),
                 subtaskIndex,
                 attemptNumber,
-                targetSlotNumber,
                 null,
                 producedPartitions,
                 inputGates);

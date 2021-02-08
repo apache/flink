@@ -305,7 +305,6 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
             TaskDeploymentDescriptor tdd =
                     tddFactory.createDeploymentDescriptor(
                             new AllocationID(),
-                            0,
                             null,
                             Execution.registerProducedPartitions(
                                             vertex,

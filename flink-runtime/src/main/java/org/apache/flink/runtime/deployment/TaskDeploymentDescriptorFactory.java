@@ -85,7 +85,6 @@ public class TaskDeploymentDescriptorFactory {
 
     public TaskDeploymentDescriptor createDeploymentDescriptor(
             AllocationID allocationID,
-            int targetSlotNumber,
             @Nullable JobManagerTaskRestore taskRestore,
             Collection<ResultPartitionDeploymentDescriptor> producedPartitions) {
         return new TaskDeploymentDescriptor(
@@ -96,7 +95,6 @@ public class TaskDeploymentDescriptorFactory {
                 allocationID,
                 subtaskIndex,
                 attemptNumber,
-                targetSlotNumber,
                 taskRestore,
                 new ArrayList<>(producedPartitions),
                 createInputGateDeploymentDescriptors());
