@@ -85,6 +85,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.net.URLClassLoader;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -393,10 +394,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
         env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
 
         // Custom serializer is not needed, it's used just to check if serialization works.
-        @SuppressWarnings("unchecked")
-        Class<Serializer<?>> customSerializerClass =
-                (Class<Serializer<?>>) userClassLoader.loadClass(customSerializerClassName);
-        env.getConfig().addDefaultKryoSerializer(Byte.class, customSerializerClass);
+        env.getConfig().addDefaultKryoSerializer(Byte.class, createSerializer(userClassLoader));
 
         // Here we *force* using Kryo, to check if custom serializers are handled correctly WRT
         // classloading
@@ -430,6 +428,15 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
                             executeValueQuery(
                                     deadline, client, jobId, stateName, valueState, numElements));
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    <T extends Serializer<Byte> & Serializable> T createSerializer(ClassLoader userClassLoader)
+            throws ClassNotFoundException, IllegalAccessException, InstantiationException {
+        Class<Serializer<?>> customSerializerClass =
+                (Class<Serializer<?>>) userClassLoader.loadClass("CustomKryo");
+
+        return (T) customSerializerClass.newInstance();
     }
 
     /**
