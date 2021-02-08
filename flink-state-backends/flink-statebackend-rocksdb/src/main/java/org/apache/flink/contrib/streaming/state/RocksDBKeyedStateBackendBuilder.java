@@ -21,10 +21,10 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.contrib.streaming.state.restore.AbstractRocksDBRestoreOperation;
 import org.apache.flink.contrib.streaming.state.restore.RocksDBFullRestoreOperation;
 import org.apache.flink.contrib.streaming.state.restore.RocksDBIncrementalRestoreOperation;
 import org.apache.flink.contrib.streaming.state.restore.RocksDBNoneRestoreOperation;
+import org.apache.flink.contrib.streaming.state.restore.RocksDBRestoreOperation;
 import org.apache.flink.contrib.streaming.state.restore.RocksDBRestoreResult;
 import org.apache.flink.contrib.streaming.state.snapshot.RocksDBSnapshotStrategyBase;
 import org.apache.flink.contrib.streaming.state.snapshot.RocksFullSnapshotStrategy;
@@ -250,7 +250,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
         LinkedHashMap<String, RocksDBKeyedStateBackend.RocksDbKvStateInfo> kvStateInformation =
                 new LinkedHashMap<>();
         RocksDB db = null;
-        AbstractRocksDBRestoreOperation restoreOperation = null;
+        RocksDBRestoreOperation restoreOperation = null;
         RocksDbTtlCompactFiltersManager ttlCompactFiltersManager =
                 new RocksDbTtlCompactFiltersManager(ttlTimeProvider);
 
@@ -393,7 +393,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                 writeBatchSize);
     }
 
-    private AbstractRocksDBRestoreOperation<K> getRocksDBRestoreOperation(
+    private RocksDBRestoreOperation getRocksDBRestoreOperation(
             int keyGroupPrefixBytes,
             CloseableRegistry cancelStreamRegistry,
             LinkedHashMap<String, RocksDBKeyedStateBackend.RocksDbKvStateInfo> kvStateInformation,
@@ -401,20 +401,12 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
         DBOptions dbOptions = optionsContainer.getDbOptions();
         if (restoreStateHandles.isEmpty()) {
             return new RocksDBNoneRestoreOperation<>(
-                    keyGroupRange,
-                    keyGroupPrefixBytes,
-                    numberOfTransferingThreads,
-                    cancelStreamRegistry,
-                    userCodeClassLoader,
                     kvStateInformation,
-                    keySerializerProvider,
-                    instanceBasePath,
                     instanceRocksDBPath,
                     dbOptions,
                     columnFamilyOptionsFactory,
                     nativeMetricOptions,
                     metricGroup,
-                    restoreStateHandles,
                     ttlCompactFiltersManager,
                     optionsContainer.getWriteBufferManagerCapacity());
         }
@@ -442,13 +434,9 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
         } else {
             return new RocksDBFullRestoreOperation<>(
                     keyGroupRange,
-                    keyGroupPrefixBytes,
-                    numberOfTransferingThreads,
-                    cancelStreamRegistry,
                     userCodeClassLoader,
                     kvStateInformation,
                     keySerializerProvider,
-                    instanceBasePath,
                     instanceRocksDBPath,
                     dbOptions,
                     columnFamilyOptionsFactory,

@@ -18,6 +18,8 @@
 
 package org.apache.flink.contrib.streaming.state.restore;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.contrib.streaming.state.RocksDBIncrementalCheckpointUtils;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.RocksDbKvStateInfo;
 import org.apache.flink.contrib.streaming.state.RocksDBNativeMetricOptions;
@@ -46,6 +48,7 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.StateMigrationException;
 
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
@@ -54,6 +57,8 @@ import org.rocksdb.DBOptions;
 import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
@@ -61,10 +66,7 @@ import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -76,18 +78,30 @@ import java.util.TreeMap;
 import java.util.UUID;
 import java.util.function.Function;
 
-import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.SST_FILE_SUFFIX;
 import static org.apache.flink.runtime.state.StateUtil.unexpectedStateHandleException;
-import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** Encapsulates the process of restoring a RocksDB instance from an incremental snapshot. */
-public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestoreOperation<K> {
+public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOperation {
+
+    private static final Logger logger =
+            LoggerFactory.getLogger(RocksDBIncrementalRestoreOperation.class);
 
     private final String operatorIdentifier;
     private final SortedMap<Long, Set<StateHandleID>> restoredSstFiles;
+    private final RocksDBHandle rocksHandle;
+    private final Collection<KeyedStateHandle> restoreStateHandles;
+    private final CloseableRegistry cancelStreamRegistry;
+    private final KeyGroupRange keyGroupRange;
+    private final File instanceBasePath;
+    private final int numberOfTransferringThreads;
+    private final int keyGroupPrefixBytes;
+    private final StateSerializerProvider<K> keySerializerProvider;
+    private final ClassLoader userCodeClassLoader;
     private long lastCompletedCheckpointId;
     private UUID backendUID;
     private final long writeBatchSize;
+
+    private boolean isKeySerializerCompatibilityChecked;
 
     public RocksDBIncrementalRestoreOperation(
             String operatorIdentifier,
@@ -108,29 +122,29 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
             @Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
             @Nonnegative long writeBatchSize,
             Long writeBufferManagerCapacity) {
-        super(
-                keyGroupRange,
-                keyGroupPrefixBytes,
-                numberOfTransferringThreads,
-                cancelStreamRegistry,
-                userCodeClassLoader,
-                kvStateInformation,
-                keySerializerProvider,
-                instanceBasePath,
-                instanceRocksDBPath,
-                dbOptions,
-                columnFamilyOptionsFactory,
-                nativeMetricOptions,
-                metricGroup,
-                restoreStateHandles,
-                ttlCompactFiltersManager,
-                writeBufferManagerCapacity);
+        this.rocksHandle =
+                new RocksDBHandle(
+                        kvStateInformation,
+                        instanceRocksDBPath,
+                        dbOptions,
+                        columnFamilyOptionsFactory,
+                        nativeMetricOptions,
+                        metricGroup,
+                        ttlCompactFiltersManager,
+                        writeBufferManagerCapacity);
         this.operatorIdentifier = operatorIdentifier;
         this.restoredSstFiles = new TreeMap<>();
         this.lastCompletedCheckpointId = -1L;
         this.backendUID = UUID.randomUUID();
-        checkArgument(writeBatchSize >= 0, "Write batch size have to be no negative.");
         this.writeBatchSize = writeBatchSize;
+        this.restoreStateHandles = restoreStateHandles;
+        this.cancelStreamRegistry = cancelStreamRegistry;
+        this.keyGroupRange = keyGroupRange;
+        this.instanceBasePath = instanceBasePath;
+        this.numberOfTransferringThreads = numberOfTransferringThreads;
+        this.keyGroupPrefixBytes = keyGroupPrefixBytes;
+        this.keySerializerProvider = keySerializerProvider;
+        this.userCodeClassLoader = userCodeClassLoader;
     }
 
     /** Root method that branches for different implementations of {@link KeyedStateHandle}. */
@@ -153,9 +167,9 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
             restoreWithoutRescaling(theFirstStateHandle);
         }
         return new RocksDBRestoreResult(
-                this.db,
-                defaultColumnFamilyHandle,
-                nativeMetricMonitor,
+                this.rocksHandle.getDb(),
+                this.rocksHandle.getDefaultColumnFamilyHandle(),
+                this.rocksHandle.getNativeMetricMonitor(),
                 lastCompletedCheckpointId,
                 backendUID,
                 restoredSstFiles);
@@ -216,10 +230,6 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
                 readMetaData(localKeyedStateHandle.getMetaDataState());
         List<StateMetaInfoSnapshot> stateMetaInfoSnapshots =
                 serializationProxy.getStateMetaInfoSnapshots();
-        columnFamilyDescriptors =
-                createAndRegisterColumnFamilyDescriptors(
-                        stateMetaInfoSnapshots, true, writeBufferManagerCapacity);
-        columnFamilyHandles = new ArrayList<>(columnFamilyDescriptors.size() + 1);
 
         Path restoreSourcePath = localKeyedStateHandle.getDirectoryStateHandle().getDirectory();
 
@@ -228,19 +238,10 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
                 operatorIdentifier,
                 backendUID);
 
-        if (!instanceRocksDBPath.mkdirs()) {
-            String errMsg =
-                    "Could not create RocksDB data directory: "
-                            + instanceBasePath.getAbsolutePath();
-            logger.error(errMsg);
-            throw new IOException(errMsg);
-        }
-
-        restoreInstanceDirectoryFromPath(restoreSourcePath, dbPath);
-
-        openDB();
-
-        registerColumnFamilyHandles(stateMetaInfoSnapshots);
+        this.rocksHandle.openDB(
+                createlumnFamilyDescriptors(stateMetaInfoSnapshots, true),
+                stateMetaInfoSnapshots,
+                restoreSourcePath);
     }
 
     private IncrementalLocalKeyedStateHandle transferRemoteStateToLocalDirectory(
@@ -273,14 +274,6 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
         }
     }
 
-    private void registerColumnFamilyHandles(List<StateMetaInfoSnapshot> metaInfoSnapshots) {
-        // Register CF handlers
-        for (int i = 0; i < metaInfoSnapshots.size(); ++i) {
-            getOrRegisterStateColumnFamilyHandle(
-                    columnFamilyHandles.get(i), metaInfoSnapshots.get(i));
-        }
-    }
-
     /**
      * Recovery from multi incremental states with rescaling. For rescaling, this method creates a
      * temporary RocksDB instance for a key-groups shard. All contents from the temporary instance
@@ -299,7 +292,7 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
             restoreStateHandles.remove(initialHandle);
             initDBWithRescaling(initialHandle);
         } else {
-            openDB();
+            this.rocksHandle.openDB();
         }
 
         // Transfer remaining key-groups from temporary instance into base DB
@@ -330,7 +323,8 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
                                     (IncrementalRemoteKeyedStateHandle) rawStateHandle,
                                     temporaryRestoreInstancePath);
                     RocksDBWriteBatchWrapper writeBatchWrapper =
-                            new RocksDBWriteBatchWrapper(this.db, writeBatchSize)) {
+                            new RocksDBWriteBatchWrapper(
+                                    this.rocksHandle.getDb(), writeBatchSize)) {
 
                 List<ColumnFamilyDescriptor> tmpColumnFamilyDescriptors =
                         tmpRestoreDBInfo.columnFamilyDescriptors;
@@ -343,7 +337,7 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
                     ColumnFamilyHandle tmpColumnFamilyHandle = tmpColumnFamilyHandles.get(i);
 
                     ColumnFamilyHandle targetColumnFamilyHandle =
-                            getOrRegisterStateColumnFamilyHandle(
+                            this.rocksHandle.getOrRegisterStateColumnFamilyHandle(
                                             null, tmpRestoreDBInfo.stateMetaInfoSnapshots.get(i))
                                     .columnFamilyHandle;
 
@@ -390,8 +384,8 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
         // 2. Clip the base DB instance
         try {
             RocksDBIncrementalCheckpointUtils.clipDBWithKeyGroupRange(
-                    db,
-                    columnFamilyHandles,
+                    this.rocksHandle.getDb(),
+                    this.rocksHandle.getColumnFamilyHandles(),
                     keyGroupRange,
                     initialHandle.getKeyGroupRange(),
                     keyGroupPrefixBytes,
@@ -463,8 +457,7 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
                 serializationProxy.getStateMetaInfoSnapshots();
 
         List<ColumnFamilyDescriptor> columnFamilyDescriptors =
-                createAndRegisterColumnFamilyDescriptors(
-                        stateMetaInfoSnapshots, false, writeBufferManagerCapacity);
+                createlumnFamilyDescriptors(stateMetaInfoSnapshots, false);
 
         List<ColumnFamilyHandle> columnFamilyHandles =
                 new ArrayList<>(stateMetaInfoSnapshots.size() + 1);
@@ -475,8 +468,8 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
                         columnFamilyDescriptors,
                         columnFamilyHandles,
                         RocksDBOperationUtils.createColumnFamilyOptions(
-                                columnFamilyOptionsFactory, "default"),
-                        dbOptions);
+                                this.rocksHandle.getColumnFamilyOptionsFactory(), "default"),
+                        this.rocksHandle.getDbOptions());
 
         return new RestoredDBInstance(
                 restoreDb, columnFamilyHandles, columnFamilyDescriptors, stateMetaInfoSnapshots);
@@ -486,10 +479,8 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
      * This method recreates and registers all {@link ColumnFamilyDescriptor} from Flink's state
      * meta data snapshot.
      */
-    private List<ColumnFamilyDescriptor> createAndRegisterColumnFamilyDescriptors(
-            List<StateMetaInfoSnapshot> stateMetaInfoSnapshots,
-            boolean registerTtlCompactFilter,
-            Long writeBufferManagerCapacity) {
+    private List<ColumnFamilyDescriptor> createlumnFamilyDescriptors(
+            List<StateMetaInfoSnapshot> stateMetaInfoSnapshots, boolean registerTtlCompactFilter) {
 
         List<ColumnFamilyDescriptor> columnFamilyDescriptors =
                 new ArrayList<>(stateMetaInfoSnapshots.size());
@@ -500,35 +491,15 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
             ColumnFamilyDescriptor columnFamilyDescriptor =
                     RocksDBOperationUtils.createColumnFamilyDescriptor(
                             metaInfoBase,
-                            columnFamilyOptionsFactory,
-                            registerTtlCompactFilter ? ttlCompactFiltersManager : null,
-                            writeBufferManagerCapacity);
+                            this.rocksHandle.getColumnFamilyOptionsFactory(),
+                            registerTtlCompactFilter
+                                    ? this.rocksHandle.getTtlCompactFiltersManager()
+                                    : null,
+                            this.rocksHandle.getWriteBufferManagerCapacity());
 
             columnFamilyDescriptors.add(columnFamilyDescriptor);
         }
         return columnFamilyDescriptors;
-    }
-
-    /**
-     * This recreates the new working directory of the recovered RocksDB instance and links/copies
-     * the contents from a local state.
-     */
-    private void restoreInstanceDirectoryFromPath(Path source, String instanceRocksDBPath)
-            throws IOException {
-        final Path instanceRocksDBDirectory = Paths.get(instanceRocksDBPath);
-        final Path[] files = FileUtils.listDirectory(source);
-
-        for (Path file : files) {
-            final String fileName = file.getFileName().toString();
-            final Path targetFile = instanceRocksDBDirectory.resolve(fileName);
-            if (fileName.endsWith(SST_FILE_SUFFIX)) {
-                // hardlink'ing the immutable sst-files.
-                Files.createLink(targetFile, file);
-            } else {
-                // true copy for all other files.
-                Files.copy(file, targetFile, StandardCopyOption.REPLACE_EXISTING);
-            }
-        }
     }
 
     /** Reads Flink's state meta data file from the state handle. */
@@ -547,5 +518,45 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
                 inputStream.close();
             }
         }
+    }
+
+    KeyedBackendSerializationProxy<K> readMetaData(DataInputView dataInputView)
+            throws IOException, StateMigrationException {
+        // isSerializerPresenceRequired flag is set to false, since for the RocksDB state backend,
+        // deserialization of state happens lazily during runtime; we depend on the fact
+        // that the new serializer for states could be compatible, and therefore the restore can
+        // continue
+        // without old serializers required to be present.
+        KeyedBackendSerializationProxy<K> serializationProxy =
+                new KeyedBackendSerializationProxy<>(userCodeClassLoader);
+        serializationProxy.read(dataInputView);
+        if (!isKeySerializerCompatibilityChecked) {
+            // fetch current serializer now because if it is incompatible, we can't access
+            // it anymore to improve the error message
+            TypeSerializer<K> currentSerializer = keySerializerProvider.currentSchemaSerializer();
+            // check for key serializer compatibility; this also reconfigures the
+            // key serializer to be compatible, if it is required and is possible
+            TypeSerializerSchemaCompatibility<K> keySerializerSchemaCompat =
+                    keySerializerProvider.setPreviousSerializerSnapshotForRestoredState(
+                            serializationProxy.getKeySerializerSnapshot());
+            if (keySerializerSchemaCompat.isCompatibleAfterMigration()
+                    || keySerializerSchemaCompat.isIncompatible()) {
+                throw new StateMigrationException(
+                        "The new key serializer ("
+                                + currentSerializer
+                                + ") must be compatible with the previous key serializer ("
+                                + keySerializerProvider.previousSchemaSerializer()
+                                + ").");
+            }
+
+            isKeySerializerCompatibilityChecked = true;
+        }
+
+        return serializationProxy;
+    }
+
+    @Override
+    public void close() throws Exception {
+        this.rocksHandle.close();
     }
 }
