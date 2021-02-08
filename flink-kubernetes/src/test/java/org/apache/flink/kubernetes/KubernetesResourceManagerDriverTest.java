@@ -18,6 +18,7 @@
 
 package org.apache.flink.kubernetes;
 
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesResourceManagerDriverConfiguration;
@@ -26,6 +27,7 @@ import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient.WatchCallbackHandl
 import org.apache.flink.kubernetes.kubeclient.TestingFlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.TestingKubeClientFactory;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesTooOldResourceVersionException;
 import org.apache.flink.kubernetes.kubeclient.resources.TestingKubernetesPod;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
@@ -33,10 +35,13 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.resourcemanager.active.ResourceManagerDriver;
 import org.apache.flink.runtime.resourcemanager.active.ResourceManagerDriverTestBase;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import org.junit.Test;
 
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -189,6 +194,31 @@ public class KubernetesResourceManagerDriverTest
         };
     }
 
+    @Test
+    public void testNewWatchCreationWhenKubernetesTooOldResourceVersionException()
+            throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            getPodCallbackHandler()
+                                    .handleError(
+                                            new KubernetesTooOldResourceVersionException(
+                                                    new Exception("too old resource version")));
+                            // Verify the old watch is closed and a new one is created
+                            CommonTestUtils.waitUntilCondition(
+                                    () -> getPodsWatches().size() == 2,
+                                    Deadline.fromNow(Duration.ofSeconds(TIMEOUT_SEC)),
+                                    String.format(
+                                            "New watch is not created in %s seconds.",
+                                            TIMEOUT_SEC));
+                            assertThat(getPodsWatches().get(0).isClosed(), is(true));
+                            assertThat(getPodsWatches().get(1).isClosed(), is(false));
+                        });
+            }
+        };
+    }
+
     @Override
     protected ResourceManagerDriverTestBase<KubernetesWorkerNode>.Context createContext() {
         return new Context();
@@ -202,6 +232,9 @@ public class KubernetesResourceManagerDriverTest
                 setWatchPodsAndDoCallbackFuture = new CompletableFuture<>();
         private final CompletableFuture<Void> closeKubernetesWatchFuture =
                 new CompletableFuture<>();
+
+        private final List<TestingFlinkKubeClient.MockKubernetesWatch> podsWatches =
+                new ArrayList<>();
         private final CompletableFuture<String> stopAndCleanupClusterFuture =
                 new CompletableFuture<>();
         private final CompletableFuture<KubernetesPod> createTaskManagerPodFuture =
@@ -213,12 +246,16 @@ public class KubernetesResourceManagerDriverTest
                         .setWatchPodsAndDoCallbackFunction(
                                 (ignore, handler) -> {
                                     setWatchPodsAndDoCallbackFuture.complete(handler);
-                                    return new TestingFlinkKubeClient.MockKubernetesWatch() {
-                                        @Override
-                                        public void close() {
-                                            closeKubernetesWatchFuture.complete(null);
-                                        }
-                                    };
+                                    final TestingFlinkKubeClient.MockKubernetesWatch watch =
+                                            new TestingFlinkKubeClient.MockKubernetesWatch() {
+                                                @Override
+                                                public void close() {
+                                                    super.close();
+                                                    closeKubernetesWatchFuture.complete(null);
+                                                }
+                                            };
+                                    podsWatches.add(watch);
+                                    return watch;
                                 })
                         .setStopAndCleanupClusterConsumer(stopAndCleanupClusterFuture::complete)
                         .setCreateTaskManagerPodFunction(
@@ -242,6 +279,10 @@ public class KubernetesResourceManagerDriverTest
                 fail("Cannot get WatchCallbackHandler, cause: " + e.getMessage());
             }
             return null;
+        }
+
+        List<TestingFlinkKubeClient.MockKubernetesWatch> getPodsWatches() {
+            return podsWatches;
         }
 
         @Override
