@@ -45,6 +45,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -68,18 +69,26 @@ import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunctio
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.LambdaUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
+import com.esotericsoftware.kryo.Serializer;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
+import java.io.IOException;
+import java.net.URLClassLoader;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -120,6 +129,8 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
     protected static ClusterClient<?> clusterClient;
 
     protected static int maxParallelism;
+
+    @ClassRule public static TemporaryFolder classloaderFolder = new TemporaryFolder();
 
     @Before
     public void setUp() throws Exception {
@@ -359,6 +370,65 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 
             ClientUtils.submitJob(clusterClient, jobGraph);
             executeValueQuery(deadline, client, jobId, "hakuna", valueState, numElements);
+        }
+    }
+
+    /** This test checks if custom Kryo serializers are loaded with correct classloader. */
+    @Test
+    public void testCustomKryoSerializerHandling() throws Exception {
+        final Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
+        final long numElements = 1;
+        final String stateName = "teriberka";
+
+        final String customSerializerClassName = "CustomKryo";
+        final URLClassLoader userClassLoader =
+                createLoaderWithCustomKryoSerializer(customSerializerClassName);
+
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setStateBackend(stateBackend);
+        env.setParallelism(maxParallelism);
+        // Very important, because cluster is shared between tests and we
+        // don't explicitly check that all slots are available before
+        // submitting.
+        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+
+        // Custom serializer is not needed, it's used just to check if serialization works.
+        @SuppressWarnings("unchecked")
+        Class<Serializer<?>> customSerializerClass =
+                (Class<Serializer<?>>) userClassLoader.loadClass(customSerializerClassName);
+        env.getConfig().addDefaultKryoSerializer(Byte.class, customSerializerClass);
+
+        // Here we *force* using Kryo, to check if custom serializers are handled correctly WRT
+        // classloading
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        ValueStateDescriptor<Tuple2<Integer, Long>> valueState =
+                new ValueStateDescriptor<>("any", new GenericTypeInfo(Tuple2.class));
+
+        env.addSource(new TestAscendingValueSource(numElements))
+                .keyBy(
+                        new KeySelector<Tuple2<Integer, Long>, Integer>() {
+                            private static final long serialVersionUID = 7662520075515707428L;
+
+                            @Override
+                            public Integer getKey(Tuple2<Integer, Long> value) {
+                                return value.f0;
+                            }
+                        })
+                .asQueryableState(stateName, valueState);
+
+        try (AutoCancellableJob autoCancellableJob =
+                new AutoCancellableJob(deadline, clusterClient, env)) {
+
+            final JobID jobId = autoCancellableJob.getJobId();
+            final JobGraph jobGraph = autoCancellableJob.getJobGraph();
+            jobGraph.setClasspaths(Arrays.asList(userClassLoader.getURLs()));
+
+            clusterClient.submitJob(jobGraph).get();
+            LambdaUtil.withContextClassLoader(
+                    userClassLoader,
+                    () ->
+                            executeValueQuery(
+                                    deadline, client, jobId, stateName, valueState, numElements));
         }
     }
 
@@ -1477,5 +1547,27 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 
             assertTrue("Did not succeed query", success);
         }
+    }
+
+    private static URLClassLoader createLoaderWithCustomKryoSerializer(String className)
+            throws IOException {
+        return ClassLoaderUtils.compileAndLoadJava(
+                classloaderFolder.newFolder(),
+                className + ".java",
+                "import com.esotericsoftware.kryo.Kryo;\n"
+                        + "import com.esotericsoftware.kryo.Serializer;\n"
+                        + "import com.esotericsoftware.kryo.io.Input;\n"
+                        + "import com.esotericsoftware.kryo.io.Output;\n"
+                        + "import java.io.Serializable;\n"
+                        + "public class "
+                        + className
+                        + " extends Serializer<Byte> implements Serializable {\n"
+                        + "    @Override\n"
+                        + "    public void write(Kryo kryo, Output output, Byte testJob) {}\n"
+                        + "    @Override\n"
+                        + "    public Byte read(Kryo kryo, Input input, Class<Byte> aClass) {\n"
+                        + "        return null;\n"
+                        + "    }\n"
+                        + "}\n");
     }
 }
