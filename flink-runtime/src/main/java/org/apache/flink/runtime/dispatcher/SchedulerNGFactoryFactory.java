@@ -19,6 +19,7 @@
 
 package org.apache.flink.runtime.dispatcher;
 
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.jobgraph.JobType;
@@ -39,7 +40,7 @@ public final class SchedulerNGFactoryFactory {
     public static SchedulerNGFactory createSchedulerNGFactory(
             final Configuration configuration, JobType jobType) {
         JobManagerOptions.SchedulerType schedulerType =
-                configuration.get(JobManagerOptions.SCHEDULER);
+                ClusterOptions.getSchedulerType(configuration);
 
         if (schedulerType == JobManagerOptions.SchedulerType.Declarative
                 && jobType == JobType.BATCH) {
