@@ -27,7 +27,9 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
@@ -128,7 +130,7 @@ public class SharedSlotTest extends TestLogger {
     }
 
     @Test
-    public void testReleaseTriggersExternalRelease() {
+    public void testReleaseDoesNotTriggersExternalRelease() {
         final TestingPhysicalSlot physicalSlot = TestingPhysicalSlot.builder().build();
         final AtomicBoolean externalReleaseInitiated = new AtomicBoolean(false);
         final SharedSlot sharedSlot =
@@ -140,7 +142,7 @@ public class SharedSlotTest extends TestLogger {
 
         sharedSlot.release(new Exception("test"));
 
-        assertThat(externalReleaseInitiated.get(), is(true));
+        assertThat(externalReleaseInitiated.get(), is(false));
     }
 
     @Test
@@ -166,6 +168,48 @@ public class SharedSlotTest extends TestLogger {
         sharedSlot.allocateLogicalSlot();
     }
 
+    @Test
+    public void testCanReturnLogicalSlotDuringRelease() {
+        final TestingPhysicalSlot physicalSlot = TestingPhysicalSlot.builder().build();
+        final SharedSlot sharedSlot =
+                new SharedSlot(new SlotRequestId(), physicalSlot, false, () -> {});
+        final LogicalSlot logicalSlot1 = sharedSlot.allocateLogicalSlot();
+        final LogicalSlot logicalSlot2 = sharedSlot.allocateLogicalSlot();
+
+        // both slots try to release the other one, simulating that the failure of one execution due
+        // to the release also fails others
+        logicalSlot1.tryAssignPayload(
+                new TestLogicalSlotPayload(
+                        cause -> {
+                            if (logicalSlot2.isAlive()) {
+                                logicalSlot2.releaseSlot(cause);
+                            }
+                        }));
+        logicalSlot2.tryAssignPayload(
+                new TestLogicalSlotPayload(
+                        cause -> {
+                            if (logicalSlot1.isAlive()) {
+                                logicalSlot1.releaseSlot(cause);
+                            }
+                        }));
+
+        sharedSlot.release(new Exception("test"));
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void testCannotAllocateLogicalSlotDuringRelease() {
+        final TestingPhysicalSlot physicalSlot = TestingPhysicalSlot.builder().build();
+        final SharedSlot sharedSlot =
+                new SharedSlot(new SlotRequestId(), physicalSlot, false, () -> {});
+
+        final LogicalSlot logicalSlot = sharedSlot.allocateLogicalSlot();
+
+        logicalSlot.tryAssignPayload(
+                new TestLogicalSlotPayload(ignored -> sharedSlot.allocateLogicalSlot()));
+
+        sharedSlot.release(new Exception("test"));
+    }
+
     private static class TestPhysicalSlotPayload implements PhysicalSlot.Payload {
 
         @Override
@@ -174,6 +218,29 @@ public class SharedSlotTest extends TestLogger {
         @Override
         public boolean willOccupySlotIndefinitely() {
             return false;
+        }
+    }
+
+    private static class TestLogicalSlotPayload implements LogicalSlot.Payload {
+
+        private final Consumer<Throwable> failConsumer;
+
+        public TestLogicalSlotPayload() {
+            this.failConsumer = ignored -> {};
+        }
+
+        public TestLogicalSlotPayload(Consumer<Throwable> failConsumer) {
+            this.failConsumer = failConsumer;
+        }
+
+        @Override
+        public void fail(Throwable cause) {
+            failConsumer.accept(cause);
+        }
+
+        @Override
+        public CompletableFuture<?> getTerminalStateFuture() {
+            return new CompletableFuture<>();
         }
     }
 }

@@ -34,7 +34,20 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Shared slot implementation for the declarative scheduler. */
+/**
+ * Shared slot implementation for the declarative scheduler.
+ *
+ * <p>The release process of a shared slot follows one of 2 code paths:
+ *
+ * <p>1)During normal execution all allocated logical slots will be returned, with the last return
+ * triggering the {@code externalReleaseCallback} which must eventually result in a {@link
+ * #release(Throwable)} call. 2)
+ *
+ * <p>2) If the backing physical is lost (e.g., because the providing TaskManager crashed) then
+ * {@link #release(Throwable)} is called without all logical slots having been returned. The runtime
+ * relies on this also triggering the release of all logical slots. This will not trigger the {@code
+ * externalReleaseCallback}.
+ */
 class SharedSlot implements SlotOwner, PhysicalSlot.Payload {
     private static final Logger LOG = LoggerFactory.getLogger(SharedSlot.class);
 
@@ -94,7 +107,7 @@ class SharedSlot implements SlotOwner, PhysicalSlot.Payload {
     public void returnLogicalSlot(LogicalSlot logicalSlot) {
         LOG.debug("Returning logical slot to shared slot ({})", physicalSlotRequestId);
         Preconditions.checkState(
-                state == State.ALLOCATED, "The shared slot has already been released.");
+                state != State.RELEASED, "The shared slot has already been released.");
 
         Preconditions.checkState(!logicalSlot.isAlive(), "Returned logic slot must not be alive.");
         Preconditions.checkState(
@@ -103,11 +116,22 @@ class SharedSlot implements SlotOwner, PhysicalSlot.Payload {
         tryReleaseExternally();
     }
 
+    private void tryReleaseExternally() {
+        if (state == State.ALLOCATED && allocatedLogicalSlots.isEmpty()) {
+            LOG.debug("Release shared slot externally ({})", physicalSlotRequestId);
+            externalReleaseCallback.run();
+        }
+    }
+
     @Override
     public void release(Throwable cause) {
         LOG.debug("Release shared slot ({})", physicalSlotRequestId);
         Preconditions.checkState(
                 state == State.ALLOCATED, "The shared slot has already been released.");
+
+        // ensures that we won't call the external release callback if there are still logical slots
+        // to release
+        state = State.RELEASING;
 
         // copy the logical slot collection to avoid ConcurrentModificationException
         // if logical slot releases cause cancellation of other executions
@@ -115,18 +139,12 @@ class SharedSlot implements SlotOwner, PhysicalSlot.Payload {
         final List<LogicalSlot> logicalSlotsToRelease =
                 new ArrayList<>(allocatedLogicalSlots.values());
         for (LogicalSlot allocatedLogicalSlot : logicalSlotsToRelease) {
+            // this will also cause the logical slot to be returned
             allocatedLogicalSlot.releaseSlot(cause);
         }
         allocatedLogicalSlots.clear();
-        tryReleaseExternally();
-    }
 
-    private void tryReleaseExternally() {
-        if (state != State.RELEASED && allocatedLogicalSlots.isEmpty()) {
-            state = State.RELEASED;
-            LOG.debug("Release shared slot externally ({})", physicalSlotRequestId);
-            externalReleaseCallback.run();
-        }
+        state = State.RELEASED;
     }
 
     @Override
@@ -136,6 +154,7 @@ class SharedSlot implements SlotOwner, PhysicalSlot.Payload {
 
     private enum State {
         ALLOCATED,
+        RELEASING,
         RELEASED
     }
 }
