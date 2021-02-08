@@ -433,7 +433,7 @@ The Flink Kafka Producer needs to know how to turn Java/Scala objects into binar
 The `KafkaSerializationSchema` allows users to specify such a schema.
 The `ProducerRecord<byte[], byte[]> serialize(T element, @Nullable Long timestamp)` method gets called for each record, generating a `ProducerRecord` that is written to Kafka.
 
-The gives users fine-grained control over how data is written out to Kafka. 
+This gives users fine-grained control over how data is written out to Kafka. 
 Through the producer record you can:
 * Set header values
 * Define keys for each record
