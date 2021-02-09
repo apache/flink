@@ -30,7 +30,7 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
-import org.apache.calcite.util.{ControlFlowException, Sarg, Util}
+import org.apache.calcite.util.{ControlFlowException, ImmutableBitSet, Sarg, Util}
 
 import java.lang.Iterable
 import java.util
@@ -81,6 +81,16 @@ object FlinkRexUtil {
       maxCnfNodeCount
     }
     new CnfHelper(rexBuilder, maxCnfNodeCnt).toCnf(rex)
+  }
+
+  /**
+   * Returns true if the RexNode contains any node in the given expected [[RexInputRef]] nodes.
+   */
+  def containsExpectedInputRef(rex: RexNode, expectedInputRefs: ImmutableBitSet): Boolean = {
+    val visitor = new InputRefVisitor
+    rex.accept(visitor)
+    val inputRefs = ImmutableBitSet.of(visitor.getFields: _*)
+    !inputRefs.intersect(expectedInputRefs).isEmpty
   }
 
   /**

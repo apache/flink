@@ -21,9 +21,11 @@ package org.apache.flink.table.planner.calcite
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory._
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.calcite._
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType
 import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil
+import org.apache.flink.table.planner.plan.utils.WindowUtil.groupingContainsWindowStartEnd
 import org.apache.flink.table.types.logical.TimestampType
 
 import org.apache.calcite.rel.`type`.RelDataType
@@ -124,7 +126,8 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
         JCollections.emptyList())
 
     case scan: LogicalTableFunctionScan =>
-      scan
+      val inputs = scan.getInputs.map(_.accept(this))
+      scan.copy(scan.getTraitSet, inputs)
 
     case aggregate: LogicalWindowAggregate =>
       val convAggregate = convertAggregate(aggregate)
@@ -159,7 +162,12 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
       LogicalTableAggregate.create(convAggregate)
 
     case watermarkAssigner: LogicalWatermarkAssigner =>
-      watermarkAssigner
+      val input = watermarkAssigner.getInput.accept(this)
+      watermarkAssigner.copy(
+        watermarkAssigner.getTraitSet,
+        input,
+        watermarkAssigner.rowtimeFieldIndex,
+        watermarkAssigner.watermarkExpr)
 
     case snapshot: LogicalSnapshot =>
       val input = snapshot.getInput.accept(this)
@@ -352,31 +360,33 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
   }
 
   private def gatherIndicesToMaterialize(aggregate: Aggregate, input: RelNode): Set[Int] = {
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(aggregate.getCluster.getMetadataQuery)
+    val windowProps = fmq.getRelWindowProperties(input)
     val indicesToMaterialize = mutable.Set[Int]()
 
     // check arguments of agg calls
-    aggregate.getAggCallList.foreach(call => if (call.getArgList.size() == 0) {
-      // count(*) has an empty argument list
-      (0 until input.getRowType.getFieldCount).foreach(indicesToMaterialize.add)
-    } else {
-      // for other aggregations
+    aggregate.getAggCallList.foreach { call =>
       call.getArgList.map(_.asInstanceOf[Int]).foreach(indicesToMaterialize.add)
-    })
+    }
 
     // check grouping sets
-    aggregate.getGroupSets.foreach(set =>
-      set.asList().map(_.asInstanceOf[Int]).foreach(indicesToMaterialize.add)
-    )
+    aggregate.getGroupSets.foreach { grouping =>
+      if (windowProps != null && groupingContainsWindowStartEnd(grouping, windowProps)) {
+        // for window aggregate we should reserve the time attribute of window_time column
+        grouping
+          .except(windowProps.getWindowTimeColumns).toArray
+          .foreach(indicesToMaterialize.add)
+      } else {
+        grouping.toArray
+          .foreach(indicesToMaterialize.add)
+      }
+    }
 
     indicesToMaterialize.toSet
   }
 
-  private def hasRowtimeAttribute(rowType: RelDataType): Boolean = {
-    rowType.getFieldList.exists(field => isRowtimeIndicatorType(field.getType))
-  }
-
   private def convertSinkInput(sinkInput: RelNode): RelNode = {
-    var newInput = sinkInput.accept(this)
+    val newInput = sinkInput.accept(this)
     var needsConversion = false
 
     val projects = newInput.getRowType.getFieldList.map { field =>
