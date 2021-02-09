@@ -74,6 +74,8 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
+import static org.apache.flink.runtime.checkpoint.CheckpointType.SYNC_SAVEPOINT;
+import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.junit.Assert.assertArrayEquals;
@@ -86,6 +88,40 @@ import static org.junit.Assert.assertTrue;
  * checkpointing/element emission don't occur concurrently.
  */
 public class SourceStreamTaskTest {
+
+    @Test
+    public void testInputEndedBeforeStopWithSavepointConfirmed() throws Exception {
+        CancelTestSource source =
+                new CancelTestSource(
+                        STRING_TYPE_INFO.createSerializer(new ExecutionConfig()), "src");
+        TestBoundedOneInputStreamOperator chainTail = new TestBoundedOneInputStreamOperator("t");
+        StreamTaskMailboxTestHarness<String> harness =
+                new StreamTaskMailboxTestHarnessBuilder<>(SourceStreamTask::new, STRING_TYPE_INFO)
+                        .setupOperatorChain(
+                                new OperatorID(),
+                                new StreamSource<String, CancelTestSource>(source))
+                        .chain(
+                                new OperatorID(),
+                                chainTail,
+                                STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
+                        .finish()
+                        .build();
+        Future<Boolean> triggerFuture =
+                harness.streamTask.triggerCheckpointAsync(
+                        new CheckpointMetaData(1, 1),
+                        new CheckpointOptions(SYNC_SAVEPOINT, getDefault()),
+                        false);
+        while (!triggerFuture.isDone()) {
+            harness.streamTask.runMailboxStep();
+        }
+        // instead of completing stop with savepoint via `notifyCheckpointCompleted`
+        // we simulate that source has finished first. As a result, we expect that the endInput
+        // should have been issued
+        source.cancel();
+        harness.streamTask.invoke();
+        harness.waitForTaskCompletion();
+        assertTrue(TestBoundedOneInputStreamOperator.isInputEnded());
+    }
 
     /** This test verifies that open() and close() are correctly called by the StreamTask. */
     @Test
