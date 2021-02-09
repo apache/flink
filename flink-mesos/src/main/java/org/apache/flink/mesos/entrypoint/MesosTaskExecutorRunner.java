@@ -68,6 +68,6 @@ public class MesosTaskExecutorRunner {
             return;
         }
 
-        TaskManagerRunner.runTaskManagerSecurely(configuration);
+        TaskManagerRunner.runTaskManagerProcessSecurely(configuration);
     }
 }

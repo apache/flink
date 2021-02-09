@@ -36,6 +36,6 @@ public class KubernetesTaskExecutorRunner {
         SignalHandler.register(LOG);
         JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
-        TaskManagerRunner.runTaskManagerSecurely(args);
+        TaskManagerRunner.runTaskManagerProcessSecurely(args);
     }
 }
