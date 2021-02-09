@@ -393,7 +393,10 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
         env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
 
         // Custom serializer is not needed, it's used just to check if serialization works.
-        env.getConfig().addDefaultKryoSerializer(Byte.class, createSerializer(userClassLoader));
+        env.getConfig()
+                .addDefaultKryoSerializer(
+                        Byte.class,
+                        (Serializer<?> & Serializable) createSerializer(userClassLoader));
 
         // Here we *force* using Kryo, to check if custom serializers are handled correctly WRT
         // classloading
@@ -1386,6 +1389,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
         if (!resultFuture.isDone()) {
             CompletableFuture<S> expected =
                     client.getKvState(jobId, queryName, key, keyTypeInfo, stateDescriptor);
+            ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
             expected.whenCompleteAsync(
                     (result, throwable) -> {
                         if (throwable != null) {
@@ -1396,17 +1400,20 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
                                                     instanceof UnknownKeyOrNamespaceException)) {
                                 resultFuture.completeExceptionally(throwable.getCause());
                             } else if (deadline.hasTimeLeft()) {
-                                getKvStateIgnoringCertainExceptions(
-                                        deadline,
-                                        resultFuture,
-                                        client,
-                                        jobId,
-                                        queryName,
-                                        key,
-                                        keyTypeInfo,
-                                        stateDescriptor,
-                                        failForUnknownKeyOrNamespace,
-                                        executor);
+                                LambdaUtil.withContextClassLoader(
+                                        contextLoader,
+                                        () ->
+                                                getKvStateIgnoringCertainExceptions(
+                                                        deadline,
+                                                        resultFuture,
+                                                        client,
+                                                        jobId,
+                                                        queryName,
+                                                        key,
+                                                        keyTypeInfo,
+                                                        stateDescriptor,
+                                                        failForUnknownKeyOrNamespace,
+                                                        executor));
                             }
                         } else {
                             resultFuture.complete(result);
