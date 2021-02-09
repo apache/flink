@@ -97,21 +97,6 @@ public final class HybridMemorySegment extends MemorySegment {
         offHeapBuffer = null; // to enable GC of unsafe memory
     }
 
-    /**
-     * Gets the buffer that owns the memory of this memory segment.
-     *
-     * @return The byte buffer that owns the memory of this memory segment.
-     */
-    public ByteBuffer getOffHeapBuffer() {
-        if (offHeapBuffer != null) {
-            return offHeapBuffer;
-        } else if (isFreed()) {
-            throw new IllegalStateException("segment has been freed");
-        } else {
-            throw new IllegalStateException("Memory segment does not represent off heap memory");
-        }
-    }
-
     @Override
     public ByteBuffer wrap(int offset, int length) {
         if (address <= addressLimit) {

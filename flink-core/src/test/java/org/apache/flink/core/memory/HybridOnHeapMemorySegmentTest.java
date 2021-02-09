@@ -27,7 +27,6 @@ import java.nio.ByteBuffer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /** Tests for the {@link HybridMemorySegment} in on-heap mode. */
 @RunWith(Parameterized.class)
@@ -56,14 +55,6 @@ public class HybridOnHeapMemorySegmentTest extends MemorySegmentTestBase {
         assertFalse(seg.isOffHeap());
         assertEquals(buffer.length, seg.size());
         assertTrue(buffer == seg.getArray());
-
-        try {
-            //noinspection ResultOfMethodCallIgnored
-            seg.getOffHeapBuffer();
-            fail("should throw an exception");
-        } catch (IllegalStateException e) {
-            // expected
-        }
 
         ByteBuffer buf1 = seg.wrap(1, 2);
         ByteBuffer buf2 = seg.wrap(3, 4);
