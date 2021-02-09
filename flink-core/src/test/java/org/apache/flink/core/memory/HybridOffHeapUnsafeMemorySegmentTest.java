@@ -18,12 +18,13 @@
 
 package org.apache.flink.core.memory;
 
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 /** Tests for the {@link HybridMemorySegment} in off-heap mode using unsafe memory. */
 @RunWith(Parameterized.class)
-public class HybridOffHeapUnsafeMemorySegmentTest extends HybridOffHeapMemorySegmentTest {
+public class HybridOffHeapUnsafeMemorySegmentTest extends MemorySegmentTestBase {
 
     public HybridOffHeapUnsafeMemorySegmentTest(int pageSize) {
         super(pageSize);
@@ -37,5 +38,11 @@ public class HybridOffHeapUnsafeMemorySegmentTest extends HybridOffHeapMemorySeg
     @Override
     MemorySegment createSegment(int size, Object owner) {
         return MemorySegmentFactory.allocateOffHeapUnsafeMemory(size, owner, () -> {});
+    }
+
+    @Override
+    @Test(expected = UnsupportedOperationException.class)
+    public void testByteBufferWrapping() {
+        createSegment(10).wrap(1, 2);
     }
 }
