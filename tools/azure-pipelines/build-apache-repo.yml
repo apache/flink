@@ -91,12 +91,6 @@ stages:
               addToPath: true
           - script: ./tools/ci/docs.sh
             condition: not(eq(variables['SKIP'], '1'))
-          # upload spider.log for debugging
-          - task: PublishPipelineArtifact@1
-            condition: not(eq(variables['SKIP'], '1'))
-            inputs:
-             targetPath: ./docs/spider.log
-             artifact: spider.log
   # Special stage for nightly builds:
   - stage: cron_build
     displayName: "Cron build"
