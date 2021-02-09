@@ -62,7 +62,7 @@ public final class StreamTaskNetworkInput<T>
 
     public StreamTaskNetworkInput(
             CheckpointedInputGate checkpointedInputGate,
-            TypeSerializer<?> inputSerializer,
+            TypeSerializer<T> inputSerializer,
             IOManager ioManager,
             StatusWatermarkValve statusWatermarkValve,
             int inputIndex) {

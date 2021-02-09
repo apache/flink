@@ -43,7 +43,7 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 
     private static final Logger LOG = LoggerFactory.getLogger(StreamOneInputProcessor.class);
 
-    private final StreamTaskInput<IN> input;
+    private StreamTaskInput<IN> input;
     private final DataOutput<IN> output;
 
     private final BoundedMultiInput endOfInputAware;
@@ -67,6 +67,11 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 
         if (status == InputStatus.END_OF_INPUT) {
             endOfInputAware.endInput(input.getInputIndex() + 1);
+        } else if (status == InputStatus.END_OF_RECOVERY) {
+            if (input instanceof RecoverableStreamTaskInput) {
+                input = ((RecoverableStreamTaskInput<IN>) input).finishRecovery();
+            }
+            return InputStatus.MORE_AVAILABLE;
         }
 
         return status;

@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
 import org.apache.flink.runtime.io.network.api.EventAnnouncement;
+import org.apache.flink.runtime.io.network.api.SubtaskConnectionDescriptor;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.util.TestTaskEvent;
@@ -78,7 +79,8 @@ public class EventSerializerTest {
                         1337L,
                         CheckpointOptions.alignedWithTimeout(
                                 CheckpointStorageLocationReference.getDefault(), 10)),
-                44)
+                44),
+        new SubtaskConnectionDescriptor(23, 42),
     };
 
     @Test
