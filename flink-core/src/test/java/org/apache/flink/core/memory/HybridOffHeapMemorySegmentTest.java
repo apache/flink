@@ -25,7 +25,6 @@ import java.nio.ByteBuffer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -38,13 +37,12 @@ public abstract class HybridOffHeapMemorySegmentTest extends MemorySegmentTestBa
 
     @Test
     public void testHybridHeapSegmentSpecifics() {
-        HybridMemorySegment seg = (HybridMemorySegment) createSegment(411);
-        ByteBuffer buffer = seg.getOffHeapBuffer();
+        final int bufSize = 411;
+        HybridMemorySegment seg = (HybridMemorySegment) createSegment(bufSize);
 
         assertFalse(seg.isFreed());
         assertTrue(seg.isOffHeap());
-        assertEquals(buffer.capacity(), seg.size());
-        assertSame(buffer, seg.getOffHeapBuffer());
+        assertEquals(bufSize, seg.size());
 
         try {
             //noinspection ResultOfMethodCallIgnored
@@ -57,8 +55,6 @@ public abstract class HybridOffHeapMemorySegmentTest extends MemorySegmentTestBa
         ByteBuffer buf1 = seg.wrap(1, 2);
         ByteBuffer buf2 = seg.wrap(3, 4);
 
-        assertNotSame(buf1, buffer);
-        assertNotSame(buf2, buffer);
         assertNotSame(buf1, buf2);
         assertEquals(1, buf1.position());
         assertEquals(3, buf1.limit());
