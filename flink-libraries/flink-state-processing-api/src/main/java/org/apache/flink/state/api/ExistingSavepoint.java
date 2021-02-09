@@ -24,9 +24,9 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.Utils;
+import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -102,7 +102,7 @@ public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
      * @return A {@code DataSet} representing the elements in state.
      * @throws IOException If the savepoint path is invalid or the uid does not exist.
      */
-    public <T> DataSet<T> readListState(String uid, String name, TypeInformation<T> typeInfo)
+    public <T> DataSource<T> readListState(String uid, String name, TypeInformation<T> typeInfo)
             throws IOException {
         OperatorState operatorState = metadata.getOperatorState(uid);
         ListStateDescriptor<T> descriptor = new ListStateDescriptor<>(name, typeInfo);
@@ -123,7 +123,7 @@ public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
      * @return A {@code DataSet} representing the elements in state.
      * @throws IOException If the savepoint path is invalid or the uid does not exist.
      */
-    public <T> DataSet<T> readListState(
+    public <T> DataSource<T> readListState(
             String uid, String name, TypeInformation<T> typeInfo, TypeSerializer<T> serializer)
             throws IOException {
 
@@ -143,7 +143,7 @@ public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
      * @return A {@code DataSet} representing the elements in state.
      * @throws IOException If the savepoint path is invalid or the uid does not exist.
      */
-    public <T> DataSet<T> readUnionState(String uid, String name, TypeInformation<T> typeInfo)
+    public <T> DataSource<T> readUnionState(String uid, String name, TypeInformation<T> typeInfo)
             throws IOException {
         OperatorState operatorState = metadata.getOperatorState(uid);
         ListStateDescriptor<T> descriptor = new ListStateDescriptor<>(name, typeInfo);
@@ -165,7 +165,7 @@ public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
      * @return A {@code DataSet} representing the elements in state.
      * @throws IOException If the savepoint path is invalid or the uid does not exist.
      */
-    public <T> DataSet<T> readUnionState(
+    public <T> DataSource<T> readUnionState(
             String uid, String name, TypeInformation<T> typeInfo, TypeSerializer<T> serializer)
             throws IOException {
 
@@ -188,7 +188,7 @@ public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
      * @return A {@code DataSet} of key-value pairs from state.
      * @throws IOException If the savepoint does not contain the specified uid.
      */
-    public <K, V> DataSet<Tuple2<K, V>> readBroadcastState(
+    public <K, V> DataSource<Tuple2<K, V>> readBroadcastState(
             String uid,
             String name,
             TypeInformation<K> keyTypeInfo,
@@ -219,7 +219,7 @@ public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
      * @return A {@code DataSet} of key-value pairs from state.
      * @throws IOException If the savepoint path is invalid or the uid does not exist.
      */
-    public <K, V> DataSet<Tuple2<K, V>> readBroadcastState(
+    public <K, V> DataSource<Tuple2<K, V>> readBroadcastState(
             String uid,
             String name,
             TypeInformation<K> keyTypeInfo,
@@ -246,7 +246,7 @@ public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
      * @return A {@code DataSet} of objects read from keyed state.
      * @throws IOException If the savepoint does not contain operator state with the given uid.
      */
-    public <K, OUT> DataSet<OUT> readKeyedState(
+    public <K, OUT> DataSource<OUT> readKeyedState(
             String uid, KeyedStateReaderFunction<K, OUT> function) throws IOException {
 
         TypeInformation<K> keyTypeInfo;
@@ -296,7 +296,7 @@ public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
      * @return A {@code DataSet} of objects read from keyed state.
      * @throws IOException If the savepoint does not contain operator state with the given uid.
      */
-    public <K, OUT> DataSet<OUT> readKeyedState(
+    public <K, OUT> DataSource<OUT> readKeyedState(
             String uid,
             KeyedStateReaderFunction<K, OUT> function,
             TypeInformation<K> keyTypeInfo,
