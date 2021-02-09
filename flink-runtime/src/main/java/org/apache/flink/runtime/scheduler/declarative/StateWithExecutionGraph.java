@@ -30,7 +30,6 @@ import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
-import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
@@ -91,13 +90,17 @@ abstract class StateWithExecutionGraph implements State {
         this.operatorCoordinatorHandler = operatorCoordinatorHandler;
         this.kvStateHandler = new KvStateHandler(executionGraph);
         this.logger = logger;
+        Preconditions.checkState(
+                executionGraph.getState() == JobStatus.RUNNING, "Assuming running execution graph");
 
         FutureUtils.assertNoException(
                 executionGraph
                         .getTerminationFuture()
                         .thenAcceptAsync(
                                 jobStatus -> {
-                                    context.runIfState(this, () -> onTerminalState(jobStatus));
+                                    if (jobStatus.isTerminalState()) {
+                                        context.runIfState(this, () -> onTerminalState(jobStatus));
+                                    }
                                 },
                                 context.getMainThreadExecutor()));
     }
@@ -263,101 +266,8 @@ abstract class StateWithExecutionGraph implements State {
 
     CompletableFuture<String> stopWithSavepoint(
             String targetDirectory, boolean advanceToEndOfEventTime) {
-        final CheckpointCoordinator checkpointCoordinator =
-                executionGraph.getCheckpointCoordinator();
-
-        if (checkpointCoordinator == null) {
-            return FutureUtils.completedExceptionally(
-                    new IllegalStateException(
-                            String.format(
-                                    "Job %s is not a streaming job.", executionGraph.getJobID())));
-        }
-
-        if (targetDirectory == null
-                && !checkpointCoordinator.getCheckpointStorage().hasDefaultSavepointLocation()) {
-            logger.info(
-                    "Trying to cancel job {} with savepoint, but no savepoint directory configured.",
-                    executionGraph.getJobID());
-
-            return FutureUtils.completedExceptionally(
-                    new IllegalStateException(
-                            "No savepoint directory configured. You can either specify a directory "
-                                    + "while cancelling via -s :targetDirectory or configure a cluster-wide "
-                                    + "default via key '"
-                                    + CheckpointingOptions.SAVEPOINT_DIRECTORY.key()
-                                    + "'."));
-        }
-
-        logger.info("Triggering stop-with-savepoint for job {}.", executionGraph.getJobID());
-
-        // we stop the checkpoint coordinator so that we are guaranteed
-        // to have only the data of the synchronous savepoint committed.
-        // in case of failure, and if the job restarts, the coordinator
-        // will be restarted by the CheckpointCoordinatorDeActivator.
-        checkpointCoordinator.stopCheckpointScheduler();
-
-        final CompletableFuture<String> savepointFuture =
-                checkpointCoordinator
-                        .triggerSynchronousSavepoint(advanceToEndOfEventTime, targetDirectory)
-                        .thenApply(CompletedCheckpoint::getExternalPointer);
-
-        final CompletableFuture<JobStatus> terminationFuture =
-                executionGraph
-                        .getTerminationFuture()
-                        .handle(
-                                (jobstatus, throwable) -> {
-                                    if (throwable != null) {
-                                        logger.info(
-                                                "Failed during stopping job {} with a savepoint. Reason: {}",
-                                                executionGraph.getJobID(),
-                                                throwable.getMessage());
-                                        throw new CompletionException(throwable);
-                                    } else if (jobstatus != JobStatus.FINISHED) {
-                                        logger.info(
-                                                "Failed during stopping job {} with a savepoint. Reason: Reached state {} instead of FINISHED.",
-                                                executionGraph.getJobID(),
-                                                jobstatus);
-                                        throw new CompletionException(
-                                                new FlinkException(
-                                                        "Reached state "
-                                                                + jobstatus
-                                                                + " instead of FINISHED."));
-                                    }
-                                    return jobstatus;
-                                });
-
-        return savepointFuture
-                .thenCompose((path) -> terminationFuture.thenApply((jobStatus -> path)))
-                .handleAsync(
-                        (path, throwable) -> {
-                            if (throwable != null) {
-                                if (context.isState(this)) {
-                                    // restart the checkpoint coordinator if stopWithSavepoint
-                                    // failed.
-                                    startCheckpointScheduler(checkpointCoordinator);
-                                }
-                                throw new CompletionException(throwable);
-                            }
-                            if (ensureAllExecutionsFinished()) {
-                                Throwable error =
-                                        new FlinkException(
-                                                "Not all executions were stopped with a savepoint.");
-                                handleGlobalFailure(error);
-                                throw new CompletionException(error);
-                            }
-
-                            return path;
-                        },
-                        context.getMainThreadExecutor());
-    }
-
-    private boolean ensureAllExecutionsFinished() {
-        for (Execution e : executionGraph.getRegisteredExecutions().values()) {
-            if (e.getState() != ExecutionState.FINISHED) {
-                return false;
-            }
-        }
-        return true;
+        throw new UnsupportedOperationException(
+                "This will be implemented as part of https://issues.apache.org/jira/browse/FLINK-21333");
     }
 
     private void startCheckpointScheduler(final CheckpointCoordinator checkpointCoordinator) {

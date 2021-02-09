@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler.declarative;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -30,12 +31,16 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.NoOpExecutionDeploymentListener;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.TestingExecutionGraphBuilder;
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategyFactoryLoader;
 import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
@@ -67,13 +72,15 @@ public class ExecutingTest extends TestLogger {
     @Test
     public void testExecutionGraphDeploymentOnEnter() throws Exception {
         try (MockExecutingContext ctx = new MockExecutingContext()) {
-            Executing exec = new ExecutingStateBuilder().build(ctx);
-
-            assertThat(exec.getExecutionGraph().getState(), is(JobStatus.CREATED));
+            MockExecutionJobVertex mockExecutionJobVertex = new MockExecutionJobVertex();
+            ExecutionGraph executionGraph =
+                    new MockExecutionGraph(() -> Collections.singletonList(mockExecutionJobVertex));
+            Executing exec =
+                    new ExecutingStateBuilder().setExecutionGraph(executionGraph).build(ctx);
 
             exec.onEnter();
-
-            assertThat(exec.getExecutionGraph().getState(), is(JobStatus.RUNNING));
+            assertThat(mockExecutionJobVertex.isExecutionDeployed(), is(true));
+            assertThat(executionGraph.getState(), is(JobStatus.RUNNING));
         }
     }
 
@@ -186,7 +193,7 @@ public class ExecutingTest extends TestLogger {
             ctx.setCanScaleUp(() -> false);
             exec.onEnter();
             exec.notifyNewResourcesAvailable();
-            ctx.assertNotStateTransition();
+            ctx.assertNoStateTransition();
         }
     }
 
@@ -194,8 +201,7 @@ public class ExecutingTest extends TestLogger {
     public void testFailureReportedViaUpdateTaskExecutionStateCausesFailingOnNoRestart()
             throws Exception {
         try (MockExecutingContext ctx = new MockExecutingContext()) {
-            ExecutionGraph returnsFailedStateExecutionGraph =
-                    new MockUpdateStateCallExecutionGraph(true);
+            ExecutionGraph returnsFailedStateExecutionGraph = new MockExecutionGraph(true);
             Executing exec =
                     new ExecutingStateBuilder()
                             .setExecutionGraph(returnsFailedStateExecutionGraph)
@@ -212,8 +218,7 @@ public class ExecutingTest extends TestLogger {
     @Test
     public void testFailureReportedViaUpdateTaskExecutionStateCausesRestart() throws Exception {
         try (MockExecutingContext ctx = new MockExecutingContext()) {
-            ExecutionGraph returnsFailedStateExecutionGraph =
-                    new MockUpdateStateCallExecutionGraph(true);
+            ExecutionGraph returnsFailedStateExecutionGraph = new MockExecutionGraph(true);
             Executing exec =
                     new ExecutingStateBuilder()
                             .setExecutionGraph(returnsFailedStateExecutionGraph)
@@ -229,8 +234,7 @@ public class ExecutingTest extends TestLogger {
     @Test
     public void testFalseReportsViaUpdateTaskExecutionStateAreIgnored() throws Exception {
         try (MockExecutingContext ctx = new MockExecutingContext()) {
-            ExecutionGraph returnsFailedStateExecutionGraph =
-                    new MockUpdateStateCallExecutionGraph(false);
+            ExecutionGraph returnsFailedStateExecutionGraph = new MockExecutionGraph(false);
             Executing exec =
                     new ExecutingStateBuilder()
                             .setExecutionGraph(returnsFailedStateExecutionGraph)
@@ -239,7 +243,7 @@ public class ExecutingTest extends TestLogger {
             exec.updateTaskExecutionState(
                     createFailingStateTransition(exec.getExecutionGraph().getJobID()));
 
-            ctx.assertNotStateTransition();
+            ctx.assertNoStateTransition();
         }
     }
 
@@ -264,7 +268,7 @@ public class ExecutingTest extends TestLogger {
         }
     }
 
-    private class ExecutingStateBuilder {
+    private final class ExecutingStateBuilder {
         private ExecutionGraph executionGraph = TestingExecutionGraphBuilder.newBuilder().build();
         private OperatorCoordinatorHandler operatorCoordinatorHandler;
 
@@ -289,6 +293,7 @@ public class ExecutingTest extends TestLogger {
         }
 
         private Executing build(MockExecutingContext ctx) {
+            executionGraph.transitionToRunning();
             final ExecutionGraphHandler executionGraphHandler =
                     new ExecutionGraphHandler(
                             executionGraph,
@@ -461,10 +466,23 @@ public class ExecutingTest extends TestLogger {
         }
     }
 
-    private static class MockUpdateStateCallExecutionGraph extends ExecutionGraph {
-        private final boolean returnValue;
+    private static class MockExecutionGraph extends ExecutionGraph {
+        private final boolean updateStateReturnValue;
+        private final Supplier<Iterable<ExecutionJobVertex>> getVerticesTopologicallySupplier;
 
-        MockUpdateStateCallExecutionGraph(boolean returnValue) throws IOException {
+        MockExecutionGraph(Supplier<Iterable<ExecutionJobVertex>> getVerticesTopologicallySupplier)
+                throws IOException {
+            this(false, getVerticesTopologicallySupplier);
+        }
+
+        MockExecutionGraph(boolean updateStateReturnValue) throws IOException {
+            this(updateStateReturnValue, null);
+        }
+
+        private MockExecutionGraph(
+                boolean updateStateReturnValue,
+                Supplier<Iterable<ExecutionJobVertex>> getVerticesTopologicallySupplier)
+                throws IOException {
             super(
                     new JobInformation(
                             new JobID(),
@@ -487,12 +505,18 @@ public class ExecutingTest extends TestLogger {
                     NoOpExecutionDeploymentListener.get(),
                     (execution, newState) -> {},
                     0L);
-            this.returnValue = returnValue;
+            this.updateStateReturnValue = updateStateReturnValue;
+            this.getVerticesTopologicallySupplier = getVerticesTopologicallySupplier;
         }
 
         @Override
         public boolean updateState(TaskExecutionStateTransition state) {
-            return returnValue;
+            return updateStateReturnValue;
+        }
+
+        @Override
+        public Iterable<ExecutionJobVertex> getVerticesTopologically() {
+            return getVerticesTopologicallySupplier.get();
         }
     }
 
@@ -541,6 +565,47 @@ public class ExecutingTest extends TestLogger {
 
         public boolean isDisposed() {
             return disposed;
+        }
+    }
+
+    private static class MockExecutionJobVertex extends ExecutionJobVertex {
+        private final MockExecutionVertex mockExecutionVertex;
+
+        MockExecutionJobVertex() throws JobException, JobExecutionException {
+            super(
+                    TestingExecutionGraphBuilder.newBuilder().build(),
+                    new JobVertex("test"),
+                    1,
+                    1,
+                    Time.milliseconds(1L),
+                    1L);
+            mockExecutionVertex = new MockExecutionVertex(this);
+        }
+
+        @Override
+        public ExecutionVertex[] getTaskVertices() {
+            return new ExecutionVertex[] {mockExecutionVertex};
+        }
+
+        public boolean isExecutionDeployed() {
+            return mockExecutionVertex.isDeployed();
+        }
+    }
+
+    private static class MockExecutionVertex extends ExecutionVertex {
+        private boolean deployed = false;
+
+        MockExecutionVertex(ExecutionJobVertex jobVertex) {
+            super(jobVertex, 1, new IntermediateResult[] {}, Time.milliseconds(1L), 1L, 1);
+        }
+
+        @Override
+        public void deploy() throws JobException {
+            deployed = true;
+        }
+
+        public boolean isDeployed() {
+            return deployed;
         }
     }
 }

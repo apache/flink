@@ -109,9 +109,8 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
     }
 
     private void deploy() {
-        final ExecutionGraph executionGraph = getExecutionGraph();
-        executionGraph.transitionToRunning();
-        for (ExecutionJobVertex executionJobVertex : executionGraph.getVerticesTopologically()) {
+        for (ExecutionJobVertex executionJobVertex :
+                getExecutionGraph().getVerticesTopologically()) {
             for (ExecutionVertex executionVertex : executionJobVertex.getTaskVertices()) {
                 deploySafely(executionVertex);
             }

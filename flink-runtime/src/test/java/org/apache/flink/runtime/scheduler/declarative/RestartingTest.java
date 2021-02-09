@@ -96,11 +96,11 @@ public class RestartingTest extends TestLogger {
     }
 
     @Test
-    public void testGlobalFailure() throws Exception {
+    public void testGlobalFailuresAreIgnored() throws Exception {
         try (MockRestartingContext ctx = new MockRestartingContext()) {
             Restarting restarting = createRestartingState(ctx);
             restarting.handleGlobalFailure(new RuntimeException());
-            ctx.assertNotStateTransition();
+            ctx.assertNoStateTransition();
         }
     }
 
@@ -118,6 +118,7 @@ public class RestartingTest extends TestLogger {
                         (throwable) -> {
                             throw new RuntimeException("Error in test", throwable);
                         });
+        executionGraph.transitionToRunning();
         return new Restarting(
                 ctx,
                 executionGraph,
@@ -177,11 +178,6 @@ public class RestartingTest extends TestLogger {
         @Override
         public void close() throws Exception {
             super.close();
-            assertNotStateTransition();
-        }
-
-        public void assertNotStateTransition() {
-            super.assertNotStateTransition();
             cancellingStateValidator.close();
             waitingForResourcesStateValidator.close();
         }

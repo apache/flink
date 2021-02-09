@@ -26,18 +26,16 @@ public class ManuallyTriggeredComponentMainThreadExecutor
 
     @Override
     public void assertRunningInMainThread() {
-        assert executorThread != null && Thread.currentThread() == executorThread;
+        Thread actual = Thread.currentThread();
+        if (executorThread == null) {
+            executorThread = actual;
+        }
+        assert actual == executorThread;
     }
 
     @Override
     public void trigger() {
-        Thread actual = Thread.currentThread();
-        if (executorThread == null) {
-            executorThread = actual;
-        } else if (executorThread != actual) {
-            throw new IllegalStateException(
-                    "Expecting the use of the same thread for all trigger invocations.");
-        }
+        assertRunningInMainThread();
         super.trigger();
     }
 }

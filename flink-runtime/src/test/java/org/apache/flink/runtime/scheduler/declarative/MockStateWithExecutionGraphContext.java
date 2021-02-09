@@ -25,10 +25,13 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertThat;
+
 class MockStateWithExecutionGraphContext implements StateWithExecutionGraph.Context, AutoCloseable {
 
     private final StateValidator<ArchivedExecutionGraph> finishedStateValidator =
-            new StateValidator<>("finished");
+            new StateValidator<>("Finished");
 
     private final ManuallyTriggeredComponentMainThreadExecutor executor =
             new ManuallyTriggeredComponentMainThreadExecutor();
@@ -68,10 +71,10 @@ class MockStateWithExecutionGraphContext implements StateWithExecutionGraph.Cont
         executor.triggerAll();
         executor.shutdown();
         executor.awaitTermination(10, TimeUnit.MINUTES);
-        assertNotStateTransition();
+        finishedStateValidator.close();
     }
 
-    protected void assertNotStateTransition() {
-        finishedStateValidator.close();
+    protected void assertNoStateTransition() {
+        assertThat(hadStateTransition, is(false));
     }
 }
