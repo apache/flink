@@ -160,6 +160,7 @@ under the License.
 
 		<!-- Can be set to any value to reproduce a specific build. -->
 		<test.randomization.seed>${git.commit.id}</test.randomization.seed>
+		<test.unit.pattern>**/*Test.*</test.unit.pattern>
 	</properties>
 
 	<dependencies>
@@ -1607,7 +1608,7 @@ under the License.
 						</goals>
 						<configuration>
 							<includes>
-								<include>**/*Test.*</include>
+								<include>${test.unit.pattern}</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -1620,8 +1621,11 @@ under the License.
 						</goals>
 						<configuration>
 							<includes>
-								<include>**/*ITCase.*</include>
+								<include>**/*.*</include>
 							</includes>
+							<excludes>
+								<exclude>${test.unit.pattern}</exclude>
+							</excludes>
 							<reuseForks>false</reuseForks>
 						</configuration>
 					</execution>
