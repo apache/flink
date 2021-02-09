@@ -107,6 +107,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -644,6 +645,38 @@ public class DefaultSchedulerTest extends TestLogger {
                         executionVertexId1,
                         executionVertexId0,
                         executionVertexId1));
+    }
+
+    @Test
+    public void testStartingCheckpointSchedulerAfterExecutionGraphFinished() {
+        assertCheckpointSchedulingOperationHavingNoEffectAfterJobFinished(
+                SchedulerBase::startCheckpointScheduler);
+    }
+
+    @Test
+    public void testStoppingCheckpointSchedulerAfterExecutionGraphFinished() {
+        assertCheckpointSchedulingOperationHavingNoEffectAfterJobFinished(
+                SchedulerBase::stopCheckpointScheduler);
+    }
+
+    private void assertCheckpointSchedulingOperationHavingNoEffectAfterJobFinished(
+            Consumer<DefaultScheduler> callSchedulingOperation) {
+        final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
+        enableCheckpointing(jobGraph);
+
+        final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
+        assertThat(scheduler.getCheckpointCoordinator(), is(notNullValue()));
+        scheduler.updateTaskExecutionState(
+                new TaskExecutionState(
+                        Iterables.getOnlyElement(
+                                        scheduler.getExecutionGraph().getAllExecutionVertices())
+                                .getCurrentExecutionAttempt()
+                                .getAttemptId(),
+                        ExecutionState.FINISHED));
+
+        assertThat(scheduler.getCheckpointCoordinator(), is(nullValue()));
+        callSchedulingOperation.accept(scheduler);
+        assertThat(scheduler.getCheckpointCoordinator(), is(nullValue()));
     }
 
     @Test
