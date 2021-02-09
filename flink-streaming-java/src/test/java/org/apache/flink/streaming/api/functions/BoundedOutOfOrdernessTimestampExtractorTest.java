@@ -64,7 +64,7 @@ public class BoundedOutOfOrdernessTimestampExtractorTest {
     // ------------------------------------------------------------------------
 
     private void runValidTests(BoundedOutOfOrdernessTimestampExtractor<Long> extractor) {
-        assertEquals(new Watermark(Long.MIN_VALUE), extractor.getCurrentWatermark());
+        assertEquals(Watermark.UNINITIALIZED, extractor.getCurrentWatermark());
 
         assertEquals(13L, extractor.extractTimestamp(13L, 0L));
         assertEquals(13L, extractor.extractTimestamp(13L, 0L));
