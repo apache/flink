@@ -895,7 +895,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
         }
     }
 
-    private ConjunctFuture<Void> cancelVerticesAsync() {
+    @VisibleForTesting
+    protected ConjunctFuture<Void> cancelVerticesAsync() {
         final ArrayList<CompletableFuture<?>> futures =
                 new ArrayList<>(verticesInCreationOrder.size());
 

@@ -246,7 +246,7 @@ public class ExecutingTest extends TestLogger {
         }
     }
 
-    private TaskExecutionStateTransition createFailingStateTransition(JobID jobId) {
+    private static TaskExecutionStateTransition createFailingStateTransition(JobID jobId) {
         return new TaskExecutionStateTransition(
                 new TaskExecutionState(
                         jobId,
@@ -568,17 +568,15 @@ public class ExecutingTest extends TestLogger {
         }
     }
 
-    private static class MockExecutionJobVertex extends ExecutionJobVertex {
+    static class MockExecutionJobVertex extends ExecutionJobVertex {
         private final MockExecutionVertex mockExecutionVertex;
 
         MockExecutionJobVertex() throws JobException, JobExecutionException {
-            super(
-                    TestingExecutionGraphBuilder.newBuilder().build(),
-                    new JobVertex("test"),
-                    1,
-                    1,
-                    Time.milliseconds(1L),
-                    1L);
+            this(TestingExecutionGraphBuilder.newBuilder().build());
+        }
+
+        MockExecutionJobVertex(ExecutionGraph executionGraph) throws JobException {
+            super(executionGraph, new JobVertex("test"), 1, 1, Time.milliseconds(1L), 1L);
             mockExecutionVertex = new MockExecutionVertex(this);
         }
 
@@ -587,12 +585,16 @@ public class ExecutingTest extends TestLogger {
             return new ExecutionVertex[] {mockExecutionVertex};
         }
 
+        public MockExecutionVertex getMockExecutionVertex() {
+            return mockExecutionVertex;
+        }
+
         public boolean isExecutionDeployed() {
             return mockExecutionVertex.isDeployed();
         }
     }
 
-    private static class MockExecutionVertex extends ExecutionVertex {
+    static class MockExecutionVertex extends ExecutionVertex {
         private boolean deployed = false;
 
         MockExecutionVertex(ExecutionJobVertex jobVertex) {
