@@ -341,7 +341,7 @@ function wait_for_number_of_running_tms {
 
 function check_logs_for_errors {
   echo "Checking for errors..."
-  error_count=$(grep -rv "GroupCoordinatorNotAvailableException" $FLINK_DIR/log \
+  error_count=$(grep -rv "GroupCoordinatorNotAvailableException" $FLINK_LOG_DIR \
       | grep -v "RetriableCommitFailedException" \
       | grep -v "NoAvailableBrokersException" \
       | grep -v "Async Kafka commit failed" \
@@ -367,7 +367,7 @@ function check_logs_for_errors {
       | grep -ic "error" || true)
   if [[ ${error_count} -gt 0 ]]; then
     echo "Found error in log files; printing first 500 lines; see full logs for details:"
-    find $FLINK_DIR/log/ -type f -exec head -n 500 {} \;
+    find $FLINK_LOG_DIR/ -type f -exec head -n 500 {} \;
     EXIT_CODE=1
   else
     echo "No errors in log files."
@@ -376,7 +376,7 @@ function check_logs_for_errors {
 
 function check_logs_for_exceptions {
   echo "Checking for exceptions..."
-  exception_count=$(grep -rv "GroupCoordinatorNotAvailableException" $FLINK_DIR/log \
+  exception_count=$(grep -rv "GroupCoordinatorNotAvailableException" $FLINK_LOG_DIR \
    | grep -v "RetriableCommitFailedException" \
    | grep -v "NoAvailableBrokersException" \
    | grep -v "Async Kafka commit failed" \
@@ -404,7 +404,7 @@ function check_logs_for_exceptions {
    | grep -ic "exception" || true)
   if [[ ${exception_count} -gt 0 ]]; then
     echo "Found exception in log files; printing first 500 lines; see full logs for details:"
-    find $FLINK_DIR/log/ -type f -exec head -n 500 {} \;
+    find $FLINK_LOG_DIR/ -type f -exec head -n 500 {} \;
     EXIT_CODE=1
   else
     echo "No exceptions in log files."
@@ -422,11 +422,11 @@ function check_logs_for_non_empty_out_files {
     -e "WARNING: Use --illegal-access"\
     -e "WARNING: All illegal access"\
     -e "Picked up JAVA_TOOL_OPTIONS"\
-    $FLINK_DIR/log/*.out\
+    $FLINK_LOG_DIR/*.out\
    | grep "." \
    > /dev/null; then
     echo "Found non-empty .out files; printing first 500 lines; see full logs for details:"
-    find $FLINK_DIR/log/ -type f -name '*.out' -exec head -n 500 {} \;
+    find $FLINK_LOG_DIR/ -type f -name '*.out' -exec head -n 500 {} \;
     EXIT_CODE=1
   else
     echo "No non-empty .out files."
@@ -460,7 +460,7 @@ function wait_for_job_state_transition {
   echo "Waiting for job ($job) to switch from state ${initial_state} to state ${next_state} ..."
 
   while : ; do
-    N=$(grep -o "($job) switched from state ${initial_state} to ${next_state}" $FLINK_DIR/log/*standalonesession*.log | tail -1)
+    N=$(grep -o "($job) switched from state ${initial_state} to ${next_state}" $FLINK_LOG_DIR/*standalonesession*.log | tail -1)
 
     if [[ -z $N ]]; then
       sleep 1
@@ -495,7 +495,7 @@ function wait_job_terminal_state {
   echo "Waiting for job ($job) to reach terminal state $expected_terminal_state ..."
 
   while : ; do
-    local N=$(grep -o "Job $job reached globally terminal state .*" $FLINK_DIR/log/*$log_file_name*.log | tail -1 || true)
+    local N=$(grep -o "Job $job reached globally terminal state .*" $FLINK_LOG_DIR/*$log_file_name*.log | tail -1 || true)
     if [[ -z $N ]]; then
       sleep 1
     else
@@ -617,7 +617,7 @@ function get_job_metric {
 function get_metric_processed_records {
   OPERATOR=$1
   JOB_NAME="${2:-General purpose test job}"
-  N=$(grep ".${JOB_NAME}.$OPERATOR.numRecordsIn:" $FLINK_DIR/log/*taskexecutor*.log | sed 's/.* //g' | tail -1)
+  N=$(grep ".${JOB_NAME}.$OPERATOR.numRecordsIn:" $FLINK_LOG_DIR/*taskexecutor*.log | sed 's/.* //g' | tail -1)
   if [ -z $N ]; then
     N=0
   fi
@@ -627,7 +627,7 @@ function get_metric_processed_records {
 function get_num_metric_samples {
   OPERATOR=$1
   JOB_NAME="${2:-General purpose test job}"
-  N=$(grep ".${JOB_NAME}.$OPERATOR.numRecordsIn:" $FLINK_DIR/log/*taskexecutor*.log | wc -l)
+  N=$(grep ".${JOB_NAME}.$OPERATOR.numRecordsIn:" $FLINK_LOG_DIR/*taskexecutor*.log | wc -l)
   if [ -z $N ]; then
     N=0
   fi
@@ -668,7 +668,7 @@ function wait_num_of_occurence_in_logs {
     echo "Waiting for text ${text} to appear ${number} of times in logs..."
 
     while : ; do
-      N=$(grep -o "${text}" $FLINK_DIR/log/*${logs}*.log | wc -l)
+      N=$(grep -o "${text}" $FLINK_LOG_DIR/*${logs}*.log | wc -l)
 
       if [ -z $N ]; then
         N=0
@@ -689,7 +689,7 @@ function wait_num_checkpoints {
     echo "Waiting for job ($JOB) to have at least $NUM_CHECKPOINTS completed checkpoints ..."
 
     while : ; do
-      N=$(grep -o "Completed checkpoint [1-9]* for job $JOB" $FLINK_DIR/log/*standalonesession*.log | awk '{print $3}' | tail -1)
+      N=$(grep -o "Completed checkpoint [1-9]* for job $JOB" $FLINK_LOG_DIR/*standalonesession*.log | awk '{print $3}' | tail -1)
 
       if [ -z $N ]; then
         N=0
@@ -715,8 +715,8 @@ function end_timer {
 }
 
 function clean_stdout_files {
-    rm ${FLINK_DIR}/log/*.out
-    echo "Deleted all stdout files under ${FLINK_DIR}/log/"
+    rm $FLINK_LOG_DIR/*.out
+    echo "Deleted all stdout files under $FLINK_LOG_DIR/"
 }
 
 # Expect a string to appear in the log files of the task manager before a given timeout
@@ -726,7 +726,7 @@ function expect_in_taskmanager_logs {
     local expected="$1"
     local timeout=$2
     local i=0
-    local logfile="${FLINK_DIR}/log/flink*taskexecutor*log"
+    local logfile="$FLINK_LOG_DIR/flink*taskexecutor*log"
 
 
     while ! grep "${expected}" ${logfile} > /dev/null; do
@@ -834,7 +834,7 @@ internal_run_with_timeout() {
 
 run_on_test_failure() {
   echo "Printing Flink logs and killing it:"
-  cat ${FLINK_DIR}/log/*
+  cat $FLINK_LOG_DIR/*
 }
 
 run_test_with_timeout() {

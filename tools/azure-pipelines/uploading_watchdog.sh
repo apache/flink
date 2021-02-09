@@ -31,6 +31,7 @@ source "${HERE}/../ci/controller_utils.sh"
 
 source ./tools/azure-pipelines/debug_files_utils.sh
 prepare_debug_files "$AGENT_JOBNAME"
+export FLINK_LOG_DIR="$DEBUG_FILES_OUTPUT_DIR"
 sudo apt-get install -y moreutils
 
 REAL_START_SECONDS=$(date +"%s")

@@ -247,11 +247,11 @@ function read_msg_from_kafka {
 
 function cat_jm_logs {
      local log_file_name=${3:-standalonesession}
-     cat $FLINK_DIR/log/*$log_file_name*.log
+     cat $FLINK_LOG_DIR/*$log_file_name*.log
 }
 
 function cat_tm_logs {
-	local logfile="${FLINK_DIR}/log/flink*taskexecutor*log"
+	local logfile="$FLINK_LOG_DIR/flink*taskexecutor*log"
 	cat ${logfile}
 }
 
