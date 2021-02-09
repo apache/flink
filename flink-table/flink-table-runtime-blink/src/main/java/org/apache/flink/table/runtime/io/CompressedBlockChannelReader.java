@@ -31,6 +31,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.FunctionUtils;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -105,7 +106,9 @@ public class CompressedBlockChannelReader
                 }
             }
         } else {
-            int len = decompressBuffer(segment.wrap(0, segment.size()));
+            int len =
+                    segment.processAsByteBuffer(
+                            FunctionUtils.uncheckedFunction(this::decompressBuffer));
             Preconditions.checkState(len == segment.size());
         }
 
@@ -126,13 +129,13 @@ public class CompressedBlockChannelReader
                 }
             }
 
+            final MemorySegment srcSegment = buffer.getMemorySegment();
+            final int srcSize = buffer.getSize();
             int readLen =
-                    decompressor.decompress(
-                            buffer.getMemorySegment().wrap(0, buffer.getSize()),
-                            0,
-                            buffer.getSize(),
-                            toRead,
-                            0);
+                    srcSegment.processAsByteBuffer(
+                            (srcBuffer) -> {
+                                return decompressor.decompress(srcBuffer, 0, srcSize, toRead, 0);
+                            });
 
             buffer.recycleBuffer();
             return readLen;
