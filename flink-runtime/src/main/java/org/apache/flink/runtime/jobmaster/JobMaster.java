@@ -356,6 +356,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                         executionDeploymentTracker,
                         initializationTimestamp,
                         getMainThreadExecutor(),
+                        fatalErrorHandler,
                         jobStatusListener);
 
         return scheduler;
