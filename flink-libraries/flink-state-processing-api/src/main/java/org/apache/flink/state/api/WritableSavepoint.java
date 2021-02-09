@@ -105,7 +105,10 @@ public abstract class WritableSavepoint<F extends WritableSavepoint> {
             finalOperatorStates = newOperatorStates;
         } else {
             DataSet<OperatorState> existingOperatorStates =
-                    newOperatorStates.getExecutionEnvironment().fromCollection(existingOperators);
+                    newOperatorStates
+                            .getExecutionEnvironment()
+                            .fromCollection(existingOperators)
+                            .name("existingOperatorStates");
 
             existingOperatorStates
                     .flatMap(new StatePathExtractor())
