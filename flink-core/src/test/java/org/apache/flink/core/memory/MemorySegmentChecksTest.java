@@ -23,6 +23,8 @@ import org.junit.Test;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.nio.ByteBuffer;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 /** Tests for the sanity checks of the memory segments. */
 public class MemorySegmentChecksTest {
@@ -119,5 +121,13 @@ public class MemorySegmentChecksTest {
 
         @Override
         public void put(int offset, ByteBuffer source, int numBytes) {}
+
+        @Override
+        public <T> T processAsByteBuffer(Function<ByteBuffer, T> processFunction) {
+            return null;
+        }
+
+        @Override
+        public void processAsByteBuffer(Consumer<ByteBuffer> processConsumer) {}
     }
 }

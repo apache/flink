@@ -26,6 +26,8 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.ReadOnlyBufferException;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * This class represents a piece of memory managed by Flink. The segment may be backed by heap
@@ -1386,4 +1388,29 @@ public abstract class MemorySegment {
     public byte[] getHeapMemory() {
         return heapMemory;
     }
+
+    /**
+     * Applies the given process function on a {@link ByteBuffer} that represents this entire
+     * segment.
+     *
+     * <p>Note: The {@link ByteBuffer} passed into the process function is temporary and could
+     * become invalid after the processing. Thus, the process function should not try to keep any
+     * reference of the {@link ByteBuffer}.
+     *
+     * @param processFunction to be applied to the segment as {@link ByteBuffer}.
+     * @return the value that the process function returns.
+     */
+    public abstract <T> T processAsByteBuffer(Function<ByteBuffer, T> processFunction);
+
+    /**
+     * Supplies a {@link ByteBuffer} that represents this entire segment to the given process
+     * consumer.
+     *
+     * <p>Note: The {@link ByteBuffer} passed into the process consumer is temporary and could
+     * become invalid after the processing. Thus, the process consumer should not try to keep any
+     * reference of the {@link ByteBuffer}.
+     *
+     * @param processConsumer to accept the segment as {@link ByteBuffer}.
+     */
+    public abstract void processAsByteBuffer(Consumer<ByteBuffer> processConsumer);
 }
