@@ -56,6 +56,7 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.singletonMap;
@@ -104,8 +105,7 @@ public class ChannelPersistenceITCase {
             InputGate gate = buildGate(networkBufferPool, numChannels);
             reader.readInputData(new InputGate[] {gate});
             assertArrayEquals(
-                    inputChannelInfoData,
-                    collectBytes(() -> gate.pollNext().map(BufferOrEvent::getBuffer)));
+                    inputChannelInfoData, collectBytes(gate::pollNext, BufferOrEvent::getBuffer));
 
             BufferWritingResultPartition resultPartition =
                     buildResultPartition(
@@ -119,9 +119,8 @@ public class ChannelPersistenceITCase {
             assertArrayEquals(
                     resultSubpartitionInfoData,
                     collectBytes(
-                            () ->
-                                    Optional.ofNullable(view.getNextBuffer())
-                                            .map(BufferAndBacklog::buffer)));
+                            () -> Optional.ofNullable(view.getNextBuffer()),
+                            BufferAndBacklog::buffer));
         } finally {
             networkBufferPool.destroy();
         }
@@ -187,15 +186,17 @@ public class ChannelPersistenceITCase {
         return gate;
     }
 
-    private byte[] collectBytes(SupplierWithException<Optional<Buffer>, Exception> bufferSupplier)
+    private <T> byte[] collectBytes(
+            SupplierWithException<Optional<T>, Exception> entrySupplier,
+            Function<T, Buffer> bufferExtractor)
             throws Exception {
         ArrayList<Buffer> buffers = new ArrayList<>();
-        for (Optional<Buffer> buffer = bufferSupplier.get();
-                buffer.isPresent();
-                buffer = bufferSupplier.get()) {
-            if (buffer.get().getDataType().isBuffer()) {
-                buffers.add(buffer.get());
-            }
+        for (Optional<T> entry = entrySupplier.get();
+                entry.isPresent();
+                entry = entrySupplier.get()) {
+            entry.map(bufferExtractor)
+                    .filter(buffer -> buffer.getDataType().isBuffer())
+                    .ifPresent(buffers::add);
         }
         ByteBuffer result =
                 ByteBuffer.wrap(new byte[buffers.stream().mapToInt(Buffer::getSize).sum()]);
