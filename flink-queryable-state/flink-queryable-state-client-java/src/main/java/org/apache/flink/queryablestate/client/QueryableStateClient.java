@@ -47,6 +47,7 @@ import org.apache.flink.queryablestate.network.Client;
 import org.apache.flink.queryablestate.network.messages.MessageSerializer;
 import org.apache.flink.queryablestate.network.stats.DisabledKvStateRequestStats;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.LambdaUtil;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -297,8 +298,13 @@ public class QueryableStateClient {
             return FutureUtils.getFailedFuture(e);
         }
 
+        ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
         return getKvState(jobId, queryableStateName, key.hashCode(), serializedKeyAndNamespace)
-                .thenApply(stateResponse -> createState(stateResponse, stateDescriptor));
+                .thenApply(
+                        stateResponse ->
+                                LambdaUtil.withContextClassLoader(
+                                        contextLoader,
+                                        () -> createState(stateResponse, stateDescriptor)));
     }
 
     private <T, S extends State> S createState(
