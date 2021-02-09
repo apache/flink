@@ -22,6 +22,7 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
@@ -47,8 +48,6 @@ import static org.apache.flink.test.checkpointing.EventTimeWindowCheckpointingIT
 @RunWith(Parameterized.class)
 public class LocalRecoveryITCase extends TestLogger {
 
-    private final boolean localRecoveryEnabled = true;
-
     @Rule public TestName testName = new TestName();
 
     @Parameterized.Parameter public StateBackendEnum backendEnum;
@@ -62,23 +61,7 @@ public class LocalRecoveryITCase extends TestLogger {
     public final void executeTest() throws Exception {
         EventTimeWindowCheckpointingITCase.tempFolder.create();
         EventTimeWindowCheckpointingITCase windowChkITCase =
-                new EventTimeWindowCheckpointingITCase() {
-
-                    @Override
-                    protected StateBackendEnum getStateBackend() {
-                        return backendEnum;
-                    }
-
-                    @Override
-                    protected Configuration createClusterConfig() throws IOException {
-                        Configuration config = super.createClusterConfig();
-
-                        config.setBoolean(
-                                CheckpointingOptions.LOCAL_RECOVERY, localRecoveryEnabled);
-
-                        return config;
-                    }
-                };
+                new EventTimeWindowCheckpointingITCaseInstance(backendEnum, true);
 
         executeTest(windowChkITCase);
     }
@@ -106,6 +89,34 @@ public class LocalRecoveryITCase extends TestLogger {
             }
         } finally {
             EventTimeWindowCheckpointingITCase.tempFolder.delete();
+        }
+    }
+
+    @Ignore("Prevents this class from being considered a test class by JUnit.")
+    private static class EventTimeWindowCheckpointingITCaseInstance
+            extends EventTimeWindowCheckpointingITCase {
+
+        private final StateBackendEnum backendEnum;
+        private final boolean localRecoveryEnabled;
+
+        public EventTimeWindowCheckpointingITCaseInstance(
+                StateBackendEnum backendEnum, boolean localRecoveryEnabled) {
+            this.backendEnum = backendEnum;
+            this.localRecoveryEnabled = localRecoveryEnabled;
+        }
+
+        @Override
+        protected StateBackendEnum getStateBackend() {
+            return backendEnum;
+        }
+
+        @Override
+        protected Configuration createClusterConfig() throws IOException {
+            Configuration config = super.createClusterConfig();
+
+            config.setBoolean(CheckpointingOptions.LOCAL_RECOVERY, localRecoveryEnabled);
+
+            return config;
         }
     }
 }
