@@ -25,13 +25,10 @@ import org.apache.flink.configuration.TaskManagerOptionsInternal;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.testutils.SystemExitTrackingSecurityManager;
-import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.TimeUtils;
 
 import org.junit.After;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
@@ -39,10 +36,8 @@ import org.junit.rules.Timeout;
 import javax.annotation.Nonnull;
 
 import java.net.InetAddress;
-import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.flink.core.testutils.FlinkMatchers.willNotComplete;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
@@ -54,14 +49,7 @@ public class TaskManagerRunnerTest extends TestLogger {
 
     @Rule public final Timeout timeout = Timeout.seconds(30);
 
-    private SystemExitTrackingSecurityManager systemExitTrackingSecurityManager;
     private TaskManagerRunner taskManagerRunner;
-
-    @Before
-    public void before() {
-        systemExitTrackingSecurityManager = new SystemExitTrackingSecurityManager();
-        System.setSecurityManager(systemExitTrackingSecurityManager);
-    }
 
     @After
     public void after() throws Exception {
@@ -80,8 +68,9 @@ public class TaskManagerRunnerTest extends TestLogger {
 
         taskManagerRunner.onFatalError(new RuntimeException());
 
-        Integer statusCode = systemExitTrackingSecurityManager.getSystemExitFuture().get();
-        assertThat(statusCode, is(equalTo(TaskManagerRunner.RUNTIME_FAILURE_RETURN_CODE)));
+        assertThat(
+                taskManagerRunner.getTerminationFuture().join(),
+                is(equalTo(TaskManagerRunner.Result.FAILURE)));
     }
 
     @Test
@@ -91,8 +80,9 @@ public class TaskManagerRunnerTest extends TestLogger {
                 TaskManagerOptions.REGISTRATION_TIMEOUT, TimeUtils.parseDuration("10 ms"));
         taskManagerRunner = createTaskManagerRunner(configuration);
 
-        Integer statusCode = systemExitTrackingSecurityManager.getSystemExitFuture().get();
-        assertThat(statusCode, is(equalTo(TaskManagerRunner.RUNTIME_FAILURE_RETURN_CODE)));
+        assertThat(
+                taskManagerRunner.getTerminationFuture().join(),
+                is(equalTo(TaskManagerRunner.Result.FAILURE)));
     }
 
     @Test
@@ -169,10 +159,11 @@ public class TaskManagerRunnerTest extends TestLogger {
                         createConfiguration(),
                         createTaskExecutorServiceFactory(taskExecutorService));
 
-        terminationFuture.completeExceptionally(new FlinkException("Test exception."));
+        terminationFuture.complete(null);
 
-        Integer statusCode = systemExitTrackingSecurityManager.getSystemExitFuture().get();
-        assertThat(statusCode, is(equalTo(TaskManagerRunner.RUNTIME_FAILURE_RETURN_CODE)));
+        assertThat(
+                taskManagerRunner.getTerminationFuture().join(),
+                is(equalTo(TaskManagerRunner.Result.FAILURE)));
     }
 
     @Test
@@ -191,11 +182,11 @@ public class TaskManagerRunnerTest extends TestLogger {
 
         taskManagerRunner.closeAsync();
 
-        terminationFuture.completeExceptionally(new FlinkException("Test exception."));
+        terminationFuture.complete(null);
 
         assertThat(
-                systemExitTrackingSecurityManager.getSystemExitFuture(),
-                willNotComplete(Duration.ofMillis(10L)));
+                taskManagerRunner.getTerminationFuture().join(),
+                is(equalTo(TaskManagerRunner.Result.SUCCESS)));
     }
 
     @Nonnull
