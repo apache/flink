@@ -29,6 +29,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 
 import javax.annotation.Nullable;
 
+import java.io.Serializable;
 import java.util.Optional;
 import java.util.function.Supplier;
 
@@ -123,7 +124,8 @@ public final class SliceSharedWindowAggProcessor extends AbstractWindowAggProces
         }
     }
 
-    private final class WindowIsEmptySupplier implements Supplier<Boolean> {
+    private final class WindowIsEmptySupplier implements Supplier<Boolean>, Serializable {
+        private static final long serialVersionUID = 1L;
 
         private final int indexOfCountStar;
 

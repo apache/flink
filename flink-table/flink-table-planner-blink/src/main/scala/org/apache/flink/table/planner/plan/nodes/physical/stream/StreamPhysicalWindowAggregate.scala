@@ -18,18 +18,22 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
+import org.apache.flink.table.api.TableException
+import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.expressions.{PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowEnd, PlannerWindowStart}
+import org.apache.flink.table.planner.plan.logical.WindowingStrategy
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowAggregate
+import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, RelExplainUtil}
+import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
+import org.apache.flink.table.types.logical.utils.LogicalTypeUtils
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.util.ImmutableBitSet
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.expressions.{PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowEnd, PlannerWindowStart}
-import org.apache.flink.table.planner.plan.logical.WindowingStrategy
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
-import org.apache.flink.table.planner.plan.utils.RelExplainUtil
-import org.apache.flink.table.types.logical.utils.LogicalTypeUtils
 
 import java.util
 import java.util.Collections
@@ -112,6 +116,22 @@ class StreamPhysicalWindowAggregate(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
-    ???
+    val conf = FlinkRelOptUtil.getTableConfigFromContext(this).getConfiguration
+    if (conf.getBoolean(TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED) ||
+      conf.getBoolean(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED)) {
+      throw new TableException("Currently, window table function based aggregate doesn't " +
+        s"support early-fire and late-fire configuration " +
+        s"'${TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED.key()}' and " +
+        s"'${TABLE_EXEC_EMIT_LATE_FIRE_ENABLED.key()}'.")
+    }
+    new StreamExecWindowAggregate(
+      grouping,
+      aggCalls.toArray,
+      windowing,
+      namedWindowProperties.toArray,
+      InputProperty.DEFAULT,
+      FlinkTypeFactory.toLogicalRowType(getRowType),
+      getRelDetailedDescription
+    )
   }
 }

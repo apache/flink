@@ -26,6 +26,7 @@ import org.apache.flink.util.MathUtils;
 
 import org.apache.commons.math3.util.ArithmeticUtils;
 
+import java.io.Serializable;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -88,10 +89,10 @@ public final class SliceAssigners {
      *
      * @param windowEndIndex the index of window end field in the input row, mustn't be a negative
      *     value.
-     * @param windowSize the size of the generated window.
+     * @param innerAssigner the inner assigner which assigns the attached windows
      */
-    public static WindowedSliceAssigner windowed(int windowEndIndex, Duration windowSize) {
-        return new WindowedSliceAssigner(windowEndIndex, windowSize.toMillis());
+    public static WindowedSliceAssigner windowed(int windowEndIndex, SliceAssigner innerAssigner) {
+        return new WindowedSliceAssigner(windowEndIndex, innerAssigner);
     }
 
     // ------—------—------—------—------—------—------—------—------—------—------—------—------—
@@ -321,20 +322,15 @@ public final class SliceAssigners {
         private static final long serialVersionUID = 1L;
 
         private final int windowEndIndex;
-        private final long windowSize;
+        private final SliceAssigner innerAssigner;
         private final ReusableListIterable reuseExpiredList = new ReusableListIterable();
 
-        public WindowedSliceAssigner(int windowEndIndex, long windowSize) {
+        public WindowedSliceAssigner(int windowEndIndex, SliceAssigner innerAssigner) {
             checkArgument(
                     windowEndIndex >= 0,
                     "Windowed slice assigner must have a positive window end index.");
-            checkArgument(
-                    windowSize > 0,
-                    String.format(
-                            "Windowed Window parameters must satisfy size > 0, but got size %dms.",
-                            windowSize));
             this.windowEndIndex = windowEndIndex;
-            this.windowSize = windowSize;
+            this.innerAssigner = innerAssigner;
         }
 
         @Override
@@ -344,7 +340,7 @@ public final class SliceAssigners {
 
         @Override
         public long getWindowStart(long windowEnd) {
-            return TimeWindow.getWindowStartWithOffset(windowEnd - 1, 0L, windowSize);
+            return innerAssigner.getWindowStart(windowEnd);
         }
 
         @Override
@@ -396,7 +392,10 @@ public final class SliceAssigners {
     // Private Utilities
     // ------------------------------------------------------------------------------------------
 
-    private static final class ReusableListIterable implements IterableIterator<Long> {
+    private static final class ReusableListIterable
+            implements IterableIterator<Long>, Serializable {
+        private static final long serialVersionUID = 1L;
+
         private final List<Long> values = new ArrayList<>();
         private int index = 0;
 
@@ -437,7 +436,9 @@ public final class SliceAssigners {
         }
     }
 
-    private static final class HoppingSlicesIterable implements IterableIterator<Long> {
+    private static final class HoppingSlicesIterable
+            implements IterableIterator<Long>, Serializable {
+        private static final long serialVersionUID = 1L;
 
         private final long sliceSize;
         private long lastSliceEnd;

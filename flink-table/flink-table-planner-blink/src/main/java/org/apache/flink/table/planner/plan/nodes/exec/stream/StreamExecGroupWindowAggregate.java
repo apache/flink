@@ -80,7 +80,14 @@ import static org.apache.flink.table.planner.plan.utils.AggregateUtil.toDuration
 import static org.apache.flink.table.planner.plan.utils.AggregateUtil.toLong;
 import static org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToStreamAggregateInfoList;
 
-/** Stream {@link ExecNode} for either group window aggregate or group window table aggregate. */
+/**
+ * Stream {@link ExecNode} for either group window aggregate or group window table aggregate.
+ *
+ * <p>The differences between {@link StreamExecWindowAggregate} and {@link
+ * StreamExecGroupWindowAggregate} is that, this node is translated from window TVF syntax, but the
+ * * other is from the legacy GROUP WINDOW FUNCTION syntax. In the long future, {@link
+ * StreamExecGroupWindowAggregate} will be dropped.
+ */
 public class StreamExecGroupWindowAggregate extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData> {
     private static final Logger LOGGER =
