@@ -61,6 +61,13 @@ public final class HybridMemorySegment extends MemorySegment {
     @Nullable private ByteBuffer offHeapBuffer;
 
     /**
+     * Wrapping is not allowed when the underlying memory is unsafe. Unsafe memory can be actively
+     * released, without reference counting. Therefore, access from wrapped buffers, which may not
+     * be aware of the releasing of memory, could be risky.
+     */
+    private final boolean allowWrap;
+
+    /**
      * Creates a new memory segment that represents the memory backing the given direct byte buffer.
      * Note that the given ByteBuffer must be direct {@link
      * java.nio.ByteBuffer#allocateDirect(int)}, otherwise this method with throw an
@@ -73,8 +80,26 @@ public final class HybridMemorySegment extends MemorySegment {
      * @throws IllegalArgumentException Thrown, if the given ByteBuffer is not direct.
      */
     HybridMemorySegment(@Nonnull ByteBuffer buffer, @Nullable Object owner) {
+        this(buffer, owner, true);
+    }
+
+    /**
+     * Creates a new memory segment that represents the memory backing the given direct byte buffer.
+     * Note that the given ByteBuffer must be direct {@link
+     * java.nio.ByteBuffer#allocateDirect(int)}, otherwise this method with throw an
+     * IllegalArgumentException.
+     *
+     * <p>The memory segment references the given owner.
+     *
+     * @param buffer The byte buffer whose memory is represented by this memory segment.
+     * @param owner The owner references by this memory segment.
+     * @param allowWrap Whether wrapping {@link ByteBuffer}s from the segment is allowed.
+     * @throws IllegalArgumentException Thrown, if the given ByteBuffer is not direct.
+     */
+    HybridMemorySegment(@Nonnull ByteBuffer buffer, @Nullable Object owner, boolean allowWrap) {
         super(getByteBufferAddress(buffer), buffer.capacity(), owner);
         this.offHeapBuffer = buffer;
+        this.allowWrap = allowWrap;
     }
 
     /**
@@ -88,6 +113,7 @@ public final class HybridMemorySegment extends MemorySegment {
     HybridMemorySegment(byte[] buffer, Object owner) {
         super(buffer, owner);
         this.offHeapBuffer = null;
+        this.allowWrap = true;
     }
 
     // -------------------------------------------------------------------------
@@ -102,6 +128,10 @@ public final class HybridMemorySegment extends MemorySegment {
 
     @Override
     public ByteBuffer wrap(int offset, int length) {
+        if (!allowWrap) {
+            throw new UnsupportedOperationException(
+                    "Wrap is not supported by this segment. This usually indicates that the underlying memory is unsafe, thus transferring of ownership is not allowed.");
+        }
         return wrapInternal(offset, length);
     }
 
