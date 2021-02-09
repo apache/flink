@@ -19,7 +19,8 @@
 package org.apache.flink.table.types.inference;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -35,6 +36,7 @@ import org.junit.runners.Parameterized;
 
 import javax.annotation.Nonnull;
 
+import java.lang.reflect.Field;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -43,7 +45,7 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 
 /** Tests for {@link ComparableTypeStrategy}. */
-public class ComparableInputTypeStrategyTests extends InputTypeStrategiesTestBase {
+public class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase {
 
     @Parameterized.Parameters(name = "{index}: {0}")
     public static List<TestSpec> testData() {
@@ -256,11 +258,17 @@ public class ComparableInputTypeStrategyTests extends InputTypeStrategiesTestBas
                                 InputTypeStrategies.TWO_EQUALS_COMPARABLE)
                         .calledWithArgumentTypes(
                                 rawType(NotComparableClass.class),
-                                DataTypes.RAW(TypeInformation.of(NotComparableClass.class)))
+                                DataTypes.RAW(
+                                        NotComparableClass.class,
+                                        new PojoSerializer<>(
+                                                NotComparableClass.class,
+                                                new TypeSerializer[0],
+                                                new Field[0],
+                                                new ExecutionConfig())))
                         .expectErrorMessage(
                                 String.format(
                                         "All types in a comparison should support 'EQUALS' comparison with"
-                                                + " each other. Can not compare RAW('%s', '...') with RAW('%s', ?)",
+                                                + " each other. Can not compare RAW('%s', '...') with RAW('%s', '...')",
                                         NotComparableClass.class.getName(),
                                         NotComparableClass.class.getName())),
                 TestSpec.forStrategy(
