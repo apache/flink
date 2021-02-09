@@ -29,6 +29,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
 import org.apache.flink.runtime.jobmaster.utils.JobMasterBuilder;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
@@ -103,6 +104,7 @@ public class JobMasterSchedulerTest extends TestLogger {
                 ExecutionDeploymentTracker executionDeploymentTracker,
                 long initializationTimestamp,
                 ComponentMainThreadExecutor mainThreadExecutor,
+                FatalErrorHandler fatalErrorHandler,
                 JobStatusListener jobStatusListener) {
             return TestingSchedulerNG.newBuilder()
                     .setStartSchedulingRunnable(
