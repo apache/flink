@@ -23,6 +23,9 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.InstantiationUtil;
+
+import java.io.IOException;
 
 /**
  * Partitioner that selects the channel with a user defined partitioner function on a key.
@@ -58,14 +61,19 @@ public class CustomPartitionerWrapper<K, T> extends StreamPartitioner<T> {
     public SubtaskStateMapper getDownstreamSubtaskStateMapper() {
         // fully rely on filtering downstream
         // note that custom partitioners are not officially supported - the user has to force
-        // rescaling
-        // in that case, we assume that the custom partitioner is deterministic
+        // rescaling in that case, we assume that the custom partitioner is deterministic
         return SubtaskStateMapper.FULL;
     }
 
     @Override
     public StreamPartitioner<T> copy() {
-        return this;
+        try {
+            // clone partitioner to ensure that any internal state is also replicated
+            return new CustomPartitionerWrapper<>(
+                    InstantiationUtil.clone(partitioner), keySelector);
+        } catch (ClassNotFoundException | IOException e) {
+            throw new IllegalStateException("Cannot clone custom partitioner", e);
+        }
     }
 
     @Override

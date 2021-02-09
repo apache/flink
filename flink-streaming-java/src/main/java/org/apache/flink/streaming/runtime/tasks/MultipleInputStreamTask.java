@@ -38,16 +38,17 @@ import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate
 import org.apache.flink.streaming.runtime.io.checkpointing.InputProcessorUtil;
 import org.apache.flink.streaming.runtime.metrics.MinWatermarkGauge;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
+import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
+import java.util.function.Function;
 
 /**
  * A {@link StreamTask} for executing a {@link MultipleInputStreamOperator} and supporting the
@@ -95,11 +96,6 @@ public class MultipleInputStreamTask<OUT>
         // the number of logical network inputs is smaller compared to the number of inputs (input
         // gates)
         int numberOfNetworkInputs = configuration.getNumberOfNetworkInputs();
-        int numberOfLogicalNetworkInputs =
-                (int)
-                        Arrays.stream(inputs)
-                                .filter(input -> (input instanceof StreamConfig.NetworkInputConfig))
-                                .count();
 
         ArrayList[] inputLists = new ArrayList[inputs.length];
         for (int i = 0; i < inputLists.length; i++) {
@@ -118,7 +114,11 @@ public class MultipleInputStreamTask<OUT>
                 networkInputLists.add(inputList);
             }
         }
-        createInputProcessor(networkInputLists.toArray(new ArrayList[0]), inputs, watermarkGauges);
+        createInputProcessor(
+                networkInputLists.toArray(new ArrayList[0]),
+                inputs,
+                watermarkGauges,
+                (index) -> inEdges.get(index).getPartitioner());
 
         // wrap watermark gauge since registered metrics must be unique
         getEnvironment()
@@ -129,7 +129,8 @@ public class MultipleInputStreamTask<OUT>
     protected void createInputProcessor(
             List<IndexedInputGate>[] inputGates,
             InputConfig[] inputs,
-            WatermarkGauge[] inputWatermarkGauges) {
+            WatermarkGauge[] inputWatermarkGauges,
+            Function<Integer, StreamPartitioner<?>> gatePartitioners) {
         checkpointBarrierHandler =
                 InputProcessorUtil.createCheckpointBarrierHandler(
                         this,
@@ -164,7 +165,10 @@ public class MultipleInputStreamTask<OUT>
                         getJobConfiguration(),
                         getExecutionConfig(),
                         getUserCodeClassLoader(),
-                        operatorChain);
+                        operatorChain,
+                        getEnvironment().getTaskStateManager().getInputRescalingDescriptor(),
+                        gatePartitioners,
+                        getEnvironment().getTaskInfo());
     }
 
     @Override
