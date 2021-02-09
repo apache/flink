@@ -101,15 +101,15 @@ public class SequentialChannelStateReaderImplTest {
             int stateBytesPerPart,
             int parLevel,
             int bufferSize) {
-        this.serializer = new ChannelStateSerializerImpl();
-        this.random = new Random();
+        serializer = new ChannelStateSerializerImpl();
+        random = new Random();
         this.parLevel = parLevel;
         this.statePartsPerChannel = statePartsPerChannel;
         this.stateBytesPerPart = stateBytesPerPart;
         this.bufferSize = bufferSize;
         this.stateParLevel = stateParLevel;
         // will read without waiting for consumption
-        this.buffersPerChannel =
+        buffersPerChannel =
                 Math.max(
                         1,
                         statePartsPerChannel
@@ -172,8 +172,10 @@ public class SequentialChannelStateReaderImplTest {
             for (Optional<BufferOrEvent> next = gate.pollNext();
                     next.isPresent();
                     next = gate.pollNext()) {
-                actual.computeIfAbsent(next.get().getChannelInfo(), unused -> new ArrayList<>())
-                        .add(next.get().getBuffer());
+                if (next.get().isBuffer()) {
+                    actual.computeIfAbsent(next.get().getChannelInfo(), unused -> new ArrayList<>())
+                            .add(next.get().getBuffer());
+                }
             }
         }
         return actual;
