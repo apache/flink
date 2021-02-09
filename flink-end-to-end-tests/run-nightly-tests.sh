@@ -32,30 +32,24 @@ if [ -z "$FLINK_DIR" ] ; then
     exit 1
 fi
 
+if [ -z "$FLINK_LOG_DIR" ] ; then
+    export FLINK_LOG_DIR="$FLINK_DIR/logs"
+fi
+
+# On Azure CI, use artifacts dir
+if [ -z "$DEBUG_FILES_OUTPUT_DIR"] ; then
+    export DEBUG_FILES_OUTPUT_DIR="$FLINK_LOG_DIR"
+fi
+
 source "${END_TO_END_DIR}/../tools/ci/maven-utils.sh"
 source "${END_TO_END_DIR}/test-scripts/test-runner-common.sh"
 
-# On Azure CI, set artifacts dir
-if [ ! -z "$TF_BUILD" ] ; then
-	export ARTIFACTS_DIR="${END_TO_END_DIR}/artifacts"
-	mkdir -p $ARTIFACTS_DIR || { echo "FAILURE: cannot create log directory '${ARTIFACTS_DIR}'." ; exit 1; }
+function run_on_exit {
+    collect_coredumps $(pwd) $DEBUG_FILES_OUTPUT_DIR
+    collect_dmesg $DEBUG_FILES_OUTPUT_DIR
+}
 
-	function run_on_exit {
-		collect_coredumps $(pwd) $ARTIFACTS_DIR
-		collect_dmesg $ARTIFACTS_DIR
-		compress_logs
-	}
-
-	# compress and register logs for publication on exit
-	function compress_logs {
-		echo "COMPRESSING build artifacts."
-		COMPRESSED_ARCHIVE=${BUILD_BUILDNUMBER}.tgz
-		mkdir compressed-archive-dir
-		tar -zcvf compressed-archive-dir/${COMPRESSED_ARCHIVE} -C $ARTIFACTS_DIR .
-		echo "##vso[task.setvariable variable=ARTIFACT_DIR]$(pwd)/compressed-archive-dir"
-	}
-	on_exit run_on_exit
-fi
+on_exit run_on_exit
 
 if [[ ${PROFILE} == *"enable-adaptive-scheduler"* ]]; then
 	echo "Enabling adaptive scheduler properties"
