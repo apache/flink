@@ -236,6 +236,8 @@ public class RocksStatesPerKeyGroupMergeIterator implements KeyValueStateIterato
     public void close() {
         IOUtils.closeQuietly(closeableRegistry);
 
-        heap.clear();
+        if (heap != null) {
+            heap.clear();
+        }
     }
 }
