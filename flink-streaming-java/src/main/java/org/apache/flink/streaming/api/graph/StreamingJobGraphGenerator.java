@@ -63,6 +63,7 @@ import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.UdfStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
+import org.apache.flink.streaming.runtime.partitioner.CustomPartitionerWrapper;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
@@ -233,7 +234,15 @@ public class StreamingJobGraphGenerator {
                     && !checkpointConfig.isForceUnalignedCheckpoints()) {
                 throw new UnsupportedOperationException(
                         "Unaligned Checkpoints are currently not supported for iterative jobs, "
-                                + " as rescaling would require alignment (in addition to the reduced checkpointing guarantees)."
+                                + "as rescaling would require alignment (in addition to the reduced checkpointing guarantees)."
+                                + "\nThe user can force Unaligned Checkpoints by using 'execution.checkpointing.unaligned.forced'");
+            }
+            if (checkpointConfig.isUnalignedCheckpointsEnabled()
+                    && !checkpointConfig.isForceUnalignedCheckpoints()
+                    && streamGraph.getStreamNodes().stream().anyMatch(this::hasCustomPartitioner)) {
+                throw new UnsupportedOperationException(
+                        "Unaligned checkpoints are currently not supported for custom partitioners, "
+                                + "as rescaling is not guaranteed to work correctly."
                                 + "\nThe user can force Unaligned Checkpoints by using 'execution.checkpointing.unaligned.forced'");
             }
 
@@ -257,6 +266,11 @@ public class StreamingJobGraphGenerator {
             LOG.warn("Unaligned checkpoints can only be used with checkpointing mode EXACTLY_ONCE");
             checkpointConfig.enableUnalignedCheckpoints(false);
         }
+    }
+
+    private boolean hasCustomPartitioner(StreamNode node) {
+        return node.getOutEdges().stream()
+                .anyMatch(edge -> edge.getPartitioner() instanceof CustomPartitionerWrapper);
     }
 
     private void setPhysicalEdges() {
