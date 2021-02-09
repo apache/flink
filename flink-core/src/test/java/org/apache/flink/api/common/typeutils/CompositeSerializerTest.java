@@ -29,6 +29,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
@@ -262,6 +263,7 @@ public class CompositeSerializerTest {
         }
     }
 
+    @Ignore("Prevents this class from being considered a test class by JUnit.")
     private static class CompositeSerializerTestInstance
             extends SerializerTestInstance<List<Object>> {
         @SuppressWarnings("unchecked")

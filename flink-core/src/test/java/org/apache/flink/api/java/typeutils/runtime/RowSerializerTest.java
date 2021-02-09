@@ -31,6 +31,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.types.RowUtils;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.Serializable;
@@ -222,6 +223,7 @@ public class RowSerializerTest {
         return row;
     }
 
+    @Ignore("Prevents this class from being considered a test class by JUnit.")
     private class RowSerializerTestInstance extends SerializerTestInstance<Row> {
 
         RowSerializerTestInstance(TypeSerializer<Row> serializer, Row... testData) {
