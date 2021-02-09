@@ -27,10 +27,10 @@ function check_logs {
     (( expected_count=parallelism * (attempts + 1) ))
 
     # Search for the log message that indicates restore problem from existing local state for the keyed backend.
-    local failed_local_recovery=$(grep '^.*Creating keyed state backend.* from alternative (2/2)\.$' $FLINK_DIR/log/* | wc -l | tr -d ' ')
+    local failed_local_recovery=$(grep '^.*Creating keyed state backend.* from alternative (2/2)\.$' $FLINK_LOG_DIR/* | wc -l | tr -d ' ')
 
     # Search for attempts to recover locally.
-    local attempt_local_recovery=$(grep '^.*Creating keyed state backend.* from alternative (1/2)\.$' $FLINK_DIR/log/* | wc -l | tr -d ' ')
+    local attempt_local_recovery=$(grep '^.*Creating keyed state backend.* from alternative (1/2)\.$' $FLINK_LOG_DIR/* | wc -l | tr -d ' ')
 
     if [ ${failed_local_recovery} -ne 0 ]
     then
@@ -80,7 +80,7 @@ function run_local_recovery_test {
     # Ensure that each TM only has one operator(chain)
     set_config_key "taskmanager.numberOfTaskSlots" "1"
 
-    rm $FLINK_DIR/log/* 2> /dev/null
+    rm $FLINK_LOG_DIR/* 2> /dev/null
 
     # Start HA server
     start_local_zk
