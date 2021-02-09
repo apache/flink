@@ -19,6 +19,7 @@
 package org.apache.flink.core.memory;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -30,6 +31,8 @@ import java.nio.BufferOverflowException;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ReadOnlyBufferException;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 import static org.apache.flink.core.memory.MemoryUtils.getByteBufferAddress;
 
@@ -99,6 +102,10 @@ public final class HybridMemorySegment extends MemorySegment {
 
     @Override
     public ByteBuffer wrap(int offset, int length) {
+        return wrapInternal(offset, length);
+    }
+
+    private ByteBuffer wrapInternal(int offset, int length) {
         if (address <= addressLimit) {
             if (heapMemory != null) {
                 return ByteBuffer.wrap(heapMemory, offset, length);
@@ -341,5 +348,15 @@ public final class HybridMemorySegment extends MemorySegment {
                 put(offset++, source.get());
             }
         }
+    }
+
+    @Override
+    public <T> T processAsByteBuffer(Function<ByteBuffer, T> processFunction) {
+        return Preconditions.checkNotNull(processFunction).apply(wrapInternal(0, size));
+    }
+
+    @Override
+    public void processAsByteBuffer(Consumer<ByteBuffer> processConsumer) {
+        Preconditions.checkNotNull(processConsumer).accept(wrapInternal(0, size));
     }
 }
