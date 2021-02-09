@@ -29,7 +29,6 @@ import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.security.UserGroupInformation;
@@ -38,7 +37,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Map;
 
 /** This class is the executable entry point for running a TaskExecutor in a YARN container. */
@@ -71,35 +69,38 @@ public class YarnTaskExecutorRunner {
 
     /**
      * The instance entry point for the YARN task executor. Obtains user group information and calls
-     * the main work method {@link TaskManagerRunner#runTaskManager(Configuration, ResourceID)} as a
-     * privileged action.
+     * the main work method {@link TaskManagerRunner#runTaskManagerProcessSecurely(Configuration,
+     * ResourceID)} as a privileged action.
      *
      * @param args The command line arguments.
      */
     private static void runTaskManagerSecurely(String[] args) {
+        Configuration configuration = null;
+        String containerId = null;
+
         try {
             LOG.debug("All environment variables: {}", ENV);
 
             final String currDir = ENV.get(Environment.PWD.key());
             LOG.info("Current working Directory: {}", currDir);
 
-            final Configuration configuration = TaskManagerRunner.loadConfiguration(args);
+            configuration = TaskManagerRunner.loadConfiguration(args);
             setupAndModifyConfiguration(configuration, currDir, ENV);
 
-            final String containerId = ENV.get(YarnResourceManager.ENV_FLINK_CONTAINER_ID);
+            containerId = ENV.get(YarnResourceManager.ENV_FLINK_CONTAINER_ID);
             Preconditions.checkArgument(
                     containerId != null,
                     "ContainerId variable %s not set",
                     YarnResourceManager.ENV_FLINK_CONTAINER_ID);
 
-            TaskManagerRunner.runTaskManagerSecurely(configuration, new ResourceID(containerId));
         } catch (Throwable t) {
-            final Throwable strippedThrowable =
-                    ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
-            // make sure that everything whatever ends up in the log
-            LOG.error("YARN TaskManager initialization failed.", strippedThrowable);
+            LOG.error("YARN TaskManager initialization failed.", t);
             System.exit(INIT_ERROR_EXIT_CODE);
         }
+
+        TaskManagerRunner.runTaskManagerProcessSecurely(
+                Preconditions.checkNotNull(configuration),
+                new ResourceID(Preconditions.checkNotNull(containerId)));
     }
 
     @VisibleForTesting

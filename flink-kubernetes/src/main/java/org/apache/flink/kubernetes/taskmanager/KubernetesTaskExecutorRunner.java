@@ -43,6 +43,6 @@ public class KubernetesTaskExecutorRunner {
         Preconditions.checkArgument(
                 resourceID != null, "Pod name variable %s not set", Constants.ENV_FLINK_POD_NAME);
 
-        TaskManagerRunner.runTaskManagerSecurely(args, new ResourceID(resourceID));
+        TaskManagerRunner.runTaskManagerProcessSecurely(args, new ResourceID(resourceID));
     }
 }

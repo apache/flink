@@ -81,6 +81,6 @@ public class MesosTaskExecutorRunner {
         final ResourceID resourceId = new ResourceID(containerID);
         LOG.info("ResourceID assigned for this container: {}", resourceId);
 
-        TaskManagerRunner.runTaskManagerSecurely(configuration, resourceId);
+        TaskManagerRunner.runTaskManagerProcessSecurely(configuration, resourceId);
     }
 }
