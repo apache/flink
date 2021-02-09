@@ -18,12 +18,21 @@
 
 package org.apache.flink.core.memory;
 
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.nio.ByteBuffer;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 /** Tests for the {@link HybridMemorySegment} in off-heap mode using direct memory. */
 @RunWith(Parameterized.class)
-public class HybridOffHeapDirectMemorySegmentTest extends HybridOffHeapMemorySegmentTest {
+public class HybridOffHeapDirectMemorySegmentTest extends MemorySegmentTestBase {
 
     public HybridOffHeapDirectMemorySegmentTest(int pageSize) {
         super(pageSize);
@@ -37,5 +46,32 @@ public class HybridOffHeapDirectMemorySegmentTest extends HybridOffHeapMemorySeg
     @Override
     MemorySegment createSegment(int size, Object owner) {
         return MemorySegmentFactory.allocateUnpooledOffHeapMemory(size, owner);
+    }
+
+    @Test
+    public void testHybridHeapSegmentSpecifics() {
+        final int bufSize = 411;
+        HybridMemorySegment seg = (HybridMemorySegment) createSegment(bufSize);
+
+        assertFalse(seg.isFreed());
+        assertTrue(seg.isOffHeap());
+        assertEquals(bufSize, seg.size());
+
+        try {
+            //noinspection ResultOfMethodCallIgnored
+            seg.getArray();
+            fail("should throw an exception");
+        } catch (IllegalStateException e) {
+            // expected
+        }
+
+        ByteBuffer buf1 = seg.wrap(1, 2);
+        ByteBuffer buf2 = seg.wrap(3, 4);
+
+        assertNotSame(buf1, buf2);
+        assertEquals(1, buf1.position());
+        assertEquals(3, buf1.limit());
+        assertEquals(3, buf2.position());
+        assertEquals(7, buf2.limit());
     }
 }

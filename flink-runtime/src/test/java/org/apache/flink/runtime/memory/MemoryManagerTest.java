@@ -27,12 +27,10 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Random;
-import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -291,57 +289,6 @@ public class MemoryManagerTest {
 
         memoryManager.releaseAll(owner1);
         memoryManager.releaseAllMemory(owner2);
-    }
-
-    @Test(expected = MemoryAllocationException.class)
-    public void testAllocationFailsIfSegmentsNotGced() throws MemoryAllocationException {
-        List<ByteBuffer> byteBuffers = allocateAndReleaseAllSegmentsButKeepWrappedBufferRefs();
-        // this allocation should fail
-        memoryManager.allocatePages(new Object(), 1);
-        // this should not be reached but keeps the reference to the allocated memory and prevents
-        // its GC
-        byteBuffers.get(0).put(0, (byte) 1);
-    }
-
-    @Test(expected = MemoryReservationException.class)
-    public void testReservationFailsIfSegmentsNotGced()
-            throws MemoryAllocationException, MemoryReservationException {
-        List<ByteBuffer> byteBuffers = allocateAndReleaseAllSegmentsButKeepWrappedBufferRefs();
-        // this allocation should fail
-        memoryManager.reserveMemory(new Object(), MemoryManager.DEFAULT_PAGE_SIZE);
-        // this should not be reached but keeps the reference to the allocated memory and prevents
-        // its GC
-        byteBuffers.get(0).put(0, (byte) 1);
-    }
-
-    @Test
-    public void testAllocationSuccessIfSegmentsGced() throws MemoryAllocationException {
-        allocateAndReleaseAllSegmentsButKeepWrappedBufferRefs();
-        // no reference to the allocated segments at this point, so the memory should be released by
-        // GC
-        // and this allocation should be successful
-        memoryManager.release(memoryManager.allocatePages(new Object(), 1));
-    }
-
-    @Test
-    public void testReservationSuccessIfSegmentsGced()
-            throws MemoryAllocationException, MemoryReservationException {
-        allocateAndReleaseAllSegmentsButKeepWrappedBufferRefs();
-        // no reference to the allocated segments at this point, so the memory should be released by
-        // GC
-        Object owner = new Object();
-        // and this reservation should be successful
-        memoryManager.reserveMemory(owner, MemoryManager.DEFAULT_PAGE_SIZE);
-        memoryManager.releaseMemory(owner, MemoryManager.DEFAULT_PAGE_SIZE);
-    }
-
-    private List<ByteBuffer> allocateAndReleaseAllSegmentsButKeepWrappedBufferRefs()
-            throws MemoryAllocationException {
-        List<MemorySegment> segments = memoryManager.allocatePages(new Object(), NUM_PAGES);
-        List<ByteBuffer> buffers =
-                segments.stream().map(segment -> segment.wrap(0, 1)).collect(Collectors.toList());
-        memoryManager.release(segments);
-        return buffers;
     }
 
     @Test
