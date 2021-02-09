@@ -183,7 +183,7 @@ public class RestartingTest extends TestLogger {
         }
     }
 
-    private static class CancellableExecutionGraph extends ExecutionGraph {
+    static class CancellableExecutionGraph extends ExecutionGraph {
         private boolean cancelled = false;
 
         CancellableExecutionGraph() throws IOException {
