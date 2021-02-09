@@ -337,7 +337,7 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 
                 TaskManagerRunner.runTaskManager(cfg, ResourceID.generate(), pluginManager);
             } catch (Throwable t) {
-                LOG.error("Failed to start TaskManager process", t);
+                LOG.error("Failed to run the TaskManager process", t);
                 System.exit(1);
             }
         }
