@@ -145,7 +145,6 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                 .setParallelism(parallelism)
                 .setSlotSharing(slotSharing)
                 .setNumSlots(slotSharing ? parallelism : parallelism * numShuffles)
-                .setNumBuffers(getNumBuffers(parallelism, numShuffles))
                 .setSlotsPerTaskManager(slotsPerTaskManager)
                 .setExpectedFailures(5)
                 .setFailuresAfterSourceFinishes(1)
@@ -158,7 +157,6 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                 .setParallelism(parallelism)
                 .setSlotSharing(true)
                 .setNumSlots(parallelism * numShuffles)
-                .setNumBuffers(getNumBuffers(parallelism, numShuffles))
                 .setSlotsPerTaskManager(parallelism)
                 .setExpectedFailures(5)
                 .setFailuresAfterSourceFinishes(1);
@@ -170,7 +168,6 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                 .setParallelism(parallelism)
                 .setSlotSharing(true)
                 .setNumSlots(parallelism * numShuffles)
-                .setNumBuffers(getNumBuffers(parallelism, numShuffles))
                 .setSlotsPerTaskManager(parallelism)
                 .setExpectedFailures(5)
                 .setFailuresAfterSourceFinishes(1);
