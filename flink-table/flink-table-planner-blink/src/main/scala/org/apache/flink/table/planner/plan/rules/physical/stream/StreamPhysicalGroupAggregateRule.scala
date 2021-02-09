@@ -20,10 +20,12 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalAggregate
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalGroupAggregate
 import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
+import org.apache.flink.table.planner.plan.utils.WindowUtil
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
@@ -50,7 +52,15 @@ class StreamPhysicalGroupAggregateRule
       throw new TableException("GROUPING SETS are currently not supported.")
     }
 
-    !agg.getAggCallList.exists(isPythonAggregate(_))
+    if (agg.getAggCallList.exists(isPythonAggregate(_))) {
+      return false
+    }
+
+    // check not window aggregate
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(call.getMetadataQuery)
+    val windowProperties = fmq.getRelWindowProperties(agg.getInput)
+    val grouping = agg.getGroupSet
+    !WindowUtil.groupingContainsWindowStartEnd(grouping, windowProperties)
   }
 
   override def convert(rel: RelNode): RelNode = {

@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.metadata;
 import org.apache.flink.table.planner.plan.stats.ValueInterval;
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
 import org.apache.flink.table.planner.plan.trait.RelModifiedMonotonicity;
+import org.apache.flink.table.planner.plan.trait.RelWindowProperties;
 
 import org.apache.calcite.linq4j.tree.Types;
 import org.apache.calcite.rel.RelNode;
@@ -215,6 +216,26 @@ public abstract class FlinkMetadata {
         /** Handler API. */
         interface Handler extends MetadataHandler<ModifiedMonotonicity> {
             RelModifiedMonotonicity getRelModifiedMonotonicity(RelNode r, RelMetadataQuery mq);
+        }
+    }
+
+    /**
+     * Metadata about the window properties of a RelNode. The window properties are provided
+     * originally from window table-valued function and are propagated in the RelNode tree. The
+     * information of window properties include columns of window_start, window_end, window_time,
+     * and time attribute index and types.
+     */
+    public interface WindowProperties extends Metadata {
+        Method METHOD = Types.lookupMethod(WindowProperties.class, "getWindowProperties");
+
+        MetadataDef<WindowProperties> DEF =
+                MetadataDef.of(WindowProperties.class, WindowProperties.Handler.class, METHOD);
+
+        RelWindowProperties getWindowProperties();
+
+        /** Handler API. */
+        interface Handler extends MetadataHandler<WindowProperties> {
+            RelWindowProperties getWindowProperties(RelNode r, RelMetadataQuery mq);
         }
     }
 }

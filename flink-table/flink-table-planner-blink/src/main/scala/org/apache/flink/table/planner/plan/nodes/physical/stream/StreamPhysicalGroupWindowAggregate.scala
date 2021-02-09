@@ -31,8 +31,13 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 
 /**
-  * Streaming group window aggregate physical node which will be translate to window operator.
-  */
+ * Streaming group window aggregate physical node which will be translate to window operator.
+ *
+ * Note: The differences between [[StreamPhysicalWindowAggregate]] and
+ * [[StreamPhysicalGroupWindowAggregate]] is that, [[StreamPhysicalWindowAggregate]] is translated
+ * from window TVF syntax, but the other is from the legacy GROUP WINDOW FUNCTION syntax.
+ * In the long future, [[StreamPhysicalGroupWindowAggregate]] will be dropped.
+ */
 class StreamPhysicalGroupWindowAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,

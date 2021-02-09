@@ -23,11 +23,12 @@ import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkLogicalRelFactories, FlinkRelBuilder}
 import org.apache.flink.table.planner.functions.sql.{FlinkSqlOperatorTable, SqlFirstLastValueAggFunction}
 import org.apache.flink.table.planner.plan.PartialFinalType
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalAggregate
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.doAllAggSupportSplit
-import org.apache.flink.table.planner.plan.utils.ExpandUtil
-import com.google.common.collect.ImmutableList
+import org.apache.flink.table.planner.plan.utils.{ExpandUtil, WindowUtil}
+
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.core.AggregateCall
@@ -36,6 +37,9 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.sql.fun.{SqlMinMaxAggFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.{SqlAggFunction, SqlKind}
 import org.apache.calcite.util.{ImmutableBitSet, ImmutableIntList}
+
+import com.google.common.collect.ImmutableList
+
 import java.math.{BigDecimal => JBigDecimal}
 import java.util
 
@@ -128,8 +132,15 @@ class SplitAggregateRule extends RelOptRule(
       OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED)
     val isAllAggSplittable = doAllAggSupportSplit(agg.getAggCallList)
 
+    // disable distinct split for processing-time window,
+    // because the semantic is not clear to materialize processing-time window in two aggregates
+    val fmq = call.getMetadataQuery.asInstanceOf[FlinkRelMetadataQuery]
+    val windowProps = fmq.getRelWindowProperties(agg.getInput)
+    val isWindowAgg = WindowUtil.groupingContainsWindowStartEnd(agg.getGroupSet, windowProps)
+    val isProctimeWindowAgg = isWindowAgg && !windowProps.isRowtime
+
     agg.partialFinalType == PartialFinalType.NONE && agg.containsDistinctCall() &&
-      splitDistinctAggEnabled && isAllAggSplittable
+      splitDistinctAggEnabled && isAllAggSplittable && !isProctimeWindowAgg
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {

@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.metadata;
 import org.apache.flink.table.planner.plan.stats.ValueInterval;
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
 import org.apache.flink.table.planner.plan.trait.RelModifiedMonotonicity;
+import org.apache.flink.table.planner.plan.trait.RelWindowProperties;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.rel.RelNode;
@@ -43,6 +44,7 @@ public class FlinkRelMetadataQuery extends RelMetadataQuery {
     private FlinkMetadata.UniqueGroups.Handler uniqueGroupsHandler;
     private FlinkMetadata.FlinkDistribution.Handler distributionHandler;
     private FlinkMetadata.ModifiedMonotonicity.Handler modifiedMonotonicityHandler;
+    private FlinkMetadata.WindowProperties.Handler windowPropertiesHandler;
 
     /**
      * Returns an instance of FlinkRelMetadataQuery. It ensures that cycles do not occur while
@@ -76,6 +78,7 @@ public class FlinkRelMetadataQuery extends RelMetadataQuery {
         this.uniqueGroupsHandler = HANDLERS.uniqueGroupsHandler;
         this.distributionHandler = HANDLERS.distributionHandler;
         this.modifiedMonotonicityHandler = HANDLERS.modifiedMonotonicityHandler;
+        this.windowPropertiesHandler = HANDLERS.windowPropertiesHandler;
     }
 
     /** Extended handlers. */
@@ -94,6 +97,8 @@ public class FlinkRelMetadataQuery extends RelMetadataQuery {
                 initialHandler(FlinkMetadata.FlinkDistribution.Handler.class);
         private FlinkMetadata.ModifiedMonotonicity.Handler modifiedMonotonicityHandler =
                 initialHandler(FlinkMetadata.ModifiedMonotonicity.Handler.class);
+        private FlinkMetadata.WindowProperties.Handler windowPropertiesHandler =
+                initialHandler(FlinkMetadata.WindowProperties.Handler.class);
     }
 
     /**
@@ -232,6 +237,22 @@ public class FlinkRelMetadataQuery extends RelMetadataQuery {
             } catch (JaninoRelMetadataProvider.NoHandler e) {
                 modifiedMonotonicityHandler =
                         revise(e.relClass, FlinkMetadata.ModifiedMonotonicity.DEF);
+            }
+        }
+    }
+
+    /**
+     * Returns the {@link RelWindowProperties} statistic.
+     *
+     * @param rel the relational expression
+     * @return the window properties for the corresponding RelNode
+     */
+    public RelWindowProperties getRelWindowProperties(RelNode rel) {
+        for (; ; ) {
+            try {
+                return windowPropertiesHandler.getWindowProperties(rel, this);
+            } catch (JaninoRelMetadataProvider.NoHandler e) {
+                windowPropertiesHandler = revise(e.relClass, FlinkMetadata.WindowProperties.DEF);
             }
         }
     }
