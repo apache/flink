@@ -175,8 +175,9 @@ public final class MemorySegmentFactory {
             int size, Object owner, Runnable customCleanupAction) {
         long address = MemoryUtils.allocateUnsafe(size);
         ByteBuffer offHeapBuffer = MemoryUtils.wrapUnsafeMemoryWithByteBuffer(address, size);
-        MemoryUtils.createMemoryGcCleaner(offHeapBuffer, address, customCleanupAction);
-        return new HybridMemorySegment(offHeapBuffer, owner, false);
+        Runnable cleaner =
+                MemoryUtils.createMemoryGcCleaner(offHeapBuffer, address, customCleanupAction);
+        return new HybridMemorySegment(offHeapBuffer, owner, false, cleaner);
     }
 
     /**
