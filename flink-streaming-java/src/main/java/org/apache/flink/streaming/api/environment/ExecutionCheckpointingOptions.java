@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -188,12 +187,10 @@ public class ExecutionCheckpointingOptions {
                                                     + "will timeout and checkpoint barrier will start working as unaligned checkpoint.")
                                     .build());
 
-    @Documentation.ExcludeFromDocumentation(
-            "Do not advertise this option until rescaling of unaligned checkpoint is completed.")
     public static final ConfigOption<Boolean> FORCE_UNALIGNED =
             ConfigOptions.key("execution.checkpointing.unaligned.forced")
                     .booleanType()
-                    .defaultValue(true)
+                    .defaultValue(false)
                     .withDescription(
                             Description.builder()
                                     .text(

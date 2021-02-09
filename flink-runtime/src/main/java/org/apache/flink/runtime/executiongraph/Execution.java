@@ -28,7 +28,6 @@ import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.CheckpointType.PostCheckpointAction;
-import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -550,24 +549,6 @@ public class Execution
                     vertex.getCurrentExecutionAttempt().getAttemptId(),
                     getAssignedResourceLocation(),
                     slot.getAllocationId());
-
-            if (taskRestore != null) {
-                checkState(
-                        taskRestore.getTaskStateSnapshot().getSubtaskStateMappings().stream()
-                                .allMatch(
-                                        entry ->
-                                                entry.getValue()
-                                                                .getInputRescalingDescriptor()
-                                                                .equals(
-                                                                        InflightDataRescalingDescriptor
-                                                                                .NO_RESCALE)
-                                                        && entry.getValue()
-                                                                .getOutputRescalingDescriptor()
-                                                                .equals(
-                                                                        InflightDataRescalingDescriptor
-                                                                                .NO_RESCALE)),
-                        "Rescaling from unaligned checkpoint is not yet supported.");
-            }
 
             final TaskDeploymentDescriptor deployment =
                     TaskDeploymentDescriptorFactory.fromExecutionVertex(vertex, attemptNumber)
