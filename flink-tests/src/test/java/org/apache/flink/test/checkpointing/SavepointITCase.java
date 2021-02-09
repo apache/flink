@@ -433,67 +433,6 @@ public class SavepointITCase extends TestLogger {
         }
     }
 
-    @Test
-    public void testStopSavepointWithBoundedInputConcurrently() throws Exception {
-        final int numTaskManagers = 2;
-        final int numSlotsPerTaskManager = 2;
-
-        while (true) {
-
-            final MiniClusterResourceFactory clusterFactory =
-                    new MiniClusterResourceFactory(
-                            numTaskManagers,
-                            numSlotsPerTaskManager,
-                            getFileBasedCheckpointsConfig());
-
-            StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
-            env.setParallelism(1);
-
-            // It's only possible to test this with chaining. Without it, JM fails the job before
-            // the downstream gets the abort notification
-            BoundedPassThroughOperator<Integer> operator =
-                    new BoundedPassThroughOperator<>(ChainingStrategy.ALWAYS);
-            InfiniteTestSource source = new InfiniteTestSource();
-            DataStream<Integer> stream =
-                    env.addSource(source)
-                            .transform("pass-through", BasicTypeInfo.INT_TYPE_INFO, operator);
-
-            stream.addSink(new DiscardingSink<>());
-
-            final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
-            final JobID jobId = jobGraph.getJobID();
-
-            MiniClusterWithClientResource cluster = clusterFactory.get();
-            cluster.before();
-            ClusterClient<?> client = cluster.getClusterClient();
-
-            try {
-                BoundedPassThroughOperator.resetForTest(1, false);
-                InfiniteTestSource.resetForTest();
-
-                client.submitJob(jobGraph).get();
-
-                BoundedPassThroughOperator.getProgressLatch().await();
-                InfiniteTestSource.suspendAll(); // prevent deadlock in cancelAllAndAwait
-                CompletableFuture<String> stop = client.stopWithSavepoint(jobId, false, null);
-                BoundedPassThroughOperator.awaitSnapshotStarted();
-                InfiniteTestSource.cancelAllAndAwait(); // emulate end of input
-                BoundedPassThroughOperator.allowSnapshots();
-                stop.get();
-                Assert.assertTrue("input NOT ended ", BoundedPassThroughOperator.inputEnded);
-                return;
-            } catch (Exception e) {
-                // if sources and the whole job ends before the checkpoint completes
-                // then coordinator will shut down and savepoint will be aborted - retry
-                if (!ischeckpointcoordinatorshutdownError(e)) {
-                    throw e;
-                }
-            } finally {
-                cluster.after();
-            }
-        }
-    }
-
     private static boolean ischeckpointcoordinatorshutdownError(Throwable throwable) {
         return ExceptionUtils.findThrowable(throwable, CheckpointException.class)
                 .filter(e -> e.getCheckpointFailureReason() == CHECKPOINT_COORDINATOR_SHUTDOWN)
