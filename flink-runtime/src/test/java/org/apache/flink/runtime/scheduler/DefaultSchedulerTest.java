@@ -77,6 +77,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -498,6 +499,39 @@ public class DefaultSchedulerTest extends TestLogger {
                         executionVertexId1,
                         executionVertexId0,
                         executionVertexId1));
+    }
+
+    @Test
+    public void testStartingCheckpointSchedulerAfterExecutionGraphFinished() {
+        assertCheckpointSchedulingOperationHavingNoEffectAfterJobFinished(
+                SchedulerBase::startCheckpointScheduler);
+    }
+
+    @Test
+    public void testStoppingCheckpointSchedulerAfterExecutionGraphFinished() {
+        assertCheckpointSchedulingOperationHavingNoEffectAfterJobFinished(
+                SchedulerBase::stopCheckpointScheduler);
+    }
+
+    private void assertCheckpointSchedulingOperationHavingNoEffectAfterJobFinished(
+            Consumer<DefaultScheduler> callSchedulingOperation) {
+        final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
+        enableCheckpointing(jobGraph);
+
+        final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
+        assertThat(scheduler.getCheckpointCoordinator(), is(notNullValue()));
+        scheduler.updateTaskExecutionState(
+                new TaskExecutionState(
+                        jobGraph.getJobID(),
+                        Iterables.getOnlyElement(
+                                        scheduler.getExecutionGraph().getAllExecutionVertices())
+                                .getCurrentExecutionAttempt()
+                                .getAttemptId(),
+                        ExecutionState.FINISHED));
+
+        assertThat(scheduler.getCheckpointCoordinator(), is(nullValue()));
+        callSchedulingOperation.accept(scheduler);
+        assertThat(scheduler.getCheckpointCoordinator(), is(nullValue()));
     }
 
     @Test
