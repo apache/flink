@@ -36,6 +36,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.client.JobExecutionException;
@@ -94,6 +95,8 @@ import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStats;
+import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointTerminationHandlerImpl;
+import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointTerminationManager;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
@@ -128,12 +131,13 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** Base class which can be used to implement {@link SchedulerNG}. */
-public abstract class SchedulerBase implements SchedulerNG {
+public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling {
 
     private final Logger log;
 
@@ -960,7 +964,7 @@ public abstract class SchedulerBase implements SchedulerNG {
                 jobGraph.getJobID());
 
         if (cancelJob) {
-            checkpointCoordinator.stopCheckpointScheduler();
+            stopCheckpointScheduler();
         }
 
         return checkpointCoordinator
@@ -970,7 +974,7 @@ public abstract class SchedulerBase implements SchedulerNG {
                         (path, throwable) -> {
                             if (throwable != null) {
                                 if (cancelJob) {
-                                    startCheckpointScheduler(checkpointCoordinator);
+                                    startCheckpointScheduler();
                                 }
                                 throw new CompletionException(throwable);
                             } else if (cancelJob) {
@@ -985,10 +989,26 @@ public abstract class SchedulerBase implements SchedulerNG {
                         mainThreadExecutor);
     }
 
-    private void startCheckpointScheduler(final CheckpointCoordinator checkpointCoordinator) {
-        mainThreadExecutor.assertRunningInMainThread();
+    @Override
+    public void stopCheckpointScheduler() {
+        final CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator();
+        if (checkpointCoordinator == null) {
+            log.info(
+                    "Periodic checkpoint scheduling could not be stopped due to the CheckpointCoordinator being shutdown.");
+        } else {
+            checkpointCoordinator.stopCheckpointScheduler();
+        }
+    }
 
-        if (checkpointCoordinator.isPeriodicCheckpointingConfigured()) {
+    @Override
+    public void startCheckpointScheduler() {
+        mainThreadExecutor.assertRunningInMainThread();
+        final CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator();
+
+        if (checkpointCoordinator == null) {
+            log.info(
+                    "Periodic checkpoint scheduling could not be started due to the CheckpointCoordinator being shutdown.");
+        } else if (checkpointCoordinator.isPeriodicCheckpointingConfigured()) {
             try {
                 checkpointCoordinator.startCheckpointScheduler();
             } catch (IllegalStateException ignored) {
@@ -1108,51 +1128,36 @@ public abstract class SchedulerBase implements SchedulerNG {
         // to have only the data of the synchronous savepoint committed.
         // in case of failure, and if the job restarts, the coordinator
         // will be restarted by the CheckpointCoordinatorDeActivator.
-        checkpointCoordinator.stopCheckpointScheduler();
+        stopCheckpointScheduler();
 
-        final CompletableFuture<String> savepointFuture =
-                checkpointCoordinator
-                        .triggerSynchronousSavepoint(terminate, targetDirectory)
-                        .thenApply(CompletedCheckpoint::getExternalPointer);
+        final CompletableFuture<Collection<ExecutionState>> executionTerminationsFuture =
+                getCombinedExecutionTerminationFuture();
 
-        final CompletableFuture<JobStatus> terminationFuture =
-                executionGraph
-                        .getTerminationFuture()
-                        .handle(
-                                (jobstatus, throwable) -> {
-                                    if (throwable != null) {
-                                        log.info(
-                                                "Failed during stopping job {} with a savepoint. Reason: {}",
-                                                jobGraph.getJobID(),
-                                                throwable.getMessage());
-                                        throw new CompletionException(throwable);
-                                    } else if (jobstatus != JobStatus.FINISHED) {
-                                        log.info(
-                                                "Failed during stopping job {} with a savepoint. Reason: Reached state {} instead of FINISHED.",
-                                                jobGraph.getJobID(),
-                                                jobstatus);
-                                        throw new CompletionException(
-                                                new FlinkException(
-                                                        "Reached state "
-                                                                + jobstatus
-                                                                + " instead of FINISHED."));
-                                    }
-                                    return jobstatus;
-                                });
+        final CompletableFuture<CompletedCheckpoint> savepointFuture =
+                checkpointCoordinator.triggerSynchronousSavepoint(terminate, targetDirectory);
 
-        return savepointFuture
-                .thenCompose((path) -> terminationFuture.thenApply((jobStatus -> path)))
-                .handleAsync(
-                        (path, throwable) -> {
-                            if (throwable != null) {
-                                // restart the checkpoint coordinator if stopWithSavepoint failed.
-                                startCheckpointScheduler(checkpointCoordinator);
-                                throw new CompletionException(throwable);
-                            }
+        final StopWithSavepointTerminationManager stopWithSavepointTerminationManager =
+                new StopWithSavepointTerminationManager(
+                        new StopWithSavepointTerminationHandlerImpl(
+                                jobGraph.getJobID(), this, log));
 
-                            return path;
-                        },
-                        mainThreadExecutor);
+        return stopWithSavepointTerminationManager.stopWithSavepoint(
+                savepointFuture, executionTerminationsFuture, mainThreadExecutor);
+    }
+
+    /**
+     * Returns a {@code CompletableFuture} collecting the termination states of all {@link Execution
+     * Executions} of the underlying {@link ExecutionGraph}.
+     *
+     * @return a {@code CompletableFuture} that completes after all underlying {@code Executions}
+     *     have been terminated.
+     */
+    private CompletableFuture<Collection<ExecutionState>> getCombinedExecutionTerminationFuture() {
+        return FutureUtils.combineAll(
+                StreamSupport.stream(executionGraph.getAllExecutionVertices().spliterator(), false)
+                        .map(ExecutionVertex::getCurrentExecutionAttempt)
+                        .map(Execution::getTerminalStateFuture)
+                        .collect(Collectors.toList()));
     }
 
     private String retrieveTaskManagerLocation(ExecutionAttemptID executionAttemptID) {
