@@ -24,6 +24,7 @@ import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.EndOfChannelStateEvent;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
@@ -51,7 +52,7 @@ public abstract class AbstractStreamTaskNetworkInput<
         implements StreamTaskInput<T> {
     protected final CheckpointedInputGate checkpointedInputGate;
     protected final DeserializationDelegate<StreamElement> deserializationDelegate;
-    protected final TypeSerializer<?> inputSerializer;
+    protected final TypeSerializer<T> inputSerializer;
     protected final Map<InputChannelInfo, R> recordDeserializers;
     protected final Map<InputChannelInfo, Integer> flattenedChannelIndices = new HashMap<>();
     /** Valve that controls how watermarks and stream statuses are forwarded. */
@@ -63,7 +64,7 @@ public abstract class AbstractStreamTaskNetworkInput<
 
     public AbstractStreamTaskNetworkInput(
             CheckpointedInputGate checkpointedInputGate,
-            TypeSerializer<?> inputSerializer,
+            TypeSerializer<T> inputSerializer,
             StatusWatermarkValve statusWatermarkValve,
             int inputIndex,
             Map<InputChannelInfo, R> recordDeserializers) {
@@ -155,6 +156,8 @@ public abstract class AbstractStreamTaskNetworkInput<
             // release the record deserializer immediately,
             // which is very valuable in case of bounded stream
             releaseDeserializer(bufferOrEvent.getChannelInfo());
+        } else if (event.getClass() == EndOfChannelStateEvent.class) {
+            return InputStatus.END_OF_RECOVERY;
         }
         return InputStatus.MORE_AVAILABLE;
     }
