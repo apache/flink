@@ -574,25 +574,22 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             System.exit(STARTUP_FAILURE_RETURN_CODE);
         }
 
-        clusterEntrypoint
-                .getTerminationFuture()
-                .whenComplete(
-                        (applicationStatus, throwable) -> {
-                            final int returnCode;
+        int returnCode;
+        Throwable throwable = null;
 
-                            if (throwable != null) {
-                                returnCode = RUNTIME_FAILURE_RETURN_CODE;
-                            } else {
-                                returnCode = applicationStatus.processExitCode();
-                            }
+        try {
+            returnCode = clusterEntrypoint.getTerminationFuture().get().processExitCode();
+        } catch (Throwable e) {
+            throwable = ExceptionUtils.stripExecutionException(e);
+            returnCode = RUNTIME_FAILURE_RETURN_CODE;
+        }
 
-                            LOG.info(
-                                    "Terminating cluster entrypoint process {} with exit code {}.",
-                                    clusterEntrypointName,
-                                    returnCode,
-                                    throwable);
-                            System.exit(returnCode);
-                        });
+        LOG.info(
+                "Terminating cluster entrypoint process {} with exit code {}.",
+                clusterEntrypointName,
+                returnCode,
+                throwable);
+        System.exit(returnCode);
     }
 
     /** Execution mode of the {@link MiniDispatcher}. */
