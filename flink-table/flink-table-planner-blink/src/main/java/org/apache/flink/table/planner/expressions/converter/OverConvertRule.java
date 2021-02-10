@@ -70,6 +70,9 @@ public class OverConvertRule implements CallExpressionConvertRule {
         if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.OVER) {
             FlinkTypeFactory typeFactory = context.getTypeFactory();
             Expression agg = children.get(0);
+            FunctionDefinition def = ((CallExpression) agg).getFunctionDefinition();
+            boolean isDistinct = BuiltInFunctionDefinitions.DISTINCT == def;
+
             SqlAggFunction aggFunc = agg.accept(new SqlAggFunctionVisitor(context.getRelBuilder()));
             RelDataType aggResultType =
                     typeFactory.createFieldTypeFromLogicalType(
@@ -78,7 +81,16 @@ public class OverConvertRule implements CallExpressionConvertRule {
 
             // assemble exprs by agg children
             List<RexNode> aggExprs =
-                    agg.getChildren().stream().map(context::toRexNode).collect(Collectors.toList());
+                    agg.getChildren().stream()
+                            .map(
+                                    child -> {
+                                        if (isDistinct) {
+                                            return context.toRexNode(child.getChildren().get(0));
+                                        } else {
+                                            return context.toRexNode(child);
+                                        }
+                                    })
+                            .collect(Collectors.toList());
 
             // assemble order by key
             Expression orderKeyExpr = children.get(1);
@@ -123,7 +135,7 @@ public class OverConvertRule implements CallExpressionConvertRule {
                                     isPhysical,
                                     true,
                                     false,
-                                    false));
+                                    isDistinct));
         }
         return Optional.empty();
     }
