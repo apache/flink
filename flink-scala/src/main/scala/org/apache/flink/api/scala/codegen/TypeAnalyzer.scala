@@ -75,6 +75,8 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
 
           case CaseClassType() => analyzeCaseClass(id, tpe)
 
+          case SealedTraitType(subtypes) => analyzeSealedTrait(id, tpe, subtypes)
+
           case TraversableType(elemTpe) => analyzeTraversable(id, tpe, elemTpe)
 
           case ValueType() => ValueDescriptor(id, tpe)
@@ -272,6 +274,25 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
       }
     }
 
+    private def analyzeSealedTrait(
+        id: Int, tpe: Type, subtypeSymbols: List[Symbol]): UDTDescriptor = {
+      val subtypes = subtypeSymbols.map(_.asClass.selfType)
+      val subtypeBaseClasses = subtypes.flatMap(_.baseClasses)
+      if (subtypeBaseClasses.contains(tpe.typeSymbol)) {
+        UnsupportedDescriptor(id, tpe, Seq("Recursive sealed trait hierarchies are not supported"))
+      } else {
+        val subtypeDescriptors = subtypes.map(analyze)
+        val unsupportedSubtypeErrors = subtypeDescriptors.collect {
+          case UnsupportedDescriptor(_, _, err) => err
+        }
+        if (unsupportedSubtypeErrors.nonEmpty) {
+          UnsupportedDescriptor(id, tpe, unsupportedSubtypeErrors.flatten)
+        } else {
+          SealedTraitDescriptor(id, tpe, subtypeDescriptors)
+        }
+      }
+    }
+
     private object PrimitiveType {
       def intPrimitive: (Type, Literal, Type) = {
         val (d, w) = primitives(definitions.IntClass)
@@ -345,6 +366,17 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
 
     private object CaseClassType {
       def unapply(tpe: Type): Boolean = tpe.typeSymbol.asClass.isCaseClass
+    }
+
+    private object SealedTraitType {
+      def unapply(tpe: Type): Option[List[Symbol]] = {
+        val clazz = tpe.typeSymbol.asClass
+        if (clazz.isSealed && clazz.typeParams.isEmpty) {
+          Some(clazz.knownDirectSubclasses.toList)
+        } else {
+          None
+        }
+      }
     }
 
     private object NothingType {

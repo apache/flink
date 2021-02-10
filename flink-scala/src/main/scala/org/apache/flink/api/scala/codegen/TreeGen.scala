@@ -76,6 +76,9 @@ private[flink] trait TreeGen[C <: Context] { this: MacroContextHolder[C] with Ty
     def mkList(items: List[Tree]): Tree =
       Apply(mkSelect("_root_", "scala", "collection", "immutable", "List", "apply"), items)
 
+    def mkArray(items: List[Tree]): Tree =
+      Apply(mkSelect("_root_", "scala", "Array", "apply"), items)
+
     def mkMap(items: List[Tree]): Tree =
       Apply(mkSelect("_root_", "scala", "collection", "immutable", "Map", "apply"), items)
 

@@ -203,6 +203,30 @@ The Java API has its own custom implementation of `Either`.
 Similarly to Scala's `Either`, it represents a value of two possible types, *Left* or *Right*.
 `Either` can be useful for error handling or operators that need to output two different types of records.
 
+Scala ADT-style sealed class hierarchies are also supported with the following limitations:
+* recursive ADTs are not supported (will fall back to Kryo);
+```
+sealed trait Tree
+case class Node(left: Tree, right: Tree) extends Tree
+case class Leaf(value: Int) extends Tree
+```
+* sealed trait class hierarchy can be only extended with new members, removal is not possible;
+* hierarchy members are indexed in their compilation order, so their sequence should not be reordered, 
+  and new members can be only appended at the end.
+* ADT can have type parameters, but members should not be generic.
+```
+// works
+sealed trait Event[T] {
+  def id: Int
+}
+case class Pageview(id: String) extends Event[String]
+case class Click(id: Int) extends Event[Int]
+
+// will trigger Kryo fallback
+sealed trait Event
+case class Pageview[T](id: String, payload: T) extends Event
+``` 
+
 #### Type Erasure & Type Inference
 
 *Note: This Section is only relevant for Java.*
