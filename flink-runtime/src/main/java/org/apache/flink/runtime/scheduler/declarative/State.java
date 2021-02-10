@@ -41,7 +41,7 @@ interface State {
      *
      * @param newState newState is the state into which the scheduler transitions
      */
-    default void onLeave(State newState) {}
+    default void onLeave(Class<? extends State> newState) {}
 
     /** Cancels the job execution. */
     void cancel();

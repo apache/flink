@@ -94,7 +94,7 @@ public class ExecutingTest extends TestLogger {
                     new ExecutingStateBuilder()
                             .setOperatorCoordinatorHandler(operatorCoordinator)
                             .build(ctx);
-            exec.onLeave(new MockState());
+            exec.onLeave(MockState.class);
 
             assertThat(operatorCoordinator.isDisposed(), is(true));
         }

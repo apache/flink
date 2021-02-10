@@ -118,8 +118,8 @@ abstract class StateWithExecutionGraph implements State {
     }
 
     @Override
-    public void onLeave(State newState) {
-        if (!StateWithExecutionGraph.class.isAssignableFrom(newState.getClass())) {
+    public void onLeave(Class<? extends State> newState) {
+        if (!StateWithExecutionGraph.class.isAssignableFrom(newState)) {
             // we are leaving the StateWithExecutionGraph --> we need to dispose temporary services
             operatorCoordinatorHandler.disposeAllOperatorCoordinators();
         }
