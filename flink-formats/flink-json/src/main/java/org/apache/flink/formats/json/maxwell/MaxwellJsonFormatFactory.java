@@ -23,8 +23,6 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.formats.json.JsonOptions;
-import org.apache.flink.formats.json.TimestampFormat;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -40,14 +38,8 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
 
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Set;
 
-import static org.apache.flink.formats.json.JsonOptions.ENCODE_DECIMAL_AS_PLAIN_NUMBER;
-import static org.apache.flink.formats.json.maxwell.MaxwellJsonOptions.IGNORE_PARSE_ERRORS;
-import static org.apache.flink.formats.json.maxwell.MaxwellJsonOptions.JSON_MAP_NULL_KEY_LITERAL;
-import static org.apache.flink.formats.json.maxwell.MaxwellJsonOptions.JSON_MAP_NULL_KEY_MODE;
-import static org.apache.flink.formats.json.maxwell.MaxwellJsonOptions.TIMESTAMP_FORMAT;
 import static org.apache.flink.formats.json.maxwell.MaxwellJsonOptions.validateDecodingFormatOptions;
 import static org.apache.flink.formats.json.maxwell.MaxwellJsonOptions.validateEncodingFormatOptions;
 
@@ -66,8 +58,8 @@ public class MaxwellJsonFormatFactory
         FactoryUtil.validateFactoryOptions(this, formatOptions);
         validateDecodingFormatOptions(formatOptions);
 
-        final boolean ignoreParseErrors = formatOptions.get(IGNORE_PARSE_ERRORS);
-        TimestampFormat timestampFormatOption = JsonOptions.getTimestampFormat(formatOptions);
+        final MaxwellJsonOptions maxwellJsonOptions =
+                MaxwellJsonOptions.builder(formatOptions).build();
 
         return new DecodingFormat<DeserializationSchema<RowData>>() {
             @Override
@@ -77,7 +69,7 @@ public class MaxwellJsonFormatFactory
                 final TypeInformation<RowData> rowDataTypeInfo =
                         context.createTypeInformation(producedDataType);
                 return new MaxwellJsonDeserializationSchema(
-                        rowType, rowDataTypeInfo, ignoreParseErrors, timestampFormatOption);
+                        rowType, rowDataTypeInfo, maxwellJsonOptions);
             }
 
             @Override
@@ -98,12 +90,8 @@ public class MaxwellJsonFormatFactory
         FactoryUtil.validateFactoryOptions(this, formatOptions);
         validateEncodingFormatOptions(formatOptions);
 
-        TimestampFormat timestampFormat = JsonOptions.getTimestampFormat(formatOptions);
-        JsonOptions.MapNullKeyMode mapNullKeyMode = JsonOptions.getMapNullKeyMode(formatOptions);
-        String mapNullKeyLiteral = formatOptions.get(JSON_MAP_NULL_KEY_LITERAL);
-
-        final boolean encodeDecimalAsPlainNumber =
-                formatOptions.get(ENCODE_DECIMAL_AS_PLAIN_NUMBER);
+        final MaxwellJsonOptions maxwellJsonOptions =
+                MaxwellJsonOptions.builder(formatOptions).build();
 
         return new EncodingFormat<SerializationSchema<RowData>>() {
 
@@ -121,12 +109,7 @@ public class MaxwellJsonFormatFactory
             public SerializationSchema<RowData> createRuntimeEncoder(
                     DynamicTableSink.Context context, DataType consumedDataType) {
                 final RowType rowType = (RowType) consumedDataType.getLogicalType();
-                return new MaxwellJsonSerializationSchema(
-                        rowType,
-                        timestampFormat,
-                        mapNullKeyMode,
-                        mapNullKeyLiteral,
-                        encodeDecimalAsPlainNumber);
+                return new MaxwellJsonSerializationSchema(rowType, maxwellJsonOptions);
             }
         };
     }
@@ -143,12 +126,6 @@ public class MaxwellJsonFormatFactory
 
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
-        Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(IGNORE_PARSE_ERRORS);
-        options.add(TIMESTAMP_FORMAT);
-        options.add(JSON_MAP_NULL_KEY_MODE);
-        options.add(JSON_MAP_NULL_KEY_LITERAL);
-        options.add(ENCODE_DECIMAL_AS_PLAIN_NUMBER);
-        return options;
+        return MaxwellJsonOptions.optionalOptions();
     }
 }

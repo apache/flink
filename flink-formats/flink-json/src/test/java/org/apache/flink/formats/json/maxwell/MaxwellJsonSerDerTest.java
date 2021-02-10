@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.json.maxwell;
 
+import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.formats.json.JsonOptions;
 import org.apache.flink.formats.json.TimestampFormat;
 import org.apache.flink.table.data.RowData;
@@ -61,9 +62,14 @@ public class MaxwellJsonSerDerTest {
     @Test
     public void testSerializationDeserialization() throws Exception {
         List<String> lines = readLines("maxwell-data.txt");
+        final JsonOptions maxwellJsonOptionsDeser =
+                JsonOptions.builder(new DelegatingConfiguration())
+                        .setIgnoreParseErrors(false)
+                        .setTimestampFormat(TimestampFormat.ISO_8601)
+                        .build();
         MaxwellJsonDeserializationSchema deserializationSchema =
                 new MaxwellJsonDeserializationSchema(
-                        SCHEMA, InternalTypeInfo.of(SCHEMA), false, TimestampFormat.ISO_8601);
+                        SCHEMA, InternalTypeInfo.of(SCHEMA), maxwellJsonOptionsDeser);
 
         SimpleCollector collector = new SimpleCollector();
         for (String line : lines) {
@@ -133,13 +139,15 @@ public class MaxwellJsonSerDerTest {
                 collector.list.stream().map(Object::toString).collect(Collectors.toList());
         assertEquals(expected, actual);
 
+        final JsonOptions maxwellJsonOptionsSer =
+                JsonOptions.builder(new DelegatingConfiguration())
+                        .setTimestampFormat(TimestampFormat.SQL)
+                        .setMapNullKeyMode(JsonOptions.MapNullKeyMode.LITERAL)
+                        .setMapNullKeyLiteral("null")
+                        .setEncodeDecimalAsPlainNumber(true)
+                        .build();
         MaxwellJsonSerializationSchema serializationSchema =
-                new MaxwellJsonSerializationSchema(
-                        SCHEMA,
-                        TimestampFormat.SQL,
-                        JsonOptions.MapNullKeyMode.LITERAL,
-                        "null",
-                        true);
+                new MaxwellJsonSerializationSchema(SCHEMA, maxwellJsonOptionsSer);
         serializationSchema.open(null);
         List<String> result = new ArrayList<>();
         for (RowData rowData : collector.list) {

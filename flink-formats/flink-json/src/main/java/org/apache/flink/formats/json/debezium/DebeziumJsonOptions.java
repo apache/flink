@@ -18,16 +18,20 @@
 
 package org.apache.flink.formats.json.debezium;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.formats.json.JsonOptions;
+import org.apache.flink.formats.json.TimestampFormat;
 import org.apache.flink.table.api.ValidationException;
+
+import java.util.Set;
 
 import static org.apache.flink.formats.json.debezium.DebeziumJsonFormatFactory.IDENTIFIER;
 
 /** Option utils for debezium-json format. */
-public class DebeziumJsonOptions {
+public class DebeziumJsonOptions extends JsonOptions {
 
     public static final ConfigOption<Boolean> SCHEMA_INCLUDE =
             ConfigOptions.key("schema-include")
@@ -39,14 +43,69 @@ public class DebeziumJsonOptions {
                                     + "This option indicates the Debezium JSON data include the schema in the message or not. "
                                     + "Default is false.");
 
-    public static final ConfigOption<Boolean> IGNORE_PARSE_ERRORS = JsonOptions.IGNORE_PARSE_ERRORS;
+    // ------------------------------------------------------------------------------------------
+    // Debezium attributes
+    // ------------------------------------------------------------------------------------------
 
-    public static final ConfigOption<String> TIMESTAMP_FORMAT = JsonOptions.TIMESTAMP_FORMAT;
+    private boolean schemaInclude;
 
-    public static final ConfigOption<String> JSON_MAP_NULL_KEY_MODE = JsonOptions.MAP_NULL_KEY_MODE;
+    private DebeziumJsonOptions(
+            boolean failOnMissingField,
+            boolean ignoreParseErrors,
+            MapNullKeyMode mapNullKeyMode,
+            String mapNullKeyLiteral,
+            TimestampFormat timestampFormat,
+            boolean encodeDecimalAsPlainNumber,
+            boolean schemaInclude) {
+        super(
+                failOnMissingField,
+                ignoreParseErrors,
+                mapNullKeyMode,
+                mapNullKeyLiteral,
+                timestampFormat,
+                encodeDecimalAsPlainNumber);
+        this.schemaInclude = schemaInclude;
+    }
 
-    public static final ConfigOption<String> JSON_MAP_NULL_KEY_LITERAL =
-            JsonOptions.MAP_NULL_KEY_LITERAL;
+    public boolean isSchemaInclude() {
+        return schemaInclude;
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Builder
+    // ------------------------------------------------------------------------------------------
+
+    /** Creates A builder for building a {@link DebeziumJsonOptions}. */
+    public static Builder builder(ReadableConfig conf) {
+        return new Builder(conf);
+    }
+
+    /** A builder for creating a {@link DebeziumJsonOptions}. */
+    @Internal
+    public static class Builder extends JsonOptions.Builder {
+        private boolean schemaInclude;
+
+        public Builder(ReadableConfig conf) {
+            super(conf);
+            this.schemaInclude = conf.get(SCHEMA_INCLUDE);
+        }
+
+        public Builder setSchemaInclude(boolean schemaInclude) {
+            this.schemaInclude = schemaInclude;
+            return this;
+        }
+
+        public DebeziumJsonOptions build() {
+            return new DebeziumJsonOptions(
+                    failOnMissingField,
+                    ignoreParseErrors,
+                    mapNullKeyMode,
+                    mapNullKeyLiteral,
+                    timestampFormat,
+                    encodeDecimalAsPlainNumber,
+                    schemaInclude);
+        }
+    }
 
     // --------------------------------------------------------------------------------------------
     // Validation
@@ -68,5 +127,11 @@ public class DebeziumJsonOptions {
                             "Debezium JSON serialization doesn't support '%s.%s' option been set to true.",
                             IDENTIFIER, SCHEMA_INCLUDE.key()));
         }
+    }
+
+    public static Set<ConfigOption<?>> optionalOptions() {
+        Set<ConfigOption<?>> options = JsonOptions.optionalOptions();
+        options.add(SCHEMA_INCLUDE);
+        return options;
     }
 }

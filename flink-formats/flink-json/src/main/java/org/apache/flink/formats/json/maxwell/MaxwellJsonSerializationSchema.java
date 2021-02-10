@@ -51,20 +51,11 @@ public class MaxwellJsonSerializationSchema implements SerializationSchema<RowDa
 
     private transient GenericRowData reuse;
 
-    public MaxwellJsonSerializationSchema(
-            RowType rowType,
-            TimestampFormat timestampFormat,
-            JsonOptions.MapNullKeyMode mapNullKeyMode,
-            String mapNullKeyLiteral,
-            boolean encodeDecimalAsPlainNumber) {
+    public MaxwellJsonSerializationSchema(RowType rowType, JsonOptions maxwellJsonOptions) {
         this.jsonSerializer =
                 new JsonRowDataSerializationSchema(
-                        createJsonRowType(fromLogicalToDataType(rowType)),
-                        timestampFormat,
-                        mapNullKeyMode,
-                        mapNullKeyLiteral,
-                        encodeDecimalAsPlainNumber);
-        this.timestampFormat = timestampFormat;
+                        createJsonRowType(fromLogicalToDataType(rowType)), maxwellJsonOptions);
+        this.timestampFormat = maxwellJsonOptions.getTimestampFormat();
     }
 
     @Override

@@ -20,8 +20,8 @@ package org.apache.flink.formats.json.maxwell;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.formats.json.JsonOptions;
 import org.apache.flink.formats.json.JsonRowDataDeserializationSchema;
-import org.apache.flink.formats.json.TimestampFormat;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -69,10 +69,9 @@ public class MaxwellJsonDeserializationSchema implements DeserializationSchema<R
     public MaxwellJsonDeserializationSchema(
             RowType rowType,
             TypeInformation<RowData> resultTypeInfo,
-            boolean ignoreParseErrors,
-            TimestampFormat timestampFormatOption) {
+            JsonOptions maxwellJsonOptions) {
         this.resultTypeInfo = resultTypeInfo;
-        this.ignoreParseErrors = ignoreParseErrors;
+        this.ignoreParseErrors = maxwellJsonOptions.isIgnoreParseErrors();
         this.fieldCount = rowType.getFieldCount();
         this.jsonDeserializer =
                 new JsonRowDataDeserializationSchema(
@@ -80,10 +79,7 @@ public class MaxwellJsonDeserializationSchema implements DeserializationSchema<R
                         // the result type is never used, so it's fine to pass in Canal's result
                         // type
                         resultTypeInfo,
-                        false, // ignoreParseErrors already contains the functionality of
-                        // failOnMissingField
-                        ignoreParseErrors,
-                        timestampFormatOption);
+                        maxwellJsonOptions);
     }
 
     @Override

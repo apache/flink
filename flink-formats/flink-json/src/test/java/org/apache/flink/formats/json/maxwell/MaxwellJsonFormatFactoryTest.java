@@ -21,6 +21,7 @@ package org.apache.flink.formats.json.maxwell;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.formats.json.JsonOptions;
 import org.apache.flink.formats.json.TimestampFormat;
 import org.apache.flink.table.api.DataTypes;
@@ -65,17 +66,24 @@ public class MaxwellJsonFormatFactoryTest extends TestLogger {
 
     @Test
     public void testSeDeSchema() {
+        final JsonOptions maxwellJsonOptionsDeser =
+                JsonOptions.builder(new DelegatingConfiguration())
+                        .setIgnoreParseErrors(true)
+                        .setTimestampFormat(TimestampFormat.ISO_8601)
+                        .build();
         final MaxwellJsonDeserializationSchema expectedDeser =
                 new MaxwellJsonDeserializationSchema(
-                        ROW_TYPE, InternalTypeInfo.of(ROW_TYPE), true, TimestampFormat.ISO_8601);
+                        ROW_TYPE, InternalTypeInfo.of(ROW_TYPE), maxwellJsonOptionsDeser);
 
+        final JsonOptions maxwellJsonOptionsSer =
+                JsonOptions.builder(new DelegatingConfiguration())
+                        .setTimestampFormat(TimestampFormat.ISO_8601)
+                        .setMapNullKeyMode(JsonOptions.MapNullKeyMode.LITERAL)
+                        .setMapNullKeyLiteral("null")
+                        .setEncodeDecimalAsPlainNumber(true)
+                        .build();
         final MaxwellJsonSerializationSchema expectedSer =
-                new MaxwellJsonSerializationSchema(
-                        ROW_TYPE,
-                        TimestampFormat.ISO_8601,
-                        JsonOptions.MapNullKeyMode.LITERAL,
-                        "null",
-                        true);
+                new MaxwellJsonSerializationSchema(ROW_TYPE, maxwellJsonOptionsSer);
 
         final Map<String, String> options = getAllOptions();
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.json;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
@@ -79,6 +80,125 @@ public class JsonOptions {
                     .defaultValue(false)
                     .withDescription(
                             "Optional flag to specify whether to encode all decimals as plain numbers instead of possible scientific notations, false by default.");
+
+    // ------------------------------------------------------------------------------------------
+    // Json attributes
+    // ------------------------------------------------------------------------------------------
+
+    private final boolean failOnMissingField;
+    private final boolean ignoreParseErrors;
+    private final MapNullKeyMode mapNullKeyMode;
+    private final String mapNullKeyLiteral;
+    private final TimestampFormat timestampFormat;
+    private final boolean encodeDecimalAsPlainNumber;
+
+    protected JsonOptions(
+            boolean failOnMissingField,
+            boolean ignoreParseErrors,
+            MapNullKeyMode mapNullKeyMode,
+            String mapNullKeyLiteral,
+            TimestampFormat timestampFormat,
+            boolean encodeDecimalAsPlainNumber) {
+        this.failOnMissingField = failOnMissingField;
+        this.ignoreParseErrors = ignoreParseErrors;
+        this.mapNullKeyMode = mapNullKeyMode;
+        this.mapNullKeyLiteral = mapNullKeyLiteral;
+        this.timestampFormat = timestampFormat;
+        this.encodeDecimalAsPlainNumber = encodeDecimalAsPlainNumber;
+    }
+
+    public boolean isFailOnMissingField() {
+        return failOnMissingField;
+    }
+
+    public boolean isIgnoreParseErrors() {
+        return ignoreParseErrors;
+    }
+
+    public MapNullKeyMode getMapNullKeyMode() {
+        return mapNullKeyMode;
+    }
+
+    public String getMapNullKeyLiteral() {
+        return mapNullKeyLiteral;
+    }
+
+    public TimestampFormat getTimestampFormat() {
+        return timestampFormat;
+    }
+
+    public boolean isEncodeDecimalAsPlainNumber() {
+        return encodeDecimalAsPlainNumber;
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Builder
+    // ------------------------------------------------------------------------------------------
+
+    /** Creates A builder for building a {@link JsonOptions}. */
+    public static Builder builder(ReadableConfig conf) {
+        return new Builder(conf);
+    }
+
+    /** A builder for creating a {@link JsonOptions}. */
+    @Internal
+    public static class Builder {
+        protected boolean failOnMissingField;
+        protected boolean ignoreParseErrors;
+        protected MapNullKeyMode mapNullKeyMode;
+        protected String mapNullKeyLiteral;
+        protected TimestampFormat timestampFormat;
+        protected boolean encodeDecimalAsPlainNumber;
+
+        public Builder(ReadableConfig conf) {
+            this.failOnMissingField = conf.get(FAIL_ON_MISSING_FIELD);
+            this.ignoreParseErrors = conf.get(IGNORE_PARSE_ERRORS);
+            this.mapNullKeyMode = getMapNullKeyMode(conf);
+            this.mapNullKeyLiteral = conf.get(MAP_NULL_KEY_LITERAL);
+            this.timestampFormat = getTimestampFormat(conf);
+            this.encodeDecimalAsPlainNumber = conf.get(ENCODE_DECIMAL_AS_PLAIN_NUMBER);
+        }
+
+        public Builder setFailOnMissingField(boolean failOnMissingField) {
+            this.failOnMissingField = failOnMissingField;
+            return this;
+        }
+
+        public Builder setIgnoreParseErrors(boolean ignoreParseErrors) {
+            this.ignoreParseErrors = ignoreParseErrors;
+            return this;
+        }
+
+        public Builder setMapNullKeyMode(MapNullKeyMode mapNullKeyMode) {
+            this.mapNullKeyMode = mapNullKeyMode;
+            return this;
+        }
+
+        public Builder setMapNullKeyLiteral(String mapNullKeyLiteral) {
+            this.mapNullKeyLiteral = mapNullKeyLiteral;
+            return this;
+        }
+
+        public Builder setTimestampFormat(TimestampFormat timestampFormat) {
+            this.timestampFormat = timestampFormat;
+            return this;
+        }
+
+        public Builder setEncodeDecimalAsPlainNumber(boolean encodeDecimalAsPlainNumber) {
+            this.encodeDecimalAsPlainNumber = encodeDecimalAsPlainNumber;
+            return this;
+        }
+
+        public JsonOptions build() {
+            return new JsonOptions(
+                    failOnMissingField,
+                    ignoreParseErrors,
+                    mapNullKeyMode,
+                    mapNullKeyLiteral,
+                    timestampFormat,
+                    encodeDecimalAsPlainNumber);
+        }
+    }
 
     // --------------------------------------------------------------------------------------------
     // Option enumerations
@@ -193,5 +313,16 @@ public class JsonOptions {
                             "Unsupported value '%s' for %s. Supported values are [SQL, ISO-8601].",
                             timestampFormat, TIMESTAMP_FORMAT.key()));
         }
+    }
+
+    public static Set<ConfigOption<?>> optionalOptions() {
+        Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(FAIL_ON_MISSING_FIELD);
+        options.add(IGNORE_PARSE_ERRORS);
+        options.add(TIMESTAMP_FORMAT);
+        options.add(MAP_NULL_KEY_MODE);
+        options.add(MAP_NULL_KEY_LITERAL);
+        options.add(ENCODE_DECIMAL_AS_PLAIN_NUMBER);
+        return options;
     }
 }

@@ -21,6 +21,7 @@ package org.apache.flink.formats.json.canal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.formats.json.JsonOptions;
 import org.apache.flink.formats.json.TimestampFormat;
 import org.apache.flink.table.api.DataTypes;
@@ -74,23 +75,29 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
         Map<String, String> options = getAllOptions();
 
         // test Deser
+        CanalJsonOptions.Builder deserBuilder =
+                CanalJsonOptions.builder(new DelegatingConfiguration());
+        deserBuilder.setIgnoreParseErrors(false);
+        deserBuilder.setTimestampFormat(TimestampFormat.SQL);
         CanalJsonDeserializationSchema expectedDeser =
-                CanalJsonDeserializationSchema.builder(
-                                PHYSICAL_DATA_TYPE, Collections.emptyList(), ROW_TYPE_INFO)
-                        .setIgnoreParseErrors(false)
-                        .setTimestampFormat(TimestampFormat.SQL)
-                        .build();
+                new CanalJsonDeserializationSchema(
+                        PHYSICAL_DATA_TYPE,
+                        Collections.emptyList(),
+                        ROW_TYPE_INFO,
+                        deserBuilder.build());
         DeserializationSchema<RowData> actualDeser = createDeserializationSchema(options);
         assertEquals(expectedDeser, actualDeser);
 
         // test Ser
+        JsonOptions canalJsonOptionsSer =
+                JsonOptions.builder(new DelegatingConfiguration())
+                        .setTimestampFormat(TimestampFormat.SQL)
+                        .setMapNullKeyMode(JsonOptions.MapNullKeyMode.FAIL)
+                        .setMapNullKeyLiteral("null")
+                        .setEncodeDecimalAsPlainNumber(false)
+                        .build();
         CanalJsonSerializationSchema expectedSer =
-                new CanalJsonSerializationSchema(
-                        ROW_TYPE,
-                        TimestampFormat.SQL,
-                        JsonOptions.MapNullKeyMode.FAIL,
-                        "null",
-                        false);
+                new CanalJsonSerializationSchema(ROW_TYPE, canalJsonOptionsSer);
         SerializationSchema<RowData> actualSer = createSerializationSchema(options);
         assertEquals(expectedSer, actualSer);
     }
@@ -107,25 +114,31 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
         options.put("canal-json.encode.decimal-as-plain-number", "true");
 
         // test Deser
+        CanalJsonOptions.Builder deserBuilder =
+                CanalJsonOptions.builder(new DelegatingConfiguration())
+                        .setDatabaseInclude("mydb")
+                        .setTableInclude("mytable");
+        deserBuilder.setIgnoreParseErrors(true);
+        deserBuilder.setTimestampFormat(TimestampFormat.ISO_8601);
         CanalJsonDeserializationSchema expectedDeser =
-                CanalJsonDeserializationSchema.builder(
-                                PHYSICAL_DATA_TYPE, Collections.emptyList(), ROW_TYPE_INFO)
-                        .setIgnoreParseErrors(true)
-                        .setTimestampFormat(TimestampFormat.ISO_8601)
-                        .setDatabase("mydb")
-                        .setTable("mytable")
-                        .build();
+                new CanalJsonDeserializationSchema(
+                        PHYSICAL_DATA_TYPE,
+                        Collections.emptyList(),
+                        ROW_TYPE_INFO,
+                        deserBuilder.build());
         DeserializationSchema<RowData> actualDeser = createDeserializationSchema(options);
         assertEquals(expectedDeser, actualDeser);
 
         // test Ser
+        JsonOptions canalJsonOptionsSer =
+                JsonOptions.builder(new DelegatingConfiguration())
+                        .setTimestampFormat(TimestampFormat.ISO_8601)
+                        .setMapNullKeyMode(JsonOptions.MapNullKeyMode.LITERAL)
+                        .setMapNullKeyLiteral("nullKey")
+                        .setEncodeDecimalAsPlainNumber(true)
+                        .build();
         CanalJsonSerializationSchema expectedSer =
-                new CanalJsonSerializationSchema(
-                        ROW_TYPE,
-                        TimestampFormat.ISO_8601,
-                        JsonOptions.MapNullKeyMode.LITERAL,
-                        "nullKey",
-                        true);
+                new CanalJsonSerializationSchema(ROW_TYPE, canalJsonOptionsSer);
         SerializationSchema<RowData> actualSer = createSerializationSchema(options);
         assertEquals(expectedSer, actualSer);
     }

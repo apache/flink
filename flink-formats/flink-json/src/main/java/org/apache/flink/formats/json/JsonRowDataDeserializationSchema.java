@@ -72,22 +72,18 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
     private final TimestampFormat timestampFormat;
 
     public JsonRowDataDeserializationSchema(
-            RowType rowType,
-            TypeInformation<RowData> resultTypeInfo,
-            boolean failOnMissingField,
-            boolean ignoreParseErrors,
-            TimestampFormat timestampFormat) {
+            RowType rowType, TypeInformation<RowData> resultTypeInfo, JsonOptions jsonOptions) {
+        this.failOnMissingField = jsonOptions.isFailOnMissingField();
+        this.ignoreParseErrors = jsonOptions.isIgnoreParseErrors();
+        this.timestampFormat = jsonOptions.getTimestampFormat();
         if (ignoreParseErrors && failOnMissingField) {
             throw new IllegalArgumentException(
                     "JSON format doesn't support failOnMissingField and ignoreParseErrors are both enabled.");
         }
         this.resultTypeInfo = checkNotNull(resultTypeInfo);
-        this.failOnMissingField = failOnMissingField;
-        this.ignoreParseErrors = ignoreParseErrors;
         this.runtimeConverter =
                 new JsonToRowDataConverters(failOnMissingField, ignoreParseErrors, timestampFormat)
                         .createConverter(checkNotNull(rowType));
-        this.timestampFormat = timestampFormat;
         boolean hasDecimalType =
                 LogicalTypeChecks.hasNested(rowType, t -> t instanceof DecimalType);
         if (hasDecimalType) {

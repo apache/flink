@@ -21,8 +21,8 @@ package org.apache.flink.formats.json.debezium;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.formats.json.JsonOptions;
 import org.apache.flink.formats.json.JsonRowDataDeserializationSchema;
-import org.apache.flink.formats.json.TimestampFormat;
 import org.apache.flink.formats.json.debezium.DebeziumJsonDecodingFormat.ReadableMetadata;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
@@ -32,6 +32,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -92,9 +93,12 @@ public final class DebeziumJsonDeserializationSchema implements DeserializationS
             DataType physicalDataType,
             List<ReadableMetadata> requestedMetadata,
             TypeInformation<RowData> producedTypeInfo,
-            boolean schemaInclude,
-            boolean ignoreParseErrors,
-            TimestampFormat timestampFormat) {
+            JsonOptions debeziumJsonOptions) {
+        Preconditions.checkArgument(
+                debeziumJsonOptions instanceof DebeziumJsonOptions,
+                "Only DebeziumJsonOptions is supported");
+        this.schemaInclude = ((DebeziumJsonOptions) debeziumJsonOptions).isSchemaInclude();
+        this.ignoreParseErrors = debeziumJsonOptions.isIgnoreParseErrors();
         final RowType jsonRowType =
                 createJsonRowType(physicalDataType, requestedMetadata, schemaInclude);
         this.jsonDeserializer =
@@ -103,16 +107,11 @@ public final class DebeziumJsonDeserializationSchema implements DeserializationS
                         // the result type is never used, so it's fine to pass in the produced type
                         // info
                         producedTypeInfo,
-                        false, // ignoreParseErrors already contains the functionality of
-                        // failOnMissingField
-                        ignoreParseErrors,
-                        timestampFormat);
+                        debeziumJsonOptions);
         this.hasMetadata = requestedMetadata.size() > 0;
         this.metadataConverters =
                 createMetadataConverters(jsonRowType, requestedMetadata, schemaInclude);
         this.producedTypeInfo = producedTypeInfo;
-        this.schemaInclude = schemaInclude;
-        this.ignoreParseErrors = ignoreParseErrors;
     }
 
     @Override

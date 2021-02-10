@@ -20,7 +20,7 @@ package org.apache.flink.formats.json.canal;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.formats.json.TimestampFormat;
+import org.apache.flink.formats.json.JsonOptions;
 import org.apache.flink.formats.json.canal.CanalJsonDeserializationSchema.MetadataConverter;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
@@ -32,8 +32,6 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.types.RowKind;
-
-import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -52,26 +50,13 @@ public class CanalJsonDecodingFormat implements DecodingFormat<DeserializationSc
     private List<String> metadataKeys;
 
     // --------------------------------------------------------------------------------------------
-    // Canal-specific attributes
+    // Canal attributes
     // --------------------------------------------------------------------------------------------
 
-    private final @Nullable String database;
+    private JsonOptions canalJsonOptions;
 
-    private final @Nullable String table;
-
-    private final boolean ignoreParseErrors;
-
-    private final TimestampFormat timestampFormat;
-
-    public CanalJsonDecodingFormat(
-            String database,
-            String table,
-            boolean ignoreParseErrors,
-            TimestampFormat timestampFormat) {
-        this.database = database;
-        this.table = table;
-        this.ignoreParseErrors = ignoreParseErrors;
-        this.timestampFormat = timestampFormat;
+    public CanalJsonDecodingFormat(JsonOptions canalJsonOptions) {
+        this.canalJsonOptions = canalJsonOptions;
         this.metadataKeys = Collections.emptyList();
     }
 
@@ -95,13 +80,8 @@ public class CanalJsonDecodingFormat implements DecodingFormat<DeserializationSc
                 DataTypeUtils.appendRowFields(physicalDataType, metadataFields);
         final TypeInformation<RowData> producedTypeInfo =
                 context.createTypeInformation(producedDataType);
-        return CanalJsonDeserializationSchema.builder(
-                        physicalDataType, readableMetadata, producedTypeInfo)
-                .setDatabase(database)
-                .setTable(table)
-                .setIgnoreParseErrors(ignoreParseErrors)
-                .setTimestampFormat(timestampFormat)
-                .build();
+        return new CanalJsonDeserializationSchema(
+                physicalDataType, readableMetadata, producedTypeInfo, canalJsonOptions);
     }
 
     @Override

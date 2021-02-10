@@ -18,21 +18,64 @@
 
 package org.apache.flink.formats.json.maxwell;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.formats.json.JsonOptions;
+import org.apache.flink.formats.json.TimestampFormat;
+
+import java.util.Set;
 
 /** Option utils for maxwell-json format. */
-public class MaxwellJsonOptions {
+public class MaxwellJsonOptions extends JsonOptions {
 
-    public static final ConfigOption<Boolean> IGNORE_PARSE_ERRORS = JsonOptions.IGNORE_PARSE_ERRORS;
+    // ------------------------------------------------------------------------------------------
+    // Maxwell attributes
+    // ------------------------------------------------------------------------------------------
 
-    public static final ConfigOption<String> TIMESTAMP_FORMAT = JsonOptions.TIMESTAMP_FORMAT;
+    private MaxwellJsonOptions(
+            boolean failOnMissingField,
+            boolean ignoreParseErrors,
+            MapNullKeyMode mapNullKeyMode,
+            String mapNullKeyLiteral,
+            TimestampFormat timestampFormat,
+            boolean encodeDecimalAsPlainNumber) {
+        super(
+                failOnMissingField,
+                ignoreParseErrors,
+                mapNullKeyMode,
+                mapNullKeyLiteral,
+                timestampFormat,
+                encodeDecimalAsPlainNumber);
+    }
 
-    public static final ConfigOption<String> JSON_MAP_NULL_KEY_MODE = JsonOptions.MAP_NULL_KEY_MODE;
+    // ------------------------------------------------------------------------------------------
+    // Builder
+    // ------------------------------------------------------------------------------------------
 
-    public static final ConfigOption<String> JSON_MAP_NULL_KEY_LITERAL =
-            JsonOptions.MAP_NULL_KEY_LITERAL;
+    /** Creates A builder for building a {@link MaxwellJsonOptions}. */
+    public static Builder builder(ReadableConfig conf) {
+        return new Builder(conf);
+    }
+
+    /** A builder for creating a {@link MaxwellJsonOptions}. */
+    @Internal
+    public static class Builder extends JsonOptions.Builder {
+
+        public Builder(ReadableConfig conf) {
+            super(conf);
+        }
+
+        public MaxwellJsonOptions build() {
+            return new MaxwellJsonOptions(
+                    failOnMissingField,
+                    ignoreParseErrors,
+                    mapNullKeyMode,
+                    mapNullKeyLiteral,
+                    timestampFormat,
+                    encodeDecimalAsPlainNumber);
+        }
+    }
 
     // --------------------------------------------------------------------------------------------
     // Validation
@@ -46,5 +89,9 @@ public class MaxwellJsonOptions {
     /** Validator for maxwell encoding format. */
     public static void validateEncodingFormatOptions(ReadableConfig tableOptions) {
         JsonOptions.validateEncodingFormatOptions(tableOptions);
+    }
+
+    public static Set<ConfigOption<?>> optionalOptions() {
+        return JsonOptions.optionalOptions();
     }
 }

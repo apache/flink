@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.json.canal;
 
+import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.formats.json.JsonOptions;
 import org.apache.flink.formats.json.TimestampFormat;
 import org.apache.flink.formats.json.canal.CanalJsonDecodingFormat.ReadableMetadata;
@@ -70,14 +71,17 @@ public class CanalJsonSerDeSchemaTest {
     @Test
     public void testFilteringTables() throws Exception {
         List<String> lines = readLines("canal-data-filter-table.txt");
-        CanalJsonDeserializationSchema deserializationSchema =
-                CanalJsonDeserializationSchema.builder(
-                                PHYSICAL_DATA_TYPE,
-                                Collections.emptyList(),
-                                InternalTypeInfo.of(PHYSICAL_DATA_TYPE.getLogicalType()))
-                        .setDatabase("^my.*")
-                        .setTable("^prod.*")
+        CanalJsonOptions canalJsonOptionsDeser =
+                CanalJsonOptions.builder(new DelegatingConfiguration())
+                        .setDatabaseInclude("^my.*")
+                        .setTableInclude("^prod.*")
                         .build();
+        CanalJsonDeserializationSchema deserializationSchema =
+                new CanalJsonDeserializationSchema(
+                        PHYSICAL_DATA_TYPE,
+                        Collections.emptyList(),
+                        InternalTypeInfo.of(PHYSICAL_DATA_TYPE.getLogicalType()),
+                        canalJsonOptionsDeser);
         runTest(lines, deserializationSchema);
     }
 
@@ -132,14 +136,16 @@ public class CanalJsonSerDeSchemaTest {
     @Test
     public void testSerializationDeserialization() throws Exception {
         List<String> lines = readLines("canal-data.txt");
+        CanalJsonOptions.Builder deserBuilder =
+                CanalJsonOptions.builder(new DelegatingConfiguration());
+        deserBuilder.setIgnoreParseErrors(false);
+        deserBuilder.setTimestampFormat(TimestampFormat.ISO_8601);
         CanalJsonDeserializationSchema deserializationSchema =
-                CanalJsonDeserializationSchema.builder(
-                                PHYSICAL_DATA_TYPE,
-                                Collections.emptyList(),
-                                InternalTypeInfo.of(PHYSICAL_DATA_TYPE.getLogicalType()))
-                        .setIgnoreParseErrors(false)
-                        .setTimestampFormat(TimestampFormat.ISO_8601)
-                        .build();
+                new CanalJsonDeserializationSchema(
+                        PHYSICAL_DATA_TYPE,
+                        Collections.emptyList(),
+                        InternalTypeInfo.of(PHYSICAL_DATA_TYPE.getLogicalType()),
+                        deserBuilder.build());
         runTest(lines, deserializationSchema);
     }
 
@@ -214,13 +220,16 @@ public class CanalJsonSerDeSchemaTest {
         assertEquals(expected, actual);
 
         // test Serialization
+        JsonOptions canalJsonOptionsSer =
+                JsonOptions.builder(new DelegatingConfiguration())
+                        .setTimestampFormat(TimestampFormat.ISO_8601)
+                        .setMapNullKeyMode(JsonOptions.MapNullKeyMode.LITERAL)
+                        .setMapNullKeyLiteral("null")
+                        .setEncodeDecimalAsPlainNumber(true)
+                        .build();
         CanalJsonSerializationSchema serializationSchema =
                 new CanalJsonSerializationSchema(
-                        (RowType) PHYSICAL_DATA_TYPE.getLogicalType(),
-                        TimestampFormat.ISO_8601,
-                        JsonOptions.MapNullKeyMode.LITERAL,
-                        "null",
-                        true);
+                        (RowType) PHYSICAL_DATA_TYPE.getLogicalType(), canalJsonOptionsSer);
         serializationSchema.open(null);
 
         List<String> result = new ArrayList<>();
@@ -277,21 +286,23 @@ public class CanalJsonSerDeSchemaTest {
 
     private CanalJsonDeserializationSchema createCanalJsonDeserializationSchema(
             String database, String table, List<ReadableMetadata> requestedMetadata) {
+        final CanalJsonOptions.Builder deserBuilder =
+                CanalJsonOptions.builder(new DelegatingConfiguration())
+                        .setDatabaseInclude(database)
+                        .setTableInclude(table);
+        deserBuilder.setIgnoreParseErrors(false);
+        deserBuilder.setTimestampFormat(TimestampFormat.ISO_8601);
         final DataType producedDataType =
                 DataTypeUtils.appendRowFields(
                         PHYSICAL_DATA_TYPE,
                         requestedMetadata.stream()
                                 .map(m -> DataTypes.FIELD(m.key, m.dataType))
                                 .collect(Collectors.toList()));
-        return CanalJsonDeserializationSchema.builder(
-                        PHYSICAL_DATA_TYPE,
-                        requestedMetadata,
-                        InternalTypeInfo.of(producedDataType.getLogicalType()))
-                .setDatabase(database)
-                .setTable(table)
-                .setIgnoreParseErrors(false)
-                .setTimestampFormat(TimestampFormat.ISO_8601)
-                .build();
+        return new CanalJsonDeserializationSchema(
+                PHYSICAL_DATA_TYPE,
+                requestedMetadata,
+                InternalTypeInfo.of(producedDataType.getLogicalType()),
+                deserBuilder.build());
     }
 
     // --------------------------------------------------------------------------------------------

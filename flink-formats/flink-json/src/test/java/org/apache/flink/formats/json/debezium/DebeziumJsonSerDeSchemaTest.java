@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.json.debezium;
 
+import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.formats.json.JsonOptions;
 import org.apache.flink.formats.json.TimestampFormat;
 import org.apache.flink.formats.json.debezium.DebeziumJsonDecodingFormat.ReadableMetadata;
@@ -108,14 +109,16 @@ public class DebeziumJsonSerDeSchemaTest {
 
     @Test
     public void testTombstoneMessages() throws Exception {
+        DebeziumJsonOptions.Builder deserBuilder =
+                DebeziumJsonOptions.builder(new DelegatingConfiguration()).setSchemaInclude(false);
+        deserBuilder.setIgnoreParseErrors(false);
+        deserBuilder.setTimestampFormat(TimestampFormat.ISO_8601);
         DebeziumJsonDeserializationSchema deserializationSchema =
                 new DebeziumJsonDeserializationSchema(
                         PHYSICAL_DATA_TYPE,
                         Collections.emptyList(),
                         InternalTypeInfo.of(PHYSICAL_DATA_TYPE.getLogicalType()),
-                        false,
-                        false,
-                        TimestampFormat.ISO_8601);
+                        deserBuilder.build());
         SimpleCollector collector = new SimpleCollector();
         deserializationSchema.deserialize(null, collector);
         deserializationSchema.deserialize(new byte[] {}, collector);
@@ -182,14 +185,17 @@ public class DebeziumJsonSerDeSchemaTest {
     private void testSerializationDeserialization(String resourceFile, boolean schemaInclude)
             throws Exception {
         List<String> lines = readLines(resourceFile);
+        DebeziumJsonOptions.Builder deserBuilder =
+                DebeziumJsonOptions.builder(new DelegatingConfiguration())
+                        .setSchemaInclude(schemaInclude);
+        deserBuilder.setIgnoreParseErrors(false);
+        deserBuilder.setTimestampFormat(TimestampFormat.ISO_8601);
         DebeziumJsonDeserializationSchema deserializationSchema =
                 new DebeziumJsonDeserializationSchema(
                         PHYSICAL_DATA_TYPE,
                         Collections.emptyList(),
                         InternalTypeInfo.of(PHYSICAL_DATA_TYPE.getLogicalType()),
-                        schemaInclude,
-                        false,
-                        TimestampFormat.ISO_8601);
+                        deserBuilder.build());
 
         SimpleCollector collector = new SimpleCollector();
         for (String line : lines) {
@@ -252,13 +258,16 @@ public class DebeziumJsonSerDeSchemaTest {
                 collector.list.stream().map(Object::toString).collect(Collectors.toList());
         assertEquals(expected, actual);
 
+        JsonOptions debeziumJsonOptionsSer =
+                JsonOptions.builder(new DelegatingConfiguration())
+                        .setTimestampFormat(TimestampFormat.SQL)
+                        .setMapNullKeyMode(JsonOptions.MapNullKeyMode.LITERAL)
+                        .setMapNullKeyLiteral("null")
+                        .setEncodeDecimalAsPlainNumber(true)
+                        .build();
         DebeziumJsonSerializationSchema serializationSchema =
                 new DebeziumJsonSerializationSchema(
-                        (RowType) PHYSICAL_DATA_TYPE.getLogicalType(),
-                        TimestampFormat.SQL,
-                        JsonOptions.MapNullKeyMode.LITERAL,
-                        "null",
-                        true);
+                        (RowType) PHYSICAL_DATA_TYPE.getLogicalType(), debeziumJsonOptionsSer);
 
         serializationSchema.open(null);
         actual = new ArrayList<>();
@@ -306,14 +315,17 @@ public class DebeziumJsonSerDeSchemaTest {
                                 .map(m -> DataTypes.FIELD(m.key, m.dataType))
                                 .collect(Collectors.toList()));
 
+        final DebeziumJsonOptions.Builder deserBuilder =
+                DebeziumJsonOptions.builder(new DelegatingConfiguration())
+                        .setSchemaInclude(schemaInclude);
+        deserBuilder.setIgnoreParseErrors(false);
+        deserBuilder.setTimestampFormat(TimestampFormat.ISO_8601);
         final DebeziumJsonDeserializationSchema deserializationSchema =
                 new DebeziumJsonDeserializationSchema(
                         PHYSICAL_DATA_TYPE,
                         requestedMetadata,
                         InternalTypeInfo.of(producedDataType.getLogicalType()),
-                        schemaInclude,
-                        false,
-                        TimestampFormat.ISO_8601);
+                        deserBuilder.build());
 
         final SimpleCollector collector = new SimpleCollector();
         deserializationSchema.deserialize(firstLine.getBytes(StandardCharsets.UTF_8), collector);

@@ -20,7 +20,7 @@ package org.apache.flink.formats.json.debezium;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.formats.json.TimestampFormat;
+import org.apache.flink.formats.json.JsonOptions;
 import org.apache.flink.formats.json.debezium.DebeziumJsonDeserializationSchema.MetadataConverter;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
@@ -52,20 +52,13 @@ public class DebeziumJsonDecodingFormat implements DecodingFormat<Deserializatio
     private List<String> metadataKeys;
 
     // --------------------------------------------------------------------------------------------
-    // Debezium-specific attributes
+    // Debezium attributes
     // --------------------------------------------------------------------------------------------
 
-    private final boolean schemaInclude;
+    private JsonOptions debeziumJsonOptions;
 
-    private final boolean ignoreParseErrors;
-
-    private final TimestampFormat timestampFormat;
-
-    public DebeziumJsonDecodingFormat(
-            boolean schemaInclude, boolean ignoreParseErrors, TimestampFormat timestampFormat) {
-        this.schemaInclude = schemaInclude;
-        this.ignoreParseErrors = ignoreParseErrors;
-        this.timestampFormat = timestampFormat;
+    public DebeziumJsonDecodingFormat(JsonOptions debeziumJsonOptions) {
+        this.debeziumJsonOptions = debeziumJsonOptions;
         this.metadataKeys = Collections.emptyList();
     }
 
@@ -95,12 +88,7 @@ public class DebeziumJsonDecodingFormat implements DecodingFormat<Deserializatio
                 context.createTypeInformation(producedDataType);
 
         return new DebeziumJsonDeserializationSchema(
-                physicalDataType,
-                readableMetadata,
-                producedTypeInfo,
-                schemaInclude,
-                ignoreParseErrors,
-                timestampFormat);
+                physicalDataType, readableMetadata, producedTypeInfo, debeziumJsonOptions);
     }
 
     @Override

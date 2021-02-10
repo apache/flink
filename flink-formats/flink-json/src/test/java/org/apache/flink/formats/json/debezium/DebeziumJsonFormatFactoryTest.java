@@ -21,6 +21,7 @@ package org.apache.flink.formats.json.debezium;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.formats.json.JsonOptions;
 import org.apache.flink.formats.json.TimestampFormat;
 import org.apache.flink.table.api.DataTypes;
@@ -68,14 +69,16 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
 
     @Test
     public void testSeDeSchema() {
+        final DebeziumJsonOptions.Builder deserBuilder =
+                DebeziumJsonOptions.builder(new DelegatingConfiguration()).setSchemaInclude(false);
+        deserBuilder.setIgnoreParseErrors(true);
+        deserBuilder.setTimestampFormat(TimestampFormat.ISO_8601);
         final DebeziumJsonDeserializationSchema expectedDeser =
                 new DebeziumJsonDeserializationSchema(
                         PHYSICAL_DATA_TYPE,
                         Collections.emptyList(),
                         InternalTypeInfo.of(PHYSICAL_DATA_TYPE.getLogicalType()),
-                        false,
-                        true,
-                        TimestampFormat.ISO_8601);
+                        deserBuilder.build());
 
         final Map<String, String> options = getAllOptions();
 
@@ -90,13 +93,16 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
 
         assertEquals(expectedDeser, actualDeser);
 
+        final JsonOptions debeziumJsonOptionsSer =
+                JsonOptions.builder(new DelegatingConfiguration())
+                        .setTimestampFormat(TimestampFormat.ISO_8601)
+                        .setMapNullKeyMode(JsonOptions.MapNullKeyMode.LITERAL)
+                        .setMapNullKeyLiteral("null")
+                        .setEncodeDecimalAsPlainNumber(true)
+                        .build();
         final DebeziumJsonSerializationSchema expectedSer =
                 new DebeziumJsonSerializationSchema(
-                        (RowType) PHYSICAL_DATA_TYPE.getLogicalType(),
-                        TimestampFormat.ISO_8601,
-                        JsonOptions.MapNullKeyMode.LITERAL,
-                        "null",
-                        true);
+                        (RowType) PHYSICAL_DATA_TYPE.getLogicalType(), debeziumJsonOptionsSer);
 
         final DynamicTableSink actualSink = createTableSink(options);
         assert actualSink instanceof TestDynamicTableFactory.DynamicTableSinkMock;
@@ -128,14 +134,16 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
         Map<String, String> options = getAllOptions();
         options.put("debezium-json.schema-include", "true");
 
+        final DebeziumJsonOptions.Builder deserBuilder =
+                DebeziumJsonOptions.builder(new DelegatingConfiguration()).setSchemaInclude(true);
+        deserBuilder.setIgnoreParseErrors(true);
+        deserBuilder.setTimestampFormat(TimestampFormat.ISO_8601);
         final DebeziumJsonDeserializationSchema expectedDeser =
                 new DebeziumJsonDeserializationSchema(
                         PHYSICAL_DATA_TYPE,
                         Collections.emptyList(),
                         InternalTypeInfo.of(PHYSICAL_DATA_TYPE.getLogicalType()),
-                        true,
-                        true,
-                        TimestampFormat.ISO_8601);
+                        deserBuilder.build());
         final DynamicTableSource actualSource = createTableSource(options);
         TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
                 (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;

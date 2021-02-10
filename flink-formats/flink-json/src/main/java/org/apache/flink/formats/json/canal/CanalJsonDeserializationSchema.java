@@ -18,11 +18,10 @@
 
 package org.apache.flink.formats.json.canal;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.formats.json.JsonOptions;
 import org.apache.flink.formats.json.JsonRowDataDeserializationSchema;
-import org.apache.flink.formats.json.TimestampFormat;
 import org.apache.flink.formats.json.canal.CanalJsonDecodingFormat.ReadableMetadata;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.ArrayData;
@@ -33,6 +32,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 
@@ -100,14 +100,13 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
     /** Pattern of the specific table. */
     private final Pattern tablePattern;
 
-    private CanalJsonDeserializationSchema(
+    public CanalJsonDeserializationSchema(
             DataType physicalDataType,
             List<ReadableMetadata> requestedMetadata,
             TypeInformation<RowData> producedTypeInfo,
-            @Nullable String database,
-            @Nullable String table,
-            boolean ignoreParseErrors,
-            TimestampFormat timestampFormat) {
+            JsonOptions canalJsonOptions) {
+        Preconditions.checkArgument(
+                canalJsonOptions instanceof CanalJsonOptions, "Only CanalJsonOptions is supported");
         final RowType jsonRowType = createJsonRowType(physicalDataType, requestedMetadata);
         this.jsonDeserializer =
                 new JsonRowDataDeserializationSchema(
@@ -115,85 +114,18 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
                         // the result type is never used, so it's fine to pass in the produced type
                         // info
                         producedTypeInfo,
-                        false, // ignoreParseErrors already contains the functionality of
-                        // failOnMissingField
-                        ignoreParseErrors,
-                        timestampFormat);
+                        canalJsonOptions);
         this.hasMetadata = requestedMetadata.size() > 0;
         this.metadataConverters = createMetadataConverters(jsonRowType, requestedMetadata);
         this.producedTypeInfo = producedTypeInfo;
-        this.database = database;
-        this.table = table;
-        this.ignoreParseErrors = ignoreParseErrors;
+        this.database = ((CanalJsonOptions) canalJsonOptions).getDatabaseInclude();
+        this.table = ((CanalJsonOptions) canalJsonOptions).getTableInclude();
+        this.ignoreParseErrors = canalJsonOptions.isIgnoreParseErrors();
         final RowType physicalRowType = ((RowType) physicalDataType.getLogicalType());
         this.fieldNames = physicalRowType.getFieldNames();
         this.fieldCount = physicalRowType.getFieldCount();
         this.databasePattern = database == null ? null : Pattern.compile(database);
         this.tablePattern = table == null ? null : Pattern.compile(table);
-    }
-
-    // ------------------------------------------------------------------------------------------
-    // Builder
-    // ------------------------------------------------------------------------------------------
-
-    /** Creates A builder for building a {@link CanalJsonDeserializationSchema}. */
-    public static Builder builder(
-            DataType physicalDataType,
-            List<ReadableMetadata> requestedMetadata,
-            TypeInformation<RowData> producedTypeInfo) {
-        return new Builder(physicalDataType, requestedMetadata, producedTypeInfo);
-    }
-
-    /** A builder for creating a {@link CanalJsonDeserializationSchema}. */
-    @Internal
-    public static final class Builder {
-        private final DataType physicalDataType;
-        private final List<ReadableMetadata> requestedMetadata;
-        private final TypeInformation<RowData> producedTypeInfo;
-        private String database = null;
-        private String table = null;
-        private boolean ignoreParseErrors = false;
-        private TimestampFormat timestampFormat = TimestampFormat.SQL;
-
-        private Builder(
-                DataType physicalDataType,
-                List<ReadableMetadata> requestedMetadata,
-                TypeInformation<RowData> producedTypeInfo) {
-            this.physicalDataType = physicalDataType;
-            this.requestedMetadata = requestedMetadata;
-            this.producedTypeInfo = producedTypeInfo;
-        }
-
-        public Builder setDatabase(String database) {
-            this.database = database;
-            return this;
-        }
-
-        public Builder setTable(String table) {
-            this.table = table;
-            return this;
-        }
-
-        public Builder setIgnoreParseErrors(boolean ignoreParseErrors) {
-            this.ignoreParseErrors = ignoreParseErrors;
-            return this;
-        }
-
-        public Builder setTimestampFormat(TimestampFormat timestampFormat) {
-            this.timestampFormat = timestampFormat;
-            return this;
-        }
-
-        public CanalJsonDeserializationSchema build() {
-            return new CanalJsonDeserializationSchema(
-                    physicalDataType,
-                    requestedMetadata,
-                    producedTypeInfo,
-                    database,
-                    table,
-                    ignoreParseErrors,
-                    timestampFormat);
-        }
     }
 
     // ------------------------------------------------------------------------------------------

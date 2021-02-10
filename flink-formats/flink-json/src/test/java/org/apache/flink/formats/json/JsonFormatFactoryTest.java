@@ -21,6 +21,7 @@ package org.apache.flink.formats.json;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
@@ -148,13 +149,15 @@ public class JsonFormatFactoryTest extends TestLogger {
     // ------------------------------------------------------------------------
 
     private void testSchemaDeserializationSchema(Map<String, String> options) {
+        final JsonOptions jsonOptions =
+                JsonOptions.builder(new DelegatingConfiguration())
+                        .setFailOnMissingField(false)
+                        .setIgnoreParseErrors(true)
+                        .setTimestampFormat(TimestampFormat.ISO_8601)
+                        .build();
         final JsonRowDataDeserializationSchema expectedDeser =
                 new JsonRowDataDeserializationSchema(
-                        ROW_TYPE,
-                        InternalTypeInfo.of(ROW_TYPE),
-                        false,
-                        true,
-                        TimestampFormat.ISO_8601);
+                        ROW_TYPE, InternalTypeInfo.of(ROW_TYPE), jsonOptions);
 
         final DynamicTableSource actualSource = createTableSource(options);
         assert actualSource instanceof TestDynamicTableFactory.DynamicTableSourceMock;
@@ -169,13 +172,15 @@ public class JsonFormatFactoryTest extends TestLogger {
     }
 
     private void testSchemaSerializationSchema(Map<String, String> options) {
+        final JsonOptions jsonOptions =
+                JsonOptions.builder(new DelegatingConfiguration())
+                        .setTimestampFormat(TimestampFormat.ISO_8601)
+                        .setMapNullKeyMode(JsonOptions.MapNullKeyMode.LITERAL)
+                        .setMapNullKeyLiteral("null")
+                        .setEncodeDecimalAsPlainNumber(true)
+                        .build();
         final JsonRowDataSerializationSchema expectedSer =
-                new JsonRowDataSerializationSchema(
-                        ROW_TYPE,
-                        TimestampFormat.ISO_8601,
-                        JsonOptions.MapNullKeyMode.LITERAL,
-                        "null",
-                        true);
+                new JsonRowDataSerializationSchema(ROW_TYPE, jsonOptions);
 
         final DynamicTableSink actualSink = createTableSink(options);
         assert actualSink instanceof TestDynamicTableFactory.DynamicTableSinkMock;

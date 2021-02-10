@@ -66,17 +66,12 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
     /** Flag indicating whether to serialize all decimals as plain numbers. */
     private final boolean encodeDecimalAsPlainNumber;
 
-    public JsonRowDataSerializationSchema(
-            RowType rowType,
-            TimestampFormat timestampFormat,
-            JsonOptions.MapNullKeyMode mapNullKeyMode,
-            String mapNullKeyLiteral,
-            boolean encodeDecimalAsPlainNumber) {
+    public JsonRowDataSerializationSchema(RowType rowType, JsonOptions jsonOptions) {
         this.rowType = rowType;
-        this.timestampFormat = timestampFormat;
-        this.mapNullKeyMode = mapNullKeyMode;
-        this.mapNullKeyLiteral = mapNullKeyLiteral;
-        this.encodeDecimalAsPlainNumber = encodeDecimalAsPlainNumber;
+        this.timestampFormat = jsonOptions.getTimestampFormat();
+        this.mapNullKeyMode = jsonOptions.getMapNullKeyMode();
+        this.mapNullKeyLiteral = jsonOptions.getMapNullKeyLiteral();
+        this.encodeDecimalAsPlainNumber = jsonOptions.isEncodeDecimalAsPlainNumber();
         this.runtimeConverter =
                 new RowDataToJsonConverters(timestampFormat, mapNullKeyMode, mapNullKeyLiteral)
                         .createConverter(rowType);
