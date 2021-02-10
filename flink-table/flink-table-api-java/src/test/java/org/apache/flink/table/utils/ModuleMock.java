@@ -29,7 +29,7 @@ import java.util.Optional;
 import java.util.Set;
 
 /** Mocking {@link Module} for tests. */
-public abstract class ModuleMock implements Module {
+public class ModuleMock implements Module {
     private static final Set<String> BUILT_IN_FUNCTIONS =
             Collections.unmodifiableSet(new HashSet<>(Collections.singletonList("dummy")));
     private final String type;
@@ -56,26 +56,5 @@ public abstract class ModuleMock implements Module {
             return Optional.of(functionDef);
         }
         return Optional.empty();
-    }
-
-    /** A simple mock module with type "x". */
-    public static class ModuleX extends ModuleMock {
-        public ModuleX(String type) {
-            super(type);
-        }
-    }
-
-    /** A simple mock module with type "y". */
-    public static class ModuleY extends ModuleMock {
-        public ModuleY(String type) {
-            super(type);
-        }
-    }
-
-    /** A simple mock module with type "z". */
-    public static class ModuleZ extends ModuleMock {
-        public ModuleZ(String type) {
-            super(type);
-        }
     }
 }

@@ -27,10 +27,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,8 +42,6 @@ import static org.junit.Assert.assertTrue;
 
 /** Tests for {@link ModuleManager}. */
 public class ModuleManagerTest extends TestLogger {
-    private static final Comparator<ModuleEntry> COMPARATOR =
-            Comparator.comparing(ModuleEntry::name);
     private ModuleManager manager;
     @Rule public ExpectedException thrown = ExpectedException.none();
 
@@ -61,15 +57,15 @@ public class ModuleManagerTest extends TestLogger {
         assertEquals(CoreModule.INSTANCE, manager.getLoadedModules().get(MODULE_TYPE_CORE));
 
         thrown.expect(ValidationException.class);
-        thrown.expectMessage("A module with name core already exists");
+        thrown.expectMessage("A module with name 'core' already exists");
         manager.loadModule(MODULE_TYPE_CORE, CoreModule.INSTANCE);
     }
 
     @Test
     public void testLoadModuleWithoutUnusedModulesExist() {
-        ModuleMock.ModuleX x = new ModuleMock.ModuleX("x");
-        ModuleMock.ModuleY y = new ModuleMock.ModuleY("y");
-        ModuleMock.ModuleZ z = new ModuleMock.ModuleZ("z");
+        ModuleMock x = new ModuleMock("x");
+        ModuleMock y = new ModuleMock("y");
+        ModuleMock z = new ModuleMock("z");
         manager.loadModule(x.getType(), x);
         manager.loadModule(y.getType(), y);
         manager.loadModule(z.getType(), z);
@@ -86,8 +82,8 @@ public class ModuleManagerTest extends TestLogger {
 
     @Test
     public void testLoadModuleWithUnusedModulesExist() {
-        ModuleMock.ModuleY y = new ModuleMock.ModuleY("y");
-        ModuleMock.ModuleZ z = new ModuleMock.ModuleZ("z");
+        ModuleMock y = new ModuleMock("y");
+        ModuleMock z = new ModuleMock("z");
         manager.loadModule(y.getType(), y);
         manager.loadModule(z.getType(), z);
 
@@ -99,12 +95,11 @@ public class ModuleManagerTest extends TestLogger {
         assertEquals(Arrays.asList(MODULE_TYPE_CORE, "y", "z"), manager.getUsedModules());
         assertEquals(expectedLoadedModules, manager.getLoadedModules());
 
-        // reset usedModules to mock module y and z are disabled
-        manager.getUsedModules().remove("z");
-        manager.getUsedModules().remove("y");
+        // disable module y and z
+        manager.useModules(MODULE_TYPE_CORE);
 
         // load module x to test the order
-        ModuleMock.ModuleX x = new ModuleMock.ModuleX("x");
+        ModuleMock x = new ModuleMock("x");
         manager.loadModule(x.getType(), x);
         expectedLoadedModules.put("x", x);
 
@@ -121,29 +116,29 @@ public class ModuleManagerTest extends TestLogger {
         assertEquals(Collections.emptyMap(), manager.getLoadedModules());
 
         thrown.expect(ValidationException.class);
-        thrown.expectMessage("No module with name core exists");
+        thrown.expectMessage("No module with name 'core' exists");
         manager.unloadModule(MODULE_TYPE_CORE);
     }
 
     @Test
     public void testUseUnloadedModules() {
         thrown.expect(ValidationException.class);
-        thrown.expectMessage("No module with name x exists");
+        thrown.expectMessage("No module with name 'x' exists");
         manager.useModules(MODULE_TYPE_CORE, "x");
     }
 
     @Test
     public void testUseModulesWithDuplicateModuleName() {
         thrown.expect(ValidationException.class);
-        thrown.expectMessage("Module core appears more than once");
+        thrown.expectMessage("Module 'core' appears more than once");
         manager.useModules(MODULE_TYPE_CORE, MODULE_TYPE_CORE);
     }
 
     @Test
     public void testUseModules() {
-        ModuleMock.ModuleX x = new ModuleMock.ModuleX("x");
-        ModuleMock.ModuleY y = new ModuleMock.ModuleY("y");
-        ModuleMock.ModuleZ z = new ModuleMock.ModuleZ("z");
+        ModuleMock x = new ModuleMock("x");
+        ModuleMock y = new ModuleMock("y");
+        ModuleMock z = new ModuleMock("z");
         manager.loadModule(x.getType(), x);
         manager.loadModule(y.getType(), y);
         manager.loadModule(z.getType(), z);
@@ -165,8 +160,8 @@ public class ModuleManagerTest extends TestLogger {
 
     @Test
     public void testListModules() {
-        ModuleMock.ModuleY y = new ModuleMock.ModuleY("y");
-        ModuleMock.ModuleZ z = new ModuleMock.ModuleZ("z");
+        ModuleMock y = new ModuleMock("y");
+        ModuleMock z = new ModuleMock("z");
         manager.loadModule("y", y);
         manager.loadModule("z", z);
         manager.useModules("z", "y");
@@ -176,9 +171,9 @@ public class ModuleManagerTest extends TestLogger {
 
     @Test
     public void testListFullModules() {
-        ModuleMock.ModuleZ x = new ModuleMock.ModuleZ("x");
-        ModuleMock.ModuleY y = new ModuleMock.ModuleY("y");
-        ModuleMock.ModuleZ z = new ModuleMock.ModuleZ("z");
+        ModuleMock x = new ModuleMock("x");
+        ModuleMock y = new ModuleMock("y");
+        ModuleMock z = new ModuleMock("z");
 
         manager.loadModule("y", y);
         manager.loadModule("x", x);
@@ -187,12 +182,12 @@ public class ModuleManagerTest extends TestLogger {
 
         assertEquals(
                 getExpectedModuleEntries(2, "z", "y", MODULE_TYPE_CORE, "x"),
-                getActualModuleEntries());
+                manager.listFullModules());
     }
 
     @Test
     public void testListFunctions() {
-        ModuleMock.ModuleX x = new ModuleMock.ModuleX("x");
+        ModuleMock x = new ModuleMock("x");
         manager.loadModule(x.getType(), x);
 
         assertTrue(manager.listFunctions().contains("dummy"));
@@ -204,7 +199,7 @@ public class ModuleManagerTest extends TestLogger {
 
     @Test
     public void testGetFunctionDefinition() {
-        ModuleMock.ModuleX x = new ModuleMock.ModuleX("x");
+        ModuleMock x = new ModuleMock("x");
         manager.loadModule(x.getType(), x);
 
         assertTrue(manager.getFunctionDefinition("dummy").isPresent());
@@ -215,25 +210,8 @@ public class ModuleManagerTest extends TestLogger {
     }
 
     private static List<ModuleEntry> getExpectedModuleEntries(int index, String... names) {
-        List<ModuleEntry> expected = new ArrayList<>();
-        // keep order for used modules
-        IntStream.range(0, index).forEach(i -> expected.add(new ModuleEntry(names[i], true)));
-        // sort unused modules for comparing
-        expected.addAll(
-                IntStream.range(index, names.length)
-                        .mapToObj(i -> new ModuleEntry(names[i], false))
-                        .sorted(COMPARATOR)
-                        .collect(Collectors.toList()));
-        return expected;
-    }
-
-    private List<ModuleEntry> getActualModuleEntries() {
-        List<ModuleEntry> actual = manager.listFullModules();
-        List<ModuleEntry> sortedActual = actual.subList(0, manager.listModules().size());
-        sortedActual.addAll(
-                actual.subList(manager.listModules().size(), actual.size()).stream()
-                        .sorted(COMPARATOR)
-                        .collect(Collectors.toList()));
-        return sortedActual;
+        return IntStream.range(0, names.length)
+                .mapToObj(i -> new ModuleEntry(names[i], i < index))
+                .collect(Collectors.toList());
     }
 }

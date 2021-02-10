@@ -18,10 +18,13 @@
 
 package org.apache.flink.table.module;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 
 /** A POJO to represent a module's name and use status. */
+@PublicEvolving
 public class ModuleEntry {
     private final String name;
     private final boolean used;

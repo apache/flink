@@ -386,7 +386,7 @@ public interface TableEnvironment {
 
     /**
      * Enable modules in use with declared name order. Modules that have been loaded but not exist
-     * in names varargs will become unused. There is no guarantee on unused module's order.
+     * in names varargs will become unused.
      *
      * @param moduleNames module names to be used
      */
@@ -727,15 +727,15 @@ public interface TableEnvironment {
     String[] listCatalogs();
 
     /**
-     * Gets an array of names of all used modules in this environment in the most-recent use order.
+     * Gets an array of names of all used modules in this environment in resolution order.
      *
-     * @return A list of the names of used modules in the most-recent use order.
+     * @return A list of the names of used modules in resolution order.
      */
     String[] listModules();
 
     /**
      * Gets an array of all loaded modules with use status in this environment. Used modules are
-     * kept in most-recent use order.
+     * kept in resolution order.
      *
      * @return A list of name and use status entries of all loaded modules.
      */

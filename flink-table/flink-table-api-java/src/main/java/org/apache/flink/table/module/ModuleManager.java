@@ -29,8 +29,8 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -49,11 +49,14 @@ public class ModuleManager {
 
     private static final Logger LOG = LoggerFactory.getLogger(ModuleManager.class);
 
-    private Map<String, Module> loadedModules;
+    /** To keep {@link #listFullModules()} deterministic. */
+    private LinkedHashMap<String, Module> loadedModules;
+
+    /** Keep tracking used modules with resolution order. */
     private List<String> usedModules;
 
     public ModuleManager() {
-        this.loadedModules = new HashMap<>();
+        this.loadedModules = new LinkedHashMap<>();
         this.usedModules = new ArrayList<>();
         loadedModules.put(MODULE_TYPE_CORE, CoreModule.INSTANCE);
         usedModules.add(MODULE_TYPE_CORE);
@@ -74,11 +77,11 @@ public class ModuleManager {
 
         if (loadedModules.containsKey(name)) {
             throw new ValidationException(
-                    String.format("A module with name %s already exists", name));
+                    String.format("A module with name '%s' already exists", name));
         } else {
             usedModules.add(name);
             loadedModules.put(name, module);
-            LOG.info("Loaded module {} from class {}", name, module.getClass().getName());
+            LOG.info("Loaded module '{}' from class {}", name, module.getClass().getName());
         }
     }
 
@@ -92,15 +95,15 @@ public class ModuleManager {
         if (loadedModules.containsKey(name)) {
             loadedModules.remove(name);
             boolean used = usedModules.remove(name);
-            LOG.info("Unloaded an {} module {}", used ? "used" : "unused", name);
+            LOG.info("Unloaded an {} module '{}'", used ? "used" : "unused", name);
         } else {
-            throw new ValidationException(String.format("No module with name %s exists", name));
+            throw new ValidationException(String.format("No module with name '%s' exists", name));
         }
     }
 
     /**
      * Enable modules in use with declared name order. Modules that have been loaded but not exist
-     * in names varargs will become unused. There is no guarantee on unused module's order.
+     * in names varargs will become unused.
      *
      * @param names module names to be used
      * @throws ValidationException when module names contain an unloaded name
@@ -110,11 +113,12 @@ public class ModuleManager {
         Set<String> deduplicateNames = new HashSet<>();
         for (String name : names) {
             if (!loadedModules.containsKey(name)) {
-                throw new ValidationException(String.format("No module with name %s exists", name));
+                throw new ValidationException(
+                        String.format("No module with name '%s' exists", name));
             }
             if (!deduplicateNames.add(name)) {
                 throw new ValidationException(
-                        String.format("Module %s appears more than once", name));
+                        String.format("Module '%s' appears more than once", name));
             }
         }
         usedModules.clear();
@@ -122,17 +126,17 @@ public class ModuleManager {
     }
 
     /**
-     * Get names of all used modules in most-recent use order.
+     * Get names of all used modules in resolution order.
      *
      * @return a list of names of used modules
      */
     public List<String> listModules() {
-        return usedModules;
+        return new ArrayList<>(usedModules);
     }
 
     /**
-     * Get all loaded modules with use status. Modules in use status are returned in the most-recent
-     * use order.
+     * Get all loaded modules with use status. Modules in use status are returned in resolution
+     * order.
      *
      * @return a list of module entries with module name and use status
      */
