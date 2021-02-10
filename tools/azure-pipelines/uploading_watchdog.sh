@@ -68,14 +68,14 @@ timeout_watchdog &
 WATCHDOG_PID=$!
 
 # ts from moreutils prepends the time to each line
-( $COMMAND & PID=$! ; echo $PID > $MAIN_PID_FILE ; wait $PID ) | ts | tee $DEBUG_FILES_OUTPUT_DIR/watchdog.output
+( $COMMAND & PID=$! ; echo $PID > $MAIN_PID_FILE ; wait $PID ) | ts | tee $DEBUG_FILES_OUTPUT_DIR/watchdog
 TEST_EXIT_CODE=${PIPESTATUS[0]}
 
-# no timeout, cleanup watchdog related things
-if [[ $TEST_EXIT_CODE -eq 0 ]]; then
+# successful execution, cleanup watchdog related things
+if [[ "$TEST_EXIT_CODE" == 0 ]]; then
     kill $WATCHDOG_PID
-    rm $DEBUG_FILES_OUTPUT_DIR/watchdog.output
-    rm $DEBUG_FILES_OUTPUT_DIR/jps-traces.*
+    rm $DEBUG_FILES_OUTPUT_DIR/watchdog
+    rm -f $DEBUG_FILES_OUTPUT_DIR/jps-traces.*
 fi
 
 # properly forward exit code
