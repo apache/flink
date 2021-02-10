@@ -33,6 +33,7 @@ import org.apache.flink.runtime.state.KeyValueStateIterator;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueSnapshotRestoreWrapper;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueStateSnapshot;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.IOUtils;
@@ -48,6 +49,7 @@ import javax.annotation.Nonnegative;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 /** A {@link FullSnapshotResources} for the RocksDB backend. */
@@ -90,6 +92,53 @@ class RocksDBFullSnapshotResources<K> implements FullSnapshotResources<K> {
         // we need to to this in the constructor, i.e. in the synchronous part of the snapshot
         // TODO: better yet, we can do it outside the constructor
         this.metaData = fillMetaData(metaDataCopy);
+    }
+
+    public static <K> RocksDBFullSnapshotResources<K> create(
+            final LinkedHashMap<String, RocksDBKeyedStateBackend.RocksDbKvStateInfo>
+                    kvStateInformation,
+            final LinkedHashMap<String, HeapPriorityQueueSnapshotRestoreWrapper<?>>
+                    registeredPQStates,
+            final RocksDB db,
+            final ResourceGuard rocksDBResourceGuard,
+            final KeyGroupRange keyGroupRange,
+            final TypeSerializer<K> keySerializer,
+            final int keyGroupPrefixBytes,
+            final StreamCompressionDecorator keyGroupCompressionDecorator)
+            throws IOException {
+
+        final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots =
+                new ArrayList<>(kvStateInformation.size());
+        final List<RocksDBKeyedStateBackend.RocksDbKvStateInfo> metaDataCopy =
+                new ArrayList<>(kvStateInformation.size());
+
+        for (RocksDBKeyedStateBackend.RocksDbKvStateInfo stateInfo : kvStateInformation.values()) {
+            // snapshot meta info
+            stateMetaInfoSnapshots.add(stateInfo.metaInfo.snapshot());
+            metaDataCopy.add(stateInfo);
+        }
+
+        List<HeapPriorityQueueStateSnapshot<?>> heapPriorityQueuesSnapshots =
+                new ArrayList<>(registeredPQStates.size());
+        for (HeapPriorityQueueSnapshotRestoreWrapper<?> stateInfo : registeredPQStates.values()) {
+            stateMetaInfoSnapshots.add(stateInfo.getMetaInfo().snapshot());
+            heapPriorityQueuesSnapshots.add(stateInfo.stateSnapshot());
+        }
+
+        final ResourceGuard.Lease lease = rocksDBResourceGuard.acquireResource();
+        final Snapshot snapshot = db.getSnapshot();
+
+        return new RocksDBFullSnapshotResources<>(
+                lease,
+                snapshot,
+                metaDataCopy,
+                heapPriorityQueuesSnapshots,
+                stateMetaInfoSnapshots,
+                db,
+                keyGroupPrefixBytes,
+                keyGroupRange,
+                keySerializer,
+                keyGroupCompressionDecorator);
     }
 
     private List<MetaData> fillMetaData(
