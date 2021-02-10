@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler.declarative;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.CheckpointingOptions;
@@ -106,15 +107,16 @@ abstract class StateWithExecutionGraph implements State {
                                 context.getMainThreadExecutor()));
     }
 
+    @VisibleForTesting
     ExecutionGraph getExecutionGraph() {
         return executionGraph;
     }
 
-    OperatorCoordinatorHandler getOperatorCoordinatorHandler() {
+    protected OperatorCoordinatorHandler getOperatorCoordinatorHandler() {
         return operatorCoordinatorHandler;
     }
 
-    ExecutionGraphHandler getExecutionGraphHandler() {
+    protected ExecutionGraphHandler getExecutionGraphHandler() {
         return executionGraphHandler;
     }
 
