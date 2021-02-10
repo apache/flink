@@ -18,21 +18,36 @@
 
 package org.apache.flink.runtime.scheduler.declarative;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.blob.VoidBlobWriter;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.JobInformation;
+import org.apache.flink.runtime.executiongraph.NoOpExecutionDeploymentListener;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
-import org.apache.flink.runtime.executiongraph.TestingExecutionGraphBuilder;
+import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategyFactoryLoader;
+import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
+import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.InternalFailuresListener;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
+
+import java.io.IOException;
+import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
@@ -43,33 +58,34 @@ public class CancelingTest extends TestLogger {
     @Test
     public void testExecutionGraphCancelationOnEnter() throws Exception {
         try (MockStateWithExecutionGraphContext ctx = new MockStateWithExecutionGraphContext()) {
-            RestartingTest.CancellableExecutionGraph cancellableExecutionGraph =
-                    new RestartingTest.CancellableExecutionGraph();
-            Canceling canceling = createCancelingState(ctx, cancellableExecutionGraph);
+            MockExecutionGraph mockExecutionGraph = new MockExecutionGraph();
+            Canceling canceling = createCancelingState(ctx, mockExecutionGraph);
 
-            canceling.onEnter();
-            assertThat(cancellableExecutionGraph.isCancelled(), is(true));
+            canceling.onEnter(); // transition of EG from RUNNING to CANCELLING
+            assertThat(mockExecutionGraph.getState(), is(JobStatus.CANCELLING));
         }
     }
 
     @Test
     public void testTransitionToFinishedWhenCancellationCompletes() throws Exception {
         try (MockStateWithExecutionGraphContext ctx = new MockStateWithExecutionGraphContext()) {
-            Canceling canceling = createCancelingState(ctx);
-
+            MockExecutionGraph mockExecutionGraph = new MockExecutionGraph();
+            Canceling canceling = createCancelingState(ctx, mockExecutionGraph);
+            canceling.onEnter(); // transition of EG from RUNNING to CANCELLING
+            assertThat(mockExecutionGraph.getState(), is(JobStatus.CANCELLING));
             ctx.setExpectFinished(
                     archivedExecutionGraph ->
                             assertThat(archivedExecutionGraph.getState(), is(JobStatus.CANCELED)));
-            canceling
-                    .getExecutionGraph()
-                    .cancel(); // this calls onTerminalState.onGloballyTerminal()
+
+            // this transitions the EG from CANCELLING to CANCELLED.
+            mockExecutionGraph.completeCancellation();
         }
     }
 
     @Test
     public void testTransitionToSuspend() throws Exception {
         try (MockStateWithExecutionGraphContext ctx = new MockStateWithExecutionGraphContext()) {
-            Canceling canceling = createCancelingState(ctx);
+            Canceling canceling = createCancelingState(ctx, new MockExecutionGraph());
             canceling.onEnter();
             ctx.setExpectFinished(
                     archivedExecutionGraph ->
@@ -81,7 +97,8 @@ public class CancelingTest extends TestLogger {
     @Test
     public void testCancelIsIgnored() throws Exception {
         try (MockStateWithExecutionGraphContext ctx = new MockStateWithExecutionGraphContext()) {
-            Canceling canceling = createCancelingState(ctx);
+            Canceling canceling = createCancelingState(ctx, new MockExecutionGraph());
+            canceling.onEnter();
             canceling.cancel();
             ctx.assertNoStateTransition();
         }
@@ -90,7 +107,8 @@ public class CancelingTest extends TestLogger {
     @Test
     public void testGlobalFailuresAreIgnored() throws Exception {
         try (MockStateWithExecutionGraphContext ctx = new MockStateWithExecutionGraphContext()) {
-            Canceling canceling = createCancelingState(ctx);
+            Canceling canceling = createCancelingState(ctx, new MockExecutionGraph());
+            canceling.onEnter();
             canceling.handleGlobalFailure(new RuntimeException("test"));
             ctx.assertNoStateTransition();
         }
@@ -99,7 +117,8 @@ public class CancelingTest extends TestLogger {
     @Test
     public void testTaskFailuresAreIgnored() throws Exception {
         try (MockStateWithExecutionGraphContext ctx = new MockStateWithExecutionGraphContext()) {
-            Canceling canceling = createCancelingState(ctx);
+            Canceling canceling = createCancelingState(ctx, new MockExecutionGraph());
+            canceling.onEnter();
             // register execution at EG
             ExecutingTest.MockExecutionJobVertex ejv =
                     new ExecutingTest.MockExecutionJobVertex(canceling.getExecutionGraph());
@@ -115,11 +134,6 @@ public class CancelingTest extends TestLogger {
             canceling.updateTaskExecutionState(update);
             ctx.assertNoStateTransition();
         }
-    }
-
-    private Canceling createCancelingState(MockStateWithExecutionGraphContext ctx)
-            throws JobException, JobExecutionException {
-        return createCancelingState(ctx, TestingExecutionGraphBuilder.newBuilder().build());
     }
 
     private Canceling createCancelingState(
@@ -168,6 +182,62 @@ public class CancelingTest extends TestLogger {
         @Override
         public void notifyGlobalFailure(Throwable t) {
             canceling.handleGlobalFailure(t);
+        }
+    }
+
+    /**
+     * Mocked ExecutionGraph, which stays in CANCELLING, when cancel() gets called, until the
+     * "completeCancellationFuture" is completed.
+     */
+    private static class MockExecutionGraph extends ExecutionGraph {
+
+        private CompletableFuture<?> completeCancellationFuture = new CompletableFuture<>();
+        private boolean isCancelling = false;
+
+        public MockExecutionGraph() throws IOException {
+            super(
+                    new JobInformation(
+                            new JobID(),
+                            "Test Job",
+                            new SerializedValue<>(new ExecutionConfig()),
+                            new Configuration(),
+                            Collections.emptyList(),
+                            Collections.emptyList()),
+                    TestingUtils.defaultExecutor(),
+                    TestingUtils.defaultExecutor(),
+                    AkkaUtils.getDefaultTimeout(),
+                    1,
+                    ExecutionGraph.class.getClassLoader(),
+                    VoidBlobWriter.getInstance(),
+                    PartitionReleaseStrategyFactoryLoader.loadPartitionReleaseStrategyFactory(
+                            new Configuration()),
+                    NettyShuffleMaster.INSTANCE,
+                    NoOpJobMasterPartitionTracker.INSTANCE,
+                    ScheduleMode.EAGER,
+                    NoOpExecutionDeploymentListener.get(),
+                    (execution, newState) -> {},
+                    0L);
+            this.setJsonPlan(""); // field must not be null for ArchivedExecutionGraph creation
+        }
+
+        void completeCancellation() {
+            completeCancellationFuture.complete(null);
+        }
+
+        public boolean isCancelling() {
+            return isCancelling;
+        }
+
+        // overwrites for the tests
+        @Override
+        public void cancel() {
+            super.cancel();
+            this.isCancelling = true;
+        }
+
+        @Override
+        protected FutureUtils.ConjunctFuture<Void> cancelVerticesAsync() {
+            return FutureUtils.completeAll(Collections.singleton(completeCancellationFuture));
         }
     }
 }
