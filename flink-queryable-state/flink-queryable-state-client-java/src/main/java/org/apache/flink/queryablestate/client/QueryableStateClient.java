@@ -115,6 +115,9 @@ public class QueryableStateClient {
     /** The execution configuration used to instantiate the different (de-)serializers. */
     private ExecutionConfig executionConfig;
 
+    /** The user code classloader, used in loading serializers. */
+    private ClassLoader userClassLoader;
+
     /**
      * Create the Queryable State Client.
      *
@@ -194,6 +197,18 @@ public class QueryableStateClient {
     public ExecutionConfig setExecutionConfig(ExecutionConfig config) {
         ExecutionConfig prev = executionConfig;
         this.executionConfig = config;
+        return prev;
+    }
+
+    /**
+     * * Replaces the existing {@link ClassLoader} (possibly {@code null}), with the provided one.
+     *
+     * @param userClassLoader The new {@code userClassLoader}.
+     * @return The old classloader, or {@code null} if none was specified.
+     */
+    public ClassLoader setUserClassLoader(ClassLoader userClassLoader) {
+        ClassLoader prev = this.userClassLoader;
+        this.userClassLoader = userClassLoader;
         return prev;
     }
 
@@ -293,12 +308,15 @@ public class QueryableStateClient {
             return FutureUtils.getFailedFuture(e);
         }
 
-        ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
+        ClassLoader classLoaderToUse =
+                userClassLoader != null
+                        ? userClassLoader
+                        : Thread.currentThread().getContextClassLoader();
         return getKvState(jobId, queryableStateName, key.hashCode(), serializedKeyAndNamespace)
                 .thenApply(
                         stateResponse ->
                                 LambdaUtil.withContextClassLoader(
-                                        contextLoader,
+                                        classLoaderToUse,
                                         () -> createState(stateResponse, stateDescriptor)));
     }
 
