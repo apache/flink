@@ -106,9 +106,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
      * The snapshot strategy for this backend. This determines, e.g., if snapshots are synchronous
      * or asynchronous.
      */
-    private final SnapshotStrategyRunner<KeyedStateHandle, ?> checkpointStrategyRunner;
-
-    private final SnapshotStrategyRunner<KeyedStateHandle, ?> savepointStrategyRunner;
+    private final SnapshotStrategyRunner<KeyedStateHandle, ?> snapshotStrategyRunner;
 
     private final StateTableFactory<K> stateTableFactory;
 
@@ -127,8 +125,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates,
             LocalRecoveryConfig localRecoveryConfig,
             HeapPriorityQueueSetFactory priorityQueueSetFactory,
-            SnapshotStrategyRunner<KeyedStateHandle, ?> checkpointStrategyRunner,
-            SnapshotStrategyRunner<KeyedStateHandle, ?> savepointStrategyRunner,
+            SnapshotStrategyRunner<KeyedStateHandle, ?> snapshotStrategyRunner,
             StateTableFactory<K> stateTableFactory,
             InternalKeyContext<K> keyContext) {
         super(
@@ -144,8 +141,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         this.registeredPQStates = registeredPQStates;
         this.localRecoveryConfig = localRecoveryConfig;
         this.priorityQueueSetFactory = priorityQueueSetFactory;
-        this.checkpointStrategyRunner = checkpointStrategyRunner;
-        this.savepointStrategyRunner = savepointStrategyRunner;
+        this.snapshotStrategyRunner = snapshotStrategyRunner;
         this.stateTableFactory = stateTableFactory;
         LOG.info("Initializing heap keyed state backend with stream factory.");
     }
@@ -360,13 +356,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             @Nonnull CheckpointOptions checkpointOptions)
             throws Exception {
 
-        if (checkpointOptions.getCheckpointType().isSavepoint()) {
-            return savepointStrategyRunner.snapshot(
-                    checkpointId, timestamp, streamFactory, checkpointOptions);
-        } else {
-            return checkpointStrategyRunner.snapshot(
-                    checkpointId, timestamp, streamFactory, checkpointOptions);
-        }
+        return snapshotStrategyRunner.snapshot(
+                checkpointId, timestamp, streamFactory, checkpointOptions);
     }
 
     @Override

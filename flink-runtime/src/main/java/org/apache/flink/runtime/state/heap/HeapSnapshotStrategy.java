@@ -30,20 +30,26 @@ import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
+import org.apache.flink.runtime.state.SnapshotResources;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.SnapshotStrategy;
 import org.apache.flink.runtime.state.StateSerializerProvider;
 import org.apache.flink.runtime.state.StateSnapshot;
+import org.apache.flink.runtime.state.StateSnapshotRestore;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.SupplierWithException;
 
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -54,7 +60,7 @@ import static org.apache.flink.runtime.state.CheckpointStreamWithResultProvider.
 
 /** A strategy how to perform a snapshot of a {@link HeapKeyedStateBackend}. */
 class HeapSnapshotStrategy<K>
-        implements SnapshotStrategy<KeyedStateHandle, HeapSnapshotResources<K>> {
+        implements SnapshotStrategy<KeyedStateHandle, HeapSnapshotStrategy.HeapSnapshotResources> {
 
     private final Map<String, StateTable<K, ?, ?>> registeredKVStates;
     private final Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates;
@@ -62,7 +68,6 @@ class HeapSnapshotStrategy<K>
     private final LocalRecoveryConfig localRecoveryConfig;
     private final KeyGroupRange keyGroupRange;
     private final StateSerializerProvider<K> keySerializerProvider;
-    private final int totalKeyGroups;
 
     HeapSnapshotStrategy(
             Map<String, StateTable<K, ?, ?>> registeredKVStates,
@@ -70,31 +75,58 @@ class HeapSnapshotStrategy<K>
             StreamCompressionDecorator keyGroupCompressionDecorator,
             LocalRecoveryConfig localRecoveryConfig,
             KeyGroupRange keyGroupRange,
-            StateSerializerProvider<K> keySerializerProvider,
-            int totalKeyGroups) {
+            StateSerializerProvider<K> keySerializerProvider) {
         this.registeredKVStates = registeredKVStates;
         this.registeredPQStates = registeredPQStates;
         this.keyGroupCompressionDecorator = keyGroupCompressionDecorator;
         this.localRecoveryConfig = localRecoveryConfig;
         this.keyGroupRange = keyGroupRange;
         this.keySerializerProvider = keySerializerProvider;
-        this.totalKeyGroups = totalKeyGroups;
     }
 
     @Override
-    public HeapSnapshotResources<K> syncPrepareResources(long checkpointId) {
-        return HeapSnapshotResources.create(
+    public HeapSnapshotResources syncPrepareResources(long checkpointId) {
+
+        if (!hasRegisteredState()) {
+            return new HeapSnapshotResources(
+                    Collections.emptyList(), Collections.emptyMap(), Collections.emptyMap());
+        }
+
+        int numStates = registeredKVStates.size() + registeredPQStates.size();
+
+        Preconditions.checkState(
+                numStates <= Short.MAX_VALUE,
+                "Too many states: "
+                        + numStates
+                        + ". Currently at most "
+                        + Short.MAX_VALUE
+                        + " states are supported");
+
+        final List<StateMetaInfoSnapshot> metaInfoSnapshots = new ArrayList<>(numStates);
+        final Map<StateUID, Integer> stateNamesToId = new HashMap<>(numStates);
+        final Map<StateUID, StateSnapshot> cowStateStableSnapshots = new HashMap<>(numStates);
+
+        processSnapshotMetaInfoForAllStates(
+                metaInfoSnapshots,
+                cowStateStableSnapshots,
+                stateNamesToId,
                 registeredKVStates,
+                StateMetaInfoSnapshot.BackendStateType.KEY_VALUE);
+
+        processSnapshotMetaInfoForAllStates(
+                metaInfoSnapshots,
+                cowStateStableSnapshots,
+                stateNamesToId,
                 registeredPQStates,
-                keyGroupCompressionDecorator,
-                keyGroupRange,
-                getKeySerializer(),
-                totalKeyGroups);
+                StateMetaInfoSnapshot.BackendStateType.PRIORITY_QUEUE);
+
+        return new HeapSnapshotResources(
+                metaInfoSnapshots, cowStateStableSnapshots, stateNamesToId);
     }
 
     @Override
     public SnapshotResultSupplier<KeyedStateHandle> asyncSnapshot(
-            HeapSnapshotResources<K> syncPartResource,
+            HeapSnapshotResources syncPartResource,
             long checkpointId,
             long timestamp,
             @Nonnull CheckpointStreamFactory streamFactory,
@@ -110,7 +142,7 @@ class HeapSnapshotStrategy<K>
                         // TODO: this code assumes that writing a serializer is threadsafe, we
                         // should support to
                         // get a serialized form already at state registration time in the future
-                        syncPartResource.getKeySerializer(),
+                        getKeySerializer(),
                         metaInfoSnapshots,
                         !Objects.equals(
                                 UncompressedStreamCompressionDecorator.INSTANCE,
@@ -182,7 +214,65 @@ class HeapSnapshotStrategy<K>
         };
     }
 
+    private void processSnapshotMetaInfoForAllStates(
+            List<StateMetaInfoSnapshot> metaInfoSnapshots,
+            Map<StateUID, StateSnapshot> cowStateStableSnapshots,
+            Map<StateUID, Integer> stateNamesToId,
+            Map<String, ? extends StateSnapshotRestore> registeredStates,
+            StateMetaInfoSnapshot.BackendStateType stateType) {
+
+        for (Map.Entry<String, ? extends StateSnapshotRestore> kvState :
+                registeredStates.entrySet()) {
+            final StateUID stateUid = StateUID.of(kvState.getKey(), stateType);
+            stateNamesToId.put(stateUid, stateNamesToId.size());
+            StateSnapshotRestore state = kvState.getValue();
+            if (null != state) {
+                final StateSnapshot stateSnapshot = state.stateSnapshot();
+                metaInfoSnapshots.add(stateSnapshot.getMetaInfoSnapshot());
+                cowStateStableSnapshots.put(stateUid, stateSnapshot);
+            }
+        }
+    }
+
+    private boolean hasRegisteredState() {
+        return !(registeredKVStates.isEmpty() && registeredPQStates.isEmpty());
+    }
+
     public TypeSerializer<K> getKeySerializer() {
         return keySerializerProvider.currentSchemaSerializer();
+    }
+
+    static class HeapSnapshotResources implements SnapshotResources {
+        private final List<StateMetaInfoSnapshot> metaInfoSnapshots;
+        private final Map<StateUID, StateSnapshot> cowStateStableSnapshots;
+        private final Map<StateUID, Integer> stateNamesToId;
+
+        HeapSnapshotResources(
+                @Nonnull List<StateMetaInfoSnapshot> metaInfoSnapshots,
+                @Nonnull Map<StateUID, StateSnapshot> cowStateStableSnapshots,
+                @Nonnull Map<StateUID, Integer> stateNamesToId) {
+            this.metaInfoSnapshots = metaInfoSnapshots;
+            this.cowStateStableSnapshots = cowStateStableSnapshots;
+            this.stateNamesToId = stateNamesToId;
+        }
+
+        @Override
+        public void release() {
+            for (StateSnapshot stateSnapshot : cowStateStableSnapshots.values()) {
+                stateSnapshot.release();
+            }
+        }
+
+        public List<StateMetaInfoSnapshot> getMetaInfoSnapshots() {
+            return metaInfoSnapshots;
+        }
+
+        public Map<StateUID, StateSnapshot> getCowStateStableSnapshots() {
+            return cowStateStableSnapshots;
+        }
+
+        public Map<StateUID, Integer> getStateNamesToId() {
+            return stateNamesToId;
+        }
     }
 }
