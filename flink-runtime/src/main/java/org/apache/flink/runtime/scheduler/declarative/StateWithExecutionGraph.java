@@ -184,6 +184,14 @@ abstract class StateWithExecutionGraph implements State {
         executionGraphHandler.declineCheckpoint(decline);
     }
 
+    void reportCheckpointMetrics(
+            ExecutionAttemptID executionAttemptID,
+            long checkpointId,
+            CheckpointMetrics checkpointMetrics) {
+        executionGraphHandler.reportCheckpointMetrics(
+                executionAttemptID, checkpointId, checkpointMetrics);
+    }
+
     void updateAccumulators(AccumulatorSnapshot accumulatorSnapshot) {
         executionGraph.updateAccumulators(accumulatorSnapshot);
     }
