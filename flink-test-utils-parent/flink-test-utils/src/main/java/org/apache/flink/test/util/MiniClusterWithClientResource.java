@@ -60,6 +60,7 @@ public class MiniClusterWithClientResource extends MiniClusterResource {
 
     @Override
     public void after() {
+        log.info("Finalization triggered: Cluster shutdown is going to be initiated.");
         TestStreamEnvironment.unsetAsContext();
         TestEnvironment.unsetAsContext();
 
