@@ -34,7 +34,7 @@ class MockStateWithExecutionGraphContext implements StateWithExecutionGraph.Cont
             new StateValidator<>("Finished");
 
     private final ManuallyTriggeredComponentMainThreadExecutor executor =
-            new ManuallyTriggeredComponentMainThreadExecutor();
+            new ManuallyTriggeredComponentMainThreadExecutor(Thread.currentThread());
 
     protected boolean hadStateTransition = false;
 

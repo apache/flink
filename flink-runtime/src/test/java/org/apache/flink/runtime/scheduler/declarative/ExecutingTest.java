@@ -156,49 +156,6 @@ public class ExecutingTest extends TestLogger {
     }
 
     @Test
-    public void testEnsureOnlyGlobalTerminalStateCallbacksNoCall() throws Exception {
-        // modify MockExecutingContext to disable the "runIfState()" check
-        MockExecutingContext ctx =
-                new MockExecutingContext() {
-                    @Override
-                    public void runIfState(State expectedState, Runnable action) {
-                        action.run();
-                    }
-                };
-        MockedExecuting exec = new ExecutingStateBuilder().build(ctx);
-
-        ctx.setExpectFinished(
-                archivedExecutionGraph ->
-                        assertThat(archivedExecutionGraph.getState(), is(JobStatus.SUSPENDED)));
-        exec.onEnter();
-        exec.suspend(
-                new RuntimeException("suspend")); // trigger transition to non-global terminal state
-        ctx.close(); // manually close context to trigger callbacks
-
-        assertThat(exec.isOnGloballyTerminalStateCalled(), is(false));
-    }
-
-    @Test
-    public void testEnsureOnlyGlobalTerminalStateCallbacksWithCall() throws Exception {
-        // modify MockExecutingContext to disable the "runIfState()" check
-        MockExecutingContext ctx =
-                new MockExecutingContext() {
-                    @Override
-                    public void runIfState(State expectedState, Runnable action) {
-                        action.run();
-                    }
-                };
-        MockedExecuting exec = new ExecutingStateBuilder().build(ctx);
-        ctx.setExpectFinished(
-                archivedExecutionGraph ->
-                        assertThat(archivedExecutionGraph.getState(), is(JobStatus.FAILED)));
-        exec.getExecutionGraph()
-                .failJob(new RuntimeException()); // trigger transition to global terminal state
-        ctx.close(); // manually close context to trigger callbacks
-        assertThat(exec.isOnGloballyTerminalStateCalled(), is(true));
-    }
-
-    @Test
     public void testTransitionToFinishedOnSuspend() throws Exception {
         try (MockExecutingContext ctx = new MockExecutingContext()) {
             Executing exec = new ExecutingStateBuilder().build(ctx);
@@ -334,7 +291,7 @@ public class ExecutingTest extends TestLogger {
             return this;
         }
 
-        private MockedExecuting build(MockExecutingContext ctx) {
+        private Executing build(MockExecutingContext ctx) {
             executionGraph.transitionToRunning();
             final ExecutionGraphHandler executionGraphHandler =
                     new ExecutionGraphHandler(
@@ -343,43 +300,13 @@ public class ExecutingTest extends TestLogger {
                             ctx.getMainThreadExecutor(),
                             ctx.getMainThreadExecutor());
 
-            return new MockedExecuting(
+            return new Executing(
                     executionGraph,
                     executionGraphHandler,
                     operatorCoordinatorHandler,
                     log,
                     ctx,
                     ClassLoader.getSystemClassLoader());
-        }
-    }
-
-    private static class MockedExecuting extends Executing {
-        private boolean onGloballyTerminalStateCalled = false;
-
-        MockedExecuting(
-                ExecutionGraph executionGraph,
-                ExecutionGraphHandler executionGraphHandler,
-                OperatorCoordinatorHandler operatorCoordinatorHandler,
-                Logger logger,
-                Context context,
-                ClassLoader userCodeClassLoader) {
-            super(
-                    executionGraph,
-                    executionGraphHandler,
-                    operatorCoordinatorHandler,
-                    logger,
-                    context,
-                    userCodeClassLoader);
-        }
-
-        @Override
-        void onGloballyTerminalState(JobStatus terminalState) {
-            super.onGloballyTerminalState(terminalState);
-            onGloballyTerminalStateCalled = true;
-        }
-
-        public boolean isOnGloballyTerminalStateCalled() {
-            return onGloballyTerminalStateCalled;
         }
     }
 

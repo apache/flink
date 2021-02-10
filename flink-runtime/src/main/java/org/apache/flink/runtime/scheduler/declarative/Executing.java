@@ -104,7 +104,7 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
     }
 
     @Override
-    void onGloballyTerminalState(JobStatus terminalState) {
+    void onGloballyTerminalState(JobStatus globallyTerminalState) {
         context.goToFinished(ArchivedExecutionGraph.createFrom(getExecutionGraph()));
     }
 

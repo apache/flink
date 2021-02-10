@@ -305,11 +305,11 @@ abstract class StateWithExecutionGraph implements State {
             TaskExecutionStateTransition taskExecutionStateTransition);
 
     /**
-     * Callback which is called once the execution graph reaches a terminal state.
+     * Callback which is called once the execution graph reaches a globally terminal state.
      *
-     * @param terminalState terminalState which the execution graph reached
+     * @param globallyTerminalState globally terminal state which the execution graph reached
      */
-    abstract void onGloballyTerminalState(JobStatus terminalState);
+    abstract void onGloballyTerminalState(JobStatus globallyTerminalState);
 
     /** Context of the {@link StateWithExecutionGraph} state. */
     interface Context {
