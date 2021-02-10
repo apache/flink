@@ -72,7 +72,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.LambdaUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
@@ -425,11 +424,13 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
             jobGraph.setClasspaths(Arrays.asList(userClassLoader.getURLs()));
 
             clusterClient.submitJob(jobGraph).get();
-            LambdaUtil.withContextClassLoader(
-                    userClassLoader,
-                    () ->
-                            executeValueQuery(
-                                    deadline, client, jobId, stateName, valueState, numElements));
+
+            try {
+                client.setUserClassLoader(userClassLoader);
+                executeValueQuery(deadline, client, jobId, stateName, valueState, numElements);
+            } finally {
+                client.setUserClassLoader(null);
+            }
         }
     }
 
@@ -1483,7 +1484,6 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
         if (!resultFuture.isDone()) {
             CompletableFuture<S> expected =
                     client.getKvState(jobId, queryName, key, keyTypeInfo, stateDescriptor);
-            ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
             expected.whenCompleteAsync(
                     (result, throwable) -> {
                         if (throwable != null) {
@@ -1494,20 +1494,17 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
                                                     instanceof UnknownKeyOrNamespaceException)) {
                                 resultFuture.completeExceptionally(throwable.getCause());
                             } else if (deadline.hasTimeLeft()) {
-                                LambdaUtil.withContextClassLoader(
-                                        contextLoader,
-                                        () ->
-                                                getKvStateIgnoringCertainExceptions(
-                                                        deadline,
-                                                        resultFuture,
-                                                        client,
-                                                        jobId,
-                                                        queryName,
-                                                        key,
-                                                        keyTypeInfo,
-                                                        stateDescriptor,
-                                                        failForUnknownKeyOrNamespace,
-                                                        executor));
+                                getKvStateIgnoringCertainExceptions(
+                                        deadline,
+                                        resultFuture,
+                                        client,
+                                        jobId,
+                                        queryName,
+                                        key,
+                                        keyTypeInfo,
+                                        stateDescriptor,
+                                        failForUnknownKeyOrNamespace,
+                                        executor);
                             }
                         } else {
                             resultFuture.complete(result);
