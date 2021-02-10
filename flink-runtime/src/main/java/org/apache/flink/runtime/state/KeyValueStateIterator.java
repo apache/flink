@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.state;
 
-import java.io.IOException;
-
 /**
  * Iterator that over all key-value state entries in a {@link KeyedStateBackend}. For use during
  * snapshotting.
@@ -33,7 +31,7 @@ public interface KeyValueStateIterator extends AutoCloseable {
      * Advances the iterator. Should only be called if {@link #isValid()} returned true. Valid flag
      * can only change after calling {@link #next()}.
      */
-    void next() throws IOException;
+    void next();
 
     /** Returns the key-group for the current key. */
     int keyGroup();
