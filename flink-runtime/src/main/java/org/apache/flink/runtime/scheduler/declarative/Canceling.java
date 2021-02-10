@@ -63,7 +63,7 @@ class Canceling extends StateWithExecutionGraph {
     }
 
     @Override
-    void onTerminalState(JobStatus terminalState) {
+    void onGloballyTerminalState(JobStatus terminalState) {
         context.goToFinished(ArchivedExecutionGraph.createFrom(getExecutionGraph()));
     }
 }

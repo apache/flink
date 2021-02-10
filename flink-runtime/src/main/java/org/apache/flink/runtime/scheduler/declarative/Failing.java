@@ -68,7 +68,7 @@ class Failing extends StateWithExecutionGraph {
     }
 
     @Override
-    void onTerminalState(JobStatus terminalState) {
+    void onGloballyTerminalState(JobStatus terminalState) {
         Preconditions.checkState(terminalState == JobStatus.FAILED);
         context.goToFinished(ArchivedExecutionGraph.createFrom(getExecutionGraph()));
     }
