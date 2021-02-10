@@ -32,22 +32,17 @@ import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSnapshotRestoreWrapper;
-import org.apache.flink.runtime.state.heap.HeapPriorityQueueStateSnapshot;
-import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.ResourceGuard;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.rocksdb.RocksDB;
-import org.rocksdb.Snapshot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 
 /**
  * Snapshot strategy to create full snapshots of {@link
@@ -97,37 +92,14 @@ public class RocksFullSnapshotStrategy<K>
 
     @Override
     public FullSnapshotResources<K> syncPrepareResources(long checkpointId) throws Exception {
-
-        final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots =
-                new ArrayList<>(kvStateInformation.size());
-        final List<RocksDbKvStateInfo> metaDataCopy = new ArrayList<>(kvStateInformation.size());
-
-        for (RocksDbKvStateInfo stateInfo : kvStateInformation.values()) {
-            // snapshot meta info
-            stateMetaInfoSnapshots.add(stateInfo.metaInfo.snapshot());
-            metaDataCopy.add(stateInfo);
-        }
-
-        List<HeapPriorityQueueStateSnapshot<?>> heapPriorityQueuesSnapshots =
-                new ArrayList<>(registeredPQStates.size());
-        for (HeapPriorityQueueSnapshotRestoreWrapper<?> stateInfo : registeredPQStates.values()) {
-            stateMetaInfoSnapshots.add(stateInfo.getMetaInfo().snapshot());
-            heapPriorityQueuesSnapshots.add(stateInfo.stateSnapshot());
-        }
-
-        final ResourceGuard.Lease lease = rocksDBResourceGuard.acquireResource();
-        final Snapshot snapshot = db.getSnapshot();
-
-        return new RocksDBFullSnapshotResources<>(
-                lease,
-                snapshot,
-                metaDataCopy,
-                heapPriorityQueuesSnapshots,
-                stateMetaInfoSnapshots,
+        return RocksDBFullSnapshotResources.create(
+                kvStateInformation,
+                registeredPQStates,
                 db,
-                keyGroupPrefixBytes,
+                rocksDBResourceGuard,
                 keyGroupRange,
                 keySerializer,
+                keyGroupPrefixBytes,
                 keyGroupCompressionDecorator);
     }
 
