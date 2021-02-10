@@ -36,6 +36,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.RowKind;
 
 import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
@@ -367,6 +368,84 @@ public class Elasticsearch6DynamicSinkITCase {
         expectedMap.put("a", 1);
         expectedMap.put("b", "2012-12-12 12:12:12");
         assertThat(response, equalTo(expectedMap));
+    }
+
+    @Test
+    public void testWritingDocumentsWithRouting() throws Exception {
+        TableSchema schema =
+                TableSchema.builder()
+                        .field("a", DataTypes.BIGINT().notNull())
+                        .field("b", DataTypes.TIME())
+                        .field("c", DataTypes.STRING().notNull())
+                        .field("d", DataTypes.FLOAT())
+                        .field("e", DataTypes.TINYINT().notNull())
+                        .field("f", DataTypes.DATE())
+                        .field("g", DataTypes.TIMESTAMP().notNull())
+                        .primaryKey("a", "g")
+                        .build();
+        GenericRowData rowData =
+                GenericRowData.of(
+                        1L,
+                        12345,
+                        StringData.fromString("ABCDE"),
+                        12.12f,
+                        (byte) 2,
+                        12345,
+                        TimestampData.fromLocalDateTime(
+                                LocalDateTime.parse("2012-12-12T12:12:12")));
+
+        String index = "writing-documents";
+        String myType = "MyType";
+        Elasticsearch6DynamicSinkFactory sinkFactory = new Elasticsearch6DynamicSinkFactory();
+
+        SinkFunctionProvider sinkRuntimeProvider =
+                (SinkFunctionProvider)
+                        sinkFactory
+                                .createDynamicTableSink(
+                                        context()
+                                                .withSchema(schema)
+                                                .withOption(
+                                                        ElasticsearchOptions.INDEX_OPTION.key(),
+                                                        index)
+                                                .withOption(
+                                                        ElasticsearchOptions.DOCUMENT_TYPE_OPTION
+                                                                .key(),
+                                                        myType)
+                                                .withOption(
+                                                        ElasticsearchOptions.ROUTING_FILED_NAME
+                                                                .key(),
+                                                        "c")
+                                                .withOption(
+                                                        ElasticsearchOptions.HOSTS_OPTION.key(),
+                                                        elasticsearchContainer.getHttpHostAddress())
+                                                .withOption(
+                                                        ElasticsearchOptions
+                                                                .FLUSH_ON_CHECKPOINT_OPTION
+                                                                .key(),
+                                                        "false")
+                                                .build())
+                                .getSinkRuntimeProvider(new MockContext());
+
+        SinkFunction<RowData> sinkFunction = sinkRuntimeProvider.createSinkFunction();
+        StreamExecutionEnvironment environment =
+                StreamExecutionEnvironment.getExecutionEnvironment();
+        rowData.setRowKind(RowKind.UPDATE_AFTER);
+        environment.<RowData>fromElements(rowData).addSink(sinkFunction);
+        environment.execute();
+
+        Client client = getClient();
+        GetResponse response =
+                client.get(new GetRequest(index, myType, "1_2012-12-12T12:12:12").routing("ABCDE"))
+                        .actionGet();
+        Map<Object, Object> expectedMap = new HashMap<>();
+        expectedMap.put("a", 1);
+        expectedMap.put("b", "00:00:12");
+        expectedMap.put("c", "ABCDE");
+        expectedMap.put("d", 12.12d);
+        expectedMap.put("e", 2);
+        expectedMap.put("f", "2003-10-20");
+        expectedMap.put("g", "2012-12-12 12:12:12");
+        assertThat(response.getSource(), equalTo(expectedMap));
     }
 
     private static class MockContext implements DynamicTableSink.Context {

@@ -75,6 +75,11 @@ public class ElasticsearchOptions {
                     .defaultValue("_")
                     .withDescription(
                             "Delimiter for composite keys e.g., \"$\" would result in IDs \"KEY1$KEY2$KEY3\".");
+    public static final ConfigOption<String> ROUTING_FILED_NAME =
+            ConfigOptions.key("routing.filed-name")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Elasticsearch routing filed.");
     public static final ConfigOption<String> FAILURE_HANDLER_OPTION =
             ConfigOptions.key("failure-handler")
                     .stringType()

@@ -125,6 +125,13 @@ Connector Options
       <td>Delimiter for composite keys ("_" by default), e.g., "$" would result in IDs "KEY1$KEY2$KEY3"."</td>
     </tr>
     <tr>
+      <td><h5>routing.filed-name</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>Using field value in the record to dynamically generate routing filed.</td>
+    </tr>
+    <tr>
       <td><h5>username</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
