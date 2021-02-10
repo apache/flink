@@ -98,8 +98,9 @@ abstract class StateWithExecutionGraph implements State {
                         .getTerminationFuture()
                         .thenAcceptAsync(
                                 jobStatus -> {
-                                    if (jobStatus.isTerminalState()) {
-                                        context.runIfState(this, () -> onTerminalState(jobStatus));
+                                    if (jobStatus.isGloballyTerminalState()) {
+                                        context.runIfState(
+                                                this, () -> onGloballyTerminalState(jobStatus));
                                     }
                                 },
                                 context.getMainThreadExecutor()));
@@ -308,7 +309,7 @@ abstract class StateWithExecutionGraph implements State {
      *
      * @param terminalState terminalState which the execution graph reached
      */
-    abstract void onTerminalState(JobStatus terminalState);
+    abstract void onGloballyTerminalState(JobStatus terminalState);
 
     /** Context of the {@link StateWithExecutionGraph} state. */
     interface Context {

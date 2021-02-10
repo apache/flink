@@ -70,7 +70,7 @@ public class RestartingTest extends TestLogger {
         try (MockRestartingContext ctx = new MockRestartingContext()) {
             Restarting restarting = createRestartingState(ctx);
             ctx.setExpectWaitingForResources();
-            restarting.onTerminalState(JobStatus.CANCELED);
+            restarting.onGloballyTerminalState(JobStatus.CANCELED);
         }
     }
 

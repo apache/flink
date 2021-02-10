@@ -22,15 +22,11 @@ package org.apache.flink.runtime.concurrent;
 public class ManuallyTriggeredComponentMainThreadExecutor
         extends ManuallyTriggeredScheduledExecutorService implements ComponentMainThreadExecutor {
 
-    private Thread executorThread = null;
+    private final Thread executorThread = Thread.currentThread();
 
     @Override
     public void assertRunningInMainThread() {
-        Thread actual = Thread.currentThread();
-        if (executorThread == null) {
-            executorThread = actual;
-        }
-        assert actual == executorThread;
+        assert Thread.currentThread() == executorThread;
     }
 
     @Override

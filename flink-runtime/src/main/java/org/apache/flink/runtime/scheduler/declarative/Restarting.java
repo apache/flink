@@ -74,7 +74,7 @@ class Restarting extends StateWithExecutionGraph {
     }
 
     @Override
-    void onTerminalState(JobStatus terminalState) {
+    void onGloballyTerminalState(JobStatus terminalState) {
         if (terminalState == JobStatus.CANCELED) {
             context.runIfState(this, context::goToWaitingForResources, backoffTime);
         }
