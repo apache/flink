@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.metadata
 
-import org.apache.flink.table.catalog.AbstractCatalogTable
+import org.apache.flink.table.catalog.CatalogTable
 import org.apache.flink.table.planner._
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -77,7 +77,7 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
       case sourceTable: TableSourceTable =>
         val catalogTable = sourceTable.catalogTable
         catalogTable match {
-          case act: AbstractCatalogTable =>
+          case act: CatalogTable =>
             val schema = act.getSchema
             if (schema.getPrimaryKey.isPresent) {
               val columns = schema.getFieldNames
