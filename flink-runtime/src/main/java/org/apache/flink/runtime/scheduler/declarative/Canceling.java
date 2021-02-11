@@ -40,10 +40,7 @@ class Canceling extends StateWithExecutionGraph {
             Logger logger) {
         super(context, executionGraph, executionGraphHandler, operatorCoordinatorHandler, logger);
         this.context = context;
-    }
 
-    @Override
-    public void onEnter() {
         getExecutionGraph().cancel();
     }
 

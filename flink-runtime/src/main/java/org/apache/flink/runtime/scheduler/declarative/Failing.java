@@ -32,8 +32,6 @@ import org.slf4j.Logger;
 class Failing extends StateWithExecutionGraph {
     private final Context context;
 
-    private final Throwable failureCause;
-
     Failing(
             Context context,
             ExecutionGraph executionGraph,
@@ -43,11 +41,7 @@ class Failing extends StateWithExecutionGraph {
             Throwable failureCause) {
         super(context, executionGraph, executionGraphHandler, operatorCoordinatorHandler, logger);
         this.context = context;
-        this.failureCause = failureCause;
-    }
 
-    @Override
-    public void onEnter() {
         getExecutionGraph().failJob(failureCause);
     }
 

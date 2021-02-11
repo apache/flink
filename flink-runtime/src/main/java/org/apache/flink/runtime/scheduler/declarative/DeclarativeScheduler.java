@@ -119,6 +119,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 /** Declarative scheduler. */
 public class DeclarativeScheduler
@@ -685,7 +686,8 @@ public class DeclarativeScheduler
 
         // TODO: add resourceTimeout parameter
         transitionToState(
-                new WaitingForResources(this, LOG, desiredResources, Duration.ofSeconds(10)));
+                () -> new WaitingForResources(this, LOG, desiredResources, Duration.ofSeconds(10)),
+                WaitingForResources.class);
     }
 
     private ResourceCounter calculateDesiredResources() {
@@ -703,13 +705,15 @@ public class DeclarativeScheduler
         operatorCoordinatorHandler.startAllOperatorCoordinators();
 
         transitionToState(
-                new Executing(
-                        executionGraph,
-                        executionGraphHandler,
-                        operatorCoordinatorHandler,
-                        LOG,
-                        this,
-                        userCodeClassLoader));
+                () ->
+                        new Executing(
+                                executionGraph,
+                                executionGraphHandler,
+                                operatorCoordinatorHandler,
+                                LOG,
+                                this,
+                                userCodeClassLoader),
+                Executing.class);
     }
 
     @Override
@@ -718,12 +722,14 @@ public class DeclarativeScheduler
             ExecutionGraphHandler executionGraphHandler,
             OperatorCoordinatorHandler operatorCoordinatorHandler) {
         transitionToState(
-                new Canceling(
-                        this,
-                        executionGraph,
-                        executionGraphHandler,
-                        operatorCoordinatorHandler,
-                        LOG));
+                () ->
+                        new Canceling(
+                                this,
+                                executionGraph,
+                                executionGraphHandler,
+                                operatorCoordinatorHandler,
+                                LOG),
+                Canceling.class);
     }
 
     @Override
@@ -733,13 +739,15 @@ public class DeclarativeScheduler
             OperatorCoordinatorHandler operatorCoordinatorHandler,
             Duration backoffTime) {
         transitionToState(
-                new Restarting(
-                        this,
-                        executionGraph,
-                        executionGraphHandler,
-                        operatorCoordinatorHandler,
-                        LOG,
-                        backoffTime));
+                () ->
+                        new Restarting(
+                                this,
+                                executionGraph,
+                                executionGraphHandler,
+                                operatorCoordinatorHandler,
+                                LOG,
+                                backoffTime),
+                Restarting.class);
     }
 
     @Override
@@ -749,18 +757,20 @@ public class DeclarativeScheduler
             OperatorCoordinatorHandler operatorCoordinatorHandler,
             Throwable failureCause) {
         transitionToState(
-                new Failing(
-                        this,
-                        executionGraph,
-                        executionGraphHandler,
-                        operatorCoordinatorHandler,
-                        LOG,
-                        failureCause));
+                () ->
+                        new Failing(
+                                this,
+                                executionGraph,
+                                executionGraphHandler,
+                                operatorCoordinatorHandler,
+                                LOG,
+                                failureCause),
+                Failing.class);
     }
 
     @Override
     public void goToFinished(ArchivedExecutionGraph archivedExecutionGraph) {
-        transitionToState(new Finished(this, archivedExecutionGraph, LOG));
+        transitionToState(() -> new Finished(this, archivedExecutionGraph, LOG), Finished.class);
     }
 
     @Override
@@ -887,19 +897,22 @@ public class DeclarativeScheduler
 
     // ----------------------------------------------------------------
 
-    private void transitionToState(State newState) {
-        if (state != newState) {
-            LOG.debug(
-                    "Transition from state {} to {}.",
-                    state.getClass().getSimpleName(),
-                    newState.getClass().getSimpleName());
+    @VisibleForTesting
+    <S extends State> void transitionToState(
+            Supplier<S> stateTransition, Class<S> targetStateClass) {
+        Preconditions.checkState(
+                state.getClass() != targetStateClass,
+                "Attempted to transition into the very state the scheduler is already in.");
 
-            State oldState = state;
-            oldState.onLeave(newState.getClass());
+        LOG.debug(
+                "Transition from state {} to {}.",
+                state.getClass().getSimpleName(),
+                targetStateClass.getSimpleName());
 
-            state = newState;
-            newState.onEnter();
-        }
+        State oldState = state;
+        oldState.onLeave(targetStateClass);
+
+        state = stateTransition.get();
     }
 
     @VisibleForTesting

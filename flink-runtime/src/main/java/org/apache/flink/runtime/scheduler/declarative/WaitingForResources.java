@@ -41,8 +41,6 @@ class WaitingForResources implements State, ResourceConsumer {
 
     private final ResourceCounter desiredResources;
 
-    private final Duration resourceTimeout;
-
     WaitingForResources(
             Context context,
             Logger log,
@@ -51,14 +49,11 @@ class WaitingForResources implements State, ResourceConsumer {
         this.context = Preconditions.checkNotNull(context);
         this.log = Preconditions.checkNotNull(log);
         this.desiredResources = Preconditions.checkNotNull(desiredResources);
-        this.resourceTimeout = Preconditions.checkNotNull(resourceTimeout);
         Preconditions.checkArgument(
                 !desiredResources.isEmpty(), "Desired resources must not be empty");
-    }
 
-    @Override
-    public void onEnter() {
-        context.runIfState(this, this::resourceTimeout, resourceTimeout);
+        context.runIfState(
+                this, this::resourceTimeout, Preconditions.checkNotNull(resourceTimeout));
         notifyNewResourcesAvailable();
     }
 

@@ -26,20 +26,14 @@ import org.slf4j.Logger;
 /** State which describes a finished job execution. */
 class Finished implements State {
 
-    private final Context context;
-
     private final ArchivedExecutionGraph archivedExecutionGraph;
 
     private final Logger logger;
 
     Finished(Context context, ArchivedExecutionGraph archivedExecutionGraph, Logger logger) {
-        this.context = context;
         this.archivedExecutionGraph = archivedExecutionGraph;
         this.logger = logger;
-    }
 
-    @Override
-    public void onEnter() {
         context.onFinished(archivedExecutionGraph);
     }
 

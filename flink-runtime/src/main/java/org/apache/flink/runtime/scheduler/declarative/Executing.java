@@ -53,10 +53,7 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         super(context, executionGraph, executionGraphHandler, operatorCoordinatorHandler, logger);
         this.context = context;
         this.userCodeClassLoader = userCodeClassLoader;
-    }
 
-    @Override
-    public void onEnter() {
         deploy();
     }
 

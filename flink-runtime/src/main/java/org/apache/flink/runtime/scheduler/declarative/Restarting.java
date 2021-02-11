@@ -45,10 +45,7 @@ class Restarting extends StateWithExecutionGraph {
         super(context, executionGraph, executionGraphHandler, operatorCoordinatorHandler, logger);
         this.context = context;
         this.backoffTime = backoffTime;
-    }
 
-    @Override
-    public void onEnter() {
         getExecutionGraph().cancel();
     }
 

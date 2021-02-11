@@ -291,6 +291,21 @@ public class DeclarativeSchedulerTest extends TestLogger {
                 is(false));
     }
 
+    @Test(expected = IllegalStateException.class)
+    public void testRepeatedTransitionIntoCurrentStateFails() throws Exception {
+        final DeclarativeScheduler scheduler =
+                new DeclarativeSchedulerBuilder(getJobGraph(), mainThreadExecutor).build();
+
+        final State state = scheduler.getState();
+
+        transitionToState(scheduler, state);
+    }
+
+    private static <S extends State> void transitionToState(
+            DeclarativeScheduler scheduler, S state) {
+        scheduler.transitionToState(() -> state, (Class<S>) state.getClass());
+    }
+
     private static JobGraph getJobGraph() {
         final JobGraph jobGraph = new JobGraph(JOB_VERTEX);
         jobGraph.setJobType(JobType.STREAMING);
