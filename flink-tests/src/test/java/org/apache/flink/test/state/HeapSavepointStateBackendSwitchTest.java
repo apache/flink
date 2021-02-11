@@ -33,7 +33,7 @@ public class HeapSavepointStateBackendSwitchTest extends SavepointStateBackendSw
         super(BackendSwitchSpecs.HEAP, toBackend);
     }
 
-    @Parameterized.Parameters
+    @Parameterized.Parameters(name = "Target Backend: {0}")
     public static Collection<BackendSwitchSpec> targetBackends() {
         return Arrays.asList(BackendSwitchSpecs.HEAP, BackendSwitchSpecs.ROCKS);
     }
