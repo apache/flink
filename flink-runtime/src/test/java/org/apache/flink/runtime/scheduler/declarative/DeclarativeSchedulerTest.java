@@ -28,6 +28,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.failover.flip1.NoRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.TestRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmaster.slotpool.DefaultAllocatedSlotPool;
@@ -291,7 +292,9 @@ public class DeclarativeSchedulerTest extends TestLogger {
     }
 
     private static JobGraph getJobGraph() {
-        return new JobGraph(JOB_VERTEX);
+        final JobGraph jobGraph = new JobGraph(JOB_VERTEX);
+        jobGraph.setJobType(JobType.STREAMING);
+        return jobGraph;
     }
 
     private static class DummyState implements State {
