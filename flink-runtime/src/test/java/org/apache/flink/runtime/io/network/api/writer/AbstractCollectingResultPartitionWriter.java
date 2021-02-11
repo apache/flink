@@ -54,7 +54,6 @@ public abstract class AbstractCollectingResultPartitionWriter extends MockResult
         NetworkBuffer buffer = new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE);
         buffer.setSize(serializedRecord.remaining());
         deserializeBuffer(buffer);
-        buffer.recycleBuffer();
     }
 
     protected abstract void deserializeBuffer(Buffer buffer) throws IOException;

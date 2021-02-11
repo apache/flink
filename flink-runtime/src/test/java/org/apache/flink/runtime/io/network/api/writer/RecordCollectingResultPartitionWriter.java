@@ -45,17 +45,13 @@ public class RecordCollectingResultPartitionWriter extends AbstractCollectingRes
     protected void deserializeBuffer(Buffer buffer) throws IOException {
         deserializer.setNextBuffer(buffer);
 
-        while (deserializer.hasUnfinishedData()) {
-            RecordDeserializer.DeserializationResult result = deserializer.getNextRecord(record);
+        RecordDeserializer.DeserializationResult result;
+        do {
+            result = deserializer.getNextRecord(record);
 
             if (result.isFullRecord()) {
                 output.add(record.createCopy());
             }
-
-            if (result == RecordDeserializer.DeserializationResult.LAST_RECORD_FROM_BUFFER
-                    || result == RecordDeserializer.DeserializationResult.PARTIAL_RECORD) {
-                break;
-            }
-        }
+        } while (!result.isBufferConsumed());
     }
 }

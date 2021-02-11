@@ -23,6 +23,8 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.util.CloseableIterator;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 
 import static org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult.INTERMEDIATE_RECORD_FROM_BUFFER;
@@ -39,7 +41,7 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 
     private final SpanningWrapper spanningWrapper;
 
-    private Buffer currentBuffer;
+    @Nullable private Buffer currentBuffer;
 
     public SpillingAdaptiveSpanningRecordDeserializer(String[] tmpDirectories) {
         this.nonSpanningWrapper = new NonSpanningWrapper();
@@ -63,13 +65,6 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
     }
 
     @Override
-    public Buffer getCurrentBuffer() {
-        Buffer tmp = currentBuffer;
-        currentBuffer = null;
-        return tmp;
-    }
-
-    @Override
     public CloseableIterator<Buffer> getUnconsumedBuffer() throws IOException {
         return nonSpanningWrapper.hasRemaining()
                 ? nonSpanningWrapper.getUnconsumedSegment()
@@ -82,6 +77,15 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
         // this should be the majority of the cases for small records
         // for large records, this portion of the work is very small in comparison anyways
 
+        final DeserializationResult result = readNextRecord(target);
+        if (result.isBufferConsumed()) {
+            currentBuffer.recycleBuffer();
+            currentBuffer = null;
+        }
+        return result;
+    }
+
+    private DeserializationResult readNextRecord(T target) throws IOException {
         if (nonSpanningWrapper.hasCompleteLength()) {
             return readNonSpanningRecord(target);
 
@@ -117,13 +121,11 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 
     @Override
     public void clear() {
-        this.nonSpanningWrapper.clear();
-        this.spanningWrapper.clear();
-    }
-
-    @Override
-    public boolean hasUnfinishedData() {
-        return this.nonSpanningWrapper.hasRemaining()
-                || this.spanningWrapper.getNumGatheredBytes() > 0;
+        if (currentBuffer != null && !currentBuffer.isRecycled()) {
+            currentBuffer.recycleBuffer();
+            currentBuffer = null;
+        }
+        nonSpanningWrapper.clear();
+        spanningWrapper.clear();
     }
 }
