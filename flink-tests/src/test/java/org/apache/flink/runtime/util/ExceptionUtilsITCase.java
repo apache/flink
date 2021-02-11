@@ -57,11 +57,7 @@ public class ExceptionUtilsITCase extends TestLogger {
     public void testIsDirectOutOfMemoryError() throws IOException, InterruptedException {
         String className = DummyDirectAllocatingProgram.class.getName();
         String out = run(className, Collections.emptyList(), DIRECT_MEMORY_SIZE, -1);
-        // JAVA_TOOL_OPTIONS is configured on CI which affects the process output
-        assertThat(
-                out,
-                either(is(""))
-                        .or(is("Picked up JAVA_TOOL_OPTIONS: -XX:+HeapDumpOnOutOfMemoryError")));
+        assertThat(out, is(""));
     }
 
     @Test
@@ -73,11 +69,7 @@ public class ExceptionUtilsITCase extends TestLogger {
         long okMetaspace = Long.parseLong(normalOut);
         // load more classes to cause 'OutOfMemoryError: Metaspace'
         String oomOut = run(className, getDummyClassLoadingProgramArgs(1000), -1, okMetaspace);
-        // JAVA_TOOL_OPTIONS is configured on CI which affects the process output
-        assertThat(
-                oomOut,
-                either(is(""))
-                        .or(is("Picked up JAVA_TOOL_OPTIONS: -XX:+HeapDumpOnOutOfMemoryError")));
+        assertThat(oomOut, is(""));
     }
 
     private static String run(
@@ -98,8 +90,16 @@ public class ExceptionUtilsITCase extends TestLogger {
         }
         TestProcess p = taskManagerProcessBuilder.start();
         p.getProcess().waitFor();
-        assertThat(p.getErrorOutput().toString().trim(), is(""));
+        assertErrorOutputEmpty(p.getErrorOutput().toString());
         return p.getProcessOutput().toString().trim();
+    }
+
+    private static void assertErrorOutputEmpty(String output) {
+        // JAVA_TOOL_OPTIONS is configured on CI which affects the process output
+        assertThat(
+                output.trim(),
+                either(is(""))
+                        .or(is("Picked up JAVA_TOOL_OPTIONS: -XX:+HeapDumpOnOutOfMemoryError")));
     }
 
     private static Collection<String> getDummyClassLoadingProgramArgs(int numberOfLoadedClasses) {
