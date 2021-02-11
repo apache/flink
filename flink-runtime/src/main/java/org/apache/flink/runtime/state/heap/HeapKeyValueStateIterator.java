@@ -149,31 +149,29 @@ public final class HeapKeyValueStateIterator implements KeyValueStateIterator {
 
     @Override
     public void next() throws IOException {
-        boolean hasStateEntry = false;
-
         this.newKVState = false;
         this.newKeyGroup = false;
 
+        boolean nextElementSet = false;
         do {
             if (currentState == null) {
                 boolean hasNextState = moveToNextState();
                 if (!hasNextState) {
-                    break;
+                    isValid = false;
+                    return;
                 }
             }
 
-            hasStateEntry = currentStateIterator != null && currentStateIterator.hasNext();
+            boolean hasStateEntry = currentStateIterator != null && currentStateIterator.hasNext();
             if (!hasStateEntry) {
                 this.currentState = null;
             }
-        } while (!hasStateEntry);
 
-        if (hasStateEntry) {
-            isValid = true;
-            currentStateIterator.writeOutNext();
-        } else {
-            isValid = false;
-        }
+            if (hasStateEntry) {
+                nextElementSet = currentStateIterator.writeOutNext();
+            }
+        } while (!nextElementSet);
+        isValid = true;
     }
 
     private boolean moveToNextState() throws IOException {
@@ -228,7 +226,14 @@ public final class HeapKeyValueStateIterator implements KeyValueStateIterator {
 
         boolean hasNext();
 
-        void writeOutNext() throws IOException;
+        /**
+         * Sets the {@link #currentKey} and {@link #currentValue} to the value of the next entry in
+         * the state.
+         *
+         * @return false if an entry was empty. It can be the case if we try to serialize an empty
+         *     Map or List. In that case we should skip to a next entry.
+         */
+        boolean writeOutNext() throws IOException;
     }
 
     private final class StateTableIterator implements SingleStateIterator {
@@ -249,7 +254,7 @@ public final class HeapKeyValueStateIterator implements KeyValueStateIterator {
         }
 
         @Override
-        public void writeOutNext() throws IOException {
+        public boolean writeOutNext() throws IOException {
             StateEntry<?, ?, ?> currentEntry = entriesIterator.next();
             valueOut.clear();
             compositeKeyBuilder.setKeyAndKeyGroup(currentEntry.getKey(), keyGroup());
@@ -262,52 +267,58 @@ public final class HeapKeyValueStateIterator implements KeyValueStateIterator {
                 case REDUCING:
                 case FOLDING:
                 case VALUE:
-                    writeOutValue(currentEntry, stateSerializer);
-                    break;
+                    return writeOutValue(currentEntry, stateSerializer);
                 case LIST:
-                    writeOutList(currentEntry, stateSerializer);
-                    break;
+                    return writeOutList(currentEntry, stateSerializer);
                 case MAP:
-                    writeOutMap(currentEntry, stateSerializer);
-                    break;
+                    return writeOutMap(currentEntry, stateSerializer);
                 default:
                     throw new IllegalStateException("");
             }
         }
 
-        private void writeOutValue(
+        private boolean writeOutValue(
                 StateEntry<?, ?, ?> currentEntry, TypeSerializer<?> stateSerializer)
                 throws IOException {
             currentKey = compositeKeyBuilder.build();
             castToType(stateSerializer).serialize(currentEntry.getState(), valueOut);
             currentValue = valueOut.getCopyOfBuffer();
+            return true;
         }
 
         @SuppressWarnings("unchecked")
-        private void writeOutList(
+        private boolean writeOutList(
                 StateEntry<?, ?, ?> currentEntry, TypeSerializer<?> stateSerializer)
                 throws IOException {
+            List<Object> state = (List<Object>) currentEntry.getState();
+            if (state.isEmpty()) {
+                return false;
+            }
             ListSerializer<Object> listSerializer = (ListSerializer<Object>) stateSerializer;
             currentKey = compositeKeyBuilder.build();
             currentValue =
                     listDelimitedSerializer.serializeList(
-                            (List<Object>) currentEntry.getState(),
-                            listSerializer.getElementSerializer());
+                            state, listSerializer.getElementSerializer());
+            return true;
         }
 
         @SuppressWarnings("unchecked")
-        private void writeOutMap(
+        private boolean writeOutMap(
                 StateEntry<?, ?, ?> currentEntry, TypeSerializer<?> stateSerializer)
                 throws IOException {
+            Map<Object, Object> state = (Map<Object, Object>) currentEntry.getState();
+            if (state.isEmpty()) {
+                return false;
+            }
             MapSerializer<Object, Object> mapSerializer =
                     (MapSerializer<Object, Object>) stateSerializer;
             currentStateIterator =
                     new MapStateIterator(
-                            (Map<Object, Object>) currentEntry.getState(),
+                            state,
                             mapSerializer.getKeySerializer(),
                             mapSerializer.getValueSerializer(),
                             this);
-            currentStateIterator.writeOutNext();
+            return currentStateIterator.writeOutNext();
         }
     }
 
@@ -323,6 +334,7 @@ public final class HeapKeyValueStateIterator implements KeyValueStateIterator {
                 TypeSerializer<Object> userKeySerializer,
                 TypeSerializer<Object> userValueSerializer,
                 StateTableIterator parentIterator) {
+            assert !mapEntries.isEmpty();
             this.mapEntries = mapEntries.entrySet().iterator();
             this.userKeySerializer = userKeySerializer;
             this.userValueSerializer = userValueSerializer;
@@ -339,7 +351,7 @@ public final class HeapKeyValueStateIterator implements KeyValueStateIterator {
         }
 
         @Override
-        public void writeOutNext() throws IOException {
+        public boolean writeOutNext() throws IOException {
             Map.Entry<Object, Object> entry = mapEntries.next();
             valueOut.clear();
             currentKey =
@@ -352,6 +364,7 @@ public final class HeapKeyValueStateIterator implements KeyValueStateIterator {
             if (!mapEntries.hasNext()) {
                 currentStateIterator = parentIterator;
             }
+            return true;
         }
     }
 
@@ -377,12 +390,13 @@ public final class HeapKeyValueStateIterator implements KeyValueStateIterator {
         }
 
         @Override
-        public void writeOutNext() throws IOException {
+        public boolean writeOutNext() throws IOException {
             currentValue = EMPTY_BYTE_ARRAY;
             keyOut.setPosition(afterKeyMark);
             T next = elementsForKeyGroup.next();
             metaInfo.getElementSerializer().serialize(next, keyOut);
             currentKey = keyOut.getCopyOfBuffer();
+            return true;
         }
     }
 
