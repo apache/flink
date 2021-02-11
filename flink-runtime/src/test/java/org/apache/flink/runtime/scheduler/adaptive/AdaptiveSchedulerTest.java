@@ -77,7 +77,6 @@ import static org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlot
 import static org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlotPoolTest.offerSlots;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.Matchers.sameInstance;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
 
@@ -423,49 +422,24 @@ public class AdaptiveSchedulerTest extends TestLogger {
     }
 
     @Test
-    public void testTransitionToStateCallsOnEnter() throws Exception {
-        final AdaptiveScheduler scheduler =
-                new AdaptiveSchedulerBuilder(createJobGraph(), mainThreadExecutor).build();
-
-        final LifecycleMethodCapturingState firstState = new LifecycleMethodCapturingState();
-
-        scheduler.transitionToState(firstState);
-        assertThat(firstState.onEnterCalled, is(true));
-        assertThat(firstState.onLeaveCalled, is(false));
-        firstState.reset();
-    }
-
-    @Test
     public void testTransitionToStateCallsOnLeave() throws Exception {
         final AdaptiveScheduler scheduler =
                 new AdaptiveSchedulerBuilder(createJobGraph(), mainThreadExecutor).build();
 
-        final LifecycleMethodCapturingState firstState = new LifecycleMethodCapturingState();
-        final DummyState secondState = new DummyState();
+        final LifecycleMethodCapturingState.Factory firstStateFactory =
+                new LifecycleMethodCapturingState.Factory();
+        final DummyState.Factory secondStateFactory = new DummyState.Factory();
 
-        scheduler.transitionToState(firstState);
+        scheduler.transitionToState(firstStateFactory);
+
+        final LifecycleMethodCapturingState firstState =
+                (LifecycleMethodCapturingState) scheduler.getState();
+
         firstState.reset();
 
-        scheduler.transitionToState(secondState);
-        assertThat(firstState.onEnterCalled, is(false));
+        scheduler.transitionToState(secondStateFactory);
         assertThat(firstState.onLeaveCalled, is(true));
-        assertThat(firstState.onLeaveNewStateArgument, sameInstance(secondState.getClass()));
-    }
-
-    @Test
-    public void testTransitionToStateIgnoresDuplicateTransitions() throws Exception {
-        final AdaptiveScheduler scheduler =
-                new AdaptiveSchedulerBuilder(createJobGraph(), mainThreadExecutor).build();
-
-        final LifecycleMethodCapturingState state = new LifecycleMethodCapturingState();
-        scheduler.transitionToState(state);
-        state.reset();
-
-        // attempt to transition into the state we are already in
-        scheduler.transitionToState(state);
-
-        assertThat(state.onEnterCalled, is(false));
-        assertThat(state.onLeaveCalled, is(false));
+        assertThat(firstState.onLeaveNewStateArgument.equals(DummyState.class), is(true));
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -511,6 +485,24 @@ public class AdaptiveSchedulerTest extends TestLogger {
                         .howToHandleFailure(new SuppressRestartsException(new Exception("test")))
                         .canRestart(),
                 is(false));
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void testRepeatedTransitionIntoCurrentStateFails() throws Exception {
+        final DeclarativeScheduler scheduler =
+                new DeclarativeSchedulerBuilder(createJobGraph(), mainThreadExecutor).build();
+
+        final State state = scheduler.getState();
+
+        // safeguard for this test
+        assertThat(state, instanceOf(Created.class));
+
+        transitionToState(scheduler, new Created.Factory(scheduler, log));
+    }
+
+    private static <S extends State> void transitionToState(
+            DeclarativeScheduler scheduler, StateFactory<S> targetState) {
+        scheduler.transitionToState(targetState);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -600,25 +592,31 @@ public class AdaptiveSchedulerTest extends TestLogger {
     }
 
     private static class LifecycleMethodCapturingState extends DummyState {
-        boolean onEnterCalled = false;
         boolean onLeaveCalled = false;
         @Nullable Class<? extends State> onLeaveNewStateArgument = null;
 
         void reset() {
-            onEnterCalled = false;
             onLeaveCalled = false;
             onLeaveNewStateArgument = null;
-        }
-
-        @Override
-        public void onEnter() {
-            onEnterCalled = true;
         }
 
         @Override
         public void onLeave(Class<? extends State> newState) {
             onLeaveCalled = true;
             onLeaveNewStateArgument = newState;
+        }
+
+        private static class Factory implements StateFactory<LifecycleMethodCapturingState> {
+
+            @Override
+            public Class<LifecycleMethodCapturingState> getStateClass() {
+                return LifecycleMethodCapturingState.class;
+            }
+
+            @Override
+            public LifecycleMethodCapturingState getState() {
+                return new LifecycleMethodCapturingState();
+            }
         }
     }
 
@@ -646,6 +644,19 @@ public class AdaptiveSchedulerTest extends TestLogger {
         @Override
         public Logger getLogger() {
             return null;
+        }
+
+        private static class Factory implements StateFactory<DummyState> {
+
+            @Override
+            public Class<DummyState> getStateClass() {
+                return DummyState.class;
+            }
+
+            @Override
+            public DummyState getState() {
+                return new DummyState();
+            }
         }
     }
 }

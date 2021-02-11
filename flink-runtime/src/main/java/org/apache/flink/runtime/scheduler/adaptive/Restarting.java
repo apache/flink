@@ -45,10 +45,7 @@ class Restarting extends StateWithExecutionGraph {
         super(context, executionGraph, executionGraphHandler, operatorCoordinatorHandler, logger);
         this.context = context;
         this.backoffTime = backoffTime;
-    }
 
-    @Override
-    public void onEnter() {
         getExecutionGraph().cancel();
     }
 
@@ -110,5 +107,44 @@ class Restarting extends StateWithExecutionGraph {
          * @param delay delay after which the action should be executed
          */
         void runIfState(State expectedState, Runnable action, Duration delay);
+    }
+
+    static class Factory implements StateFactory<Restarting> {
+
+        private final Context context;
+        private final Logger log;
+        private final ExecutionGraph executionGraph;
+        private final ExecutionGraphHandler executionGraphHandler;
+        private final OperatorCoordinatorHandler operatorCoordinatorHandler;
+        private final Duration backoffTime;
+
+        public Factory(
+                Context context,
+                ExecutionGraph executionGraph,
+                ExecutionGraphHandler executionGraphHandler,
+                OperatorCoordinatorHandler operatorCoordinatorHandler,
+                Logger log,
+                Duration backoffTime) {
+            this.context = context;
+            this.log = log;
+            this.executionGraph = executionGraph;
+            this.executionGraphHandler = executionGraphHandler;
+            this.operatorCoordinatorHandler = operatorCoordinatorHandler;
+            this.backoffTime = backoffTime;
+        }
+
+        public Class<Restarting> getStateClass() {
+            return Restarting.class;
+        }
+
+        public Restarting getState() {
+            return new Restarting(
+                    context,
+                    executionGraph,
+                    executionGraphHandler,
+                    operatorCoordinatorHandler,
+                    log,
+                    backoffTime);
+        }
     }
 }

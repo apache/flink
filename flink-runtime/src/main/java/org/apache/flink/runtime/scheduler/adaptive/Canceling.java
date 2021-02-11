@@ -40,10 +40,7 @@ class Canceling extends StateWithExecutionGraph {
             Logger logger) {
         super(context, executionGraph, executionGraphHandler, operatorCoordinatorHandler, logger);
         this.context = context;
-    }
 
-    @Override
-    public void onEnter() {
         getExecutionGraph().cancel();
     }
 
@@ -70,5 +67,40 @@ class Canceling extends StateWithExecutionGraph {
     @Override
     void onGloballyTerminalState(JobStatus globallyTerminalState) {
         context.goToFinished(ArchivedExecutionGraph.createFrom(getExecutionGraph()));
+    }
+
+    static class Factory implements StateFactory<Canceling> {
+
+        private final Context context;
+        private final Logger log;
+        private final ExecutionGraph executionGraph;
+        private final ExecutionGraphHandler executionGraphHandler;
+        private final OperatorCoordinatorHandler operatorCoordinatorHandler;
+
+        public Factory(
+                Context context,
+                ExecutionGraph executionGraph,
+                ExecutionGraphHandler executionGraphHandler,
+                OperatorCoordinatorHandler operatorCoordinatorHandler,
+                Logger log) {
+            this.context = context;
+            this.log = log;
+            this.executionGraph = executionGraph;
+            this.executionGraphHandler = executionGraphHandler;
+            this.operatorCoordinatorHandler = operatorCoordinatorHandler;
+        }
+
+        public Class<Canceling> getStateClass() {
+            return Canceling.class;
+        }
+
+        public Canceling getState() {
+            return new Canceling(
+                    context,
+                    executionGraph,
+                    executionGraphHandler,
+                    operatorCoordinatorHandler,
+                    log);
+        }
     }
 }

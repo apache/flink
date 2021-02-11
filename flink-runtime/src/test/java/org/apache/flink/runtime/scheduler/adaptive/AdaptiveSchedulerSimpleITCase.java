@@ -107,7 +107,7 @@ public class AdaptiveSchedulerSimpleITCase extends TestLogger {
     }
 
     @Test
-    public void testGlobalFailoverIfTaskFails() throws IOException {
+    public void testGlobalFailoverIfTaskFails() throws Throwable {
         assumeTrue(ClusterOptions.isDeclarativeResourceManagementEnabled(configuration));
 
         final MiniCluster miniCluster = MINI_CLUSTER_RESOURCE.getMiniCluster();
@@ -117,7 +117,12 @@ public class AdaptiveSchedulerSimpleITCase extends TestLogger {
 
         final JobResult jobResult = miniCluster.requestJobResult(jobGraph.getJobID()).join();
 
-        assertTrue(jobResult.isSuccess());
+        if (!jobResult.isSuccess()) {
+            throw jobResult
+                    .getSerializedThrowable()
+                    .get()
+                    .deserializeError(ClassLoader.getSystemClassLoader());
+        }
     }
 
     private JobGraph createOnceFailingJobGraph() throws IOException {

@@ -709,7 +709,8 @@ public class AdaptiveScheduler
         declarativeSlotPool.setResourceRequirements(desiredResources);
 
         transitionToState(
-                new WaitingForResources(this, LOG, desiredResources, this.resourceTimeout));
+                new WaitingForResources.Factory(
+                        this, LOG, desiredResources, this.resourceTimeout));
     }
 
     private ResourceCounter calculateDesiredResources() {
@@ -727,7 +728,7 @@ public class AdaptiveScheduler
         operatorCoordinatorHandler.startAllOperatorCoordinators();
 
         transitionToState(
-                new Executing(
+                new Executing.Factory(
                         executionGraph,
                         executionGraphHandler,
                         operatorCoordinatorHandler,
@@ -741,8 +742,9 @@ public class AdaptiveScheduler
             ExecutionGraph executionGraph,
             ExecutionGraphHandler executionGraphHandler,
             OperatorCoordinatorHandler operatorCoordinatorHandler) {
+
         transitionToState(
-                new Canceling(
+                new Canceling.Factory(
                         this,
                         executionGraph,
                         executionGraphHandler,
@@ -757,7 +759,7 @@ public class AdaptiveScheduler
             OperatorCoordinatorHandler operatorCoordinatorHandler,
             Duration backoffTime) {
         transitionToState(
-                new Restarting(
+                new Restarting.Factory(
                         this,
                         executionGraph,
                         executionGraphHandler,
@@ -773,7 +775,7 @@ public class AdaptiveScheduler
             OperatorCoordinatorHandler operatorCoordinatorHandler,
             Throwable failureCause) {
         transitionToState(
-                new Failing(
+                new Failing.Factory(
                         this,
                         executionGraph,
                         executionGraphHandler,
@@ -784,7 +786,7 @@ public class AdaptiveScheduler
 
     @Override
     public void goToFinished(ArchivedExecutionGraph archivedExecutionGraph) {
-        transitionToState(new Finished(this, archivedExecutionGraph, LOG));
+        transitionToState(new Finished.Factory(this, archivedExecutionGraph, LOG));
     }
 
     @Override
@@ -911,20 +913,37 @@ public class AdaptiveScheduler
 
     // ----------------------------------------------------------------
 
+    /** Note: Do not call this method from a State constructor. */
     @VisibleForTesting
-    void transitionToState(State newState) {
-        if (state != newState) {
-            LOG.debug(
-                    "Transition from state {} to {}.",
-                    state.getClass().getSimpleName(),
-                    newState.getClass().getSimpleName());
+    <S extends State> void transitionToState(StateFactory<S> targetState) {
+        Preconditions.checkState(
+                state != null, "State transitions are now allowed while construcing a state.");
+        Preconditions.checkState(
+                state.getClass() != targetState.getStateClass(),
+                "Attempted to transition into the very state the scheduler is already in.");
 
-            State oldState = state;
-            oldState.onLeave(newState.getClass());
+        LOG.debug(
+                "Transition from state {} to {}.",
+                state.getClass().getSimpleName(),
+                targetState.getStateClass().getSimpleName());
 
-            state = newState;
-            newState.onEnter();
-        }
+        State oldState = state;
+        oldState.onLeave(targetState.getStateClass());
+
+        // Guard against state transitions while constructing state objects.
+        //
+        // Consider the following scenario:
+        // Scheduler is in state Restarting, once the cancellation is complete, we enter the
+        // transitionToState(WaitingForResources) method.
+        // In the constructor of WaitingForResources, we call `notifyNewResourcesAvailable()`, which
+        // finds resources and enters transitionsToState(Executing). We are in state Executing. Then
+        // we return from the methods and go back in our call stack to the
+        // transitionToState(WaitingForResources) call, where we overwrite Executing with
+        // WaitingForResources. And there we have it, a deployed execution graph, and a scheduler
+        // that is in WaitingForResources.
+        state = null;
+        state = targetState.getState();
+        LOG.debug("Setting state = {}", state);
     }
 
     @VisibleForTesting

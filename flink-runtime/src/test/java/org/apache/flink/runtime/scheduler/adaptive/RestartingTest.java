@@ -58,9 +58,8 @@ public class RestartingTest extends TestLogger {
     public void testExecutionGraphCancellationOnEnter() throws Exception {
         try (MockRestartingContext ctx = new MockRestartingContext()) {
             CancellableExecutionGraph cancellableExecutionGraph = new CancellableExecutionGraph();
-            Restarting restarting = createRestartingState(ctx, cancellableExecutionGraph);
+            createRestartingState(ctx, cancellableExecutionGraph);
 
-            restarting.onEnter();
             assertThat(cancellableExecutionGraph.isCancelled(), is(true));
         }
     }
@@ -86,7 +85,8 @@ public class RestartingTest extends TestLogger {
     @Test
     public void testSuspend() throws Exception {
         try (MockRestartingContext ctx = new MockRestartingContext()) {
-            Restarting restarting = createRestartingState(ctx);
+            CancellableExecutionGraph cancellableExecutionGraph = new CancellableExecutionGraph();
+            Restarting restarting = createRestartingState(ctx, cancellableExecutionGraph);
             ctx.setExpectFinished(
                     archivedExecutionGraph ->
                             assertThat(archivedExecutionGraph.getState(), is(JobStatus.SUSPENDED)));
@@ -98,7 +98,8 @@ public class RestartingTest extends TestLogger {
     @Test
     public void testGlobalFailuresAreIgnored() throws Exception {
         try (MockRestartingContext ctx = new MockRestartingContext()) {
-            Restarting restarting = createRestartingState(ctx);
+            CancellableExecutionGraph cancellableExecutionGraph = new CancellableExecutionGraph();
+            Restarting restarting = createRestartingState(ctx, cancellableExecutionGraph);
             restarting.handleGlobalFailure(new RuntimeException());
             ctx.assertNoStateTransition();
         }
@@ -227,6 +228,7 @@ public class RestartingTest extends TestLogger {
                     NoOpExecutionDeploymentListener.get(),
                     (execution, newState) -> {},
                     0L);
+            setJsonPlan("");
         }
 
         @Override
