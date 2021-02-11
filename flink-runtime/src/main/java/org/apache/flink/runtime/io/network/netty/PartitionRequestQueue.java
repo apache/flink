@@ -164,6 +164,20 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
         }
     }
 
+    void acknowledgeAllRecordsProcessed(InputChannelID receiverId) {
+        if (fatalError) {
+            return;
+        }
+
+        NetworkSequenceViewReader reader = allReaders.get(receiverId);
+        if (reader != null) {
+            reader.acknowledgeAllRecordsProcessed();
+        } else {
+            throw new IllegalStateException(
+                    "No reader for receiverId = " + receiverId + " exists.");
+        }
+    }
+
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object msg) throws Exception {
         // The user event triggered event loop callback is used for thread-safe

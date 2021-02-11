@@ -155,6 +155,11 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
     }
 
     @Override
+    public void acknowledgeAllRecordsProcessed() {
+        throw new UnsupportedOperationException("Method should never be called.");
+    }
+
+    @Override
     public boolean isAvailable(int numCreditsAvailable) {
         if (numCreditsAvailable > 0) {
             return nextBuffer != null;
