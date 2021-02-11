@@ -22,7 +22,7 @@ From this directory:
 	hugo serve
 	```
 
-The site can be viewed at http://localhost:1313
+The site can be viewed at http://localhost:1313/projects/flink/flink-docs-master/
 
 ## Generate configuration tables
 
