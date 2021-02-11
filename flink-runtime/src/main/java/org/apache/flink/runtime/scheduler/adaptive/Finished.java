@@ -26,20 +26,14 @@ import org.slf4j.Logger;
 /** State which describes a finished job execution. */
 class Finished implements State {
 
-    private final Context context;
-
     private final ArchivedExecutionGraph archivedExecutionGraph;
 
     private final Logger logger;
 
     Finished(Context context, ArchivedExecutionGraph archivedExecutionGraph, Logger logger) {
-        this.context = context;
         this.archivedExecutionGraph = archivedExecutionGraph;
         this.logger = logger;
-    }
 
-    @Override
-    public void onEnter() {
         context.onFinished(archivedExecutionGraph);
     }
 
@@ -77,5 +71,26 @@ class Finished implements State {
          *     job execution
          */
         void onFinished(ArchivedExecutionGraph archivedExecutionGraph);
+    }
+
+    static class Factory implements StateFactory<Finished> {
+
+        private final Context context;
+        private final Logger log;
+        private final ArchivedExecutionGraph archivedExecutionGraph;
+
+        public Factory(Context context, ArchivedExecutionGraph archivedExecutionGraph, Logger log) {
+            this.context = context;
+            this.log = log;
+            this.archivedExecutionGraph = archivedExecutionGraph;
+        }
+
+        public Class<Finished> getStateClass() {
+            return Finished.class;
+        }
+
+        public Finished getState() {
+            return new Finished(context, archivedExecutionGraph, log);
+        }
     }
 }

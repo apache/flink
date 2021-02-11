@@ -32,8 +32,6 @@ import org.slf4j.Logger;
 class Failing extends StateWithExecutionGraph {
     private final Context context;
 
-    private final Throwable failureCause;
-
     Failing(
             Context context,
             ExecutionGraph executionGraph,
@@ -43,11 +41,7 @@ class Failing extends StateWithExecutionGraph {
             Throwable failureCause) {
         super(context, executionGraph, executionGraphHandler, operatorCoordinatorHandler, logger);
         this.context = context;
-        this.failureCause = failureCause;
-    }
 
-    @Override
-    public void onEnter() {
         getExecutionGraph().failJob(failureCause);
     }
 
@@ -93,5 +87,44 @@ class Failing extends StateWithExecutionGraph {
                 ExecutionGraph executionGraph,
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler);
+    }
+
+    static class Factory implements StateFactory<Failing> {
+
+        private final Context context;
+        private final Logger log;
+        private final ExecutionGraph executionGraph;
+        private final ExecutionGraphHandler executionGraphHandler;
+        private final OperatorCoordinatorHandler operatorCoordinatorHandler;
+        private final Throwable failureCause;
+
+        public Factory(
+                Context context,
+                ExecutionGraph executionGraph,
+                ExecutionGraphHandler executionGraphHandler,
+                OperatorCoordinatorHandler operatorCoordinatorHandler,
+                Logger log,
+                Throwable failureCause) {
+            this.context = context;
+            this.log = log;
+            this.executionGraph = executionGraph;
+            this.executionGraphHandler = executionGraphHandler;
+            this.operatorCoordinatorHandler = operatorCoordinatorHandler;
+            this.failureCause = failureCause;
+        }
+
+        public Class<Failing> getStateClass() {
+            return Failing.class;
+        }
+
+        public Failing getState() {
+            return new Failing(
+                    context,
+                    executionGraph,
+                    executionGraphHandler,
+                    operatorCoordinatorHandler,
+                    log,
+                    failureCause);
+        }
     }
 }

@@ -36,8 +36,7 @@ public class FinishedTest extends TestLogger {
     @Test
     public void testOnFinishedCallOnEnter() throws Exception {
         MockFinishedContext ctx = new MockFinishedContext();
-        Finished finished = createFinishedState(ctx);
-        finished.onEnter();
+        createFinishedState(ctx);
 
         assertThat(ctx.getArchivedExecutionGraph().getState(), is(testJobStatus));
     }
@@ -46,21 +45,21 @@ public class FinishedTest extends TestLogger {
     public void testCancelIgnored() throws Exception {
         MockFinishedContext ctx = new MockFinishedContext();
         createFinishedState(ctx).cancel();
-        ctx.assertNoStateTransition();
+        assertThat(ctx.getArchivedExecutionGraph().getState(), is(testJobStatus));
     }
 
     @Test
     public void testSuspendIgnored() throws Exception {
         MockFinishedContext ctx = new MockFinishedContext();
         createFinishedState(ctx).suspend(new RuntimeException());
-        ctx.assertNoStateTransition();
+        assertThat(ctx.getArchivedExecutionGraph().getState(), is(testJobStatus));
     }
 
     @Test
     public void testGlobalFailureIgnored() {
         MockFinishedContext ctx = new MockFinishedContext();
         createFinishedState(ctx).handleGlobalFailure(new RuntimeException());
-        ctx.assertNoStateTransition();
+        assertThat(ctx.getArchivedExecutionGraph().getState(), is(testJobStatus));
     }
 
     @Test

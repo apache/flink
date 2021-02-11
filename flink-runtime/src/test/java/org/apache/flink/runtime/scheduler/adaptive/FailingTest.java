@@ -44,8 +44,9 @@ public class FailingTest extends TestLogger {
     public void testFailingStateOnEnter() throws Exception {
         try (MockFailingContext ctx = new MockFailingContext()) {
             MockExecutionGraph meg = new MockExecutionGraph();
-            Failing failing = createFailingState(ctx, meg);
-            failing.onEnter();
+
+            createFailingState(ctx, meg);
+
             assertThat(meg.isFailing(), is(true));
             ctx.assertNoStateTransition();
         }
@@ -56,7 +57,6 @@ public class FailingTest extends TestLogger {
         try (MockFailingContext ctx = new MockFailingContext()) {
             MockExecutionGraph meg = new MockExecutionGraph();
             Failing failing = createFailingState(ctx, meg);
-            failing.onEnter(); // transition from RUNNING to FAILING
             ctx.setExpectFinished(
                     archivedExecutionGraph ->
                             assertThat(archivedExecutionGraph.getState(), is(JobStatus.FAILED)));
@@ -70,7 +70,6 @@ public class FailingTest extends TestLogger {
             MockExecutionGraph meg = new MockExecutionGraph();
             Failing failing = createFailingState(ctx, meg);
             ctx.setExpectCanceling(assertNonNull());
-            failing.onEnter();
             failing.cancel();
         }
     }
@@ -83,8 +82,6 @@ public class FailingTest extends TestLogger {
             ctx.setExpectFinished(
                     archivedExecutionGraph ->
                             assertThat(archivedExecutionGraph.getState(), is(JobStatus.SUSPENDED)));
-
-            failing.onEnter();
             failing.suspend(new RuntimeException("suspend"));
         }
     }
@@ -94,7 +91,6 @@ public class FailingTest extends TestLogger {
         try (MockFailingContext ctx = new MockFailingContext()) {
             MockExecutionGraph meg = new MockExecutionGraph();
             Failing failing = createFailingState(ctx, meg);
-            failing.onEnter();
             failing.handleGlobalFailure(new RuntimeException());
             ctx.assertNoStateTransition();
         }
@@ -105,7 +101,6 @@ public class FailingTest extends TestLogger {
         try (MockFailingContext ctx = new MockFailingContext()) {
             MockExecutionGraph meg = new MockExecutionGraph();
             Failing failing = createFailingState(ctx, meg);
-            failing.onEnter();
             // register execution at EG
             ExecutingTest.MockExecutionJobVertex ejv =
                     new ExecutingTest.MockExecutionJobVertex(failing.getExecutionGraph());
@@ -132,7 +127,6 @@ public class FailingTest extends TestLogger {
             // ideally we'd delay the async call to #onGloballyTerminalState instead, but the
             // context does not support that
             ctx.setExpectFinished(eg -> {});
-            failing.onEnter();
 
             meg.completeCancellation();
 

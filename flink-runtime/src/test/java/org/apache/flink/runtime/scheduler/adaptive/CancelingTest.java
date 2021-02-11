@@ -39,9 +39,8 @@ public class CancelingTest extends TestLogger {
     public void testExecutionGraphCancelationOnEnter() throws Exception {
         try (MockStateWithExecutionGraphContext ctx = new MockStateWithExecutionGraphContext()) {
             MockExecutionGraph mockExecutionGraph = new MockExecutionGraph();
-            Canceling canceling = createCancelingState(ctx, mockExecutionGraph);
+            createCancelingState(ctx, mockExecutionGraph);
 
-            canceling.onEnter(); // transition of EG from RUNNING to CANCELLING
             assertThat(mockExecutionGraph.getState(), is(JobStatus.CANCELLING));
         }
     }
@@ -50,8 +49,8 @@ public class CancelingTest extends TestLogger {
     public void testTransitionToFinishedWhenCancellationCompletes() throws Exception {
         try (MockStateWithExecutionGraphContext ctx = new MockStateWithExecutionGraphContext()) {
             MockExecutionGraph mockExecutionGraph = new MockExecutionGraph();
+            // transition of EG from RUNNING to CANCELLING
             Canceling canceling = createCancelingState(ctx, mockExecutionGraph);
-            canceling.onEnter(); // transition of EG from RUNNING to CANCELLING
             assertThat(mockExecutionGraph.getState(), is(JobStatus.CANCELLING));
             ctx.setExpectFinished(
                     archivedExecutionGraph ->
@@ -65,7 +64,7 @@ public class CancelingTest extends TestLogger {
     public void testTransitionToSuspend() throws Exception {
         try (MockStateWithExecutionGraphContext ctx = new MockStateWithExecutionGraphContext()) {
             Canceling canceling = createCancelingState(ctx, new MockExecutionGraph());
-            canceling.onEnter();
+
             ctx.setExpectFinished(
                     archivedExecutionGraph ->
                             assertThat(archivedExecutionGraph.getState(), is(JobStatus.SUSPENDED)));
@@ -77,7 +76,6 @@ public class CancelingTest extends TestLogger {
     public void testCancelIsIgnored() throws Exception {
         try (MockStateWithExecutionGraphContext ctx = new MockStateWithExecutionGraphContext()) {
             Canceling canceling = createCancelingState(ctx, new MockExecutionGraph());
-            canceling.onEnter();
             canceling.cancel();
             ctx.assertNoStateTransition();
         }
@@ -87,7 +85,6 @@ public class CancelingTest extends TestLogger {
     public void testGlobalFailuresAreIgnored() throws Exception {
         try (MockStateWithExecutionGraphContext ctx = new MockStateWithExecutionGraphContext()) {
             Canceling canceling = createCancelingState(ctx, new MockExecutionGraph());
-            canceling.onEnter();
             canceling.handleGlobalFailure(new RuntimeException("test"));
             ctx.assertNoStateTransition();
         }
@@ -98,7 +95,6 @@ public class CancelingTest extends TestLogger {
         try (MockStateWithExecutionGraphContext ctx = new MockStateWithExecutionGraphContext()) {
             MockExecutionGraph meg = new MockExecutionGraph();
             Canceling canceling = createCancelingState(ctx, meg);
-            canceling.onEnter();
             // register execution at EG
             ExecutingTest.MockExecutionJobVertex ejv =
                     new ExecutingTest.MockExecutionJobVertex(canceling.getExecutionGraph());
@@ -125,7 +121,6 @@ public class CancelingTest extends TestLogger {
             // ideally we'd delay the async call to #onGloballyTerminalState instead, but the
             // context does not support that
             ctx.setExpectFinished(eg -> {});
-            canceling.onEnter();
 
             meg.completeCancellation();
 

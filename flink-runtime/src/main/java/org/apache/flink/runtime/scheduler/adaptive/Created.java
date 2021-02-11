@@ -97,4 +97,23 @@ class Created implements State {
         /** Transitions into the {@link WaitingForResources} state. */
         void goToWaitingForResources();
     }
+
+    static class Factory implements StateFactory<Created> {
+
+        private final Context context;
+        private final Logger log;
+
+        public Factory(Context context, Logger log) {
+            this.context = context;
+            this.log = log;
+        }
+
+        public Class<Created> getStateClass() {
+            return Created.class;
+        }
+
+        public Created getState() {
+            return new Created(this.context, this.log);
+        }
+    }
 }

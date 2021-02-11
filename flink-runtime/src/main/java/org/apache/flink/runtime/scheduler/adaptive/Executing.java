@@ -53,10 +53,7 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         super(context, executionGraph, executionGraphHandler, operatorCoordinatorHandler, logger);
         this.context = context;
         this.userCodeClassLoader = userCodeClassLoader;
-    }
 
-    @Override
-    public void onEnter() {
         deploy();
     }
 
@@ -260,6 +257,45 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
          */
         static FailureResult canNotRestart(Throwable failureCause) {
             return new FailureResult(null, failureCause);
+        }
+    }
+
+    static class Factory implements StateFactory<Executing> {
+
+        private final Context context;
+        private final Logger log;
+        private final ExecutionGraph executionGraph;
+        private final ExecutionGraphHandler executionGraphHandler;
+        private final OperatorCoordinatorHandler operatorCoordinatorHandler;
+        private final ClassLoader userCodeClassLoader;
+
+        public Factory(
+                ExecutionGraph executionGraph,
+                ExecutionGraphHandler executionGraphHandler,
+                OperatorCoordinatorHandler operatorCoordinatorHandler,
+                Logger log,
+                Context context,
+                ClassLoader userCodeClassLoader) {
+            this.context = context;
+            this.log = log;
+            this.executionGraph = executionGraph;
+            this.executionGraphHandler = executionGraphHandler;
+            this.operatorCoordinatorHandler = operatorCoordinatorHandler;
+            this.userCodeClassLoader = userCodeClassLoader;
+        }
+
+        public Class<Executing> getStateClass() {
+            return Executing.class;
+        }
+
+        public Executing getState() {
+            return new Executing(
+                    executionGraph,
+                    executionGraphHandler,
+                    operatorCoordinatorHandler,
+                    log,
+                    context,
+                    userCodeClassLoader);
         }
     }
 }

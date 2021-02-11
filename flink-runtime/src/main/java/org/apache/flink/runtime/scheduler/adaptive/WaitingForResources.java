@@ -41,8 +41,6 @@ class WaitingForResources implements State, ResourceConsumer {
 
     private final ResourceCounter desiredResources;
 
-    private final Duration resourceTimeout;
-
     WaitingForResources(
             Context context,
             Logger log,
@@ -51,15 +49,13 @@ class WaitingForResources implements State, ResourceConsumer {
         this.context = Preconditions.checkNotNull(context);
         this.log = Preconditions.checkNotNull(log);
         this.desiredResources = Preconditions.checkNotNull(desiredResources);
-        this.resourceTimeout = Preconditions.checkNotNull(resourceTimeout);
         Preconditions.checkArgument(
                 !desiredResources.isEmpty(), "Desired resources must not be empty");
-    }
 
-    @Override
-    public void onEnter() {
-        context.runIfState(this, this::resourceTimeout, resourceTimeout);
-        notifyNewResourcesAvailable();
+        // since state transitions are not allowed in state constructors, schedule calls for later.
+        context.runIfState(
+                this, this::resourceTimeout, Preconditions.checkNotNull(resourceTimeout));
+        context.runIfState(this, this::notifyNewResourcesAvailable, Duration.ZERO);
     }
 
     @Override
@@ -167,5 +163,32 @@ class WaitingForResources implements State, ResourceConsumer {
          * @param delay delay after which to run the action
          */
         void runIfState(State expectedState, Runnable action, Duration delay);
+    }
+
+    static class Factory implements StateFactory<WaitingForResources> {
+
+        private final Context context;
+        private final Logger log;
+        private final ResourceCounter desiredResources;
+        private final Duration resourceTimeout;
+
+        public Factory(
+                Context context,
+                Logger log,
+                ResourceCounter desiredResources,
+                Duration resourceTimeout) {
+            this.context = context;
+            this.log = log;
+            this.desiredResources = desiredResources;
+            this.resourceTimeout = resourceTimeout;
+        }
+
+        public Class<WaitingForResources> getStateClass() {
+            return WaitingForResources.class;
+        }
+
+        public WaitingForResources getState() {
+            return new WaitingForResources(context, log, desiredResources, resourceTimeout);
+        }
     }
 }
