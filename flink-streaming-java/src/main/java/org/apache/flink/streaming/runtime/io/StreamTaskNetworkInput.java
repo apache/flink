@@ -30,7 +30,6 @@ import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult;
 import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
@@ -167,7 +166,6 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
                             String.format("Can't get next record for channel %s", lastChannel), e);
                 }
                 if (result.isBufferConsumed()) {
-                    currentRecordDeserializer.getCurrentBuffer().recycleBuffer();
                     currentRecordDeserializer = null;
                 }
 
@@ -284,12 +282,7 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
         RecordDeserializer<?> deserializer = recordDeserializers.get(channelInfo);
         if (deserializer != null) {
             // recycle buffers and clear the deserializer.
-            Buffer buffer = deserializer.getCurrentBuffer();
-            if (buffer != null && !buffer.isRecycled()) {
-                buffer.recycleBuffer();
-            }
             deserializer.clear();
-
             recordDeserializers.remove(channelInfo);
         }
     }
