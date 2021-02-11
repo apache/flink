@@ -42,12 +42,10 @@ public class FailingTest extends TestLogger {
     @Test
     public void testFailJobOnEnter() throws Exception {
         try (MockFailingContext ctx = new MockFailingContext()) {
-            Failing failing = createFailingState(ctx);
             ctx.setExpectFinished(
                     archivedExecutionGraph ->
                             assertThat(archivedExecutionGraph.getState(), is(JobStatus.FAILED)));
-
-            failing.onEnter();
+            createFailingState(ctx);
         }
     }
 
@@ -76,8 +74,6 @@ public class FailingTest extends TestLogger {
             ctx.setExpectFinished(
                     archivedExecutionGraph ->
                             assertThat(archivedExecutionGraph.getState(), is(JobStatus.FAILED)));
-
-            failing.onEnter();
             failing.suspend(new RuntimeException("suspend"));
         }
     }
@@ -87,10 +83,6 @@ public class FailingTest extends TestLogger {
         try (MockFailingContext ctx = new MockFailingContext()) {
             Failing failing = createFailingState(ctx);
             ctx.setExpectFinished(assertNonNull());
-
-            assertThat(failing.getJobStatus(), is(JobStatus.RUNNING));
-
-            failing.onEnter();
 
             assertThat(failing.getJobStatus(), is(JobStatus.FAILED));
         }

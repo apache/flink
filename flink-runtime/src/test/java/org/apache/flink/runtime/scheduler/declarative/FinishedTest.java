@@ -36,8 +36,7 @@ public class FinishedTest extends TestLogger {
     @Test
     public void testOnFinishedCallOnEnter() throws Exception {
         MockFinishedContext ctx = new MockFinishedContext();
-        Finished finished = createFinishedState(ctx);
-        finished.onEnter();
+        createFinishedState(ctx);
 
         assertThat(ctx.getArchivedExecutionGraph().getState(), is(testJobStatus));
     }

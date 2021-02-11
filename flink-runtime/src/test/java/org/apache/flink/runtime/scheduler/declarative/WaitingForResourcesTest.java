@@ -57,10 +57,9 @@ public class WaitingForResourcesTest extends TestLogger {
         try (MockContext ctx = new MockContext()) {
             ctx.setHasEnoughResources(() -> true);
 
-            WaitingForResources wfr =
-                    new WaitingForResources(ctx, log, RESOURCE_COUNTER, Duration.ZERO);
             ctx.setExpectExecuting(assertNonNull());
-            wfr.onEnter();
+
+            new WaitingForResources(ctx, log, RESOURCE_COUNTER, Duration.ZERO);
         }
     }
 
@@ -73,13 +72,12 @@ public class WaitingForResourcesTest extends TestLogger {
                         throw new RuntimeException("Test exception");
                     });
 
-            WaitingForResources wfr =
-                    new WaitingForResources(ctx, log, RESOURCE_COUNTER, Duration.ZERO);
             ctx.setExpectFinished(
                     (archivedExecutionGraph -> {
                         assertThat(archivedExecutionGraph.getState(), is(JobStatus.FAILED));
                     }));
-            wfr.onEnter();
+
+            new WaitingForResources(ctx, log, RESOURCE_COUNTER, Duration.ZERO);
         }
     }
 
@@ -91,7 +89,6 @@ public class WaitingForResourcesTest extends TestLogger {
                     new WaitingForResources(ctx, log, RESOURCE_COUNTER, Duration.ZERO);
 
             // we expect no state transition.
-            wfr.onEnter();
             wfr.notifyNewResourcesAvailable();
         }
     }
@@ -102,7 +99,6 @@ public class WaitingForResourcesTest extends TestLogger {
             ctx.setHasEnoughResources(() -> false); // initially, not enough resources
             WaitingForResources wfr =
                     new WaitingForResources(ctx, log, RESOURCE_COUNTER, Duration.ZERO);
-            wfr.onEnter();
             ctx.setHasEnoughResources(() -> true); // make resources available
             ctx.setExpectExecuting(assertNonNull());
             wfr.notifyNewResourcesAvailable(); // .. and notify
@@ -116,7 +112,6 @@ public class WaitingForResourcesTest extends TestLogger {
             WaitingForResources wfr =
                     new WaitingForResources(ctx, log, RESOURCE_COUNTER, Duration.ZERO);
 
-            wfr.onEnter();
             ctx.setExpectExecuting(assertNonNull());
 
             // immediately execute all scheduled runnables
@@ -137,7 +132,6 @@ public class WaitingForResourcesTest extends TestLogger {
             WaitingForResources wfr =
                     new WaitingForResources(ctx, log, RESOURCE_COUNTER, Duration.ZERO);
 
-            wfr.onEnter();
             ctx.setExpectFinished(
                     archivedExecutionGraph -> {
                         assertThat(archivedExecutionGraph.getState(), is(JobStatus.FAILED));
@@ -160,7 +154,6 @@ public class WaitingForResourcesTest extends TestLogger {
             WaitingForResources wfr =
                     new WaitingForResources(ctx, log, RESOURCE_COUNTER, Duration.ZERO);
 
-            wfr.onEnter();
             ctx.setExpectFinished(
                     (archivedExecutionGraph -> {
                         assertThat(archivedExecutionGraph.getState(), is(JobStatus.CANCELED));
@@ -176,7 +169,6 @@ public class WaitingForResourcesTest extends TestLogger {
             WaitingForResources wfr =
                     new WaitingForResources(ctx, log, RESOURCE_COUNTER, Duration.ZERO);
 
-            wfr.onEnter();
             ctx.setExpectFinished(
                     (archivedExecutionGraph -> {
                         assertThat(archivedExecutionGraph.getState(), is(JobStatus.SUSPENDED));

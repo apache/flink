@@ -58,9 +58,8 @@ public class RestartingTest extends TestLogger {
     public void testExecutionGraphCancellationOnEnter() throws Exception {
         try (MockRestartingContext ctx = new MockRestartingContext()) {
             CancellableExecutionGraph cancellableExecutionGraph = new CancellableExecutionGraph();
-            Restarting restarting = createRestartingState(ctx, cancellableExecutionGraph);
+            createRestartingState(ctx, cancellableExecutionGraph);
 
-            restarting.onEnter();
             assertThat(cancellableExecutionGraph.isCancelled(), is(true));
         }
     }

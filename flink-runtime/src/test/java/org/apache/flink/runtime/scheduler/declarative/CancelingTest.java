@@ -32,6 +32,7 @@ import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import static org.hamcrest.CoreMatchers.is;
@@ -45,9 +46,8 @@ public class CancelingTest extends TestLogger {
         try (MockStateWithExecutionGraphContext ctx = new MockStateWithExecutionGraphContext()) {
             RestartingTest.CancellableExecutionGraph cancellableExecutionGraph =
                     new RestartingTest.CancellableExecutionGraph();
-            Canceling canceling = createCancelingState(ctx, cancellableExecutionGraph);
+            createCancelingState(ctx, cancellableExecutionGraph);
 
-            canceling.onEnter();
             assertThat(cancellableExecutionGraph.isCancelled(), is(true));
         }
     }
@@ -67,11 +67,12 @@ public class CancelingTest extends TestLogger {
     @Test
     public void testTransitionToSuspend() throws Exception {
         try (MockStateWithExecutionGraphContext ctx = new MockStateWithExecutionGraphContext()) {
-            Canceling canceling = createCancelingState(ctx);
-
             ctx.setExpectFinished(
                     archivedExecutionGraph ->
                             assertThat(archivedExecutionGraph.getState(), is(JobStatus.SUSPENDED)));
+
+            Canceling canceling = createCancelingState(ctx);
+
             canceling.suspend(new RuntimeException("suspend"));
         }
     }
