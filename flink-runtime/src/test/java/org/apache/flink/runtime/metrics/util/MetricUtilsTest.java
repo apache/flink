@@ -33,19 +33,30 @@ import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServicesBuilder;
 import org.apache.flink.runtime.taskexecutor.slot.TestingTaskSlotTable;
 import org.apache.flink.runtime.taskmanager.Task;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.CheckedSupplier;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
 import akka.actor.ActorSystem;
+import org.junit.After;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static org.apache.flink.runtime.metrics.util.MetricUtils.METRIC_GROUP_FLINK;
 import static org.apache.flink.runtime.metrics.util.MetricUtils.METRIC_GROUP_MANAGED_MEMORY;
@@ -57,7 +68,13 @@ import static org.junit.Assert.assertThat;
 /** Tests for the {@link MetricUtils} class. */
 public class MetricUtilsTest extends TestLogger {
 
-    private static final Logger LOG = LoggerFactory.getLogger(MetricUtilsTest.class);
+    /** Container for local objects to keep them from gc runs. */
+    private final List<Object> referencedObjects = new ArrayList<>();
+
+    @After
+    public void cleanupReferencedObjects() {
+        referencedObjects.clear();
+    }
 
     /**
      * Tests that the {@link MetricUtils#startRemoteMetricsRpcService(Configuration, String)}
@@ -103,6 +120,8 @@ public class MetricUtilsTest extends TestLogger {
 
     @Test
     public void testMetaspaceCompleteness() {
+        Assume.assumeTrue("Requires JVM with Metaspace memory pool", hasMetaspaceMemoryPool());
+
         final InterceptingOperatorMetricGroup metaspaceMetrics =
                 new InterceptingOperatorMetricGroup() {
                     @Override
@@ -144,24 +163,13 @@ public class MetricUtilsTest extends TestLogger {
         @SuppressWarnings("unchecked")
         final Gauge<Long> used = (Gauge<Long>) heapMetrics.get(MetricNames.MEMORY_USED);
 
-        final long usedHeapInitially = used.getValue();
-
-        // check memory usage difference multiple times since other tests may affect memory usage as
-        // well
-        for (int x = 0; x < 10; x++) {
-            final byte[] array = new byte[1024 * 1024 * 8];
-            final long usedHeapAfterAllocation = used.getValue();
-
-            if (usedHeapInitially != usedHeapAfterAllocation) {
-                return;
-            }
-            Thread.sleep(50);
-        }
-        Assert.fail("Heap usage metric never changed it's value.");
+        runUntilMetricChanged("Heap", 10, () -> new byte[1024 * 1024 * 8], used);
     }
 
     @Test
-    public void testMetaspaceMetricUsageNotStatic() throws InterruptedException {
+    public void testMetaspaceMetricUsageNotStatic() throws Exception {
+        Assume.assumeTrue("Requires JVM with Metaspace memory pool", hasMetaspaceMemoryPool());
+
         final InterceptingOperatorMetricGroup metaspaceMetrics =
                 new InterceptingOperatorMetricGroup() {
                     @Override
@@ -175,24 +183,20 @@ public class MetricUtilsTest extends TestLogger {
         @SuppressWarnings("unchecked")
         final Gauge<Long> used = (Gauge<Long>) metaspaceMetrics.get(MetricNames.MEMORY_USED);
 
-        final long usedMetaspaceInitially = used.getValue();
+        runUntilMetricChanged("Metaspace", 10, () -> redefineAsNewClass(MetricUtils.class), used);
+    }
 
-        // check memory usage difference multiple times since other tests may affect memory usage as
-        // well
-        for (int x = 0; x < 10; x++) {
-            List<Runnable> consumerList = new ArrayList<>();
-            for (int i = 0; i < 10; i++) {
-                consumerList.add(() -> {});
-            }
+    @Test
+    public void testNonHeapMetricUsageNotStatic() throws Exception {
+        final InterceptingOperatorMetricGroup nonHeapMetrics =
+                new InterceptingOperatorMetricGroup();
 
-            final long usedMetaspaceAfterAllocation = used.getValue();
+        MetricUtils.instantiateNonHeapMemoryMetrics(nonHeapMetrics);
 
-            if (usedMetaspaceInitially != usedMetaspaceAfterAllocation) {
-                return;
-            }
-            Thread.sleep(50);
-        }
-        Assert.fail("Metaspace usage metric never changed it's value.");
+        @SuppressWarnings("unchecked")
+        final Gauge<Long> used = (Gauge<Long>) nonHeapMetrics.get(MetricNames.MEMORY_USED);
+
+        runUntilMetricChanged("Non-heap", 10, () -> redefineAsNewClass(MetricUtils.class), used);
     }
 
     @Test
@@ -242,5 +246,85 @@ public class MetricUtilsTest extends TestLogger {
                                 METRIC_GROUP_FLINK,
                                 METRIC_GROUP_MEMORY,
                                 METRIC_GROUP_MANAGED_MEMORY)));
+    }
+
+    // --------------- utility methods and classes ---------------
+
+    /** Intercept loading classes and define them based on found class resources. */
+    private static class InterceptingClassLoader extends ClassLoader {
+        private final Set<String> interceptingClassNames = new HashSet<>();
+        private final Map<String, Class<?>> interceptedClasses = new HashMap<>();
+
+        public InterceptingClassLoader(
+                Collection<String> interceptingClassNames, ClassLoader parent) {
+            super(parent);
+            this.interceptingClassNames.addAll(interceptingClassNames);
+        }
+
+        @Override
+        protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+            Class<?> interceptedClass = interceptedClasses.get(name);
+            if (interceptedClass != null) {
+                return interceptedClass;
+            }
+            if (!interceptingClassNames.contains(name)) {
+                return super.loadClass(name, resolve);
+            }
+            String classFileResourceName = name.replace('.', '/') + ".class";
+            try (InputStream inputStream = getResourceAsStream(classFileResourceName)) {
+                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                IOUtils.copyBytes(inputStream, outputStream, false);
+                byte[] bytecode = outputStream.toByteArray();
+                Class<?> definedClass =
+                        defineClass(
+                                name,
+                                bytecode,
+                                0,
+                                bytecode.length,
+                                getClass().getProtectionDomain());
+                interceptedClasses.put(name, definedClass);
+                return definedClass;
+            } catch (Exception ex) {
+                throw new ClassNotFoundException(ex.getMessage(), ex);
+            }
+        }
+    }
+
+    /** Define an new class using given class's name and bytecode. */
+    @SuppressWarnings("unchecked")
+    private static <T> Class<T> redefineAsNewClass(Class<T> clazz) throws ClassNotFoundException {
+        InterceptingClassLoader classLoader =
+                new InterceptingClassLoader(
+                        Collections.singleton(clazz.getName()), clazz.getClassLoader());
+        Class<T> newClass = (Class<T>) classLoader.loadClass(clazz.getName(), true);
+        Assert.assertNotSame(clazz, newClass);
+        Assert.assertEquals(clazz.getName(), newClass.getName());
+        return newClass;
+    }
+
+    private static boolean hasMetaspaceMemoryPool() {
+        return ManagementFactory.getMemoryPoolMXBeans().stream()
+                .anyMatch(bean -> "Metaspace".equals(bean.getName()));
+    }
+
+    /** Caller may choose to run multiple times for possible interference with other tests. */
+    private void runUntilMetricChanged(
+            String name, int maxRuns, CheckedSupplier<Object> objectCreator, Gauge<Long> metric)
+            throws Exception {
+        maxRuns = Math.max(1, maxRuns);
+        long initialValue = metric.getValue();
+        for (int i = 0; i < maxRuns; i++) {
+            Object object = objectCreator.get();
+            long currentValue = metric.getValue();
+            if (currentValue != initialValue) {
+                return;
+            }
+            referencedObjects.add(object);
+            Thread.sleep(50);
+        }
+        String msg =
+                String.format(
+                        "%s usage metric never changed its value after %d runs.", name, maxRuns);
+        Assert.fail(msg);
     }
 }
