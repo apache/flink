@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
@@ -185,6 +186,8 @@ public class DeclarativeScheduler
 
     private final ScaleUpController scaleUpController;
 
+    private final Duration resourceTimeout;
+
     private State state = new Created(this, LOG);
 
     public DeclarativeScheduler(
@@ -254,6 +257,8 @@ public class DeclarativeScheduler
         this.jobStatusListener = jobStatusListener;
 
         this.scaleUpController = new ReactiveScaleUpController(configuration);
+
+        this.resourceTimeout = configuration.get(JobManagerOptions.RESOURCE_WAIT_TIMEOUT);
     }
 
     private static void ensureFullyPipelinedStreamingJob(JobGraph jobGraph)
@@ -703,9 +708,8 @@ public class DeclarativeScheduler
         final ResourceCounter desiredResources = calculateDesiredResources();
         declarativeSlotPool.setResourceRequirements(desiredResources);
 
-        // TODO: add resourceTimeout parameter
         transitionToState(
-                new WaitingForResources(this, LOG, desiredResources, Duration.ofSeconds(10)));
+                new WaitingForResources(this, LOG, desiredResources, this.resourceTimeout));
     }
 
     private ResourceCounter calculateDesiredResources() {

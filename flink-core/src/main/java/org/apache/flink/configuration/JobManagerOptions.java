@@ -22,6 +22,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 
+import java.time.Duration;
+
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
@@ -391,6 +393,25 @@ public class JobManagerOptions {
                     .defaultValue(1)
                     .withDescription(
                             "Configure the minimum increase in parallelism for a job to scale up.");
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Duration> RESOURCE_WAIT_TIMEOUT =
+            key("jobmanager.declarative-scheduler.resource-wait-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(10))
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The maximum time the JobManager will wait to acquire all required resources after a job submission or restart. "
+                                                    + "Once elapsed it will try to run the job with a lower parallelism, or fail if the minimum amount of resources could not be acquired.")
+                                    .linebreak()
+                                    .text(
+                                            "Increasing this value will make the cluster more resilient against temporary resources shortages (e.g., there is more time for a failed TaskManager to be restarted), "
+                                                    + "while decreasing this value reduces downtime of a job (provided that enough slots are available to still run the job).")
+                                    .build());
 
     /**
      * Config parameter controlling whether partitions should already be released during the job
