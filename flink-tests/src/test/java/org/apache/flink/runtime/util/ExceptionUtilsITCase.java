@@ -57,7 +57,11 @@ public class ExceptionUtilsITCase extends TestLogger {
     public void testIsDirectOutOfMemoryError() throws IOException, InterruptedException {
         String className = DummyDirectAllocatingProgram.class.getName();
         String out = run(className, Collections.emptyList(), DIRECT_MEMORY_SIZE, -1);
-        assertThat(out, is(""));
+        // JAVA_TOOL_OPTIONS is configured on CI which affects the process output
+        assertThat(
+                out,
+                either(is(""))
+                        .or(is("Picked up JAVA_TOOL_OPTIONS: -XX:+HeapDumpOnOutOfMemoryError")));
     }
 
     @Test
