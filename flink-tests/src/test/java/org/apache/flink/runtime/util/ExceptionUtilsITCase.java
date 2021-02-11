@@ -43,7 +43,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
 /** Tests for {@link ExceptionUtils} which require to spawn JVM process and set JVM memory args. */
-public class ExceptionUtilsITCases extends TestLogger {
+public class ExceptionUtilsITCase extends TestLogger {
     private static final int DIRECT_MEMORY_SIZE = 10 * 1024; // 10Kb
     private static final int DIRECT_MEMORY_ALLOCATION_PAGE_SIZE = 1024; // 1Kb
     private static final int DIRECT_MEMORY_PAGE_NUMBER =
@@ -87,6 +87,8 @@ public class ExceptionUtilsITCases extends TestLogger {
         for (String arg : args) {
             taskManagerProcessBuilder.addMainClassArg(arg);
         }
+        // JAVA_TOOL_OPTIONS is configured on CI which would affect the process output
+        taskManagerProcessBuilder.withCleanEnvironment();
         TestProcess p = taskManagerProcessBuilder.start();
         p.getProcess().waitFor();
         assertThat(p.getErrorOutput().toString().trim(), is(""));
