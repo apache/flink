@@ -40,26 +40,12 @@ source "${END_TO_END_DIR}/../tools/ci/maven-utils.sh"
 source "${END_TO_END_DIR}/test-scripts/test-runner-common.sh"
 
 # On Azure CI, set artifacts dir
-if [ ! -z "$TF_BUILD" ] ; then
-	export ARTIFACTS_DIR="${END_TO_END_DIR}/artifacts"
-	mkdir -p $ARTIFACTS_DIR || { echo "FAILURE: cannot create log directory '${ARTIFACTS_DIR}'." ; exit 1; }
+function run_on_exit {
+    collect_coredumps $(pwd) $FLINK_LOG_DIR
+    collect_dmesg $FLINK_LOG_DIR
+}
 
-	function run_on_exit {
-		collect_coredumps $(pwd) $ARTIFACTS_DIR
-		collect_dmesg $ARTIFACTS_DIR
-		compress_logs
-	}
-
-	# compress and register logs for publication on exit
-	function compress_logs {
-		echo "COMPRESSING build artifacts."
-		COMPRESSED_ARCHIVE=${BUILD_BUILDNUMBER}.tgz
-		mkdir compressed-archive-dir
-		tar -zcvf compressed-archive-dir/${COMPRESSED_ARCHIVE} -C $ARTIFACTS_DIR .
-		echo "##vso[task.setvariable variable=ARTIFACT_DIR]$(pwd)/compressed-archive-dir"
-	}
-	on_exit run_on_exit
-fi
+on_exit run_on_exit
 
 FLINK_DIR="`( cd \"$FLINK_DIR\" && pwd -P)`" # absolutized and normalized
 
