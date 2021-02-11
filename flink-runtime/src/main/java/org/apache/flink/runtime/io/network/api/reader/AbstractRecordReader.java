@@ -24,12 +24,14 @@ import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult;
 import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
+import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -48,7 +50,9 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
 
     private final Map<InputChannelInfo, RecordDeserializer<T>> recordDeserializers;
 
-    private RecordDeserializer<T> currentRecordDeserializer;
+    private final Map<RecordDeserializer<T>, Boolean> partialData = new IdentityHashMap<>();
+
+    @Nullable private RecordDeserializer<T> currentRecordDeserializer;
 
     private boolean finishedStateReading;
 
@@ -77,6 +81,9 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
                                         channelInfo ->
                                                 new SpillingAdaptiveSpanningRecordDeserializer<>(
                                                         tmpDirectories)));
+        for (RecordDeserializer<T> serializer : recordDeserializers.values()) {
+            partialData.put(serializer, Boolean.FALSE);
+        }
     }
 
     protected boolean getNextRecord(T target) throws IOException, InterruptedException {
@@ -111,9 +118,7 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
                 DeserializationResult result = currentRecordDeserializer.getNextRecord(target);
 
                 if (result.isBufferConsumed()) {
-                    final Buffer currentBuffer = currentRecordDeserializer.getCurrentBuffer();
-
-                    currentBuffer.recycleBuffer();
+                    partialData.put(currentRecordDeserializer, Boolean.FALSE);
                     currentRecordDeserializer = null;
                 }
 
@@ -128,10 +133,11 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
             if (bufferOrEvent.isBuffer()) {
                 currentRecordDeserializer = recordDeserializers.get(bufferOrEvent.getChannelInfo());
                 currentRecordDeserializer.setNextBuffer(bufferOrEvent.getBuffer());
+                partialData.put(currentRecordDeserializer, Boolean.TRUE);
             } else {
                 // sanity check for leftover data in deserializers. events should only come between
                 // records, not in the middle of a fragment
-                if (recordDeserializers.get(bufferOrEvent.getChannelInfo()).hasUnfinishedData()) {
+                if (partialData.get(recordDeserializers.get(bufferOrEvent.getChannelInfo()))) {
                     throw new IOException(
                             "Received an event in channel "
                                     + bufferOrEvent.getChannelInfo()
@@ -156,10 +162,6 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
 
     public void clearBuffers() {
         for (RecordDeserializer<?> deserializer : recordDeserializers.values()) {
-            Buffer buffer = deserializer.getCurrentBuffer();
-            if (buffer != null && !buffer.isRecycled()) {
-                buffer.recycleBuffer();
-            }
             deserializer.clear();
         }
     }
