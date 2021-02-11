@@ -33,9 +33,6 @@ import java.util.Optional;
  */
 interface State {
 
-    /** This method is called whenever one transitions into this state. */
-    default void onEnter() {}
-
     /**
      * This method is called whenever one transitions out of this state.
      *

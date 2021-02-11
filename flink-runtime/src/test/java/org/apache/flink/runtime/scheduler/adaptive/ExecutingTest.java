@@ -79,7 +79,6 @@ public class ExecutingTest extends TestLogger {
             Executing exec =
                     new ExecutingStateBuilder().setExecutionGraph(executionGraph).build(ctx);
 
-            exec.onEnter();
             assertThat(mockExecutionJobVertex.isExecutionDeployed(), is(true));
             assertThat(executionGraph.getState(), is(JobStatus.RUNNING));
         }
@@ -106,7 +105,6 @@ public class ExecutingTest extends TestLogger {
         final String failureMsg = "test exception";
         try (MockExecutingContext ctx = new MockExecutingContext()) {
             Executing exec = new ExecutingStateBuilder().build(ctx);
-            exec.onEnter();
             ctx.setExpectFailing(
                     (failingArguments -> {
                         assertThat(failingArguments.getExecutionGraph(), notNullValue());
@@ -122,7 +120,6 @@ public class ExecutingTest extends TestLogger {
         final Duration duration = Duration.ZERO;
         try (MockExecutingContext ctx = new MockExecutingContext()) {
             Executing exec = new ExecutingStateBuilder().build(ctx);
-            exec.onEnter();
             ctx.setExpectRestarting(
                     (restartingArguments ->
                             assertThat(restartingArguments.getBackoffTime(), is(duration))));
@@ -135,7 +132,6 @@ public class ExecutingTest extends TestLogger {
     public void testCancelTransitionsToCancellingState() throws Exception {
         try (MockExecutingContext ctx = new MockExecutingContext()) {
             Executing exec = new ExecutingStateBuilder().build(ctx);
-            exec.onEnter();
             ctx.setExpectCancelling(assertNonNull());
             exec.cancel();
         }
@@ -145,7 +141,6 @@ public class ExecutingTest extends TestLogger {
     public void testTransitionToFinishedOnFailedExecutionGraph() throws Exception {
         try (MockExecutingContext ctx = new MockExecutingContext()) {
             Executing exec = new ExecutingStateBuilder().build(ctx);
-            exec.onEnter();
             ctx.setExpectFinished(
                     archivedExecutionGraph ->
                             assertThat(archivedExecutionGraph.getState(), is(JobStatus.FAILED)));
@@ -164,7 +159,6 @@ public class ExecutingTest extends TestLogger {
                     archivedExecutionGraph -> {
                         assertThat(archivedExecutionGraph.getState(), is(JobStatus.SUSPENDED));
                     });
-            exec.onEnter();
             exec.suspend(new RuntimeException("suspend"));
         }
     }
@@ -174,7 +168,6 @@ public class ExecutingTest extends TestLogger {
             throws Exception {
         try (MockExecutingContext ctx = new MockExecutingContext()) {
             Executing exec = new ExecutingStateBuilder().build(ctx);
-            exec.onEnter();
 
             ctx.setExpectRestarting(
                     restartingArguments -> {
@@ -191,7 +184,6 @@ public class ExecutingTest extends TestLogger {
         try (MockExecutingContext ctx = new MockExecutingContext()) {
             Executing exec = new ExecutingStateBuilder().build(ctx);
             ctx.setCanScaleUp(() -> false);
-            exec.onEnter();
             exec.notifyNewResourcesAvailable();
             ctx.assertNoStateTransition();
         }
@@ -201,7 +193,8 @@ public class ExecutingTest extends TestLogger {
     public void testFailureReportedViaUpdateTaskExecutionStateCausesFailingOnNoRestart()
             throws Exception {
         try (MockExecutingContext ctx = new MockExecutingContext()) {
-            ExecutionGraph returnsFailedStateExecutionGraph = new MockExecutionGraph(true);
+            ExecutionGraph returnsFailedStateExecutionGraph =
+                    new MockExecutionGraph(true, Collections::emptyList);
             Executing exec =
                     new ExecutingStateBuilder()
                             .setExecutionGraph(returnsFailedStateExecutionGraph)
@@ -218,7 +211,8 @@ public class ExecutingTest extends TestLogger {
     @Test
     public void testFailureReportedViaUpdateTaskExecutionStateCausesRestart() throws Exception {
         try (MockExecutingContext ctx = new MockExecutingContext()) {
-            ExecutionGraph returnsFailedStateExecutionGraph = new MockExecutionGraph(true);
+            ExecutionGraph returnsFailedStateExecutionGraph =
+                    new MockExecutionGraph(true, Collections::emptyList);
             Executing exec =
                     new ExecutingStateBuilder()
                             .setExecutionGraph(returnsFailedStateExecutionGraph)
@@ -234,7 +228,8 @@ public class ExecutingTest extends TestLogger {
     @Test
     public void testFalseReportsViaUpdateTaskExecutionStateAreIgnored() throws Exception {
         try (MockExecutingContext ctx = new MockExecutingContext()) {
-            ExecutionGraph returnsFailedStateExecutionGraph = new MockExecutionGraph(false);
+            MockExecutionGraph returnsFailedStateExecutionGraph =
+                    new MockExecutionGraph(false, Collections::emptyList);
             Executing exec =
                     new ExecutingStateBuilder()
                             .setExecutionGraph(returnsFailedStateExecutionGraph)
@@ -261,7 +256,6 @@ public class ExecutingTest extends TestLogger {
         try (MockExecutingContext ctx = new MockExecutingContext()) {
             Executing exec = new ExecutingStateBuilder().build(ctx);
             final JobID jobId = exec.getExecutionGraph().getJobID();
-            exec.onEnter();
             assertThat(exec.getJob(), instanceOf(ArchivedExecutionGraph.class));
             assertThat(exec.getJob().getJobID(), is(jobId));
             assertThat(exec.getJobStatus(), is(JobStatus.RUNNING));
@@ -281,7 +275,6 @@ public class ExecutingTest extends TestLogger {
             // ideally we'd delay the async call to #onGloballyTerminalState instead, but the
             // context does not support that
             ctx.setExpectFinished(eg -> {});
-            executing.onEnter();
 
             finishingMockExecutionGraph.finish();
 

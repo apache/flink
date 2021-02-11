@@ -190,6 +190,8 @@ public class AdaptiveScheduler
 
     private State state = new Created(this, LOG);
 
+    private boolean isTransitioningState = false;
+
     public AdaptiveScheduler(
             JobGraph jobGraph,
             Configuration configuration,
@@ -709,7 +711,7 @@ public class AdaptiveScheduler
         declarativeSlotPool.setResourceRequirements(desiredResources);
 
         transitionToState(
-                new WaitingForResources(this, LOG, desiredResources, this.resourceTimeout));
+                new WaitingForResources.Factory(this, LOG, desiredResources, this.resourceTimeout));
     }
 
     private ResourceCounter calculateDesiredResources() {
@@ -727,7 +729,7 @@ public class AdaptiveScheduler
         operatorCoordinatorHandler.startAllOperatorCoordinators();
 
         transitionToState(
-                new Executing(
+                new Executing.Factory(
                         executionGraph,
                         executionGraphHandler,
                         operatorCoordinatorHandler,
@@ -741,8 +743,9 @@ public class AdaptiveScheduler
             ExecutionGraph executionGraph,
             ExecutionGraphHandler executionGraphHandler,
             OperatorCoordinatorHandler operatorCoordinatorHandler) {
+
         transitionToState(
-                new Canceling(
+                new Canceling.Factory(
                         this,
                         executionGraph,
                         executionGraphHandler,
@@ -757,7 +760,7 @@ public class AdaptiveScheduler
             OperatorCoordinatorHandler operatorCoordinatorHandler,
             Duration backoffTime) {
         transitionToState(
-                new Restarting(
+                new Restarting.Factory(
                         this,
                         executionGraph,
                         executionGraphHandler,
@@ -773,7 +776,7 @@ public class AdaptiveScheduler
             OperatorCoordinatorHandler operatorCoordinatorHandler,
             Throwable failureCause) {
         transitionToState(
-                new Failing(
+                new Failing.Factory(
                         this,
                         executionGraph,
                         executionGraphHandler,
@@ -784,7 +787,7 @@ public class AdaptiveScheduler
 
     @Override
     public void goToFinished(ArchivedExecutionGraph archivedExecutionGraph) {
-        transitionToState(new Finished(this, archivedExecutionGraph, LOG));
+        transitionToState(new Finished.Factory(this, archivedExecutionGraph, LOG));
     }
 
     @Override
@@ -911,19 +914,27 @@ public class AdaptiveScheduler
 
     // ----------------------------------------------------------------
 
+    /** Note: Do not call this method from a State constructor or State#onLeave. */
     @VisibleForTesting
-    void transitionToState(State newState) {
-        if (state != newState) {
+    void transitionToState(StateFactory<?> targetState) {
+        Preconditions.checkState(
+                !isTransitioningState,
+                "State transitions must not be triggered while another state transition is in progress.");
+        Preconditions.checkState(
+                state.getClass() != targetState.getStateClass(),
+                "Attempted to transition into the very state the scheduler is already in.");
+
+        try {
+            isTransitioningState = true;
             LOG.debug(
                     "Transition from state {} to {}.",
                     state.getClass().getSimpleName(),
-                    newState.getClass().getSimpleName());
+                    targetState.getStateClass().getSimpleName());
 
-            State oldState = state;
-            oldState.onLeave(newState.getClass());
-
-            state = newState;
-            newState.onEnter();
+            state.onLeave(targetState.getStateClass());
+            state = targetState.getState();
+        } finally {
+            isTransitioningState = false;
         }
     }
 
