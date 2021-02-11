@@ -19,10 +19,10 @@ From this directory:
 	```
   * Start local server
 	```sh
-	hugo serve
+	hugo -b "" serve
 	```
 
-The site can be viewed at http://localhost:1313
+The site can be viewed at http://localhost:1313/
 
 ## Generate configuration tables
 
