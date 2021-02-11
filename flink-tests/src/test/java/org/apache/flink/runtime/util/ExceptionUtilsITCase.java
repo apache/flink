@@ -39,11 +39,12 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 
+import static org.hamcrest.CoreMatchers.either;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
 /** Tests for {@link ExceptionUtils} which require to spawn JVM process and set JVM memory args. */
-public class ExceptionUtilsITCases extends TestLogger {
+public class ExceptionUtilsITCase extends TestLogger {
     private static final int DIRECT_MEMORY_SIZE = 10 * 1024; // 10Kb
     private static final int DIRECT_MEMORY_ALLOCATION_PAGE_SIZE = 1024; // 1Kb
     private static final int DIRECT_MEMORY_PAGE_NUMBER =
@@ -68,7 +69,11 @@ public class ExceptionUtilsITCases extends TestLogger {
         long okMetaspace = Long.parseLong(normalOut);
         // load more classes to cause 'OutOfMemoryError: Metaspace'
         String oomOut = run(className, getDummyClassLoadingProgramArgs(1000), -1, okMetaspace);
-        assertThat(oomOut, is(""));
+        // JAVA_TOOL_OPTIONS is configured on CI which affects the process output
+        assertThat(
+                oomOut,
+                either(is(""))
+                        .or(is("Picked up JAVA_TOOL_OPTIONS: -XX:+HeapDumpOnOutOfMemoryError")));
     }
 
     private static String run(
