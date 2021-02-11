@@ -19,9 +19,12 @@
 package org.apache.flink.runtime.scheduler.declarative;
 
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -55,21 +58,10 @@ public class FailingTest extends TestLogger {
             Failing failing = createFailingState(ctx, meg);
             failing.onEnter(); // transition from RUNNING to FAILING
             assertThat(meg.isFailing(), is(true));
-            meg.cancelVerticesAsync(); // transition to FAILED
             ctx.setExpectFinished(
                     archivedExecutionGraph ->
                             assertThat(archivedExecutionGraph.getState(), is(JobStatus.FAILED)));
-        }
-    }
-
-    @Test
-    public void testIgnoreGlobalFailure() throws Exception {
-        try (MockFailingContext ctx = new MockFailingContext()) {
-            MockExecutionGraph meg = new MockExecutionGraph();
-            Failing failing = createFailingState(ctx, meg);
-            failing.onEnter();
-            failing.handleGlobalFailure(new RuntimeException());
-            ctx.assertNoStateTransition();
+            meg.completeCancellation(); // transition to FAILED
         }
     }
 
@@ -95,6 +87,41 @@ public class FailingTest extends TestLogger {
 
             failing.onEnter();
             failing.suspend(new RuntimeException("suspend"));
+        }
+    }
+
+    @Test
+    public void testIgnoreGlobalFailure() throws Exception {
+        try (MockFailingContext ctx = new MockFailingContext()) {
+            MockExecutionGraph meg = new MockExecutionGraph();
+            Failing failing = createFailingState(ctx, meg);
+            failing.onEnter();
+            failing.handleGlobalFailure(new RuntimeException());
+            ctx.assertNoStateTransition();
+        }
+    }
+
+    @Test
+    public void testTaskFailuresAreIgnored() throws Exception {
+        try (MockFailingContext ctx = new MockFailingContext()) {
+            MockExecutionGraph meg = new MockExecutionGraph();
+            Failing failing = createFailingState(ctx, meg);
+            failing.onEnter();
+            // register execution at EG
+            ExecutingTest.MockExecutionJobVertex ejv =
+                    new ExecutingTest.MockExecutionJobVertex(failing.getExecutionGraph());
+            TaskExecutionStateTransition update =
+                    new TaskExecutionStateTransition(
+                            new TaskExecutionState(
+                                    failing.getJob().getJobID(),
+                                    ejv.getMockExecutionVertex()
+                                            .getCurrentExecutionAttempt()
+                                            .getAttemptId(),
+                                    ExecutionState.FAILED,
+                                    new RuntimeException()));
+            failing.updateTaskExecutionState(update);
+            ctx.assertNoStateTransition();
+            assertThat(meg.isFailGlobalCalled(), is(true));
         }
     }
 
