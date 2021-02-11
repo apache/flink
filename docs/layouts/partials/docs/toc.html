@@ -20,4 +20,4 @@ under the License.
 	Generates the pages table of contents. Unfortunately, hugo does not give us a lot of flexibility 
 	around how the TOC is generated so we have to fall back to a regex to add the header.	
 */}}
-{{ .TableOfContents | replaceRE "<nav id=\"TableOfContents\">" "<nav id=\"TableOfContents\"><h3>On This Page <button onclick=\"collapseToc()\"><i class=\"fa fa-compress\" aria-hidden=\"true\"></i></button></h3>" | safeHTML }}
+{{ .TableOfContents | replaceRE "<nav id=\"TableOfContents\">" "<nav id=\"TableOfContents\"><h3>On This Page <button class=\"toc\" onclick=\"collapseToc()\"><i class=\"fa fa-compress\" aria-hidden=\"true\"></i></button></h3>" | safeHTML }}

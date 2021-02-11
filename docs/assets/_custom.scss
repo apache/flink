@@ -85,10 +85,10 @@ aside nav ul {
 	border: 2px solid #ebebeb;
 }
 
-// hides an image in the underlying
-// theme. do not remove.
-.book-icon {
-    width: 0px;
+@media screen and (max-width: 768px) {
+    .toc {
+        display: none;
+    }
 }
 
 aside.book-menu nav {
