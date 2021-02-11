@@ -104,10 +104,19 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
      * <p>Usually first operator in the chain is the same as {@link #mainOperatorWrapper}, but
      * that's not the case if there are chained source inputs. In this case, one of the source
      * inputs will be the first operator. For example the following operator chain is possible:
-     * first \ main (multi-input) -> ... -> tail / second Where "first" and "second" (there can be
-     * more) are chained source operators. When it comes to things like closing, stat initialisation
-     * or state snapshotting, the operator chain is traversed: first, second, main, ..., tail or in
-     * reversed order: tail, ..., main, second, first
+     *
+     * <pre>
+     * first
+     *      \
+     *      main (multi-input) -> ... -> tail
+     *      /
+     * second
+     * </pre>
+     *
+     * <p>Where "first" and "second" (there can be more) are chained source operators. When it comes
+     * to things like closing, stat initialisation or state snapshotting, the operator chain is
+     * traversed: first, second, main, ..., tail or in reversed order: tail, ..., main, second,
+     * first
      */
     @Nullable private final StreamOperatorWrapper<OUT, OP> mainOperatorWrapper;
 
