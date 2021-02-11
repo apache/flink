@@ -28,7 +28,8 @@ fi
 tar -zxvf $HUGO_ARTIFACT
 
 git submodule update --init --recursive
-./hugo --source docs --destination docs/target
+# generate docs into docs/target
+./hugo -v --source docs --destination target
 
 if [ $? -ne 0 ]; then
 	echo "Error building the docs"
