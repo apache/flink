@@ -18,34 +18,16 @@
 
 package org.apache.flink.runtime.scheduler.declarative;
 
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.blob.VoidBlobWriter;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.JobInformation;
-import org.apache.flink.runtime.executiongraph.NoOpExecutionDeploymentListener;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
-import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategyFactoryLoader;
-import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
-import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-
-import java.io.IOException;
-import java.util.Collections;
-import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
@@ -131,7 +113,6 @@ public class CancelingTest extends TestLogger {
                                     new RuntimeException()));
             canceling.updateTaskExecutionState(update);
             ctx.assertNoStateTransition();
-            assertThat(meg.isFailGlobalCalled(), is(true));
         }
     }
 
@@ -158,71 +139,5 @@ public class CancelingTest extends TestLogger {
                         operatorCoordinatorHandler,
                         log);
         return canceling;
-    }
-
-    /**
-     * Mocked ExecutionGraph, which stays in CANCELLING, when cancel() gets called, until the
-     * "completeCancellationFuture" is completed.
-     */
-    private static class MockExecutionGraph extends ExecutionGraph {
-
-        private final CompletableFuture<?> completeCancellationFuture = new CompletableFuture<>();
-        private boolean isCancelling = false;
-        private boolean isFailGlobalCalled = false;
-
-        public MockExecutionGraph() throws IOException {
-            super(
-                    new JobInformation(
-                            new JobID(),
-                            "Test Job",
-                            new SerializedValue<>(new ExecutionConfig()),
-                            new Configuration(),
-                            Collections.emptyList(),
-                            Collections.emptyList()),
-                    TestingUtils.defaultExecutor(),
-                    TestingUtils.defaultExecutor(),
-                    AkkaUtils.getDefaultTimeout(),
-                    1,
-                    ExecutionGraph.class.getClassLoader(),
-                    VoidBlobWriter.getInstance(),
-                    PartitionReleaseStrategyFactoryLoader.loadPartitionReleaseStrategyFactory(
-                            new Configuration()),
-                    NettyShuffleMaster.INSTANCE,
-                    NoOpJobMasterPartitionTracker.INSTANCE,
-                    ScheduleMode.EAGER,
-                    NoOpExecutionDeploymentListener.get(),
-                    (execution, newState) -> {},
-                    0L);
-            this.setJsonPlan(""); // field must not be null for ArchivedExecutionGraph creation
-        }
-
-        void completeCancellation() {
-            completeCancellationFuture.complete(null);
-        }
-
-        public boolean isCancelling() {
-            return isCancelling;
-        }
-
-        public boolean isFailGlobalCalled() {
-            return isFailGlobalCalled;
-        }
-
-        // overwrites for the tests
-        @Override
-        public void cancel() {
-            super.cancel();
-            this.isCancelling = true;
-        }
-
-        @Override
-        public void failGlobal(Throwable t) {
-            isFailGlobalCalled = true;
-        }
-
-        @Override
-        protected FutureUtils.ConjunctFuture<Void> cancelVerticesAsync() {
-            return FutureUtils.completeAll(Collections.singleton(completeCancellationFuture));
-        }
     }
 }
