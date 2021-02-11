@@ -357,6 +357,10 @@ public class PipelinedSubpartition extends ResultSubpartition
         }
     }
 
+    public void acknowledgeAllRecordsProcessed() {
+        parent.onSubpartitionAllRecordsProcessed(subpartitionInfo.getSubPartitionIdx());
+    }
+
     @Override
     public boolean isReleased() {
         return isReleased;

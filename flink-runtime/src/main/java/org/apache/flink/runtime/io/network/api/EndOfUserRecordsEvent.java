@@ -24,7 +24,15 @@ import org.apache.flink.runtime.event.RuntimeEvent;
 
 import java.io.IOException;
 
-/** This event marks a subpartition's user records as fully consumed. */
+/**
+ * This event indicates there will be no more data records in a subpartition. There still might be
+ * other events, in particular {@link CheckpointBarrier CheckpointBarriers} traveling. The {@link
+ * EndOfUserRecordsEvent} is acknowledged by the downstream task. That way we can safely assume the
+ * downstream task has consumed all the produced records and therefore we can perform a final
+ * checkpoint for the upstream task.
+ *
+ * @see <a href="https://cwiki.apache.org/confluence/x/mw-ZCQ">FLIP-147</a>
+ */
 public class EndOfUserRecordsEvent extends RuntimeEvent {
 
     /** The singleton instance of this event. */

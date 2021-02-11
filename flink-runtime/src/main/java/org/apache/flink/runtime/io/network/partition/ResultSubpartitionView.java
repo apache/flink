@@ -51,6 +51,8 @@ public interface ResultSubpartitionView {
 
     void resumeConsumption();
 
+    void acknowledgeAllRecordsProcessed();
+
     Throwable getFailureCause();
 
     boolean isAvailable(int numCreditsAvailable);

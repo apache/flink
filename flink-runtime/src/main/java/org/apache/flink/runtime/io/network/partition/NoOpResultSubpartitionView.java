@@ -43,6 +43,9 @@ public class NoOpResultSubpartitionView implements ResultSubpartitionView {
     public void resumeConsumption() {}
 
     @Override
+    public void acknowledgeAllRecordsProcessed() {}
+
+    @Override
     public Throwable getFailureCause() {
         return null;
     }

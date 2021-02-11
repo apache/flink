@@ -203,6 +203,11 @@ class SortMergeSubpartitionReader
     }
 
     @Override
+    public void acknowledgeAllRecordsProcessed() {
+        throw new UnsupportedOperationException("Method should never be called.");
+    }
+
+    @Override
     public Throwable getFailureCause() {
         synchronized (lock) {
             return failureCause;
