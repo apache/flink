@@ -44,6 +44,8 @@ public class TestProcessBuilder {
 
     private MemorySize jvmMemory = MemorySize.parse("80mb");
 
+    private boolean withCleanEnvironment = false;
+
     public TestProcessBuilder(String mainClass) throws IOException {
         File tempLogFile =
                 File.createTempFile(getClass().getSimpleName() + "-", "-log4j.properties");
@@ -70,7 +72,11 @@ public class TestProcessBuilder {
 
         StringWriter processOutput = new StringWriter();
         StringWriter errorOutput = new StringWriter();
-        Process process = new ProcessBuilder(commands).start();
+        final ProcessBuilder processBuilder = new ProcessBuilder(commands);
+        if (withCleanEnvironment) {
+            processBuilder.environment().clear();
+        }
+        Process process = processBuilder.start();
         new PipeForwarder(process.getInputStream(), processOutput);
         new PipeForwarder(process.getErrorStream(), errorOutput);
 
@@ -97,6 +103,11 @@ public class TestProcessBuilder {
             addMainClassArg("--" + keyValue.getKey());
             addMainClassArg(keyValue.getValue());
         }
+        return this;
+    }
+
+    public TestProcessBuilder withCleanEnvironment() {
+        withCleanEnvironment = true;
         return this;
     }
 
