@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-baseURL = '/'
+baseURL = '//ci.apache.org/projects/flink/flink-docs-master'
 languageCode = "en-us"
 title = "Apache Flink"
 enableGitInfo = false
