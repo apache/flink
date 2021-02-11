@@ -237,7 +237,8 @@ public class StreamTaskTerminationTest extends TestLogger {
             }
             // wait until we have started an asynchronous checkpoint
             if (isCanceled() || SNAPSHOT_HAS_STARTED.get()) {
-                controller.allActionsCompleted();
+                controller.suspendDefaultAction();
+                mailboxProcessor.suspend();
             }
         }
 

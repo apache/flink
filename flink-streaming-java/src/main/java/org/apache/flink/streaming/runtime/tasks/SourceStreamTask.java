@@ -173,7 +173,7 @@ public class SourceStreamTask<
                             } else if (!wasStoppedExternally && sourceThreadThrowable != null) {
                                 mailboxProcessor.reportThrowable(sourceThreadThrowable);
                             } else {
-                                mailboxProcessor.allActionsCompleted();
+                                mailboxProcessor.suspend();
                             }
                         });
     }
