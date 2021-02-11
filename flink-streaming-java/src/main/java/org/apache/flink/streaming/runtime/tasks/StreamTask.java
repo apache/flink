@@ -430,7 +430,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
             return;
         }
         if (status == InputStatus.END_OF_INPUT) {
-            controller.allActionsCompleted();
+            // Suspend the mailbox processor, it would be resumed in afterInvoke and finished
+            // after all records processed by the downstream tasks. We also suspend the default
+            // actions to avoid repeat executing the empty default operation (namely process
+            // records).
+            controller.suspendDefaultAction();
+            mailboxProcessor.suspend();
             return;
         }
 
@@ -695,6 +700,30 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         // close all operators in a chain effect way
         operatorChain.closeOperators(actionExecutor);
 
+        // If checkpoints are enabled, waits for all the records get processed by the downstream
+        // tasks. During this process, this task could coordinate with its downstream tasks to
+        // continue perform checkpoints.
+        CompletableFuture<Void> allRecordsProcessedFuture;
+        if (configuration.isCheckpointingEnabled()) {
+            LOG.debug("Waiting for all the records processed by the downstream tasks.");
+
+            List<CompletableFuture<Void>> partitionRecordsProcessedFutures = new ArrayList<>();
+            for (ResultPartitionWriter partitionWriter : getEnvironment().getAllWriters()) {
+                partitionWriter.notifyEndOfUserRecords();
+                partitionRecordsProcessedFutures.add(
+                        partitionWriter.getAllRecordsProcessedFuture());
+            }
+            allRecordsProcessedFuture = FutureUtils.waitForAll(partitionRecordsProcessedFutures);
+        } else {
+            allRecordsProcessedFuture = CompletableFuture.completedFuture(null);
+        }
+        allRecordsProcessedFuture.thenRun(mailboxProcessor::allActionsCompleted);
+
+        // Resumes the mailbox processor. The mailbox processor would be completed
+        // after all records are processed by the downstream tasks.
+        mailboxProcessor.ensureDefaultActionSuspend();
+        mailboxProcessor.runMailboxLoop();
+
         // make sure no further checkpoint and notification actions happen.
         // at the same time, this makes sure that during any "regular" exit where still
         actionExecutor.runThrowing(
@@ -705,13 +734,19 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
                     // let mailbox execution reject all new letters from this point
                     mailboxProcessor.prepareClose();
+                });
 
+        // processes the remaining mails; no new mails can be enqueued
+        mailboxProcessor.drain();
+
+        // Set isRunning to false after all the mails are drained so that
+        // the queued checkpoint requirements could be triggered normally.
+        actionExecutor.runThrowing(
+                () -> {
                     // only set the StreamTask to not running after all operators have been closed!
                     // See FLINK-7430
                     isRunning = false;
                 });
-        // processes the remaining mails; no new mails can be enqueued
-        mailboxProcessor.drain();
 
         // make sure all timers finish
         timersFinishedFuture.get();

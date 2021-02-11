@@ -159,7 +159,8 @@ public class SynchronousCheckpointTest {
         @Override
         protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
             if (stopped || isCanceled()) {
-                controller.allActionsCompleted();
+                controller.suspendDefaultAction();
+                mailboxProcessor.suspend();
             }
         }
 

@@ -475,7 +475,7 @@ public class StreamTaskTestHarness<OUT> {
         setupCalled = true;
         StreamConfig streamConfig = getStreamConfig();
         streamConfig.setStreamOperatorFactory(headOperatorFactory);
-        return new StreamConfigChainer(headOperatorId, streamConfig, this);
+        return new StreamConfigChainer(headOperatorId, streamConfig, this, 1);
     }
 
     // ------------------------------------------------------------------------
