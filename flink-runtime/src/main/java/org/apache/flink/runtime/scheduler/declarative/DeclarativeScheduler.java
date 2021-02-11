@@ -57,11 +57,14 @@ import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTime
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTrackerDeploymentListenerAdapter;
@@ -97,6 +100,7 @@ import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -184,6 +188,8 @@ public class DeclarativeScheduler
             JobStatusListener jobStatusListener)
             throws JobExecutionException {
 
+        ensureFullyPipelinedStreamingJob(jobGraph);
+
         this.jobInformation = new JobGraphJobInformation(jobGraph);
         this.declarativeSlotPool = declarativeSlotPool;
         this.initializationTimestamp = initializationTimestamp;
@@ -228,6 +234,27 @@ public class DeclarativeScheduler
         this.jobStatusListener = jobStatusListener;
 
         this.scaleUpController = new ReactiveScaleUpController(configuration);
+    }
+
+    private static void ensureFullyPipelinedStreamingJob(JobGraph jobGraph)
+            throws RuntimeException {
+        Preconditions.checkState(
+                jobGraph.getJobType() == JobType.STREAMING,
+                "The declarative scheduler only supports streaming jobs.");
+        Preconditions.checkState(
+                jobGraph.getScheduleMode()
+                        != ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST,
+                "The declarative schedules does not support batch slot requests.");
+
+        for (JobVertex vertex : jobGraph.getVertices()) {
+            for (JobEdge jobEdge : vertex.getInputs()) {
+                Preconditions.checkState(
+                        jobEdge.getSource().getResultType().isPipelined(),
+                        "The declarative scheduler supports pipelined data exchanges (violated by %s -> %s).",
+                        jobEdge.getSource().getProducer(),
+                        jobEdge.getTarget().getID());
+            }
+        }
     }
 
     private void newResourcesAvailable(Collection<? extends PhysicalSlot> physicalSlots) {

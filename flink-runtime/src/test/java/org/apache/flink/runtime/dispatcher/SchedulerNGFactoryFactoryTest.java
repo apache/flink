@@ -21,12 +21,15 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerFactory;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
+import org.apache.flink.runtime.scheduler.declarative.DeclarativeSchedulerFactory;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
@@ -65,7 +68,18 @@ public class SchedulerNGFactoryFactoryTest extends TestLogger {
         }
     }
 
+    @Test
+    public void fallBackIfBatchAndDeclarative() {
+        final Configuration configuration = new Configuration();
+        configuration.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Declarative);
+
+        final SchedulerNGFactory schedulerNGFactory =
+                SchedulerNGFactoryFactory.createSchedulerNGFactory(configuration, JobType.BATCH);
+
+        assertThat(schedulerNGFactory, is(not(instanceOf(DeclarativeSchedulerFactory.class))));
+    }
+
     private static SchedulerNGFactory createSchedulerNGFactory(final Configuration configuration) {
-        return SchedulerNGFactoryFactory.createSchedulerNGFactory(configuration);
+        return SchedulerNGFactoryFactory.createSchedulerNGFactory(configuration, JobType.BATCH);
     }
 }

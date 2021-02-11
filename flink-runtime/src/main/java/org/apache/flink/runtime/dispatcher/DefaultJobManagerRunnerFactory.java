@@ -57,9 +57,10 @@ public enum DefaultJobManagerRunnerFactory implements JobManagerRunnerFactory {
                 JobMasterConfiguration.fromConfiguration(configuration);
 
         final SlotPoolServiceFactory slotPoolFactory =
-                SlotPoolServiceFactory.fromConfiguration(configuration);
+                SlotPoolServiceFactory.fromConfiguration(configuration, jobGraph.getJobType());
         final SchedulerNGFactory schedulerNGFactory =
-                SchedulerNGFactoryFactory.createSchedulerNGFactory(configuration);
+                SchedulerNGFactoryFactory.createSchedulerNGFactory(
+                        configuration, jobGraph.getJobType());
         final ShuffleMaster<?> shuffleMaster =
                 ShuffleServiceLoader.loadShuffleServiceFactory(configuration)
                         .createShuffleMaster(configuration);
