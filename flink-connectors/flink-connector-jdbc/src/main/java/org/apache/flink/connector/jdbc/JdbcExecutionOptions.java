@@ -27,8 +27,8 @@ import java.util.Objects;
 @PublicEvolving
 public class JdbcExecutionOptions implements Serializable {
     public static final int DEFAULT_MAX_RETRY_TIMES = 3;
-    private static final int DEFAULT_INTERVAL_MILLIS = 0;
-    public static final int DEFAULT_SIZE = 5000;
+    public static final int DEFAULT_INTERVAL_MILLIS = 1000;
+    public static final int DEFAULT_SIZE = 100;
 
     private final long batchIntervalMs;
     private final int batchSize;
