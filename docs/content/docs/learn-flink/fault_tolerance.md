@@ -28,82 +28,107 @@ under the License.
 
 The keyed state managed by Flink is a sort of sharded, key/value store, and the working copy of each
 item of keyed state is kept somewhere local to the taskmanager responsible for that key. Operator
-state is also local to the machine(s) that need(s) it. Flink periodically takes persistent snapshots
-of all the state and copies these snapshots somewhere more durable, such as a distributed file
-system.
+state is also local to the machine(s) that need(s) it.
 
-In the event of the failure, Flink can restore the complete state of your application and resume
-processing as though nothing had gone wrong.
-
-This state that Flink manages is stored in a _state backend_. Two implementations of state backends
-are available -- one based on RocksDB, an embedded key/value store that keeps its working state on
+This state that Flink manages is stored in a _state backend_. 
+Two implementations of state backends are available -- one based on RocksDB, an embedded key/value store that keeps its working state on
 disk, and another heap-based state backend that keeps its working state in memory, on the Java heap.
-This heap-based state backend comes in two flavors: the FsStateBackend that persists its state
-snapshots to a distributed file system, and the MemoryStateBackend that uses the JobManager's heap.
 
-<table class="table table-bordered">
-  <thead>
-    <tr class="book-hint info">
-      <th class="text-left">Name</th>
-      <th class="text-left">Working State</th>
-      <th class="text-left">State Backup</th>
-      <th class="text-left">Snapshotting</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th class="text-left">RocksDBStateBackend</th>
-      <td class="text-left">Local disk (tmp dir)</td>
-      <td class="text-left">Distributed file system</td>
-      <td class="text-left">Full / Incremental</td>
-    </tr>
-    <tr>
-      <td colspan="4" class="text-left">
-        <ul>
-          <li>Supports state larger than available memory</li>
-          <li>Rule of thumb: 10x slower than heap-based backends</li>
-        </ul>
-      </td>
-    </tr>
-    <tr>
-      <th class="text-left">FsStateBackend</th>
-      <td class="text-left">JVM Heap</td>
-      <td class="text-left">Distributed file system</td>
-      <td class="text-left">Full</td>
-    </tr>
-    <tr>
-      <td colspan="4" class="text-left">
-        <ul>
-          <li>Fast, requires large heap</li>
-          <li>Subject to GC</li>
-        </ul>
-      </td>
-    </tr>
-    <tr>
-      <th class="text-left">MemoryStateBackend</th>
-      <td class="text-left">JVM Heap</td>
-      <td class="text-left">JobManager JVM Heap</td>
-      <td class="text-left">Full</td>
-    </tr>
-    <tr>
-      <td colspan="4" class="text-left">
-        <ul>
-          <li>Good for testing and experimentation with small state (locally)</li>
-        </ul>
-      </td>
-    </tr>
-  </tbody>
-</table>
+<center>
+  <table class="table table-bordered">
+    <thead>
+      <tr class="book-hint info">
+        <th class="text-left">Name</th>
+        <th class="text-left">Working State</th>
+        <th class="text-left">Snapshotting</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th class="text-left">EmbeddedRocksDBStateBackend</th>
+        <td class="text-left">Local disk (tmp dir)</td>
+        <td class="text-left">Full / Incremental</td>
+      </tr>
+      <tr>
+        <td colspan="4" class="text-left">
+          <ul>
+            <li>Supports state larger than available memory</li>
+            <li>Rule of thumb: 10x slower than heap-based backends</li>
+          </ul>
+        </td>
+      </tr>
+      <tr>
+        <th class="text-left">HashMapStateBackend</th>
+        <td class="text-left">JVM Heap</td>
+        <td class="text-left">Full</td>
+      </tr>
+      <tr>
+        <td colspan="4" class="text-left">
+          <ul>
+            <li>Fast, requires large heap</li>
+            <li>Subject to GC</li>
+          </ul>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</center>
 
 When working with state kept in a heap-based state backend, accesses and updates involve reading and
-writing objects on the heap. But for objects kept in the `RocksDBStateBackend`, accesses and updates
+writing objects on the heap. But for objects kept in the `EmbeddedRocksDBStateBackend`, accesses and updates
 involve serialization and deserialization, and so are much more expensive. But the amount of state
 you can have with RocksDB is limited only by the size of the local disk. Note also that only the
-`RocksDBStateBackend` is able to do incremental snapshotting, which is a significant benefit for
+`EmbeddedRocksDBStateBackend` is able to do incremental snapshotting, which is a significant benefit for
 applications with large amounts of slowly changing state.
 
-All of these state backends are able to do asynchronous snapshotting, meaning that they can take a
+Both of these state backends are able to do asynchronous snapshotting, meaning that they can take a
 snapshot without impeding the ongoing stream processing.
+
+## Checkpoint Storage
+
+Flink periodically takes persistent snapshots of all the state in every operator and copies these snapshots somewhere more durable, such as a distributed file system. In the event of the failure, Flink can restore the complete state of your application and resume
+processing as though nothing had gone wrong.
+
+The location where these snapshots are stored is defined via the jobs _checkpoint storage_.
+Two implementations of checkpoint storage are available - one that persists its state snapshots
+to a distributed file system, and another that users the JobManager's heap. 
+
+<center>
+  <table class="table table-bordered">
+    <thead>
+      <tr class="book-hint info">
+        <th class="text-left">Name</th>
+        <th class="text-left">State Backup</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th class="text-left">FileSystemCheckpointStorage</th>
+        <td class="text-left">Distributed file system</td>
+      </tr>
+      <tr>
+        <td colspan="4" class="text-left">
+          <ul>
+            <li>Supports very large state size</li>
+            <li>Highly durable</li>
+            <li>Recommended for production deployments</li>
+          </ul>
+        </td>
+      </tr>
+      <tr>
+        <th class="text-left">JobManagerCheckpointStorage</th>
+        <td class="text-left">JobManager JVM Heap</td>
+      </tr>
+      <tr>
+        <td colspan="4" class="text-left">
+          <ul>
+            <li>Good for testing and experimentation with small state (locally)</li>
+          </ul>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</center>
 
 {{< top >}}
 

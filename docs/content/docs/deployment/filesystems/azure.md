@@ -30,8 +30,6 @@ under the License.
 [Azure Blob Storage](https://docs.microsoft.com/en-us/azure/storage/) is a Microsoft-managed service providing cloud storage for a variety of use cases.
 You can use Azure Blob Storage with Flink for **reading** and **writing data** as well in conjunction with the [streaming **state backends**]({{< ref "docs/ops/state/state_backends" >}})  
 
-
-
 You can use Azure Blob Storage objects like regular files by specifying paths in the following format:
 
 ```plain
@@ -50,8 +48,8 @@ env.readTextFile("wasb://<your-container>@$<your-azure-account>.blob.core.window
 // Write to Azure Blob storage
 stream.writeAsText("wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>")
 
-// Use Azure Blob Storage as FsStatebackend
-env.setStateBackend(new FsStateBackend("wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>"));
+// Use Azure Blob Storage as checkpoint storage
+env.getCheckpointConfig().setCheckpointStorage("wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>");
 ```
 
 ### Shaded Hadoop Azure Blob Storage file system

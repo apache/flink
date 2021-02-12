@@ -292,10 +292,10 @@ also cover operator state and timers.*
 
 The following state backends can support task-local recovery.
 
-- FsStateBackend: task-local recovery is supported for keyed state. The implementation will duplicate the state to a local file. This can introduce additional write costs
+- **HashMapStateBackend**: task-local recovery is supported for keyed state. The implementation will duplicate the state to a local file. This can introduce additional write costs
 and occupy local disk space. In the future, we might also offer an implementation that keeps task-local state in memory.
 
-- RocksDBStateBackend: task-local recovery is supported for keyed state. For *full checkpoints*, state is duplicated to a local file. This can introduce additional write costs
+- **EmbeddedRocksDBStateBackend**: task-local recovery is supported for keyed state. For *full checkpoints*, state is duplicated to a local file. This can introduce additional write costs
 and occupy local disk space. For *incremental snapshots*, the local state is based on RocksDB's native checkpointing mechanism. This mechanism is also used as the first step
 to create the primary copy, which means that in this case no additional cost is introduced for creating the secondary copy. We simply keep the native checkpoint directory around
 instead of deleting it after uploading to the distributed store. This local copy can share active files with the working directory of RocksDB (via hard links), so for active
