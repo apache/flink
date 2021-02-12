@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rpc.akka;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.rpc.RpcUtils;
+import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
@@ -32,6 +33,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
@@ -95,6 +97,32 @@ public class RemoteAkkaRpcActorTest extends TestLogger {
             final Integer value = rpcGateway.synchronousFoobar();
 
             assertThat(value, is(nullValue()));
+        }
+    }
+
+    @Test
+    public void canRespondWithSerializedValueRemotely() throws Exception {
+        try (final AkkaRpcActorTest.SerializedValueRespondingEndpoint endpoint =
+                new AkkaRpcActorTest.SerializedValueRespondingEndpoint(rpcService)) {
+            endpoint.start();
+
+            final AkkaRpcActorTest.SerializedValueRespondingGateway remoteGateway =
+                    otherRpcService
+                            .connect(
+                                    endpoint.getAddress(),
+                                    AkkaRpcActorTest.SerializedValueRespondingGateway.class)
+                            .join();
+
+            assertThat(
+                    remoteGateway.getSerializedValueSynchronously(),
+                    equalTo(AkkaRpcActorTest.SerializedValueRespondingEndpoint.SERIALIZED_VALUE));
+
+            final CompletableFuture<SerializedValue<String>> responseFuture =
+                    remoteGateway.getSerializedValue();
+
+            assertThat(
+                    responseFuture.get(),
+                    equalTo(AkkaRpcActorTest.SerializedValueRespondingEndpoint.SERIALIZED_VALUE));
         }
     }
 }
