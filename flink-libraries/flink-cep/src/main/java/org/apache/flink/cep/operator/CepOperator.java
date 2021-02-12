@@ -33,7 +33,6 @@ import org.apache.flink.cep.EventComparator;
 import org.apache.flink.cep.functions.PatternProcessFunction;
 import org.apache.flink.cep.functions.TimedOutPartialMatchHandler;
 import org.apache.flink.cep.nfa.NFA;
-import org.apache.flink.cep.nfa.NFA.MigratedNFA;
 import org.apache.flink.cep.nfa.NFAState;
 import org.apache.flink.cep.nfa.NFAStateSerializer;
 import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
@@ -43,7 +42,6 @@ import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
 import org.apache.flink.cep.time.TimerService;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.runtime.state.KeyedStateFunction;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
@@ -191,33 +189,6 @@ public class CepOperator<IN, KEY, OUT>
                                         EVENT_QUEUE_STATE_NAME,
                                         LongSerializer.INSTANCE,
                                         new ListSerializer<>(inputSerializer)));
-
-        if (context.isRestored()) {
-            migrateOldState();
-        }
-    }
-
-    private void migrateOldState() throws Exception {
-        getKeyedStateBackend()
-                .applyToAllKeys(
-                        VoidNamespace.INSTANCE,
-                        VoidNamespaceSerializer.INSTANCE,
-                        new ValueStateDescriptor<>(
-                                "nfaOperatorStateName", new NFA.NFASerializer<>(inputSerializer)),
-                        new KeyedStateFunction<Object, ValueState<MigratedNFA<IN>>>() {
-                            @Override
-                            public void process(Object key, ValueState<MigratedNFA<IN>> state)
-                                    throws Exception {
-                                MigratedNFA<IN> oldState = state.value();
-                                computationStates.update(
-                                        new NFAState(oldState.getComputationStates()));
-                                org.apache.flink.cep.nfa.SharedBuffer<IN> sharedBuffer =
-                                        oldState.getSharedBuffer();
-                                partialMatches.init(
-                                        sharedBuffer.getEventsBuffer(), sharedBuffer.getPages());
-                                state.clear();
-                            }
-                        });
     }
 
     @Override
