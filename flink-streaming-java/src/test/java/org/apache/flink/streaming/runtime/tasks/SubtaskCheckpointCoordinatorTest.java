@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -84,14 +85,15 @@ import static org.junit.Assert.fail;
 public class SubtaskCheckpointCoordinatorTest {
 
     @Test
-    public void testInitCheckpoint() throws IOException {
+    public void testInitCheckpoint() throws IOException, CheckpointException {
         assertTrue(initCheckpoint(true, CHECKPOINT));
         assertFalse(initCheckpoint(false, CHECKPOINT));
         assertFalse(initCheckpoint(false, SAVEPOINT));
     }
 
     private boolean initCheckpoint(
-            boolean unalignedCheckpointEnabled, CheckpointType checkpointType) throws IOException {
+            boolean unalignedCheckpointEnabled, CheckpointType checkpointType)
+            throws IOException, CheckpointException {
         class MockWriter extends ChannelStateWriterImpl.NoOpChannelStateWriter {
             private boolean started;
 
