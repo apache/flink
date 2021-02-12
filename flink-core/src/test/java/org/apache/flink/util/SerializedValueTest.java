@@ -22,9 +22,12 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 
 import org.junit.Test;
 
+import java.util.Arrays;
+
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 
 /** Tests for the {@link SerializedValue}. */
@@ -47,6 +50,14 @@ public class SerializedValueTest {
             assertNotNull(v.toString());
             assertNotNull(copy.toString());
 
+            assertNotEquals(0, v.getByteArray().length);
+            assertArrayEquals(v.getByteArray(), copy.getByteArray());
+
+            byte[] bytes = v.getByteArray();
+            SerializedValue<String> saved =
+                    SerializedValue.fromBytes(Arrays.copyOf(bytes, bytes.length));
+            assertEquals(v, saved);
+            assertArrayEquals(v.getByteArray(), saved.getByteArray());
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -54,19 +65,32 @@ public class SerializedValueTest {
     }
 
     @Test
-    public void testNullValue() {
+    public void testNullValue() throws Exception {
         try {
-            SerializedValue<Object> v = new SerializedValue<>(null);
-            SerializedValue<Object> copy = CommonTestUtils.createCopySerializable(v);
+            new SerializedValue<>(null);
+            fail("expect NullPointerException");
+        } catch (NullPointerException e) {
+            // ignore
+        }
+    }
 
-            assertNull(copy.deserializeValue(getClass().getClassLoader()));
+    @Test
+    public void testFromNullBytes() {
+        try {
+            SerializedValue.fromBytes(null);
+            fail("expect NullPointerException");
+        } catch (NullPointerException e) {
+            // ignore
+        }
+    }
 
-            assertEquals(v, copy);
-            assertEquals(v.hashCode(), copy.hashCode());
-            assertEquals(v.toString(), copy.toString());
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
+    @Test
+    public void testFromEmptyBytes() {
+        try {
+            SerializedValue.fromBytes(new byte[0]);
+            fail("expect IllegalArgumentException");
+        } catch (IllegalArgumentException e) {
+            // ignore
         }
     }
 }
