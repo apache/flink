@@ -44,7 +44,7 @@ import java.util.function.Supplier;
 public interface SubtaskCheckpointCoordinator extends Closeable {
 
     /** Initialize new checkpoint. */
-    void initCheckpoint(long id, CheckpointOptions checkpointOptions) throws IOException;
+    void initCheckpoint(long id, CheckpointOptions checkpointOptions) throws CheckpointException;
 
     ChannelStateWriter getChannelStateWriter();
 

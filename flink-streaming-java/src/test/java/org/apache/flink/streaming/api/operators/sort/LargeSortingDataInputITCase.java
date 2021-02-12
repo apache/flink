@@ -27,6 +27,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputStatus;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
@@ -285,7 +286,8 @@ public class LargeSortingDataInputITCase {
 
         @Override
         public CompletableFuture<Void> prepareSnapshot(
-                ChannelStateWriter channelStateWriter, long checkpointId) throws IOException {
+                ChannelStateWriter channelStateWriter, long checkpointId)
+                throws CheckpointException {
             return CompletableFuture.completedFuture(null);
         }
 

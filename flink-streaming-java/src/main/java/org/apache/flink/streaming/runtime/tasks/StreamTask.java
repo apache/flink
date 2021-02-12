@@ -371,7 +371,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     }
 
     private CompletableFuture<Void> prepareInputSnapshot(
-            ChannelStateWriter channelStateWriter, long checkpointId) throws IOException {
+            ChannelStateWriter channelStateWriter, long checkpointId) throws CheckpointException {
         if (inputProcessor == null) {
             return FutureUtils.completedVoidFuture();
         }

@@ -83,7 +83,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
     private final ChannelStateWriter channelStateWriter;
     private final StreamTaskActionExecutor actionExecutor;
     private final BiFunctionWithException<
-                    ChannelStateWriter, Long, CompletableFuture<Void>, IOException>
+                    ChannelStateWriter, Long, CompletableFuture<Void>, CheckpointException>
             prepareInputSnapshot;
     /** The IDs of the checkpoint for which we are notified aborted. */
     private final Set<Long> abortedCheckpointIds;
@@ -109,7 +109,8 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             Environment env,
             AsyncExceptionHandler asyncExceptionHandler,
             boolean unalignedCheckpointEnabled,
-            BiFunctionWithException<ChannelStateWriter, Long, CompletableFuture<Void>, IOException>
+            BiFunctionWithException<
+                            ChannelStateWriter, Long, CompletableFuture<Void>, CheckpointException>
                     prepareInputSnapshot)
             throws IOException {
         this(
@@ -134,7 +135,8 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             Environment env,
             AsyncExceptionHandler asyncExceptionHandler,
             boolean unalignedCheckpointEnabled,
-            BiFunctionWithException<ChannelStateWriter, Long, CompletableFuture<Void>, IOException>
+            BiFunctionWithException<
+                            ChannelStateWriter, Long, CompletableFuture<Void>, CheckpointException>
                     prepareInputSnapshot,
             int maxRecordAbortedCheckpoints)
             throws IOException {
@@ -162,7 +164,8 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             ExecutorService asyncOperationsThreadPool,
             Environment env,
             AsyncExceptionHandler asyncExceptionHandler,
-            BiFunctionWithException<ChannelStateWriter, Long, CompletableFuture<Void>, IOException>
+            BiFunctionWithException<
+                            ChannelStateWriter, Long, CompletableFuture<Void>, CheckpointException>
                     prepareInputSnapshot,
             int maxRecordAbortedCheckpoints,
             ChannelStateWriter channelStateWriter)
@@ -372,7 +375,8 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
     }
 
     @Override
-    public void initCheckpoint(long id, CheckpointOptions checkpointOptions) throws IOException {
+    public void initCheckpoint(long id, CheckpointOptions checkpointOptions)
+            throws CheckpointException {
         if (checkpointOptions.isUnalignedCheckpoint()) {
             channelStateWriter.start(id, checkpointOptions);
 
@@ -480,7 +484,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
         }
     }
 
-    private void prepareInflightDataSnapshot(long checkpointId) throws IOException {
+    private void prepareInflightDataSnapshot(long checkpointId) throws CheckpointException {
         prepareInputSnapshot
                 .apply(channelStateWriter, checkpointId)
                 .whenComplete(

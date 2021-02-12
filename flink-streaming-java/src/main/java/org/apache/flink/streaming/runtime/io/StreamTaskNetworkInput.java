@@ -20,6 +20,8 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -90,18 +92,22 @@ public final class StreamTaskNetworkInput<T>
 
     @Override
     public CompletableFuture<Void> prepareSnapshot(
-            ChannelStateWriter channelStateWriter, long checkpointId) throws IOException {
+            ChannelStateWriter channelStateWriter, long checkpointId) throws CheckpointException {
         for (Map.Entry<
                         InputChannelInfo,
                         SpillingAdaptiveSpanningRecordDeserializer<
                                 DeserializationDelegate<StreamElement>>>
                 e : recordDeserializers.entrySet()) {
 
-            channelStateWriter.addInputData(
-                    checkpointId,
-                    e.getKey(),
-                    ChannelStateWriter.SEQUENCE_NUMBER_UNKNOWN,
-                    e.getValue().getUnconsumedBuffer());
+            try {
+                channelStateWriter.addInputData(
+                        checkpointId,
+                        e.getKey(),
+                        ChannelStateWriter.SEQUENCE_NUMBER_UNKNOWN,
+                        e.getValue().getUnconsumedBuffer());
+            } catch (IOException ioException) {
+                throw new CheckpointException(CheckpointFailureReason.EXCEPTION, ioException);
+            }
         }
         return checkpointedInputGate.getAllBarriersReceivedFuture(checkpointId);
     }
