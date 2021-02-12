@@ -35,6 +35,58 @@ the same semantics as a failure-free execution.
 See [Checkpointing]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}}) for how to enable and
 configure checkpoints for your program.
 
+## Checkpoint Storage
+
+When checkpointing is enabled, managed state is persisted to ensure consistent recovery in case of failures.
+Where the state is persisted during checkpointing depends on the chosen **Checkpoint Storage**.
+
+## Available Checkpoint Storage Options
+
+Out of the box, Flink bundles these checkpoint storage types:
+
+ - *JobManagerCheckpointStorage*
+ - *FileSystemCheckpointStorage*
+
+{{< hint info >}}
+If a checkpoint directory is configured `FileSystemCheckpointStorage` will be used, otherwise the system will use the `JobManagerCheckpointStorage`.
+{{< /hint >}}
+
+### The JobManagerCheckpointStorage
+
+The *JobManagerCheckpointStorage* stores checkpoint snapshots in the JobManager's heap.
+
+It can be configured to fail the checkpoint if it goes over a certain size to avoid `OutOfMemoryError`'s on the JobManager. To set this feature, users can instantiate a `JobManagerCheckpointStorage` with the corresponding max size:
+
+```java
+new JobManagerCheckpointStorage(MAX_MEM_STATE_SIZE);
+```
+
+Limitations of the `JobManagerCheckpointStorage`:
+
+  - The size of each individual state is by default limited to 5 MB. This value can be increased in the constructor of the `JobManagerCheckpointStorage`.
+  - Irrespective of the configured maximal state size, the state cannot be larger than the Akka frame size (see [Configuration]({{< ref "docs/deployment/config" >}})).
+  - The aggregate state must fit into the JobManager memory.
+
+The JobManagerCheckpointStorage is encouraged for:
+
+  - Local development and debugging
+  - Jobs that use very little state, such as jobs that consist only of record-at-a-time functions (Map, FlatMap, Filter, ...). The Kafka Consumer requires very little state.
+
+### The FileSystemCheckpointStorage
+
+The *FileSystemCheckpointStorage* is configured with a file system URL (type, address, path), such as "hdfs://namenode:40010/flink/checkpoints" or "file:///data/flink/checkpoints".
+
+Upon checkpointing, it writes state snapshots into files in the configured file system and directory. Minimal metadata is stored in the JobManager's memory (or, in high-availability mode, in the metadata checkpoint).
+
+If a checkpoint directory is specified, `FileSystemCheckpointStorage` will be used to persist checkpoint snapshots. 
+
+The `FileSystemCheckpointStorage` is encouraged for:
+
+  - All high-availability setups.
+
+It is also recommended to set [managed memory]({{< ref "docs/deployment/memory/mem_setup_tm" >}}#managed-memory) to zero.
+This will ensure that the maximum amount of memory is allocated for user code on the JVM.
+
 ## Retained Checkpoints
 
 Checkpoints are by default not retained and are only used to resume a
@@ -89,10 +141,19 @@ The checkpoint directory is not part of a public API and can be changed in the f
 state.checkpoints.dir: hdfs:///checkpoints/
 ```
 
-#### Configure for per job when constructing the state backend
+#### Configure for per job on the checkpoint configuration
 
 ```java
-env.setStateBackend(new RocksDBStateBackend("hdfs:///checkpoints-data/"));
+env.getCheckpointConfig().setCheckpointStorage("hdfs:///checkpoints-data/");
+```
+
+#### Configure with checkpoint storage instance
+
+Alternatively, checkpoint storage can be set by specifying the desired checkpoint storage instance which allows for setting low level configurations such as write buffer sizes. 
+
+```java
+env.getCheckpointConfig().setCheckpointStorage(
+  new FileSystemCheckpointStorage("hdfs:///checkpoints-data/", FILE_SIZE_THESHOLD));
 ```
 
 ### Difference to Savepoints

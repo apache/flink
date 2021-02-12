@@ -151,7 +151,7 @@ To wrap up, this section concludes how Flink, or more specifically the state bac
 abstractions. The interaction is slightly different depending on the state backend, but this is orthogonal
 to the implementation of state serializers and their serializer snapshots.
 
-#### Off-heap state backends (e.g. `RocksDBStateBackend`)
+#### Off-heap state backends (e.g. `EmbeddedRocksDBStateBackend`)
 
  1. **Register new state with a state serializer that has schema _A_**
   - the registered `TypeSerializer` for the state is used to read / write state on every state access.
@@ -172,7 +172,7 @@ to the implementation of state serializers and their serializer snapshots.
    of the accessed state is migrated all-together before processing continues.
   - If the resolution signals incompatibility, then the state access fails with an exception.
  
-#### Heap state backends (e.g. `MemoryStateBackend`, `FsStateBackend`)
+#### Heap state backends (e.g. `HashMapStateBackend`)
 
  1. **Register new state with a state serializer that has schema _A_**
   - the registered `TypeSerializer` is maintained by the state backend.
@@ -215,7 +215,7 @@ as your serializer's snapshot class:
  - `TypeSerializerSchemaCompatibility.incompatible()`, if the new serializer class is different then the previous one.
  
 Below is an example of how the `SimpleTypeSerializerSnapshot` is used, using Flink's `IntSerializer` as an example:
-<div data-lang="java" markdown="1">
+
 ```java
 public class IntSerializerSnapshot extends SimpleTypeSerializerSnapshot<Integer> {
     public IntSerializerSnapshot() {
@@ -223,7 +223,6 @@ public class IntSerializerSnapshot extends SimpleTypeSerializerSnapshot<Integer>
     }
 }
 ```
-</div>
 
 The `IntSerializer` has no state or configurations. Serialization format is solely defined by the serializer
 class itself, and can only be read by another `IntSerializer`. Therefore, it suits the use case of the
@@ -252,7 +251,7 @@ composite serializers. It deals with reading and writing the nested serializer s
 the final compatibility result taking into account the compatibility of all nested serializers.
 
 Below is an example of how the `CompositeTypeSerializerSnapshot` is used, using Flink's `MapSerializer` as an example:
-<div data-lang="java" markdown="1">
+
 ```java
 public class MapSerializerSnapshot<K, V> extends CompositeTypeSerializerSnapshot<Map<K, V>, MapSerializer> {
 
@@ -284,7 +283,7 @@ public class MapSerializerSnapshot<K, V> extends CompositeTypeSerializerSnapshot
     }
 }
 ```
-</div>
+
 
 When implementing a new serializer snapshot as a subclass of `CompositeTypeSerializerSnapshot`,
 the following three methods must be implemented:
@@ -313,7 +312,7 @@ has outer snapshot information, then all three methods must be implemented.
 Below is an example of how the `CompositeTypeSerializerSnapshot` is used for composite serializer snapshots
 that do have outer snapshot information, using Flink's `GenericArraySerializer` as an example:
 
-<div data-lang="java" markdown="1">
+
 ```java
 public final class GenericArraySerializerSnapshot<C> extends CompositeTypeSerializerSnapshot<C[], GenericArraySerializer> {
 
@@ -364,7 +363,7 @@ public final class GenericArraySerializerSnapshot<C> extends CompositeTypeSerial
     }
 }
 ```
-</div>
+
 
 There are two important things to notice in the above code snippet. First of all, since this
 `CompositeTypeSerializerSnapshot` implementation has outer snapshot information that is written as part of the snapshot,

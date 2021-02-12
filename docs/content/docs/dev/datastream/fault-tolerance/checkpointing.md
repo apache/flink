@@ -50,6 +50,8 @@ By default, checkpointing is disabled. To enable checkpointing, call `enableChec
 
 Other parameters for checkpointing include:
 
+  - *checkpoint storage*: You can set the location where checkpoint snapshots are made durable. By default Flink will use the JobManager's heap. For production deployments it is recomended to instead use a durable filesystem. See [checkpoint storage]({{< ref "docs/ops/state/checkpoints#checkpoint-storage" >}}) for more details on the available options for job-wide and cluster-wide configuration.
+ 
   - *exactly-once vs. at-least-once*: You can optionally pass a mode to the `enableCheckpointing(n)` method to choose between the two guarantee levels.
     Exactly-once is preferable for most applications. At-least-once may be relevant for certain super-low-latency (consistently few milliseconds) applications.
 
@@ -103,11 +105,16 @@ env.getCheckpointConfig().setCheckpointTimeout(60000);
 // allow only one checkpoint to be in progress at the same time
 env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
 
-// enable externalized checkpoints which are retained after job cancellation
-env.getCheckpointConfig().enableExternalizedCheckpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+// enable externalized checkpoints which are retained 
+// after job cancellation
+env.getCheckpointConfig().enableExternalizedCheckpoints(
+    ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 
 // enables the experimental unaligned checkpoints
 env.getCheckpointConfig().enableUnalignedCheckpoints();
+
+// sets the checkpoint storage where checkpoint snapshots will be written
+env.getCheckpointConfig().setCheckpointStorage("hdfs://my/checkpoint/dir")
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -128,7 +135,8 @@ env.getCheckpointConfig.setMinPauseBetweenCheckpoints(500)
 // checkpoints have to complete within one minute, or are discarded
 env.getCheckpointConfig.setCheckpointTimeout(60000)
 
-// prevent the tasks from failing if an error happens in their checkpointing, the checkpoint will just be declined.
+// prevent the tasks from failing if an error happens in their checkpointing,
+// the checkpoint will just be declined.
 env.getCheckpointConfig.setFailTasksOnCheckpointingErrors(false)
 
 // allow only one checkpoint to be in progress at the same time
@@ -136,6 +144,9 @@ env.getCheckpointConfig.setMaxConcurrentCheckpoints(1)
 
 // enables the experimental unaligned checkpoints
 env.getCheckpointConfig.enableUnalignedCheckpoints()
+
+// sets the checkpoint storage where checkpoint snapshots will be written
+env.getCheckpointConfig.setCheckpointStorage("hdfs://my/checkpoint/dir")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -165,7 +176,7 @@ env.get_checkpoint_config().enable_externalized_checkpoints(ExternalizedCheckpoi
 # allow job recovery fallback to checkpoint when there is a more recent savepoint
 env.get_checkpoint_config().set_prefer_checkpoint_for_recovery(True)
 
-// enables the experimental unaligned checkpoints
+# enables the experimental unaligned checkpoints
 env.get_checkpoint_config().enable_unaligned_checkpoints()
 ```
 {{< /tab >}}
@@ -179,18 +190,19 @@ Some more parameters and/or defaults may be set via `conf/flink-conf.yaml` (see 
 
 {{< top >}}
 
-
-## Selecting a State Backend
+## Selecting Checkpoint Storage
 
 Flink's [checkpointing mechanism]({{< ref "docs/learn-flink/fault_tolerance" >}}) stores consistent snapshots
 of all the state in timers and stateful operators, including connectors, windows, and any [user-defined state](state.html).
 Where the checkpoints are stored (e.g., JobManager memory, file system, database) depends on the configured
-**State Backend**. 
+**Checkpoint Storage**. 
 
-By default, state is kept in memory in the TaskManagers and checkpoints are stored in memory in the JobManager. For proper persistence of large state,
-Flink supports various approaches for storing and checkpointing state in other state backends. The choice of state backend can be configured via `StreamExecutionEnvironment.setStateBackend(…)`.
+By default, checkpoints are stored in memory in the JobManager. For proper persistence of large state,
+Flink supports various approaches for checkpointing state in other locations. 
+The choice of checkpoint storage can be configured via `StreamExecutionEnvironment.getCheckpointConfig().setCheckpointStorage(…)`.
+It is strongly encouraged that checkpoints be stored in a highly-available filesystem for production deployments. 
 
-See [state backends]({{< ref "docs/ops/state/state_backends" >}}) for more details on the available state backends and options for job-wide and cluster-wide configuration.
+See [checkpoint storage]({{< ref "docs/ops/state/checkpoints#checkpoint-storage" >}}) for more details on the available options for job-wide and cluster-wide configuration.
 
 
 ## State Checkpoints in Iterative Jobs
@@ -200,4 +212,3 @@ Flink currently only provides processing guarantees for jobs without iterations.
 Please note that records in flight in the loop edges (and the state changes associated with them) will be lost during failure.
 
 {{< top >}}
-
