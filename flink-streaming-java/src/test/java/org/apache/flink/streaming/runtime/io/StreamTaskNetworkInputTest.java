@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
@@ -316,7 +317,8 @@ public class StreamTaskNetworkInputTest {
 
         @Override
         public CompletableFuture<Void> prepareSnapshot(
-                ChannelStateWriter channelStateWriter, long checkpointId) throws IOException {
+                ChannelStateWriter channelStateWriter, long checkpointId)
+                throws CheckpointException {
             throw new UnsupportedOperationException();
         }
     }

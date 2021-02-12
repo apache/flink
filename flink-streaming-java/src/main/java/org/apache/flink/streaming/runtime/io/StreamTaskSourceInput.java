@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.io.InputStatus;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -146,7 +147,7 @@ public class StreamTaskSourceInput<T> implements StreamTaskInput<T>, Checkpointa
 
     @Override
     public CompletableFuture<Void> prepareSnapshot(
-            ChannelStateWriter channelStateWriter, long checkpointId) {
+            ChannelStateWriter channelStateWriter, long checkpointId) throws CheckpointException {
         return CompletableFuture.completedFuture(null);
     }
 

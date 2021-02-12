@@ -26,6 +26,7 @@ import org.apache.flink.configuration.AlgorithmOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -131,7 +132,7 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
 
     @Override
     public CompletableFuture<Void> prepareSnapshot(
-            ChannelStateWriter channelStateWriter, long checkpointId) {
+            ChannelStateWriter channelStateWriter, long checkpointId) throws CheckpointException {
         throw new UnsupportedOperationException(
                 "Checkpoints are not supported with sorted inputs" + " in the BATCH runtime.");
     }
