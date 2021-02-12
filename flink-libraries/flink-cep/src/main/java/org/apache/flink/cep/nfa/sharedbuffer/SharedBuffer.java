@@ -32,7 +32,6 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * A shared buffer implementation which stores values under according state. Additionally, the
@@ -94,29 +93,6 @@ public class SharedBuffer<V> {
                                 eventsCountStateName,
                                 LongSerializer.INSTANCE,
                                 IntSerializer.INSTANCE));
-    }
-
-    /**
-     * Initializes underlying state with given map of events and entries. Should be used only in
-     * case of migration from old state.
-     *
-     * @param events map of events with assigned unique ids
-     * @param entries map of SharedBufferNodes
-     * @throws Exception Thrown if the system cannot access the state.
-     * @deprecated Only for state migration!
-     */
-    @Deprecated
-    public void init(
-            Map<EventId, Lockable<V>> events, Map<NodeId, Lockable<SharedBufferNode>> entries)
-            throws Exception {
-        eventsBuffer.putAll(events);
-        this.entries.putAll(entries);
-
-        Map<Long, Integer> maxIds =
-                events.keySet().stream()
-                        .collect(
-                                Collectors.toMap(EventId::getTimestamp, EventId::getId, Math::max));
-        eventsCount.putAll(maxIds);
     }
 
     /**
