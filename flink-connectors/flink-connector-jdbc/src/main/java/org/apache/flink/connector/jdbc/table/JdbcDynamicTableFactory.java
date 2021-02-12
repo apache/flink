@@ -148,21 +148,21 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
     private static final ConfigOption<Integer> SINK_BUFFER_FLUSH_MAX_ROWS =
             ConfigOptions.key("sink.buffer-flush.max-rows")
                     .intType()
-                    .defaultValue(100)
+                    .defaultValue(JdbcExecutionOptions.DEFAULT_SIZE)
                     .withDescription(
                             "the flush max size (includes all append, upsert and delete records), over this number"
                                     + " of records, will flush data. The default value is 100.");
     private static final ConfigOption<Duration> SINK_BUFFER_FLUSH_INTERVAL =
             ConfigOptions.key("sink.buffer-flush.interval")
                     .durationType()
-                    .defaultValue(Duration.ofSeconds(1))
+                    .defaultValue(Duration.ofMillis(JdbcExecutionOptions.DEFAULT_INTERVAL_MILLIS))
                     .withDescription(
                             "the flush interval mills, over this time, asynchronous threads will flush data. The "
                                     + "default value is 1s.");
     private static final ConfigOption<Integer> SINK_MAX_RETRIES =
             ConfigOptions.key("sink.max-retries")
                     .intType()
-                    .defaultValue(3)
+                    .defaultValue(JdbcExecutionOptions.DEFAULT_MAX_RETRY_TIMES)
                     .withDescription("the max retry times if writing records to database failed.");
 
     @Override
