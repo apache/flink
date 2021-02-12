@@ -36,7 +36,6 @@ import org.apache.flink.runtime.rpc.messages.RunAsync;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.SerializedValue;
 
 import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
@@ -332,7 +331,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
 
     private void sendSyncResponse(Object response, String methodName) {
         if (isRemoteSender(getSender())) {
-            Either<SerializedValue<?>, AkkaRpcException> serializedResult =
+            Either<AkkaRpcSerializedValue, AkkaRpcException> serializedResult =
                     serializeRemoteResultAndVerifySize(response, methodName);
 
             if (serializedResult.isLeft()) {
@@ -356,8 +355,10 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
                                 promise.failure(throwable);
                             } else {
                                 if (isRemoteSender(sender)) {
-                                    Either<SerializedValue<?>, AkkaRpcException> serializedResult =
-                                            serializeRemoteResultAndVerifySize(value, methodName);
+                                    Either<AkkaRpcSerializedValue, AkkaRpcException>
+                                            serializedResult =
+                                                    serializeRemoteResultAndVerifySize(
+                                                            value, methodName);
 
                                     if (serializedResult.isLeft()) {
                                         promise.success(serializedResult.left());
@@ -380,15 +381,12 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
         return !sender.path().address().hasLocalScope();
     }
 
-    private Either<SerializedValue<?>, AkkaRpcException> serializeRemoteResultAndVerifySize(
+    private Either<AkkaRpcSerializedValue, AkkaRpcException> serializeRemoteResultAndVerifySize(
             Object result, String methodName) {
         try {
-            SerializedValue<?> serializedResult = new SerializedValue<>(result);
+            AkkaRpcSerializedValue serializedResult = AkkaRpcSerializedValue.valueOf(result);
 
-            long resultSize =
-                    serializedResult.getByteArray() == null
-                            ? 0
-                            : serializedResult.getByteArray().length;
+            long resultSize = serializedResult.getSerializedDataLength();
             if (resultSize > maximumFramesize) {
                 return Either.Right(
                         new AkkaRpcException(

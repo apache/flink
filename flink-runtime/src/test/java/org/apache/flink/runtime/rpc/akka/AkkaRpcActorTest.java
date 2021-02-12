@@ -34,6 +34,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorRef;
@@ -47,6 +48,8 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -535,6 +538,28 @@ public class AkkaRpcActorTest extends TestLogger {
         }
     }
 
+    @Test
+    public void canRespondWithSerializedValueLocally() throws Exception {
+        try (final SerializedValueRespondingEndpoint endpoint =
+                new SerializedValueRespondingEndpoint(akkaRpcService)) {
+            endpoint.start();
+
+            final SerializedValueRespondingGateway selfGateway =
+                    endpoint.getSelfGateway(SerializedValueRespondingGateway.class);
+
+            assertThat(
+                    selfGateway.getSerializedValueSynchronously(),
+                    equalTo(SerializedValueRespondingEndpoint.SERIALIZED_VALUE));
+
+            final CompletableFuture<SerializedValue<String>> responseFuture =
+                    selfGateway.getSerializedValue();
+
+            assertThat(
+                    responseFuture.get(),
+                    equalTo(SerializedValueRespondingEndpoint.SERIALIZED_VALUE));
+        }
+    }
+
     // ------------------------------------------------------------------------
     //  Test Actors and Interfaces
     // ------------------------------------------------------------------------
@@ -581,6 +606,41 @@ public class AkkaRpcActorTest extends TestLogger {
         @Override
         public Integer synchronousFoobar() {
             return null;
+        }
+    }
+
+    // ------------------------------------------------------------------------
+
+    interface SerializedValueRespondingGateway extends RpcGateway {
+        CompletableFuture<SerializedValue<String>> getSerializedValue();
+
+        SerializedValue<String> getSerializedValueSynchronously();
+    }
+
+    static class SerializedValueRespondingEndpoint extends RpcEndpoint
+            implements SerializedValueRespondingGateway {
+        static final SerializedValue<String> SERIALIZED_VALUE;
+
+        static {
+            try {
+                SERIALIZED_VALUE = new SerializedValue<>("string-value");
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }
+
+        public SerializedValueRespondingEndpoint(RpcService rpcService) {
+            super(rpcService);
+        }
+
+        @Override
+        public CompletableFuture<SerializedValue<String>> getSerializedValue() {
+            return CompletableFuture.completedFuture(SERIALIZED_VALUE);
+        }
+
+        @Override
+        public SerializedValue<String> getSerializedValueSynchronously() {
+            return SERIALIZED_VALUE;
         }
     }
 
