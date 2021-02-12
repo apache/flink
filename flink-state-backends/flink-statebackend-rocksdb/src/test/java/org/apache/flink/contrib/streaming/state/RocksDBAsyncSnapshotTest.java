@@ -28,6 +28,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -92,11 +93,11 @@ import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.END_OF_KEY_GROUP_MARK;
-import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.FIRST_BIT_IN_BYTE_MASK;
-import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.clearMetaDataFollowsFlag;
-import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.hasMetaDataFollowsFlag;
-import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.setMetaDataFollowsFlagInKey;
+import static org.apache.flink.runtime.state.FullSnapshotUtil.END_OF_KEY_GROUP_MARK;
+import static org.apache.flink.runtime.state.FullSnapshotUtil.FIRST_BIT_IN_BYTE_MASK;
+import static org.apache.flink.runtime.state.FullSnapshotUtil.clearMetaDataFollowsFlag;
+import static org.apache.flink.runtime.state.FullSnapshotUtil.hasMetaDataFollowsFlag;
+import static org.apache.flink.runtime.state.FullSnapshotUtil.setMetaDataFollowsFlagInKey;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.spy;
@@ -186,11 +187,18 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
                     }
 
                     @Override
+                    public void reportCheckpointMetrics(
+                            JobID jobID,
+                            ExecutionAttemptID executionAttemptID,
+                            long checkpointId,
+                            CheckpointMetrics checkpointMetrics) {}
+
+                    @Override
                     public void declineCheckpoint(
                             JobID jobID,
                             ExecutionAttemptID executionAttemptID,
                             long checkpointId,
-                            Throwable cause) {}
+                            CheckpointException checkpointException) {}
                 };
 
         JobID jobID = new JobID();

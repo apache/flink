@@ -290,7 +290,7 @@ public class KafkaSourceEnumerator
 
     private KafkaConsumer<byte[], byte[]> getKafkaConsumer() {
         Properties consumerProps = new Properties();
-        copyProperty(properties, consumerProps, ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG);
+        deepCopyProperties(properties, consumerProps);
         // set client id prefix
         String clientIdPrefix =
                 consumerProps.getProperty(KafkaSourceOptions.CLIENT_ID_PREFIX.key());
@@ -309,7 +309,7 @@ public class KafkaSourceEnumerator
 
     private AdminClient getKafkaAdminClient() {
         Properties adminClientProps = new Properties();
-        copyProperty(properties, adminClientProps, ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG);
+        deepCopyProperties(properties, adminClientProps);
         // set client id prefix
         String clientIdPrefix =
                 adminClientProps.getProperty(KafkaSourceOptions.CLIENT_ID_PREFIX.key());
@@ -351,8 +351,11 @@ public class KafkaSourceEnumerator
         return (startIndex + tp.partition()) % numReaders;
     }
 
-    private static void copyProperty(Properties from, Properties to, String key) {
-        to.setProperty(key, from.getProperty(key));
+    @VisibleForTesting
+    static void deepCopyProperties(Properties from, Properties to) {
+        for (String key : from.stringPropertyNames()) {
+            to.setProperty(key, from.getProperty(key));
+        }
     }
 
     // --------------- private class ---------------

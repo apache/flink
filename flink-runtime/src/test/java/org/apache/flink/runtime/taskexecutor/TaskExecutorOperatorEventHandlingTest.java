@@ -182,8 +182,7 @@ public class TaskExecutorOperatorEventHandlingTest extends TestLogger {
                 Collections.emptyList(),
                 Collections.emptyList(),
                 Collections.emptyList(),
-                Collections.emptyList(),
-                0);
+                Collections.emptyList());
     }
 
     // ------------------------------------------------------------------------

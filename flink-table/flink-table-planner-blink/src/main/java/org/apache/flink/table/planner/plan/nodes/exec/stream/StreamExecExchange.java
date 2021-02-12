@@ -27,8 +27,9 @@ import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty.HashDistribution;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecExchange;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
@@ -40,32 +41,33 @@ import static org.apache.flink.runtime.state.KeyGroupRangeAssignment.DEFAULT_LOW
 /**
  * This {@link ExecNode} represents a change of partitioning of the input elements for stream.
  *
- * <p>TODO Remove this class once its functionality is replaced by ExecEdge.
+ * <p>TODO Remove this class once FLINK-21224 is finished.
  */
 public class StreamExecExchange extends CommonExecExchange implements StreamExecNode<RowData> {
 
-    public StreamExecExchange(ExecEdge inputEdge, RowType outputType, String description) {
-        super(inputEdge, outputType, description);
+    public StreamExecExchange(InputProperty inputProperty, RowType outputType, String description) {
+        super(inputProperty, outputType, description);
     }
 
     @SuppressWarnings("unchecked")
     @Override
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
         final Transformation<RowData> inputTransform =
-                (Transformation<RowData>) getInputNodes().get(0).translateToPlan(planner);
+                (Transformation<RowData>) getInputEdges().get(0).translateToPlan(planner);
 
         final StreamPartitioner<RowData> partitioner;
         final int parallelism;
-        final ExecEdge inputEdge = getInputEdges().get(0);
-        final ExecEdge.ShuffleType shuffleType = inputEdge.getRequiredShuffle().getType();
-        switch (shuffleType) {
+        final InputProperty inputProperty = getInputProperties().get(0);
+        final InputProperty.DistributionType distributionType =
+                inputProperty.getRequiredDistribution().getType();
+        switch (distributionType) {
             case SINGLETON:
                 partitioner = new GlobalPartitioner<>();
                 parallelism = 1;
                 break;
             case HASH:
                 // TODO Eliminate duplicate keys
-                int[] keys = inputEdge.getRequiredShuffle().getKeys();
+                int[] keys = ((HashDistribution) inputProperty.getRequiredDistribution()).getKeys();
                 InternalTypeInfo<RowData> inputType =
                         (InternalTypeInfo<RowData>) inputTransform.getOutputType();
                 RowDataKeySelector keySelector =
@@ -76,7 +78,8 @@ public class StreamExecExchange extends CommonExecExchange implements StreamExec
                 parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
                 break;
             default:
-                throw new TableException(String.format("%s is not supported now!", shuffleType));
+                throw new TableException(
+                        String.format("%s is not supported now!", distributionType));
         }
 
         final Transformation<RowData> transformation =

@@ -719,7 +719,7 @@ public class AlternatingControllerTest {
         return barrierHandler(inputGate, target, new RecordingChannelStateWriter());
     }
 
-    private static SingleCheckpointBarrierHandler barrierHandler(
+    public static SingleCheckpointBarrierHandler barrierHandler(
             SingleInputGate inputGate, AbstractInvokable target, ChannelStateWriter stateWriter) {
         String taskName = "test";
         return new SingleCheckpointBarrierHandler(

@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
+import org.apache.flink.runtime.state.heap.CopyOnWriteSkipListStateMapTestUtils.SnapshotVerificationMode;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.TriFunction;
@@ -540,7 +541,18 @@ public class CopyOnWriteSkipListStateMapComplexOpTest extends TestLogger {
 
     /** Tests that remove states physically during sync part of snapshot. */
     @Test
+    public void testPhysicallyRemoveDuringSyncPartOfSnapshotWithIterator() throws IOException {
+        testPhysicallyRemoveDuringSyncPartOfSnapshot(SnapshotVerificationMode.ITERATOR);
+    }
+
+    /** Tests that remove states physically during sync part of snapshot. */
+    @Test
     public void testPhysicallyRemoveDuringSyncPartOfSnapshot() throws IOException {
+        testPhysicallyRemoveDuringSyncPartOfSnapshot(SnapshotVerificationMode.SERIALIZED);
+    }
+
+    private void testPhysicallyRemoveDuringSyncPartOfSnapshot(
+            SnapshotVerificationMode verificationMode) throws IOException {
         TestAllocator spaceAllocator = new TestAllocator(256);
         // set logicalRemovedKeysRatio to 0 so that all logically removed states will be deleted
         // when snapshot
@@ -585,7 +597,12 @@ public class CopyOnWriteSkipListStateMapComplexOpTest extends TestLogger {
         verifyState(referenceStates, stateMap);
 
         verifySnapshotWithoutTransform(
-                expectedSnapshot1, snapshot1, keySerializer, namespaceSerializer, stateSerializer);
+                expectedSnapshot1,
+                snapshot1,
+                keySerializer,
+                namespaceSerializer,
+                stateSerializer,
+                verificationMode);
         snapshot1.release();
 
         // no spaces should be free
@@ -609,7 +626,12 @@ public class CopyOnWriteSkipListStateMapComplexOpTest extends TestLogger {
         assertEquals(0, spaceAllocator.getTotalSpaceNumber());
 
         verifySnapshotWithoutTransform(
-                expectedSnapshot2, snapshot2, keySerializer, namespaceSerializer, stateSerializer);
+                expectedSnapshot2,
+                snapshot2,
+                keySerializer,
+                namespaceSerializer,
+                stateSerializer,
+                verificationMode);
         snapshot2.release();
 
         assertEquals(0, stateMap.size());
@@ -760,6 +782,17 @@ public class CopyOnWriteSkipListStateMapComplexOpTest extends TestLogger {
     /** Tests concurrent snapshots. */
     @Test
     public void testConcurrentSnapshots() throws IOException {
+        testConcurrentSnapshots(SnapshotVerificationMode.SERIALIZED);
+    }
+
+    /** Tests concurrent snapshots. */
+    @Test
+    public void testConcurrentSnapshotsWithIterator() throws IOException {
+        testConcurrentSnapshots(SnapshotVerificationMode.ITERATOR);
+    }
+
+    private void testConcurrentSnapshots(SnapshotVerificationMode verificationMode)
+            throws IOException {
         TestAllocator spaceAllocator = new TestAllocator(256);
         // set logicalRemovedKeysRatio to 0 so that all logically removed states will be deleted
         // when snapshot
@@ -817,7 +850,8 @@ public class CopyOnWriteSkipListStateMapComplexOpTest extends TestLogger {
                 transformer,
                 keySerializer,
                 namespaceSerializer,
-                stateSerializer);
+                stateSerializer,
+                verificationMode);
         snapshot2.release();
 
         // update states
@@ -826,7 +860,12 @@ public class CopyOnWriteSkipListStateMapComplexOpTest extends TestLogger {
 
         // complete snapshot1
         verifySnapshotWithoutTransform(
-                expectedSnapshot1, snapshot1, keySerializer, namespaceSerializer, stateSerializer);
+                expectedSnapshot1,
+                snapshot1,
+                keySerializer,
+                namespaceSerializer,
+                stateSerializer,
+                verificationMode);
         snapshot1.release();
 
         // create snapshot4
@@ -846,7 +885,8 @@ public class CopyOnWriteSkipListStateMapComplexOpTest extends TestLogger {
                 transformer,
                 keySerializer,
                 namespaceSerializer,
-                stateSerializer);
+                stateSerializer,
+                verificationMode);
         snapshot3.release();
 
         // update states
@@ -860,7 +900,8 @@ public class CopyOnWriteSkipListStateMapComplexOpTest extends TestLogger {
                 transformer,
                 keySerializer,
                 namespaceSerializer,
-                stateSerializer);
+                stateSerializer,
+                verificationMode);
         snapshot4.release();
 
         verifyState(referenceStates, stateMap);
@@ -878,7 +919,8 @@ public class CopyOnWriteSkipListStateMapComplexOpTest extends TestLogger {
                 transformer,
                 keySerializer,
                 namespaceSerializer,
-                stateSerializer);
+                stateSerializer,
+                verificationMode);
         snapshot5.release();
 
         verifyState(referenceStates, stateMap);

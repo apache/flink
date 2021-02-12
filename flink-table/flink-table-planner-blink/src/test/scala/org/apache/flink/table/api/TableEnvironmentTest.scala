@@ -20,6 +20,7 @@ package org.apache.flink.table.api
 
 import org.apache.flink.api.common.typeinfo.Types.STRING
 import org.apache.flink.api.scala._
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment, _}
@@ -104,12 +105,28 @@ class TableEnvironmentTest {
   }
 
   @Test
-  def testStreamTableEnvironmentExecutionExplain(): Unit = {
+  def testStreamTableEnvironmentExecutionExplainWithEnvParallelism(): Unit = {
     val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
-    execEnv.setParallelism(1)
+    execEnv.setParallelism(4)
     val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
     val tEnv = StreamTableEnvironment.create(execEnv, settings)
 
+    verifyTableEnvironmentExecutionExplain(tEnv)
+  }
+
+  @Test
+  def testStreamTableEnvironmentExecutionExplainWithConfParallelism(): Unit = {
+    val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
+    val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
+    val tEnv = StreamTableEnvironment.create(execEnv, settings)
+    val configuration = new Configuration()
+    configuration.setInteger("parallelism.default", 4)
+    tEnv.getConfig.addConfiguration(configuration)
+
+    verifyTableEnvironmentExecutionExplain(tEnv)
+  }
+
+  private def verifyTableEnvironmentExecutionExplain(tEnv: TableEnvironment): Unit = {
     TestTableSourceSinks.createPersonCsvTemporaryTable(tEnv, "MyTable")
 
     TestTableSourceSinks.createCsvTemporarySinkTable(
@@ -169,7 +186,7 @@ class TableEnvironmentTest {
     assertEquals(
       Map("connector" -> "COLLECTION", "is-bounded" -> "false", "k1" -> "a", "k2" -> "b").asJava,
       tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
-        .getTable(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.tbl1")).getProperties)
+        .getTable(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.tbl1")).getOptions)
 
     val tableResult3 = tableEnv.executeSql("DROP TABLE tbl1")
     assertEquals(ResultKind.SUCCESS, tableResult3.getResultKind)

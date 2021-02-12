@@ -30,10 +30,10 @@ import org.apache.flink.table.planner.codegen.LongHashJoinGenerator;
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
-import org.apache.flink.table.planner.plan.nodes.exec.utils.JoinSpec;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
@@ -66,11 +66,11 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData> implements BatchExe
             long estimatedRightRowCount,
             boolean leftIsBuild,
             boolean tryDistinctBuildRow,
-            ExecEdge leftEdge,
-            ExecEdge rightEdge,
+            InputProperty leftInputProperty,
+            InputProperty rightInputProperty,
             RowType outputType,
             String description) {
-        super(Arrays.asList(leftEdge, rightEdge), outputType, description);
+        super(Arrays.asList(leftInputProperty, rightInputProperty), outputType, description);
         this.joinSpec = joinSpec;
         this.leftIsBuild = leftIsBuild;
         this.estimatedLeftAvgRowSize = estimatedLeftAvgRowSize;
@@ -83,14 +83,16 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData> implements BatchExe
     @Override
     @SuppressWarnings("unchecked")
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-        ExecNode<RowData> leftInputNode = (ExecNode<RowData>) getInputNodes().get(0);
-        ExecNode<RowData> rightInputNode = (ExecNode<RowData>) getInputNodes().get(1);
+        ExecEdge leftInputEdge = getInputEdges().get(0);
+        ExecEdge rightInputEdge = getInputEdges().get(1);
 
-        Transformation<RowData> leftInputTransform = leftInputNode.translateToPlan(planner);
-        Transformation<RowData> rightInputTransform = rightInputNode.translateToPlan(planner);
-        // get type
-        RowType leftType = (RowType) leftInputNode.getOutputType();
-        RowType rightType = (RowType) rightInputNode.getOutputType();
+        Transformation<RowData> leftInputTransform =
+                (Transformation<RowData>) leftInputEdge.translateToPlan(planner);
+        Transformation<RowData> rightInputTransform =
+                (Transformation<RowData>) rightInputEdge.translateToPlan(planner);
+        // get input types
+        RowType leftType = (RowType) leftInputEdge.getOutputType();
+        RowType rightType = (RowType) rightInputEdge.getOutputType();
 
         JoinUtil.validateJoinSpec(joinSpec, leftType, rightType, false);
 
@@ -211,7 +213,7 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData> implements BatchExe
                 ExecNodeUtil.createTwoInputTransformation(
                         buildTransform,
                         probeTransform,
-                        getDesc(),
+                        getDescription(),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         probeTransform.getParallelism(),

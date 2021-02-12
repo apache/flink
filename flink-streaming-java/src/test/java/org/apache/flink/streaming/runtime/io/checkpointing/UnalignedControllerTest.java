@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.runtime.io.checkpointing;
 
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -48,6 +49,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -58,6 +61,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
+import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -555,6 +559,16 @@ public class UnalignedControllerTest {
     }
 
     @Test
+    public void testNotifyAbortCheckpointBeforeCanellingAsyncCheckpoint() throws Exception {
+        ValidateAsyncFutureNotCompleted handler = new ValidateAsyncFutureNotCompleted(1);
+        inputGate = createInputGate(2, handler);
+        handler.setInputGate(inputGate);
+        addSequence(inputGate, createBarrier(1, 0), createCancellationBarrier(1, 1));
+
+        addSequence(inputGate, createEndOfPartition(0), createEndOfPartition(1));
+    }
+
+    @Test
     public void testSingleChannelAbortCheckpoint() throws Exception {
         ValidatingCheckpointHandler handler = new ValidatingCheckpointHandler(1);
         inputGate = createInputGate(1, handler);
@@ -968,9 +982,28 @@ public class UnalignedControllerTest {
         }
 
         @Override
-        public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) {
+        public void abortCheckpointOnBarrier(long checkpointId, CheckpointException cause) {
             super.abortCheckpointOnBarrier(checkpointId, cause);
             nextExpectedCheckpointId = -1;
+        }
+    }
+
+    static class ValidateAsyncFutureNotCompleted extends ValidatingCheckpointHandler {
+        private @Nullable CheckpointedInputGate inputGate;
+
+        public ValidateAsyncFutureNotCompleted(long nextExpectedCheckpointId) {
+            super(nextExpectedCheckpointId);
+        }
+
+        @Override
+        public void abortCheckpointOnBarrier(long checkpointId, CheckpointException cause) {
+            super.abortCheckpointOnBarrier(checkpointId, cause);
+            checkState(inputGate != null);
+            assertFalse(inputGate.getAllBarriersReceivedFuture(checkpointId).isDone());
+        }
+
+        public void setInputGate(CheckpointedInputGate inputGate) {
+            this.inputGate = inputGate;
         }
     }
 
@@ -997,7 +1030,7 @@ public class UnalignedControllerTest {
         protected void processInput(MailboxDefaultAction.Controller controller) {}
 
         @Override
-        public void abortCheckpointOnBarrier(long checkpointId, Throwable cause)
+        public void abortCheckpointOnBarrier(long checkpointId, CheckpointException cause)
                 throws IOException {
             abortedCheckpointId = checkpointId;
         }

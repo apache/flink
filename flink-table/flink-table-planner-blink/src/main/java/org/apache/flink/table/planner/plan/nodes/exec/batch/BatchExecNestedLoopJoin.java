@@ -27,8 +27,8 @@ import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.NestedLoopJoinCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
@@ -55,11 +55,11 @@ public class BatchExecNestedLoopJoin extends ExecNodeBase<RowData>
             RexNode condition,
             boolean leftIsBuild,
             boolean singleRowJoin,
-            ExecEdge leftEdge,
-            ExecEdge rightEdge,
+            InputProperty leftInputProperty,
+            InputProperty rightInputProperty,
             RowType outputType,
             String description) {
-        super(Arrays.asList(leftEdge, rightEdge), outputType, description);
+        super(Arrays.asList(leftInputProperty, rightInputProperty), outputType, description);
         this.joinType = checkNotNull(joinType);
         this.condition = checkNotNull(condition);
         this.leftIsBuild = leftIsBuild;
@@ -69,15 +69,17 @@ public class BatchExecNestedLoopJoin extends ExecNodeBase<RowData>
     @Override
     @SuppressWarnings("unchecked")
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-        ExecNode<RowData> leftInputNode = (ExecNode<RowData>) getInputNodes().get(0);
-        ExecNode<RowData> rightInputNode = (ExecNode<RowData>) getInputNodes().get(1);
+        ExecEdge leftInputEdge = getInputEdges().get(0);
+        ExecEdge rightInputEdge = getInputEdges().get(1);
 
-        Transformation<RowData> leftInputTransform = leftInputNode.translateToPlan(planner);
-        Transformation<RowData> rightInputTransform = rightInputNode.translateToPlan(planner);
+        Transformation<RowData> leftInputTransform =
+                (Transformation<RowData>) leftInputEdge.translateToPlan(planner);
+        Transformation<RowData> rightInputTransform =
+                (Transformation<RowData>) rightInputEdge.translateToPlan(planner);
 
-        // get type
-        RowType leftType = (RowType) leftInputNode.getOutputType();
-        RowType rightType = (RowType) rightInputNode.getOutputType();
+        // get input types
+        RowType leftType = (RowType) leftInputEdge.getOutputType();
+        RowType rightType = (RowType) rightInputEdge.getOutputType();
 
         TableConfig config = planner.getTableConfig();
         CodeGenOperatorFactory<RowData> operator =
@@ -108,7 +110,7 @@ public class BatchExecNestedLoopJoin extends ExecNodeBase<RowData>
                 ExecNodeUtil.createTwoInputTransformation(
                         leftInputTransform,
                         rightInputTransform,
-                        getDesc(),
+                        getDescription(),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         parallelism,

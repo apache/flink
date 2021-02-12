@@ -20,20 +20,16 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNestedLoopJoin
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils.JoinTypeUtil
-import org.apache.flink.table.runtime.typeutils.{BinaryRowDataSerializer}
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
-
-import java.util
-
-import scala.collection.JavaConversions._
 
 /**
   * Batch physical RelNode for nested-loop [[Join]].
@@ -115,44 +111,42 @@ class BatchPhysicalNestedLoopJoin(
     satisfyTraitsOnBroadcastJoin(requiredTraitSet, leftIsBuild)
   }
 
-  //~ ExecNode methods -----------------------------------------------------------
-
   override def translateToExecNode(): ExecNode[_] = {
-    val (leftEdge, rightEdge) = getInputEdges
+    val (leftInputProperty, rightInputProperty) = getInputProperties
     new BatchExecNestedLoopJoin(
       JoinTypeUtil.getFlinkJoinType(joinType),
       condition,
       leftIsBuild,
       singleRowJoin,
-      leftEdge,
-      rightEdge,
+      leftInputProperty,
+      rightInputProperty,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription
     )
   }
 
-  def getInputEdges: (ExecEdge, ExecEdge) = {
+  def getInputProperties: (InputProperty, InputProperty) = {
     // this is in sync with BatchExecNestedLoopJoinRuleBase#createNestedLoopJoin
-    val (buildRequiredShuffle, probeRequiredShuffle) = if (joinType == JoinRelType.FULL) {
-      (ExecEdge.RequiredShuffle.singleton(), ExecEdge.RequiredShuffle.singleton())
+    val (buildRequiredDistribution, probeRequiredDistribution) = if (joinType == JoinRelType.FULL) {
+      (InputProperty.SINGLETON_DISTRIBUTION, InputProperty.SINGLETON_DISTRIBUTION)
     } else {
-      (ExecEdge.RequiredShuffle.broadcast(), ExecEdge.RequiredShuffle.any())
+      (InputProperty.BROADCAST_DISTRIBUTION, InputProperty.ANY_DISTRIBUTION)
     }
-    val buildEdge = ExecEdge.builder()
-      .requiredShuffle(buildRequiredShuffle)
-      .damBehavior(ExecEdge.DamBehavior.BLOCKING)
+    val buildInputProperty = InputProperty.builder()
+      .requiredDistribution(buildRequiredDistribution)
+      .damBehavior(InputProperty.DamBehavior.BLOCKING)
       .priority(0)
       .build()
-    val probeEdge = ExecEdge.builder()
-      .requiredShuffle(probeRequiredShuffle)
-      .damBehavior(ExecEdge.DamBehavior.PIPELINED)
+    val probeInputProperty = InputProperty.builder()
+      .requiredDistribution(probeRequiredDistribution)
+      .damBehavior(InputProperty.DamBehavior.PIPELINED)
       .priority(1)
       .build()
 
     if (leftIsBuild) {
-      (buildEdge, probeEdge)
+      (buildInputProperty, probeInputProperty)
     } else {
-      (probeEdge, buildEdge)
+      (probeInputProperty, buildInputProperty)
     }
   }
 }

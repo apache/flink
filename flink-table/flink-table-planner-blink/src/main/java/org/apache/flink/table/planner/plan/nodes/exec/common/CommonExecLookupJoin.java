@@ -49,6 +49,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
@@ -145,10 +146,10 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
             RelOptTable temporalTable,
             @Nullable RexProgram calcOnTemporalTable,
             Map<Integer, LookupJoinUtil.LookupKey> lookupKeys,
-            ExecEdge inputEdge,
+            InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputEdge), outputType, description);
+        super(Collections.singletonList(inputProperty), outputType, description);
         this.joinType = joinType;
         this.joinCondition = joinCondition;
         this.lookupKeys = Collections.unmodifiableMap(lookupKeys);
@@ -161,8 +162,8 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
     @Override
     @SuppressWarnings("unchecked")
     public Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-        ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
-        RowType inputRowType = (RowType) inputNode.getOutputType();
+        final ExecEdge inputEdge = getInputEdges().get(0);
+        RowType inputRowType = (RowType) inputEdge.getOutputType();
         RowType tableSourceRowType = FlinkTypeFactory.toLogicalRowType(temporalTable.getRowType());
         RowType resultRowType = (RowType) getOutputType();
         validateLookupKeyType(lookupKeys, inputRowType, tableSourceRowType);
@@ -204,11 +205,12 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
                             planner.getExecEnv().getConfig().isObjectReuseEnabled());
         }
 
-        Transformation<RowData> inputTransformation = inputNode.translateToPlan(planner);
+        Transformation<RowData> inputTransformation =
+                (Transformation<RowData>) inputEdge.translateToPlan(planner);
         OneInputTransformation<RowData, RowData> transform =
                 new OneInputTransformation<>(
                         inputTransformation,
-                        getDesc(),
+                        getDescription(),
                         operatorFactory,
                         InternalTypeInfo.of(resultRowType),
                         inputTransformation.getParallelism());

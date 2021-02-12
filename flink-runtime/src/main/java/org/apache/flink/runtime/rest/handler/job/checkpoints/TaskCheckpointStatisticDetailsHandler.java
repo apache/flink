@@ -210,7 +210,8 @@ public class TaskCheckpointStatisticDetailsHandler
                                         subtask.getPersistedData(),
                                         subtask.getAlignmentDuration()),
                                 subtask.getCheckpointStartDelay(),
-                                subtask.getUnalignedCheckpoint()));
+                                subtask.getUnalignedCheckpoint(),
+                                !subtask.isCompleted()));
             }
         }
 

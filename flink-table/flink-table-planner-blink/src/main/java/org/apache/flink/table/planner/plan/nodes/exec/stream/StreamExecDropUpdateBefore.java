@@ -23,9 +23,9 @@ import org.apache.flink.streaming.api.operators.StreamFilter;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.runtime.operators.misc.DropUpdateBeforeFunction;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -39,20 +39,21 @@ import java.util.Collections;
 public class StreamExecDropUpdateBefore extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData> {
 
-    public StreamExecDropUpdateBefore(ExecEdge inputEdge, RowType outputType, String description) {
-        super(Collections.singletonList(inputEdge), outputType, description);
+    public StreamExecDropUpdateBefore(
+            InputProperty inputProperty, RowType outputType, String description) {
+        super(Collections.singletonList(inputProperty), outputType, description);
     }
 
     @SuppressWarnings("unchecked")
     @Override
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
         final Transformation<RowData> inputTransform =
-                (Transformation<RowData>) getInputNodes().get(0).translateToPlan(planner);
+                (Transformation<RowData>) getInputEdges().get(0).translateToPlan(planner);
         final StreamFilter<RowData> operator = new StreamFilter<>(new DropUpdateBeforeFunction());
 
         return new OneInputTransformation<>(
                 inputTransform,
-                getDesc(),
+                getDescription(),
                 operator,
                 inputTransform.getOutputType(),
                 inputTransform.getParallelism());

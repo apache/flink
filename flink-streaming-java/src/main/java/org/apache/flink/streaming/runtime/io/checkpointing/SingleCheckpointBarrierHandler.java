@@ -145,6 +145,10 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
                 }
                 numBarriersReceived = 0;
                 lastCancelledOrCompletedCheckpointId = currentCheckpointId;
+                LOG.debug(
+                        "{}: Received all barriers for checkpoint {}.",
+                        taskName,
+                        currentCheckpointId);
                 handleBarrier(
                         barrier,
                         channelInfo,
@@ -179,6 +183,11 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
             }
             return true;
         } catch (CheckpointException e) {
+            LOG.debug(
+                    "{}: Aborting checkpoint {} after exception {}.",
+                    taskName,
+                    currentCheckpointId,
+                    e);
             abortInternal(barrier.getId(), e);
             return false;
         } catch (RuntimeException | IOException e) {
@@ -227,6 +236,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
         final long cancelledId = cancelBarrier.getCheckpointId();
         if (cancelledId > currentCheckpointId
                 || (cancelledId == currentCheckpointId && numBarriersReceived > 0)) {
+            LOG.debug("{}: Received cancellation {}.", taskName, cancelledId);
             abortInternal(
                     cancelledId,
                     new CheckpointException(
@@ -247,8 +257,8 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
                 Math.max(lastCancelledOrCompletedCheckpointId, cancelledId);
         numBarriersReceived = 0;
         controller.abortPendingCheckpoint(cancelledId, exception);
-        allBarriersReceivedFuture.completeExceptionally(exception);
         notifyAbort(cancelledId, exception);
+        allBarriersReceivedFuture.completeExceptionally(exception);
     }
 
     @Override

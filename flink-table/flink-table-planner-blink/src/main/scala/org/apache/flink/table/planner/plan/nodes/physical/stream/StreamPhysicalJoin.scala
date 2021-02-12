@@ -20,9 +20,9 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
-import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalJoin
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecJoin
+import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalJoin
 import org.apache.flink.table.planner.plan.utils.JoinUtil
 
 import org.apache.calcite.plan._
@@ -127,8 +127,8 @@ class StreamPhysicalJoin(
         joinSpec,
         getUniqueKeys(left),
         getUniqueKeys(right),
-        ExecEdge.DEFAULT,
-        ExecEdge.DEFAULT,
+        InputProperty.DEFAULT,
+        InputProperty.DEFAULT,
         FlinkTypeFactory.toLogicalRowType(getRowType),
         getRelDetailedDescription)
   }

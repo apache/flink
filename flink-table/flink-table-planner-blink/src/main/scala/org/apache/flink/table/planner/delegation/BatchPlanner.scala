@@ -26,10 +26,10 @@ import org.apache.flink.table.delegation.Executor
 import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, Operation, QueryOperation}
 import org.apache.flink.table.planner.operations.PlannerQueryOperation
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.processor.{DAGProcessContext, DAGProcessor, DeadlockBreakupProcessor, MultipleInputNodeCreationProcessor}
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNodeGraph, LegacyBatchExecNode}
 import org.apache.flink.table.planner.plan.optimize.{BatchCommonSubGraphBasedOptimizer, Optimizer}
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.sinks.{BatchSelectTableSink, SelectTableSinkBase}
@@ -82,7 +82,6 @@ class BatchPlanner(
     planner.overrideEnvParallelism()
 
     execGraph.getRootNodes.map {
-      case legacyNode: LegacyBatchExecNode[_] => legacyNode.translateToPlan(planner)
       case node: BatchExecNode[_] => node.translateToPlan(planner)
       case _ =>
         throw new TableException("Cannot generate BoundedStream due to an invalid logical plan. " +
@@ -167,4 +166,7 @@ class BatchPlanner(
     new BatchPlanner(executor, config, functionCatalog, catalogManager)
   }
 
+  override def explainJsonPlan(jsonPlan: String, extraDetails: ExplainDetail*): String = {
+    throw new TableException("This method is not supported for batch planner now.")
+  }
 }

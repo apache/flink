@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
@@ -60,6 +61,7 @@ import org.apache.flink.runtime.state.memory.NonPersistentMetadataCheckpointStor
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.TriFunctionWithException;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
@@ -99,8 +101,11 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.mockExecutionJobVertex;
 import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.mockExecutionVertex;
+import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_ASYNC_EXCEPTION;
+import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_DECLINED;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_EXPIRED;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -121,6 +126,124 @@ import static org.mockito.Mockito.when;
 
 /** Tests for the checkpoint coordinator. */
 public class CheckpointCoordinatorTest extends TestLogger {
+
+    @Test
+    public void testAbortedCheckpointStatsUpdatedAfterFailure() throws Exception {
+        JobID jobID = new JobID();
+        testReportStatsAfterFailure(
+                jobID,
+                1L,
+                (coordinator, attemptID, metrics) -> {
+                    coordinator.reportStats(1L, attemptID, metrics);
+                    return null;
+                });
+    }
+
+    @Test
+    public void testCheckpointStatsUpdatedAfterFailure() throws Exception {
+        JobID jobID = new JobID();
+        testReportStatsAfterFailure(
+                jobID,
+                1L,
+                (coordinator, attemptID, metrics) ->
+                        coordinator.receiveAcknowledgeMessage(
+                                new AcknowledgeCheckpoint(
+                                        jobID, attemptID, 1L, metrics, new TaskStateSnapshot()),
+                                TASK_MANAGER_LOCATION_INFO));
+    }
+
+    private void testReportStatsAfterFailure(
+            JobID jobID,
+            long checkpointId,
+            TriFunctionWithException<
+                            CheckpointCoordinator,
+                            ExecutionAttemptID,
+                            CheckpointMetrics,
+                            ?,
+                            CheckpointException>
+                    reportFn)
+            throws Exception {
+        ExecutionVertex decliningVertex = mockExecutionVertex(new ExecutionAttemptID());
+        ExecutionVertex lateReportVertex = mockExecutionVertex(new ExecutionAttemptID());
+        CheckpointStatsTracker statsTracker =
+                new CheckpointStatsTracker(
+                        Integer.MAX_VALUE,
+                        CheckpointCoordinatorConfiguration.builder().build(),
+                        new UnregisteredMetricsGroup());
+        CheckpointCoordinator coordinator =
+                new CheckpointCoordinatorBuilder()
+                        .setJobId(jobID)
+                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .setTasks(decliningVertex, lateReportVertex)
+                        .build();
+        coordinator.setCheckpointStatsTracker(statsTracker);
+
+        CompletableFuture<CompletedCheckpoint> result = coordinator.triggerCheckpoint(false);
+        manuallyTriggeredScheduledExecutor.triggerAll();
+        checkState(
+                coordinator.getNumberOfPendingCheckpoints() == 1,
+                "wrong number of pending checkpoints: %s",
+                coordinator.getNumberOfPendingCheckpoints());
+        if (result.isDone()) {
+            result.get();
+        }
+
+        coordinator.receiveDeclineMessage(
+                new DeclineCheckpoint(
+                        jobID,
+                        decliningVertex.getCurrentExecutionAttempt().getAttemptId(),
+                        checkpointId,
+                        new CheckpointException(CHECKPOINT_DECLINED)),
+                "test");
+
+        CheckpointMetrics lateReportedMetrics =
+                new CheckpointMetricsBuilder()
+                        .setTotalBytesPersisted(18)
+                        .setBytesProcessedDuringAlignment(19)
+                        .setAsyncDurationMillis(20)
+                        .setAlignmentDurationNanos(123 * 1_000_000)
+                        .setCheckpointStartDelayNanos(567 * 1_000_000)
+                        .build();
+
+        reportFn.apply(
+                coordinator,
+                lateReportVertex.getCurrentExecutionAttempt().getAttemptId(),
+                lateReportedMetrics);
+
+        assertStatsEqual(
+                checkpointId,
+                lateReportVertex.getJobvertexId(),
+                0,
+                lateReportedMetrics,
+                statsTracker.createSnapshot().getHistory().getCheckpointById(checkpointId));
+    }
+
+    private void assertStatsEqual(
+            long checkpointId,
+            JobVertexID jobVertexID,
+            int subtasIdx,
+            CheckpointMetrics expected,
+            AbstractCheckpointStats actual) {
+        assertEquals(checkpointId, actual.getCheckpointId());
+        assertEquals(CheckpointStatsStatus.FAILED, actual.getStatus());
+        assertEquals(expected.getTotalBytesPersisted(), actual.getStateSize());
+        assertEquals(0, actual.getNumberOfAcknowledgedSubtasks());
+        SubtaskStateStats taskStats =
+                actual.getAllTaskStateStats().stream()
+                        .filter(s -> s.getJobVertexId().equals(jobVertexID))
+                        .findAny()
+                        .get()
+                        .getSubtaskStats()[subtasIdx];
+        assertEquals(
+                expected.getAlignmentDurationNanos() / 1_000_000, taskStats.getAlignmentDuration());
+        assertEquals(expected.getUnalignedCheckpoint(), taskStats.getUnalignedCheckpoint());
+        assertEquals(expected.getAsyncDurationMillis(), taskStats.getAsyncCheckpointDuration());
+        assertEquals(
+                expected.getAlignmentDurationNanos() / 1_000_000, taskStats.getAlignmentDuration());
+        assertEquals(
+                expected.getCheckpointStartDelayNanos() / 1_000_000,
+                taskStats.getCheckpointStartDelay());
+    }
 
     private static final String TASK_MANAGER_LOCATION_INFO = "Unknown location";
 
@@ -315,7 +438,11 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
             // decline checkpoint from the other task
             checkpointCoordinator.receiveDeclineMessage(
-                    new DeclineCheckpoint(jobId, attemptID1, checkpointId),
+                    new DeclineCheckpoint(
+                            jobId,
+                            attemptID1,
+                            checkpointId,
+                            new CheckpointException(CHECKPOINT_DECLINED)),
                     TASK_MANAGER_LOCATION_INFO);
 
             fail("Test failed.");
@@ -361,14 +488,26 @@ public class CheckpointCoordinatorTest extends TestLogger {
         }
     }
 
+    @Test
+    public void testTriggerAndDeclineSyncCheckpointFailureSimple() {
+        testTriggerAndDeclineCheckpointSimple(CHECKPOINT_DECLINED);
+    }
+
+    @Test
+    public void testTriggerAndDeclineAsyncCheckpointFailureSimple() {
+        testTriggerAndDeclineCheckpointSimple(CHECKPOINT_ASYNC_EXCEPTION);
+    }
+
     /**
      * This test triggers a checkpoint and then sends a decline checkpoint message from one of the
      * tasks. The expected behaviour is that said checkpoint is discarded and a new checkpoint is
      * triggered.
      */
-    @Test
-    public void testTriggerAndDeclineCheckpointSimple() {
+    private void testTriggerAndDeclineCheckpointSimple(
+            CheckpointFailureReason checkpointFailureReason) {
         try {
+            final CheckpointException checkpointException =
+                    new CheckpointException(checkpointFailureReason);
             final JobID jobId = new JobID();
 
             // create some mock Execution vertices that receive the checkpoint trigger messages
@@ -377,9 +516,21 @@ public class CheckpointCoordinatorTest extends TestLogger {
             ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
             ExecutionVertex vertex2 = mockExecutionVertex(attemptID2);
 
+            TestFailJobCallback failJobCallback = new TestFailJobCallback();
             // set up the coordinator and validate the initial state
             CheckpointCoordinator checkpointCoordinator =
-                    getCheckpointCoordinator(jobId, vertex1, vertex2);
+                    new CheckpointCoordinatorBuilder()
+                            .setJobId(jobId)
+                            .setTasks(new ExecutionVertex[] {vertex1, vertex2})
+                            .setCheckpointCoordinatorConfiguration(
+                                    CheckpointCoordinatorConfiguration.builder()
+                                            .setAlignmentTimeout(Long.MAX_VALUE)
+                                            .setMaxConcurrentCheckpoints(Integer.MAX_VALUE)
+                                            .build())
+                            .setTimer(manuallyTriggeredScheduledExecutor)
+                            .setCheckpointFailureManager(
+                                    new CheckpointFailureManager(0, failJobCallback))
+                            .build();
 
             assertEquals(0, checkpointCoordinator.getNumberOfPendingCheckpoints());
             assertEquals(0, checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints());
@@ -445,7 +596,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
             // decline checkpoint from the other task, this should cancel the checkpoint
             // and trigger a new one
             checkpointCoordinator.receiveDeclineMessage(
-                    new DeclineCheckpoint(jobId, attemptID1, checkpointId),
+                    new DeclineCheckpoint(jobId, attemptID1, checkpointId, checkpointException),
                     TASK_MANAGER_LOCATION_INFO);
             assertTrue(checkpoint.isDisposed());
 
@@ -459,12 +610,13 @@ public class CheckpointCoordinatorTest extends TestLogger {
             // decline again, nothing should happen
             // decline from the other task, nothing should happen
             checkpointCoordinator.receiveDeclineMessage(
-                    new DeclineCheckpoint(jobId, attemptID1, checkpointId),
+                    new DeclineCheckpoint(jobId, attemptID1, checkpointId, checkpointException),
                     TASK_MANAGER_LOCATION_INFO);
             checkpointCoordinator.receiveDeclineMessage(
-                    new DeclineCheckpoint(jobId, attemptID2, checkpointId),
+                    new DeclineCheckpoint(jobId, attemptID2, checkpointId, checkpointException),
                     TASK_MANAGER_LOCATION_INFO);
             assertTrue(checkpoint.isDisposed());
+            assertEquals(1, failJobCallback.getInvokeCounter());
 
             checkpointCoordinator.shutdown();
         } catch (Exception e) {
@@ -563,7 +715,11 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
             // decline checkpoint from one of the tasks, this should cancel the checkpoint
             checkpointCoordinator.receiveDeclineMessage(
-                    new DeclineCheckpoint(jobId, attemptID1, checkpoint1Id),
+                    new DeclineCheckpoint(
+                            jobId,
+                            attemptID1,
+                            checkpoint1Id,
+                            new CheckpointException(CHECKPOINT_DECLINED)),
                     TASK_MANAGER_LOCATION_INFO);
             verify(vertex1.getCurrentExecutionAttempt(), times(1))
                     .notifyCheckpointAborted(eq(checkpoint1Id), any(Long.class));
@@ -602,10 +758,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
             // decline again, nothing should happen
             // decline from the other task, nothing should happen
             checkpointCoordinator.receiveDeclineMessage(
-                    new DeclineCheckpoint(jobId, attemptID1, checkpoint1Id),
+                    new DeclineCheckpoint(
+                            jobId,
+                            attemptID1,
+                            checkpoint1Id,
+                            new CheckpointException(CHECKPOINT_DECLINED)),
                     TASK_MANAGER_LOCATION_INFO);
             checkpointCoordinator.receiveDeclineMessage(
-                    new DeclineCheckpoint(jobId, attemptID2, checkpoint1Id),
+                    new DeclineCheckpoint(
+                            jobId,
+                            attemptID2,
+                            checkpoint1Id,
+                            new CheckpointException(CHECKPOINT_DECLINED)),
                     TASK_MANAGER_LOCATION_INFO);
             assertTrue(checkpoint1.isDisposed());
 
@@ -1181,8 +1345,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
             verify(subtaskState13, times(1)).discardState();
 
             checkpointCoordinator.shutdown();
-            completedCheckpointStore.shutdown(
-                    JobStatus.FINISHED, new CheckpointsCleaner(), () -> {});
+            completedCheckpointStore.shutdown(JobStatus.FINISHED, new CheckpointsCleaner());
 
             // validate that the states in the second checkpoint have been discarded
             verify(subtaskState21, times(1)).discardState();
@@ -1449,7 +1612,11 @@ public class CheckpointCoordinatorTest extends TestLogger {
         // let the checkpoint fail at the first ack vertex
         reset(subtaskStateTrigger);
         checkpointCoordinator.receiveDeclineMessage(
-                new DeclineCheckpoint(jobId, ackAttemptId1, checkpointId),
+                new DeclineCheckpoint(
+                        jobId,
+                        ackAttemptId1,
+                        checkpointId,
+                        new CheckpointException(CHECKPOINT_DECLINED)),
                 TASK_MANAGER_LOCATION_INFO);
 
         assertTrue(pendingCheckpoint.isDisposed());
@@ -2349,7 +2516,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
         CheckpointStatsTracker tracker = mock(CheckpointStatsTracker.class);
         checkpointCoordinator.setCheckpointStatsTracker(tracker);
 
-        when(tracker.reportPendingCheckpoint(anyLong(), anyLong(), any(CheckpointProperties.class)))
+        when(tracker.reportPendingCheckpoint(
+                        anyLong(), anyLong(), any(CheckpointProperties.class), any(Map.class)))
                 .thenReturn(mock(PendingCheckpointStats.class));
 
         // Trigger a checkpoint and verify callback
@@ -2364,7 +2532,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
                         any(Long.class),
                         eq(
                                 CheckpointProperties.forCheckpoint(
-                                        CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION)));
+                                        CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION)),
+                        any());
     }
 
     /** Tests that the restore callbacks are called if registered. */
@@ -2519,7 +2688,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
         }
 
         // shutdown the store
-        store.shutdown(JobStatus.SUSPENDED, new CheckpointsCleaner(), () -> {});
+        store.shutdown(JobStatus.SUSPENDED, new CheckpointsCleaner());
 
         // restore the store
         Set<ExecutionJobVertex> tasks = new HashSet<>();
@@ -2628,7 +2797,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
         } catch (ExecutionException e) {
             final Throwable cause = ExceptionUtils.stripExecutionException(e);
             assertTrue(cause instanceof CheckpointException);
-            assertEquals(expectedRootCause.getMessage(), cause.getCause().getMessage());
+            assertEquals(expectedRootCause.getMessage(), cause.getCause().getCause().getMessage());
         }
 
         assertEquals(1L, invocationCounterAndException.f0.intValue());
@@ -2636,6 +2805,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                 invocationCounterAndException.f1 instanceof CheckpointException
                         && invocationCounterAndException
                                 .f1
+                                .getCause()
                                 .getCause()
                                 .getMessage()
                                 .equals(expectedRootCause.getMessage()));
@@ -2715,7 +2885,12 @@ public class CheckpointCoordinatorTest extends TestLogger {
                     coordinator.getNumQueuedRequests());
 
             coordinator.receiveDeclineMessage(
-                    new DeclineCheckpoint(jobId, new ExecutionAttemptID(), 1L), "none");
+                    new DeclineCheckpoint(
+                            jobId,
+                            new ExecutionAttemptID(),
+                            1L,
+                            new CheckpointException(CHECKPOINT_DECLINED)),
+                    "none");
             manuallyTriggeredScheduledExecutor.triggerAll();
 
             activeRequests--; // savepoint triggered
@@ -2964,7 +3139,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                         .setTimer(manuallyTriggeredScheduledExecutor)
                         .setCoordinatorsToCheckpoint(
                                 Collections.singleton(coordinatorCheckpointContext))
-                        .setStateBackEnd(
+                        .setCheckpointStorage(
                                 new MemoryStateBackend() {
                                     private static final long serialVersionUID =
                                             8134582566514272546L;
@@ -3214,7 +3389,11 @@ public class CheckpointCoordinatorTest extends TestLogger {
                 coordinator.getPendingCheckpoints().entrySet().iterator().next().getKey();
         final PendingCheckpoint checkpoint = coordinator.getPendingCheckpoints().get(checkpointId);
         coordinator.receiveDeclineMessage(
-                new DeclineCheckpoint(jobId, attemptID, checkpointId, reason),
+                new DeclineCheckpoint(
+                        jobId,
+                        attemptID,
+                        checkpointId,
+                        new CheckpointException(CHECKPOINT_DECLINED, reason)),
                 TASK_MANAGER_LOCATION_INFO);
         return checkpoint;
     }
@@ -3309,6 +3488,26 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
         void setOwner(CheckpointCoordinator coordinator) {
             this.owner = checkNotNull(coordinator);
+        }
+    }
+
+    private static class TestFailJobCallback implements CheckpointFailureManager.FailJobCallback {
+
+        private int invokeCounter = 0;
+
+        @Override
+        public void failJob(Throwable cause) {
+            invokeCounter++;
+        }
+
+        @Override
+        public void failJobDueToTaskFailure(
+                final Throwable cause, final ExecutionAttemptID executionAttemptID) {
+            invokeCounter++;
+        }
+
+        public int getInvokeCounter() {
+            return invokeCounter;
         }
     }
 }

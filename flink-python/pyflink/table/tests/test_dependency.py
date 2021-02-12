@@ -39,8 +39,17 @@ class DependencyTests(object):
         os.mkdir(python_file_dir)
         python_file_path = os.path.join(python_file_dir, "test_dependency_manage_lib.py")
         with open(python_file_path, 'w') as f:
-            f.write("def add_two(a):\n    return a + 2")
+            f.write("def add_two(a):\n    raise Exception('This function should not be called!')")
         self.t_env.add_python_file(python_file_path)
+
+        python_file_dir_with_higher_priority = os.path.join(
+            self.tempdir, "python_file_dir_" + str(uuid.uuid4()))
+        os.mkdir(python_file_dir_with_higher_priority)
+        python_file_path_higher_priority = os.path.join(python_file_dir_with_higher_priority,
+                                                        "test_dependency_manage_lib.py")
+        with open(python_file_path_higher_priority, 'w') as f:
+            f.write("def add_two(a):\n    return a + 2")
+        self.t_env.add_python_file(python_file_path_higher_priority)
 
         def plus_two(i):
             from test_dependency_manage_lib import add_two

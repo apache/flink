@@ -54,7 +54,7 @@
     "org.apache.flink.sql.parser.ddl.constraint.SqlUniqueSpec"
     "org.apache.flink.sql.parser.ddl.SqlAlterDatabase"
     "org.apache.flink.sql.parser.ddl.SqlAlterTable"
-    "org.apache.flink.sql.parser.ddl.SqlAlterTableProperties"
+    "org.apache.flink.sql.parser.ddl.SqlAlterTableOptions"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableRename"
     "org.apache.flink.sql.parser.ddl.SqlAlterView"
     "org.apache.flink.sql.parser.ddl.SqlAlterViewAs"

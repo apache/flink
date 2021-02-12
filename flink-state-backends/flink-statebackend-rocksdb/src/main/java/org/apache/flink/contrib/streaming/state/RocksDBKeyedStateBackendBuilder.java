@@ -35,11 +35,13 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.BackendBuildingException;
+import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.PriorityQueueSetFactory;
+import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
@@ -255,10 +257,10 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
         ResourceGuard rocksDBResourceGuard = new ResourceGuard();
         SnapshotStrategy<K> snapshotStrategy;
         PriorityQueueSetFactory priorityQueueFactory;
-        RocksDBSerializedCompositeKeyBuilder<K> sharedRocksKeyBuilder;
+        SerializedCompositeKeyBuilder<K> sharedRocksKeyBuilder;
         // Number of bytes required to prefix the key groups.
         int keyGroupPrefixBytes =
-                RocksDBKeySerializationUtils.computeRequiredBytesInKeyGroupPrefix(
+                CompositeKeySerializationUtils.computeRequiredBytesInKeyGroupPrefix(
                         numberOfKeyGroups);
         try {
             // Variables for snapshot strategy when incremental checkpoint is enabled
@@ -301,7 +303,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
             // serializer
             // only now we can be certain that the key serializer used in the builder is final.
             sharedRocksKeyBuilder =
-                    new RocksDBSerializedCompositeKeyBuilder<>(
+                    new SerializedCompositeKeyBuilder<>(
                             keySerializerProvider.currentSchemaSerializer(),
                             keyGroupPrefixBytes,
                             32);
@@ -468,7 +470,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
             UUID backendUID,
             SortedMap<Long, Set<StateHandleID>> materializedSstFiles,
             long lastCompletedCheckpointId) {
-        RocksDBSnapshotStrategyBase<K> savepointSnapshotStrategy =
+        RocksDBSnapshotStrategyBase<K, ?> savepointSnapshotStrategy =
                 new RocksFullSnapshotStrategy<>(
                         db,
                         rocksDBResourceGuard,
@@ -477,9 +479,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                         keyGroupRange,
                         keyGroupPrefixBytes,
                         localRecoveryConfig,
-                        cancelStreamRegistry,
                         keyGroupCompressionDecorator);
-        RocksDBSnapshotStrategyBase<K> checkpointSnapshotStrategy;
+        RocksDBSnapshotStrategyBase<K, ?> checkpointSnapshotStrategy;
         if (enableIncrementalCheckpointing) {
             // TODO eventually we might want to separate savepoint and snapshot strategy, i.e.
             // having 2 strategies.
@@ -547,12 +548,12 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
     }
 
     static final class SnapshotStrategy<K> {
-        final RocksDBSnapshotStrategyBase<K> checkpointSnapshotStrategy;
-        final RocksDBSnapshotStrategyBase<K> savepointSnapshotStrategy;
+        final RocksDBSnapshotStrategyBase<K, ?> checkpointSnapshotStrategy;
+        final RocksDBSnapshotStrategyBase<K, ?> savepointSnapshotStrategy;
 
         SnapshotStrategy(
-                RocksDBSnapshotStrategyBase<K> checkpointSnapshotStrategy,
-                RocksDBSnapshotStrategyBase<K> savepointSnapshotStrategy) {
+                RocksDBSnapshotStrategyBase<K, ?> checkpointSnapshotStrategy,
+                RocksDBSnapshotStrategyBase<K, ?> savepointSnapshotStrategy) {
             this.checkpointSnapshotStrategy = checkpointSnapshotStrategy;
             this.savepointSnapshotStrategy = savepointSnapshotStrategy;
         }

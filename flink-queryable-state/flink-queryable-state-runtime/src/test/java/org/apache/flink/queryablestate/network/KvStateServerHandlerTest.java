@@ -383,7 +383,8 @@ public class KvStateServerHandlerTest extends TestLogger {
                         new JobVertexID(),
                         new KeyGroupRange(0, 0),
                         "vanilla",
-                        kvState);
+                        kvState,
+                        getClass().getClassLoader());
 
         KvStateInternalRequest request = new KvStateInternalRequest(kvStateId, new byte[0]);
         ByteBuf serRequest = MessageSerializer.serializeRequest(channel.alloc(), 282872L, request);

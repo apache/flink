@@ -26,9 +26,9 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
-import org.apache.flink.table.planner.plan.nodes.exec.utils.SortSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.keyselector.EmptyRowDataKeySelector;
 import org.apache.flink.table.runtime.operators.sort.ProcTimeSortOperator;
@@ -48,8 +48,11 @@ public class StreamExecTemporalSort extends ExecNodeBase<RowData>
     private final SortSpec sortSpec;
 
     public StreamExecTemporalSort(
-            SortSpec sortSpec, ExecEdge inputEdge, RowType outputType, String description) {
-        super(Collections.singletonList(inputEdge), outputType, description);
+            SortSpec sortSpec,
+            InputProperty inputProperty,
+            RowType outputType,
+            String description) {
+        super(Collections.singletonList(inputProperty), outputType, description);
         this.sortSpec = sortSpec;
     }
 
@@ -63,10 +66,11 @@ public class StreamExecTemporalSort extends ExecNodeBase<RowData>
                             + "please re-check sort statement according to the description above");
         }
 
-        ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
-        Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
+        ExecEdge inputEdge = getInputEdges().get(0);
+        Transformation<RowData> inputTransform =
+                (Transformation<RowData>) inputEdge.translateToPlan(planner);
 
-        RowType inputType = (RowType) inputNode.getOutputType();
+        RowType inputType = (RowType) inputEdge.getOutputType();
         LogicalType timeType = inputType.getTypeAt(sortSpec.getFieldSpec(0).getFieldIndex());
         TableConfig config = planner.getTableConfig();
         if (timeType instanceof TimestampType) {
@@ -101,7 +105,7 @@ public class StreamExecTemporalSort extends ExecNodeBase<RowData>
             OneInputTransformation<RowData, RowData> transform =
                     new OneInputTransformation<>(
                             inputTransform,
-                            getDesc(),
+                            getDescription(),
                             sortOperator,
                             InternalTypeInfo.of(inputType),
                             inputTransform.getParallelism());
@@ -142,7 +146,7 @@ public class StreamExecTemporalSort extends ExecNodeBase<RowData>
         OneInputTransformation<RowData, RowData> transform =
                 new OneInputTransformation<>(
                         inputTransform,
-                        getDesc(),
+                        getDescription(),
                         sortOperator,
                         InternalTypeInfo.of(inputType),
                         inputTransform.getParallelism());

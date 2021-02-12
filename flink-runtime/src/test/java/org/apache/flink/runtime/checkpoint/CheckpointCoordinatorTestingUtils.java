@@ -45,6 +45,7 @@ import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
@@ -53,7 +54,6 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistryFactory;
-import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
@@ -69,6 +69,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -386,6 +387,7 @@ public class CheckpointCoordinatorTestingUtils {
                             ExecutionState.RUNNING);
 
             when(executionVertices[i].getParallelSubtaskIndex()).thenReturn(i);
+            when(executionVertices[i].getJobVertex()).thenReturn(executionJobVertex);
         }
 
         when(executionJobVertex.getJobVertexId()).thenReturn(jobVertexID);
@@ -494,6 +496,8 @@ public class CheckpointCoordinatorTestingUtils {
             operatorIDPairs.add(OperatorIDPair.generatedIDOnly(operatorID));
         }
         when(jobVertex.getOperatorIDs()).thenReturn(operatorIDPairs);
+        when(jobVertex.getJobVertexId()).thenReturn(jobVertexID);
+        when(jobVertex.getParallelism()).thenReturn(parallelism);
 
         when(vertex.getJobVertex()).thenReturn(jobVertex);
 
@@ -644,7 +648,7 @@ public class CheckpointCoordinatorTestingUtils {
         private CompletedCheckpointStore completedCheckpointStore =
                 new StandaloneCompletedCheckpointStore(1);
 
-        private StateBackend checkpointStateBackend = new MemoryStateBackend();
+        private CheckpointStorage checkpointStorage = new MemoryStateBackend();
 
         private Executor ioExecutor = Executors.directExecutor();
 
@@ -677,7 +681,7 @@ public class CheckpointCoordinatorTestingUtils {
             return this;
         }
 
-        public CheckpointCoordinatorBuilder setTasks(ExecutionVertex[] tasks) {
+        public CheckpointCoordinatorBuilder setTasks(ExecutionVertex... tasks) {
             this.tasksToTrigger = tasks;
             this.tasksToWaitFor = tasks;
             this.tasksToCommitTo = tasks;
@@ -711,15 +715,15 @@ public class CheckpointCoordinatorTestingUtils {
             return this;
         }
 
-        public CheckpointCoordinatorBuilder setCompletedCheckpointStore(
-                CompletedCheckpointStore completedCheckpointStore) {
-            this.completedCheckpointStore = completedCheckpointStore;
+        public CheckpointCoordinatorBuilder setCheckpointFailureManager(
+                CheckpointFailureManager checkpointFailureManager) {
+            this.failureManager = checkpointFailureManager;
             return this;
         }
 
-        public CheckpointCoordinatorBuilder setCheckpointStateBackend(
-                StateBackend checkpointStateBackend) {
-            this.checkpointStateBackend = checkpointStateBackend;
+        public CheckpointCoordinatorBuilder setCompletedCheckpointStore(
+                CompletedCheckpointStore completedCheckpointStore) {
+            this.completedCheckpointStore = completedCheckpointStore;
             return this;
         }
 
@@ -745,8 +749,8 @@ public class CheckpointCoordinatorTestingUtils {
             return this;
         }
 
-        public CheckpointCoordinatorBuilder setStateBackEnd(StateBackend stateBackEnd) {
-            this.checkpointStateBackend = stateBackEnd;
+        public CheckpointCoordinatorBuilder setCheckpointStorage(CheckpointStorage stateBackEnd) {
+            this.checkpointStorage = stateBackEnd;
             return this;
         }
 
@@ -754,18 +758,21 @@ public class CheckpointCoordinatorTestingUtils {
             return new CheckpointCoordinator(
                     jobId,
                     checkpointCoordinatorConfiguration,
-                    tasksToTrigger,
-                    tasksToWaitFor,
-                    tasksToCommitTo,
                     coordinatorsToCheckpoint,
                     checkpointIDCounter,
                     completedCheckpointStore,
-                    checkpointStateBackend,
+                    checkpointStorage,
                     ioExecutor,
                     checkpointsCleaner,
                     timer,
                     sharedStateRegistryFactory,
-                    failureManager);
+                    failureManager,
+                    new CheckpointPlanCalculator(
+                            jobId,
+                            Arrays.asList(tasksToTrigger),
+                            Arrays.asList(tasksToWaitFor),
+                            Arrays.asList(tasksToCommitTo)),
+                    new ExecutionAttemptMappingProvider(Arrays.asList(tasksToWaitFor)));
         }
     }
 

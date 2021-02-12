@@ -52,6 +52,8 @@ import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.runtime.security.FlinkSecurityManager;
+import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageLoader;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
@@ -183,8 +185,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     /** The configuration of this streaming task. */
     protected final StreamConfig configuration;
 
-    /** Our state backend. We use this to create checkpoint streams and a keyed state backend. */
+    /** Our state backend. We use this to create a keyed state backend. */
     protected final StateBackend stateBackend;
+
+    /** Our checkpoint storage. We use this to create checkpoint streams. */
+    protected final CheckpointStorage checkpointStorage;
 
     private final SubtaskCheckpointCoordinator subtaskCheckpointCoordinator;
 
@@ -230,6 +235,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     private final ExecutorService channelIOExecutor;
 
     private Long syncSavepointId = null;
+    private Long activeSyncSavepointId = null;
 
     private long latestAsyncCheckpointStartDelayNanos;
 
@@ -315,10 +321,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                         new ExecutorThreadFactory("AsyncOperations", uncaughtExceptionHandler));
 
         this.stateBackend = createStateBackend();
+        this.checkpointStorage = createCheckpointStorage(stateBackend);
 
         this.subtaskCheckpointCoordinator =
                 new SubtaskCheckpointCoordinatorImpl(
-                        stateBackend.createCheckpointStorage(getEnvironment().getJobID()),
+                        checkpointStorage.createCheckpointStorage(getEnvironment().getJobID()),
                         getName(),
                         actionExecutor,
                         getCancelables(),
@@ -421,7 +428,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                         new ResumeWrapper(controller.suspendDefaultAction(timer), timer)));
     }
 
-    private void resetSynchronousSavepointId() {
+    private void resetSynchronousSavepointId(long id, boolean succeeded) {
+        if (!succeeded && activeSyncSavepointId != null && activeSyncSavepointId == id) {
+            // allow to process further EndOfPartition events
+            activeSyncSavepointId = null;
+            operatorChain.setIsStoppingBySyncSavepoint(false);
+        }
         syncSavepointId = null;
     }
 
@@ -430,6 +442,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                 syncSavepointId == null,
                 "at most one stop-with-savepoint checkpoint at a time is allowed");
         syncSavepointId = checkpointId;
+        activeSyncSavepointId = checkpointId;
+        operatorChain.setIsStoppingBySyncSavepoint(true);
     }
 
     @VisibleForTesting
@@ -980,7 +994,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     }
 
     @Override
-    public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) throws IOException {
+    public void abortCheckpointOnBarrier(long checkpointId, CheckpointException cause)
+            throws IOException {
+        resetSynchronousSavepointId(checkpointId, false);
         subtaskCheckpointCoordinator.abortCheckpointOnBarrier(checkpointId, cause, operatorChain);
     }
 
@@ -1006,6 +1022,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                             if (advanceToEndOfTime) {
                                 advanceToEndOfEventTime();
                             }
+                        } else if (activeSyncSavepointId != null
+                                && activeSyncSavepointId < checkpointMetaData.getCheckpointId()) {
+                            activeSyncSavepointId = null;
+                            operatorChain.setIsStoppingBySyncSavepoint(false);
                         }
 
                         subtaskCheckpointCoordinator.checkpointState(
@@ -1013,7 +1033,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                                 checkpointOptions,
                                 checkpointMetrics,
                                 operatorChain,
-                                this::isCanceled);
+                                this::isRunning);
                     });
 
             return true;
@@ -1059,9 +1079,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     @Override
     public Future<Void> notifyCheckpointAbortAsync(long checkpointId) {
         return notifyCheckpointOperation(
-                () ->
-                        subtaskCheckpointCoordinator.notifyCheckpointAborted(
-                                checkpointId, operatorChain, this::isRunning),
+                () -> {
+                    resetSynchronousSavepointId(checkpointId, false);
+                    subtaskCheckpointCoordinator.notifyCheckpointAborted(
+                            checkpointId, operatorChain, this::isRunning);
+                },
                 String.format("checkpoint %d aborted", checkpointId));
     }
 
@@ -1090,7 +1112,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         if (isRunning && isSynchronousSavepointId(checkpointId)) {
             finishTask();
             // Reset to "notify" the internal synchronous savepoint mailbox loop.
-            resetSynchronousSavepointId();
+            resetSynchronousSavepointId(checkpointId, true);
         }
     }
 
@@ -1136,6 +1158,18 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
         return StateBackendLoader.fromApplicationOrConfigOrDefault(
                 fromApplication,
+                getEnvironment().getTaskManagerInfo().getConfiguration(),
+                getUserCodeClassLoader(),
+                LOG);
+    }
+
+    private CheckpointStorage createCheckpointStorage(StateBackend backend) throws Exception {
+        final CheckpointStorage fromApplication =
+                configuration.getCheckpointStorage(getUserCodeClassLoader());
+
+        return CheckpointStorageLoader.load(
+                fromApplication,
+                backend,
                 getEnvironment().getTaskManagerInfo().getConfiguration(),
                 getUserCodeClassLoader(),
                 LOG);

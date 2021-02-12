@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecExpand;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -33,9 +33,14 @@ public class StreamExecExpand extends CommonExecExpand implements StreamExecNode
 
     public StreamExecExpand(
             List<List<RexNode>> projects,
-            ExecEdge inputEdge,
+            InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(projects, true, inputEdge, outputType, description);
+        super(
+                projects,
+                true, // retainHeader
+                inputProperty,
+                outputType,
+                description);
     }
 }

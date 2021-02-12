@@ -44,8 +44,9 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
-import org.apache.flink.table.planner.plan.nodes.exec.utils.MatchSpec;
-import org.apache.flink.table.planner.plan.nodes.exec.utils.SortSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.MatchSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.RexDefaultVisitor;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
@@ -82,20 +83,24 @@ public class StreamExecMatch extends ExecNodeBase<RowData> implements StreamExec
     private final MatchSpec matchSpec;
 
     public StreamExecMatch(
-            MatchSpec matchSpec, ExecEdge inputEdge, RowType outputType, String description) {
-        super(Collections.singletonList(inputEdge), outputType, description);
+            MatchSpec matchSpec,
+            InputProperty inputProperty,
+            RowType outputType,
+            String description) {
+        super(Collections.singletonList(inputProperty), outputType, description);
         this.matchSpec = matchSpec;
     }
 
     @SuppressWarnings("unchecked")
     @Override
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-        final TableConfig config = planner.getTableConfig();
-        final ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
-        final Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
-        final RowType inputRowType = (RowType) inputNode.getOutputType();
+        final ExecEdge inputEdge = getInputEdges().get(0);
+        final Transformation<RowData> inputTransform =
+                (Transformation<RowData>) inputEdge.translateToPlan(planner);
+        final RowType inputRowType = (RowType) inputEdge.getOutputType();
 
         checkOrderKeys(inputRowType);
+        final TableConfig config = planner.getTableConfig();
         final EventComparator<RowData> eventComparator =
                 createEventComparator(config, inputRowType);
         final Transformation<RowData> timestampedInputTransform =
@@ -161,7 +166,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData> implements StreamExec
         final OneInputTransformation<RowData, RowData> transform =
                 new OneInputTransformation<>(
                         timestampedInputTransform,
-                        getDesc(),
+                        getDescription(),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         timestampedInputTransform.getParallelism());

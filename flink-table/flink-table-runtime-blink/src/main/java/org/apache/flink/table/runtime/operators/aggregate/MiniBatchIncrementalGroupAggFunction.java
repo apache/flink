@@ -34,7 +34,7 @@ import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.apache.flink.table.runtime.util.StateTtlConfigUtil.createTtlConfig;
+import static org.apache.flink.table.runtime.util.StateConfigUtil.createTtlConfig;
 
 /**
  * Aggregate Function used for the incremental groupby (without window) aggregate in miniBatch mode.

@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.processor.utils;
 
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.TestingBatchExecNode;
 
 import org.junit.Assert;
@@ -35,8 +35,8 @@ public class InputOrderCalculatorTest {
 
     @Test
     public void testCheckPipelinedPath() {
-        // P = ExecEdge.DamBehavior.PIPELINED, E = ExecEdge.DamBehavior.END_INPUT B =
-        // ExecEdge.DamBehavior.BLOCKING
+        // P = InputProperty.DamBehavior.PIPELINED, E = InputProperty.DamBehavior.END_INPUT B =
+        // InputProperty.DamBehavior.BLOCKING
         //
         // 0 -P-> 1 ----E----\
         //         \-P-\      \
@@ -44,16 +44,19 @@ public class InputOrderCalculatorTest {
         // 5 -P-> 6 -B-/
         TestingBatchExecNode[] nodes = new TestingBatchExecNode[7];
         for (int i = 0; i < nodes.length; i++) {
-            nodes[i] = new TestingBatchExecNode();
+            nodes[i] = new TestingBatchExecNode("TestingBatchExecNode" + i);
         }
         nodes[1].addInput(nodes[0]);
         nodes[3].addInput(nodes[1]);
         nodes[3].addInput(
-                nodes[2], ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.END_INPUT).build());
+                nodes[2],
+                InputProperty.builder().damBehavior(InputProperty.DamBehavior.END_INPUT).build());
         nodes[3].addInput(
-                nodes[6], ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.BLOCKING).build());
+                nodes[6],
+                InputProperty.builder().damBehavior(InputProperty.DamBehavior.BLOCKING).build());
         nodes[4].addInput(
-                nodes[1], ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.END_INPUT).build());
+                nodes[1],
+                InputProperty.builder().damBehavior(InputProperty.DamBehavior.END_INPUT).build());
         nodes[4].addInput(nodes[3]);
         nodes[6].addInput(nodes[5]);
 
@@ -67,7 +70,7 @@ public class InputOrderCalculatorTest {
 
     @Test
     public void testCalculateInputOrder() {
-        // P = ExecEdge.DamBehavior.PIPELINED, B = ExecEdge.DamBehavior.BLOCKING
+        // P = InputProperty.DamBehavior.PIPELINED, B = InputProperty.DamBehavior.BLOCKING
         // P1 = PIPELINED + priority 1
         //
         // 0 -(P1)-> 3 -(B0)-\
@@ -79,29 +82,38 @@ public class InputOrderCalculatorTest {
         // 2 -(P1)-> 5 -(P1)-/
         TestingBatchExecNode[] nodes = new TestingBatchExecNode[9];
         for (int i = 0; i < nodes.length; i++) {
-            nodes[i] = new TestingBatchExecNode();
+            nodes[i] = new TestingBatchExecNode("TestingBatchExecNode" + i);
         }
-        nodes[3].addInput(nodes[0], ExecEdge.builder().priority(1).build());
-        nodes[4].addInput(nodes[1], ExecEdge.builder().priority(1).build());
-        nodes[5].addInput(nodes[2], ExecEdge.builder().priority(1).build());
+        nodes[3].addInput(nodes[0], InputProperty.builder().priority(1).build());
+        nodes[4].addInput(nodes[1], InputProperty.builder().priority(1).build());
+        nodes[5].addInput(nodes[2], InputProperty.builder().priority(1).build());
         nodes[6].addInput(
                 nodes[3],
-                ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.BLOCKING).priority(0).build());
-        nodes[6].addInput(nodes[4], ExecEdge.builder().priority(1).build());
+                InputProperty.builder()
+                        .damBehavior(InputProperty.DamBehavior.BLOCKING)
+                        .priority(0)
+                        .build());
+        nodes[6].addInput(nodes[4], InputProperty.builder().priority(1).build());
         nodes[7].addInput(
                 nodes[4],
-                ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.BLOCKING).priority(0).build());
-        nodes[7].addInput(nodes[5], ExecEdge.builder().priority(1).build());
+                InputProperty.builder()
+                        .damBehavior(InputProperty.DamBehavior.BLOCKING)
+                        .priority(0)
+                        .build());
+        nodes[7].addInput(nodes[5], InputProperty.builder().priority(1).build());
         nodes[8].addInput(
                 nodes[6],
-                ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.BLOCKING).priority(0).build());
-        nodes[8].addInput(nodes[7], ExecEdge.builder().priority(1).build());
+                InputProperty.builder()
+                        .damBehavior(InputProperty.DamBehavior.BLOCKING)
+                        .priority(0)
+                        .build());
+        nodes[8].addInput(nodes[7], InputProperty.builder().priority(1).build());
 
         InputOrderCalculator calculator =
                 new InputOrderCalculator(
                         nodes[8],
                         new HashSet<>(Arrays.asList(nodes[1], nodes[3], nodes[5])),
-                        ExecEdge.DamBehavior.BLOCKING);
+                        InputProperty.DamBehavior.BLOCKING);
         Map<ExecNode<?>, Integer> result = calculator.calculate();
         Assert.assertEquals(3, result.size());
         Assert.assertEquals(0, result.get(nodes[3]).intValue());
@@ -111,7 +123,7 @@ public class InputOrderCalculatorTest {
 
     @Test
     public void testCalculateInputOrderWithRelatedBoundaries() {
-        // P = ExecEdge.DamBehavior.PIPELINED, B = ExecEdge.DamBehavior.BLOCKING
+        // P = InputProperty.DamBehavior.PIPELINED, B = InputProperty.DamBehavior.BLOCKING
         // P1 = PIPELINED + priority 1
         //
         // /------------(P0)------------\
@@ -119,23 +131,25 @@ public class InputOrderCalculatorTest {
         //           3 -(P1)-/           6 -(B0)-/
         TestingBatchExecNode[] nodes = new TestingBatchExecNode[7];
         for (int i = 0; i < nodes.length; i++) {
-            nodes[i] = new TestingBatchExecNode();
+            nodes[i] = new TestingBatchExecNode("TestingBatchExecNode" + i);
         }
         nodes[1].addInput(nodes[0]);
         nodes[2].addInput(
-                nodes[1], ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.BLOCKING).build());
-        nodes[2].addInput(nodes[3], ExecEdge.builder().priority(1).build());
+                nodes[1],
+                InputProperty.builder().damBehavior(InputProperty.DamBehavior.BLOCKING).build());
+        nodes[2].addInput(nodes[3], InputProperty.builder().priority(1).build());
         nodes[4].addInput(nodes[0]);
         nodes[4].addInput(nodes[2]);
-        nodes[5].addInput(nodes[4], ExecEdge.builder().priority(1).build());
+        nodes[5].addInput(nodes[4], InputProperty.builder().priority(1).build());
         nodes[5].addInput(
-                nodes[6], ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.BLOCKING).build());
+                nodes[6],
+                InputProperty.builder().damBehavior(InputProperty.DamBehavior.BLOCKING).build());
 
         InputOrderCalculator calculator =
                 new InputOrderCalculator(
                         nodes[5],
                         new HashSet<>(Arrays.asList(nodes[0], nodes[1], nodes[3], nodes[6])),
-                        ExecEdge.DamBehavior.BLOCKING);
+                        InputProperty.DamBehavior.BLOCKING);
         Map<ExecNode<?>, Integer> result = calculator.calculate();
         Assert.assertEquals(4, result.size());
         Assert.assertEquals(1, result.get(nodes[0]).intValue());
@@ -146,7 +160,7 @@ public class InputOrderCalculatorTest {
 
     @Test
     public void testCalculateInputOrderWithUnaffectedRelatedBoundaries() {
-        // P = ExecEdge.DamBehavior.PIPELINED, B = ExecEdge.DamBehavior.BLOCKING
+        // P = InputProperty.DamBehavior.PIPELINED, B = InputProperty.DamBehavior.BLOCKING
         // P1 = PIPELINED + priority 1
         //
         // 0 --(P0)-> 1 -------(B0)-----> 2 -(P0)-\
@@ -155,27 +169,31 @@ public class InputOrderCalculatorTest {
         //                     7 --(B0)--/
         TestingBatchExecNode[] nodes = new TestingBatchExecNode[8];
         for (int i = 0; i < nodes.length; i++) {
-            nodes[i] = new TestingBatchExecNode();
+            nodes[i] = new TestingBatchExecNode("TestingBatchExecNode" + i);
         }
         nodes[1].addInput(nodes[0]);
         nodes[2].addInput(
-                nodes[1], ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.BLOCKING).build());
-        nodes[2].addInput(nodes[3], ExecEdge.builder().priority(1).build());
+                nodes[1],
+                InputProperty.builder().damBehavior(InputProperty.DamBehavior.BLOCKING).build());
+        nodes[2].addInput(nodes[3], InputProperty.builder().priority(1).build());
         nodes[3].addInput(
-                nodes[1], ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.BLOCKING).build());
+                nodes[1],
+                InputProperty.builder().damBehavior(InputProperty.DamBehavior.BLOCKING).build());
         nodes[4].addInput(nodes[2]);
         nodes[4].addInput(nodes[6]);
         nodes[5].addInput(
-                nodes[0], ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.BLOCKING).build());
-        nodes[6].addInput(nodes[5], ExecEdge.builder().priority(1).build());
+                nodes[0],
+                InputProperty.builder().damBehavior(InputProperty.DamBehavior.BLOCKING).build());
+        nodes[6].addInput(nodes[5], InputProperty.builder().priority(1).build());
         nodes[6].addInput(
-                nodes[7], ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.BLOCKING).build());
+                nodes[7],
+                InputProperty.builder().damBehavior(InputProperty.DamBehavior.BLOCKING).build());
 
         InputOrderCalculator calculator =
                 new InputOrderCalculator(
                         nodes[4],
                         new HashSet<>(Arrays.asList(nodes[1], nodes[3], nodes[5], nodes[7])),
-                        ExecEdge.DamBehavior.BLOCKING);
+                        InputProperty.DamBehavior.BLOCKING);
         Map<ExecNode<?>, Integer> result = calculator.calculate();
         Assert.assertEquals(4, result.size());
         Assert.assertEquals(0, result.get(nodes[1]).intValue());
@@ -186,14 +204,15 @@ public class InputOrderCalculatorTest {
 
     @Test(expected = IllegalStateException.class)
     public void testCalculateInputOrderWithLoop() {
-        TestingBatchExecNode a = new TestingBatchExecNode();
-        TestingBatchExecNode b = new TestingBatchExecNode();
+        TestingBatchExecNode a = new TestingBatchExecNode("TestingBatchExecNode0");
+        TestingBatchExecNode b = new TestingBatchExecNode("TestingBatchExecNode1");
         for (int i = 0; i < 2; i++) {
-            b.addInput(a, ExecEdge.builder().priority(i).build());
+            b.addInput(a, InputProperty.builder().priority(i).build());
         }
 
         InputOrderCalculator calculator =
-                new InputOrderCalculator(b, Collections.emptySet(), ExecEdge.DamBehavior.BLOCKING);
+                new InputOrderCalculator(
+                        b, Collections.emptySet(), InputProperty.DamBehavior.BLOCKING);
         calculator.calculate();
     }
 }

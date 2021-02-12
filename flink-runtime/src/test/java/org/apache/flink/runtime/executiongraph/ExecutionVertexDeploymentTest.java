@@ -252,7 +252,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
         }
     }
 
-    private static class SubmitFailingSimpleAckingTaskManagerGateway
+    public static class SubmitFailingSimpleAckingTaskManagerGateway
             extends SimpleAckingTaskManagerGateway {
         @Override
         public CompletableFuture<Acknowledge> submitTask(
@@ -305,7 +305,6 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
             TaskDeploymentDescriptor tdd =
                     tddFactory.createDeploymentDescriptor(
                             new AllocationID(),
-                            0,
                             null,
                             Execution.registerProducedPartitions(
                                             vertex,

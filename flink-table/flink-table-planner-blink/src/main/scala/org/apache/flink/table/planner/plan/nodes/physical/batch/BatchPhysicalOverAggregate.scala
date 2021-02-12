@@ -20,8 +20,8 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecOverAggregate
-import org.apache.flink.table.planner.plan.nodes.exec.utils.{OverSpec, PartitionSpec}
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.spec.{OverSpec, PartitionSpec}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils.OverAggregateUtil
 
 import org.apache.calcite.plan._
@@ -71,7 +71,7 @@ class BatchPhysicalOverAggregate(
         offsetAndInsensitiveSensitiveGroups.map(OverAggregateUtil.createGroupSpec(_, logicWindow)),
         logicWindow.constants,
         OverAggregateUtil.calcOriginalInputFields(logicWindow)),
-      ExecEdge.DEFAULT,
+      InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription
     )

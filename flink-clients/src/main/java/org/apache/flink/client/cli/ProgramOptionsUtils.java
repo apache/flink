@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
 
@@ -72,19 +73,7 @@ public enum ProgramOptionsUtils {
     public static ProgramOptions createPythonProgramOptions(CommandLine line)
             throws CliArgsException {
         try {
-            ClassLoader classLoader;
-            try {
-                classLoader =
-                        new URLClassLoader(
-                                new URL[] {PackagedProgramUtils.getPythonJar()},
-                                Thread.currentThread().getContextClassLoader());
-            } catch (RuntimeException e) {
-                LOG.warn(
-                        "An attempt to load the flink-python jar from the \"opt\" directory failed, "
-                                + "fall back to use the context class loader.",
-                        e);
-                classLoader = Thread.currentThread().getContextClassLoader();
-            }
+            ClassLoader classLoader = getPythonClassLoader();
             Class<?> pythonProgramOptionsClazz =
                     Class.forName(
                             "org.apache.flink.client.cli.PythonProgramOptions", false, classLoader);
@@ -103,9 +92,22 @@ public enum ProgramOptionsUtils {
         }
     }
 
+    private static ClassLoader getPythonClassLoader() {
+        try {
+            return new URLClassLoader(
+                    new URL[] {PackagedProgramUtils.getPythonJar()},
+                    Thread.currentThread().getContextClassLoader());
+        } catch (RuntimeException e) {
+            LOG.warn(
+                    "An attempt to load the flink-python jar from the \"opt\" directory failed, "
+                            + "fall back to use the context class loader.",
+                    e);
+            return Thread.currentThread().getContextClassLoader();
+        }
+    }
+
     public static void configurePythonExecution(
-            Configuration configuration, PackagedProgram packagedProgram)
-            throws CliArgsException, NoSuchFieldException, IllegalAccessException {
+            Configuration configuration, PackagedProgram packagedProgram) throws Exception {
         final Options commandOptions = CliFrontendParser.getRunCommandOptions();
         final CommandLine commandLine =
                 CliFrontendParser.parse(commandOptions, packagedProgram.getArguments(), true);
@@ -124,6 +126,13 @@ public enum ProgramOptionsUtils {
         Field pythonConfiguration =
                 programOptions.getClass().getDeclaredField("pythonConfiguration");
         pythonConfiguration.setAccessible(true);
-        configuration.addAll((Configuration) pythonConfiguration.get(programOptions));
+        ClassLoader classLoader = getPythonClassLoader();
+        Class<?> pythonDependencyUtilsClazz =
+                Class.forName(
+                        "org.apache.flink.python.util.PythonDependencyUtils", false, classLoader);
+        Method mergeMethod =
+                pythonDependencyUtilsClazz.getDeclaredMethod(
+                        "merge", Configuration.class, Configuration.class);
+        mergeMethod.invoke(null, configuration, pythonConfiguration.get(programOptions));
     }
 }

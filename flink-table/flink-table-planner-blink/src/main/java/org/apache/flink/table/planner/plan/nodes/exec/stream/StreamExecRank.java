@@ -33,8 +33,9 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
-import org.apache.flink.table.planner.plan.nodes.exec.utils.PartitionSpec;
-import org.apache.flink.table.planner.plan.nodes.exec.utils.SortSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.PartitionSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.RankProcessStrategy;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
@@ -83,10 +84,10 @@ public class StreamExecRank extends ExecNodeBase<RowData> implements StreamExecN
             RankProcessStrategy rankStrategy,
             boolean outputRankNumber,
             boolean generateUpdateBefore,
-            ExecEdge inputEdge,
+            InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputEdge), outputType, description);
+        super(Collections.singletonList(inputProperty), outputType, description);
         this.rankType = rankType;
         this.rankRange = rankRange;
         this.rankStrategy = rankStrategy;
@@ -113,10 +114,11 @@ public class StreamExecRank extends ExecNodeBase<RowData> implements StreamExecN
                                 "Streaming tables do not support %s rank function.", rankType));
         }
 
-        ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
-        Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
+        ExecEdge inputEdge = getInputEdges().get(0);
+        Transformation<RowData> inputTransform =
+                (Transformation<RowData>) inputEdge.translateToPlan(planner);
 
-        RowType inputType = (RowType) inputNode.getOutputType();
+        RowType inputType = (RowType) inputEdge.getOutputType();
         InternalTypeInfo<RowData> inputRowTypeInfo = InternalTypeInfo.of(inputType);
         int[] sortFields = sortSpec.getFieldIndices();
         RowDataKeySelector sortKeySelector =
@@ -216,7 +218,7 @@ public class StreamExecRank extends ExecNodeBase<RowData> implements StreamExecN
         OneInputTransformation<RowData, RowData> transform =
                 new OneInputTransformation<>(
                         inputTransform,
-                        getDesc(),
+                        getDescription(),
                         operator,
                         InternalTypeInfo.of((RowType) getOutputType()),
                         inputTransform.getParallelism());

@@ -28,6 +28,7 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
@@ -35,12 +36,14 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
+import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -52,6 +55,11 @@ import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.BoundedOneInput;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.testutils.EntropyInjectingTestFileSystem;
@@ -80,16 +88,21 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static java.util.concurrent.CompletableFuture.allOf;
+import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_COORDINATOR_SHUTDOWN;
 import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -364,6 +377,116 @@ public class SavepointITCase extends TestLogger {
         }
     }
 
+    static class BoundedPassThroughOperator<T> extends AbstractStreamOperator<T>
+            implements OneInputStreamOperator<T, T>, BoundedOneInput {
+        static volatile CountDownLatch progressLatch;
+        static volatile CountDownLatch snapshotAllowedLatch;
+        static volatile CountDownLatch snapshotStartedLatch;
+        static volatile boolean inputEnded;
+
+        private transient boolean processed;
+
+        BoundedPassThroughOperator(ChainingStrategy chainingStrategy) {
+            this.chainingStrategy = chainingStrategy;
+        }
+
+        private static void allowSnapshots() {
+            snapshotAllowedLatch.countDown();
+        }
+
+        public static void awaitSnapshotStarted() throws InterruptedException {
+            snapshotStartedLatch.await();
+        }
+
+        @Override
+        public void endInput() throws Exception {
+            inputEnded = true;
+        }
+
+        @Override
+        public void processElement(StreamRecord<T> element) throws Exception {
+            output.collect(element);
+            if (!processed) {
+                processed = true;
+                progressLatch.countDown();
+            }
+        }
+
+        @Override
+        public void snapshotState(StateSnapshotContext context) throws Exception {
+            snapshotStartedLatch.countDown();
+            snapshotAllowedLatch.await();
+            super.snapshotState(context);
+        }
+
+        // --------------------------------------------------------------------
+
+        static CountDownLatch getProgressLatch() {
+            return progressLatch;
+        }
+
+        static void resetForTest(int parallelism, boolean allowSnapshots) {
+            progressLatch = new CountDownLatch(parallelism);
+            snapshotAllowedLatch = new CountDownLatch(allowSnapshots ? 0 : 1);
+            snapshotStartedLatch = new CountDownLatch(parallelism);
+            inputEnded = false;
+        }
+    }
+
+    private static boolean ischeckpointcoordinatorshutdownError(Throwable throwable) {
+        return ExceptionUtils.findThrowable(throwable, CheckpointException.class)
+                .filter(e -> e.getCheckpointFailureReason() == CHECKPOINT_COORDINATOR_SHUTDOWN)
+                .isPresent();
+    }
+
+    @Test
+    public void testStopSavepointWithBoundedInput() throws Exception {
+        final int numTaskManagers = 2;
+        final int numSlotsPerTaskManager = 2;
+
+        for (ChainingStrategy chainingStrategy : ChainingStrategy.values()) {
+            final MiniClusterResourceFactory clusterFactory =
+                    new MiniClusterResourceFactory(
+                            numTaskManagers,
+                            numSlotsPerTaskManager,
+                            getFileBasedCheckpointsConfig());
+
+            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+            env.setParallelism(1);
+
+            BoundedPassThroughOperator<Integer> operator =
+                    new BoundedPassThroughOperator<>(chainingStrategy);
+            DataStream<Integer> stream =
+                    env.addSource(new InfiniteTestSource())
+                            .transform("pass-through", BasicTypeInfo.INT_TYPE_INFO, operator);
+
+            stream.addSink(new DiscardingSink<>());
+
+            final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+            final JobID jobId = jobGraph.getJobID();
+
+            MiniClusterWithClientResource cluster = clusterFactory.get();
+            cluster.before();
+            ClusterClient<?> client = cluster.getClusterClient();
+
+            try {
+                BoundedPassThroughOperator.resetForTest(1, true);
+
+                client.submitJob(jobGraph).get();
+
+                BoundedPassThroughOperator.getProgressLatch().await();
+
+                client.stopWithSavepoint(jobId, false, null).get();
+
+                Assert.assertFalse(
+                        "input ended with chainingStrategy " + chainingStrategy,
+                        BoundedPassThroughOperator.inputEnded);
+            } finally {
+                cluster.after();
+            }
+        }
+    }
+
     @Test
     public void testSubmitWithUnknownSavepointPath() throws Exception {
         // Config
@@ -571,20 +694,59 @@ public class SavepointITCase extends TestLogger {
 
         private static final long serialVersionUID = 1L;
         private volatile boolean running = true;
+        private volatile boolean suspended = false;
+        private static final Collection<InfiniteTestSource> createdSources =
+                new CopyOnWriteArrayList<>();
+        private transient volatile CompletableFuture<Void> completeFuture;
 
         @Override
         public void run(SourceContext<Integer> ctx) throws Exception {
-            while (running) {
-                synchronized (ctx.getCheckpointLock()) {
-                    ctx.collect(1);
+            completeFuture = new CompletableFuture<>();
+            createdSources.add(this);
+            try {
+                while (running) {
+                    if (!suspended) {
+                        synchronized (ctx.getCheckpointLock()) {
+                            ctx.collect(1);
+                        }
+                    }
+                    Thread.sleep(1);
                 }
-                Thread.sleep(1);
+                completeFuture.complete(null);
+            } catch (Exception e) {
+                completeFuture.completeExceptionally(e);
+                throw e;
             }
         }
 
         @Override
         public void cancel() {
             running = false;
+        }
+
+        public void suspend() {
+            suspended = true;
+        }
+
+        public static void resetForTest() {
+            createdSources.clear();
+        }
+
+        public CompletableFuture<Void> getCompleteFuture() {
+            return completeFuture;
+        }
+
+        public static void cancelAllAndAwait() throws ExecutionException, InterruptedException {
+            createdSources.forEach(InfiniteTestSource::cancel);
+            allOf(
+                            createdSources.stream()
+                                    .map(InfiniteTestSource::getCompleteFuture)
+                                    .toArray(CompletableFuture[]::new))
+                    .get();
+        }
+
+        public static void suspendAll() {
+            createdSources.forEach(InfiniteTestSource::suspend);
         }
     }
 

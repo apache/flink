@@ -20,11 +20,11 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
-import org.apache.flink.table.planner.plan.nodes.exec.utils.OverSpec;
-import org.apache.flink.table.planner.plan.nodes.exec.utils.OverSpec.GroupSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.OverSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.OverSpec.GroupSpec;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -43,13 +43,16 @@ public abstract class BatchExecOverAggregateBase extends ExecNodeBase<RowData>
     protected final OverSpec overSpec;
 
     public BatchExecOverAggregateBase(
-            OverSpec overSpec, ExecEdge inputEdge, RowType outputType, String description) {
-        super(Collections.singletonList(inputEdge), outputType, description);
+            OverSpec overSpec,
+            InputProperty inputProperty,
+            RowType outputType,
+            String description) {
+        super(Collections.singletonList(inputProperty), outputType, description);
         this.overSpec = overSpec;
     }
 
     protected RowType getInputTypeWithConstants() {
-        final RowType inputRowType = (RowType) getInputNodes().get(0).getOutputType();
+        final RowType inputRowType = (RowType) getInputEdges().get(0).getOutputType();
         final List<LogicalType> inputTypesWithConstants =
                 new ArrayList<>(inputRowType.getChildren());
         final List<String> inputTypeNamesWithConstants =

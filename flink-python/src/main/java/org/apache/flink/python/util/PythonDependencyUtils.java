@@ -37,6 +37,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -113,6 +114,38 @@ public class PythonDependencyUtils {
         return config;
     }
 
+    public static void merge(Configuration config, Configuration pythonConfiguration) {
+        Configuration toMerge = new Configuration(pythonConfiguration);
+        if (toMerge.contains(PythonOptions.PYTHON_FILES)) {
+            if (config.contains(PythonOptions.PYTHON_FILES)) {
+                config.set(
+                        PythonOptions.PYTHON_FILES,
+                        String.join(
+                                FILE_DELIMITER,
+                                toMerge.get(PythonOptions.PYTHON_FILES),
+                                config.get(PythonOptions.PYTHON_FILES)));
+            } else {
+                config.set(PythonOptions.PYTHON_FILES, toMerge.get(PythonOptions.PYTHON_FILES));
+            }
+            toMerge.removeConfig(PythonOptions.PYTHON_FILES);
+        }
+        if (toMerge.contains(PythonOptions.PYTHON_ARCHIVES)) {
+            if (config.contains(PythonOptions.PYTHON_ARCHIVES)) {
+                config.set(
+                        PythonOptions.PYTHON_ARCHIVES,
+                        String.join(
+                                FILE_DELIMITER,
+                                toMerge.get(PythonOptions.PYTHON_ARCHIVES),
+                                config.get(PythonOptions.PYTHON_ARCHIVES)));
+            } else {
+                config.set(
+                        PythonOptions.PYTHON_ARCHIVES, toMerge.get(PythonOptions.PYTHON_ARCHIVES));
+            }
+            toMerge.removeConfig(PythonOptions.PYTHON_ARCHIVES);
+        }
+        config.addAll(toMerge);
+    }
+
     /** Helper class for Python dependency management. */
     private static class PythonDependencyManager {
 
@@ -144,7 +177,7 @@ public class PythonDependencyUtils {
             String fileKey = generateUniqueFileKey(PYTHON_FILE_PREFIX, filePath);
             registerCachedFileIfNotExist(filePath, fileKey);
             if (!internalConfig.contains(PYTHON_FILES)) {
-                internalConfig.set(PYTHON_FILES, new HashMap<>());
+                internalConfig.set(PYTHON_FILES, new LinkedHashMap<>());
             }
             internalConfig.get(PYTHON_FILES).put(fileKey, new File(filePath).getName());
         }

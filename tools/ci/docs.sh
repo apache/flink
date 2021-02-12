@@ -17,34 +17,21 @@
 # limitations under the License.
 ################################################################################
 
-gem update --system
-gem install bundler -v 1.17.2
+HUGO_REPO=https://github.com/gohugoio/hugo/releases/download/v0.80.0/hugo_extended_0.80.0_Linux-64bit.tar.gz
+HUGO_ARTIFACT=hugo_extended_0.80.0_Linux-64bit.tar.gz
 
-# build the docs w/o any additional arguments, to build both the en and zh variant
-JEKYLL_BUILD_CONFIG="--baseurl=" CACHE_DIR=$HOME/gem_cache ./docs/build_docs.sh
+if ! curl --fail -OL $HUGO_REPO ; then 
+	echo "Failed to download Hugo binary"
+	exit 1
+fi
+
+tar -zxvf $HUGO_ARTIFACT
+
+git submodule update --init --recursive
+./hugo --source docs
 
 if [ $? -ne 0 ]; then
 	echo "Error building the docs"
 	exit 1
 fi
 
-# serve the docs
-cd docs/content
-python -m SimpleHTTPServer 4000 &
-cd ../..
-
-
-for i in `seq 1 90`;
-do
-	echo "Waiting for server..."
-	curl -Is http://localhost:4000 --fail
-	if [ $? -eq 0 ]; then
-		./docs/check_links.sh
-		EXIT_CODE=$?
-		exit $EXIT_CODE
-	fi
-	sleep 10
-done
-
-echo "Jekyll server wasn't started within 15 minutes"
-exit 1

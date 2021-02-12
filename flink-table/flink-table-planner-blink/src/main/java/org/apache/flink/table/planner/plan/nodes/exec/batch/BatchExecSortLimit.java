@@ -26,9 +26,9 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
-import org.apache.flink.table.planner.plan.nodes.exec.utils.SortSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.operators.sort.SortLimitOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -53,10 +53,10 @@ public class BatchExecSortLimit extends ExecNodeBase<RowData> implements BatchEx
             long limitStart,
             long limitEnd,
             boolean isGlobal,
-            ExecEdge inputEdge,
+            InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputEdge), outputType, description);
+        super(Collections.singletonList(inputProperty), outputType, description);
         this.sortSpec = sortSpec;
         this.limitStart = limitStart;
         this.limitEnd = limitEnd;
@@ -70,10 +70,11 @@ public class BatchExecSortLimit extends ExecNodeBase<RowData> implements BatchEx
             throw new TableException("Not support limitEnd is max value now!");
         }
 
-        ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
-        Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
+        ExecEdge inputEdge = getInputEdges().get(0);
+        Transformation<RowData> inputTransform =
+                (Transformation<RowData>) inputEdge.translateToPlan(planner);
 
-        RowType inputType = (RowType) inputNode.getOutputType();
+        RowType inputType = (RowType) inputEdge.getOutputType();
         // generate comparator
         GeneratedRecordComparator genComparator =
                 ComparatorCodeGenerator.gen(
@@ -86,7 +87,7 @@ public class BatchExecSortLimit extends ExecNodeBase<RowData> implements BatchEx
         OneInputTransformation<RowData, RowData> transform =
                 new OneInputTransformation<>(
                         inputTransform,
-                        getDesc(),
+                        getDescription(),
                         SimpleOperatorFactory.of(operator),
                         InternalTypeInfo.of(inputType),
                         inputTransform.getParallelism());

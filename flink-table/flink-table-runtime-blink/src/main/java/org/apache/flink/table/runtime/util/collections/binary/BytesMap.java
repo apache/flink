@@ -34,7 +34,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Base class for {@link BytesHashMap} and BytesMultiMap.
+ * Base class for {@link BytesHashMap} and {@link BytesMultiMap}.
  *
  * @param <K> type of the map key.
  * @param <V> type of the map value.
@@ -94,7 +94,8 @@ public abstract class BytesMap<K, V> {
             MemoryManager memoryManager,
             long memorySize,
             TypeSerializer<K> keySerializer) {
-        this.memoryPool = new LazyMemorySegmentPool(owner, memoryManager, memorySize);
+        int maxPages = (int) (memorySize / memoryManager.getPageSize());
+        this.memoryPool = new LazyMemorySegmentPool(owner, memoryManager, maxPages);
         this.segmentSize = memoryPool.pageSize();
         this.reservedNumBuffers = (int) (memorySize / segmentSize);
         this.numBucketsPerSegment = segmentSize / BUCKET_SIZE;

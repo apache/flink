@@ -38,6 +38,8 @@ import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointProperties;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
@@ -88,7 +90,8 @@ import org.apache.flink.runtime.jobmaster.factories.UnregisteredJobManagerJobMet
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotInfoWithUtilization;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolFactory;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolServiceFactory;
 import org.apache.flink.runtime.jobmaster.utils.JobMasterBuilder;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -133,7 +136,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.InstantiationUtil;
-import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorSystem;
@@ -309,7 +311,7 @@ public class JobMasterTest extends TestLogger {
                             jmResourceId,
                             jobGraph,
                             haServices,
-                            SlotPoolFactory.fromConfiguration(configuration),
+                            SlotPoolServiceFactory.fromConfiguration(configuration),
                             jobManagerSharedServices,
                             heartbeatServices,
                             UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
@@ -324,7 +326,8 @@ public class JobMasterTest extends TestLogger {
                             System.currentTimeMillis()) {
                         @Override
                         public void declineCheckpoint(DeclineCheckpoint declineCheckpoint) {
-                            declineCheckpointMessageFuture.complete(declineCheckpoint.getReason());
+                            declineCheckpointMessageFuture.complete(
+                                    declineCheckpoint.getSerializedCheckpointException().unwrap());
                         }
                     };
 
@@ -342,6 +345,10 @@ public class JobMasterTest extends TestLogger {
             Throwable userException =
                     (Throwable) Class.forName(className, false, userClassLoader).newInstance();
 
+            CheckpointException checkpointException =
+                    new CheckpointException(
+                            CheckpointFailureReason.CHECKPOINT_DECLINED, userException);
+
             JobMasterGateway jobMasterGateway =
                     rpcService2
                             .connect(
@@ -353,13 +360,17 @@ public class JobMasterTest extends TestLogger {
             RpcCheckpointResponder rpcCheckpointResponder =
                     new RpcCheckpointResponder(jobMasterGateway);
             rpcCheckpointResponder.declineCheckpoint(
-                    jobGraph.getJobID(), new ExecutionAttemptID(), 1, userException);
+                    jobGraph.getJobID(), new ExecutionAttemptID(), 1, checkpointException);
 
             Throwable throwable =
                     declineCheckpointMessageFuture.get(
                             testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
-            assertThat(throwable, instanceOf(SerializedThrowable.class));
-            assertThat(throwable.getMessage(), equalTo(userException.getMessage()));
+            assertThat(throwable, instanceOf(CheckpointException.class));
+            Optional<Throwable> throwableWithMessage =
+                    ExceptionUtils.findThrowableWithMessage(throwable, userException.getMessage());
+            assertTrue(throwableWithMessage.isPresent());
+            assertThat(
+                    throwableWithMessage.get().getMessage(), equalTo(userException.getMessage()));
         } finally {
             RpcUtils.terminateRpcServices(testingTimeout, rpcService1, rpcService2);
         }
@@ -507,7 +518,7 @@ public class JobMasterTest extends TestLogger {
         }
     }
 
-    private static final class TestingSlotPoolFactory implements SlotPoolFactory {
+    private static final class TestingSlotPoolFactory implements SlotPoolServiceFactory {
 
         private final OneShotLatch hasReceivedSlotOffers;
 
@@ -517,12 +528,12 @@ public class JobMasterTest extends TestLogger {
 
         @Nonnull
         @Override
-        public SlotPool createSlotPool(@Nonnull JobID jobId) {
+        public SlotPoolService createSlotPoolService(@Nonnull JobID jobId) {
             return new TestingSlotPool(jobId, hasReceivedSlotOffers);
         }
     }
 
-    private static final class TestingSlotPool implements SlotPool {
+    private static final class TestingSlotPool implements SlotPool, SlotPoolService {
 
         private final JobID jobId;
 
@@ -541,11 +552,6 @@ public class JobMasterTest extends TestLogger {
                 JobMasterId jobMasterId,
                 String newJobManagerAddress,
                 ComponentMainThreadExecutor jmMainThreadScheduledExecutor) {}
-
-        @Override
-        public void suspend() {
-            clear();
-        }
 
         @Override
         public void close() {
@@ -604,6 +610,13 @@ public class JobMasterTest extends TestLogger {
             }
 
             return offers;
+        }
+
+        @Override
+        public Optional<ResourceID> failAllocation(
+                @Nullable ResourceID resourceID, AllocationID allocationId, Exception cause) {
+            throw new UnsupportedOperationException(
+                    "TestingSlotPool does not support this operation.");
         }
 
         @Override
@@ -2169,12 +2182,7 @@ public class JobMasterTest extends TestLogger {
                         false,
                         0);
         final JobCheckpointingSettings checkpointingSettings =
-                new JobCheckpointingSettings(
-                        Collections.emptyList(),
-                        Collections.emptyList(),
-                        Collections.emptyList(),
-                        checkpoinCoordinatorConfiguration,
-                        null);
+                new JobCheckpointingSettings(checkpoinCoordinatorConfiguration, null);
         jobGraph.setSnapshotSettings(checkpointingSettings);
         jobGraph.setSavepointRestoreSettings(savepointRestoreSettings);
 

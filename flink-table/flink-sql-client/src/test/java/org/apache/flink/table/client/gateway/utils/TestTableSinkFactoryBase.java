@@ -97,8 +97,7 @@ public abstract class TestTableSinkFactoryBase implements StreamTableSinkFactory
     @Override
     public StreamTableSink<Row> createTableSink(TableSinkFactory.Context context) {
         return new TestTableSink(
-                context.getTable().getSchema(),
-                context.getTable().getProperties().get(testProperty));
+                context.getTable().getSchema(), context.getTable().getOptions().get(testProperty));
     }
 
     // --------------------------------------------------------------------------------------------

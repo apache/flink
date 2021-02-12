@@ -34,6 +34,7 @@ import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
 import org.apache.flink.runtime.io.network.TestingConnectionManager;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
@@ -280,6 +281,22 @@ public class SingleInputGateTest extends InputGateTestBase {
                 assertEquals(i, buffer.getLong());
             }
         }
+    }
+
+    @Test
+    public void testNotifyAfterEndOfPartition() throws Exception {
+        final SingleInputGate inputGate = createInputGate(2);
+        TestInputChannel inputChannel = new TestInputChannel(inputGate, 0);
+        inputGate.setInputChannels(inputChannel, new TestInputChannel(inputGate, 1));
+
+        inputChannel.readEndOfPartitionEvent();
+        inputChannel.notifyChannelNonEmpty();
+        assertEquals(EndOfPartitionEvent.INSTANCE, inputGate.pollNext().get().getEvent());
+
+        // gate is still active because of secondary channel
+        // test if released channel is enqueued
+        inputChannel.notifyChannelNonEmpty();
+        assertFalse(inputGate.pollNext().isPresent());
     }
 
     @Test

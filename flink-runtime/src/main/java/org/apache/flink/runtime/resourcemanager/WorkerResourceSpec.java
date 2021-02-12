@@ -21,6 +21,7 @@ package org.apache.flink.runtime.resourcemanager;
 import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
@@ -68,6 +69,17 @@ public final class WorkerResourceSpec implements Serializable {
                 taskExecutorProcessSpec.getTaskOffHeapSize(),
                 taskExecutorProcessSpec.getNetworkMemSize(),
                 taskExecutorProcessSpec.getManagedMemorySize());
+    }
+
+    public static WorkerResourceSpec fromTotalResourceProfile(
+            final ResourceProfile resourceProfile) {
+        Preconditions.checkNotNull(resourceProfile);
+        return new WorkerResourceSpec(
+                (CPUResource) resourceProfile.getCpuCores(),
+                resourceProfile.getTaskHeapMemory(),
+                resourceProfile.getTaskOffHeapMemory(),
+                resourceProfile.getNetworkMemory(),
+                resourceProfile.getManagedMemory());
     }
 
     public CPUResource getCpuCores() {

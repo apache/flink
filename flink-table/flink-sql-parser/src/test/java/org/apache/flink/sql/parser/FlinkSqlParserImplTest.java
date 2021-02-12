@@ -866,35 +866,40 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     public void testInsertPartitionSpecs() {
-        final String sql1 = "insert into emps(x,y) partition (x='ab', y='bc') select * from emps";
+        final String sql1 = "insert into emps partition (x='ab', y='bc') (x,y) select * from emps";
         final String expected =
-                "INSERT INTO `EMPS` (`X`, `Y`)\n"
+                "INSERT INTO `EMPS` "
                         + "PARTITION (`X` = 'ab', `Y` = 'bc')\n"
+                        + "(`X`, `Y`)\n"
                         + "(SELECT *\n"
                         + "FROM `EMPS`)";
         sql(sql1).ok(expected);
         final String sql2 =
-                "insert into emp (empno, ename, job, mgr, hiredate,\n"
-                        + "  sal, comm, deptno, slacker)\n"
+                "insert into emp\n"
                         + "partition(empno='1', job='job')\n"
+                        + "(empno, ename, job, mgr, hiredate,\n"
+                        + "  sal, comm, deptno, slacker)\n"
                         + "select 'nom', 0, timestamp '1970-01-01 00:00:00',\n"
                         + "  1, 1, 1, false\n"
                         + "from (values 'a')";
         sql(sql2)
                 .ok(
-                        "INSERT INTO `EMP` (`EMPNO`, `ENAME`, `JOB`, `MGR`, `HIREDATE`, `SAL`,"
-                                + " `COMM`, `DEPTNO`, `SLACKER`)\n"
+                        "INSERT INTO `EMP` "
                                 + "PARTITION (`EMPNO` = '1', `JOB` = 'job')\n"
+                                + "(`EMPNO`, `ENAME`, `JOB`, `MGR`, `HIREDATE`, `SAL`,"
+                                + " `COMM`, `DEPTNO`, `SLACKER`)\n"
                                 + "(SELECT 'nom', 0, TIMESTAMP '1970-01-01 00:00:00', 1, 1, 1, FALSE\n"
                                 + "FROM (VALUES (ROW('a'))))");
         final String sql3 =
-                "insert into empnullables (empno, ename)\n"
+                "insert into empnullables\n"
                         + "partition(ename='b')\n"
+                        + "(empno, ename)\n"
                         + "select 1 from (values 'a')";
         sql(sql3)
                 .ok(
-                        "INSERT INTO `EMPNULLABLES` (`EMPNO`, `ENAME`)\n"
+                        "INSERT INTO `EMPNULLABLES` "
                                 + "PARTITION (`ENAME` = 'b')\n"
+                                + "(`EMPNO`, `ENAME`)\n"
                                 + "(SELECT 1\n"
                                 + "FROM (VALUES (ROW('a'))))");
     }
@@ -902,23 +907,25 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     public void testInsertCaseSensitivePartitionSpecs() {
         final String expected =
-                "INSERT INTO `emps` (`x`, `y`)\n"
+                "INSERT INTO `emps` "
                         + "PARTITION (`x` = 'ab', `y` = 'bc')\n"
+                        + "(`x`, `y`)\n"
                         + "(SELECT *\n"
                         + "FROM `EMPS`)";
-        sql("insert into \"emps\"(\"x\",\"y\") "
-                        + "partition (\"x\"='ab', \"y\"='bc') select * from emps")
+        sql("insert into \"emps\" "
+                        + "partition (\"x\"='ab', \"y\"='bc')(\"x\",\"y\") select * from emps")
                 .ok(expected);
     }
 
     @Test
     public void testInsertExtendedColumnAsStaticPartition1() {
         final String expected =
-                "INSERT INTO `EMPS` EXTEND (`Z` BOOLEAN) (`X`, `Y`)\n"
+                "INSERT INTO `EMPS` EXTEND (`Z` BOOLEAN) "
                         + "PARTITION (`Z` = 'ab')\n"
+                        + "(`X`, `Y`)\n"
                         + "(SELECT *\n"
                         + "FROM `EMPS`)";
-        sql("insert into emps(z boolean)(x,y) partition (z='ab') select * from emps").ok(expected);
+        sql("insert into emps(z boolean) partition (z='ab') (x,y) select * from emps").ok(expected);
     }
 
     @Test(expected = SqlParseException.class)
@@ -940,8 +947,9 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
         // partitioned
         final String sql1 = "INSERT OVERWRITE myTbl PARTITION (p1='v1',p2='v2') SELECT * FROM src";
         final String expected1 =
-                "INSERT OVERWRITE `MYTBL`\n"
+                "INSERT OVERWRITE `MYTBL` "
                         + "PARTITION (`P1` = 'v1', `P2` = 'v2')\n"
+                        + "\n"
                         + "(SELECT *\n"
                         + "FROM `SRC`)";
         sql(sql1).ok(expected1);

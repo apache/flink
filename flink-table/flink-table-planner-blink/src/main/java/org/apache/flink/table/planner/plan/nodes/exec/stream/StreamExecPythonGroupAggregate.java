@@ -32,6 +32,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
@@ -70,10 +71,10 @@ public class StreamExecPythonGroupAggregate extends ExecNodeBase<RowData>
             boolean[] aggCallNeedRetractions,
             boolean generateUpdateBefore,
             boolean needRetraction,
-            ExecEdge inputEdge,
+            InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputEdge), outputType, description);
+        super(Collections.singletonList(inputProperty), outputType, description);
         this.grouping = grouping;
         this.aggCalls = aggCalls;
         this.aggCallNeedRetractions = aggCallNeedRetractions;
@@ -93,9 +94,10 @@ public class StreamExecPythonGroupAggregate extends ExecNodeBase<RowData>
                             + "to prevent excessive state size. You may specify a retention time "
                             + "of 0 to not clean up the state.");
         }
-        final ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
-        final Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
-        final RowType inputRowType = (RowType) inputNode.getOutputType();
+        final ExecEdge inputEdge = getInputEdges().get(0);
+        final Transformation<RowData> inputTransform =
+                (Transformation<RowData>) inputEdge.translateToPlan(planner);
+        final RowType inputRowType = (RowType) inputEdge.getOutputType();
 
         final AggregateInfoList aggInfoList =
                 AggregateUtil.transformToStreamAggregateInfoList(
@@ -103,8 +105,8 @@ public class StreamExecPythonGroupAggregate extends ExecNodeBase<RowData>
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
                         aggCallNeedRetractions,
                         needRetraction,
-                        true,
-                        true);
+                        true, // isStateBackendDataViews
+                        true); // needDistinctInfo
         final int inputCountIndex = aggInfoList.getIndexOfCountStar();
         final boolean countStarInserted = aggInfoList.countStarInserted();
         Tuple2<PythonAggregateFunctionInfo[], DataViewUtils.DataViewSpec[][]>
@@ -125,10 +127,10 @@ public class StreamExecPythonGroupAggregate extends ExecNodeBase<RowData>
                         inputCountIndex,
                         countStarInserted);
         // partitioned aggregation
-        OneInputTransformation transform =
-                new OneInputTransformation(
+        OneInputTransformation<RowData, RowData> transform =
+                new OneInputTransformation<>(
                         inputTransform,
-                        getDesc(),
+                        getDescription(),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());
@@ -163,7 +165,7 @@ public class StreamExecPythonGroupAggregate extends ExecNodeBase<RowData>
             boolean countStarInserted) {
         Class<?> clazz = CommonPythonUtil.loadClass(PYTHON_STREAM_AGGREAGTE_OPERATOR_NAME);
         try {
-            Constructor ctor =
+            Constructor<?> ctor =
                     clazz.getConstructor(
                             Configuration.class,
                             RowType.class,

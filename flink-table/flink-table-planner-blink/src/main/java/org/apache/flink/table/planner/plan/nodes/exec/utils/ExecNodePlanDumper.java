@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.utils;
 
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecLegacySink;
@@ -33,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -358,7 +360,7 @@ public class ExecNodePlanDumper {
             if (isReuseNode && !firstVisited) {
                 sb.append("Reused");
             } else {
-                sb.append(node.getDesc());
+                sb.append(node.getDescription());
             }
 
             if (isReuseNode) {
@@ -373,7 +375,10 @@ public class ExecNodePlanDumper {
             // whether visit input nodes of current node
             final boolean visitInputs =
                     (firstVisited || !isReuseNode) && !stopVisitNodes.contains(node);
-            final List<ExecNode<?>> inputNodes = node.getInputNodes();
+            final List<ExecNode<?>> inputNodes =
+                    node.getInputEdges().stream()
+                            .map(ExecEdge::getSource)
+                            .collect(Collectors.toList());
             if (visitInputs && inputNodes.size() > 1) {
                 inputNodes
                         .subList(0, inputNodes.size() - 1)

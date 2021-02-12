@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.types.logical.RowType;
 
 import java.util.Collections;
@@ -31,7 +31,7 @@ import java.util.Collections;
  * <p>TODO Remove this class once its functionality is replaced by ExecEdge.
  */
 public abstract class CommonExecExchange extends ExecNodeBase<RowData> {
-    public CommonExecExchange(ExecEdge inputEdge, RowType outputType, String description) {
-        super(Collections.singletonList(inputEdge), outputType, description);
+    public CommonExecExchange(InputProperty inputProperty, RowType outputType, String description) {
+        super(Collections.singletonList(inputProperty), outputType, description);
     }
 }

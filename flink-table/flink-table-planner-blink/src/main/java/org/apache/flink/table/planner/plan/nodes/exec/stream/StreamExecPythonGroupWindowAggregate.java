@@ -44,6 +44,7 @@ import org.apache.flink.table.planner.plan.logical.TumblingGroupWindow;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy;
@@ -77,7 +78,7 @@ import static org.apache.flink.table.planner.plan.utils.AggregateUtil.timeFieldI
 import static org.apache.flink.table.planner.plan.utils.AggregateUtil.toDuration;
 import static org.apache.flink.table.planner.plan.utils.AggregateUtil.toLong;
 
-/** Stream [[ExecNode]] for group widow aggregate (Python user defined aggregate function). */
+/** Stream {@link ExecNode} for group widow aggregate (Python user defined aggregate function). */
 public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData> {
     private static final Logger LOGGER =
@@ -99,10 +100,10 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
             LogicalWindow window,
             FlinkRelBuilder.PlannerNamedWindowProperty[] namedWindowProperties,
             WindowEmitStrategy emitStrategy,
-            ExecEdge inputEdge,
+            InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputEdge), outputType, description);
+        super(Collections.singletonList(inputProperty), outputType, description);
         this.grouping = grouping;
         this.aggCalls = aggCalls;
         this.window = window;
@@ -110,6 +111,7 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
         this.emitStrategy = emitStrategy;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
         final boolean isCountWindow;
@@ -132,9 +134,10 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                             + " not clean up the state.");
         }
 
-        final ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
-        final Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
-        final RowType inputRowType = (RowType) inputNode.getOutputType();
+        final ExecEdge inputEdge = getInputEdges().get(0);
+        final Transformation<RowData> inputTransform =
+                (Transformation<RowData>) inputEdge.translateToPlan(planner);
+        final RowType inputRowType = (RowType) inputEdge.getOutputType();
         final RowType outputRowType = InternalTypeInfo.of(getOutputType()).toRowType();
 
         final int inputTimeFieldIndex;
@@ -283,13 +286,13 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                         pythonFunctionInfos);
         return new OneInputTransformation<>(
                 inputTransform,
-                getDesc(),
+                getDescription(),
                 pythonOperator,
                 InternalTypeInfo.of(outputRowType),
                 inputTransform.getParallelism());
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private OneInputStreamOperator<RowData, RowData>
             getPythonStreamGroupWindowAggregateFunctionOperator(
                     Configuration config,

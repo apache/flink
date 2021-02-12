@@ -30,9 +30,15 @@ public class TestBoundedOneInputStreamOperator extends AbstractStreamOperator<St
     private static final long serialVersionUID = 1L;
 
     private final String name;
+    private static volatile boolean inputEnded = false;
+
+    public TestBoundedOneInputStreamOperator() {
+        this("test");
+    }
 
     public TestBoundedOneInputStreamOperator(String name) {
         this.name = name;
+        inputEnded = false;
     }
 
     @Override
@@ -42,6 +48,7 @@ public class TestBoundedOneInputStreamOperator extends AbstractStreamOperator<St
 
     @Override
     public void endInput() {
+        inputEnded = true;
         output("[" + name + "]: End of input");
     }
 
@@ -58,5 +65,9 @@ public class TestBoundedOneInputStreamOperator extends AbstractStreamOperator<St
 
     private void output(String record) {
         output.collect(new StreamRecord<>(record));
+    }
+
+    public static boolean isInputEnded() {
+        return inputEnded;
     }
 }

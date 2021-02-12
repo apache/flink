@@ -1132,7 +1132,7 @@ class TableEnvironment(object, metaclass=ABCMeta):
         python_files = self.get_config().get_configuration().get_string(
             jvm.PythonOptions.PYTHON_FILES.key(), None)
         if python_files is not None:
-            python_files = jvm.PythonDependencyUtils.FILE_DELIMITER.join([python_files, file_path])
+            python_files = jvm.PythonDependencyUtils.FILE_DELIMITER.join([file_path, python_files])
         else:
             python_files = file_path
         self.get_config().get_configuration().set_string(

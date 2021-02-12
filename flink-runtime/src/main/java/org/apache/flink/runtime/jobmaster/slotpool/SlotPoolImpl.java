@@ -90,7 +90,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>TODO : Make pending requests location preference aware TODO : Make pass location preferences
  * to ResourceManager when sending a slot request
  */
-public class SlotPoolImpl implements SlotPool {
+public class SlotPoolImpl implements SlotPool, SlotPoolService {
 
     protected final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -230,25 +230,6 @@ public class SlotPoolImpl implements SlotPool {
             scheduleRunAsync(
                     this::scheduledLogStatus, STATUS_LOG_INTERVAL_MS, TimeUnit.MILLISECONDS);
         }
-    }
-
-    /** Suspends this pool, meaning it has lost its authority to accept and distribute slots. */
-    @Override
-    public void suspend() {
-
-        componentMainThreadExecutor.assertRunningInMainThread();
-
-        log.info("Suspending SlotPool.");
-
-        cancelPendingSlotRequests();
-
-        // do not accept any requests
-        jobMasterId = null;
-        resourceManagerGateway = null;
-
-        // Clear (but not release!) the available slots. The TaskManagers should re-register them
-        // at the new leader JobManager/SlotPool
-        clear();
     }
 
     private void cancelPendingSlotRequests() {
@@ -827,6 +808,12 @@ public class SlotPoolImpl implements SlotPool {
 
         // TODO: add some unit tests when the previous two are ready, the allocation may failed at
         // any phase
+    }
+
+    @Override
+    public Optional<ResourceID> failAllocation(
+            @Nullable ResourceID resourceId, AllocationID allocationID, Exception cause) {
+        return failAllocation(allocationID, cause);
     }
 
     private Optional<ResourceID> tryFailingAllocatedSlot(

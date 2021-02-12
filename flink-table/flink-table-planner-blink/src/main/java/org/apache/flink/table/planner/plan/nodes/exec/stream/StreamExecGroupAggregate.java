@@ -32,6 +32,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
@@ -79,10 +80,10 @@ public class StreamExecGroupAggregate extends ExecNodeBase<RowData>
             boolean[] aggCallNeedRetractions,
             boolean generateUpdateBefore,
             boolean needRetraction,
-            ExecEdge inputEdge,
+            InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputEdge), outputType, description);
+        super(Collections.singletonList(inputProperty), outputType, description);
         Preconditions.checkArgument(aggCalls.length == aggCallNeedRetractions.length);
         this.grouping = grouping;
         this.aggCalls = aggCalls;
@@ -102,9 +103,10 @@ public class StreamExecGroupAggregate extends ExecNodeBase<RowData>
                             + "state size. You may specify a retention time of 0 to not clean up the state.");
         }
 
-        final ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
-        final Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
-        final RowType inputRowType = (RowType) inputNode.getOutputType();
+        final ExecEdge inputEdge = getInputEdges().get(0);
+        final Transformation<RowData> inputTransform =
+                (Transformation<RowData>) inputEdge.translateToPlan(planner);
+        final RowType inputRowType = (RowType) inputEdge.getOutputType();
 
         final AggsHandlerCodeGenerator generator =
                 new AggsHandlerCodeGenerator(
@@ -181,7 +183,7 @@ public class StreamExecGroupAggregate extends ExecNodeBase<RowData>
         final OneInputTransformation<RowData, RowData> transform =
                 new OneInputTransformation<>(
                         inputTransform,
-                        getDesc(),
+                        getDescription(),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());

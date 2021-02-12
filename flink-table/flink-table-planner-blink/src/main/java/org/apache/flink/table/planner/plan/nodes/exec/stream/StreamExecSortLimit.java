@@ -22,9 +22,9 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
-import org.apache.flink.table.planner.plan.nodes.exec.utils.PartitionSpec;
-import org.apache.flink.table.planner.plan.nodes.exec.utils.SortSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.PartitionSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.utils.RankProcessStrategy;
 import org.apache.flink.table.runtime.operators.rank.ConstantRankRange;
 import org.apache.flink.table.runtime.operators.rank.RankType;
@@ -41,7 +41,7 @@ public class StreamExecSortLimit extends StreamExecRank {
             long limitEnd,
             RankProcessStrategy rankStrategy,
             boolean generateUpdateBefore,
-            ExecEdge inputEdge,
+            InputProperty inputProperty,
             RowType outputType,
             String description) {
         super(
@@ -50,9 +50,9 @@ public class StreamExecSortLimit extends StreamExecRank {
                 sortSpec,
                 new ConstantRankRange(limitStart + 1, limitEnd),
                 rankStrategy,
-                false,
+                false, // outputRankNumber
                 generateUpdateBefore,
-                inputEdge,
+                inputProperty,
                 outputType,
                 description);
         this.limitEnd = limitEnd;

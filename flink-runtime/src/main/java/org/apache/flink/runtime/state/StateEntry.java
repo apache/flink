@@ -36,6 +36,15 @@ public interface StateEntry<K, N, S> {
     /** Returns the state of this entry. */
     S getState();
 
+    default StateEntry<K, N, S> filterOrTransform(StateSnapshotTransformer<S> transformer) {
+        S newState = transformer.filterOrTransform(getState());
+        if (newState != null) {
+            return new SimpleStateEntry<>(getKey(), getNamespace(), newState);
+        } else {
+            return null;
+        }
+    }
+
     class SimpleStateEntry<K, N, S> implements StateEntry<K, N, S> {
         private final K key;
         private final N namespace;

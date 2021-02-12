@@ -61,7 +61,7 @@ import java.util.function.Supplier;
  *     .setGroupId("MyGroup")
  *     .setTopics(Arrays.asList(TOPIC1, TOPIC2))
  *     .setDeserializer(new TestingKafkaRecordDeserializer())
- *     .setStartingOffsetInitializer(OffsetsInitializer.earliest())
+ *     .setStartingOffsets(OffsetsInitializer.earliest())
  *     .build();
  * }</pre>
  *

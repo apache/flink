@@ -40,6 +40,7 @@ import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
@@ -51,7 +52,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.Collections;
 
-/** Batch [[ExecNode]] for group widow aggregate (Python user defined aggregate function). */
+/** Batch {@link ExecNode} for group widow aggregate (Python user defined aggregate function). */
 public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
         implements BatchExecNode<RowData> {
 
@@ -60,7 +61,7 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                     + "BatchArrowPythonGroupWindowAggregateFunctionOperator";
 
     private final int[] grouping;
-    private final int[] groupingSet;
+    private final int[] auxGrouping;
     private final AggregateCall[] aggCalls;
     private final LogicalWindow window;
     private final int inputTimeFieldIndex;
@@ -68,28 +69,30 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
 
     public BatchExecPythonGroupWindowAggregate(
             int[] grouping,
-            int[] groupingSet,
+            int[] auxGrouping,
             AggregateCall[] aggCalls,
             LogicalWindow window,
             int inputTimeFieldIndex,
             FlinkRelBuilder.PlannerNamedWindowProperty[] namedWindowProperties,
-            ExecEdge inputEdge,
+            InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputEdge), outputType, description);
+        super(Collections.singletonList(inputProperty), outputType, description);
         this.grouping = grouping;
-        this.groupingSet = groupingSet;
+        this.auxGrouping = auxGrouping;
         this.aggCalls = aggCalls;
         this.window = window;
         this.inputTimeFieldIndex = inputTimeFieldIndex;
         this.namedWindowProperties = namedWindowProperties;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-        final ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
-        final Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
-        final RowType inputRowType = (RowType) inputNode.getOutputType();
+        final ExecEdge inputEdge = getInputEdges().get(0);
+        final Transformation<RowData> inputTransform =
+                (Transformation<RowData>) inputEdge.translateToPlan(planner);
+        final RowType inputRowType = (RowType) inputEdge.getOutputType();
         final RowType outputRowType = InternalTypeInfo.of(getOutputType()).toRowType();
 
         final Tuple2<Long, Long> windowSizeAndSlideSize = WindowCodeGenerator.getWindowDef(window);
@@ -156,7 +159,7 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                         pythonFunctionInfos);
         return new OneInputTransformation<>(
                 inputTransform,
-                getDesc(),
+                getDescription(),
                 pythonOperator,
                 InternalTypeInfo.of(outputRowType),
                 inputTransform.getParallelism());
@@ -203,7 +206,7 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                             slideSize,
                             namePropertyTypeArray,
                             grouping,
-                            groupingSet,
+                            auxGrouping,
                             udafInputOffsets);
         } catch (NoSuchMethodException
                 | InstantiationException

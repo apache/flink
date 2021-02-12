@@ -29,6 +29,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
@@ -71,10 +72,10 @@ public class StreamExecIncrementalGroupAggregate extends ExecNodeBase<RowData>
             boolean[] partialAggCallNeedRetractions,
             RowType partialLocalAggInputRowType,
             boolean partialAggNeedRetraction,
-            ExecEdge inputEdge,
+            InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputEdge), outputType, description);
+        super(Collections.singletonList(inputProperty), outputType, description);
         this.partialAggGrouping = partialAggGrouping;
         this.finalAggGrouping = finalAggGrouping;
         this.partialOriginalAggCalls = partialOriginalAggCalls;
@@ -86,9 +87,9 @@ public class StreamExecIncrementalGroupAggregate extends ExecNodeBase<RowData>
     @SuppressWarnings("unchecked")
     @Override
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-        final TableConfig config = planner.getTableConfig();
-        final ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
-        final Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
+        final ExecEdge inputEdge = getInputEdges().get(0);
+        final Transformation<RowData> inputTransform =
+                (Transformation<RowData>) inputEdge.translateToPlan(planner);
 
         final AggregateInfoList partialLocalAggInfoList =
                 AggregateUtil.createPartialAggInfoList(
@@ -98,6 +99,7 @@ public class StreamExecIncrementalGroupAggregate extends ExecNodeBase<RowData>
                         partialAggNeedRetraction,
                         false);
 
+        final TableConfig config = planner.getTableConfig();
         final GeneratedAggsHandleFunction partialAggsHandler =
                 generateAggsHandler(
                         "PartialGroupAggsHandler",
@@ -129,7 +131,7 @@ public class StreamExecIncrementalGroupAggregate extends ExecNodeBase<RowData>
 
         final RowDataKeySelector partialKeySelector =
                 KeySelectorUtil.getRowDataSelector(
-                        partialAggGrouping, InternalTypeInfo.of(inputNode.getOutputType()));
+                        partialAggGrouping, InternalTypeInfo.of(inputEdge.getOutputType()));
         final RowDataKeySelector finalKeySelector =
                 KeySelectorUtil.getRowDataSelector(
                         finalAggGrouping, partialKeySelector.getProducedType());
@@ -149,7 +151,7 @@ public class StreamExecIncrementalGroupAggregate extends ExecNodeBase<RowData>
         final OneInputTransformation<RowData, RowData> transform =
                 new OneInputTransformation<>(
                         inputTransform,
-                        getDesc(),
+                        getDescription(),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());

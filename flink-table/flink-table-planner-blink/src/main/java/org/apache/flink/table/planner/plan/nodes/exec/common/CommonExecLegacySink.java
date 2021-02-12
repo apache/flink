@@ -32,9 +32,11 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.sinks.DataStreamTableSink;
 import org.apache.flink.table.planner.sinks.TableSinkUtils;
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory;
+import org.apache.flink.table.runtime.typeutils.TypeCheckUtils;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.sinks.RetractStreamTableSink;
 import org.apache.flink.table.sinks.StreamTableSink;
@@ -46,7 +48,9 @@ import org.apache.flink.table.types.logical.RowType;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 
 /**
  * Base {@link ExecNode} to to write data into an external sink defined by a {@link TableSink}.
@@ -64,10 +68,10 @@ public abstract class CommonExecLegacySink<T> extends ExecNodeBase<Object> {
             @Nullable String[] upsertKeys,
             boolean needRetraction,
             boolean isStreaming,
-            ExecEdge inputEdge,
+            InputProperty inputProperty,
             LogicalType outputType,
             String description) {
-        super(Collections.singletonList(inputEdge), outputType, description);
+        super(Collections.singletonList(inputProperty), outputType, description);
         this.tableSink = tableSink;
         this.upsertKeys = upsertKeys;
         this.needRetraction = needRetraction;
@@ -161,14 +165,17 @@ public abstract class CommonExecLegacySink<T> extends ExecNodeBase<Object> {
                             + "Use the toRetractStream() in order to handle add and retract messages.");
         }
 
-        final ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
-        final Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
-        final RowType inputRowType = (RowType) inputNode.getOutputType();
+        final ExecEdge inputEdge = getInputEdges().get(0);
+        final Transformation<RowData> inputTransform =
+                (Transformation<RowData>) inputEdge.translateToPlan(planner);
+        final RowType inputRowType = (RowType) inputEdge.getOutputType();
         final RowType convertedInputRowType = checkAndConvertInputTypeIfNeeded(inputRowType);
         final DataType resultDataType = tableSink.getConsumedDataType();
         if (CodeGenUtils.isInternalClass(resultDataType)) {
             return (Transformation<T>) inputTransform;
         } else {
+            final int rowtimeIndex = getRowtimeIndex(inputRowType);
+
             final DataType physicalOutputType =
                     TableSinkUtils.inferSinkPhysicalDataType(
                             resultDataType, convertedInputRowType, withChangeFlag);
@@ -184,7 +191,8 @@ public abstract class CommonExecLegacySink<T> extends ExecNodeBase<Object> {
                             tableSink,
                             physicalOutputType,
                             withChangeFlag,
-                            "SinkConversion");
+                            "SinkConversion",
+                            rowtimeIndex);
             return new OneInputTransformation<>(
                     inputTransform,
                     "SinkConversionTo" + resultDataType.getConversionClass().getSimpleName(),
@@ -192,5 +200,19 @@ public abstract class CommonExecLegacySink<T> extends ExecNodeBase<Object> {
                     outputTypeInfo,
                     inputTransform.getParallelism());
         }
+    }
+
+    private int getRowtimeIndex(RowType inputRowType) {
+        int rowtimeIndex = -1;
+        final List<Integer> rowtimeFieldIndices = new ArrayList<>();
+        for (int i = 0; i < inputRowType.getFieldCount(); ++i) {
+            if (TypeCheckUtils.isRowTime(inputRowType.getTypeAt(i))) {
+                rowtimeFieldIndices.add(i);
+            }
+        }
+        if (rowtimeFieldIndices.size() == 1) {
+            rowtimeIndex = rowtimeFieldIndices.get(0);
+        }
+        return rowtimeIndex;
     }
 }

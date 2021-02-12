@@ -57,6 +57,15 @@ public interface TaskStateManager extends CheckpointListener, AutoCloseable {
             @Nullable TaskStateSnapshot localState);
 
     /**
+     * Report the stats for state snapshots for an aborted checkpoint.
+     *
+     * @param checkpointMetaData meta data from the checkpoint request.
+     * @param checkpointMetrics task level metrics for the checkpoint.
+     */
+    void reportIncompleteTaskStateSnapshots(
+            CheckpointMetaData checkpointMetaData, CheckpointMetrics checkpointMetrics);
+
+    /**
      * Returns means to restore previously reported state of an operator running in the owning task.
      *
      * @param operatorID the id of the operator for which we request state.

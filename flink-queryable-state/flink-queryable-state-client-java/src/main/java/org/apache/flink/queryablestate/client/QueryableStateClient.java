@@ -45,6 +45,7 @@ import org.apache.flink.queryablestate.network.Client;
 import org.apache.flink.queryablestate.network.messages.MessageSerializer;
 import org.apache.flink.queryablestate.network.stats.DisabledKvStateRequestStats;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.LambdaUtil;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -113,6 +114,9 @@ public class QueryableStateClient {
 
     /** The execution configuration used to instantiate the different (de-)serializers. */
     private ExecutionConfig executionConfig;
+
+    /** The user code classloader, used in loading serializers. */
+    private ClassLoader userClassLoader;
 
     /**
      * Create the Queryable State Client.
@@ -193,6 +197,18 @@ public class QueryableStateClient {
     public ExecutionConfig setExecutionConfig(ExecutionConfig config) {
         ExecutionConfig prev = executionConfig;
         this.executionConfig = config;
+        return prev;
+    }
+
+    /**
+     * * Replaces the existing {@link ClassLoader} (possibly {@code null}), with the provided one.
+     *
+     * @param userClassLoader The new {@code userClassLoader}.
+     * @return The old classloader, or {@code null} if none was specified.
+     */
+    public ClassLoader setUserClassLoader(ClassLoader userClassLoader) {
+        ClassLoader prev = this.userClassLoader;
+        this.userClassLoader = userClassLoader;
         return prev;
     }
 
@@ -292,8 +308,16 @@ public class QueryableStateClient {
             return FutureUtils.getFailedFuture(e);
         }
 
+        ClassLoader classLoaderToUse =
+                userClassLoader != null
+                        ? userClassLoader
+                        : Thread.currentThread().getContextClassLoader();
         return getKvState(jobId, queryableStateName, key.hashCode(), serializedKeyAndNamespace)
-                .thenApply(stateResponse -> createState(stateResponse, stateDescriptor));
+                .thenApply(
+                        stateResponse ->
+                                LambdaUtil.withContextClassLoader(
+                                        classLoaderToUse,
+                                        () -> createState(stateResponse, stateDescriptor)));
     }
 
     private <T, S extends State> S createState(

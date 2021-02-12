@@ -290,9 +290,6 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 
         jobGraph.setSnapshotSettings(
                 new JobCheckpointingSettings(
-                        Collections.singletonList(vertex.getID()),
-                        Collections.singletonList(vertex.getID()),
-                        Collections.singletonList(vertex.getID()),
                         new CheckpointCoordinatorConfiguration(
                                 CHECKPOINT_INTERVAL,
                                 60_000,

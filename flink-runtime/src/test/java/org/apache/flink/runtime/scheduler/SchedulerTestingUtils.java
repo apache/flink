@@ -47,7 +47,6 @@ import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGate
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
@@ -65,6 +64,7 @@ import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStra
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
@@ -77,9 +77,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
@@ -146,20 +144,13 @@ public class SchedulerTestingUtils {
     }
 
     public static void enableCheckpointing(final JobGraph jobGraph) {
-        enableCheckpointing(jobGraph, null);
+        enableCheckpointing(jobGraph, null, null);
     }
 
     public static void enableCheckpointing(
-            final JobGraph jobGraph, @Nullable StateBackend stateBackend) {
-        final List<JobVertexID> triggerVertices = new ArrayList<>();
-        final List<JobVertexID> allVertices = new ArrayList<>();
-
-        for (JobVertex vertex : jobGraph.getVertices()) {
-            if (vertex.isInputVertex()) {
-                triggerVertices.add(vertex.getID());
-            }
-            allVertices.add(vertex.getID());
-        }
+            final JobGraph jobGraph,
+            @Nullable StateBackend stateBackend,
+            @Nullable CheckpointStorage checkpointStorage) {
 
         final CheckpointCoordinatorConfiguration config =
                 new CheckpointCoordinatorConfiguration(
@@ -182,9 +173,18 @@ public class SchedulerTestingUtils {
             }
         }
 
+        SerializedValue<CheckpointStorage> serializedCheckpointStorage = null;
+        if (checkpointStorage != null) {
+            try {
+                serializedCheckpointStorage = new SerializedValue<>(checkpointStorage);
+            } catch (IOException e) {
+                throw new RuntimeException("could not serialize checkpoint storage", e);
+            }
+        }
+
         jobGraph.setSnapshotSettings(
                 new JobCheckpointingSettings(
-                        triggerVertices, allVertices, allVertices, config, serializedStateBackend));
+                        config, serializedStateBackend, serializedCheckpointStorage, null));
     }
 
     public static Collection<ExecutionAttemptID> getAllCurrentExecutionAttempts(

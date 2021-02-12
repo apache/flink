@@ -32,9 +32,9 @@ import org.apache.flink.table.planner.codegen.FunctionCodeGenerator;
 import org.apache.flink.table.planner.codegen.GeneratedExpression;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
-import org.apache.flink.table.planner.plan.nodes.exec.utils.JoinSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
@@ -75,11 +75,11 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
             boolean isTemporalTableFunctionJoin,
             int leftTimeAttributeIndex,
             int rightTimeAttributeIndex,
-            ExecEdge leftEdge,
-            ExecEdge rightEdge,
+            InputProperty leftInputProperty,
+            InputProperty rightInputProperty,
             RowType outputType,
             String description) {
-        super(Lists.newArrayList(leftEdge, rightEdge), outputType, description);
+        super(Lists.newArrayList(leftInputProperty, rightInputProperty), outputType, description);
         Preconditions.checkArgument(
                 rightTimeAttributeIndex == FIELD_INDEX_FOR_PROC_TIME_ATTRIBUTE
                         || rightTimeAttributeIndex >= 0);
@@ -92,11 +92,10 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
     @Override
     @SuppressWarnings("unchecked")
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-
-        ExecNode<RowData> leftInput = (ExecNode<RowData>) getInputNodes().get(0);
-        ExecNode<RowData> rightInput = (ExecNode<RowData>) getInputNodes().get(1);
-        RowType leftInputType = (RowType) leftInput.getOutputType();
-        RowType rightInputType = (RowType) rightInput.getOutputType();
+        ExecEdge leftInputEdge = getInputEdges().get(0);
+        ExecEdge rightInputEdge = getInputEdges().get(1);
+        RowType leftInputType = (RowType) leftInputEdge.getOutputType();
+        RowType rightInputType = (RowType) rightInputEdge.getOutputType();
 
         JoinUtil.validateJoinSpec(joinSpec, leftInputType, rightInputType, true);
 
@@ -123,14 +122,16 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
 
         TwoInputStreamOperator<RowData, RowData, RowData> joinOperator =
                 getJoinOperator(planner.getTableConfig(), leftInputType, rightInputType);
-        Transformation<RowData> leftTransform = leftInput.translateToPlan(planner);
-        Transformation<RowData> rightTransform = rightInput.translateToPlan(planner);
+        Transformation<RowData> leftTransform =
+                (Transformation<RowData>) leftInputEdge.translateToPlan(planner);
+        Transformation<RowData> rightTransform =
+                (Transformation<RowData>) rightInputEdge.translateToPlan(planner);
 
         TwoInputTransformation<RowData, RowData, RowData> ret =
                 new TwoInputTransformation<>(
                         leftTransform,
                         rightTransform,
-                        getDesc(),
+                        getDescription(),
                         joinOperator,
                         InternalTypeInfo.of(returnType),
                         leftTransform.getParallelism());

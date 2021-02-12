@@ -432,8 +432,10 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
 
         @Override
         public <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit) {
-            throw new UnsupportedOperationException(
-                    "Not implemented because the method is currently not required.");
+            final long delayMillis = TimeUnit.MILLISECONDS.convert(delay, unit);
+            FutureTask<V> ft = new FutureTask<>(callable);
+            scheduleRunAsync(ft, delayMillis);
+            return new ScheduledFutureAdapter<>(ft, delay, TimeUnit.MILLISECONDS);
         }
 
         @Override

@@ -27,10 +27,10 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.sort.SortCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
-import org.apache.flink.table.planner.plan.nodes.exec.utils.SortSpec;
 import org.apache.flink.table.runtime.operators.sort.SortOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
@@ -47,19 +47,23 @@ public class BatchExecSort extends ExecNodeBase<RowData> implements BatchExecNod
     private final SortSpec sortSpec;
 
     public BatchExecSort(
-            SortSpec sortSpec, ExecEdge inputEdge, RowType outputType, String description) {
-        super(Collections.singletonList(inputEdge), outputType, description);
+            SortSpec sortSpec,
+            InputProperty inputProperty,
+            RowType outputType,
+            String description) {
+        super(Collections.singletonList(inputProperty), outputType, description);
         this.sortSpec = sortSpec;
     }
 
     @SuppressWarnings("unchecked")
     @Override
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-        ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
-        Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
+        ExecEdge inputEdge = getInputEdges().get(0);
+        Transformation<RowData> inputTransform =
+                (Transformation<RowData>) inputEdge.translateToPlan(planner);
 
         TableConfig config = planner.getTableConfig();
-        RowType inputType = (RowType) inputNode.getOutputType();
+        RowType inputType = (RowType) inputEdge.getOutputType();
         SortCodeGenerator codeGen = new SortCodeGenerator(config, inputType, sortSpec);
 
         SortOperator operator =
@@ -73,7 +77,7 @@ public class BatchExecSort extends ExecNodeBase<RowData> implements BatchExecNod
         OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getDesc(),
+                        getDescription(),
                         SimpleOperatorFactory.of(operator),
                         InternalTypeInfo.of((RowType) getOutputType()),
                         inputTransform.getParallelism(),

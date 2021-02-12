@@ -127,9 +127,9 @@ public class ValidatingCheckpointHandler extends AbstractInvokable {
     }
 
     @Override
-    public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) {
+    public void abortCheckpointOnBarrier(long checkpointId, CheckpointException cause) {
         lastCanceledCheckpointId = checkpointId;
-        failureReason = ((CheckpointException) cause).getCheckpointFailureReason();
+        failureReason = cause.getCheckpointFailureReason();
         abortedCheckpointCounter++;
     }
 

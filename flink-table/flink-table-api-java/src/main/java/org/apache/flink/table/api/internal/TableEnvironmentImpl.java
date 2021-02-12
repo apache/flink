@@ -106,7 +106,7 @@ import org.apache.flink.table.operations.ddl.AlterPartitionPropertiesOperation;
 import org.apache.flink.table.operations.ddl.AlterTableAddConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableOperation;
-import org.apache.flink.table.operations.ddl.AlterTablePropertiesOperation;
+import org.apache.flink.table.operations.ddl.AlterTableOptionsOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
 import org.apache.flink.table.operations.ddl.AlterTableSchemaOperation;
 import org.apache.flink.table.operations.ddl.AlterViewAsOperation;
@@ -684,13 +684,18 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     public TableResult executeInternal(List<ModifyOperation> operations) {
         List<Transformation<?>> transformations = translate(operations);
         List<String> sinkIdentifierNames = extractSinkIdentifierNames(operations);
+        return executeInternal(transformations, sinkIdentifierNames);
+    }
+
+    private TableResult executeInternal(
+            List<Transformation<?>> transformations, List<String> sinkIdentifierNames) {
         String jobName = getJobName("insert-into_" + String.join(",", sinkIdentifierNames));
         Pipeline pipeline = execEnv.createPipeline(transformations, tableConfig, jobName);
         try {
             JobClient jobClient = execEnv.executeAsync(pipeline);
             TableSchema.Builder builder = TableSchema.builder();
-            Object[] affectedRowCounts = new Long[operations.size()];
-            for (int i = 0; i < operations.size(); ++i) {
+            Object[] affectedRowCounts = new Long[transformations.size()];
+            for (int i = 0; i < transformations.size(); ++i) {
                 // use sink identifier name as field name
                 builder.field(sinkIdentifierNames.get(i), DataTypes.BIGINT());
                 affectedRowCounts[i] = -1L;
@@ -812,9 +817,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                             alterTableRenameOp.getTableIdentifier().toObjectPath(),
                             alterTableRenameOp.getNewTableIdentifier().getObjectName(),
                             false);
-                } else if (alterTableOperation instanceof AlterTablePropertiesOperation) {
-                    AlterTablePropertiesOperation alterTablePropertiesOp =
-                            (AlterTablePropertiesOperation) operation;
+                } else if (alterTableOperation instanceof AlterTableOptionsOperation) {
+                    AlterTableOptionsOperation alterTablePropertiesOp =
+                            (AlterTableOptionsOperation) operation;
                     catalog.alterTable(
                             alterTablePropertiesOp.getTableIdentifier().toObjectPath(),
                             alterTablePropertiesOp.getCatalogTable(),
@@ -1562,5 +1567,43 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 tableOperation,
                 operationTreeBuilder,
                 functionCatalog.asLookup(parser::parseIdentifier));
+    }
+
+    @Override
+    public String getJsonPlan(String stmt) {
+        List<Operation> operations = parser.parse(stmt);
+        if (operations.size() != 1) {
+            throw new TableException(
+                    "Unsupported SQL query! getJsonPlan() only accepts a single INSERT statement.");
+        }
+        Operation operation = operations.get(0);
+        List<ModifyOperation> modifyOperations = new ArrayList<>(1);
+        if (operation instanceof ModifyOperation) {
+            modifyOperations.add((ModifyOperation) operation);
+        } else {
+            throw new TableException("Only INSERT is supported now.");
+        }
+        return getJsonPlan(modifyOperations);
+    }
+
+    @Override
+    public String getJsonPlan(List<ModifyOperation> operations) {
+        return planner.getJsonPlan(operations);
+    }
+
+    @Override
+    public String explainJsonPlan(String jsonPlan, ExplainDetail... extraDetails) {
+        return planner.explainJsonPlan(jsonPlan, extraDetails);
+    }
+
+    @Override
+    public TableResult executeJsonPlan(String jsonPlan) {
+        List<Transformation<?>> transformations = planner.translateJsonPlan(jsonPlan);
+        List<String> sinkIdentifierNames = new ArrayList<>();
+        for (int i = 0; i < transformations.size(); ++i) {
+            // TODO serialize the sink table names to json plan ?
+            sinkIdentifierNames.add("sink" + i);
+        }
+        return executeInternal(transformations, sinkIdentifierNames);
     }
 }

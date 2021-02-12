@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
@@ -56,10 +57,10 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
     public StreamExecChangelogNormalize(
             int[] uniqueKeys,
             boolean generateUpdateBefore,
-            ExecEdge inputEdge,
+            InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputEdge), outputType, description);
+        super(Collections.singletonList(inputProperty), outputType, description);
         this.uniqueKeys = uniqueKeys;
         this.generateUpdateBefore = generateUpdateBefore;
     }
@@ -67,9 +68,9 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
     @SuppressWarnings("unchecked")
     @Override
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-        final ExecNode<?> inputNode = getInputNodes().get(0);
+        final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
-                (Transformation<RowData>) inputNode.translateToPlan(planner);
+                (Transformation<RowData>) inputEdge.translateToPlan(planner);
         final InternalTypeInfo<RowData> rowTypeInfo =
                 (InternalTypeInfo<RowData>) inputTransform.getOutputType();
 
@@ -107,7 +108,7 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
         final OneInputTransformation<RowData, RowData> transform =
                 new OneInputTransformation<>(
                         inputTransform,
-                        getDesc(),
+                        getDescription(),
                         operator,
                         rowTypeInfo,
                         inputTransform.getParallelism());

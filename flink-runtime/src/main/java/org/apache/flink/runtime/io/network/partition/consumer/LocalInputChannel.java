@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -123,7 +124,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
     // Consume
     // ------------------------------------------------------------------------
 
-    public void checkpointStarted(CheckpointBarrier barrier) {
+    public void checkpointStarted(CheckpointBarrier barrier) throws CheckpointException {
         channelStatePersister.startPersisting(barrier.getId(), Collections.emptyList());
     }
 
@@ -143,10 +144,11 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 
             if (subpartitionView == null) {
                 LOG.debug(
-                        "{}: Requesting LOCAL subpartition {} of partition {}.",
+                        "{}: Requesting LOCAL subpartition {} of partition {}. {}",
                         this,
                         subpartitionIndex,
-                        partitionId);
+                        partitionId,
+                        channelStatePersister);
 
                 try {
                     ResultSubpartitionView subpartitionView =
@@ -259,6 +261,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
         NetworkActionsLogger.traceInput(
                 "LocalInputChannel#getNextBuffer",
                 buffer,
+                inputGate.getOwningTaskName(),
                 channelInfo,
                 channelStatePersister,
                 next.getSequenceNumber());

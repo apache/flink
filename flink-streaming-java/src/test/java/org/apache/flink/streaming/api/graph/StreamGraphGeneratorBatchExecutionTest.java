@@ -29,6 +29,7 @@ import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.MultipleConnectedStreams;
@@ -68,6 +69,7 @@ import java.util.List;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertThat;
@@ -79,6 +81,23 @@ import static org.junit.Assert.assertThat;
 public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
 
     @Rule public ExpectedException expectedException = ExpectedException.none();
+
+    @Test
+    public void testBatchJobType() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        SingleOutputStreamOperator<Integer> process =
+                env.fromElements(1, 2).keyBy(Integer::intValue).process(DUMMY_PROCESS_FUNCTION);
+        DataStreamSink<Integer> sink = process.addSink(new DiscardingSink<>());
+        StreamGraphGenerator graphGenerator =
+                new StreamGraphGenerator(
+                        Collections.singletonList(sink.getTransformation()),
+                        env.getConfig(),
+                        env.getCheckpointConfig());
+        graphGenerator.setRuntimeExecutionMode(RuntimeExecutionMode.BATCH);
+
+        StreamGraph graph = graphGenerator.generate();
+        assertThat(graph.getJobType(), is(JobType.BATCH));
+    }
 
     @Test
     public void testOneInputTransformation() {

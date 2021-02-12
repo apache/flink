@@ -111,7 +111,7 @@ public class SlotManagerFailUnfulfillableTest extends TestLogger {
         // setup
         final ResourceProfile availableProfile = ResourceProfile.fromResources(2.0, 100);
         final ResourceProfile newTmProfile =
-                SlotManagerImpl.generateDefaultSlotResourceProfile(WORKER_RESOURCE_SPEC, 1);
+                SlotManagerUtils.generateDefaultSlotResourceProfile(WORKER_RESOURCE_SPEC, 1);
 
         final SlotManager slotManager = createSlotManagerStartingNewTMs();
         slotManager.setFailUnfulfillableRequest(false);
@@ -173,7 +173,7 @@ public class SlotManagerFailUnfulfillableTest extends TestLogger {
         // setup
         final ResourceProfile availableProfile = ResourceProfile.fromResources(2.0, 100);
         final ResourceProfile newTmProfile =
-                SlotManagerImpl.generateDefaultSlotResourceProfile(WORKER_RESOURCE_SPEC, 1);
+                SlotManagerUtils.generateDefaultSlotResourceProfile(WORKER_RESOURCE_SPEC, 1);
 
         final SlotManager slotManager = createSlotManagerStartingNewTMs();
         registerFreeSlot(slotManager, availableProfile);

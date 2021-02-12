@@ -21,8 +21,8 @@ package org.apache.flink.table.planner.plan.nodes.exec.processor.utils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.AbstractExecNodeExactlyOnceVisitor;
 
 import java.util.ArrayList;
@@ -50,10 +50,12 @@ public class InputOrderCalculator extends InputPriorityGraphGenerator {
      * @param root the output node of the sub-graph
      * @param boundaries the first layer of nodes on the input side of the sub-graph
      * @param safeDamBehavior when checking for conflicts we'll ignore the edges with {@link
-     *     ExecEdge.DamBehavior} stricter or equal than this
+     *     InputProperty.DamBehavior} stricter or equal than this
      */
     public InputOrderCalculator(
-            ExecNode<?> root, Set<ExecNode<?>> boundaries, ExecEdge.DamBehavior safeDamBehavior) {
+            ExecNode<?> root,
+            Set<ExecNode<?>> boundaries,
+            InputProperty.DamBehavior safeDamBehavior) {
         super(Collections.singletonList(root), boundaries, safeDamBehavior);
         this.boundaries = boundaries;
     }
@@ -152,15 +154,15 @@ public class InputOrderCalculator extends InputPriorityGraphGenerator {
                 return;
             }
 
-            List<ExecEdge> inputEdges = node.getInputEdges();
-            for (int i = 0; i < inputEdges.size(); i++) {
-                if (inputEdges
+            List<InputProperty> inputProperties = node.getInputProperties();
+            for (int i = 0; i < inputProperties.size(); i++) {
+                if (inputProperties
                         .get(i)
                         .getDamBehavior()
-                        .stricterOrEqual(ExecEdge.DamBehavior.END_INPUT)) {
+                        .stricterOrEqual(InputProperty.DamBehavior.END_INPUT)) {
                     continue;
                 }
-                visit(node.getInputNodes().get(i));
+                visit(node.getInputEdges().get(i).getSource());
                 if (res) {
                     return;
                 }

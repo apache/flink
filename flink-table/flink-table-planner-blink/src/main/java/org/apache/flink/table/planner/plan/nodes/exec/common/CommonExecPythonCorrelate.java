@@ -31,6 +31,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -56,10 +57,10 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData> {
             FlinkJoinType joinType,
             RexCall invocation,
             RexNode condition,
-            ExecEdge inputEdge,
+            InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputEdge), outputType, description);
+        super(Collections.singletonList(inputProperty), outputType, description);
         this.joinType = joinType;
         this.invocation = invocation;
         if (joinType == FlinkJoinType.LEFT && condition != null) {
@@ -71,8 +72,9 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData> {
     @SuppressWarnings("unchecked")
     @Override
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-        final ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
-        final Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
+        final ExecEdge inputEdge = getInputEdges().get(0);
+        final Transformation<RowData> inputTransform =
+                (Transformation<RowData>) inputEdge.translateToPlan(planner);
         final Configuration config =
                 CommonPythonUtil.getMergedConfig(planner.getExecEnv(), planner.getTableConfig());
         OneInputTransformation<RowData, RowData> transform =
@@ -105,7 +107,7 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData> {
                         pythonUdtfInputOffsets);
         return new OneInputTransformation<>(
                 inputTransform,
-                getDesc(),
+                getDescription(),
                 pythonOperator,
                 pythonOperatorOutputRowType,
                 inputTransform.getParallelism());

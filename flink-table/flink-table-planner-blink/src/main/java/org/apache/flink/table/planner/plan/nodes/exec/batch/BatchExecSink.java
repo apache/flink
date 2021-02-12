@@ -19,17 +19,17 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecSink;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSinkSpec;
 import org.apache.flink.table.types.logical.LogicalType;
 
-import java.util.List;
+import java.util.Collections;
 
 /**
  * Batch {@link ExecNode} to to write data into an external sink defined by a {@link
@@ -37,19 +37,16 @@ import java.util.List;
  */
 public class BatchExecSink extends CommonExecSink implements BatchExecNode<Object> {
     public BatchExecSink(
-            List<String> qualifiedName,
-            TableSchema tableSchema,
-            DynamicTableSink tableSink,
-            ExecEdge inputEdge,
+            DynamicTableSinkSpec tableSinkSpec,
+            InputProperty inputProperty,
             LogicalType outputType,
             String description) {
         super(
-                qualifiedName,
-                tableSchema,
-                tableSink,
-                tableSink.getChangelogMode(ChangelogMode.insertOnly()),
+                tableSinkSpec,
+                tableSinkSpec.getTableSink().getChangelogMode(ChangelogMode.insertOnly()),
                 true, // isBounded
-                inputEdge,
+                getNewNodeId(),
+                Collections.singletonList(inputProperty),
                 outputType,
                 description);
     }
@@ -58,7 +55,7 @@ public class BatchExecSink extends CommonExecSink implements BatchExecNode<Objec
     @Override
     protected Transformation<Object> translateToPlanInternal(PlannerBase planner) {
         final Transformation<RowData> inputTransform =
-                (Transformation<RowData>) getInputNodes().get(0).translateToPlan(planner);
+                (Transformation<RowData>) getInputEdges().get(0).translateToPlan(planner);
         return createSinkTransformation(
                 planner.getExecEnv(), planner.getTableConfig(), inputTransform, -1);
     }

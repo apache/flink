@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecBoundedStreamScan;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecMultipleInput;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecExchange;
@@ -76,7 +77,7 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
             InputPriorityConflictResolver resolver =
                     new InputPriorityConflictResolver(
                             execGraph.getRootNodes(),
-                            ExecEdge.DamBehavior.BLOCKING,
+                            InputProperty.DamBehavior.BLOCKING,
                             ShuffleMode.PIPELINED,
                             context.getPlanner().getTableConfig().getConfiguration());
             resolver.detectAndResolve();
@@ -107,10 +108,11 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
                     protected void visitNode(ExecNode<?> node) {
                         ExecNodeWrapper wrapper =
                                 wrapperMap.computeIfAbsent(node, k -> new ExecNodeWrapper(node));
-                        for (ExecNode<?> input : node.getInputNodes()) {
+                        for (ExecEdge inputEdge : node.getInputEdges()) {
+                            ExecNode<?> inputNode = inputEdge.getSource();
                             ExecNodeWrapper inputWrapper =
                                     wrapperMap.computeIfAbsent(
-                                            input, k -> new ExecNodeWrapper(input));
+                                            inputNode, k -> new ExecNodeWrapper(inputNode));
                             wrapper.inputs.add(inputWrapper);
                             inputWrapper.outputs.add(wrapper);
                         }
@@ -277,11 +279,12 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
                                     inputWrapper ->
                                             inputWrapper.execNode instanceof CommonExecExchange
                                                     && (inputWrapper.execNode)
-                                                                    .getInputEdges()
+                                                                    .getInputProperties()
                                                                     .get(0)
-                                                                    .getRequiredShuffle()
+                                                                    .getRequiredDistribution()
                                                                     .getType()
-                                                            == ExecEdge.ShuffleType.SINGLETON);
+                                                            == InputProperty.DistributionType
+                                                                    .SINGLETON);
 
             if (shouldRemove) {
                 wrapper.group.removeMember(wrapper);
@@ -464,8 +467,10 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
         }
 
         for (int i = 0; i < wrapper.inputs.size(); i++) {
-            wrapper.execNode.replaceInputNode(
-                    i, getMultipleInputNode(wrapper.inputs.get(i), visitedMap));
+            ExecNode<?> multipleInputNode = getMultipleInputNode(wrapper.inputs.get(i), visitedMap);
+            ExecEdge execEdge =
+                    ExecEdge.builder().source(multipleInputNode).target(wrapper.execNode).build();
+            wrapper.execNode.replaceInputEdge(i, execEdge);
         }
 
         ExecNode<?> ret;
@@ -481,7 +486,7 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
     private ExecNode<?> createMultipleInputNode(
             MultipleInputGroup group, Map<ExecNodeWrapper, ExecNode<?>> visitedMap) {
         // calculate the inputs of the multiple input node
-        List<Tuple2<ExecNode<?>, ExecEdge>> inputs = new ArrayList<>();
+        List<Tuple2<ExecNode<?>, InputProperty>> inputs = new ArrayList<>();
         for (ExecNodeWrapper member : group.members) {
             for (int i = 0; i < member.inputs.size(); i++) {
                 ExecNodeWrapper memberInput = member.inputs.get(i);
@@ -493,8 +498,8 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
                         "Input of a multiple input member is not visited. This is a bug.");
 
                 ExecNode<?> inputNode = visitedMap.get(memberInput);
-                ExecEdge inputEdge = member.execNode.getInputEdges().get(i);
-                inputs.add(Tuple2.of(inputNode, inputEdge));
+                InputProperty inputProperty = member.execNode.getInputProperties().get(i);
+                inputs.add(Tuple2.of(inputNode, inputProperty));
             }
         }
 
@@ -506,10 +511,10 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
     }
 
     private StreamExecMultipleInput createStreamMultipleInputNode(
-            MultipleInputGroup group, List<Tuple2<ExecNode<?>, ExecEdge>> inputs) {
+            MultipleInputGroup group, List<Tuple2<ExecNode<?>, InputProperty>> inputs) {
         ExecNode<?> rootNode = group.root.execNode;
         List<ExecNode<?>> inputNodes = new ArrayList<>();
-        for (Tuple2<ExecNode<?>, ExecEdge> tuple2 : inputs) {
+        for (Tuple2<ExecNode<?>, InputProperty> tuple2 : inputs) {
             inputNodes.add(tuple2.f0);
         }
 
@@ -517,46 +522,58 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
                 ExecNodeUtil.getMultipleInputDescription(rootNode, inputNodes, new ArrayList<>());
         StreamExecMultipleInput multipleInput =
                 new StreamExecMultipleInput(
-                        inputNodes.stream().map(i -> ExecEdge.DEFAULT).collect(Collectors.toList()),
+                        inputNodes.stream()
+                                .map(i -> InputProperty.DEFAULT)
+                                .collect(Collectors.toList()),
                         rootNode,
                         description);
-        multipleInput.setInputNodes(inputNodes);
+
+        List<ExecEdge> inputEdges = new ArrayList<>(inputNodes.size());
+        for (ExecNode<?> inputNode : inputNodes) {
+            inputEdges.add(ExecEdge.builder().source(inputNode).target(multipleInput).build());
+        }
+        multipleInput.setInputEdges(inputEdges);
         return multipleInput;
     }
 
     private BatchExecMultipleInput createBatchMultipleInputNode(
-            MultipleInputGroup group, List<Tuple2<ExecNode<?>, ExecEdge>> inputs) {
+            MultipleInputGroup group, List<Tuple2<ExecNode<?>, InputProperty>> inputs) {
         // first calculate the input orders using InputPriorityConflictResolver
         Set<ExecNode<?>> inputSet = new HashSet<>();
-        for (Tuple2<ExecNode<?>, ExecEdge> tuple2 : inputs) {
+        for (Tuple2<ExecNode<?>, InputProperty> tuple2 : inputs) {
             inputSet.add(tuple2.f0);
         }
         InputOrderCalculator calculator =
                 new InputOrderCalculator(
-                        group.root.execNode, inputSet, ExecEdge.DamBehavior.BLOCKING);
+                        group.root.execNode, inputSet, InputProperty.DamBehavior.BLOCKING);
         Map<ExecNode<?>, Integer> inputOrderMap = calculator.calculate();
 
         // then create input rels and edges with the input orders
         ExecNode<?> rootNode = group.root.execNode;
         List<ExecNode<?>> inputNodes = new ArrayList<>();
-        List<ExecEdge> inputEdges = new ArrayList<>();
-        for (Tuple2<ExecNode<?>, ExecEdge> tuple2 : inputs) {
+        List<InputProperty> inputProperties = new ArrayList<>();
+        for (Tuple2<ExecNode<?>, InputProperty> tuple2 : inputs) {
             ExecNode<?> inputNode = tuple2.f0;
-            ExecEdge originalInputEdge = tuple2.f1;
+            InputProperty originalInputEdge = tuple2.f1;
             inputNodes.add(inputNode);
-            inputEdges.add(
-                    ExecEdge.builder()
-                            .requiredShuffle(originalInputEdge.getRequiredShuffle())
+            inputProperties.add(
+                    InputProperty.builder()
+                            .requiredDistribution(originalInputEdge.getRequiredDistribution())
                             .damBehavior(originalInputEdge.getDamBehavior())
                             .priority(inputOrderMap.get(inputNode))
                             .build());
         }
 
         String description =
-                ExecNodeUtil.getMultipleInputDescription(rootNode, inputNodes, inputEdges);
+                ExecNodeUtil.getMultipleInputDescription(rootNode, inputNodes, inputProperties);
         BatchExecMultipleInput multipleInput =
-                new BatchExecMultipleInput(inputEdges, rootNode, description);
-        multipleInput.setInputNodes(inputNodes);
+                new BatchExecMultipleInput(inputProperties, rootNode, description);
+
+        List<ExecEdge> inputEdges = new ArrayList<>(inputNodes.size());
+        for (ExecNode<?> inputNode : inputNodes) {
+            inputEdges.add(ExecEdge.builder().source(inputNode).target(multipleInput).build());
+        }
+        multipleInput.setInputEdges(inputEdges);
         return multipleInput;
     }
 

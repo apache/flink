@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -68,7 +69,7 @@ public class TestSubtaskCheckpointCoordinator implements SubtaskCheckpointCoordi
 
     @Override
     public void abortCheckpointOnBarrier(
-            long checkpointId, Throwable cause, OperatorChain<?, ?> operatorChain) {
+            long checkpointId, CheckpointException cause, OperatorChain<?, ?> operatorChain) {
         channelStateWriter.abort(checkpointId, cause, true);
     }
 
@@ -78,7 +79,7 @@ public class TestSubtaskCheckpointCoordinator implements SubtaskCheckpointCoordi
             CheckpointOptions checkpointOptions,
             CheckpointMetricsBuilder checkpointMetrics,
             OperatorChain<?, ?> operatorChain,
-            Supplier<Boolean> isCanceled) {}
+            Supplier<Boolean> isRunning) {}
 
     @Override
     public void notifyCheckpointComplete(

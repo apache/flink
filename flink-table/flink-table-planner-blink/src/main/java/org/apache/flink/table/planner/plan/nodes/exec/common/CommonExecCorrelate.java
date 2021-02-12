@@ -26,6 +26,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.types.logical.RowType;
@@ -52,10 +53,10 @@ public abstract class CommonExecCorrelate extends ExecNodeBase<RowData> {
             @Nullable RexNode condition,
             Class<?> operatorBaseClass,
             boolean retainHeader,
-            ExecEdge inputEdge,
+            InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputEdge), outputType, description);
+        super(Collections.singletonList(inputProperty), outputType, description);
         this.joinType = joinType;
         this.invocation = invocation;
         this.condition = condition;
@@ -66,8 +67,9 @@ public abstract class CommonExecCorrelate extends ExecNodeBase<RowData> {
     @SuppressWarnings("unchecked")
     @Override
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-        final ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
-        final Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
+        final ExecEdge inputEdge = getInputEdges().get(0);
+        final Transformation<RowData> inputTransform =
+                (Transformation<RowData>) inputEdge.translateToPlan(planner);
         final CodeGeneratorContext ctx =
                 new CodeGeneratorContext(planner.getTableConfig())
                         .setOperatorBaseClass(operatorBaseClass);
@@ -76,7 +78,7 @@ public abstract class CommonExecCorrelate extends ExecNodeBase<RowData> {
                         planner.getTableConfig(),
                         ctx,
                         inputTransform,
-                        (RowType) inputNode.getOutputType(),
+                        (RowType) inputEdge.getOutputType(),
                         invocation,
                         JavaScalaConversionUtil.toScala(Optional.ofNullable(condition)),
                         (RowType) getOutputType(),
@@ -84,7 +86,7 @@ public abstract class CommonExecCorrelate extends ExecNodeBase<RowData> {
                         inputTransform.getParallelism(),
                         retainHeader,
                         getClass().getSimpleName(),
-                        getDesc());
+                        getDescription());
 
         if (inputsContainSingleton()) {
             transform.setParallelism(1);

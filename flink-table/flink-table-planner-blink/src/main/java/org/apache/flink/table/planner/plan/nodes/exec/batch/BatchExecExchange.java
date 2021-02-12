@@ -36,6 +36,9 @@ import org.apache.flink.table.planner.codegen.HashCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty.HashDistribution;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty.RequiredDistribution;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecExchange;
 import org.apache.flink.table.runtime.partitioner.BinaryHashPartitioner;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -49,15 +52,15 @@ import java.util.Optional;
 /**
  * This {@link ExecNode} represents a change of partitioning of the input elements for batch.
  *
- * <p>TODO Remove this class once its functionality is replaced by ExecEdge.
+ * <p>TODO Remove this class once FLINK-21224 is finished.
  */
 public class BatchExecExchange extends CommonExecExchange implements BatchExecNode<RowData> {
     // the required shuffle mode for reusable BatchExecExchange
     // if it's None, use value from configuration
     @Nullable private ShuffleMode requiredShuffleMode;
 
-    public BatchExecExchange(ExecEdge inputEdge, RowType outputType, String description) {
-        super(inputEdge, outputType, description);
+    public BatchExecExchange(InputProperty inputProperty, RowType outputType, String description) {
+        super(inputProperty, outputType, description);
     }
 
     public void setRequiredShuffleMode(@Nullable ShuffleMode requiredShuffleMode) {
@@ -65,19 +68,21 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
     }
 
     @Override
-    public String getDesc() {
+    public String getDescription() {
         // make sure the description be consistent with before, update this once plan is stable
-        ExecEdge.RequiredShuffle requiredShuffle = getInputEdges().get(0).getRequiredShuffle();
+        RequiredDistribution requiredDistribution =
+                getInputProperties().get(0).getRequiredDistribution();
         StringBuilder sb = new StringBuilder();
-        String type = requiredShuffle.getType().name().toLowerCase();
+        String type = requiredDistribution.getType().name().toLowerCase();
         if (type.equals("singleton")) {
             type = "single";
         }
         sb.append("distribution=[").append(type);
-        if (requiredShuffle.getType() == ExecEdge.ShuffleType.HASH) {
-            RowType inputRowType = (RowType) getInputNodes().get(0).getOutputType();
+        if (requiredDistribution.getType() == InputProperty.DistributionType.HASH) {
+            RowType inputRowType = (RowType) getInputEdges().get(0).getOutputType();
+            HashDistribution hashDistribution = (HashDistribution) requiredDistribution;
             String[] fieldNames =
-                    Arrays.stream(requiredShuffle.getKeys())
+                    Arrays.stream(hashDistribution.getKeys())
                             .mapToObj(i -> inputRowType.getFieldNames().get(i))
                             .toArray(String[]::new);
             sb.append("[").append(String.join(", ", fieldNames)).append("]");
@@ -92,15 +97,16 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
     @SuppressWarnings("unchecked")
     @Override
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-        final ExecNode<?> inputNode = getInputNodes().get(0);
+        final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
-                (Transformation<RowData>) inputNode.translateToPlan(planner);
+                (Transformation<RowData>) inputEdge.translateToPlan(planner);
 
         final StreamPartitioner<RowData> partitioner;
         final int parallelism;
-        final ExecEdge inputEdge = getInputEdges().get(0);
-        final ExecEdge.ShuffleType shuffleType = inputEdge.getRequiredShuffle().getType();
-        switch (shuffleType) {
+        final InputProperty inputProperty = getInputProperties().get(0);
+        final InputProperty.DistributionType distributionType =
+                inputProperty.getRequiredDistribution().getType();
+        switch (distributionType) {
             case ANY:
                 partitioner = null;
                 parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
@@ -114,8 +120,8 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
                 parallelism = 1;
                 break;
             case HASH:
-                int[] keys = inputEdge.getRequiredShuffle().getKeys();
-                RowType inputType = (RowType) inputNode.getOutputType();
+                int[] keys = ((HashDistribution) inputProperty.getRequiredDistribution()).getKeys();
+                RowType inputType = (RowType) inputEdge.getOutputType();
                 String[] fieldNames =
                         Arrays.stream(keys)
                                 .mapToObj(i -> inputType.getFieldNames().get(i))
@@ -124,14 +130,14 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
                         new BinaryHashPartitioner(
                                 HashCodeGenerator.generateRowHash(
                                         new CodeGeneratorContext(planner.getTableConfig()),
-                                        inputNode.getOutputType(),
+                                        inputEdge.getOutputType(),
                                         "HashPartitioner",
                                         keys),
                                 fieldNames);
                 parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
                 break;
             default:
-                throw new TableException(shuffleType + "is not supported now!");
+                throw new TableException(distributionType + "is not supported now!");
         }
 
         final ShuffleMode shuffleMode =

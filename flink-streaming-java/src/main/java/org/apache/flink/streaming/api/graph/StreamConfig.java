@@ -27,6 +27,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.util.CorruptConfigurationException;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.util.ClassLoaderUtil;
 import org.apache.flink.runtime.util.config.memory.ManagedMemoryUtils;
@@ -94,6 +95,7 @@ public class StreamConfig implements Serializable {
     private static final String CHECKPOINTING_ENABLED = "checkpointing";
     private static final String CHECKPOINT_MODE = "checkpointMode";
 
+    private static final String CHECKPOINT_STORAGE = "checkpointstorage";
     private static final String STATE_BACKEND = "statebackend";
     private static final String TIMER_SERVICE_PROVIDER = "timerservice";
     private static final String STATE_PARTITIONER = "statePartitioner";
@@ -560,6 +562,24 @@ public class StreamConfig implements Serializable {
             return InstantiationUtil.readObjectFromConfig(this.config, STATE_BACKEND, cl);
         } catch (Exception e) {
             throw new StreamTaskException("Could not instantiate statehandle provider.", e);
+        }
+    }
+
+    public void setCheckpointStorage(CheckpointStorage storage) {
+        if (storage != null) {
+            try {
+                InstantiationUtil.writeObjectToConfig(storage, config, CHECKPOINT_STORAGE);
+            } catch (Exception e) {
+                throw new StreamTaskException("Could not serialize checkpoint storage.", e);
+            }
+        }
+    }
+
+    public CheckpointStorage getCheckpointStorage(ClassLoader cl) {
+        try {
+            return InstantiationUtil.readObjectFromConfig(this.config, CHECKPOINT_STORAGE, cl);
+        } catch (Exception e) {
+            throw new StreamTaskException("Could not instantiate checkpoint storage.", e);
         }
     }
 

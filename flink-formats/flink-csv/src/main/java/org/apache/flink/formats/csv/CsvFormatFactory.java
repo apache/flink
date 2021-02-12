@@ -193,10 +193,14 @@ public final class CsvFormatFactory
                 .map(delimiter -> StringEscapeUtils.unescapeJava(delimiter).charAt(0))
                 .ifPresent(schemaBuilder::setFieldDelimiter);
 
-        formatOptions
-                .getOptional(QUOTE_CHARACTER)
-                .map(quote -> quote.charAt(0))
-                .ifPresent(schemaBuilder::setQuoteCharacter);
+        if (formatOptions.get(DISABLE_QUOTE_CHARACTER)) {
+            schemaBuilder.disableQuoteCharacter();
+        } else {
+            formatOptions
+                    .getOptional(QUOTE_CHARACTER)
+                    .map(quote -> quote.charAt(0))
+                    .ifPresent(schemaBuilder::setQuoteCharacter);
+        }
 
         formatOptions.getOptional(ALLOW_COMMENTS).ifPresent(schemaBuilder::setAllowComments);
 

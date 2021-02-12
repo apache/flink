@@ -33,10 +33,11 @@ import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.OverSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.OverSpec.GroupSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
-import org.apache.flink.table.planner.plan.nodes.exec.utils.OverSpec;
-import org.apache.flink.table.planner.plan.nodes.exec.utils.OverSpec.GroupSpec;
-import org.apache.flink.table.planner.plan.nodes.exec.utils.SortSpec;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.OverAggregateUtil;
@@ -72,16 +73,20 @@ import java.util.List;
 public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
 
     public BatchExecOverAggregate(
-            OverSpec over, ExecEdge inputEdge, RowType outputType, String description) {
-        super(over, inputEdge, outputType, description);
+            OverSpec overSpec,
+            InputProperty inputProperty,
+            RowType outputType,
+            String description) {
+        super(overSpec, inputProperty, outputType, description);
     }
 
     @SuppressWarnings("unchecked")
     @Override
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-        final ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
-        final Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
-        final RowType inputType = (RowType) inputNode.getOutputType();
+        final ExecEdge inputEdge = getInputEdges().get(0);
+        final Transformation<RowData> inputTransform =
+                (Transformation<RowData>) inputEdge.translateToPlan(planner);
+        final RowType inputType = (RowType) inputEdge.getOutputType();
 
         final TableConfig tableConfig = planner.getTableConfig();
         // The generated sort is used for generating the comparator among partitions.
@@ -160,7 +165,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
         }
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getDesc(),
+                getDescription(),
                 SimpleOperatorFactory.of(operator),
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism(),
@@ -257,7 +262,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
                                 // inputSchema.relDataType
                                 inputTypeWithConstants,
                                 JavaScalaConversionUtil.toScala(group.getAggCalls()),
-                                null,
+                                null, // aggCallNeedRetractions
                                 sortSpec.getFieldIndices());
                 AggsHandlerCodeGenerator generator =
                         new AggsHandlerCodeGenerator(

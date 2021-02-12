@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.state.StateEntry;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 
 import javax.annotation.Nonnull;
@@ -27,7 +28,11 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Spliterators;
+import java.util.stream.StreamSupport;
 
 /**
  * This class represents the snapshot of a {@link NestedStateMap}.
@@ -46,6 +51,24 @@ public class NestedStateMapSnapshot<K, N, S>
      */
     public NestedStateMapSnapshot(NestedStateMap<K, N, S> owningStateMap) {
         super(owningStateMap);
+    }
+
+    @Override
+    public Iterator<StateEntry<K, N, S>> getIterator(
+            @Nonnull TypeSerializer<K> keySerializer,
+            @Nonnull TypeSerializer<N> namespaceSerializer,
+            @Nonnull TypeSerializer<S> stateSerializer,
+            @Nullable StateSnapshotTransformer<S> stateSnapshotTransformer) {
+        if (stateSnapshotTransformer == null) {
+            return owningStateMap.iterator();
+        } else {
+            return StreamSupport.stream(
+                            Spliterators.spliteratorUnknownSize(owningStateMap.iterator(), 0),
+                            false)
+                    .map(entry -> entry.filterOrTransform(stateSnapshotTransformer))
+                    .filter(Objects::nonNull)
+                    .iterator();
+        }
     }
 
     @Override

@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecExchange;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.AbstractExecNodeExactlyOnceVisitor;
 import org.apache.flink.table.types.logical.RowType;
@@ -47,13 +48,13 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
      *
      * @param roots the first layer of nodes on the output side of the graph
      * @param safeDamBehavior when checking for conflicts we'll ignore the edges with {@link
-     *     ExecEdge.DamBehavior} stricter or equal than this
+     *     InputProperty.DamBehavior} stricter or equal than this
      * @param shuffleMode when a conflict occurs we'll insert an {@link BatchExecExchange} node with
      *     this shuffleMode to resolve conflict
      */
     public InputPriorityConflictResolver(
             List<ExecNode<?>> roots,
-            ExecEdge.DamBehavior safeDamBehavior,
+            InputProperty.DamBehavior safeDamBehavior,
             ShuffleMode shuffleMode,
             Configuration configuration) {
         super(roots, Collections.emptySet(), safeDamBehavior);
@@ -67,14 +68,15 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
 
     @Override
     protected void resolveInputPriorityConflict(ExecNode<?> node, int higherInput, int lowerInput) {
-        ExecNode<?> higherNode = node.getInputNodes().get(higherInput);
-        ExecNode<?> lowerNode = node.getInputNodes().get(lowerInput);
+        ExecNode<?> higherNode = node.getInputEdges().get(higherInput).getSource();
+        ExecNode<?> lowerNode = node.getInputEdges().get(lowerInput).getSource();
+        final ExecNode<?> newNode;
         if (lowerNode instanceof BatchExecExchange) {
             BatchExecExchange exchange = (BatchExecExchange) lowerNode;
-            ExecEdge inputEdge = exchange.getInputEdges().get(0);
-            ExecEdge execEdge =
-                    ExecEdge.builder()
-                            .requiredShuffle(inputEdge.getRequiredShuffle())
+            InputProperty inputEdge = exchange.getInputProperties().get(0);
+            InputProperty inputProperty =
+                    InputProperty.builder()
+                            .requiredDistribution(inputEdge.getRequiredDistribution())
                             .priority(inputEdge.getPriority())
                             .damBehavior(getDamBehavior())
                             .build();
@@ -83,18 +85,27 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
                 // we should split it into two nodes
                 BatchExecExchange newExchange =
                         new BatchExecExchange(
-                                execEdge, (RowType) exchange.getOutputType(), "Exchange");
+                                inputProperty, (RowType) exchange.getOutputType(), "Exchange");
                 newExchange.setRequiredShuffleMode(shuffleMode);
-                newExchange.setInputNodes(exchange.getInputNodes());
-                node.replaceInputNode(lowerInput, newExchange);
+                newExchange.setInputEdges(exchange.getInputEdges());
+                newNode = newExchange;
             } else {
-                exchange.setRequiredShuffleMode(shuffleMode);
-                // the DamBehavior in the edge should also be updated
-                exchange.replaceInputEdge(0, execEdge);
+                // create new BatchExecExchange with new inputProperty
+                BatchExecExchange newExchange =
+                        new BatchExecExchange(
+                                inputProperty,
+                                (RowType) exchange.getOutputType(),
+                                exchange.getDescription());
+                newExchange.setRequiredShuffleMode(shuffleMode);
+                newExchange.setInputEdges(exchange.getInputEdges());
+                newNode = newExchange;
             }
         } else {
-            node.replaceInputNode(lowerInput, createExchange(node, lowerInput));
+            newNode = createExchange(node, lowerInput);
         }
+
+        ExecEdge newEdge = ExecEdge.builder().source(newNode).target(node).build();
+        node.replaceInputEdge(lowerInput, newEdge);
     }
 
     private boolean isConflictCausedByExchange(
@@ -107,25 +118,28 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
     }
 
     private BatchExecExchange createExchange(ExecNode<?> node, int idx) {
-        ExecNode<?> inputNode = node.getInputNodes().get(idx);
-        ExecEdge inputEdge = node.getInputEdges().get(idx);
-        ExecEdge.RequiredShuffle requiredShuffle = inputEdge.getRequiredShuffle();
-        if (requiredShuffle.getType() == ExecEdge.ShuffleType.BROADCAST) {
+        ExecNode<?> inputNode = node.getInputEdges().get(idx).getSource();
+        InputProperty inputProperty = node.getInputProperties().get(idx);
+        InputProperty.RequiredDistribution requiredDistribution =
+                inputProperty.getRequiredDistribution();
+        if (requiredDistribution.getType() == InputProperty.DistributionType.BROADCAST) {
             // should not occur
             throw new IllegalStateException(
                     "Trying to resolve input priority conflict on broadcast side. This is not expected.");
         }
 
-        ExecEdge execEdge =
-                ExecEdge.builder()
-                        .requiredShuffle(requiredShuffle)
-                        .priority(inputEdge.getPriority())
+        InputProperty newInputProperty =
+                InputProperty.builder()
+                        .requiredDistribution(requiredDistribution)
+                        .priority(inputProperty.getPriority())
                         .damBehavior(getDamBehavior())
                         .build();
         BatchExecExchange exchange =
-                new BatchExecExchange(execEdge, (RowType) inputNode.getOutputType(), "Exchange");
-        exchange.setInputNodes(Collections.singletonList(inputNode));
+                new BatchExecExchange(
+                        newInputProperty, (RowType) inputNode.getOutputType(), "Exchange");
         exchange.setRequiredShuffleMode(shuffleMode);
+        ExecEdge execEdge = ExecEdge.builder().source(inputNode).target(exchange).build();
+        exchange.setInputEdges(Collections.singletonList(execEdge));
         return exchange;
     }
 
@@ -144,8 +158,8 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
             if (node == exchange) {
                 found = true;
             }
-            for (ExecNode<?> inputNode : node.getInputNodes()) {
-                visit(inputNode);
+            for (ExecEdge inputEdge : node.getInputEdges()) {
+                visit(inputEdge.getSource());
                 if (found) {
                     return;
                 }
@@ -153,11 +167,11 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
         }
     }
 
-    private ExecEdge.DamBehavior getDamBehavior() {
+    private InputProperty.DamBehavior getDamBehavior() {
         if (BatchExecExchange.getShuffleMode(configuration, shuffleMode) == ShuffleMode.BATCH) {
-            return ExecEdge.DamBehavior.BLOCKING;
+            return InputProperty.DamBehavior.BLOCKING;
         } else {
-            return ExecEdge.DamBehavior.PIPELINED;
+            return InputProperty.DamBehavior.PIPELINED;
         }
     }
 }

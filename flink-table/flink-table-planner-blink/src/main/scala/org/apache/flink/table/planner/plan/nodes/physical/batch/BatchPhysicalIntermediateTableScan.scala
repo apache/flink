@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.nodes.common.CommonIntermediateTableScan
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
 
 import org.apache.calcite.plan._
@@ -40,5 +42,12 @@ class BatchPhysicalIntermediateTableScan(
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new BatchPhysicalIntermediateTableScan(cluster, traitSet, getTable, getRowType)
+  }
+
+  override def translateToExecNode(): ExecNode[_] = {
+    throw new TableException(
+      "This should not happen. " +
+        "\nThis physical rel is the intermediate result of the optimization," +
+        " and it can not be translated to ExecNode.")
   }
 }

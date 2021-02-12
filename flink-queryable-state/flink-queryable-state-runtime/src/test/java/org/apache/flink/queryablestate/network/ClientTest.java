@@ -741,7 +741,8 @@ public class ClientTest extends TestLogger {
                                 new JobVertexID(),
                                 new KeyGroupRange(0, 0),
                                 "any",
-                                kvState);
+                                kvState,
+                                getClass().getClassLoader());
             }
 
             final Client<KvStateInternalRequest, KvStateResponse> finalClient = client;

@@ -145,7 +145,7 @@ under the License.
 			to revisit the impact at that time.
 		-->
 		<minikdc.version>3.2.0</minikdc.version>
-		<generated.docs.dir>./docs/_includes/generated</generated.docs.dir>
+		<generated.docs.dir>./docs/layouts/shortcodes/generated</generated.docs.dir>
 		<hive.version>2.3.4</hive.version>
 		<hive-2.2.0-orc-version>1.4.3</hive-2.2.0-orc-version>
 		<orc.version>1.5.6</orc.version>
@@ -157,6 +157,9 @@ under the License.
 		<japicmp.referenceVersion>1.12.0</japicmp.referenceVersion>
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
 		<spotless.version>2.4.2</spotless.version>
+
+		<!-- Can be set to any value to reproduce a specific build. -->
+		<test.randomization.seed>${git.commit.id}</test.randomization.seed>
 	</properties>
 
 	<dependencies>
@@ -524,7 +527,7 @@ under the License.
 				<artifactId>jackson-bom</artifactId>
 				<type>pom</type>
 				<scope>import</scope>
-				<version>${jackson.version}</version>
+				<version>2.12.1</version>
 			</dependency>
 
 			<dependency>
@@ -1354,6 +1357,33 @@ under the License.
 			</plugin>
 
 			<plugin>
+				<!-- Description: https://github.com/git-commit-id/git-commit-id-maven-plugin
+					Used to show the git ref when starting the jobManager. -->
+				<groupId>pl.project13.maven</groupId>
+				<artifactId>git-commit-id-plugin</artifactId>
+				<version>4.0.2</version>
+				<executions>
+					<execution>
+						<id>get-the-git-infos</id>
+						<phase>validate</phase>
+						<goals>
+							<goal>revision</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<skipPoms>false</skipPoms>
+					<failOnNoGitDirectory>false</failOnNoGitDirectory>
+					<failOnUnableToExtractRepoInfo>false</failOnUnableToExtractRepoInfo>
+					<gitDescribe>
+						<!-- Don't generate the describe property -->
+						<!-- It is useless due to the way Flink does branches and tags -->
+						<skip>true</skip>
+					</gitDescribe>
+				</configuration>
+			</plugin>
+
+			<plugin>
 				<groupId>org.apache.rat</groupId>
 				<artifactId>apache-rat-plugin</artifactId>
 				<version>0.12</version><!--$NO-MVN-MAN-VER$-->
@@ -1408,15 +1438,19 @@ under the License.
 						<!-- External web libraries. -->
 						<exclude>docs/**/jquery*</exclude>
 						<exclude>docs/**/bootstrap*</exclude>
+						<exclude>docs/themes/book/**</exclude>
 						<exclude>docs/**/anchor*</exclude>
-						<exclude>docs/Gemfile.lock</exclude>
-						<exclude>docs/ruby2/Gemfile.lock</exclude>
-						<exclude>docs/img/*.svg</exclude>
-						<exclude>**/docs/page/fonts/**</exclude>
-						<exclude>**/docs/page/font-awesome/**</exclude>
 						<exclude>**/resources/**/font-awesome/**</exclude>
 						<exclude>**/resources/**/jquery*</exclude>
 						<exclude>**/resources/**/bootstrap*</exclude>
+						<exclude>docs/resources/**</exclude>
+						<exclude>docs/public/**</exclude>
+						<exclude>docs/assets/github.css</exclude>
+						<exclude>docs/static/flink-header-logo.svg</exclude>
+						<exclude>docs/static/figs/*.svg</exclude>
+						<exclude>docs/static/font-awesome/**</exclude>
+						<exclude>docs/static/flink-header-logo.svg</exclude>
+						<exclude>docs/static/figs/*.svg</exclude>
 						<exclude>flink-clients/src/main/resources/web-docs/js/*d3.js</exclude>
 
 						<!-- the licenses that are re-bundled -->
@@ -1457,6 +1491,7 @@ under the License.
 						<exclude>flink-table/flink-table-planner/src/test/scala/resources/*.out</exclude>
 						<exclude>flink-table/flink-table-planner-blink/src/test/resources/digest/*.out</exclude>
 						<exclude>flink-table/flink-table-planner-blink/src/test/resources/explain/*.out</exclude>
+						<exclude>flink-table/flink-table-planner-blink/src/test/resources/jsonplan/*</exclude>
 						<exclude>flink-yarn/src/test/resources/krb5.keytab</exclude>
 						<exclude>flink-end-to-end-tests/test-scripts/test-data/**</exclude>
 						<exclude>flink-end-to-end-tests/test-scripts/docker-hadoop-secure-cluster/config/keystore.jks</exclude>
@@ -1501,10 +1536,9 @@ under the License.
 						<!-- Generated content -->
 						<exclude>out/**</exclude>
 						<exclude>**/target/**</exclude>
-						<exclude>docs/content/**</exclude>
 						<exclude>**/scalastyle-output.xml</exclude>
 						<exclude>build-target/**</exclude>
-						<exclude>docs/_includes/generated/**</exclude>
+						<exclude>docs/layouts/shortcodes/generated/**</exclude>
 						<!-- Tools: watchdog -->
 						<exclude>tools/artifacts/**</exclude>
 						<exclude>tools/flink*/**</exclude>
@@ -1556,8 +1590,10 @@ under the License.
 					<systemPropertyVariables>
 						<forkNumber>0${surefire.forkNumber}</forkNumber>
 						<hadoop.version>${hadoop.version}</hadoop.version>
-						<execution.checkpointing.unaligned>true</execution.checkpointing.unaligned>
+						<checkpointing.randomization>true</checkpointing.randomization>
 						<project.basedir>${project.basedir}</project.basedir>
+						<!--suppress MavenModelInspection -->
+						<test.randomization.seed>${test.randomization.seed}</test.randomization.seed>
 					</systemPropertyVariables>
 					<argLine>-Xms256m -Xmx2048m -Dmvn.forkNumber=${surefire.forkNumber} -XX:+UseG1GC</argLine>
 				</configuration>
@@ -1656,7 +1692,7 @@ under the License.
 							<rules>
 								<bannedDependencies>
 									<excludes>
-										<exclude>com.fasterxml.jackson*:*:(,2.10.0]</exclude>
+										<exclude>com.fasterxml.jackson*:*:(,2.12.0]</exclude>
 									</excludes>
 								</bannedDependencies>
 							</rules>
@@ -1936,24 +1972,6 @@ under the License.
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-shade-plugin</artifactId>
 					<version>3.1.1</version>
-				</plugin>
-
-				<plugin>
-					<groupId>pl.project13.maven</groupId>
-					<artifactId>git-commit-id-plugin</artifactId>
-					<version>4.0.0</version>
-					<configuration>
-						<excludeProperties>
-							<excludeProperty>git.build.user.*</excludeProperty>
-							<excludeProperty>git.commit.user.*</excludeProperty>
-							<excludeProperty>git.branch.*</excludeProperty>
-							<excludeProperty>git.remote.*</excludeProperty>
-						</excludeProperties>
-
-						<!-- This is the same as the default date time format of this plugin.      -->
-						<!-- Because we want to parse the result we are fixing it to avoid problems. -->
-						<dateFormat>yyyy-MM-dd'T'HH:mm:ssZ</dateFormat>
-					</configuration>
 				</plugin>
 
 				<plugin>

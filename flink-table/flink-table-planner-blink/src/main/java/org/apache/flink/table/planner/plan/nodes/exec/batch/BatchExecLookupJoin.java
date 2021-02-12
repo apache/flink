@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecLookupJoin;
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
@@ -41,7 +41,7 @@ public class BatchExecLookupJoin extends CommonExecLookupJoin implements BatchEx
             RelOptTable temporalTable,
             @Nullable RexProgram calcOnTemporalTable,
             Map<Integer, LookupJoinUtil.LookupKey> lookupKeys,
-            ExecEdge inputEdge,
+            InputProperty inputProperty,
             RowType outputType,
             String description) {
         super(
@@ -50,7 +50,7 @@ public class BatchExecLookupJoin extends CommonExecLookupJoin implements BatchEx
                 temporalTable,
                 calcOnTemporalTable,
                 lookupKeys,
-                inputEdge,
+                inputProperty,
                 outputType,
                 description);
     }

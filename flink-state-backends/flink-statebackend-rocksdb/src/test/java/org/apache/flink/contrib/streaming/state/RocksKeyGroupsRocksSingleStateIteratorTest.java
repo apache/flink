@@ -21,6 +21,7 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.contrib.streaming.state.iterator.RocksStatesPerKeyGroupMergeIterator;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.util.IOUtils;
 
@@ -58,7 +59,8 @@ public class RocksKeyGroupsRocksSingleStateIteratorTest {
     @Test
     public void testEmptyMergeIterator() throws Exception {
         RocksStatesPerKeyGroupMergeIterator emptyIterator =
-                new RocksStatesPerKeyGroupMergeIterator(Collections.emptyList(), 2);
+                new RocksStatesPerKeyGroupMergeIterator(
+                        new CloseableRegistry(), Collections.emptyList(), 2);
         Assert.assertFalse(emptyIterator.isValid());
     }
 
@@ -116,19 +118,21 @@ public class RocksKeyGroupsRocksSingleStateIteratorTest {
                 totalKeysExpected += numKeys;
             }
 
+            CloseableRegistry closeableRegistry = new CloseableRegistry();
             int id = 0;
             for (Tuple2<ColumnFamilyHandle, Integer> columnFamilyHandle :
                     columnFamilyHandlesWithKeyCount) {
-                rocksIteratorsWithKVStateId.add(
-                        new Tuple2<>(
-                                RocksDBOperationUtils.getRocksIterator(
-                                        rocksDB, columnFamilyHandle.f0, readOptions),
-                                id));
+                RocksIteratorWrapper rocksIterator =
+                        RocksDBOperationUtils.getRocksIterator(
+                                rocksDB, columnFamilyHandle.f0, readOptions);
+                closeableRegistry.registerCloseable(rocksIterator);
+                rocksIteratorsWithKVStateId.add(new Tuple2<>(rocksIterator, id));
                 ++id;
             }
 
             try (RocksStatesPerKeyGroupMergeIterator mergeIterator =
                     new RocksStatesPerKeyGroupMergeIterator(
+                            closeableRegistry,
                             rocksIteratorsWithKVStateId,
                             maxParallelism <= Byte.MAX_VALUE ? 1 : 2)) {
 

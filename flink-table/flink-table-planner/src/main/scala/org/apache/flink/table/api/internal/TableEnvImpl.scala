@@ -41,7 +41,6 @@ import org.apache.flink.table.operations.{CatalogQueryOperation, TableSourceQuer
 import org.apache.flink.table.planner.{ParserImpl, PlanningConfigurationBuilder}
 import org.apache.flink.table.sinks.{BatchSelectTableSink, BatchTableSink, OutputFormatTableSink, OverwritableTableSink, PartitionableTableSink, TableSink, TableSinkUtils}
 import org.apache.flink.table.sources.TableSource
-import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.table.types.{AbstractDataType, DataType}
 import org.apache.flink.table.util.JavaScalaConversionUtil
 import org.apache.flink.table.utils.PrintUtils
@@ -682,7 +681,7 @@ abstract class TableEnvImpl(
                 alterTableRenameOp.getTableIdentifier.toObjectPath,
                 alterTableRenameOp.getNewTableIdentifier.getObjectName,
                 false)
-            case alterTablePropertiesOp: AlterTablePropertiesOperation =>
+            case alterTablePropertiesOp: AlterTableOptionsOperation =>
               catalog.alterTable(
                 alterTablePropertiesOp.getTableIdentifier.toObjectPath,
                 alterTablePropertiesOp.getCatalogTable,
@@ -1293,5 +1292,25 @@ abstract class TableEnvImpl(
     val currentDatabase = catalogManager.getCurrentDatabase
 
     planningConfigurationBuilder.createFlinkPlanner(currentCatalogName, currentDatabase)
+  }
+
+  override def getJsonPlan(stmt: String): String = {
+    throw new TableException(
+      "This method is not supported for legacy planner, please use Blink planner.")
+  }
+
+  override def getJsonPlan(operations: JList[ModifyOperation]): String = {
+    throw new TableException(
+      "This method is not supported for legacy planner, please use Blink planner.")
+  }
+
+  override def explainJsonPlan(jsonPlan: String, extraDetails: ExplainDetail*): String = {
+    throw new TableException(
+      "This method is not supported for legacy planner, please use Blink planner.")
+  }
+
+  override def executeJsonPlan(jsonPlan: String): TableResult = {
+    throw new TableException(
+      "This method is not supported for legacy planner, please use Blink planner.")
   }
 }

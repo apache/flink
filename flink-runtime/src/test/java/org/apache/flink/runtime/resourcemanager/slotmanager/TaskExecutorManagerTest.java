@@ -41,6 +41,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
@@ -112,7 +113,8 @@ public class TaskExecutorManagerTest extends TestLogger {
                                     requestedSlotProfile,
                                     JobID.generate(),
                                     new AllocationID()));
-            taskExecutorManager.registerTaskManager(taskExecutorConnection, slotReport);
+            taskExecutorManager.registerTaskManager(
+                    taskExecutorConnection, slotReport, ResourceProfile.ANY, ResourceProfile.ANY);
 
             // the slot from the task executor should be accepted, but we should still be waiting
             // for the originally requested slot
@@ -329,29 +331,38 @@ public class TaskExecutorManagerTest extends TestLogger {
     }
 
     @Test
-    public void testGenerateDefaultSlotProfile() {
-        final int numSlots = 5;
-        final ResourceProfile resourceProfile =
-                ResourceProfile.newBuilder()
-                        .setCpuCores(1.0)
-                        .setTaskHeapMemoryMB(1)
-                        .setTaskOffHeapMemoryMB(2)
-                        .setNetworkMemoryMB(3)
-                        .setManagedMemoryMB(4)
-                        .build();
-        final WorkerResourceSpec workerResourceSpec =
-                new WorkerResourceSpec.Builder()
-                        .setCpuCores(1.0 * numSlots)
-                        .setTaskHeapMemoryMB(1 * numSlots)
-                        .setTaskOffHeapMemoryMB(2 * numSlots)
-                        .setNetworkMemoryMB(3 * numSlots)
-                        .setManagedMemoryMB(4 * numSlots)
-                        .build();
+    public void testGetResourceOverview() {
+        final ResourceProfile resourceProfile1 = ResourceProfile.fromResources(1, 10);
+        final ResourceProfile resourceProfile2 = ResourceProfile.fromResources(2, 20);
 
-        assertThat(
-                TaskExecutorManager.generateDefaultSlotResourceProfile(
-                        workerResourceSpec, numSlots),
-                is(resourceProfile));
+        try (final TaskExecutorManager taskExecutorManager =
+                createTaskExecutorManagerBuilder().setMaxNumSlots(4).createTaskExecutorManager()) {
+            final InstanceID instanceId1 =
+                    createAndRegisterTaskExecutor(taskExecutorManager, 2, resourceProfile1);
+            final InstanceID instanceId2 =
+                    createAndRegisterTaskExecutor(taskExecutorManager, 2, resourceProfile2);
+            taskExecutorManager.occupySlot(instanceId1);
+            taskExecutorManager.occupySlot(instanceId2);
+
+            assertThat(
+                    taskExecutorManager.getTotalFreeResources(),
+                    equalTo(resourceProfile1.merge(resourceProfile2)));
+            assertThat(
+                    taskExecutorManager.getTotalFreeResourcesOf(instanceId1),
+                    equalTo(resourceProfile1));
+            assertThat(
+                    taskExecutorManager.getTotalFreeResourcesOf(instanceId2),
+                    equalTo(resourceProfile2));
+            assertThat(
+                    taskExecutorManager.getTotalRegisteredResources(),
+                    equalTo(resourceProfile1.merge(resourceProfile2).multiply(2)));
+            assertThat(
+                    taskExecutorManager.getTotalRegisteredResourcesOf(instanceId1),
+                    equalTo(resourceProfile1.multiply(2)));
+            assertThat(
+                    taskExecutorManager.getTotalRegisteredResourcesOf(instanceId2),
+                    equalTo(resourceProfile2.multiply(2)));
+        }
     }
 
     private static TaskExecutorManagerBuilder createTaskExecutorManagerBuilder() {
@@ -384,7 +395,11 @@ public class TaskExecutorManagerTest extends TestLogger {
 
         final SlotReport slotReport = new SlotReport(slotStatuses);
 
-        taskExecutorManager.registerTaskManager(taskExecutorConnection, slotReport);
+        taskExecutorManager.registerTaskManager(
+                taskExecutorConnection,
+                slotReport,
+                resourceProfile.multiply(numSlots),
+                resourceProfile);
 
         return taskExecutorConnection.getInstanceID();
     }

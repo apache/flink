@@ -485,32 +485,6 @@ under the License.
 					<reuseForks>false</reuseForks>
 				</configuration>
 			</plugin>
-			<plugin>
-				<!-- Description: https://github.com/git-commit-id/git-commit-id-maven-plugin
-					Used to show the git ref when starting the jobManager. -->
-				<groupId>pl.project13.maven</groupId>
-				<artifactId>git-commit-id-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>get-the-git-infos</id>
-						<phase>validate</phase>
-						<goals>
-							<goal>revision</goal>
-						</goals>
-					</execution>
-				</executions>
-				<configuration>
-					<dotGitDirectory>${project.basedir}/../.git</dotGitDirectory>
-					<skipPoms>false</skipPoms>
-					<failOnNoGitDirectory>false</failOnNoGitDirectory>
-					<failOnUnableToExtractRepoInfo>false</failOnUnableToExtractRepoInfo>
-					<gitDescribe>
-						<!-- Don't generate the describe property -->
-						<!-- It is useless due to the way Flink does branches and tags -->
-						<skip>true</skip>
-					</gitDescribe>
-				</configuration>
-			</plugin>
 			<!-- Add version to jar http://stackoverflow.com/questions/2712970/how-to-get-maven-artifact-version-at-runtime
 				-->
 			<plugin>

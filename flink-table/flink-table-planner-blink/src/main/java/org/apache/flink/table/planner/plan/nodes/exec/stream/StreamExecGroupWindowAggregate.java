@@ -39,6 +39,7 @@ import org.apache.flink.table.planner.plan.logical.TumblingGroupWindow;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy;
@@ -99,10 +100,10 @@ public class StreamExecGroupWindowAggregate extends ExecNodeBase<RowData>
             PlannerNamedWindowProperty[] namedWindowProperties,
             WindowEmitStrategy emitStrategy,
             boolean needRetraction,
-            ExecEdge inputEdge,
+            InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputEdge), outputType, description);
+        super(Collections.singletonList(inputProperty), outputType, description);
         this.grouping = grouping;
         this.aggCalls = aggCalls;
         this.window = window;
@@ -131,9 +132,10 @@ public class StreamExecGroupWindowAggregate extends ExecNodeBase<RowData>
                             + "excessive state size. You may specify a retention time of 0 to not clean up the state.");
         }
 
-        final ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
-        final Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
-        final RowType inputRowType = (RowType) inputNode.getOutputType();
+        final ExecEdge inputEdge = getInputEdges().get(0);
+        final Transformation<RowData> inputTransform =
+                (Transformation<RowData>) inputEdge.translateToPlan(planner);
+        final RowType inputRowType = (RowType) inputEdge.getOutputType();
 
         final int inputTimeFieldIndex;
         if (isRowtimeAttribute(window.timeAttribute())) {
@@ -193,7 +195,7 @@ public class StreamExecGroupWindowAggregate extends ExecNodeBase<RowData>
         final OneInputTransformation<RowData, RowData> transform =
                 new OneInputTransformation<>(
                         inputTransform,
-                        getDesc(),
+                        getDescription(),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());
