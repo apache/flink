@@ -3,7 +3,7 @@ title: "Handling Application Parameters"
 weight: 51
 type: docs
 aliases:
-  - /dev/application_parameters.html
+  - /zh/dev/application_parameters.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
