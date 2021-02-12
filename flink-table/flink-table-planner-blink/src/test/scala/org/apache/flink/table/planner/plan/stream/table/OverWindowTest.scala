@@ -189,6 +189,55 @@ class OverWindowTest extends TableTestBase {
   }
 
   @Test
+  def testRowTimeBoundedDistinctWithPartitionedRangeOver(): Unit = {
+    val result = table
+      .window(Over partitionBy 'c orderBy 'rowtime preceding 2.hours following CURRENT_RANGE as 'w)
+      .select('c,
+        'a.count.distinct over 'w,
+        'a.sum.distinct over 'w,
+        ('a.cast(DataTypes.FLOAT) as 'a).avg.distinct over 'w)
+
+    streamUtil.verifyPlan(result)
+  }
+
+  @Test
+  def testRowTimeUnboundedDistinctWithPartitionedRangeOver(): Unit = {
+    val result = table
+      .window(Over partitionBy 'c orderBy 'rowtime preceding UNBOUNDED_RANGE as 'w)
+      .select('c,
+        'a.count.distinct over 'w,
+        'a.sum.distinct over 'w,
+        ('a.cast(DataTypes.FLOAT) as 'a).avg.distinct over 'w)
+
+    streamUtil.verifyPlan(result)
+  }
+
+  @Test
+  def testRowTimeBoundedDistinctWithPartitionedRowsOver(): Unit = {
+    val result = table
+      .window(Over partitionBy 'c orderBy 'rowtime preceding 2.rows following CURRENT_ROW as 'w)
+      .select('c,
+        'a.count.distinct over 'w,
+        'a.sum.distinct over 'w,
+        ('a.cast(DataTypes.FLOAT) as 'a).avg.distinct over 'w)
+
+    streamUtil.verifyPlan(result)
+  }
+
+  @Test
+  def testRowTimeUnboundedDistinctWithPartitionedRowsOver(): Unit = {
+    val result = table
+      .window(Over partitionBy 'c orderBy 'rowtime preceding UNBOUNDED_ROW following
+         CURRENT_ROW as 'w)
+      .select('c,
+        'a.count.distinct over 'w,
+        'a.sum.distinct over 'w,
+        ('a.cast(DataTypes.FLOAT) as 'a).avg.distinct over 'w)
+
+    streamUtil.verifyPlan(result)
+  }
+
+  @Test
   def testRowTimeUnboundedPartitionedRowsOver() = {
     val weightedAvg = new WeightedAvgWithRetract
 
