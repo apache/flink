@@ -48,10 +48,12 @@ import org.apache.flink.table.functions.python.PythonScalarFunction;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.testutils.junit.FailsOnJava11;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.commons.cli.Options;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -181,6 +183,7 @@ public class ExecutionContextTest {
     }
 
     @Test
+    @Category(FailsOnJava11.class)
     public void testCatalogs() throws Exception {
         final String inmemoryCatalog = "inmemorycatalog";
         final String hiveCatalog = "hivecatalog";
@@ -224,6 +227,7 @@ public class ExecutionContextTest {
     }
 
     @Test
+    @Category(FailsOnJava11.class)
     public void testDatabases() throws Exception {
         final String hiveCatalog = "hivecatalog";
 
