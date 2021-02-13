@@ -362,6 +362,14 @@ public class RemoteInputChannel extends InputChannel {
         partitionRequestClient.resumeConsumption(this);
     }
 
+    @Override
+    public void acknowledgeAllRecordsProcessed() throws IOException {
+        checkState(!isReleased.get(), "Channel released.");
+        checkPartitionRequestQueueInitialized();
+
+        partitionRequestClient.acknowledgeAllRecordsProcessed(this);
+    }
+
     // ------------------------------------------------------------------------
     // Network I/O notifications (called by network I/O thread)
     // ------------------------------------------------------------------------

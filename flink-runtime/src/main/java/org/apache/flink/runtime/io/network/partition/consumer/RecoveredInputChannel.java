@@ -206,6 +206,16 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     }
 
     @Override
+    public void acknowledgeAllRecordsProcessed() throws IOException {
+        // We should not receive the EndOfUserRecordsEvent since it would
+        // turn into real channel before requesting partition. Besides,
+        // the event would not be persist in the unaligned checkpoint
+        // case, thus this also cannot happen during restoring state.
+        throw new UnsupportedOperationException(
+                "RecoveredInputChannel should not need acknowledge all records processed.");
+    }
+
+    @Override
     final void requestSubpartition(int subpartitionIndex) {
         throw new UnsupportedOperationException(
                 "RecoveredInputChannel should never request partition.");

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.NetworkClientHandler;
+import org.apache.flink.runtime.io.network.netty.NettyMessage.AckAllUserRecordsProcessed;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.AddCredit;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.ResumeConsumption;
 import org.apache.flink.runtime.io.network.netty.exception.LocalTransportException;
@@ -135,6 +136,18 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
                                 ctx.pipeline()
                                         .fireUserEventTriggered(
                                                 new ResumeConsumptionMessage(inputChannel)));
+    }
+
+    @Override
+    public void acknowledgeAllRecordsProcessed(RemoteInputChannel inputChannel) {
+        ctx.executor()
+                .execute(
+                        () -> {
+                            ctx.pipeline()
+                                    .fireUserEventTriggered(
+                                            new AcknowledgeAllRecordsProcessedMessage(
+                                                    inputChannel));
+                        });
     }
 
     // ------------------------------------------------------------------------
@@ -434,6 +447,18 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
         @Override
         Object buildMessage() {
             return new ResumeConsumption(inputChannel.getInputChannelId());
+        }
+    }
+
+    private static class AcknowledgeAllRecordsProcessedMessage extends ClientOutboundMessage {
+
+        AcknowledgeAllRecordsProcessedMessage(RemoteInputChannel inputChannel) {
+            super(checkNotNull(inputChannel));
+        }
+
+        @Override
+        Object buildMessage() {
+            return new AckAllUserRecordsProcessed(inputChannel.getInputChannelId());
         }
     }
 }
