@@ -492,7 +492,7 @@ public class EnvironmentInformation {
 
     // --------------------------------------------------------------------------------------------
 
-    /** Don't instantiate this class */
+    /** Don't instantiate this class. */
     private EnvironmentInformation() {}
 
     // --------------------------------------------------------------------------------------------
@@ -503,10 +503,10 @@ public class EnvironmentInformation {
      */
     public static class RevisionInformation {
 
-        /** The git commit id (hash) */
+        /** The git commit id (hash). */
         public final String commitId;
 
-        /** The git commit date */
+        /** The git commit date. */
         public final String commitDate;
 
         public RevisionInformation(String commitId, String commitDate) {
