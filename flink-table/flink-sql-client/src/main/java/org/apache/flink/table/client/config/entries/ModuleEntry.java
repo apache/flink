@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.client.config.entries;
 
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.client.config.ConfigUtil;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 
@@ -61,6 +62,15 @@ public class ModuleEntry extends ConfigEntry {
         final DescriptorProperties cleanedProperties =
                 properties.withoutKeys(Collections.singletonList(MODULE_NAME));
 
+        // mapping modules purely by name
+        if (cleanedProperties.containsKey(MODULE_TYPE)) {
+            throw new ValidationException(
+                    String.format(
+                            "Property 'type' is deprecated, please remove it and rename "
+                                    + "module name '%s' to type name '%s' and try again",
+                            name, cleanedProperties.getString(MODULE_TYPE)));
+        }
+        cleanedProperties.putString(MODULE_TYPE, name);
         return new ModuleEntry(name, cleanedProperties);
     }
 }

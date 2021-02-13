@@ -86,7 +86,6 @@ catalogs: [] # empty list
 
 #modules: # note the following modules will be of the order they are specified
 #  - name: core
-#    type: core
 
 #==============================================================================
 # Execution properties

@@ -36,7 +36,6 @@ import java.util.Set;
 import static org.apache.flink.table.client.config.entries.CatalogEntry.CATALOG_NAME;
 import static org.apache.flink.table.client.config.entries.ModuleEntry.MODULE_NAME;
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
-import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -101,21 +100,30 @@ public class EnvironmentTest {
     @Test
     public void testDuplicateModules() {
         exception.expect(SqlClientException.class);
+        exception.expectMessage(
+                "Cannot register module 'module2' because a module with this name is already registered.");
         Environment env = new Environment();
         env.setModules(
                 Arrays.asList(
-                        createModule("module1", "test"),
-                        createModule("module2", "test"),
-                        createModule("module2", "test")));
+                        createModule("module1"), createModule("module2"), createModule("module2")));
+    }
+
+    @Test
+    public void testModuleNameAsType() {
+        Environment env = new Environment();
+        env.setModules(Arrays.asList(createModule("mymodule"), createModule("MyModule")));
+
+        assertEquals(
+                Arrays.asList("mymodule", "MyModule"), new ArrayList<>(env.getModules().keySet()));
     }
 
     @Test
     public void testModuleOrder() {
         Environment env1 = new Environment();
         Environment env2 = new Environment();
-        env1.setModules(Arrays.asList(createModule("b", "test"), createModule("d", "test")));
+        env1.setModules(Arrays.asList(createModule("b"), createModule("d")));
 
-        env2.setModules(Arrays.asList(createModule("c", "test"), createModule("a", "test")));
+        env2.setModules(Arrays.asList(createModule("c"), createModule("a")));
 
         assertEquals(Arrays.asList("b", "d"), new ArrayList<>(env1.getModules().keySet()));
 
@@ -135,11 +143,10 @@ public class EnvironmentTest {
         return prop;
     }
 
-    private static Map<String, Object> createModule(String name, String type) {
+    private static Map<String, Object> createModule(String name) {
         Map<String, Object> prop = new HashMap<>();
 
         prop.put(MODULE_NAME, name);
-        prop.put(MODULE_TYPE, type);
 
         return prop;
     }

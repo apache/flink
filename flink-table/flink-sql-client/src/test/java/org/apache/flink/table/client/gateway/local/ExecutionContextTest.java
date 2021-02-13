@@ -38,6 +38,7 @@ import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
+import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.config.entries.CatalogEntry;
 import org.apache.flink.table.client.gateway.SessionContext;
@@ -51,7 +52,9 @@ import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.commons.cli.Options;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -93,7 +96,7 @@ import static org.powermock.api.mockito.PowerMockito.when;
     "org.datanucleus.*"
 })
 public class ExecutionContextTest {
-
+    @Rule public ExpectedException thrown = ExpectedException.none();
     private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
     private static final String MODULES_ENVIRONMENT_FILE = "test-sql-client-modules.yaml";
     public static final String CATALOGS_ENVIRONMENT_FILE = "test-sql-client-catalogs.yaml";
@@ -170,14 +173,32 @@ public class ExecutionContextTest {
     }
 
     @Test
+    public void testModulesWithDeprecatedType() throws Exception {
+        thrown.expect(SqlClientException.class);
+        thrown.expectMessage(
+                "Property 'type' is deprecated, please remove it and rename module name "
+                        + "'mymodule' to type name 'ModuleDependencyTest' and try again");
+        final Map<String, String> moduleConf = new HashMap<>();
+        moduleConf.put(
+                "$VAR_MODULE_LIST",
+                "\n  - name: mymodule\n    type: " + "ModuleDependencyTest\n    test: test");
+        createModuleExecutionContext(moduleConf);
+    }
+
+    @Test
     public void testModules() throws Exception {
-        final ExecutionContext<?> context = createModuleExecutionContext();
+        final Map<String, String> moduleConf = new HashMap<>();
+        moduleConf.put(
+                "$VAR_MODULE_LIST",
+                "\n  - name: core\n  - name: ModuleDependencyTest\n    "
+                        + "test: test\n  - name: hive\n    hive-version: 2.3.4");
+        final ExecutionContext<?> context = createModuleExecutionContext(moduleConf);
         final TableEnvironment tableEnv = context.getTableEnvironment();
 
-        Set<String> allModules = new HashSet<>(Arrays.asList(tableEnv.listModules()));
-        assertEquals(4, allModules.size());
-        assertEquals(
-                new HashSet<>(Arrays.asList("core", "mymodule", "myhive", "myhive2")), allModules);
+        // parameterizable modules with different parameters are deprecated
+        String[] allModules = tableEnv.listModules();
+        assertEquals(3, allModules.length);
+        assertArrayEquals(new String[] {"core", "ModuleDependencyTest", "hive"}, allModules);
     }
 
     @Test
@@ -414,13 +435,15 @@ public class ExecutionContextTest {
         return createExecutionContext(DEFAULTS_ENVIRONMENT_FILE, replaceVars);
     }
 
-    private <T> ExecutionContext<T> createModuleExecutionContext() throws Exception {
+    private <T> ExecutionContext<T> createModuleExecutionContext(Map<String, String> moduleConf)
+            throws Exception {
         final Map<String, String> replaceVars = new HashMap<>();
         replaceVars.put("$VAR_PLANNER", "old");
         replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
         replaceVars.put("$VAR_RESULT_MODE", "changelog");
         replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
         replaceVars.put("$VAR_MAX_ROWS", "100");
+        replaceVars.putAll(moduleConf);
         return createExecutionContext(MODULES_ENVIRONMENT_FILE, replaceVars);
     }
 
