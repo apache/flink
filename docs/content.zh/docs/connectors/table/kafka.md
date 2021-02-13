@@ -501,11 +501,15 @@ e.g. an option value `partition:0,offset:42;partition:1,offset:300` indicates of
 
 ### CDC Changelog Source
 
-Flink natively supports Kafka as a CDC changelog source. If messages in Kafka topic is change event captured from other databases using CDC tools, then you can use a CDC format to interpret messages as INSERT/UPDATE/DELETE messages into Flink SQL system.
-
-Flink provides three CDC formats: [debezium-json]({% link dev/table/connectors/formats/debezium.md %}), [canal-json]({% link dev/table/connectors/formats/canal.md %}) and [maxwell-json]({% link dev/table/connectors/formats/maxwell.md %}) to interpret change events captured by [Debezium](https://debezium.io/), [Canal](https://github.com/alibaba/canal/wiki) and [Maxwell](https://maxwells-daemon.io/).
+Flink natively supports Kafka as a CDC changelog source. If messages in a Kafka topic are change event captured from other databases using a CDC tool, you can use the corresponding Flink CDC format to interpret the messages as INSERT/UPDATE/DELETE statements into a Flink SQL table.
 
 The changelog source is a very useful feature in many cases, such as synchronizing incremental data from databases to other systems, auditing logs, materialized views on databases, temporal join changing history of a database table and so on.
+
+Flink provides several CDC formats: 
+
+* [debezium]({{< ref "docs/connectors/table/formats/debezium.md" >}}) 
+* [canal]({{< ref "docs/connectors/table/formats/canal.md" >}})
+* [maxwell]({{< ref "docs/connectors/table/formats/maxwell.md" >}}) 
 
 ### Sink Partitioning
 
