@@ -23,6 +23,7 @@ import org.apache.flink.runtime.io.network.NetworkClientHandler;
 import org.apache.flink.runtime.io.network.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.netty.exception.RemoteTransportException;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 
@@ -31,11 +32,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Factory for {@link NettyPartitionRequestClient} instances.
@@ -69,36 +68,34 @@ class PartitionRequestClientFactory {
     NettyPartitionRequestClient createPartitionRequestClient(ConnectionID connectionId)
             throws IOException, InterruptedException {
         while (true) {
-            AtomicBoolean isTheFirstOne = new AtomicBoolean(false);
-            CompletableFuture<NettyPartitionRequestClient> clientFuture =
-                    clients.computeIfAbsent(
-                            connectionId,
-                            unused -> {
-                                isTheFirstOne.set(true);
-                                return new CompletableFuture<>();
-                            });
-            if (isTheFirstOne.get()) {
+            final CompletableFuture<NettyPartitionRequestClient> newClientFuture =
+                    new CompletableFuture<>();
+
+            final CompletableFuture<NettyPartitionRequestClient> clientFuture =
+                    clients.putIfAbsent(connectionId, newClientFuture);
+
+            final NettyPartitionRequestClient client;
+
+            if (clientFuture == null) {
                 try {
-                    clientFuture.complete(connectWithRetries(connectionId));
-                } catch (InterruptedException e) {
-                    clientFuture.complete(null); // let others waiting know that they should retry
+                    client = connectWithRetries(connectionId);
+                } catch (Throwable e) {
+                    newClientFuture.completeExceptionally(
+                            new IOException("Could not create Netty client.", e));
+                    clients.remove(connectionId, newClientFuture);
                     throw e;
-                } catch (Exception e) {
-                    clientFuture.completeExceptionally(e);
+                }
+
+                newClientFuture.complete(client);
+            } else {
+                try {
+                    client = clientFuture.get();
+                } catch (ExecutionException e) {
+                    ExceptionUtils.rethrowIOException(ExceptionUtils.stripExecutionException(e));
+                    return null;
                 }
             }
 
-            final NettyPartitionRequestClient client;
-            try {
-                client = clientFuture.get();
-                if (client == null) {
-                    // computation failed in another thread - cleanup the map and restart the loop
-                    clients.remove(connectionId, clientFuture);
-                    continue;
-                }
-            } catch (ExecutionException e) {
-                throw new IOException(e);
-            }
             // Make sure to increment the reference count before handing a client
             // out to ensure correct bookkeeping for channel closing.
             if (client.incrementReferenceCounter()) {
@@ -110,16 +107,22 @@ class PartitionRequestClientFactory {
     }
 
     private NettyPartitionRequestClient connectWithRetries(ConnectionID connectionId)
-            throws InterruptedException {
+            throws InterruptedException, RemoteTransportException {
         int tried = 0;
         while (true) {
             try {
                 return connect(connectionId);
             } catch (RemoteTransportException e) {
                 tried++;
-                LOG.error("Failed {} times to connect to {}", tried, connectionId.getAddress(), e);
                 if (tried > retryNumber) {
-                    throw new CompletionException(e);
+                    LOG.warn("Failed to connect to {}. Giving up.", connectionId.getAddress(), e);
+                    throw e;
+                } else {
+                    LOG.warn(
+                            "Failed {} times to connect to {}. Retrying.",
+                            tried,
+                            connectionId.getAddress(),
+                            e);
                 }
             }
         }

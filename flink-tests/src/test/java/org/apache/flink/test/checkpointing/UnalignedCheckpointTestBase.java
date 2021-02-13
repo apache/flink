@@ -73,7 +73,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -94,6 +93,9 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
     protected static final String NUM_DUPLICATES = "duplicates";
     protected static final String NUM_LOST = "lost";
     public static final int BUFFER_PER_CHANNEL = 1;
+
+    private static final long HEADER = 0xABCDEAFCL << 32;
+    private static final long HEADER_MASK = 0xFFFFFFFFL << 32;
 
     @Rule public final TemporaryFolder temp = new TemporaryFolder();
 
@@ -194,14 +196,20 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         }
 
         private static class LongSourceReader implements SourceReader<Long, LongSplit> {
-
             private final long minCheckpoints;
             private final int expectedRestarts;
             private final LongCounter numInputsCounter = new LongCounter();
             private LongSplit split;
             private int numAbortedCheckpoints;
-            private boolean throttle = true;
             private int numRestarts;
+            private int numCheckpointsInThisAttempt;
+            private PollingState pollingState = PollingState.THROTTLING;
+
+            enum PollingState {
+                THROTTLING,
+                PUMPING,
+                FINISHING;
+            }
 
             public LongSourceReader(final long minCheckpoints, int expectedRestarts) {
                 this.minCheckpoints = minCheckpoints;
@@ -217,18 +225,22 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                     return InputStatus.NOTHING_AVAILABLE;
                 }
 
-                output.collect(split.nextNumber, split.nextNumber);
+                output.collect(withHeader(split.nextNumber), split.nextNumber);
                 split.nextNumber += split.increment;
 
-                if (throttle) {
-                    // throttle source as long as sink is not backpressuring (which it does only
-                    // after full recovery)
-                    Thread.sleep(1);
+                switch (pollingState) {
+                    case FINISHING:
+                        return InputStatus.END_OF_INPUT;
+                    case THROTTLING:
+                        // throttle source as long as sink is not backpressuring (which it does only
+                        // after full recovery)
+                        Thread.sleep(1);
+                        return InputStatus.MORE_AVAILABLE;
+                    case PUMPING:
+                        return InputStatus.MORE_AVAILABLE;
+                    default:
+                        throw new IllegalStateException("Unexpected state: " + pollingState);
                 }
-                return split.numCompletedCheckpoints >= minCheckpoints
-                                && numRestarts >= expectedRestarts
-                        ? InputStatus.END_OF_INPUT
-                        : InputStatus.MORE_AVAILABLE;
             }
 
             @Override
@@ -252,9 +264,15 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                             split.numCompletedCheckpoints,
                             split.nextNumber % split.increment,
                             numRestarts);
+                    // Update polling state before final checkpoint such that if there is an issue
+                    // during finishing, after recovery the source immediately starts finishing
+                    // again. In this way, we avoid a deadlock where some tasks need another
+                    // checkpoint completed, while some tasks are finishing (and thus there are no
+                    // new checkpoint).
+                    updatePollingState();
                     split.numCompletedCheckpoints++;
+                    numCheckpointsInThisAttempt++;
                     numAbortedCheckpoints = 0;
-                    throttle = split.numCompletedCheckpoints >= minCheckpoints;
                 }
             }
 
@@ -266,6 +284,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                     // here simply also advance completed checkpoints to avoid running into a live
                     // lock
                     split.numCompletedCheckpoints++;
+                    updatePollingState();
                 }
             }
 
@@ -281,9 +300,11 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                             "Tried to add " + splits + " but already got " + split);
                 }
                 split = Iterables.getOnlyElement(splits);
+                updatePollingState();
                 LOG.info(
-                        "Added split {} @ {} subtask ({} attempt)",
+                        "Added split {}, pollingState={} @ {} subtask ({} attempt)",
                         split,
+                        pollingState,
                         split.nextNumber % split.increment,
                         numRestarts);
             }
@@ -291,10 +312,33 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             @Override
             public void notifyNoMoreSplits() {}
 
+            private void updatePollingState() {
+                if (split == null) {
+                    return;
+                }
+                if (split.numCompletedCheckpoints >= minCheckpoints
+                        && numRestarts >= expectedRestarts) {
+                    pollingState = PollingState.FINISHING;
+                } else if (numCheckpointsInThisAttempt == 0) {
+                    // speed up recovery by throttling - use a successful checkpoint as a proxy
+                    // for a finished recovery
+                    pollingState = PollingState.THROTTLING;
+                } else {
+                    // cause backpressure
+                    pollingState = PollingState.PUMPING;
+                }
+            }
+
             @Override
             public void handleSourceEvents(SourceEvent sourceEvent) {
                 if (sourceEvent instanceof RestartEvent) {
                     numRestarts = ((RestartEvent) sourceEvent).numRestarts;
+                    updatePollingState();
+                    LOG.info(
+                            "Set restarts {}, pollingState={} ({} attempt)",
+                            split,
+                            pollingState,
+                            numRestarts);
                 }
             }
 
@@ -323,6 +367,10 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                 this.nextNumber = nextNumber;
                 this.increment = increment;
                 this.numCompletedCheckpoints = numCompletedCheckpoints;
+            }
+
+            public int getBaseNumber() {
+                return (int) (nextNumber % increment);
             }
 
             @Override
@@ -379,13 +427,9 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             public void addReader(int subtaskId) {
                 if (context.registeredReaders().size() == context.currentParallelism()
                         && !state.unassignedSplits.isEmpty()) {
-                    int numReaders = context.registeredReaders().size();
-                    Map<Integer, List<LongSplit>> assignment = new HashMap<>();
-                    for (int i = 0; i < state.unassignedSplits.size(); i++) {
-                        assignment
-                                .computeIfAbsent(i % numReaders, t -> new ArrayList<>())
-                                .add(state.unassignedSplits.get(i));
-                    }
+                    Map<Integer, List<LongSplit>> assignment =
+                            state.unassignedSplits.stream()
+                                    .collect(Collectors.groupingBy(LongSplit::getBaseNumber));
                     LOG.info("Assigning splits {}", assignment);
                     context.assignSplits(new SplitsAssignment<>(assignment));
                     state.unassignedSplits.clear();
@@ -665,7 +709,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 
         @Override
         public Long map(Long value) throws Exception {
-            lastValue = value;
+            lastValue = withoutHeader(value);
             checkFail(failDuringMap, "map");
             return value;
         }
@@ -840,5 +884,21 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                     getRuntimeContext().getAttemptNumber());
             super.close();
         }
+    }
+
+    protected static long withHeader(long value) {
+        return value ^ HEADER;
+    }
+
+    protected static long withoutHeader(long value) {
+        checkHeader(value);
+        return value ^ HEADER;
+    }
+
+    protected static long checkHeader(long value) {
+        if ((value & HEADER_MASK) != HEADER) {
+            throw new IllegalArgumentException("Stream corrupted");
+        }
+        return value;
     }
 }

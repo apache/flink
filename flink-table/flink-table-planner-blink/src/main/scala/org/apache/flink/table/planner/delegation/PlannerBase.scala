@@ -36,7 +36,8 @@ import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
 import org.apache.flink.table.planner.expressions.PlannerTypeInferenceUtilImpl
 import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalLegacySink
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecGraphGenerator, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNodeGraph, ExecNodeGraphGenerator}
+import org.apache.flink.table.planner.plan.nodes.exec.serde.SerdeContext
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.optimize.Optimizer
 import org.apache.flink.table.planner.plan.reuse.SubplanReuser
@@ -155,16 +156,11 @@ abstract class PlannerBase(
     if (modifyOperations.isEmpty) {
       return List.empty[Transformation[_]]
     }
-    // prepare the execEnv before translating
-    getExecEnv.configure(
-      getTableConfig.getConfiguration,
-      Thread.currentThread().getContextClassLoader)
-    overrideEnvParallelism()
 
     val relNodes = modifyOperations.map(translateToRel)
     val optimizedRelNodes = optimize(relNodes)
-    val execNodes = translateToExecNodePlan(optimizedRelNodes)
-    translateToPlan(execNodes)
+    val execGraph = translateToExecNodeGraph(optimizedRelNodes)
+    translateToPlan(execGraph)
   }
 
   protected def overrideEnvParallelism(): Unit = {
@@ -186,6 +182,12 @@ abstract class PlannerBase(
     */
   @VisibleForTesting
   private[flink] def translateToRel(modifyOperation: ModifyOperation): RelNode = {
+    // prepare the execEnv before translating
+    getExecEnv.configure(
+      getTableConfig.getConfiguration,
+      Thread.currentThread().getContextClassLoader)
+    overrideEnvParallelism()
+
     modifyOperation match {
       case s: UnregisteredSinkModifyOperation[_] =>
         val input = getRelBuilder.queryOperation(s.getChild).build()
@@ -296,11 +298,11 @@ abstract class PlannerBase(
   }
 
   /**
-    * Converts [[FlinkPhysicalRel]] DAG to [[ExecNode]] DAG, and tries to reuse duplicate sub-plans.
+    * Converts [[FlinkPhysicalRel]] DAG to [[ExecNodeGraph]],
+   * and tries to reuse duplicate sub-plans.
     */
   @VisibleForTesting
-  private[flink] def translateToExecNodePlan(
-      optimizedRelNodes: Seq[RelNode]): util.List[ExecNode[_]] = {
+  private[flink] def translateToExecNodeGraph(optimizedRelNodes: Seq[RelNode]): ExecNodeGraph = {
     val nonPhysicalRel = optimizedRelNodes.filterNot(_.isInstanceOf[FlinkPhysicalRel])
     if (nonPhysicalRel.nonEmpty) {
       throw new TableException("The expected optimized plan is FlinkPhysicalRel plan, " +
@@ -314,18 +316,18 @@ abstract class PlannerBase(
     val relsWithoutSameObj = optimizedRelNodes.map(_.accept(shuttle))
     // reuse subplan
     val reusedPlan = SubplanReuser.reuseDuplicatedSubplan(relsWithoutSameObj, config)
-    // convert FlinkPhysicalRel DAG to ExecNode DAG
-    val generator = new ExecGraphGenerator()
+    // convert FlinkPhysicalRel DAG to ExecNodeGraph
+    val generator = new ExecNodeGraphGenerator()
     generator.generate(reusedPlan.map(_.asInstanceOf[FlinkPhysicalRel]))
   }
 
   /**
-    * Translates a [[ExecNode]] DAG into a [[Transformation]] DAG.
+    * Translates an [[ExecNodeGraph]] into a [[Transformation]] DAG.
     *
-    * @param execNodes The node DAG to translate.
+    * @param execGraph The node graph to translate.
     * @return The [[Transformation]] DAG that corresponds to the node DAG.
     */
-  protected def translateToPlan(execNodes: util.List[ExecNode[_]]): util.List[Transformation[_]]
+  protected def translateToPlan(execGraph: ExecNodeGraph): util.List[Transformation[_]]
 
   /**
    * Creates a [[SelectTableSinkBase]] for a select query.
@@ -351,7 +353,7 @@ abstract class PlannerBase(
       case Some(table: CatalogTable) =>
         val catalog = catalogManager.getCatalog(objectIdentifier.getCatalogName)
         val tableToFind = if (dynamicOptions.nonEmpty) {
-          table.copy(FlinkHints.mergeTableOptions(dynamicOptions, table.getProperties))
+          table.copy(FlinkHints.mergeTableOptions(dynamicOptions, table.getOptions))
         } else {
           table
         }
@@ -371,7 +373,7 @@ abstract class PlannerBase(
             objectIdentifier,
             tableToFind,
             getTableConfig.getConfiguration,
-            Thread.currentThread().getContextClassLoader,
+            getClassLoader,
             isTemporary)
           Option(table, tableSink)
         }
@@ -411,5 +413,34 @@ abstract class PlannerBase(
         case _: Throwable => false
       }
     }
+  }
+
+  override def getJsonPlan(modifyOperations: util.List[ModifyOperation]): String = {
+    if (!isStreamingMode) {
+      throw new TableException("Only streaming mode is supported now.")
+    }
+    val relNodes = modifyOperations.map(translateToRel)
+    val optimizedRelNodes = optimize(relNodes)
+    val execGraph = translateToExecNodeGraph(optimizedRelNodes)
+    ExecNodeGraph.createJsonPlan(execGraph, createSerdeContext)
+  }
+
+  override def translateJsonPlan(jsonPlan: String): util.List[Transformation[_]] = {
+    if (!isStreamingMode) {
+      throw new TableException("Only streaming mode is supported now.")
+    }
+    val execGraph = ExecNodeGraph.createExecNodeGraph(jsonPlan, createSerdeContext)
+    // prepare the execEnv before translating
+    getExecEnv.configure(getTableConfig.getConfiguration, getClassLoader)
+    overrideEnvParallelism()
+    translateToPlan(execGraph)
+  }
+
+  protected def createSerdeContext: SerdeContext = {
+    new SerdeContext(config.getConfiguration, getClassLoader)
+  }
+
+  private def getClassLoader: ClassLoader = {
+    Thread.currentThread().getContextClassLoader
   }
 }

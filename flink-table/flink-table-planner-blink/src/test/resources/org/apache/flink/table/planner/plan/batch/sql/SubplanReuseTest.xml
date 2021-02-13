@@ -334,9 +334,9 @@ LogicalProject(c=[$0], e=[$1], avg_b=[$2], sum_b=[$3], psum=[$4], nsum=[$5], avg
 Calc(select=[c, e, avg_b, sum_b, sum_b0 AS psum, sum_b1 AS nsum, avg_b0 AS avg_b2])
 +- MultipleInput(readOrder=[2,0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[((c = c0) AND (e = e0) AND (rn = $f5))], select=[sum_b, avg_b, rn, c, e, sum_b0, avg_b0, sum_b1, c0, e0, $f5], build=[left])\n:- Calc(select=[sum_b, avg_b, rn, c, e, sum_b0, avg_b0])\n:  +- HashJoin(joinType=[InnerJoin], where=[((c = c0) AND (e = e0) AND (rn = $f5))], select=[sum_b, avg_b, rn, c, e, sum_b0, avg_b0, c0, e0, $f5], build=[left])\n:     :- [#2] Exchange(distribution=[hash[c, e, rn]])\n:     +- [#3] Exchange(distribution=[hash[c, e, $f5]], shuffle_mode=[BATCH])\n+- [#1] Exchange(distribution=[hash[c, e, $f5]], shuffle_mode=[BATCH])\n])
    :- Exchange(distribution=[hash[c, e, $f5]], shuffle_mode=[BATCH])
-   :  +- Calc(select=[sum_b, c, e, (w0$o0 - 1) AS $f5])
-   :     +- OverAggregate(partitionBy=[c, e], orderBy=[c ASC, e ASC], window#0=[RANK(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[c, e, sum_b, w0$o0])
-   :        +- Sort(orderBy=[c ASC, e ASC])(reuse_id=[1])
+   :  +- Calc(select=[sum_b, c, e, (w1$o0 - 1) AS $f5])
+   :     +- OverAggregate(partitionBy=[c, e], window#0=[COUNT(sum_b) AS w0$o0, $SUM0(sum_b) AS w0$o1 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], window#1=[RANK(*) AS w1$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[c, e, sum_b, w0$o0, w0$o1, w1$o0])(reuse_id=[1])
+   :        +- Sort(orderBy=[c ASC, e ASC])
    :           +- HashAggregate(isMerge=[true], groupBy=[c, e], select=[c, e, Final_SUM(sum$0) AS sum_b])
    :              +- Exchange(distribution=[hash[c, e]])
    :                 +- LocalHashAggregate(groupBy=[c, e], select=[c, e, Partial_SUM(b) AS sum$0])
@@ -350,11 +350,10 @@ Calc(select=[c, e, avg_b, sum_b, sum_b0 AS psum, sum_b1 AS nsum, avg_b0 AS avg_b
    :                                +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
    :- Exchange(distribution=[hash[c, e, rn]])
    :  +- Calc(select=[sum_b, (CASE((w0$o0 > 0:BIGINT), w0$o1, null:BIGINT) / w0$o0) AS avg_b, w1$o0 AS rn, c, e], where=[((c <> _UTF-16LE'':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AND ((sum_b - (CASE((w0$o0 > 0:BIGINT), w0$o1, null:BIGINT) / w0$o0)) > 3))])
-   :     +- OverAggregate(partitionBy=[c, e], orderBy=[], window#0=[COUNT(sum_b) AS w0$o0, $SUM0(sum_b) AS w0$o1 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], window#1=[RANK(*) AS w1$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[c, e, sum_b, w0$o0, w0$o1, w1$o0])(reuse_id=[2])
-   :        +- Reused(reference_id=[1])
+   :     +- Reused(reference_id=[1])
    +- Exchange(distribution=[hash[c, e, $f5]], shuffle_mode=[BATCH])
       +- Calc(select=[sum_b, (CASE((w0$o0 > 0:BIGINT), w0$o1, null:BIGINT) / w0$o0) AS avg_b, c, e, (w1$o0 + 1) AS $f5])
-         +- Reused(reference_id=[2])
+         +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -918,15 +917,15 @@ LogicalProject(a=[$0], b=[$1], EXPR$2=[$2], a0=[$3], b0=[$4], EXPR$20=[$5])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, $2, a0, b0, $20], build=[right])
+HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, w0$o0, a0, b0, w0$o00], build=[right])
 :- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
-:  +- Calc(select=[a, b, w0$o0 AS $2], where=[(b < 100)])
+:  +- Calc(select=[a, b, w0$o0], where=[(b < 100)])
 :     +- OverAggregate(partitionBy=[c], orderBy=[c DESC], window#0=[MyFirst(c) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0])(reuse_id=[1])
 :        +- Sort(orderBy=[c DESC])
 :           +- Exchange(distribution=[hash[c]])
 :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[a]])
-   +- Calc(select=[a, b, w0$o0 AS $2], where=[(b > 10)])
+   +- Calc(select=[a, b, w0$o0], where=[(b > 10)])
       +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -1024,15 +1023,15 @@ LogicalProject(a=[$0], b=[$1], EXPR$2=[$2], a0=[$3], b0=[$4], EXPR$20=[$5])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, $2, a0, b0, $20], build=[right])
+HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, w0$o0, a0, b0, w0$o00], build=[right])
 :- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
-:  +- Calc(select=[a, b, w0$o0 AS $2], where=[(b < 100)])
+:  +- Calc(select=[a, b, w0$o0], where=[(b < 100)])
 :     +- OverAggregate(orderBy=[c DESC], window#0=[RANK(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0])(reuse_id=[1])
 :        +- Sort(orderBy=[c DESC])
 :           +- Exchange(distribution=[single])
 :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[a]])
-   +- Calc(select=[a, b, w0$o0 AS $2], where=[(b > 10)])
+   +- Calc(select=[a, b, w0$o0], where=[(b > 10)])
       +- Reused(reference_id=[1])
 ]]>
     </Resource>

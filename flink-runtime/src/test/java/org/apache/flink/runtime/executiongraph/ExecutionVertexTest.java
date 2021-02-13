@@ -59,11 +59,11 @@ public class ExecutionVertexTest extends TestLogger {
 
         final JobGraph jobGraph = new JobGraph(producerJobVertex, consumerJobVertex);
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(jobGraph)
+                SchedulerTestingUtils.newSchedulerBuilder(
+                                jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread())
                         .setPartitionTracker(partitionTracker)
                         .build();
 
-        scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
         scheduler.startScheduling();
 
         final ExecutionJobVertex producerExecutionJobVertex =
@@ -78,7 +78,9 @@ public class ExecutionVertexTest extends TestLogger {
 
         assertFalse(releasePartitionsFuture.isDone());
 
-        producerExecutionJobVertex.resetForNewExecution(1L, 1L);
+        for (ExecutionVertex executionVertex : producerExecutionJobVertex.getTaskVertices()) {
+            executionVertex.resetForNewExecution();
+        }
 
         final IntermediateResultPartitionID intermediateResultPartitionID =
                 producerExecutionJobVertex.getProducedDataSets()[0].getPartitions()[0]

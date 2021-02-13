@@ -589,7 +589,7 @@ _type_info_name_mappings = {
     type_info_name.BIG_DEC: BigDecimalCoder(),
     type_info_name.SQL_DATE: DateCoder(),
     type_info_name.SQL_TIME: TimeCoder(),
-    type_info_name.SQL_TIMESTAMP: TimeCoder(),
+    type_info_name.SQL_TIMESTAMP: TimestampCoder(3),
     type_info_name.PICKLED_BYTES: PickledBytesCoder()
 }
 

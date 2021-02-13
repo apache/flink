@@ -4,7 +4,7 @@
 // ------------------------------------------------------------------
 
 Apache Flink
-Copyright 2014-2020 The Apache Software Foundation
+Copyright 2014-2021 The Apache Software Foundation
 
 This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 

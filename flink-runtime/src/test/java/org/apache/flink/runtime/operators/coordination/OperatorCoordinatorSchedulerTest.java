@@ -18,7 +18,11 @@
 
 package org.apache.flink.runtime.operators.coordination;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
@@ -28,6 +32,7 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorService;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
@@ -38,12 +43,20 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
+import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TestingCheckpointStorageAccessCoordinatorView;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.ExceptionUtils;
@@ -56,11 +69,13 @@ import org.junit.After;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.Random;
@@ -609,7 +624,8 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
         final Consumer<JobGraph> savepointConfigurer =
                 (jobGraph) -> {
-                    SchedulerTestingUtils.enableCheckpointing(jobGraph, storage.asStateBackend());
+                    SchedulerTestingUtils.enableCheckpointing(
+                            jobGraph, new ModernStateBackend(), storage.asCheckpointStorage());
                     jobGraph.setSavepointRestoreSettings(
                             SavepointRestoreSettings.forPath(savepointPointer));
                 };
@@ -653,21 +669,23 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
             jobGraphPreProcessing.accept(jobGraph);
         }
 
+        final ComponentMainThreadExecutor mainThreadExecutor =
+                new ComponentMainThreadExecutorServiceAdapter(
+                        (ScheduledExecutorService) executor, Thread.currentThread());
+
+        SchedulerTestingUtils.createSchedulerBuilder(jobGraph, mainThreadExecutor);
+
         final SchedulerTestingUtils.DefaultSchedulerBuilder schedulerBuilder =
                 taskExecutorOperatorEventGateway == null
-                        ? SchedulerTestingUtils.createSchedulerBuilder(jobGraph, executor)
+                        ? SchedulerTestingUtils.createSchedulerBuilder(jobGraph, mainThreadExecutor)
                         : SchedulerTestingUtils.createSchedulerBuilder(
-                                jobGraph, executor, taskExecutorOperatorEventGateway);
+                                jobGraph, mainThreadExecutor, taskExecutorOperatorEventGateway);
         if (restartAllOnFailover) {
             schedulerBuilder.setFailoverStrategyFactory(new RestartAllFailoverStrategy.Factory());
         }
 
-        final DefaultScheduler scheduler = schedulerBuilder.build();
-
-        final ComponentMainThreadExecutor mainThreadExecutor =
-                new ComponentMainThreadExecutorServiceAdapter(
-                        (ScheduledExecutorService) executor, Thread.currentThread());
-        scheduler.initialize(mainThreadExecutor);
+        final DefaultScheduler scheduler =
+                schedulerBuilder.setFutureExecutor(executor).setDelayExecutor(executor).build();
 
         this.createdScheduler = scheduler;
         return scheduler;
@@ -907,6 +925,36 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         public CompletableFuture<Acknowledge> sendOperatorEventToTask(
                 ExecutionAttemptID task, OperatorID operator, SerializedValue<OperatorEvent> evt) {
             return FutureUtils.completedExceptionally(new TestException());
+        }
+    }
+
+    private static class ModernStateBackend implements StateBackend {
+
+        @Override
+        public <K> CheckpointableKeyedStateBackend<K> createKeyedStateBackend(
+                Environment env,
+                JobID jobID,
+                String operatorIdentifier,
+                TypeSerializer<K> keySerializer,
+                int numberOfKeyGroups,
+                KeyGroupRange keyGroupRange,
+                TaskKvStateRegistry kvStateRegistry,
+                TtlTimeProvider ttlTimeProvider,
+                MetricGroup metricGroup,
+                @Nonnull Collection<KeyedStateHandle> stateHandles,
+                CloseableRegistry cancelStreamRegistry)
+                throws Exception {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public OperatorStateBackend createOperatorStateBackend(
+                Environment env,
+                String operatorIdentifier,
+                @Nonnull Collection<OperatorStateHandle> stateHandles,
+                CloseableRegistry cancelStreamRegistry)
+                throws Exception {
+            throw new UnsupportedOperationException();
         }
     }
 }

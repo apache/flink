@@ -33,6 +33,8 @@ import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTrackerFactory;
+import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.metrics.ThresholdMeter;
 import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
@@ -45,6 +47,7 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -53,6 +56,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * An active implementation of {@link ResourceManager}.
@@ -66,6 +71,8 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
 
     protected final Configuration flinkConfig;
 
+    private final Time startWorkerRetryInterval;
+
     private final ResourceManagerDriver<WorkerType> resourceManagerDriver;
 
     /** All workers maintained by {@link ActiveResourceManager}. */
@@ -76,6 +83,15 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
 
     /** Identifiers and worker resource spec of requested not registered workers. */
     private final Map<ResourceID, WorkerResourceSpec> currentAttemptUnregisteredWorkers;
+
+    private final ThresholdMeter startWorkerFailureRater;
+
+    /**
+     * Incompletion of this future indicates that the max failure rate of start worker is reached
+     * and the resource manager should not retry starting new worker until the future become
+     * completed again. It's guaranteed to be modified in main thread.
+     */
+    private CompletableFuture<Void> startWorkerCoolDown;
 
     public ActiveResourceManager(
             ResourceManagerDriver<WorkerType> resourceManagerDriver,
@@ -90,6 +106,8 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
             ClusterInformation clusterInformation,
             FatalErrorHandler fatalErrorHandler,
             ResourceManagerMetricGroup resourceManagerMetricGroup,
+            ThresholdMeter startWorkerFailureRater,
+            Duration retryInterval,
             Executor ioExecutor) {
         super(
                 rpcService,
@@ -110,6 +128,9 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
         this.workerNodeMap = new HashMap<>();
         this.pendingWorkerCounter = new PendingWorkerCounter();
         this.currentAttemptUnregisteredWorkers = new HashMap<>();
+        this.startWorkerFailureRater = checkNotNull(startWorkerFailureRater);
+        this.startWorkerRetryInterval = Time.of(retryInterval.toMillis(), TimeUnit.MILLISECONDS);
+        this.startWorkerCoolDown = FutureUtils.completedVoidFuture();
     }
 
     // ------------------------------------------------------------------------
@@ -196,6 +217,13 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
         }
     }
 
+    @Override
+    protected void registerMetrics() {
+        super.registerMetrics();
+        resourceManagerMetricGroup.meter(
+                MetricNames.START_WORKER_FAILURE_RATE, startWorkerFailureRater);
+    }
+
     // ------------------------------------------------------------------------
     //  ResourceEventListener
     // ------------------------------------------------------------------------
@@ -215,6 +243,10 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
 
     @Override
     public void onWorkerTerminated(ResourceID resourceId, String diagnostics) {
+        if (currentAttemptUnregisteredWorkers.containsKey(resourceId)) {
+            recordWorkerFailureAndPauseWorkerCreationIfNeeded();
+        }
+
         if (clearStateForWorker(resourceId)) {
             log.info(
                     "Worker {} is terminated. Diagnostics: {}",
@@ -245,8 +277,13 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
                 workerResourceSpec,
                 pendingCount);
 
-        CompletableFuture<WorkerType> requestResourceFuture =
-                resourceManagerDriver.requestResource(taskExecutorProcessSpec);
+        // In case of start worker failures, we should wait for an interval before
+        // trying to start new workers.
+        // Otherwise, ActiveResourceManager will always re-requesting the worker,
+        // which keeps the main thread busy.
+        final CompletableFuture<WorkerType> requestResourceFuture =
+                startWorkerCoolDown.thenCompose(
+                        (ignore) -> resourceManagerDriver.requestResource(taskExecutorProcessSpec));
         FutureUtils.assertNoException(
                 requestResourceFuture.handle(
                         (worker, exception) -> {
@@ -258,6 +295,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
                                         workerResourceSpec,
                                         count,
                                         exception);
+                                recordWorkerFailureAndPauseWorkerCreationIfNeeded();
                                 requestWorkerIfRequired();
                             } else {
                                 final ResourceID resourceId = worker.getResourceID();
@@ -309,6 +347,40 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
             while (requiredCount > pendingWorkerCounter.getNum(workerResourceSpec)) {
                 requestNewWorker(workerResourceSpec);
             }
+        }
+    }
+
+    private void recordWorkerFailureAndPauseWorkerCreationIfNeeded() {
+        if (recordStartWorkerFailure()) {
+            // if exceed failure rate try to slow down
+            tryResetWorkerCreationCoolDown();
+        }
+    }
+
+    /**
+     * Record failure number of starting worker in ResourceManagers. Return whether maximum failure
+     * rate is reached.
+     *
+     * @return whether max failure rate is reached
+     */
+    private boolean recordStartWorkerFailure() {
+        startWorkerFailureRater.markEvent();
+
+        try {
+            startWorkerFailureRater.checkAgainstThreshold();
+        } catch (ThresholdMeter.ThresholdExceedException e) {
+            log.warn("Reaching max start worker failure rate: {}", e.getMessage());
+            return true;
+        }
+
+        return false;
+    }
+
+    private void tryResetWorkerCreationCoolDown() {
+        if (startWorkerCoolDown.isDone()) {
+            log.info("Will not retry creating worker in {}.", startWorkerRetryInterval);
+            startWorkerCoolDown = new CompletableFuture<>();
+            scheduleRunAsync(() -> startWorkerCoolDown.complete(null), startWorkerRetryInterval);
         }
     }
 

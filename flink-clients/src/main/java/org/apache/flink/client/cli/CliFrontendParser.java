@@ -191,9 +191,9 @@ public class CliFrontendParser {
                     "pyfs",
                     "pyFiles",
                     true,
-                    "Attach custom python files for job. "
+                    "Attach custom python files for job. The standard python resource file suffixes such as .py/.egg/.zip or directory are all supported. "
                             + "These files will be added to the PYTHONPATH of both the local client and the remote python UDF worker. "
-                            + "The standard python resource file suffixes such as .py/.egg/.zip or directory are all supported. "
+                            + "Files suffixed with .zip will be extracted and added to PYTHONPATH. "
                             + "Comma (',') could be used as the separator to specify multiple files "
                             + "(e.g.: --pyFiles file:///tmp/myresource.zip,hdfs:///$namenode_address/myresource2.zip).");
 

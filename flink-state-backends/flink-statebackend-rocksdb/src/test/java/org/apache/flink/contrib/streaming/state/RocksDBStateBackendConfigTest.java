@@ -54,6 +54,7 @@ import org.rocksdb.BlockBasedTableConfig;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.CompactionStyle;
 import org.rocksdb.DBOptions;
+import org.rocksdb.InfoLogLevel;
 import org.rocksdb.util.SizeUnit;
 
 import java.io.File;
@@ -470,6 +471,7 @@ public class RocksDBStateBackendConfigTest {
                 new DefaultConfigurableOptionsFactory()
                         .setMaxBackgroundThreads(4)
                         .setMaxOpenFiles(-1)
+                        .setLogLevel(InfoLogLevel.DEBUG_LEVEL)
                         .setCompactionStyle(CompactionStyle.LEVEL)
                         .setUseDynamicLevelSize(true)
                         .setTargetFileSizeBase("4MB")
@@ -485,6 +487,7 @@ public class RocksDBStateBackendConfigTest {
 
             DBOptions dbOptions = optionsContainer.getDbOptions();
             assertEquals(-1, dbOptions.maxOpenFiles());
+            assertEquals(InfoLogLevel.DEBUG_LEVEL, dbOptions.infoLogLevel());
 
             ColumnFamilyOptions columnOptions = optionsContainer.getColumnOptions();
             assertEquals(CompactionStyle.LEVEL, columnOptions.compactionStyle());
@@ -511,6 +514,7 @@ public class RocksDBStateBackendConfigTest {
         // verify illegal configuration
         {
             verifyIllegalArgument(RocksDBConfigurableOptions.MAX_BACKGROUND_THREADS, "-1");
+            verifyIllegalArgument(RocksDBConfigurableOptions.LOG_LEVEL, "DEBUG");
             verifyIllegalArgument(RocksDBConfigurableOptions.MAX_WRITE_BUFFER_NUMBER, "-1");
             verifyIllegalArgument(
                     RocksDBConfigurableOptions.MIN_WRITE_BUFFER_NUMBER_TO_MERGE, "-1");
@@ -528,6 +532,7 @@ public class RocksDBStateBackendConfigTest {
 
         // verify legal configuration
         {
+            configuration.setString(RocksDBConfigurableOptions.LOG_LEVEL.key(), "DEBUG_LEVEL");
             configuration.setString(RocksDBConfigurableOptions.COMPACTION_STYLE.key(), "level");
             configuration.setString(
                     RocksDBConfigurableOptions.USE_DYNAMIC_LEVEL_SIZE.key(), "TRUE");
@@ -550,6 +555,7 @@ public class RocksDBStateBackendConfigTest {
 
                 DBOptions dbOptions = optionsContainer.getDbOptions();
                 assertEquals(-1, dbOptions.maxOpenFiles());
+                assertEquals(InfoLogLevel.DEBUG_LEVEL, dbOptions.infoLogLevel());
 
                 ColumnFamilyOptions columnOptions = optionsContainer.getColumnOptions();
                 assertEquals(CompactionStyle.LEVEL, columnOptions.compactionStyle());

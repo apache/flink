@@ -232,7 +232,7 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
                     final Execution operator2Execution =
                             getCurrentExecution(operator2Vertex, executionGraph);
                     // reset o2
-                    operator2Execution.getVertex().resetForNewExecution(0L, 1L);
+                    operator2Execution.getVertex().resetForNewExecution();
                     assertThat(releasedPartitions, empty());
                 });
 
@@ -264,13 +264,13 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
 
         final JobGraph jobGraph = new JobGraph(new JobID(), "test job", vertices);
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(jobGraph)
+                SchedulerTestingUtils.newSchedulerBuilder(
+                                jobGraph, mainThreadExecutor.getMainThreadExecutor())
                         .setExecutionSlotAllocatorFactory(
                                 SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory())
                         .setPartitionTracker(partitionTracker)
                         .build();
 
-        scheduler.initialize(mainThreadExecutor.getMainThreadExecutor());
         mainThreadExecutor.execute(scheduler::startScheduling);
 
         return scheduler;

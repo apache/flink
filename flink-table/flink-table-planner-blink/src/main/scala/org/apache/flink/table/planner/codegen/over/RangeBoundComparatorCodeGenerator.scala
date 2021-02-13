@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{ROW_DATA, newName}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext, ExprCodeGenerator, GenerateUtils}
+import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec.SortFieldSpec
 import org.apache.flink.table.runtime.generated.{GeneratedRecordComparator, RecordComparator}
 import org.apache.flink.table.types.logical.{BigIntType, IntType, LogicalType, LogicalTypeRoot, RowType}
 
@@ -37,7 +38,7 @@ import java.math.BigDecimal
   * A code generator for generating [[RecordComparator]] on the [[RexWindowBound]] based range
   * over window.
   *
-  * @param inType       type of the input
+  * @param inputType       type of the input
   * @param bound        the bound value for the window, its type may be Long or BigDecimal.
   * @param key          key position describe which fields are keys in what order
   * @param keyType      type for the key field.
@@ -47,7 +48,7 @@ import java.math.BigDecimal
 class RangeBoundComparatorCodeGenerator(
     relBuilder: RelBuilder,
     config: TableConfig,
-    inType: RowType,
+    inputType: RowType,
     bound: Any,
     key: Int = -1,
     keyType: LogicalType = null,
@@ -61,8 +62,8 @@ class RangeBoundComparatorCodeGenerator(
 
     val ctx = CodeGeneratorContext(config)
 
-    val inputExpr = GenerateUtils.generateFieldAccess(ctx, inType, inputTerm = input, key)
-    val currentExpr = GenerateUtils.generateFieldAccess(ctx, inType, inputTerm = current, key)
+    val inputExpr = GenerateUtils.generateFieldAccess(ctx, inputType, inputTerm = input, key)
+    val currentExpr = GenerateUtils.generateFieldAccess(ctx, inputType, inputTerm = current, key)
 
     // See RangeSlidingOverFrame:
     //  return -1 with lower bound will be eliminate

@@ -51,6 +51,18 @@ public class ResourceCounterTest extends TestLogger {
         assertTrue(empty.isEmpty());
     }
 
+    @Test(expected = IllegalArgumentException.class)
+    public void testWithResourceRejectsNegativeCount() {
+        ResourceCounter.withResource(ResourceProfile.UNKNOWN, -1);
+    }
+
+    @Test
+    public void testWithResourceCreatesEmptyCounterIfCountIsZero() {
+        final ResourceCounter empty = ResourceCounter.withResource(ResourceProfile.UNKNOWN, 0);
+
+        assertTrue(empty.isEmpty());
+    }
+
     @Test
     public void testIsNonEmpty() {
         final ResourceCounter resourceCounter =

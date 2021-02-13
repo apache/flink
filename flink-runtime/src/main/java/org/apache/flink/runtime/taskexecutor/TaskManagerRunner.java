@@ -25,7 +25,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JMXServerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptionsInternal;
-import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.plugin.PluginUtils;
@@ -34,7 +33,6 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.entrypoint.FlinkParseException;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
@@ -53,6 +51,7 @@ import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
+import org.apache.flink.runtime.security.FlinkSecurityManager;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.taskmanager.MemoryLogger;
@@ -80,11 +79,11 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.flink.runtime.security.ExitTrappingSecurityManager.replaceGracefulExitWithHaltIfConfigured;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -92,15 +91,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * constructs the related components (network, I/O manager, memory manager, RPC service, HA service)
  * and starts them.
  */
-public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync {
+public class TaskManagerRunner implements FatalErrorHandler {
 
     private static final Logger LOG = LoggerFactory.getLogger(TaskManagerRunner.class);
 
     private static final long FATAL_ERROR_SHUTDOWN_TIMEOUT_MS = 10000L;
 
-    private static final int STARTUP_FAILURE_RETURN_CODE = 1;
-
-    @VisibleForTesting static final int RUNTIME_FAILURE_RETURN_CODE = 2;
+    private static final int SUCCESS_EXIT_CODE = 0;
+    @VisibleForTesting static final int FAILURE_EXIT_CODE = 1;
 
     private final Object lock = new Object();
 
@@ -123,7 +121,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 
     private final TaskExecutorService taskExecutorService;
 
-    private final CompletableFuture<Void> terminationFuture;
+    private final CompletableFuture<Result> terminationFuture;
 
     private boolean shutdown;
 
@@ -193,7 +191,8 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
         this.shutdown = false;
         handleUnexpectedTaskExecutorServiceTermination();
 
-        MemoryLogger.startIfConfigured(LOG, configuration, terminationFuture);
+        MemoryLogger.startIfConfigured(
+                LOG, configuration, terminationFuture.thenAccept(ignored -> {}));
     }
 
     private void handleUnexpectedTaskExecutorServiceTermination() {
@@ -220,8 +219,19 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
         taskExecutorService.start();
     }
 
-    @Override
-    public CompletableFuture<Void> closeAsync() {
+    public void close() throws Exception {
+        try {
+            closeAsync().get();
+        } catch (ExecutionException e) {
+            ExceptionUtils.rethrowException(ExceptionUtils.stripExecutionException(e));
+        }
+    }
+
+    public CompletableFuture<Result> closeAsync() {
+        return closeAsync(Result.SUCCESS);
+    }
+
+    private CompletableFuture<Result> closeAsync(Result terminationResult) {
         synchronized (lock) {
             if (!shutdown) {
                 shutdown = true;
@@ -238,7 +248,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
                             if (throwable != null) {
                                 terminationFuture.completeExceptionally(throwable);
                             } else {
-                                terminationFuture.complete(null);
+                                terminationFuture.complete(terminationResult);
                             }
                         });
             }
@@ -291,7 +301,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
     }
 
     // export the termination future for caller to know it is terminated
-    public CompletableFuture<Void> getTerminationFuture() {
+    public CompletableFuture<Result> getTerminationFuture() {
         return terminationFuture;
     }
 
@@ -314,17 +324,15 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
                 && !ExceptionUtils.isMetaspaceOutOfMemoryError(exception)) {
             terminateJVM();
         } else {
-            closeAsync();
+            closeAsync(Result.FAILURE);
 
             FutureUtils.orTimeout(
                     terminationFuture, FATAL_ERROR_SHUTDOWN_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-
-            terminationFuture.whenComplete((Void ignored, Throwable throwable) -> terminateJVM());
         }
     }
 
     private void terminateJVM() {
-        System.exit(RUNTIME_FAILURE_RETURN_CODE);
+        System.exit(FAILURE_EXIT_CODE);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -345,7 +353,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
             LOG.info("Cannot determine the maximum number of open file descriptors");
         }
 
-        runTaskManagerSecurely(args);
+        runTaskManagerProcessSecurely(args);
     }
 
     public static Configuration loadConfiguration(String[] args) throws FlinkParseException {
@@ -353,41 +361,70 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
                 args, TaskManagerRunner.class.getSimpleName());
     }
 
-    public static void runTaskManager(Configuration configuration, PluginManager pluginManager)
+    public static int runTaskManager(Configuration configuration, PluginManager pluginManager)
             throws Exception {
-        final TaskManagerRunner taskManagerRunner =
-                new TaskManagerRunner(
-                        configuration, pluginManager, TaskManagerRunner::createTaskExecutorService);
+        final TaskManagerRunner taskManagerRunner;
 
-        taskManagerRunner.start();
-    }
-
-    public static void runTaskManagerSecurely(String[] args) {
         try {
-            Configuration configuration = loadConfiguration(args);
-            runTaskManagerSecurely(configuration);
+            taskManagerRunner =
+                    new TaskManagerRunner(
+                            configuration,
+                            pluginManager,
+                            TaskManagerRunner::createTaskExecutorService);
+            taskManagerRunner.start();
+        } catch (Exception exception) {
+            throw new FlinkException("Failed to start the TaskManagerRunner.", exception);
+        }
+
+        try {
+            return taskManagerRunner.getTerminationFuture().get().getExitCode();
         } catch (Throwable t) {
-            final Throwable strippedThrowable =
-                    ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
-            LOG.error("TaskManager initialization failed.", strippedThrowable);
-            System.exit(STARTUP_FAILURE_RETURN_CODE);
+            throw new FlinkException(
+                    "Unexpected failure during runtime of TaskManagerRunner.",
+                    ExceptionUtils.stripExecutionException(t));
         }
     }
 
-    public static void runTaskManagerSecurely(Configuration configuration) throws Exception {
-        replaceGracefulExitWithHaltIfConfigured(configuration);
+    public static void runTaskManagerProcessSecurely(String[] args) {
+        Configuration configuration = null;
+
+        try {
+            configuration = loadConfiguration(args);
+        } catch (FlinkParseException fpe) {
+            LOG.error("Could not load the configuration.", fpe);
+            System.exit(FAILURE_EXIT_CODE);
+        }
+
+        runTaskManagerProcessSecurely(checkNotNull(configuration));
+    }
+
+    public static void runTaskManagerProcessSecurely(Configuration configuration) {
+        FlinkSecurityManager.setFromConfiguration(configuration);
         final PluginManager pluginManager =
                 PluginUtils.createPluginManagerFromRootFolder(configuration);
         FileSystem.initialize(configuration, pluginManager);
 
-        SecurityUtils.install(new SecurityConfiguration(configuration));
+        int exitCode;
+        Throwable throwable = null;
 
-        SecurityUtils.getInstalledContext()
-                .runSecured(
-                        () -> {
-                            runTaskManager(configuration, pluginManager);
-                            return null;
-                        });
+        try {
+            SecurityUtils.install(new SecurityConfiguration(configuration));
+
+            exitCode =
+                    SecurityUtils.getInstalledContext()
+                            .runSecured(() -> runTaskManager(configuration, pluginManager));
+        } catch (Throwable t) {
+            throwable = ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
+            exitCode = FAILURE_EXIT_CODE;
+        }
+
+        if (throwable != null) {
+            LOG.error("Terminating TaskManagerRunner with exit code {}.", exitCode, throwable);
+        } else {
+            LOG.info("Terminating TaskManagerRunner with exit code {}.", exitCode);
+        }
+
+        System.exit(exitCode);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -498,16 +535,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
                 metricQueryServiceAddress,
                 blobCacheService,
                 fatalErrorHandler,
-                new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()),
-                createBackPressureSampleService(configuration, rpcService.getScheduledExecutor()));
-    }
-
-    static BackPressureSampleService createBackPressureSampleService(
-            Configuration configuration, ScheduledExecutor scheduledExecutor) {
-        return new BackPressureSampleService(
-                configuration.getInteger(WebOptions.BACKPRESSURE_NUM_SAMPLES),
-                Time.milliseconds(configuration.getInteger(WebOptions.BACKPRESSURE_DELAY)),
-                scheduledExecutor);
+                new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()));
     }
 
     /**
@@ -611,5 +639,20 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
         void start();
 
         CompletableFuture<Void> getTerminationFuture();
+    }
+
+    public enum Result {
+        SUCCESS(SUCCESS_EXIT_CODE),
+        FAILURE(FAILURE_EXIT_CODE);
+
+        private final int exitCode;
+
+        Result(int exitCode) {
+            this.exitCode = exitCode;
+        }
+
+        public int getExitCode() {
+            return exitCode;
+        }
     }
 }

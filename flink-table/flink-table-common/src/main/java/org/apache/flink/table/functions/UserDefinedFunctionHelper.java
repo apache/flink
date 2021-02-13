@@ -25,11 +25,14 @@ import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogFunction;
+import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
 import org.apache.flink.table.functions.python.utils.PythonFunctionUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.extraction.ExtractionUtils;
+import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.util.InstantiationUtil;
 
 import javax.annotation.Nullable;
@@ -43,6 +46,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.getAllDeclaredMethods;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Utility for dealing with subclasses of {@link UserDefinedFunction}. The purpose of this class is
@@ -200,7 +204,7 @@ public final class UserDefinedFunctionHelper {
                     }
                     return (UserDefinedFunction)
                             PythonFunctionUtils.getPythonFunction(
-                                    catalogFunction.getClassName(), config);
+                                    catalogFunction.getClassName(), config, classLoader);
                 case JAVA:
                 case SCALA:
                     final Class<?> functionClass =
@@ -281,6 +285,56 @@ public final class UserDefinedFunctionHelper {
                             functionName,
                             ExtractionUtils.createMethodSignatureString(
                                     methodName, argumentClasses, outputClass)));
+        }
+    }
+
+    /**
+     * Creates the runtime implementation of a {@link FunctionDefinition} as an instance of {@link
+     * UserDefinedFunction}.
+     *
+     * @see SpecializedFunction
+     */
+    public static UserDefinedFunction createSpecializedFunction(
+            String functionName,
+            FunctionDefinition definition,
+            CallContext callContext,
+            ClassLoader builtInClassLoader,
+            @Nullable ReadableConfig configuration) {
+        if (definition instanceof SpecializedFunction) {
+            final SpecializedFunction specialized = (SpecializedFunction) definition;
+            final SpecializedContext specializedContext =
+                    new SpecializedContext() {
+                        @Override
+                        public CallContext getCallContext() {
+                            return callContext;
+                        }
+
+                        @Override
+                        public ReadableConfig getConfiguration() {
+                            if (configuration == null) {
+                                throw new TableException(
+                                        "Access to configuration is currently not supported for all kinds of calls.");
+                            }
+                            return configuration;
+                        }
+
+                        @Override
+                        public ClassLoader getBuiltInClassLoader() {
+                            return builtInClassLoader;
+                        }
+                    };
+            final UserDefinedFunction udf = specialized.specialize(specializedContext);
+            checkState(
+                    udf.getKind() == definition.getKind(),
+                    "Function kind must not change during specialization.");
+            return udf;
+        } else if (definition instanceof UserDefinedFunction) {
+            return (UserDefinedFunction) definition;
+        } else {
+            throw new TableException(
+                    String.format(
+                            "Could not find a runtime implementation for function definition '%s'.",
+                            functionName));
         }
     }
 

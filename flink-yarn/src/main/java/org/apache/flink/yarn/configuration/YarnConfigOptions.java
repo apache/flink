@@ -29,6 +29,10 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.configuration.description.TextElement.text;
+import static org.apache.flink.yarn.configuration.YarnConfigOptions.UserJarInclusion.DISABLED;
+import static org.apache.flink.yarn.configuration.YarnConfigOptions.UserJarInclusion.FIRST;
+import static org.apache.flink.yarn.configuration.YarnConfigOptions.UserJarInclusion.LAST;
+import static org.apache.flink.yarn.configuration.YarnConfigOptions.UserJarInclusion.ORDER;
 
 /**
  * This class holds configuration constants used by Flink's YARN runners.
@@ -40,28 +44,33 @@ public class YarnConfigOptions {
     /** The vcores used by YARN application master. */
     public static final ConfigOption<Integer> APP_MASTER_VCORES =
             key("yarn.appmaster.vcores")
+                    .intType()
                     .defaultValue(1)
                     .withDescription(
                             "The number of virtual cores (vcores) used by YARN application master.");
 
     /**
      * Defines whether user-jars are included in the system class path for per-job-clusters as well
-     * as their positioning in the path. They can be positioned at the beginning ("FIRST"), at the
-     * end ("LAST"), or be positioned based on their name ("ORDER"). "DISABLED" means the user-jars
-     * are excluded from the system class path.
+     * as their positioning in the path. They can be positioned at the beginning (FIRST), at the end
+     * (LAST), or be positioned based on their name (ORDER). DISABLED means the user-jars are
+     * excluded from the system class path.
      */
-    public static final ConfigOption<String> CLASSPATH_INCLUDE_USER_JAR =
+    public static final ConfigOption<UserJarInclusion> CLASSPATH_INCLUDE_USER_JAR =
             key("yarn.per-job-cluster.include-user-jar")
-                    .defaultValue("ORDER")
+                    .enumType(UserJarInclusion.class)
+                    .defaultValue(ORDER)
                     .withDescription(
-                            "Defines whether user-jars are included in the system class path for per-job-clusters as"
-                                    + " well as their positioning in the path. They can be positioned at the beginning (\"FIRST\"), at the"
-                                    + " end (\"LAST\"), or be positioned based on their name (\"ORDER\"). \"DISABLED\" means the user-jars"
-                                    + " are excluded from the system class path.");
+                            String.format(
+                                    "Defines whether user-jars are included in the system class path for per-job-clusters as"
+                                            + " well as their positioning in the path. They can be positioned at the beginning (%s), at the"
+                                            + " end (%s), or be positioned based on their name (%s). %s means the user-jars"
+                                            + " are excluded from the system class path.",
+                                    FIRST.name(), LAST.name(), ORDER.name(), DISABLED.name()));
 
     /** The vcores exposed by YARN. */
     public static final ConfigOption<Integer> VCORES =
             key("yarn.containers.vcores")
+                    .intType()
                     .defaultValue(-1)
                     .withDescription(
                             Description.builder()
@@ -94,13 +103,14 @@ public class YarnConfigOptions {
                                                     + "The restart number is also limited by YARN (configured via %s). "
                                                     + "Note that that the entire Flink cluster will restart and the YARN Client will lose the connection.",
                                             link(
-                                                    "https://hadoop.apache.org/docs/r2.4.1/hadoop-yarn/hadoop-yarn-common/yarn-default.xml",
+                                                    "https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-common/yarn-default.xml",
                                                     "yarn.resourcemanager.am.max-attempts"))
                                     .build());
 
     /** The config parameter defining the attemptFailuresValidityInterval of Yarn application. */
     public static final ConfigOption<Long> APPLICATION_ATTEMPT_FAILURE_VALIDITY_INTERVAL =
             key("yarn.application-attempt-failures-validity-interval")
+                    .longType()
                     .defaultValue(10000L)
                     .withDescription(
                             Description.builder()
@@ -117,6 +127,7 @@ public class YarnConfigOptions {
     /** The heartbeat interval between the Application Master and the YARN Resource Manager. */
     public static final ConfigOption<Integer> HEARTBEAT_DELAY_SECONDS =
             key("yarn.heartbeat.interval")
+                    .intType()
                     .defaultValue(5)
                     .withDeprecatedKeys("yarn.heartbeat-delay")
                     .withDescription(
@@ -128,6 +139,7 @@ public class YarnConfigOptions {
      */
     public static final ConfigOption<Integer> CONTAINER_REQUEST_HEARTBEAT_INTERVAL_MILLISECONDS =
             key("yarn.heartbeat.container-request-interval")
+                    .intType()
                     .defaultValue(500)
                     .withDescription(
                             new Description.DescriptionBuilder()
@@ -153,6 +165,7 @@ public class YarnConfigOptions {
      */
     public static final ConfigOption<String> PROPERTIES_FILE_LOCATION =
             key("yarn.properties-file.location")
+                    .stringType()
                     .noDefaultValue()
                     .withDescription(
                             "When a Flink job is submitted to YARN, the JobManager’s host and the number of available"
@@ -168,6 +181,7 @@ public class YarnConfigOptions {
      */
     public static final ConfigOption<String> APPLICATION_MASTER_PORT =
             key("yarn.application-master.port")
+                    .stringType()
                     .defaultValue("0")
                     .withDescription(
                             "With this configuration option, users can specify a port, a range of ports or a list of ports"
@@ -189,6 +203,7 @@ public class YarnConfigOptions {
      */
     public static final ConfigOption<Integer> APPLICATION_PRIORITY =
             key("yarn.application.priority")
+                    .intType()
                     .defaultValue(-1)
                     .withDescription(
                             "A non-negative integer indicating the priority for submitting a Flink YARN application. It"
@@ -215,6 +230,7 @@ public class YarnConfigOptions {
     /** A comma-separated list of strings to use as YARN application tags. */
     public static final ConfigOption<String> APPLICATION_TAGS =
             key("yarn.tags")
+                    .stringType()
                     .defaultValue("")
                     .withDescription(
                             "A comma-separated list of tags to apply to the Flink YARN application.");
@@ -327,6 +343,39 @@ public class YarnConfigOptions {
                     .noDefaultValue()
                     .withDescription(
                             "A comma-separated list of additional Kerberos-secured Hadoop filesystems Flink is going to access. For example, yarn.security.kerberos.additionalFileSystems=hdfs://namenode2:9002,hdfs://namenode3:9003. The client submitting to YARN needs to have access to these file systems to retrieve the security tokens.");
+
+    @SuppressWarnings("unused")
+    public static final ConfigOption<String> HADOOP_CONFIG_KEY =
+            key("flink.hadoop.<key>")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "A general option to probe Hadoop configuration through prefix 'flink.hadoop.'. Flink will remove the prefix to get <key> (from %s and %s) then set the <key> and value to Hadoop configuration."
+                                                    + " For example, flink.hadoop.dfs.replication=5 in Flink configuration and convert to dfs.replication=5 in Hadoop configuration.",
+                                            link(
+                                                    "https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-common/core-default.xml",
+                                                    "core-default.xml"),
+                                            link(
+                                                    "https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-hdfs/hdfs-default.xml",
+                                                    "hdfs-default.xml"))
+                                    .build());
+
+    @SuppressWarnings("unused")
+    public static final ConfigOption<String> YARN_CONFIG_KEY =
+            key("flink.yarn.<key>")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "A general option to probe Yarn configuration through prefix 'flink.yarn.'. Flink will remove the prefix 'flink.' to get yarn.<key> (from %s) then set the yarn.<key> and value to Yarn configuration."
+                                                    + " For example, flink.yarn.resourcemanager.container.liveness-monitor.interval-ms=300000 in Flink configuration and convert to yarn.resourcemanager.container.liveness-monitor.interval-ms=300000 in Yarn configuration.",
+                                            link(
+                                                    "https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-common/yarn-default.xml",
+                                                    "yarn-default.xml"))
+                                    .build());
 
     /**
      * Defines the configuration key of that external resource in Yarn. This is used as a suffix in

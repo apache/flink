@@ -28,12 +28,12 @@ import org.apache.flink.table.functions.aggfunctions.CountAggFunction
 import org.apache.flink.table.runtime.stream.table.GroupWindowITCase._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, CountDistinctWithMerge, WeightedAvg, WeightedAvgWithMerge}
 import org.apache.flink.table.runtime.utils.StreamITCase
-import org.apache.flink.table.utils.CountMinMax
+import org.apache.flink.table.utils.{CountMinMax, LegacyRowResource}
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 
 import org.junit.Assert._
-import org.junit.{Before, Test}
+import org.junit.{Before, Rule, Test}
 
 import java.math.BigDecimal
 
@@ -42,6 +42,9 @@ import java.math.BigDecimal
   * programs is possible.
   */
 class GroupWindowITCase extends AbstractTestBase {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   val data = List(
     (1L, 1, "Hi"),

@@ -39,12 +39,16 @@ import org.apache.calcite.tools.RuleSets;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.time.Duration;
+
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SOURCE_IDLE_TIMEOUT;
+
 /**
  * Test rule {@link PushWatermarkIntoTableSourceScanAcrossCalcRule} and {@link
  * PushWatermarkIntoTableSourceScanRule}.
  */
 public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
-    private StreamTableTestUtil util = streamTestUtil(new TableConfig());
+    private final StreamTableTestUtil util = streamTestUtil(new TableConfig());
 
     @Before
     public void setup() {
@@ -229,5 +233,27 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
                         + ")";
         util.tableEnv().executeSql(ddl);
         util.verifyRelPlan("SELECT * FROM MyTable");
+    }
+
+    @Test
+    public void testWatermarkWithIdleSource() {
+        util.tableEnv()
+                .getConfig()
+                .getConfiguration()
+                .set(TABLE_EXEC_SOURCE_IDLE_TIMEOUT, Duration.ofMillis(1000));
+        String ddl =
+                "CREATE TABLE MyTable("
+                        + "  a INT,\n"
+                        + "  b BIGINT,\n"
+                        + "  c TIMESTAMP(3),\n"
+                        + "  WATERMARK FOR c AS c - INTERVAL '5' SECOND\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'enable-watermark-push-down' = 'true',\n"
+                        + "  'bounded' = 'false',\n"
+                        + "  'disable-lookup' = 'true'"
+                        + ")";
+        util.tableEnv().executeSql(ddl);
+        util.verifyRelPlan("select a, c from MyTable");
     }
 }

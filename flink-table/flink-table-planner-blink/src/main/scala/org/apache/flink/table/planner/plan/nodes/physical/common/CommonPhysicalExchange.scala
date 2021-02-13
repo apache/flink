@@ -22,7 +22,8 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.cost.FlinkCost._
 import org.apache.flink.table.planner.plan.cost.FlinkCostFactory
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge.RequiredShuffle
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty.RequiredDistribution
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
@@ -39,10 +40,10 @@ import scala.collection.JavaConverters._
 abstract class CommonPhysicalExchange(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    relNode: RelNode,
+    inputRel: RelNode,
     relDistribution: RelDistribution)
-  extends Exchange(cluster, traitSet, relNode, relDistribution)
-    with FlinkPhysicalRel {
+  extends Exchange(cluster, traitSet, inputRel, relDistribution)
+  with FlinkPhysicalRel {
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
     val inputRows = mq.getRowCount(input)
@@ -109,18 +110,18 @@ abstract class CommonPhysicalExchange(
     if (fieldNames.isEmpty) exchangeName else exchangeName + fieldNames
   }
 
-  protected def getRequiredShuffle: RequiredShuffle = {
+  protected def getRequiredDistribution: RequiredDistribution = {
     relDistribution.getType match {
-      case Type.ANY => RequiredShuffle.any()
-      case Type.BROADCAST_DISTRIBUTED => RequiredShuffle.broadcast()
-      case Type.SINGLETON => RequiredShuffle.singleton()
+      case Type.ANY => InputProperty.ANY_DISTRIBUTION
+      case Type.BROADCAST_DISTRIBUTED => InputProperty.BROADCAST_DISTRIBUTION
+      case Type.SINGLETON => InputProperty.SINGLETON_DISTRIBUTION
       case Type.HASH_DISTRIBUTED =>
         val keys = relDistribution.getKeys.asScala.map(_.intValue()).toArray
         if (keys.isEmpty) {
-          RequiredShuffle.singleton()
+          InputProperty.SINGLETON_DISTRIBUTION
         } else {
           // Hash Shuffle requires not empty keys
-          RequiredShuffle.hash(keys)
+          InputProperty.hashDistribution(keys)
         }
       case _ =>
         throw new TableException(s"Unsupported distribution type: ${relDistribution.getType}")

@@ -497,6 +497,9 @@ public class ValuesOperationTreeBuilderTest {
                     new FunctionLookupMock(Collections.emptyMap()),
                     new DataTypeFactoryMock(),
                     name -> Optional.empty(), // do not support
+                    (sqlExpression, inputSchema) -> {
+                        throw new UnsupportedOperationException();
+                    },
                     true);
         }
 

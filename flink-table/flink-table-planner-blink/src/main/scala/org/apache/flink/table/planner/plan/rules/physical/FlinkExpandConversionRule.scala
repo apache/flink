@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.rules.physical
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.`trait`._
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecSort, BatchPhysicalExchange, BatchPhysicalRel}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalSort, BatchPhysicalExchange, BatchPhysicalRel}
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalExchange
 import org.apache.flink.table.planner.plan.rules.physical.FlinkExpandConversionRule._
 
@@ -158,7 +158,7 @@ object FlinkExpandConversionRule {
       val sortCollation = RelCollationTraitDef.INSTANCE.canonize(requiredCollation)
       flinkConvention match {
         case FlinkConventions.BATCH_PHYSICAL =>
-          new BatchExecSort(node.getCluster, traitSet, node, sortCollation)
+          new BatchPhysicalSort(node.getCluster, traitSet, node, sortCollation)
         case _ => throw new TableException(s"Unsupported convention: $flinkConvention")
       }
     } else {

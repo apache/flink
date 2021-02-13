@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connectors.hive.read.HiveCompactReaderFactory;
+import org.apache.flink.connectors.hive.util.HiveConfUtils;
 import org.apache.flink.connectors.hive.write.HiveBulkWriterFactory;
 import org.apache.flink.connectors.hive.write.HiveOutputFormatFactory;
 import org.apache.flink.connectors.hive.write.HiveWriterFactory;
@@ -142,8 +143,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
         checkAcidTable(catalogTable, identifier.toObjectPath());
 
         try (HiveMetastoreClientWrapper client =
-                HiveMetastoreClientFactory.create(
-                        new HiveConf(jobConf, HiveConf.class), hiveVersion)) {
+                HiveMetastoreClientFactory.create(HiveConfUtils.create(jobConf), hiveVersion)) {
             Table table = client.getTable(identifier.getDatabaseName(), identifier.getObjectName());
             StorageDescriptor sd = table.getSd();
 

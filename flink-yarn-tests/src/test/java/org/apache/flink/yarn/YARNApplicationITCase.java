@@ -134,7 +134,7 @@ public class YARNApplicationITCase extends YarnTestBase {
         configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1g"));
         configuration.setString(AkkaOptions.ASK_TIMEOUT, "30 s");
         configuration.set(DeploymentOptions.TARGET, YarnDeploymentTarget.APPLICATION.getName());
-        configuration.setString(CLASSPATH_INCLUDE_USER_JAR, userJarInclusion.toString());
+        configuration.set(CLASSPATH_INCLUDE_USER_JAR, userJarInclusion);
         configuration.set(PipelineOptions.JARS, Collections.singletonList(userJar.toString()));
 
         return configuration;

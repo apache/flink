@@ -296,6 +296,7 @@ public class SingleInputGate extends IndexedInputGate {
 
     @VisibleForTesting
     void convertRecoveredInputChannels() {
+        LOG.info("Converting recovered input channels ({} channels)", getNumberOfInputChannels());
         for (Map.Entry<IntermediateResultPartitionID, InputChannel> entry :
                 inputChannels.entrySet()) {
             InputChannel inputChannel = entry.getValue();
@@ -855,6 +856,12 @@ public class SingleInputGate extends IndexedInputGate {
                     // priority event at the given offset already polled (notification is not atomic
                     // in respect to
                     // buffer enqueuing), so just ignore the notification
+                    return;
+                }
+
+                if (channel.isReleased()) {
+                    // when channel is closed, EndOfPartitionEvent is send and a final notification
+                    // if EndOfPartitionEvent causes a release, we must ignore the notification
                     return;
                 }
 

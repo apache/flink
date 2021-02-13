@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.jobgraph;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplitSource;
@@ -27,6 +26,7 @@ import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroupImpl;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.util.Preconditions;
@@ -110,7 +110,7 @@ public class JobVertex implements java.io.Serializable {
     @Nullable private SlotSharingGroup slotSharingGroup;
 
     /** The group inside which the vertex subtasks share slots. */
-    @Nullable private CoLocationGroup coLocationGroup;
+    @Nullable private CoLocationGroupImpl coLocationGroup;
 
     /**
      * Optional, the name of the operator, such as 'Flat Map' or 'Join', to be included in the JSON
@@ -132,9 +132,6 @@ public class JobVertex implements java.io.Serializable {
      * JSON plan.
      */
     private String resultOptimizerProperties;
-
-    /** The input dependency constraint to schedule this vertex. */
-    private InputDependencyConstraint inputDependencyConstraint = InputDependencyConstraint.ANY;
 
     // --------------------------------------------------------------------------------------------
 
@@ -381,10 +378,10 @@ public class JobVertex implements java.io.Serializable {
         checkNotNull(grp);
 
         if (this.slotSharingGroup != null) {
-            this.slotSharingGroup.removeVertexFromGroup(this.getID(), this.getMinResources());
+            this.slotSharingGroup.removeVertexFromGroup(this.getID());
         }
 
-        grp.addVertexToGroup(this.getID(), this.getMinResources());
+        grp.addVertexToGroup(this.getID());
         this.slotSharingGroup = grp;
     }
 
@@ -429,12 +426,12 @@ public class JobVertex implements java.io.Serializable {
                     "Strict co-location requires that both vertices are in the same slot sharing group.");
         }
 
-        CoLocationGroup thisGroup = this.coLocationGroup;
-        CoLocationGroup otherGroup = strictlyCoLocatedWith.coLocationGroup;
+        CoLocationGroupImpl thisGroup = this.coLocationGroup;
+        CoLocationGroupImpl otherGroup = strictlyCoLocatedWith.coLocationGroup;
 
         if (otherGroup == null) {
             if (thisGroup == null) {
-                CoLocationGroup group = new CoLocationGroup(this, strictlyCoLocatedWith);
+                CoLocationGroupImpl group = new CoLocationGroupImpl(this, strictlyCoLocatedWith);
                 this.coLocationGroup = group;
                 strictlyCoLocatedWith.coLocationGroup = group;
             } else {
@@ -457,7 +454,7 @@ public class JobVertex implements java.io.Serializable {
         return coLocationGroup;
     }
 
-    public void updateCoLocationGroup(CoLocationGroup group) {
+    public void updateCoLocationGroup(CoLocationGroupImpl group) {
         this.coLocationGroup = group;
     }
 
@@ -575,14 +572,6 @@ public class JobVertex implements java.io.Serializable {
 
     public void setResultOptimizerProperties(String resultOptimizerProperties) {
         this.resultOptimizerProperties = resultOptimizerProperties;
-    }
-
-    public InputDependencyConstraint getInputDependencyConstraint() {
-        return inputDependencyConstraint;
-    }
-
-    public void setInputDependencyConstraint(InputDependencyConstraint inputDependencyConstraint) {
-        this.inputDependencyConstraint = inputDependencyConstraint;
     }
 
     // --------------------------------------------------------------------------------------------

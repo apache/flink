@@ -25,13 +25,14 @@ import org.apache.flink.table.catalog.DataTypeFactory
 import org.apache.flink.table.connector.source.{LookupTableSource, ScanTableSource}
 import org.apache.flink.table.data.utils.JoinedRowData
 import org.apache.flink.table.data.{GenericRowData, RowData}
-import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction, UserDefinedFunction}
+import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction, UserDefinedFunction, UserDefinedFunctionHelper}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils._
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil
 import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil.verifyFunctionAwareImplementation
+import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.inference.LookupCallContext
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil.{ConstantLookupKey, FieldRefLookupKey, LookupKey}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
@@ -53,6 +54,9 @@ import scala.collection.JavaConverters._
 
 object LookupJoinCodeGenerator {
 
+  case class GeneratedTableFunctionWithDataType[F <: Function](
+      tableFunc: GeneratedFunction[F], dataType: DataType)
+
   private val ARRAY_LIST = className[util.ArrayList[_]]
 
   /**
@@ -64,7 +68,7 @@ object LookupJoinCodeGenerator {
       inputType: LogicalType,
       tableSourceType: LogicalType,
       returnType: LogicalType,
-      lookupKeys: Map[Int, LookupKey],
+      lookupKeys: util.Map[Integer, LookupKey],
       lookupKeyOrder: Array[Int],
       syncLookupFunction: TableFunction[_],
       functionName: String,
@@ -79,7 +83,7 @@ object LookupJoinCodeGenerator {
          |""".stripMargin
     }
 
-    val (function, _) = generateLookupFunction(
+    generateLookupFunction(
       classOf[FlatMapFunction[RowData, RowData]],
       config,
       dataTypeFactory,
@@ -92,9 +96,7 @@ object LookupJoinCodeGenerator {
       syncLookupFunction,
       functionName,
       fieldCopy,
-      bodyCode)
-
-    function
+      bodyCode).tableFunc
   }
 
   /**
@@ -106,11 +108,11 @@ object LookupJoinCodeGenerator {
       inputType: LogicalType,
       tableSourceType: LogicalType,
       returnType: LogicalType,
-      lookupKeys: Map[Int, LookupKey],
+      lookupKeys: util.Map[Integer, LookupKey],
       lookupKeyOrder: Array[Int],
       asyncLookupFunction: AsyncTableFunction[_],
       functionName: String)
-    : (GeneratedFunction[AsyncFunction[RowData, AnyRef]], DataType) = {
+    : GeneratedTableFunctionWithDataType[AsyncFunction[RowData, AnyRef]] = {
 
     generateLookupFunction(
       classOf[AsyncFunction[RowData, AnyRef]],
@@ -128,39 +130,43 @@ object LookupJoinCodeGenerator {
       _.code)
   }
 
-   private def generateLookupFunction[F <: Function](
+  private def generateLookupFunction[F <: Function](
       generatedClass: Class[F],
       config: TableConfig,
       dataTypeFactory: DataTypeFactory,
       inputType: LogicalType,
       tableSourceType: LogicalType,
       returnType: LogicalType,
-      lookupKeys: Map[Int, LookupKey],
+      lookupKeys: util.Map[Integer, LookupKey],
       lookupKeyOrder: Array[Int],
       lookupFunctionBase: Class[_],
       lookupFunction: UserDefinedFunction,
       functionName: String,
       fieldCopy: Boolean,
       bodyCode: GeneratedExpression => String)
-    : (GeneratedFunction[F], DataType) = {
+    : GeneratedTableFunctionWithDataType[F] = {
 
     val callContext = new LookupCallContext(
       dataTypeFactory,
       lookupFunction,
       inputType,
-      lookupKeys
-          .map { case (k, v) =>
-            (Int.box(k), v)
-          }
-          .asJava,
+      lookupKeys,
       lookupKeyOrder,
       tableSourceType)
+
+    // create the final UDF for runtime
+    val udf = UserDefinedFunctionHelper.createSpecializedFunction(
+      functionName,
+      lookupFunction,
+      callContext,
+      classOf[PlannerBase].getClassLoader,
+      config.getConfiguration)
 
     val inference = createLookupTypeInference(
       dataTypeFactory,
       callContext,
       lookupFunctionBase,
-      lookupFunction,
+      udf,
       functionName)
 
     val ctx = CodeGeneratorContext(config)
@@ -176,7 +182,7 @@ object LookupJoinCodeGenerator {
       tableSourceType,
       inference,
       callContext,
-      lookupFunction,
+      udf,
       functionName,
       // TODO: filter all records when there is any nulls on the join key, because
       //  "IS NOT DISTINCT FROM" is not supported yet.
@@ -190,26 +196,27 @@ object LookupJoinCodeGenerator {
       returnType,
       inputType)
 
-     (function, callWithDataType._2)
+     GeneratedTableFunctionWithDataType(function, callWithDataType._2)
   }
 
   private def prepareOperands(
       ctx: CodeGeneratorContext,
       inputType: LogicalType,
-      lookupKeys: Map[Int, LookupKey],
+      lookupKeys: util.Map[Integer, LookupKey],
       lookupKeyOrder: Array[Int],
       fieldCopy: Boolean)
     : Seq[GeneratedExpression] = {
 
     lookupKeyOrder
+        .map(Integer.valueOf)
         .map(lookupKeys.get)
         .map {
-          case Some(constantKey: ConstantLookupKey) =>
+          case constantKey: ConstantLookupKey =>
             generateLiteral(
               ctx,
               constantKey.sourceType,
               constantKey.literal.getValue3)
-          case Some(fieldKey: FieldRefLookupKey) =>
+          case fieldKey: FieldRefLookupKey =>
             generateInputAccess(
               ctx,
               inputType,

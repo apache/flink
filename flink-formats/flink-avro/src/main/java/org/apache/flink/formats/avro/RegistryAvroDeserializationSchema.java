@@ -64,7 +64,10 @@ public class RegistryAvroDeserializationSchema<T> extends AvroDeserializationSch
     }
 
     @Override
-    public T deserialize(byte[] message) throws IOException {
+    public T deserialize(@Nullable byte[] message) throws IOException {
+        if (message == null) {
+            return null;
+        }
         checkAvroInitialized();
         getInputStream().setBuffer(message);
         Schema writerSchema = schemaCoder.readSchema(getInputStream());

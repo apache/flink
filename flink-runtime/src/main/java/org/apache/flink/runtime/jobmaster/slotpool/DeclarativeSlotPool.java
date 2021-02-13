@@ -56,6 +56,13 @@ public interface DeclarativeSlotPool {
     void decreaseResourceRequirementsBy(ResourceCounter decrement);
 
     /**
+     * Sets the resource requirements to the given resourceRequirements.
+     *
+     * @param resourceRequirements new resource requirements
+     */
+    void setResourceRequirements(ResourceCounter resourceRequirements);
+
+    /**
      * Returns the current resource requirements.
      *
      * @return current resource requirements

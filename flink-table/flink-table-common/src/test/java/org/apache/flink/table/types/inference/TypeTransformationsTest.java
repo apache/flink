@@ -24,7 +24,9 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.types.utils.TypeConversions;
 
@@ -127,12 +129,13 @@ public class TypeTransformationsTest {
 
         TypeInformation<TypeTransformationsTest> typeInformation =
                 TypeExtractor.getForClass(TypeTransformationsTest.class);
+        DataType rawDataType = new AtomicDataType(new TypeInformationRawType<>(typeInformation));
         DataType expected =
                 DataTypes.ROW(
                         DataTypes.FIELD("a", DataTypes.STRING()),
                         DataTypes.FIELD("b", DataTypes.DECIMAL(10, 3)),
-                        DataTypes.FIELD("c", DataTypes.RAW(typeInformation)),
-                        DataTypes.FIELD("d", DataTypes.ARRAY(DataTypes.RAW(typeInformation))));
+                        DataTypes.FIELD("c", rawDataType),
+                        DataTypes.FIELD("d", DataTypes.ARRAY(rawDataType)));
 
         assertEquals(expected, DataTypeUtils.transform(dataType, legacyRawToTypeInfoRaw()));
     }

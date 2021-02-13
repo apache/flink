@@ -93,8 +93,9 @@ class DataStreamPythonCorrelate(
 
     val sqlFunction = pythonTableFuncRexCall.getOperator.asInstanceOf[TableSqlFunction]
 
+    val config = getMergedConfig(planner.getExecutionEnvironment, planner.getConfig)
     val pythonOperator = getPythonTableFunctionOperator(
-      getConfig(planner.getExecutionEnvironment, planner.getConfig),
+      config,
       pythonOperatorInputRowType,
       pythonOperatorOutputRowType,
       pythonFunctionInfo,
@@ -114,7 +115,7 @@ class DataStreamPythonCorrelate(
       // keep parallelism to ensure order of accumulate and retract messages
       .setParallelism(inputDataStream.getParallelism)
 
-    if (isPythonWorkerUsingManagedMemory(planner.getConfig.getConfiguration)) {
+    if (isPythonWorkerUsingManagedMemory(config)) {
       ret.getTransformation.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON)
     }
     ret

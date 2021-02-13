@@ -42,7 +42,7 @@ Calc(select=[CASE((w0$o0 > 0:BIGINT), w0$o1, null:INTEGER) AS EXPR$0, w1$o0 AS E
       +- Exchange(distribution=[hash[c]])
          +- OverAggregate(partitionBy=[b], orderBy=[c ASC], window#0=[MAX(a) AS w1$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0, w0$o1, w0$o2, w1$o0])
             +- Sort(orderBy=[b ASC, c ASC])
-               +- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1, RANK(*) AS w0$o2 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], window#1=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0, w0$o1, w0$o2])
+               +- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], window#1=[RANK(*) AS w0$o2 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0, w0$o1, w0$o2])
                   +- Sort(orderBy=[b ASC, a ASC])
                      +- Exchange(distribution=[hash[b]])
                         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -73,7 +73,7 @@ Calc(select=[CASE((w0$o0 > 0:BIGINT), w0$o1, null:INTEGER) AS EXPR$0, w1$o0 AS E
 +- OverAggregate(partitionBy=[c], orderBy=[a ASC], window#0=[MAX(a) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o2, w1$o0, w0$o1, w3$o0, w3$o1, w2$o0, w0$o0])
    +- Sort(orderBy=[c ASC, a ASC])
       +- Exchange(distribution=[hash[c]])
-         +- OverAggregate(partitionBy=[b], orderBy=[c ASC], window#0=[COUNT(a) AS w3$o0, $SUM0(a) AS w3$o1, RANK(*) AS w2$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], window#1=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o2, w1$o0, w0$o1, w3$o0, w3$o1, w2$o0])
+         +- OverAggregate(partitionBy=[b], orderBy=[c ASC], window#0=[COUNT(a) AS w3$o0, $SUM0(a) AS w3$o1 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], window#1=[RANK(*) AS w2$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o2, w1$o0, w0$o1, w3$o0, w3$o1, w2$o0])
             +- Sort(orderBy=[b ASC, c ASC])
                +- Exchange(distribution=[hash[b]])
                   +- OverAggregate(orderBy=[c ASC, a ASC], window#0=[MIN(a) AS w0$o1 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o2, w1$o0, w0$o1])
@@ -255,10 +255,10 @@ LogicalProject(c=[$2], EXPR$1=[COUNT() OVER (PARTITION BY $2)])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS $1])
-+- OverAggregate(partitionBy=[c], window#0=[COUNT(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[a, b, c, w0$o0])
-   +- Sort(orderBy=[c ASC])
-      +- Exchange(distribution=[hash[c]])
+OverAggregate(partitionBy=[c], window#0=[COUNT(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[c, w0$o0])
++- Sort(orderBy=[c ASC])
+   +- Exchange(distribution=[hash[c]])
+      +- Calc(select=[c])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -295,9 +295,9 @@ LogicalProject(c=[$2], EXPR$1=[COUNT() OVER ()])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS $1])
-+- OverAggregate(window#0=[COUNT(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[a, b, c, w0$o0])
-   +- Exchange(distribution=[single])
+OverAggregate(window#0=[COUNT(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[c, w0$o0])
++- Exchange(distribution=[single])
+   +- Calc(select=[c])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -365,10 +365,11 @@ LogicalProject(EXPR$0=[RANK() OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST, $2 
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[w0$o0 AS $0])
-+- OverAggregate(partitionBy=[c], orderBy=[a ASC, c ASC], window#0=[RANK(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0])
++- OverAggregate(partitionBy=[c], orderBy=[a ASC, c ASC], window#0=[RANK(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, w0$o0])
    +- Sort(orderBy=[c ASC, a ASC])
       +- Exchange(distribution=[hash[c]])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- Calc(select=[a, c])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -438,7 +439,7 @@ LogicalProject(EXPR$0=[CASE(>(COUNT($0) OVER (PARTITION BY $1 ORDER BY $2 NULLS 
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[CASE((w0$o0 > 0:BIGINT), w0$o1, null:INTEGER) AS EXPR$0, w1$o0 AS EXPR$1, CAST((CASE((w2$o0 > 0:BIGINT), w2$o1, null:INTEGER) / w2$o0)) AS EXPR$2, w0$o2 AS EXPR$3, w1$o1 AS EXPR$4])
-+- OverAggregate(partitionBy=[b], orderBy=[c ASC], window#0=[COUNT(a) AS w2$o0, $SUM0(a) AS w2$o1, RANK(*) AS w1$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], window#1=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o1, w0$o2, w1$o1, w0$o0, w2$o0, w2$o1, w1$o0])
++- OverAggregate(partitionBy=[b], orderBy=[c ASC], window#0=[COUNT(a) AS w2$o0, $SUM0(a) AS w2$o1 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], window#1=[RANK(*) AS w1$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o1, w0$o2, w1$o1, w0$o0, w2$o0, w2$o1, w1$o0])
    +- Sort(orderBy=[b ASC, c ASC])
       +- OverAggregate(partitionBy=[b], orderBy=[b ASC], window#0=[MAX(a) AS w1$o1, MIN(a) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o1, w0$o2, w1$o1, w0$o0])
          +- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[COUNT(a) AS w0$o1, $SUM0(a) AS w0$o2 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o1, w0$o2])
@@ -530,7 +531,7 @@ LogicalProject(EXPR$0=[CASE(>(COUNT($0) OVER (PARTITION BY $1 ORDER BY $0 NULLS 
 Calc(select=[CASE((w0$o0 > 0:BIGINT), w0$o1, null:INTEGER) AS EXPR$0, w0$o2 AS EXPR$1, CAST((CASE((w1$o0 > 0:BIGINT), w1$o1, null:INTEGER) / w1$o0)) AS EXPR$2, w0$o3 AS EXPR$3, w1$o2 AS EXPR$4])
 +- OverAggregate(partitionBy=[b], orderBy=[a DESC], window#0=[COUNT(a) AS w1$o0, $SUM0(a) AS w1$o1, MIN(a) AS w1$o2 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0, w0$o1, w0$o2, w0$o3, w1$o0, w1$o1, w1$o2])
    +- Sort(orderBy=[b ASC, a DESC])
-      +- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1, MAX(a) AS w0$o2, RANK(*) AS w0$o3 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], window#1=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0, w0$o1, w0$o2, w0$o3])
+      +- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1, MAX(a) AS w0$o2 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], window#1=[RANK(*) AS w0$o3 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0, w0$o1, w0$o2, w0$o3])
          +- Sort(orderBy=[b ASC, a ASC])
             +- Exchange(distribution=[hash[b]])
                +- Calc(select=[a, b])

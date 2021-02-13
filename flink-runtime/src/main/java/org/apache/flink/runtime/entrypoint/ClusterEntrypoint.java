@@ -26,9 +26,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JMXServerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginManager;
@@ -56,6 +58,7 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
+import org.apache.flink.runtime.security.FlinkSecurityManager;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.security.contexts.SecurityContext;
@@ -91,8 +94,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.apache.flink.runtime.security.ExitTrappingSecurityManager.replaceGracefulExitWithHaltIfConfigured;
-
 /**
  * Base class for the Flink cluster entry points.
  *
@@ -100,7 +101,7 @@ import static org.apache.flink.runtime.security.ExitTrappingSecurityManager.repl
  */
 public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErrorHandler {
 
-    public static final ConfigOption<String> EXECUTION_MODE =
+    public static final ConfigOption<String> INTERNAL_CLUSTER_EXECUTION_MODE =
             ConfigOptions.key("internal.cluster.execution-mode")
                     .defaultValue(ExecutionMode.NORMAL.toString());
 
@@ -152,6 +153,16 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         this.configuration = generateClusterConfiguration(configuration);
         this.terminationFuture = new CompletableFuture<>();
 
+        if (configuration.get(JobManagerOptions.SCHEDULER_MODE) == SchedulerExecutionMode.REACTIVE
+                && !supportsReactiveMode()) {
+            final String msg =
+                    "Reactive mode is configured for an unsupported cluster type. At the moment, reactive mode is only supported by standalone application clusters (bin/standalone-job.sh).";
+            // log message as well, otherwise the error is only shown in the .out file of the
+            // cluster
+            LOG.error(msg);
+            throw new IllegalConfigurationException(msg);
+        }
+
         shutDownHook =
                 ShutdownHookUtil.addShutdownHook(
                         this::cleanupDirectories, getClass().getSimpleName(), LOG);
@@ -165,7 +176,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         LOG.info("Starting {}.", getClass().getSimpleName());
 
         try {
-            replaceGracefulExitWithHaltIfConfigured(configuration);
+            FlinkSecurityManager.setFromConfiguration(configuration);
             PluginManager pluginManager =
                     PluginUtils.createPluginManagerFromRootFolder(configuration);
             configureFileSystems(configuration, pluginManager);
@@ -202,6 +213,10 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                             getClass().getSimpleName()),
                     strippedThrowable);
         }
+    }
+
+    protected boolean supportsReactiveMode() {
+        return false;
     }
 
     private void configureFileSystems(Configuration configuration, PluginManager pluginManager) {
@@ -507,7 +522,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
      *
      * @throws IOException if the temporary directories could not be cleaned up
      */
-    private void cleanupDirectories() throws IOException {
+    protected void cleanupDirectories() throws IOException {
         ShutdownHookUtil.removeShutdownHook(shutDownHook, getClass().getSimpleName(), LOG);
 
         final String webTmpDir = configuration.getString(WebOptions.TMP_DIR);
@@ -574,25 +589,22 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             System.exit(STARTUP_FAILURE_RETURN_CODE);
         }
 
-        clusterEntrypoint
-                .getTerminationFuture()
-                .whenComplete(
-                        (applicationStatus, throwable) -> {
-                            final int returnCode;
+        int returnCode;
+        Throwable throwable = null;
 
-                            if (throwable != null) {
-                                returnCode = RUNTIME_FAILURE_RETURN_CODE;
-                            } else {
-                                returnCode = applicationStatus.processExitCode();
-                            }
+        try {
+            returnCode = clusterEntrypoint.getTerminationFuture().get().processExitCode();
+        } catch (Throwable e) {
+            throwable = ExceptionUtils.stripExecutionException(e);
+            returnCode = RUNTIME_FAILURE_RETURN_CODE;
+        }
 
-                            LOG.info(
-                                    "Terminating cluster entrypoint process {} with exit code {}.",
-                                    clusterEntrypointName,
-                                    returnCode,
-                                    throwable);
-                            System.exit(returnCode);
-                        });
+        LOG.info(
+                "Terminating cluster entrypoint process {} with exit code {}.",
+                clusterEntrypointName,
+                returnCode,
+                throwable);
+        System.exit(returnCode);
     }
 
     /** Execution mode of the {@link MiniDispatcher}. */

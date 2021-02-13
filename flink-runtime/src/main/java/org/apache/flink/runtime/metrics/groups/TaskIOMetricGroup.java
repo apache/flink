@@ -19,11 +19,13 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MeterView;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.metrics.TimerGauge;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -45,7 +47,11 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
     private final Meter numRecordsInRate;
     private final Meter numRecordsOutRate;
     private final Meter numBuffersOutRate;
-    private final Meter idleTimePerSecond;
+    private final TimerGauge idleTimePerSecond;
+    private final Gauge busyTimePerSecond;
+    private final TimerGauge backPressuredTimePerSecond;
+
+    private volatile boolean busyTimeEnabled;
 
     public TaskIOMetricGroup(TaskMetricGroup parent) {
         super(parent);
@@ -66,8 +72,10 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
         this.numBuffersOutRate =
                 meter(MetricNames.IO_NUM_BUFFERS_OUT_RATE, new MeterView(numBuffersOut));
 
-        this.idleTimePerSecond =
-                meter(MetricNames.TASK_IDLE_TIME, new MeterView(new SimpleCounter()));
+        this.idleTimePerSecond = gauge(MetricNames.TASK_IDLE_TIME, new TimerGauge());
+        this.backPressuredTimePerSecond =
+                gauge(MetricNames.TASK_BACK_PRESSURED_TIME, new TimerGauge());
+        this.busyTimePerSecond = gauge(MetricNames.TASK_BUSY_TIME, this::getBusyTimePerSecond);
     }
 
     public IOMetrics createSnapshot() {
@@ -98,8 +106,21 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
         return numBuffersOut;
     }
 
-    public Meter getIdleTimeMsPerSecond() {
+    public TimerGauge getIdleTimeMsPerSecond() {
         return idleTimePerSecond;
+    }
+
+    public TimerGauge getBackPressuredTimePerSecond() {
+        return backPressuredTimePerSecond;
+    }
+
+    public void setEnableBusyTime(boolean enabled) {
+        busyTimeEnabled = enabled;
+    }
+
+    private double getBusyTimePerSecond() {
+        double busyTime = idleTimePerSecond.getValue() + backPressuredTimePerSecond.getValue();
+        return busyTimeEnabled ? 1000.0 - Math.min(busyTime, 1000.0) : Double.NaN;
     }
 
     // ============================================================================================

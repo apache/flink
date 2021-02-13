@@ -21,10 +21,18 @@ package org.apache.flink.table.planner.plan.nodes.exec;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.delegation.Planner;
+import org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonDeserializer;
+import org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitor;
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeInfo;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import java.util.List;
 
@@ -33,14 +41,21 @@ import java.util.List;
  *
  * @param <T> The type of the elements that result from this node.
  */
+@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.PROPERTY, property = "class")
 public interface ExecNode<T> {
 
-    /**
-     * Returns a string which describes this node. TODO rename to `getDescription` once all
-     * ExecNodes do not extend from FlinkPhysicalRel, because RelNode already has `getDescription`
-     * method.
-     */
-    String getDesc();
+    String FIELD_NAME_ID = "id";
+    String FIELD_NAME_DESCRIPTION = "description";
+    String FIELD_NAME_INPUT_PROPERTIES = "inputProperties";
+    String FIELD_NAME_OUTPUT_TYPE = "outputType";
+
+    /** Gets the ID of this node. */
+    @JsonProperty(value = FIELD_NAME_ID)
+    int getId();
+
+    /** Returns a string which describes this node. */
+    @JsonProperty(value = FIELD_NAME_DESCRIPTION)
+    String getDescription();
 
     /**
      * Returns the output {@link LogicalType} of this node, this type should be consistent with the
@@ -50,40 +65,46 @@ public interface ExecNode<T> {
      * to the JavaDoc of {@link RowData} for more info about mapping of logical types to internal
      * data structures.
      */
+    @JsonProperty(value = FIELD_NAME_OUTPUT_TYPE)
+    @JsonSerialize(using = LogicalTypeJsonSerializer.class)
+    @JsonDeserialize(using = LogicalTypeJsonDeserializer.class)
     LogicalType getOutputType();
 
     /**
-     * Returns a list of this node's input nodes. If there are no inputs, returns an empty list, not
-     * null.
+     * Returns a list of this node's input properties.
      *
-     * @return List of this node's input nodes
+     * <p>NOTE: If there are no inputs, returns an empty list, not null.
+     *
+     * @return List of this node's input properties.
      */
-    List<ExecNode<?>> getInputNodes();
+    @JsonProperty(value = FIELD_NAME_INPUT_PROPERTIES)
+    List<InputProperty> getInputProperties();
 
     /**
-     * Returns a list of this node's input edges. If there are no inputs, returns an empty list, not
-     * null.
+     * Returns a list of this node's input {@link ExecEdge}s.
      *
-     * @return List of this node's input edges
+     * <p>NOTE: If there are no inputs, returns an empty list, not null.
      */
+    @JsonIgnore
     List<ExecEdge> getInputEdges();
 
     /**
-     * Replaces the <code>ordinalInParent</code><sup>th</sup> input. Once we introduce source node
-     * and target node for {@link ExecEdge}, we will remove this method.
+     * Sets the input {@link ExecEdge}s which connect this nodes and its input nodes.
      *
-     * @param ordinalInParent Position of the child input, 0 is the first
-     * @param newInputNode New node that should be put at position ordinalInParent
+     * <p>NOTE: If there are no inputs, the given inputEdges should be empty, not null.
+     *
+     * @param inputEdges the input {@link ExecEdge}s.
      */
-    void replaceInputNode(int ordinalInParent, ExecNode<?> newInputNode);
+    @JsonIgnore
+    void setInputEdges(List<ExecEdge> inputEdges);
 
     /**
-     * Replaces the <code>ordinalInParent</code><sup>th</sup> edge.
+     * Replaces the <code>ordinalInParent</code><sup>th</sup> input edge.
      *
-     * @param ordinalInParent Position of the child input, 0 is the first
-     * @param newInputEdge New edge that should be put at position ordinalInParent
+     * @param index Position of the child input edge, 0 is the first.
+     * @param newInputEdge New edge that should be put at position `index`.
      */
-    void replaceInputEdge(int ordinalInParent, ExecEdge newInputEdge);
+    void replaceInputEdge(int index, ExecEdge newInputEdge);
 
     /**
      * Translates this node into a Flink operator.
@@ -97,7 +118,7 @@ public interface ExecNode<T> {
     /**
      * Accepts a visit from a {@link ExecNodeVisitor}.
      *
-     * @param visitor ExecNodeVisitor
+     * @param visitor ExecNodeVisitor.
      */
     void accept(ExecNodeVisitor visitor);
 }

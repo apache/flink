@@ -73,12 +73,12 @@ public class BatchMultipleInputStreamOperator extends MultipleInputStreamOperato
                 multipleInputOperatorParameters
                                 .getStreamConfig()
                                 .getManagedMemoryFractionOperatorUseCaseOfSlot(
-                                        ManagedMemoryUseCase.BATCH_OP,
+                                        ManagedMemoryUseCase.OPERATOR,
                                         taskManagerConfig,
                                         getRuntimeContext().getUserCodeClassLoader())
                         * wrapper.getManagedMemoryFraction();
         streamConfig.setManagedMemoryFractionOperatorOfUseCase(
-                ManagedMemoryUseCase.BATCH_OP, managedMemoryFraction);
+                ManagedMemoryUseCase.OPERATOR, managedMemoryFraction);
         return streamConfig;
     }
 }

@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -188,5 +189,25 @@ public class WorkerResourceSpecTest extends TestLogger {
         assertEquals(
                 workerResourceSpec.getManagedMemSize(),
                 taskExecutorProcessSpec.getManagedMemorySize());
+    }
+
+    @Test
+    public void testCreateFromResourceProfile() {
+        final ResourceProfile resourceProfile =
+                ResourceProfile.newBuilder()
+                        .setCpuCores(1)
+                        .setManagedMemoryMB(100)
+                        .setNetworkMemoryMB(100)
+                        .setTaskOffHeapMemoryMB(10)
+                        .setTaskHeapMemoryMB(10)
+                        .build();
+        final WorkerResourceSpec workerResourceSpec =
+                WorkerResourceSpec.fromTotalResourceProfile(resourceProfile);
+        assertEquals(workerResourceSpec.getCpuCores(), resourceProfile.getCpuCores());
+        assertEquals(workerResourceSpec.getTaskHeapSize(), resourceProfile.getTaskHeapMemory());
+        assertEquals(
+                workerResourceSpec.getTaskOffHeapSize(), resourceProfile.getTaskOffHeapMemory());
+        assertEquals(workerResourceSpec.getNetworkMemSize(), resourceProfile.getNetworkMemory());
+        assertEquals(workerResourceSpec.getManagedMemSize(), resourceProfile.getManagedMemory());
     }
 }

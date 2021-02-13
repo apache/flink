@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.utils;
 
-import org.apache.flink.table.planner.plan.nodes.calcite.LegacySink;
-import org.apache.flink.table.planner.plan.nodes.calcite.Sink;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
+import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecLegacySink;
+import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecSink;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitor;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitorImpl;
 import org.apache.flink.util.Preconditions;
@@ -32,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -91,6 +94,14 @@ public class ExecNodePlanDumper {
                 new ArrayList<>(checkNotNull(borders, "borders should not be null."));
         TreeReuseInfo reuseInfo = new TreeReuseInfo(node, borderList);
         return doConvertTreeToString(node, reuseInfo, true, borderList, includingBorders);
+    }
+
+    /**
+     * Converts an {@link ExecNodeGraph} to a string as a tree style. see {@link
+     * #dagToString(List)}.
+     */
+    public static String dagToString(ExecNodeGraph execGraph) {
+        return dagToString(execGraph.getRootNodes());
     }
 
     /**
@@ -158,8 +169,8 @@ public class ExecNodePlanDumper {
 
                         int reuseId = reuseInfo.getReuseId(node);
                         boolean isReuseNode = reuseId >= 0;
-                        if (node instanceof LegacySink
-                                || node instanceof Sink
+                        if (node instanceof CommonExecLegacySink
+                                || node instanceof CommonExecSink
                                 || (isReuseNode && isFirstVisit)) {
                             if (isReuseNode) {
                                 reuseInfo.setFirstVisited(node, true);
@@ -349,7 +360,7 @@ public class ExecNodePlanDumper {
             if (isReuseNode && !firstVisited) {
                 sb.append("Reused");
             } else {
-                sb.append(node.getDesc());
+                sb.append(node.getDescription());
             }
 
             if (isReuseNode) {
@@ -364,7 +375,10 @@ public class ExecNodePlanDumper {
             // whether visit input nodes of current node
             final boolean visitInputs =
                     (firstVisited || !isReuseNode) && !stopVisitNodes.contains(node);
-            final List<ExecNode<?>> inputNodes = node.getInputNodes();
+            final List<ExecNode<?>> inputNodes =
+                    node.getInputEdges().stream()
+                            .map(ExecEdge::getSource)
+                            .collect(Collectors.toList());
             if (visitInputs && inputNodes.size() > 1) {
                 inputNodes
                         .subList(0, inputNodes.size() - 1)

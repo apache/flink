@@ -25,6 +25,7 @@ import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.executiongraph.failover.flip1.PipelinedRegionComputeUtil;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ResultPartitionState;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
@@ -36,9 +37,9 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -194,10 +195,7 @@ public class DefaultExecutionTopology implements SchedulingTopology {
 
         DefaultExecutionVertex schedulingVertex =
                 new DefaultExecutionVertex(
-                        vertex.getID(),
-                        producedPartitions,
-                        vertex::getExecutionState,
-                        vertex.getInputDependencyConstraint());
+                        vertex.getID(), producedPartitions, vertex::getExecutionState);
 
         producedPartitions.forEach(partition -> partition.setProducer(schedulingVertex));
 
@@ -265,7 +263,7 @@ public class DefaultExecutionTopology implements SchedulingTopology {
             ExecutionGraph executionGraph) {
 
         final Map<CoLocationConstraint, DefaultSchedulingPipelinedRegion> constraintToRegion =
-                new IdentityHashMap<>();
+                new HashMap<>();
         for (DefaultSchedulingPipelinedRegion region : pipelinedRegions) {
             for (DefaultExecutionVertex vertex : region.getVertices()) {
                 final CoLocationConstraint constraint =
@@ -285,10 +283,13 @@ public class DefaultExecutionTopology implements SchedulingTopology {
     private static CoLocationConstraint getCoLocationConstraint(
             ExecutionVertexID executionVertexId, ExecutionGraph executionGraph) {
 
-        return executionGraph
-                .getJobVertex(executionVertexId.getJobVertexId())
-                .getTaskVertices()[executionVertexId.getSubtaskIndex()]
-                .getLocationConstraint();
+        CoLocationGroup coLocationGroup =
+                Objects.requireNonNull(
+                                executionGraph.getJobVertex(executionVertexId.getJobVertexId()))
+                        .getCoLocationGroup();
+        return coLocationGroup == null
+                ? null
+                : coLocationGroup.getLocationConstraint(executionVertexId.getSubtaskIndex());
     }
 
     private static class ExecutionGraphIndex {

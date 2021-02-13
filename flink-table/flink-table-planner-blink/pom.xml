@@ -151,11 +151,11 @@ under the License.
 
 				[INFO] +- org.apache.calcite:calcite-core:jar:1.26.0:compile
 				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.26.0:compile
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.10.1:compile
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.12.1:compile
 				[INFO] |  +- org.apiguardian:apiguardian-api:jar:1.1.0:compile
 				[INFO] |  +- com.esri.geometry:esri-geometry-api:jar:2.2.0:runtime
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-core:jar:2.10.1:runtime
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-databind:jar:2.10.1:runtime
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-core:jar:2.12.1:runtime
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-databind:jar:2.12.1:runtime
 				[INFO] |  +- com.jayway.jsonpath:json-path:jar:2.4.0:runtime
 				[INFO] |  |  \- net.minidev:json-smart:jar:2.3:runtime
 				[INFO] |  |     \- net.minidev:accessors-smart:jar:1.2:runtime
@@ -243,6 +243,14 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-common</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-api-java</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
@@ -272,6 +280,7 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<!-- utility to scan classpaths -->
 		<dependency>
 			<groupId>org.reflections</groupId>
 			<artifactId>reflections</artifactId>
@@ -409,6 +418,11 @@ under the License.
 									<pattern>org.codehaus</pattern>
 									<shadedPattern>org.apache.flink.table.shaded.org.codehaus</shadedPattern>
 								</relocation>-->
+
+								<relocation>
+									<pattern>org.reflections</pattern>
+									<shadedPattern>org.apache.flink.table.shaded.org.reflections</shadedPattern>
+								</relocation>
 
 							</relocations>
 						</configuration>

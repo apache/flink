@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.rules.common
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.connector.source.LookupTableSource
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalLegacyTableSourceScan, FlinkLogicalRel, FlinkLogicalSnapshot, FlinkLogicalTableSourceScan}
-import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecLookupJoin, StreamExecTemporalJoin}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalLookupJoin, StreamPhysicalTemporalJoin}
 import org.apache.flink.table.planner.plan.schema.{LegacyTableSourceTable, TableSourceTable, TimeIndicatorRelDataType}
 import org.apache.flink.table.sources.LookupableTableSource
 
@@ -36,7 +36,7 @@ import org.apache.calcite.rex.{RexCorrelVariable, RexFieldAccess}
   *
   * <p> The initial temporal table join (FOR SYSTEM_TIME AS OF) is a Correlate, rewrite it into
   * a Join to make join condition can be pushed-down. The join will be translated into
-  * [[StreamExecLookupJoin]] in physical or translated into [[StreamExecTemporalJoin]].
+  * [[StreamPhysicalLookupJoin]] in physical or translated into [[StreamPhysicalTemporalJoin]].
   */
 trait CommonTemporalTableJoinRule {
 

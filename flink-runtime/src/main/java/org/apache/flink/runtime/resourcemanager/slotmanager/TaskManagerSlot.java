@@ -48,7 +48,7 @@ public class TaskManagerSlot implements TaskManagerSlotInformation {
     private final TaskExecutorConnection taskManagerConnection;
 
     /** Allocation id for which this slot has been allocated. */
-    private AllocationID allocationId;
+    @Nullable private AllocationID allocationId;
 
     /** Job id for which this slot has been allocated. */
     @Nullable private JobID jobId;
@@ -71,6 +71,7 @@ public class TaskManagerSlot implements TaskManagerSlotInformation {
         this.assignedSlotRequest = null;
     }
 
+    @Override
     public SlotState getState() {
         return state;
     }
@@ -90,11 +91,14 @@ public class TaskManagerSlot implements TaskManagerSlotInformation {
         return taskManagerConnection;
     }
 
+    @Nullable
+    @Override
     public AllocationID getAllocationId() {
         return allocationId;
     }
 
     @Nullable
+    @Override
     public JobID getJobId() {
         return jobId;
     }

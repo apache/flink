@@ -27,6 +27,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
@@ -45,10 +46,10 @@ public abstract class CommonExecExpand extends ExecNodeBase<RowData> {
     public CommonExecExpand(
             List<List<RexNode>> projects,
             boolean retainHeader,
-            ExecEdge inputEdge,
+            InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputEdge), outputType, description);
+        super(Collections.singletonList(inputProperty), outputType, description);
         this.projects = projects;
         this.retainHeader = retainHeader;
     }
@@ -56,13 +57,14 @@ public abstract class CommonExecExpand extends ExecNodeBase<RowData> {
     @SuppressWarnings("unchecked")
     @Override
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-        final ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
-        final Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
+        final ExecEdge inputEdge = getInputEdges().get(0);
+        final Transformation<RowData> inputTransform =
+                (Transformation<RowData>) inputEdge.translateToPlan(planner);
 
         final CodeGenOperatorFactory<RowData> operatorFactory =
                 ExpandCodeGenerator.generateExpandOperator(
                         new CodeGeneratorContext(planner.getTableConfig()),
-                        (RowType) inputNode.getOutputType(),
+                        (RowType) inputEdge.getOutputType(),
                         (RowType) getOutputType(),
                         projects,
                         retainHeader,
@@ -71,7 +73,7 @@ public abstract class CommonExecExpand extends ExecNodeBase<RowData> {
         final Transformation<RowData> transform =
                 new OneInputTransformation<>(
                         inputTransform,
-                        getDesc(),
+                        getDescription(),
                         operatorFactory,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());

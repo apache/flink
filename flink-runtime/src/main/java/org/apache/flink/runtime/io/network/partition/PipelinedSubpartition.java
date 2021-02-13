@@ -28,6 +28,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumerWithPartialRecordLength;
+import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.io.network.partition.consumer.EndOfChannelStateEvent;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
@@ -323,6 +324,11 @@ public class PipelinedSubpartition extends ResultSubpartition
             // It will be reported for reading either on flush or when the number of buffers in the
             // queue
             // will be 2 or more.
+            NetworkActionsLogger.traceOutput(
+                    "PipelinedSubpartition#pollBuffer",
+                    buffer,
+                    parent.getOwningTaskName(),
+                    subpartitionInfo);
             return new BufferAndBacklog(
                     buffer,
                     getBuffersInBacklog(),

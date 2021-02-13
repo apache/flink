@@ -25,7 +25,6 @@ import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -142,12 +141,6 @@ public class OperatorCoordinatorHolder
     }
 
     public void lazyInitialize(
-            SchedulerNG scheduler, ComponentMainThreadExecutor mainThreadExecutor) {
-        lazyInitialize(scheduler::handleGlobalFailure, mainThreadExecutor);
-    }
-
-    @VisibleForTesting
-    void lazyInitialize(
             Consumer<Throwable> globalFailureHandler,
             ComponentMainThreadExecutor mainThreadExecutor) {
         this.globalFailureHandler = globalFailureHandler;

@@ -29,7 +29,6 @@ import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
-import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
@@ -52,8 +51,6 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
             String newJobManagerAddress,
             ComponentMainThreadExecutor jmMainThreadScheduledExecutor)
             throws Exception;
-
-    void suspend();
 
     void close();
 
@@ -122,11 +119,6 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
      * @return An optional task executor id if this task executor has no more slots registered
      */
     Optional<ResourceID> failAllocation(AllocationID allocationID, Exception cause);
-
-    default Optional<ResourceID> failAllocation(
-            @Nullable ResourceID resourceId, AllocationID allocationID, Exception cause) {
-        return failAllocation(allocationID, cause);
-    }
 
     // ------------------------------------------------------------------------
     //  allocating and disposing slots
@@ -197,14 +189,6 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
     @Nonnull
     CompletableFuture<PhysicalSlot> requestNewAllocatedBatchSlot(
             @Nonnull SlotRequestId slotRequestId, @Nonnull ResourceProfile resourceProfile);
-
-    /**
-     * Notifies that not enough resources are available to fulfill the resource requirements.
-     *
-     * @param acquiredResources the resources that have been acquired
-     */
-    default void notifyNotEnoughResourcesAvailable(
-            Collection<ResourceRequirement> acquiredResources) {}
 
     /**
      * Disables batch slot request timeout check. Invoked when someone else wants to take over the

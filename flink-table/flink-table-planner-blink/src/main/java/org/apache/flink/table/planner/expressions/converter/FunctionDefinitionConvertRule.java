@@ -38,8 +38,13 @@ public class FunctionDefinitionConvertRule implements CallExpressionConvertRule 
     public Optional<RexNode> convert(CallExpression call, ConvertContext context) {
         FunctionDefinition functionDefinition = call.getFunctionDefinition();
 
+        // built-in functions without implementation are handled separately
         if (functionDefinition instanceof BuiltInFunctionDefinition) {
-            return Optional.empty();
+            final BuiltInFunctionDefinition builtInFunction =
+                    (BuiltInFunctionDefinition) functionDefinition;
+            if (!builtInFunction.getRuntimeClass().isPresent()) {
+                return Optional.empty();
+            }
         }
 
         TypeInference typeInference =

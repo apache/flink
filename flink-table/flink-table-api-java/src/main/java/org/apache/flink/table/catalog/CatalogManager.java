@@ -375,7 +375,7 @@ public final class CatalogManager {
             TableSchema resolvedSchema = resolveTableSchema(temporaryTable);
             return Optional.of(TableLookupResult.temporary(temporaryTable, resolvedSchema));
         } else {
-            return getPermanentTable(objectIdentifier);
+            return getPermanentTable(objectIdentifier, true);
         }
     }
 
@@ -404,13 +404,17 @@ public final class CatalogManager {
         return Optional.empty();
     }
 
-    private Optional<TableLookupResult> getPermanentTable(ObjectIdentifier objectIdentifier) {
+    private Optional<TableLookupResult> getPermanentTable(
+            ObjectIdentifier objectIdentifier, boolean needResolveSchema) {
         Catalog currentCatalog = catalogs.get(objectIdentifier.getCatalogName());
         ObjectPath objectPath = objectIdentifier.toObjectPath();
         if (currentCatalog != null) {
             try {
                 CatalogBaseTable catalogTable = currentCatalog.getTable(objectPath);
-                TableSchema resolvedSchema = resolveTableSchema(catalogTable);
+                TableSchema resolvedSchema =
+                        needResolveSchema
+                                ? resolveTableSchema(catalogTable)
+                                : catalogTable.getSchema();
                 return Optional.of(TableLookupResult.permanent(catalogTable, resolvedSchema));
             } catch (TableNotExistException e) {
                 // Ignore.
@@ -645,6 +649,8 @@ public final class CatalogManager {
      */
     public void createTemporaryTable(
             CatalogBaseTable table, ObjectIdentifier objectIdentifier, boolean ignoreIfExists) {
+        Optional<TemporaryOperationListener> listener =
+                getTemporaryOperationListener(objectIdentifier);
         temporaryTables.compute(
                 objectIdentifier,
                 (k, v) -> {
@@ -657,6 +663,10 @@ public final class CatalogManager {
                         }
                         return v;
                     } else {
+                        if (listener.isPresent()) {
+                            return listener.get()
+                                    .onCreateTemporaryTable(objectIdentifier.toObjectPath(), table);
+                        }
                         return table;
                     }
                 });
@@ -692,6 +702,8 @@ public final class CatalogManager {
             boolean ignoreIfNotExists) {
         CatalogBaseTable catalogBaseTable = temporaryTables.get(objectIdentifier);
         if (filter.test(catalogBaseTable)) {
+            getTemporaryOperationListener(objectIdentifier)
+                    .ifPresent(l -> l.onDropTemporaryTable(objectIdentifier.toObjectPath()));
             temporaryTables.remove(objectIdentifier);
         } else if (!ignoreIfNotExists) {
             throw new ValidationException(
@@ -699,6 +711,16 @@ public final class CatalogManager {
                             "Temporary table or view with identifier '%s' does not exist.",
                             objectIdentifier.asSummaryString()));
         }
+    }
+
+    protected Optional<TemporaryOperationListener> getTemporaryOperationListener(
+            ObjectIdentifier identifier) {
+        return getCatalog(identifier.getCatalogName())
+                .map(
+                        c ->
+                                c instanceof TemporaryOperationListener
+                                        ? (TemporaryOperationListener) c
+                                        : null);
     }
 
     /**
@@ -755,7 +777,9 @@ public final class CatalogManager {
                                     + "Drop it first before removing the permanent %s.",
                             tableOrView, objectIdentifier, tableOrView));
         }
-        final Optional<TableLookupResult> resultOpt = getPermanentTable(objectIdentifier);
+        // we can't resolve the schema here, because the schema might be illegal and DROP TABLE
+        // doesn't care about the schema, so we skip schema resolve here, see FLINK-20937
+        final Optional<TableLookupResult> resultOpt = getPermanentTable(objectIdentifier, false);
         if (resultOpt.isPresent() && filter.test(resultOpt.get().getTable())) {
             execute(
                     (catalog, path) -> catalog.dropTable(path, ignoreIfNotExists),

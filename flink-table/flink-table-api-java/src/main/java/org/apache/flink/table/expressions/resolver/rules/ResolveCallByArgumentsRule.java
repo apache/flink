@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.delegation.PlannerTypeInferenceUtil;
@@ -31,6 +32,7 @@ import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.TypeLiteralExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
+import org.apache.flink.table.expressions.resolver.SqlExpressionResolver;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -60,6 +62,7 @@ import java.util.stream.IntStream;
 
 import static java.util.Collections.singletonList;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
+import static org.apache.flink.table.expressions.ExpressionUtils.extractValue;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast;
 import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
@@ -140,6 +143,8 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 
             if (definition == BuiltInFunctionDefinitions.FLATTEN) {
                 return executeFlatten(resolvedArgs);
+            } else if (definition == BuiltInFunctionDefinitions.CALL_SQL) {
+                return executeCallSql(resolvedArgs);
             }
 
             return Collections.singletonList(
@@ -191,6 +196,23 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
                                                     fromLegacyInfoToDataType(
                                                             resultType.getTypeAt(idx))))
                     .collect(Collectors.toList());
+        }
+
+        private List<ResolvedExpression> executeCallSql(List<ResolvedExpression> args) {
+            final SqlExpressionResolver resolver = resolutionContext.sqlExpressionResolver();
+            if (args.size() != 1 || !extractValue(args.get(0), String.class).isPresent()) {
+                throw new ValidationException("SQL expression must be a string literal.");
+            }
+
+            final String sqlExpression =
+                    extractValue(args.get(0), String.class).orElseThrow(IllegalStateException::new);
+            final TableSchema.Builder builder = TableSchema.builder();
+            resolutionContext
+                    .referenceLookup()
+                    .getAllInputFields()
+                    .forEach(f -> builder.field(f.getName(), f.getOutputDataType()));
+            return Collections.singletonList(
+                    resolver.resolveExpression(sqlExpression, builder.build()));
         }
 
         /** Temporary method until all calls define a type inference. */

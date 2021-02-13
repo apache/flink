@@ -30,10 +30,11 @@ import org.apache.flink.table.catalog._
 import org.apache.flink.table.catalog.exceptions.{TableNotExistException => _, _}
 import org.apache.flink.table.delegation.Parser
 import org.apache.flink.table.expressions._
+import org.apache.flink.table.expressions.resolver.SqlExpressionResolver
 import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup
 import org.apache.flink.table.factories.{TableFactoryUtil, TableSinkFactoryContextImpl}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, _}
-import org.apache.flink.table.module.{Module, ModuleManager}
+import org.apache.flink.table.module.{Module, ModuleEntry, ModuleManager}
 import org.apache.flink.table.operations.ddl._
 import org.apache.flink.table.operations.utils.OperationTreeBuilder
 import org.apache.flink.table.operations.{CatalogQueryOperation, TableSourceQueryOperation, _}
@@ -44,7 +45,6 @@ import org.apache.flink.table.types.{AbstractDataType, DataType}
 import org.apache.flink.table.util.JavaScalaConversionUtil
 import org.apache.flink.table.utils.PrintUtils
 import org.apache.flink.types.Row
-
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.tools.FrameworkConfig
@@ -52,7 +52,6 @@ import org.apache.calcite.tools.FrameworkConfig
 import _root_.java.lang.{Iterable => JIterable, Long => JLong}
 import _root_.java.util.function.{Function => JFunction, Supplier => JSupplier}
 import _root_.java.util.{Optional, Collections => JCollections, HashMap => JHashMap, List => JList, Map => JMap}
-
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
 import _root_.scala.util.Try
@@ -107,6 +106,13 @@ abstract class TableEnvImpl(
     }),
     catalogManager.getDataTypeFactory,
     tableLookup,
+    new SqlExpressionResolver {
+      override def resolveExpression(sqlExpression: String, inputSchema: TableSchema)
+        : ResolvedExpression = {
+            throw new UnsupportedOperationException(
+              "SQL expression parsing is only supported in the Blink planner.")
+      }
+    },
     isStreamingMode)
 
   protected val planningConfigurationBuilder: PlanningConfigurationBuilder =
@@ -273,6 +279,10 @@ abstract class TableEnvImpl(
 
   override def loadModule(moduleName: String, module: Module): Unit = {
     moduleManager.loadModule(moduleName, module)
+  }
+
+  override def useModules(moduleNames: String*): Unit = {
+    moduleManager.useModules(moduleNames: _*)
   }
 
   override def unloadModule(moduleName: String): Unit = {
@@ -451,6 +461,10 @@ abstract class TableEnvImpl(
 
   override def listModules(): Array[String] = {
     moduleManager.listModules().asScala.toArray
+  }
+
+  override def listFullModules(): Array[ModuleEntry] = {
+    moduleManager.listFullModules().asScala.toArray
   }
 
   override def listCatalogs(): Array[String] = {
@@ -673,7 +687,7 @@ abstract class TableEnvImpl(
                 alterTableRenameOp.getTableIdentifier.toObjectPath,
                 alterTableRenameOp.getNewTableIdentifier.getObjectName,
                 false)
-            case alterTablePropertiesOp: AlterTablePropertiesOperation =>
+            case alterTablePropertiesOp: AlterTableOptionsOperation =>
               catalog.alterTable(
                 alterTablePropertiesOp.getTableIdentifier.toObjectPath,
                 alterTablePropertiesOp.getCatalogTable,
@@ -1284,5 +1298,25 @@ abstract class TableEnvImpl(
     val currentDatabase = catalogManager.getCurrentDatabase
 
     planningConfigurationBuilder.createFlinkPlanner(currentCatalogName, currentDatabase)
+  }
+
+  override def getJsonPlan(stmt: String): String = {
+    throw new TableException(
+      "This method is not supported for legacy planner, please use Blink planner.")
+  }
+
+  override def getJsonPlan(operations: JList[ModifyOperation]): String = {
+    throw new TableException(
+      "This method is not supported for legacy planner, please use Blink planner.")
+  }
+
+  override def explainJsonPlan(jsonPlan: String, extraDetails: ExplainDetail*): String = {
+    throw new TableException(
+      "This method is not supported for legacy planner, please use Blink planner.")
+  }
+
+  override def executeJsonPlan(jsonPlan: String): TableResult = {
+    throw new TableException(
+      "This method is not supported for legacy planner, please use Blink planner.")
   }
 }

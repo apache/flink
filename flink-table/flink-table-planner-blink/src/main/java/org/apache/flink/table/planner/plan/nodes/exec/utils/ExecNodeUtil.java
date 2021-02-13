@@ -25,8 +25,8 @@ import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 
 import java.util.List;
 import java.util.Optional;
@@ -34,7 +34,6 @@ import java.util.stream.Collectors;
 
 /** An Utility class that helps translating {@link ExecNode} to {@link Transformation}. */
 public class ExecNodeUtil {
-
     /**
      * Set memoryBytes to {@link
      * Transformation#declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase, int)}.
@@ -48,7 +47,7 @@ public class ExecNodeUtil {
             int memoryKibiBytes = (int) Math.max(1, (memoryBytes >> 10));
             Optional<Integer> previousWeight =
                     transformation.declareManagedMemoryUseCaseAtOperatorScope(
-                            ManagedMemoryUseCase.BATCH_OP, memoryKibiBytes);
+                            ManagedMemoryUseCase.OPERATOR, memoryKibiBytes);
             if (previousWeight.isPresent()) {
                 throw new TableException(
                         "Managed memory weight has been set, this should not happen.");
@@ -88,14 +87,16 @@ public class ExecNodeUtil {
 
     /** Return description for multiple input node. */
     public static String getMultipleInputDescription(
-            ExecNode<?> rootNode, List<ExecNode<?>> inputNodes, List<ExecEdge> inputEdges) {
+            ExecNode<?> rootNode,
+            List<ExecNode<?>> inputNodes,
+            List<InputProperty> inputProperties) {
         String members =
                 ExecNodePlanDumper.treeToString(rootNode, inputNodes, true).replace("\n", "\\n");
         StringBuilder sb = new StringBuilder();
         sb.append("MultipleInput(");
         List<String> readOrders =
-                inputEdges.stream()
-                        .map(ExecEdge::getPriority)
+                inputProperties.stream()
+                        .map(InputProperty::getPriority)
                         .map(Object::toString)
                         .collect(Collectors.toList());
         boolean hasDiffReadOrder = readOrders.stream().distinct().count() > 1;

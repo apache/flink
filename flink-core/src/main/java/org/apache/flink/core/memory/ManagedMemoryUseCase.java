@@ -24,7 +24,7 @@ import org.apache.flink.util.Preconditions;
 /** Use cases of managed memory. */
 @Internal
 public enum ManagedMemoryUseCase {
-    BATCH_OP(Scope.OPERATOR),
+    OPERATOR(Scope.OPERATOR),
     STATE_BACKEND(Scope.SLOT),
     PYTHON(Scope.SLOT);
 

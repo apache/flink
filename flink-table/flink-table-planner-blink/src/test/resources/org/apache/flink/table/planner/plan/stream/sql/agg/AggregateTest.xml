@@ -231,7 +231,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
       <![CDATA[
 GroupAggregate(groupBy=[b], select=[b, SUM(a) AS EXPR$1])
 +- Exchange(distribution=[hash[b]])
-   +- Calc(select=[b, a], where=[SEARCH(a, Sarg[(0.1:DECIMAL(11, 1)..10:DECIMAL(11, 1))]:DECIMAL(11, 1))])
+   +- Calc(select=[a, b], where=[SEARCH(a, Sarg[(0.1:DECIMAL(11, 1)..10:DECIMAL(11, 1))]:DECIMAL(11, 1))])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, proctime, rowtime)]]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>

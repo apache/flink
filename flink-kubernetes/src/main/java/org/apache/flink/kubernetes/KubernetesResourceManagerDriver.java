@@ -18,7 +18,6 @@
 
 package org.apache.flink.kubernetes;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -29,6 +28,7 @@ import org.apache.flink.kubernetes.kubeclient.KubeClientFactory;
 import org.apache.flink.kubernetes.kubeclient.factory.KubernetesTaskManagerFactory;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesTaskManagerParameters;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesTooOldResourceVersionException;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesWatch;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
@@ -63,8 +63,6 @@ public class KubernetesResourceManagerDriver
 
     private final String clusterId;
 
-    private final Time podCreationRetryInterval;
-
     private final KubeClientFactory kubeClientFactory;
 
     private Optional<FlinkKubeClient> kubeClientOpt;
@@ -80,6 +78,8 @@ public class KubernetesResourceManagerDriver
 
     private Optional<KubernetesWatch> podsWatchOpt;
 
+    private volatile boolean running;
+
     /**
      * Incompletion of this future indicates that there was a pod creation failure recently and the
      * driver should not retry creating pods until the future become completed again. It's
@@ -93,11 +93,10 @@ public class KubernetesResourceManagerDriver
             KubernetesResourceManagerDriverConfiguration configuration) {
         super(flinkConfig, GlobalConfiguration.loadConfiguration());
         this.clusterId = Preconditions.checkNotNull(configuration.getClusterId());
-        this.podCreationRetryInterval =
-                Preconditions.checkNotNull(configuration.getPodCreationRetryInterval());
         this.kubeClientFactory = Preconditions.checkNotNull(kubeClientFactory);
         this.requestResourceFutures = new HashMap<>();
         this.podCreationCoolDown = FutureUtils.completedVoidFuture();
+        this.running = false;
     }
 
     // ------------------------------------------------------------------------
@@ -108,17 +107,18 @@ public class KubernetesResourceManagerDriver
     protected void initializeInternal() throws Exception {
         kubeClientOpt =
                 Optional.of(kubeClientFactory.fromConfiguration(flinkConfig, getIoExecutor()));
-        podsWatchOpt =
-                Optional.of(
-                        getKubeClient()
-                                .watchPodsAndDoCallback(
-                                        KubernetesUtils.getTaskManagerLabels(clusterId),
-                                        new PodCallbackHandlerImpl()));
+        podsWatchOpt = watchTaskManagerPods();
         recoverWorkerNodesFromPreviousAttempts();
+        this.running = true;
     }
 
     @Override
     public CompletableFuture<Void> terminate() {
+        if (!running) {
+            return FutureUtils.completedVoidFuture();
+        }
+        running = false;
+
         // shut down all components
         Exception exception = null;
 
@@ -170,15 +170,8 @@ public class KubernetesResourceManagerDriver
                 parameters.getTaskManagerMemoryMB(),
                 parameters.getTaskManagerCPU());
 
-        // When K8s API Server is temporary unavailable, `kubeClient.createTaskManagerPod` might
-        // fail immediately.
-        // In case of pod creation failures, we should wait for an interval before trying to create
-        // new pods.
-        // Otherwise, ActiveResourceManager will always re-requesting the worker, which keeps the
-        // main thread busy.
         final CompletableFuture<Void> createPodFuture =
-                podCreationCoolDown.thenCompose(
-                        (ignore) -> getKubeClient().createTaskManagerPod(taskManagerPod));
+                getKubeClient().createTaskManagerPod(taskManagerPod);
 
         FutureUtils.assertNoException(
                 createPodFuture.handleAsync(
@@ -188,7 +181,6 @@ public class KubernetesResourceManagerDriver
                                         "Could not create pod {}, exception: {}",
                                         podName,
                                         exception);
-                                tryResetPodCreationCoolDown();
                                 CompletableFuture<KubernetesWorkerNode> future =
                                         requestResourceFutures.remove(taskManagerPod.getName());
                                 if (future != null) {
@@ -272,20 +264,6 @@ public class KubernetesResourceManagerDriver
                         KubernetesConfigOptions.EXTERNAL_RESOURCE_KUBERNETES_CONFIG_KEY_SUFFIX));
     }
 
-    private void tryResetPodCreationCoolDown() {
-        if (podCreationCoolDown.isDone()) {
-            log.info(
-                    "Pod creation failed. Will not retry creating pods in {}.",
-                    podCreationRetryInterval);
-            podCreationCoolDown = new CompletableFuture<>();
-            getMainThreadExecutor()
-                    .schedule(
-                            () -> podCreationCoolDown.complete(null),
-                            podCreationRetryInterval.getSize(),
-                            podCreationRetryInterval.getUnit());
-        }
-    }
-
     private void terminatedPodsInMainThread(List<KubernetesPod> pods) {
         getMainThreadExecutor()
                 .execute(
@@ -339,6 +317,14 @@ public class KubernetesResourceManagerDriver
         return kubeClientOpt.get();
     }
 
+    private Optional<KubernetesWatch> watchTaskManagerPods() {
+        return Optional.of(
+                getKubeClient()
+                        .watchPodsAndDoCallback(
+                                KubernetesUtils.getTaskManagerLabels(clusterId),
+                                new PodCallbackHandlerImpl()));
+    }
+
     // ------------------------------------------------------------------------
     //  FlinkKubeClient.WatchCallbackHandler
     // ------------------------------------------------------------------------
@@ -386,8 +372,20 @@ public class KubernetesResourceManagerDriver
         }
 
         @Override
-        public void handleFatalError(Throwable throwable) {
-            getResourceEventHandler().onError(throwable);
+        public void handleError(Throwable throwable) {
+            if (throwable instanceof KubernetesTooOldResourceVersionException) {
+                getMainThreadExecutor()
+                        .execute(
+                                () -> {
+                                    if (running) {
+                                        podsWatchOpt.ifPresent(KubernetesWatch::close);
+                                        log.info("Creating a new watch on TaskManager pods.");
+                                        podsWatchOpt = watchTaskManagerPods();
+                                    }
+                                });
+            } else {
+                getResourceEventHandler().onError(throwable);
+            }
         }
     }
 }

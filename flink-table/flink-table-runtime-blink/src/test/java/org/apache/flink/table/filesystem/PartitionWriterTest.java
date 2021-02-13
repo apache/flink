@@ -23,10 +23,12 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.filesystem.PartitionWriter.Context;
+import org.apache.flink.table.utils.LegacyRowResource;
 import org.apache.flink.types.Row;
 
 import org.junit.Assert;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
@@ -38,6 +40,8 @@ import java.util.Map;
 
 /** Test for {@link PartitionWriter}s. */
 public class PartitionWriterTest {
+
+    @Rule public final LegacyRowResource usesLegacyRows = LegacyRowResource.INSTANCE;
 
     @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
 

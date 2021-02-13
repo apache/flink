@@ -127,7 +127,10 @@ public abstract class AbstractKeyedStateBackend<K>
                 numberOfKeyGroups >= 1, "NumberOfKeyGroups must be a positive number");
         Preconditions.checkArgument(
                 numberOfKeyGroups >= keyGroupRange.getNumberOfKeyGroups(),
-                "The total number of key groups must be at least the number in the key group range assigned to this backend");
+                "The total number of key groups must be at least the number in the key group range assigned to this backend. "
+                        + "The total number of key groups: %s, the number in key groups in range: %s",
+                numberOfKeyGroups,
+                keyGroupRange.getNumberOfKeyGroups());
 
         this.kvStateRegistry = kvStateRegistry;
         this.keySerializer = keySerializer;
@@ -281,7 +284,7 @@ public abstract class AbstractKeyedStateBackend<K>
                 throw new IllegalStateException("State backend has not been initialized for job.");
             }
             String name = stateDescriptor.getQueryableStateName();
-            kvStateRegistry.registerKvState(keyGroupRange, name, kvState);
+            kvStateRegistry.registerKvState(keyGroupRange, name, kvState, userCodeClassLoader);
         }
     }
 
@@ -328,11 +331,6 @@ public abstract class AbstractKeyedStateBackend<K>
     @Override
     public void close() throws IOException {
         cancelStreamRegistry.close();
-    }
-
-    @VisibleForTesting
-    public boolean supportsAsynchronousSnapshots() {
-        return false;
     }
 
     @VisibleForTesting

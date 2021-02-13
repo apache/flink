@@ -270,12 +270,17 @@ public class DeclarativeSlotManager implements SlotManager {
      *
      * @param taskExecutorConnection for the new task manager
      * @param initialSlotReport for the new task manager
+     * @param totalResourceProfile for the new task manager
+     * @param defaultSlotResourceProfile for the new task manager
      * @return True if the task manager has not been registered before and is registered
      *     successfully; otherwise false
      */
     @Override
     public boolean registerTaskManager(
-            final TaskExecutorConnection taskExecutorConnection, SlotReport initialSlotReport) {
+            final TaskExecutorConnection taskExecutorConnection,
+            SlotReport initialSlotReport,
+            ResourceProfile totalResourceProfile,
+            ResourceProfile defaultSlotResourceProfile) {
         checkInit();
         LOG.debug(
                 "Registering task executor {} under {} at the slot manager.",
@@ -291,7 +296,10 @@ public class DeclarativeSlotManager implements SlotManager {
             return false;
         } else {
             if (!taskExecutorManager.registerTaskManager(
-                    taskExecutorConnection, initialSlotReport)) {
+                    taskExecutorConnection,
+                    initialSlotReport,
+                    totalResourceProfile,
+                    defaultSlotResourceProfile)) {
                 LOG.debug(
                         "Task executor {} could not be registered.",
                         taskExecutorConnection.getResourceID());

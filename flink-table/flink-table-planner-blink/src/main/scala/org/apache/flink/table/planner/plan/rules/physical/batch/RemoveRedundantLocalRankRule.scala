@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecRank
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalRank
 
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -28,18 +28,18 @@ import org.apache.calcite.rel.RelNode
 import scala.collection.JavaConversions._
 
 /**
-  * Planner rule that matches a global [[BatchExecRank]] on a local [[BatchExecRank]],
-  * and merge them into a global [[BatchExecRank]].
+  * Planner rule that matches a global [[BatchPhysicalRank]] on a local [[BatchPhysicalRank]],
+  * and merge them into a global [[BatchPhysicalRank]].
   */
 class RemoveRedundantLocalRankRule extends RelOptRule(
-  operand(classOf[BatchExecRank],
-    operand(classOf[BatchExecRank],
+  operand(classOf[BatchPhysicalRank],
+    operand(classOf[BatchPhysicalRank],
       operand(classOf[RelNode], FlinkConventions.BATCH_PHYSICAL, any))),
   "RemoveRedundantLocalRankRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val globalRank: BatchExecRank = call.rel(0)
-    val localRank: BatchExecRank = call.rel(1)
+    val globalRank: BatchPhysicalRank = call.rel(0)
+    val localRank: BatchPhysicalRank = call.rel(1)
     globalRank.isGlobal && !localRank.isGlobal &&
       globalRank.rankType == localRank.rankType &&
       globalRank.partitionKey == localRank.partitionKey &&
@@ -48,7 +48,7 @@ class RemoveRedundantLocalRankRule extends RelOptRule(
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
-    val globalRank: BatchExecRank = call.rel(0)
+    val globalRank: BatchPhysicalRank = call.rel(0)
     val inputOfLocalRank: RelNode = call.rel(2)
     val newGlobalRank = globalRank.copy(globalRank.getTraitSet, List(inputOfLocalRank))
     call.transformTo(newGlobalRank)

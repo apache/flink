@@ -34,12 +34,15 @@ import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+
 import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Objects;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -58,6 +61,7 @@ import static java.lang.String.format;
 public final class CanalJsonDeserializationSchema implements DeserializationSchema<RowData> {
     private static final long serialVersionUID = 1L;
 
+    private static final String FIELD_OLD = "old";
     private static final String OP_INSERT = "INSERT";
     private static final String OP_UPDATE = "UPDATE";
     private static final String OP_DELETE = "DELETE";
@@ -84,8 +88,17 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
     /** Flag indicating whether to ignore invalid fields/rows (default: throw an exception). */
     private final boolean ignoreParseErrors;
 
+    /** Names of fields. */
+    private final List<String> fieldNames;
+
     /** Number of fields. */
     private final int fieldCount;
+
+    /** Pattern of the specific database. */
+    private final Pattern databasePattern;
+
+    /** Pattern of the specific table. */
+    private final Pattern tablePattern;
 
     private CanalJsonDeserializationSchema(
             DataType physicalDataType,
@@ -112,7 +125,11 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
         this.database = database;
         this.table = table;
         this.ignoreParseErrors = ignoreParseErrors;
-        this.fieldCount = ((RowType) physicalDataType.getLogicalType()).getFieldCount();
+        final RowType physicalRowType = ((RowType) physicalDataType.getLogicalType());
+        this.fieldNames = physicalRowType.getFieldNames();
+        this.fieldCount = physicalRowType.getFieldCount();
+        this.databasePattern = database == null ? null : Pattern.compile(database);
+        this.tablePattern = table == null ? null : Pattern.compile(table);
     }
 
     // ------------------------------------------------------------------------------------------
@@ -188,21 +205,27 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
     }
 
     @Override
-    public void deserialize(byte[] message, Collector<RowData> out) throws IOException {
+    public void deserialize(@Nullable byte[] message, Collector<RowData> out) throws IOException {
+        if (message == null || message.length == 0) {
+            return;
+        }
         try {
-            GenericRowData row = (GenericRowData) jsonDeserializer.deserialize(message);
+            final JsonNode root = jsonDeserializer.deserializeToJsonNode(message);
             if (database != null) {
-                String currentDatabase = row.getString(3).toString();
-                if (!database.equals(currentDatabase)) {
+                if (!databasePattern
+                        .matcher(root.get(ReadableMetadata.DATABASE.key).asText())
+                        .matches()) {
                     return;
                 }
             }
             if (table != null) {
-                String currentTable = row.getString(4).toString();
-                if (!table.equals(currentTable)) {
+                if (!tablePattern
+                        .matcher(root.get(ReadableMetadata.TABLE.key).asText())
+                        .matches()) {
                     return;
                 }
             }
+            final GenericRowData row = (GenericRowData) jsonDeserializer.convertToRowData(root);
             String type = row.getString(2).toString(); // "type" field
             if (OP_INSERT.equals(type)) {
                 // "data" field is an array of row, contains inserted rows
@@ -221,10 +244,11 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
                     // the underlying JSON deserialization schema always produce GenericRowData.
                     GenericRowData after = (GenericRowData) data.getRow(i, fieldCount);
                     GenericRowData before = (GenericRowData) old.getRow(i, fieldCount);
+                    final JsonNode oldField = root.get(FIELD_OLD);
                     for (int f = 0; f < fieldCount; f++) {
-                        if (before.isNullAt(f)) {
-                            // not null fields in "old" (before) means the fields are changed
-                            // null/empty fields in "old" (before) means the fields are not changed
+                        if (before.isNullAt(f) && oldField.findValue(fieldNames.get(f)) == null) {
+                            // fields in "old" (before) means the fields are changed
+                            // fields not in "old" (before) means the fields are not changed
                             // so we just copy the not changed fields into before
                             before.setField(f, after.getField(f));
                         }

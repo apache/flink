@@ -25,6 +25,7 @@ import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 
+import static java.util.stream.Collectors.toConcurrentMap;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -66,6 +67,34 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
      * @param checkpointId ID of the checkpoint.
      * @param triggerTimestamp Timestamp when the checkpoint was triggered.
      * @param props Checkpoint properties of the checkpoint.
+     * @param taskStats Task stats for each involved operator.
+     * @param trackerCallback Callback for the {@link CheckpointStatsTracker}.
+     */
+    PendingCheckpointStats(
+            long checkpointId,
+            long triggerTimestamp,
+            CheckpointProperties props,
+            Map<JobVertexID, Integer> taskStats,
+            CheckpointStatsTracker.PendingCheckpointStatsCallback trackerCallback) {
+        this(
+                checkpointId,
+                triggerTimestamp,
+                props,
+                taskStats.values().stream().mapToInt(i -> i).sum(),
+                taskStats.entrySet().stream()
+                        .collect(
+                                toConcurrentMap(
+                                        Map.Entry::getKey,
+                                        e -> new TaskStateStats(e.getKey(), e.getValue()))),
+                trackerCallback);
+    }
+
+    /**
+     * Creates a tracker for a {@link PendingCheckpoint}.
+     *
+     * @param checkpointId ID of the checkpoint.
+     * @param triggerTimestamp Timestamp when the checkpoint was triggered.
+     * @param props Checkpoint properties of the checkpoint.
      * @param totalSubtaskCount Total number of subtasks for the checkpoint.
      * @param taskStats Task stats for each involved operator.
      * @param trackerCallback Callback for the {@link CheckpointStatsTracker}.
@@ -77,9 +106,40 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
             int totalSubtaskCount,
             Map<JobVertexID, TaskStateStats> taskStats,
             CheckpointStatsTracker.PendingCheckpointStatsCallback trackerCallback) {
+        this(
+                checkpointId,
+                triggerTimestamp,
+                props,
+                totalSubtaskCount,
+                0,
+                taskStats,
+                trackerCallback,
+                0,
+                0,
+                0,
+                null);
+    }
+
+    PendingCheckpointStats(
+            long checkpointId,
+            long triggerTimestamp,
+            CheckpointProperties props,
+            int totalSubtaskCount,
+            int acknowledgedSubtaskCount,
+            Map<JobVertexID, TaskStateStats> taskStats,
+            CheckpointStatsTracker.PendingCheckpointStatsCallback trackerCallback,
+            long currentStateSize,
+            long processedData,
+            long persistedData,
+            @Nullable SubtaskStateStats latestAcknowledgedSubtask) {
 
         super(checkpointId, triggerTimestamp, props, totalSubtaskCount, taskStats);
         this.trackerCallback = checkNotNull(trackerCallback);
+        this.currentStateSize = currentStateSize;
+        this.currentPersistedData = processedData;
+        this.currentPersistedData = persistedData;
+        this.latestAcknowledgedSubtask = latestAcknowledgedSubtask;
+        this.currentNumAcknowledgedSubtasks = acknowledgedSubtaskCount;
     }
 
     @Override
@@ -127,8 +187,10 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
         TaskStateStats taskStateStats = taskStats.get(jobVertexId);
 
         if (taskStateStats != null && taskStateStats.reportSubtaskStats(subtask)) {
-            currentNumAcknowledgedSubtasks++;
-            latestAcknowledgedSubtask = subtask;
+            if (subtask.isCompleted()) {
+                currentNumAcknowledgedSubtasks++;
+                latestAcknowledgedSubtask = subtask;
+            }
 
             currentStateSize += subtask.getStateSize();
 

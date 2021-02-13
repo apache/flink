@@ -40,7 +40,6 @@ import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.slots.ResourceRequirement;
@@ -244,15 +243,6 @@ public interface JobMasterGateway
             @Nullable final String targetDirectory,
             final boolean advanceToEndOfEventTime,
             @RpcTimeout final Time timeout);
-
-    /**
-     * Requests the statistics on operator back pressure.
-     *
-     * @param jobVertexId JobVertex for which the stats are requested.
-     * @return A Future to the {@link OperatorBackPressureStatsResponse}.
-     */
-    CompletableFuture<OperatorBackPressureStatsResponse> requestOperatorBackPressureStats(
-            JobVertexID jobVertexId);
 
     /**
      * Notifies that the allocation has failed.

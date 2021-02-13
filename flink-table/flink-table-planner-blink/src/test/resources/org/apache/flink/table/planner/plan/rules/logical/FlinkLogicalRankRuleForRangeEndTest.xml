@@ -36,7 +36,7 @@ LogicalProject(a=[$0], b=[$1], rk=[$2], rn=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[a, b, w0$o0 AS $2, w1$o0 AS $3], where=[<(w0$o0, 10)])
+FlinkLogicalCalc(select=[a, b, w0$o0, w1$o0], where=[<(w0$o0, 10)])
 +- FlinkLogicalOverAggregate(window#0=[window(partition {1} order by [0 ASC-nulls-first] aggs [RANK()])], window#1=[window(partition {1} order by [0 ASC-nulls-first] rows between UNBOUNDED PRECEDING and CURRENT ROW aggs [ROW_NUMBER()])])
    +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
@@ -62,7 +62,7 @@ LogicalProject(a=[$0], b=[$1], rk1=[$2], rk2=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[a, b, w0$o0 AS $2, w1$o0 AS $3], where=[<(w0$o0, 10)])
+FlinkLogicalCalc(select=[a, b, w0$o0, w1$o0], where=[<(w0$o0, 10)])
 +- FlinkLogicalOverAggregate(window#0=[window(partition {1} order by [0 ASC-nulls-first] aggs [RANK()])], window#1=[window(partition {2} order by [0 ASC-nulls-first] aggs [RANK()])])
    +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
@@ -137,8 +137,8 @@ LogicalProject(a=[$0], b=[$1], rk=[$2])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[a, b, $2])
-+- FlinkLogicalRank(rankType=[RANK], rankRange=[rankStart=-1, rankEnd=2], partitionBy=[b,c], orderBy=[a ASC], select=[a, b, c, $2])
+FlinkLogicalCalc(select=[a, b, w0$o0])
++- FlinkLogicalRank(rankType=[RANK], rankRange=[rankStart=-1, rankEnd=2], partitionBy=[b,c], orderBy=[a ASC], select=[a, b, c, w0$o0])
    +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -161,8 +161,8 @@ LogicalProject(a=[$0], b=[$1], rk=[$2])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[a, b, $2], where=[>(a, 10)])
-+- FlinkLogicalRank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=2], partitionBy=[b], orderBy=[a ASC], select=[a, b, $2])
+FlinkLogicalCalc(select=[a, b, w0$o0], where=[>(a, 10)])
++- FlinkLogicalRank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=2], partitionBy=[b], orderBy=[a ASC], select=[a, b, w0$o0])
    +- FlinkLogicalCalc(select=[a, b])
       +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
@@ -186,7 +186,7 @@ LogicalProject(a=[$0], b=[$1], rn=[$2])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=2], partitionBy=[b], orderBy=[a ASC], select=[a, b, $2])
+FlinkLogicalRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=2], partitionBy=[b], orderBy=[a ASC], select=[a, b, w0$o0])
 +- FlinkLogicalCalc(select=[a, b])
    +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
@@ -210,8 +210,8 @@ LogicalProject(a=[$0], b=[$1], rk=[$2])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[a, b, $2])
-+- FlinkLogicalRank(rankType=[RANK], rankRange=[rankEnd=a], partitionBy=[b], orderBy=[c ASC], select=[a, b, c, $2])
+FlinkLogicalCalc(select=[a, b, w0$o0])
++- FlinkLogicalRank(rankType=[RANK], rankRange=[rankEnd=a], partitionBy=[b], orderBy=[c ASC], select=[a, b, c, w0$o0])
    +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -234,7 +234,7 @@ LogicalProject(a=[$0], b=[$1], rk=[$2])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[a, b, w0$o0 AS $2], where=[>(w0$o0, a)])
+FlinkLogicalCalc(select=[a, b, w0$o0], where=[>(w0$o0, a)])
 +- FlinkLogicalOverAggregate(window#0=[window(partition {1} order by [2 ASC-nulls-first] aggs [RANK()])])
    +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
@@ -258,8 +258,8 @@ LogicalProject(a=[$0], b=[$1], rk=[$2])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[a, b, $2], where=[>(CAST(b), 5:BIGINT)])
-+- FlinkLogicalRank(rankType=[RANK], rankRange=[rankEnd=a], partitionBy=[b], orderBy=[c ASC], select=[a, b, c, $2])
+FlinkLogicalCalc(select=[a, b, w0$o0], where=[>(CAST(b), 5:BIGINT)])
++- FlinkLogicalRank(rankType=[RANK], rankRange=[rankEnd=a], partitionBy=[b], orderBy=[c ASC], select=[a, b, c, w0$o0])
    +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -282,8 +282,8 @@ LogicalProject(a=[$0], b=[$1], rk=[$2])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[a, b, $2])
-+- FlinkLogicalRank(rankType=[RANK], rankRange=[rankEnd=b], partitionBy=[a], orderBy=[c ASC], select=[a, b, c, $2])
+FlinkLogicalCalc(select=[a, b, w0$o0])
++- FlinkLogicalRank(rankType=[RANK], rankRange=[rankEnd=b], partitionBy=[a], orderBy=[c ASC], select=[a, b, c, w0$o0])
    +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -306,7 +306,7 @@ LogicalProject(a=[$0], b=[$1], rk=[$2])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalRank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[], orderBy=[a ASC], select=[a, b, $2])
+FlinkLogicalRank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[], orderBy=[a ASC], select=[a, b, w0$o0])
 +- FlinkLogicalCalc(select=[a, b])
    +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>

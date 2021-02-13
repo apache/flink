@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -50,7 +51,7 @@ public interface SubtaskCheckpointCoordinator extends Closeable {
     CheckpointStorageWorkerView getCheckpointStorage();
 
     void abortCheckpointOnBarrier(
-            long checkpointId, Throwable cause, OperatorChain<?, ?> operatorChain)
+            long checkpointId, CheckpointException cause, OperatorChain<?, ?> operatorChain)
             throws IOException;
 
     /** Must be called after {@link #initCheckpoint(long, CheckpointOptions)}. */
@@ -59,7 +60,7 @@ public interface SubtaskCheckpointCoordinator extends Closeable {
             CheckpointOptions checkpointOptions,
             CheckpointMetricsBuilder checkpointMetrics,
             OperatorChain<?, ?> operatorChain,
-            Supplier<Boolean> isCanceled)
+            Supplier<Boolean> isRunning)
             throws Exception;
 
     /**

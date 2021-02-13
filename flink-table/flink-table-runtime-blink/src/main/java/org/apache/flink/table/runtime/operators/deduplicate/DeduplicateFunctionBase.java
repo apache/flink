@@ -26,7 +26,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 
-import static org.apache.flink.table.runtime.util.StateTtlConfigUtil.createTtlConfig;
+import static org.apache.flink.table.runtime.util.StateConfigUtil.createTtlConfig;
 
 /**
  * Base class for deduplicate function.

@@ -23,7 +23,9 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
+import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategyFactoryLoader;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategyFactoryLoader;
@@ -31,8 +33,8 @@ import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 
 import org.slf4j.Logger;
@@ -49,10 +51,9 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
     public SchedulerNG createInstance(
             final Logger log,
             final JobGraph jobGraph,
-            final BackPressureStatsTracker backPressureStatsTracker,
             final Executor ioExecutor,
             final Configuration jobMasterConfiguration,
-            final SlotPool slotPool,
+            final SlotPoolService slotPoolService,
             final ScheduledExecutorService futureExecutor,
             final ClassLoader userCodeLoader,
             final CheckpointRecoveryFactory checkpointRecoveryFactory,
@@ -63,8 +64,18 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
             final ShuffleMaster<?> shuffleMaster,
             final JobMasterPartitionTracker partitionTracker,
             final ExecutionDeploymentTracker executionDeploymentTracker,
-            long initializationTimestamp)
+            long initializationTimestamp,
+            final ComponentMainThreadExecutor mainThreadExecutor,
+            final JobStatusListener jobStatusListener)
             throws Exception {
+
+        final SlotPool slotPool =
+                slotPoolService
+                        .castInto(SlotPool.class)
+                        .orElseThrow(
+                                () ->
+                                        new IllegalStateException(
+                                                "The DefaultScheduler requires a SlotPool."));
 
         final DefaultSchedulerComponents schedulerComponents =
                 createSchedulerComponents(
@@ -90,7 +101,6 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
         return new DefaultScheduler(
                 log,
                 jobGraph,
-                backPressureStatsTracker,
                 ioExecutor,
                 jobMasterConfiguration,
                 schedulerComponents.getStartUpAction(),
@@ -110,6 +120,8 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
                 new ExecutionVertexVersioner(),
                 schedulerComponents.getAllocatorFactory(),
                 executionDeploymentTracker,
-                initializationTimestamp);
+                initializationTimestamp,
+                mainThreadExecutor,
+                jobStatusListener);
     }
 }

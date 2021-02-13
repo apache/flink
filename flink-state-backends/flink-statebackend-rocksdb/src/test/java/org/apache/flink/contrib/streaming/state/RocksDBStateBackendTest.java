@@ -149,6 +149,11 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
         return false;
     }
 
+    @Override
+    protected boolean supportsAsynchronousSnapshots() {
+        return true;
+    }
+
     // small safety net for instance cleanups, so that no native objects are left
     @After
     public void cleanupRocksDB() {

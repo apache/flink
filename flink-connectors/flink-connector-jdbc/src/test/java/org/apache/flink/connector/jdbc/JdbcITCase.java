@@ -19,8 +19,8 @@ package org.apache.flink.connector.jdbc;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.util.function.FunctionWithException;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.sql.Connection;
@@ -44,8 +44,20 @@ import static org.junit.Assert.assertEquals;
 /** Smoke tests for the {@link JdbcSink} and the underlying classes. */
 public class JdbcITCase extends JdbcTestBase {
 
+    public static final JdbcStatementBuilder<TestEntry> TEST_ENTRY_JDBC_STATEMENT_BUILDER =
+            (ps, t) -> {
+                ps.setInt(1, t.id);
+                ps.setString(2, t.title);
+                ps.setString(3, t.author);
+                if (t.price == null) {
+                    ps.setNull(4, Types.DOUBLE);
+                } else {
+                    ps.setDouble(4, t.price);
+                }
+                ps.setInt(5, t.qty);
+            };
+
     @Test
-    @Ignore
     public void testInsert() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRestartStrategy(new RestartStrategies.NoRestartStrategyConfiguration());
@@ -54,17 +66,7 @@ public class JdbcITCase extends JdbcTestBase {
                 .addSink(
                         JdbcSink.sink(
                                 String.format(INSERT_TEMPLATE, INPUT_TABLE),
-                                (ps, t) -> {
-                                    ps.setInt(1, t.id);
-                                    ps.setString(2, t.title);
-                                    ps.setString(3, t.author);
-                                    if (t.price == null) {
-                                        ps.setNull(4, Types.DOUBLE);
-                                    } else {
-                                        ps.setDouble(4, t.price);
-                                    }
-                                    ps.setInt(5, t.qty);
-                                },
+                                TEST_ENTRY_JDBC_STATEMENT_BUILDER,
                                 new JdbcConnectionOptionsBuilder()
                                         .withUrl(getDbMetadata().getUrl())
                                         .withDriverName(getDbMetadata().getDriverClass())
@@ -86,11 +88,11 @@ public class JdbcITCase extends JdbcTestBase {
                     while (rs.next()) {
                         result.add(
                                 new TestEntry(
-                                        rs.getInt(1),
-                                        rs.getString(2),
-                                        rs.getString(3),
-                                        rs.getDouble(4),
-                                        rs.getInt(5)));
+                                        getNullable(rs, r -> r.getInt(1)),
+                                        getNullable(rs, r -> r.getString(2)),
+                                        getNullable(rs, r -> r.getString(3)),
+                                        getNullable(rs, r -> r.getDouble(4)),
+                                        getNullable(rs, r -> r.getInt(5))));
                     }
                 }
             }
@@ -101,5 +103,12 @@ public class JdbcITCase extends JdbcTestBase {
     @Override
     protected DbMetadata getDbMetadata() {
         return DERBY_EBOOKSHOP_DB;
+    }
+
+    private static <T> T getNullable(
+            ResultSet rs, FunctionWithException<ResultSet, T, SQLException> get)
+            throws SQLException {
+        T value = get.apply(rs);
+        return rs.wasNull() ? null : value;
     }
 }

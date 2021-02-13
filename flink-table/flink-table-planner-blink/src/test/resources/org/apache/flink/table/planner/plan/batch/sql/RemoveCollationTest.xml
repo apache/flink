@@ -487,7 +487,7 @@ LogicalProject(sum_b=[$1], avg_b=[/(CASE(>(COUNT($1) OVER (PARTITION BY $0 ORDER
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[sum_b, (CASE((w0$o0 > 0:BIGINT), w0$o1, null:BIGINT) / w0$o0) AS avg_b, w0$o2 AS rn])
-+- OverAggregate(partitionBy=[a], orderBy=[a ASC], window#0=[COUNT(sum_b) AS w0$o0, $SUM0(sum_b) AS w0$o1, RANK(*) AS w0$o2 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], window#1=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, sum_b, w0$o0, w0$o1, w0$o2])
++- OverAggregate(partitionBy=[a], orderBy=[a ASC], window#0=[COUNT(sum_b) AS w0$o0, $SUM0(sum_b) AS w0$o1 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], window#1=[RANK(*) AS w0$o2 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, sum_b, w0$o0, w0$o1, w0$o2])
    +- SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS sum_b])
       +- Sort(orderBy=[a ASC])
          +- Exchange(distribution=[hash[a]])
@@ -546,12 +546,12 @@ LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
     <Resource name="optimized exec plan">
       <![CDATA[
 SortAggregate(isMerge=[false], groupBy=[a], select=[a, SUM(b) AS EXPR$1])
-+- Calc(select=[a, b])
-   +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b ASC], global=[true], select=[a, b, c, w0$o0])
-      +- Sort(orderBy=[a ASC, b ASC])
-         +- Exchange(distribution=[hash[a]])
-            +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b ASC], global=[false], select=[a, b, c])
-               +- Sort(orderBy=[a ASC, b ASC])
++- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b ASC], global=[true], select=[a, b])
+   +- Sort(orderBy=[a ASC, b ASC])
+      +- Exchange(distribution=[hash[a]])
+         +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b ASC], global=[false], select=[a, b])
+            +- Sort(orderBy=[a ASC, b ASC])
+               +- Calc(select=[a, b])
                   +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -671,12 +671,12 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)], EXPR$1=[SUM($1)])
     <Resource name="optimized exec plan">
       <![CDATA[
 SortAggregate(isMerge=[false], select=[COUNT(a) AS EXPR$0, SUM(b) AS EXPR$1])
-+- Calc(select=[a, b])
-   +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[], orderBy=[b ASC], global=[true], select=[a, b, c, w0$o0])
-      +- Sort(orderBy=[b ASC])
-         +- Exchange(distribution=[single])
-            +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[], orderBy=[b ASC], global=[false], select=[a, b, c])
-               +- Sort(orderBy=[b ASC])
++- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[], orderBy=[b ASC], global=[true], select=[a, b])
+   +- Sort(orderBy=[b ASC])
+      +- Exchange(distribution=[single])
+         +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[], orderBy=[b ASC], global=[false], select=[a, b])
+            +- Sort(orderBy=[b ASC])
+               +- Calc(select=[a, b])
                   +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>

@@ -45,8 +45,40 @@ public class ManagedMemoryUtilsTest extends TestLogger {
 
     private static final int DATA_PROC_WEIGHT = 111;
     private static final int PYTHON_WEIGHT = 222;
+    private static final int OPERATOR_WEIGHT = 333;
+    private static final int STATE_BACKEND_WEIGHT = 444;
+    private static final int TOTAL_WEIGHT = PYTHON_WEIGHT + OPERATOR_WEIGHT + STATE_BACKEND_WEIGHT;
 
     private static final UnmodifiableConfiguration CONFIG_WITH_ALL_USE_CASES =
+            new UnmodifiableConfiguration(
+                    new Configuration() {
+                        {
+                            set(
+                                    TaskManagerOptions.MANAGED_MEMORY_CONSUMER_WEIGHTS,
+                                    new HashMap<String, String>() {
+                                        {
+                                            put(
+                                                    TaskManagerOptions
+                                                            .MANAGED_MEMORY_CONSUMER_NAME_DATAPROC,
+                                                    String.valueOf(DATA_PROC_WEIGHT));
+                                            put(
+                                                    TaskManagerOptions
+                                                            .MANAGED_MEMORY_CONSUMER_NAME_PYTHON,
+                                                    String.valueOf(PYTHON_WEIGHT));
+                                            put(
+                                                    TaskManagerOptions
+                                                            .MANAGED_MEMORY_CONSUMER_NAME_OPERATOR,
+                                                    String.valueOf(OPERATOR_WEIGHT));
+                                            put(
+                                                    TaskManagerOptions
+                                                            .MANAGED_MEMORY_CONSUMER_NAME_STATE_BACKEND,
+                                                    String.valueOf(STATE_BACKEND_WEIGHT));
+                                        }
+                                    });
+                        }
+                    });
+
+    private static final UnmodifiableConfiguration CONFIG_WITH_LEGACY_USE_CASES =
             new UnmodifiableConfiguration(
                     new Configuration() {
                         {
@@ -72,8 +104,8 @@ public class ManagedMemoryUtilsTest extends TestLogger {
         final Map<ManagedMemoryUseCase, Integer> expectedWeights =
                 new HashMap<ManagedMemoryUseCase, Integer>() {
                     {
-                        put(ManagedMemoryUseCase.STATE_BACKEND, DATA_PROC_WEIGHT);
-                        put(ManagedMemoryUseCase.BATCH_OP, DATA_PROC_WEIGHT);
+                        put(ManagedMemoryUseCase.OPERATOR, OPERATOR_WEIGHT);
+                        put(ManagedMemoryUseCase.STATE_BACKEND, STATE_BACKEND_WEIGHT);
                         put(ManagedMemoryUseCase.PYTHON, PYTHON_WEIGHT);
                     }
                 };
@@ -85,18 +117,22 @@ public class ManagedMemoryUtilsTest extends TestLogger {
         assertThat(configuredWeights, is(expectedWeights));
     }
 
-    @Test(expected = IllegalConfigurationException.class)
-    public void testGetWeightsFromConfigFailUnknownUseCase() {
-        final Configuration config =
-                new Configuration() {
+    @Test
+    public void testGetWeightsFromConfigLegacy() {
+        final Map<ManagedMemoryUseCase, Integer> expectedWeights =
+                new HashMap<ManagedMemoryUseCase, Integer>() {
                     {
-                        set(
-                                TaskManagerOptions.MANAGED_MEMORY_CONSUMER_WEIGHTS,
-                                Collections.singletonMap("UNKNOWN_KEY", "123"));
+                        put(ManagedMemoryUseCase.OPERATOR, DATA_PROC_WEIGHT);
+                        put(ManagedMemoryUseCase.STATE_BACKEND, DATA_PROC_WEIGHT);
+                        put(ManagedMemoryUseCase.PYTHON, PYTHON_WEIGHT);
                     }
                 };
 
-        ManagedMemoryUtils.getManagedMemoryUseCaseWeightsFromConfig(config);
+        final Map<ManagedMemoryUseCase, Integer> configuredWeights =
+                ManagedMemoryUtils.getManagedMemoryUseCaseWeightsFromConfig(
+                        CONFIG_WITH_LEGACY_USE_CASES);
+
+        assertThat(configuredWeights, is(expectedWeights));
     }
 
     @Test(expected = IllegalConfigurationException.class)
@@ -107,7 +143,7 @@ public class ManagedMemoryUtilsTest extends TestLogger {
                         set(
                                 TaskManagerOptions.MANAGED_MEMORY_CONSUMER_WEIGHTS,
                                 Collections.singletonMap(
-                                        TaskManagerOptions.MANAGED_MEMORY_CONSUMER_NAME_DATAPROC,
+                                        TaskManagerOptions.MANAGED_MEMORY_CONSUMER_NAME_OPERATOR,
                                         "-123"));
                     }
                 };
@@ -117,7 +153,7 @@ public class ManagedMemoryUtilsTest extends TestLogger {
 
     @Test
     public void testConvertToFractionOfSlot() {
-        final ManagedMemoryUseCase useCase = ManagedMemoryUseCase.BATCH_OP;
+        final ManagedMemoryUseCase useCase = ManagedMemoryUseCase.OPERATOR;
         final double fractionOfUseCase = 0.3;
 
         final double fractionOfSlot =
@@ -126,20 +162,21 @@ public class ManagedMemoryUtilsTest extends TestLogger {
                         fractionOfUseCase,
                         new HashSet<ManagedMemoryUseCase>() {
                             {
-                                add(ManagedMemoryUseCase.BATCH_OP);
+                                add(ManagedMemoryUseCase.OPERATOR);
+                                add(ManagedMemoryUseCase.STATE_BACKEND);
                                 add(ManagedMemoryUseCase.PYTHON);
                             }
                         },
                         CONFIG_WITH_ALL_USE_CASES,
-                        Optional.empty(),
+                        Optional.of(true),
                         ClassLoader.getSystemClassLoader());
 
-        assertEquals(fractionOfUseCase / 3, fractionOfSlot, DELTA);
+        assertEquals(fractionOfUseCase * OPERATOR_WEIGHT / TOTAL_WEIGHT, fractionOfSlot, DELTA);
     }
 
     @Test
     public void testConvertToFractionOfSlotWeightNotConfigured() {
-        final ManagedMemoryUseCase useCase = ManagedMemoryUseCase.BATCH_OP;
+        final ManagedMemoryUseCase useCase = ManagedMemoryUseCase.OPERATOR;
         final double fractionOfUseCase = 0.3;
 
         final Configuration config =
@@ -157,12 +194,13 @@ public class ManagedMemoryUtilsTest extends TestLogger {
                         fractionOfUseCase,
                         new HashSet<ManagedMemoryUseCase>() {
                             {
-                                add(ManagedMemoryUseCase.BATCH_OP);
+                                add(ManagedMemoryUseCase.OPERATOR);
+                                add(ManagedMemoryUseCase.STATE_BACKEND);
                                 add(ManagedMemoryUseCase.PYTHON);
                             }
                         },
                         config,
-                        Optional.empty(),
+                        Optional.of(true),
                         ClassLoader.getSystemClassLoader());
 
         assertEquals(0.0, fractionOfSlot, DELTA);
@@ -171,27 +209,42 @@ public class ManagedMemoryUtilsTest extends TestLogger {
     @Test
     public void testConvertToFractionOfSlotStateBackendUseManagedMemory() {
         testConvertToFractionOfSlotGivenWhetherStateBackendUsesManagedMemory(
-                true, 1.0 / 3, 1.0 * 2 / 3);
+                true,
+                1.0 * OPERATOR_WEIGHT / TOTAL_WEIGHT,
+                1.0 * STATE_BACKEND_WEIGHT / TOTAL_WEIGHT,
+                1.0 * PYTHON_WEIGHT / TOTAL_WEIGHT);
     }
 
     @Test
     public void testConvertToFractionOfSlotStateBackendNotUserManagedMemory() {
-        testConvertToFractionOfSlotGivenWhetherStateBackendUsesManagedMemory(false, 0.0, 1.0);
+        final int totalWeight = OPERATOR_WEIGHT + PYTHON_WEIGHT;
+        testConvertToFractionOfSlotGivenWhetherStateBackendUsesManagedMemory(
+                false, 1.0 * OPERATOR_WEIGHT / totalWeight, 0.0, 1.0 * PYTHON_WEIGHT / totalWeight);
     }
 
     private void testConvertToFractionOfSlotGivenWhetherStateBackendUsesManagedMemory(
             boolean stateBackendUsesManagedMemory,
+            double expectedOperatorFractionOfSlot,
             double expectedStateFractionOfSlot,
             double expectedPythonFractionOfSlot) {
 
         final Set<ManagedMemoryUseCase> allUseCases =
                 new HashSet<ManagedMemoryUseCase>() {
                     {
+                        add(ManagedMemoryUseCase.OPERATOR);
                         add(ManagedMemoryUseCase.STATE_BACKEND);
                         add(ManagedMemoryUseCase.PYTHON);
                     }
                 };
 
+        final double opFractionOfSlot =
+                ManagedMemoryUtils.convertToFractionOfSlot(
+                        ManagedMemoryUseCase.OPERATOR,
+                        1.0,
+                        allUseCases,
+                        CONFIG_WITH_ALL_USE_CASES,
+                        Optional.of(stateBackendUsesManagedMemory),
+                        ClassLoader.getSystemClassLoader());
         final double stateFractionOfSlot =
                 ManagedMemoryUtils.convertToFractionOfSlot(
                         ManagedMemoryUseCase.STATE_BACKEND,
@@ -209,6 +262,7 @@ public class ManagedMemoryUtilsTest extends TestLogger {
                         Optional.of(stateBackendUsesManagedMemory),
                         ClassLoader.getSystemClassLoader());
 
+        assertEquals(expectedOperatorFractionOfSlot, opFractionOfSlot, DELTA);
         assertEquals(expectedStateFractionOfSlot, stateFractionOfSlot, DELTA);
         assertEquals(expectedPythonFractionOfSlot, pythonFractionOfSlot, DELTA);
     }

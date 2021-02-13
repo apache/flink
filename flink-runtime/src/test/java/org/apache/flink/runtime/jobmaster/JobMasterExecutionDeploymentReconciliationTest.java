@@ -257,8 +257,7 @@ public class JobMasterExecutionDeploymentReconciliationTest extends TestLogger {
                 .get();
 
         Collection<SlotOffer> slotOffers =
-                Collections.singleton(
-                        new SlotOffer(new AllocationID(), 0, ResourceProfile.UNKNOWN));
+                Collections.singleton(new SlotOffer(new AllocationID(), 0, ResourceProfile.ANY));
 
         jobMasterGateway
                 .offerSlots(taskManagerLocation.getResourceID(), slotOffers, testingTimeout)

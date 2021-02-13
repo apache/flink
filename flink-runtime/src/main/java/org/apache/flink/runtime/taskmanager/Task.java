@@ -68,10 +68,10 @@ import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.security.FlinkSecurityManager;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.shuffle.ShuffleIOOwnerContext;
 import org.apache.flink.runtime.state.TaskStateManager;
-import org.apache.flink.runtime.taskexecutor.BackPressureSampleableTask;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
@@ -135,8 +135,7 @@ public class Task
                 TaskSlotPayload,
                 TaskActions,
                 PartitionProducerStateProvider,
-                CheckpointListener,
-                BackPressureSampleableTask {
+                CheckpointListener {
 
     /** The class logger. */
     private static final Logger LOG = LoggerFactory.getLogger(Task.class);
@@ -305,7 +304,6 @@ public class Task
             int attemptNumber,
             List<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors,
             List<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors,
-            int targetSlotNumber,
             MemoryManager memManager,
             IOManager ioManager,
             ShuffleEnvironment<?, ?> shuffleEnvironment,
@@ -332,8 +330,6 @@ public class Task
 
         Preconditions.checkArgument(0 <= subtaskIndex, "The subtask index must be positive.");
         Preconditions.checkArgument(0 <= attemptNumber, "The attempt number must be positive.");
-        Preconditions.checkArgument(
-                0 <= targetSlotNumber, "The target slot number must be positive.");
 
         this.taskInfo =
                 new TaskInfo(
@@ -506,17 +502,18 @@ public class Task
         return invokable;
     }
 
-    @Override
     public boolean isBackPressured() {
-        if (invokable == null || consumableNotifyingPartitionWriters.length == 0 || !isRunning()) {
+        if (invokable == null
+                || consumableNotifyingPartitionWriters.length == 0
+                || executionState != ExecutionState.RUNNING) {
             return false;
         }
-        final CompletableFuture<?>[] outputFutures =
-                new CompletableFuture[consumableNotifyingPartitionWriters.length];
-        for (int i = 0; i < outputFutures.length; ++i) {
-            outputFutures[i] = consumableNotifyingPartitionWriters[i].getAvailableFuture();
+        for (int i = 0; i < consumableNotifyingPartitionWriters.length; ++i) {
+            if (!consumableNotifyingPartitionWriters[i].isAvailable()) {
+                return true;
+            }
         }
-        return !CompletableFuture.allOf(outputFutures).isDone();
+        return false;
     }
 
     // ------------------------------------------------------------------------
@@ -541,11 +538,6 @@ public class Task
         return executionState == ExecutionState.CANCELING
                 || executionState == ExecutionState.CANCELED
                 || executionState == ExecutionState.FAILED;
-    }
-
-    @Override
-    public boolean isRunning() {
-        return executionState == ExecutionState.RUNNING;
     }
 
     /**
@@ -725,10 +717,17 @@ public class Task
             // so that it is available to the invokable during its entire lifetime.
             executingThread.setContextClassLoader(userCodeClassLoader.asClassLoader());
 
-            // now load and instantiate the task's invokable code
-            invokable =
-                    loadAndInstantiateInvokable(
-                            userCodeClassLoader.asClassLoader(), nameOfInvokableClass, env);
+            // When constructing invokable, separate threads can be constructed and thus should be
+            // monitored for system exit (in addition to invoking thread itself monitored below).
+            FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
+            try {
+                // now load and instantiate the task's invokable code
+                invokable =
+                        loadAndInstantiateInvokable(
+                                userCodeClassLoader.asClassLoader(), nameOfInvokableClass, env);
+            } finally {
+                FlinkSecurityManager.unmonitorUserSystemExitForCurrentThread();
+            }
 
             // ----------------------------------------------------------------
             //  actual task core work
@@ -751,8 +750,17 @@ public class Task
             // make sure the user code classloader is accessible thread-locally
             executingThread.setContextClassLoader(userCodeClassLoader.asClassLoader());
 
-            // run the invokable
-            invokable.invoke();
+            // Monitor user codes from exiting JVM covering user function invocation. This can be
+            // done in a finer-grained way like enclosing user callback functions individually,
+            // but as exit triggered by framework is not performed and expected in this invoke
+            // function anyhow, we can monitor exiting JVM for entire scope.
+            FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
+            try {
+                // run the invokable
+                invokable.invoke();
+            } finally {
+                FlinkSecurityManager.unmonitorUserSystemExitForCurrentThread();
+            }
 
             // make sure, we enter the catch block if the task leaves the invoke() method due
             // to the fact that it has been canceled

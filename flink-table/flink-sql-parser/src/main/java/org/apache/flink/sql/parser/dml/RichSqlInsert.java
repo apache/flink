@@ -122,15 +122,15 @@ public class RichSqlInsert extends SqlInsert {
         final int opLeft = getOperator().getLeftPrec();
         final int opRight = getOperator().getRightPrec();
         getTargetTable().unparse(writer, opLeft, opRight);
-        if (getTargetColumnList() != null) {
-            getTargetColumnList().unparse(writer, opLeft, opRight);
-        }
-        writer.newlineAndIndent();
         if (staticPartitions != null && staticPartitions.size() > 0) {
             writer.keyword("PARTITION");
             staticPartitions.unparse(writer, opLeft, opRight);
             writer.newlineAndIndent();
         }
+        if (getTargetColumnList() != null) {
+            getTargetColumnList().unparse(writer, opLeft, opRight);
+        }
+        writer.newlineAndIndent();
         getSource().unparse(writer, 0, 0);
     }
 

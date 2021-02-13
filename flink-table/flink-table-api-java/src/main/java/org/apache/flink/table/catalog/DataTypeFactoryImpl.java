@@ -20,6 +20,8 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.DataTypes;
@@ -34,6 +36,7 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.UnresolvedUserDefinedType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDuplicator;
 import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
+import org.apache.flink.table.types.utils.TypeInfoDataTypeConverter;
 
 import javax.annotation.Nullable;
 
@@ -57,7 +60,8 @@ final class DataTypeFactoryImpl implements DataTypeFactory {
             ReadableConfig config,
             @Nullable ExecutionConfig executionConfig) {
         this.classLoader = classLoader;
-        this.executionConfig = createKryoExecutionConfig(classLoader, config, executionConfig);
+        this.executionConfig =
+                createSerializerExecutionConfig(classLoader, config, executionConfig);
     }
 
     @Override
@@ -92,22 +96,44 @@ final class DataTypeFactoryImpl implements DataTypeFactory {
     }
 
     @Override
+    public <T> DataType createDataType(TypeInformation<T> typeInfo) {
+        return TypeInfoDataTypeConverter.toDataType(this, typeInfo);
+    }
+
+    @Override
     public <T> DataType createRawDataType(Class<T> clazz) {
+        // we assume that a RAW type is nullable by default
         return DataTypes.RAW(clazz, new KryoSerializer<>(clazz, executionConfig.get()));
+    }
+
+    @Override
+    public <T> DataType createRawDataType(TypeInformation<T> typeInfo) {
+        // we assume that a RAW type is nullable by default
+        return DataTypes.RAW(
+                typeInfo.getTypeClass(), typeInfo.createSerializer(executionConfig.get()));
     }
 
     // --------------------------------------------------------------------------------------------
 
     /**
-     * Creates a lazy {@link ExecutionConfig} for the {@link KryoSerializer} with information from
-     * existing {@link ExecutionConfig} (if available) enriched with table {@link ReadableConfig}.
+     * Creates a lazy {@link ExecutionConfig} that contains options for {@link TypeSerializer}s with
+     * information from existing {@link ExecutionConfig} (if available) enriched with table {@link
+     * ReadableConfig}.
      */
-    private static Supplier<ExecutionConfig> createKryoExecutionConfig(
+    private static Supplier<ExecutionConfig> createSerializerExecutionConfig(
             ClassLoader classLoader, ReadableConfig config, ExecutionConfig executionConfig) {
         return () -> {
             final ExecutionConfig newExecutionConfig = new ExecutionConfig();
 
             if (executionConfig != null) {
+                if (executionConfig.isForceKryoEnabled()) {
+                    newExecutionConfig.enableForceKryo();
+                }
+
+                if (executionConfig.isForceAvroEnabled()) {
+                    newExecutionConfig.enableForceAvro();
+                }
+
                 executionConfig
                         .getDefaultKryoSerializers()
                         .forEach(

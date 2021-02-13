@@ -24,16 +24,11 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.runtime.state.KeyExtractorFunction;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
-import org.apache.flink.runtime.state.Keyed;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
-import org.apache.flink.runtime.state.PriorityComparable;
-import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
-import org.apache.flink.runtime.state.RegisteredPriorityQueueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.RestoreOperation;
 import org.apache.flink.runtime.state.SnappyStreamCompressionDecorator;
 import org.apache.flink.runtime.state.StateSerializerProvider;
@@ -49,13 +44,11 @@ import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -73,25 +66,22 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
     private final StateSerializerProvider<K> keySerializerProvider;
     private final ClassLoader userCodeClassLoader;
     private final Map<String, StateTable<K, ?, ?>> registeredKVStates;
-    private final Map<String, HeapPriorityQueueSnapshotRestoreWrapper> registeredPQStates;
+    private final Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates;
     private final CloseableRegistry cancelStreamRegistry;
-    private final HeapPriorityQueueSetFactory priorityQueueSetFactory;
     @Nonnull private final KeyGroupRange keyGroupRange;
-    @Nonnegative private final int numberOfKeyGroups;
-    private final HeapSnapshotStrategy<K> snapshotStrategy;
-    private final InternalKeyContext<K> keyContext;
+    private final HeapMetaInfoRestoreOperation<K> heapMetaInfoRestoreOperation;
 
     HeapRestoreOperation(
             @Nonnull Collection<KeyedStateHandle> restoreStateHandles,
             StateSerializerProvider<K> keySerializerProvider,
             ClassLoader userCodeClassLoader,
             Map<String, StateTable<K, ?, ?>> registeredKVStates,
-            Map<String, HeapPriorityQueueSnapshotRestoreWrapper> registeredPQStates,
+            Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates,
             CloseableRegistry cancelStreamRegistry,
             HeapPriorityQueueSetFactory priorityQueueSetFactory,
             @Nonnull KeyGroupRange keyGroupRange,
             int numberOfKeyGroups,
-            HeapSnapshotStrategy<K> snapshotStrategy,
+            StateTableFactory<K> stateTableFactory,
             InternalKeyContext<K> keyContext) {
         this.restoreStateHandles = restoreStateHandles;
         this.keySerializerProvider = keySerializerProvider;
@@ -99,11 +89,15 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
         this.registeredKVStates = registeredKVStates;
         this.registeredPQStates = registeredPQStates;
         this.cancelStreamRegistry = cancelStreamRegistry;
-        this.priorityQueueSetFactory = priorityQueueSetFactory;
         this.keyGroupRange = keyGroupRange;
-        this.numberOfKeyGroups = numberOfKeyGroups;
-        this.snapshotStrategy = snapshotStrategy;
-        this.keyContext = keyContext;
+        this.heapMetaInfoRestoreOperation =
+                new HeapMetaInfoRestoreOperation<>(
+                        keySerializerProvider,
+                        priorityQueueSetFactory,
+                        keyGroupRange,
+                        numberOfKeyGroups,
+                        stateTableFactory,
+                        keyContext);
     }
 
     @Override
@@ -165,9 +159,9 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
                 List<StateMetaInfoSnapshot> restoredMetaInfos =
                         serializationProxy.getStateMetaInfoSnapshots();
 
-                final Map<Integer, StateMetaInfoSnapshot> kvStatesById = new HashMap<>();
-
-                createOrCheckStateForMetaInfo(restoredMetaInfos, kvStatesById);
+                final Map<Integer, StateMetaInfoSnapshot> kvStatesById =
+                        this.heapMetaInfoRestoreOperation.createOrCheckStateForMetaInfo(
+                                restoredMetaInfos, registeredKVStates, registeredPQStates);
 
                 readStateHandleStateData(
                         fsDataInputStream,
@@ -185,68 +179,6 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
             }
         }
         return null;
-    }
-
-    private void createOrCheckStateForMetaInfo(
-            List<StateMetaInfoSnapshot> restoredMetaInfo,
-            Map<Integer, StateMetaInfoSnapshot> kvStatesById) {
-
-        for (StateMetaInfoSnapshot metaInfoSnapshot : restoredMetaInfo) {
-            final StateSnapshotRestore registeredState;
-
-            switch (metaInfoSnapshot.getBackendStateType()) {
-                case KEY_VALUE:
-                    registeredState = registeredKVStates.get(metaInfoSnapshot.getName());
-                    if (registeredState == null) {
-                        RegisteredKeyValueStateBackendMetaInfo<?, ?>
-                                registeredKeyedBackendStateMetaInfo =
-                                        new RegisteredKeyValueStateBackendMetaInfo<>(
-                                                metaInfoSnapshot);
-                        registeredKVStates.put(
-                                metaInfoSnapshot.getName(),
-                                snapshotStrategy.newStateTable(
-                                        keyContext,
-                                        registeredKeyedBackendStateMetaInfo,
-                                        keySerializerProvider.currentSchemaSerializer()));
-                    }
-                    break;
-                case PRIORITY_QUEUE:
-                    registeredState = registeredPQStates.get(metaInfoSnapshot.getName());
-                    if (registeredState == null) {
-                        createInternal(
-                                new RegisteredPriorityQueueStateBackendMetaInfo<>(
-                                        metaInfoSnapshot));
-                    }
-                    break;
-                default:
-                    throw new IllegalStateException(
-                            "Unexpected state type: "
-                                    + metaInfoSnapshot.getBackendStateType()
-                                    + ".");
-            }
-
-            // always put metaInfo into kvStatesById, because kvStatesById is KeyGroupsStateHandle
-            // related
-            kvStatesById.put(kvStatesById.size(), metaInfoSnapshot);
-        }
-    }
-
-    private <T extends HeapPriorityQueueElement & PriorityComparable & Keyed> void createInternal(
-            RegisteredPriorityQueueStateBackendMetaInfo<T> metaInfo) {
-
-        final String stateName = metaInfo.getName();
-        final HeapPriorityQueueSet<T> priorityQueue =
-                priorityQueueSetFactory.create(stateName, metaInfo.getElementSerializer());
-
-        HeapPriorityQueueSnapshotRestoreWrapper<T> wrapper =
-                new HeapPriorityQueueSnapshotRestoreWrapper<>(
-                        priorityQueue,
-                        metaInfo,
-                        KeyExtractorFunction.forKeyedObjects(),
-                        keyGroupRange,
-                        numberOfKeyGroups);
-
-        registeredPQStates.put(stateName, wrapper);
     }
 
     private void readStateHandleStateData(

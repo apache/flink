@@ -19,19 +19,12 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.blob.VoidBlobWriter;
-import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
-import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -40,7 +33,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
@@ -66,24 +58,7 @@ public class ExecutionGraphRescalingTest extends TestLogger {
                 createVerticesForSimpleBipartiteJobGraph(initialParallelism, maxParallelism);
         final JobGraph jobGraph = new JobGraph(jobVertices);
 
-        ExecutionGraph eg =
-                ExecutionGraphBuilder.buildGraph(
-                        null,
-                        jobGraph,
-                        config,
-                        TestingUtils.defaultExecutor(),
-                        TestingUtils.defaultExecutor(),
-                        new TestingSlotProvider(ignore -> new CompletableFuture<>()),
-                        Thread.currentThread().getContextClassLoader(),
-                        new StandaloneCheckpointRecoveryFactory(),
-                        AkkaUtils.getDefaultTimeout(),
-                        new UnregisteredMetricsGroup(),
-                        VoidBlobWriter.getInstance(),
-                        AkkaUtils.getDefaultTimeout(),
-                        TEST_LOGGER,
-                        NettyShuffleMaster.INSTANCE,
-                        NoOpJobMasterPartitionTracker.INSTANCE,
-                        System.currentTimeMillis());
+        ExecutionGraph eg = TestingExecutionGraphBuilder.newBuilder().setJobGraph(jobGraph).build();
 
         for (JobVertex jv : jobVertices) {
             assertThat(jv.getParallelism(), is(initialParallelism));
@@ -98,24 +73,7 @@ public class ExecutionGraphRescalingTest extends TestLogger {
             jv.setParallelism(scaleDownParallelism);
         }
 
-        eg =
-                ExecutionGraphBuilder.buildGraph(
-                        null,
-                        jobGraph,
-                        config,
-                        TestingUtils.defaultExecutor(),
-                        TestingUtils.defaultExecutor(),
-                        new TestingSlotProvider(ignore -> new CompletableFuture<>()),
-                        Thread.currentThread().getContextClassLoader(),
-                        new StandaloneCheckpointRecoveryFactory(),
-                        AkkaUtils.getDefaultTimeout(),
-                        new UnregisteredMetricsGroup(),
-                        VoidBlobWriter.getInstance(),
-                        AkkaUtils.getDefaultTimeout(),
-                        TEST_LOGGER,
-                        NettyShuffleMaster.INSTANCE,
-                        NoOpJobMasterPartitionTracker.INSTANCE,
-                        System.currentTimeMillis());
+        eg = TestingExecutionGraphBuilder.newBuilder().setJobGraph(jobGraph).build();
 
         for (JobVertex jv : jobVertices) {
             assertThat(jv.getParallelism(), is(1));
@@ -130,24 +88,7 @@ public class ExecutionGraphRescalingTest extends TestLogger {
             jv.setParallelism(scaleUpParallelism);
         }
 
-        eg =
-                ExecutionGraphBuilder.buildGraph(
-                        null,
-                        jobGraph,
-                        config,
-                        TestingUtils.defaultExecutor(),
-                        TestingUtils.defaultExecutor(),
-                        new TestingSlotProvider(ignore -> new CompletableFuture<>()),
-                        Thread.currentThread().getContextClassLoader(),
-                        new StandaloneCheckpointRecoveryFactory(),
-                        AkkaUtils.getDefaultTimeout(),
-                        new UnregisteredMetricsGroup(),
-                        VoidBlobWriter.getInstance(),
-                        AkkaUtils.getDefaultTimeout(),
-                        TEST_LOGGER,
-                        NettyShuffleMaster.INSTANCE,
-                        NoOpJobMasterPartitionTracker.INSTANCE,
-                        System.currentTimeMillis());
+        eg = TestingExecutionGraphBuilder.newBuilder().setJobGraph(jobGraph).build();
 
         for (JobVertex jv : jobVertices) {
             assertThat(jv.getParallelism(), is(scaleUpParallelism));
@@ -177,23 +118,7 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 
         try {
             // this should fail since we set the parallelism to maxParallelism + 1
-            ExecutionGraphBuilder.buildGraph(
-                    null,
-                    jobGraph,
-                    config,
-                    TestingUtils.defaultExecutor(),
-                    TestingUtils.defaultExecutor(),
-                    new TestingSlotProvider(ignore -> new CompletableFuture<>()),
-                    Thread.currentThread().getContextClassLoader(),
-                    new StandaloneCheckpointRecoveryFactory(),
-                    AkkaUtils.getDefaultTimeout(),
-                    new UnregisteredMetricsGroup(),
-                    VoidBlobWriter.getInstance(),
-                    AkkaUtils.getDefaultTimeout(),
-                    TEST_LOGGER,
-                    NettyShuffleMaster.INSTANCE,
-                    NoOpJobMasterPartitionTracker.INSTANCE,
-                    System.currentTimeMillis());
+            TestingExecutionGraphBuilder.newBuilder().setJobGraph(jobGraph).build();
 
             fail(
                     "Building the ExecutionGraph with a parallelism higher than the max parallelism should fail.");

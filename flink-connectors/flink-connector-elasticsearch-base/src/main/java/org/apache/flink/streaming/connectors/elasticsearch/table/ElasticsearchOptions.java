@@ -89,7 +89,7 @@ public class ElasticsearchOptions {
                                             text(
                                                     "\"ignore\" (ignores failures and drops the request),"),
                                             text(
-                                                    "\"retry_rejected\" (re-adds requests that have failed due to queue capacity saturation),"),
+                                                    "\"retry-rejected\" (re-adds requests that have failed due to queue capacity saturation),"),
                                             text(
                                                     "\"class name\" for failure handling with a ActionRequestFailureHandler subclass"))
                                     .build());

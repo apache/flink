@@ -20,6 +20,7 @@ package org.apache.flink.connector.jdbc;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.connector.jdbc.xa.h2.H2DbMetadata;
 import org.apache.flink.table.types.logical.RowType;
 
 import java.io.OutputStream;
@@ -28,12 +29,15 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Objects;
 
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
 /** Test data and helper objects for JDBC tests. */
 @SuppressWarnings("SpellCheckingInspection")
 public class JdbcTestFixture {
+    public static final JdbcTestCheckpoint CP0 = new JdbcTestCheckpoint(0, 1, 2, 3);
+    public static final JdbcTestCheckpoint CP1 = new JdbcTestCheckpoint(1, 4, 5, 6);
 
     public static final String INPUT_TABLE = "books";
     public static final String OUTPUT_TABLE = "newbooks";
@@ -68,6 +72,7 @@ public class JdbcTestFixture {
     private static final String EBOOKSHOP_SCHEMA_NAME = "ebookshop";
     public static final DerbyDbMetadata DERBY_EBOOKSHOP_DB =
             new DerbyDbMetadata(EBOOKSHOP_SCHEMA_NAME);
+    public static final H2DbMetadata H2_EBOOKSHOP_DB = new H2DbMetadata(EBOOKSHOP_SCHEMA_NAME);
 
     /** TestEntry. */
     public static class TestEntry implements Serializable {
@@ -101,6 +106,27 @@ public class JdbcTestFixture {
                     + ", qty="
                     + qty
                     + '}';
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof TestEntry)) {
+                return false;
+            }
+            TestEntry testEntry = (TestEntry) o;
+            return Objects.equals(id, testEntry.id)
+                    && Objects.equals(title, testEntry.title)
+                    && Objects.equals(author, testEntry.author)
+                    && Objects.equals(price, testEntry.price)
+                    && Objects.equals(qty, testEntry.qty);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(id, title, author, price, qty);
         }
     }
 

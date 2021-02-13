@@ -25,7 +25,6 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.connector.hbase.options.HBaseWriteOptions;
 import org.apache.flink.connector.hbase.util.HBaseConfigurationUtil;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
-import org.apache.flink.connector.hbase1.options.HBaseOptions;
 import org.apache.flink.connector.hbase1.sink.HBaseUpsertTableSink;
 import org.apache.flink.connector.hbase1.source.HBaseTableSource;
 import org.apache.flink.table.api.TableSchema;
@@ -51,14 +50,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.connector.hbase1.HBaseValidator.CONNECTOR_PROPERTIES;
+import static org.apache.flink.connector.hbase1.HBaseValidator.CONNECTOR_TABLE_NAME;
+import static org.apache.flink.connector.hbase1.HBaseValidator.CONNECTOR_TYPE_VALUE_HBASE;
 import static org.apache.flink.connector.hbase1.HBaseValidator.CONNECTOR_VERSION_VALUE_143;
-import static org.apache.flink.table.descriptors.AbstractHBaseValidator.CONNECTOR_TABLE_NAME;
-import static org.apache.flink.table.descriptors.AbstractHBaseValidator.CONNECTOR_TYPE_VALUE_HBASE;
-import static org.apache.flink.table.descriptors.AbstractHBaseValidator.CONNECTOR_WRITE_BUFFER_FLUSH_INTERVAL;
-import static org.apache.flink.table.descriptors.AbstractHBaseValidator.CONNECTOR_WRITE_BUFFER_FLUSH_MAX_ROWS;
-import static org.apache.flink.table.descriptors.AbstractHBaseValidator.CONNECTOR_WRITE_BUFFER_FLUSH_MAX_SIZE;
-import static org.apache.flink.table.descriptors.AbstractHBaseValidator.CONNECTOR_ZK_NODE_PARENT;
-import static org.apache.flink.table.descriptors.AbstractHBaseValidator.CONNECTOR_ZK_QUORUM;
+import static org.apache.flink.connector.hbase1.HBaseValidator.CONNECTOR_WRITE_BUFFER_FLUSH_INTERVAL;
+import static org.apache.flink.connector.hbase1.HBaseValidator.CONNECTOR_WRITE_BUFFER_FLUSH_MAX_ROWS;
+import static org.apache.flink.connector.hbase1.HBaseValidator.CONNECTOR_WRITE_BUFFER_FLUSH_MAX_SIZE;
+import static org.apache.flink.connector.hbase1.HBaseValidator.CONNECTOR_ZK_NODE_PARENT;
+import static org.apache.flink.connector.hbase1.HBaseValidator.CONNECTOR_ZK_QUORUM;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_VERSION;
@@ -82,12 +82,7 @@ public class HBase1TableFactory
         final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
         // create default configuration from current runtime env (`hbase-site.xml` in classpath)
         // first,
-        Configuration hbaseClientConf = HBaseConfigurationUtil.getHBaseConfiguration();
-        String hbaseZk = descriptorProperties.getString(CONNECTOR_ZK_QUORUM);
-        hbaseClientConf.set(HConstants.ZOOKEEPER_QUORUM, hbaseZk);
-        descriptorProperties
-                .getOptionalString(CONNECTOR_ZK_NODE_PARENT)
-                .ifPresent(v -> hbaseClientConf.set(HConstants.ZOOKEEPER_ZNODE_PARENT, v));
+        Configuration hbaseClientConf = getHBaseConf(descriptorProperties);
 
         String hTableName = descriptorProperties.getString(CONNECTOR_TABLE_NAME);
         TableSchema tableSchema =
@@ -99,17 +94,14 @@ public class HBase1TableFactory
     @Override
     public StreamTableSink<Tuple2<Boolean, Row>> createStreamTableSink(
             Map<String, String> properties) {
+
         final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
-        HBaseOptions.Builder hbaseOptionsBuilder = HBaseOptions.builder();
-        hbaseOptionsBuilder.setZkQuorum(descriptorProperties.getString(CONNECTOR_ZK_QUORUM));
-        hbaseOptionsBuilder.setTableName(descriptorProperties.getString(CONNECTOR_TABLE_NAME));
-        descriptorProperties
-                .getOptionalString(CONNECTOR_ZK_NODE_PARENT)
-                .ifPresent(hbaseOptionsBuilder::setZkNodeParent);
 
         TableSchema tableSchema =
                 TableSchemaUtils.getPhysicalSchema(descriptorProperties.getTableSchema(SCHEMA));
         HBaseTableSchema hbaseSchema = validateTableSchema(tableSchema);
+
+        Configuration hbaseClientConf = getHBaseConf(descriptorProperties);
 
         HBaseWriteOptions.Builder writeBuilder = HBaseWriteOptions.builder();
         descriptorProperties
@@ -123,7 +115,10 @@ public class HBase1TableFactory
                 .ifPresent(v -> writeBuilder.setBufferFlushIntervalMillis(v.toMillis()));
 
         return new HBaseUpsertTableSink(
-                hbaseSchema, hbaseOptionsBuilder.build(), writeBuilder.build());
+                descriptorProperties.getString(CONNECTOR_TABLE_NAME),
+                hbaseSchema,
+                hbaseClientConf,
+                writeBuilder.build());
     }
 
     private HBaseTableSchema validateTableSchema(TableSchema schema) {
@@ -200,10 +195,30 @@ public class HBase1TableFactory
         properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_NAME);
         properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_COLUMNS);
 
+        // HBase properties
+        properties.add(CONNECTOR_PROPERTIES + ".*");
+
         return properties;
     }
 
     private String hbaseVersion() {
         return CONNECTOR_VERSION_VALUE_143;
+    }
+
+    private static Configuration getHBaseConf(DescriptorProperties descriptorProperties) {
+        Configuration hbaseClientConf = HBaseConfigurationUtil.createHBaseConf();
+        descriptorProperties
+                .getOptionalString(CONNECTOR_ZK_QUORUM)
+                .ifPresent(zkQ -> hbaseClientConf.set(HConstants.ZOOKEEPER_QUORUM, zkQ));
+
+        descriptorProperties
+                .getOptionalString(CONNECTOR_ZK_NODE_PARENT)
+                .ifPresent(v -> hbaseClientConf.set(HConstants.ZOOKEEPER_ZNODE_PARENT, v));
+
+        // add HBase properties
+        descriptorProperties
+                .getPropertiesWithPrefix(CONNECTOR_PROPERTIES)
+                .forEach(hbaseClientConf::set);
+        return hbaseClientConf;
     }
 }

@@ -28,17 +28,22 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
+import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionCheckpointStorage;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionInternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionStateBackend;
 import org.apache.flink.streaming.api.transformations.BroadcastStateTransformation;
 import org.apache.flink.streaming.api.transformations.CoFeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.FeedbackTransformation;
+import org.apache.flink.streaming.api.transformations.KeyedBroadcastStateTransformation;
 import org.apache.flink.streaming.api.transformations.KeyedMultipleInputTransformation;
 import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
@@ -55,6 +60,7 @@ import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.streaming.api.transformations.WithBoundedness;
 import org.apache.flink.streaming.runtime.translators.BroadcastStateTransformationTranslator;
+import org.apache.flink.streaming.runtime.translators.KeyedBroadcastStateTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.LegacySinkTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.LegacySourceTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.MultiInputTransformationTranslator;
@@ -133,7 +139,12 @@ public class StreamGraphGenerator {
 
     private final ReadableConfig configuration;
 
+    // Records the slot sharing groups and their corresponding ResourceProfile
+    private final Map<String, ResourceProfile> slotSharingGroupResources = new HashMap<>();
+
     private StateBackend stateBackend;
+
+    private CheckpointStorage checkpointStorage;
 
     private boolean chaining = true;
 
@@ -177,6 +188,9 @@ public class StreamGraphGenerator {
                 TimestampsAndWatermarksTransformation.class,
                 new TimestampsAndWatermarksTransformationTranslator<>());
         tmp.put(BroadcastStateTransformation.class, new BroadcastStateTransformationTranslator<>());
+        tmp.put(
+                KeyedBroadcastStateTransformation.class,
+                new KeyedBroadcastStateTransformationTranslator<>());
         translatorMap = Collections.unmodifiableMap(tmp);
     }
 
@@ -249,6 +263,20 @@ public class StreamGraphGenerator {
         return this;
     }
 
+    /**
+     * Specify fine-grained resource requirements for slot sharing groups.
+     *
+     * <p>Note that a slot sharing group hints the scheduler that the grouped operators CAN be
+     * deployed into a shared slot. There's no guarantee that the scheduler always deploy the
+     * grouped operators together. In cases grouped operators are deployed into separate slots, the
+     * slot resources will be derived from the specified group requirements.
+     */
+    public StreamGraphGenerator setSlotSharingGroupResource(
+            Map<String, ResourceProfile> slotSharingGroupResources) {
+        this.slotSharingGroupResources.putAll(slotSharingGroupResources);
+        return this;
+    }
+
     public void setSavepointRestoreSettings(SavepointRestoreSettings savepointRestoreSettings) {
         this.savepointRestoreSettings = savepointRestoreSettings;
     }
@@ -280,6 +308,8 @@ public class StreamGraphGenerator {
         graph.setUserArtifacts(userArtifacts);
         graph.setTimeCharacteristic(timeCharacteristic);
         graph.setJobName(jobName);
+        graph.setJobType(shouldExecuteInBatchMode ? JobType.BATCH : JobType.STREAMING);
+        graph.setSlotSharingGroupResource(slotSharingGroupResources);
 
         if (shouldExecuteInBatchMode) {
 
@@ -295,6 +325,7 @@ public class StreamGraphGenerator {
             setBatchStateBackendAndTimerService(graph);
         } else {
             graph.setStateBackend(stateBackend);
+            graph.setCheckpointStorage(checkpointStorage);
             graph.setScheduleMode(ScheduleMode.EAGER);
 
             if (checkpointConfig.isApproximateLocalRecoveryEnabled()) {
@@ -323,6 +354,7 @@ public class StreamGraphGenerator {
         if (useStateBackend) {
             LOG.debug("Using BATCH execution state backend and timer service.");
             graph.setStateBackend(new BatchExecutionStateBackend());
+            graph.setCheckpointStorage(new BatchExecutionCheckpointStorage());
             graph.setTimerServiceProvider(BatchExecutionInternalTimeServiceManager::create);
         } else {
             graph.setStateBackend(stateBackend);

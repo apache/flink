@@ -265,6 +265,45 @@ public class HadoopConfigLoadingTest {
         assertEquals(IN_CP_CONFIG_VALUE, hadoopConf.get(IN_CP_CONFIG_KEY, null));
     }
 
+    @Test
+    public void loadFromFlinkConfEntry() throws Exception {
+        final String prefix = "flink.hadoop.";
+
+        final String k1 = "brooklyn";
+        final String v1 = "nets";
+
+        final String k2 = "miami";
+        final String v2 = "heat";
+
+        final String k3 = "philadelphia";
+        final String v3 = "76ers";
+
+        final String k4 = "golden.state";
+        final String v4 = "warriors";
+
+        final String k5 = "oklahoma.city";
+        final String v5 = "thunders";
+
+        final Configuration cfg = new Configuration();
+        cfg.setString(prefix + k1, v1);
+        cfg.setString(prefix + k2, v2);
+        cfg.setString(prefix + k3, v3);
+        cfg.setString(prefix + k4, v4);
+        cfg.setString(k5, v5);
+
+        org.apache.hadoop.conf.Configuration hadoopConf = HadoopUtils.getHadoopConfiguration(cfg);
+
+        // contains extra entries
+        assertEquals(v1, hadoopConf.get(k1, null));
+        assertEquals(v2, hadoopConf.get(k2, null));
+        assertEquals(v3, hadoopConf.get(k3, null));
+        assertEquals(v4, hadoopConf.get(k4, null));
+        assertTrue(hadoopConf.get(k5) == null);
+
+        // also contains classpath defaults
+        assertEquals(IN_CP_CONFIG_VALUE, hadoopConf.get(IN_CP_CONFIG_KEY, null));
+    }
+
     private static void printConfig(File file, String key, String value) throws IOException {
         Map<String, String> map = new HashMap<>(1);
         map.put(key, value);

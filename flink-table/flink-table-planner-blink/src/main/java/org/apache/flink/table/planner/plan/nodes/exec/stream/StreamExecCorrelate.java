@@ -19,10 +19,10 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecCorrelate;
-import org.apache.flink.table.runtime.operators.AbstractProcessStreamOperator;
+import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -40,16 +40,16 @@ public class StreamExecCorrelate extends CommonExecCorrelate implements StreamEx
             FlinkJoinType joinType,
             RexCall invocation,
             @Nullable RexNode condition,
-            ExecEdge inputEdge,
+            InputProperty inputProperty,
             RowType outputType,
             String description) {
         super(
                 joinType,
                 invocation,
                 condition,
-                AbstractProcessStreamOperator.class,
-                true,
-                inputEdge,
+                TableStreamOperator.class,
+                true, // retainHeader
+                inputProperty,
                 outputType,
                 description);
     }

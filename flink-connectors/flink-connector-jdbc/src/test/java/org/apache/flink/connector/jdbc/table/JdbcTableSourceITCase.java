@@ -132,8 +132,8 @@ public class JdbcTableSourceITCase extends AbstractTestBase {
         assertThat(
                 results,
                 containsInAnyOrder(
-                        "1,2020-01-01T15:35:00.123456,2020-01-01T15:35:00.123456789,15:35,1.175E-37,1.79769E308,100.1234",
-                        "2,2020-01-01T15:36:01.123456,2020-01-01T15:36:01.123456789,15:36:01,-1.175E-37,-1.79769E308,101.1234"));
+                        "+I[1, 2020-01-01T15:35:00.123456, 2020-01-01T15:35:00.123456789, 15:35, 1.175E-37, 1.79769E308, 100.1234]",
+                        "+I[2, 2020-01-01T15:36:01.123456, 2020-01-01T15:36:01.123456789, 15:36:01, -1.175E-37, -1.79769E308, 101.1234]"));
     }
 
     @Test
@@ -171,8 +171,8 @@ public class JdbcTableSourceITCase extends AbstractTestBase {
         assertThat(
                 results,
                 containsInAnyOrder(
-                        "2020-01-01T15:35:00.123456,100.1234",
-                        "2020-01-01T15:36:01.123456,101.1234"));
+                        "+I[2020-01-01T15:35:00.123456, 100.1234]",
+                        "+I[2020-01-01T15:36:01.123456, 101.1234]"));
     }
 
     @Test
@@ -201,7 +201,7 @@ public class JdbcTableSourceITCase extends AbstractTestBase {
 
         List<String> results = manifestResults(tableResult);
 
-        assertThat(results, containsInAnyOrder("1", "2"));
+        assertThat(results, containsInAnyOrder("+I[1]", "+I[2]"));
     }
 
     private static List<String> manifestResults(TableResult result) {

@@ -24,51 +24,56 @@ import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.createTuple2TypeInformation
-import org.apache.flink.table.api.{TableConfig, TableException}
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.data.util.RowDataUtil
 import org.apache.flink.table.data.{GenericRowData, RowData}
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{genToExternalConverter, genToExternalConverterWithLegacy}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.genToExternalConverterWithLegacy
 import org.apache.flink.table.planner.codegen.GeneratedExpression.NO_CODE
-import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.generateCollect
-import org.apache.flink.table.planner.sinks.TableSinkUtils
+import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.{generateCollect, generateCollectWithTimestamp}
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.sinks.TableSink
+import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.RowType
 
 import scala.collection.JavaConverters._
 
 object SinkCodeGenerator {
 
-  /** Code gen a operator to convert internal type rows to external type. **/
-  def generateRowConverterOperator[OUT](
-      ctx: CodeGeneratorContext,
-      config: TableConfig,
-      inputRowType: RowType,
+  def deriveSinkOutputTypeInfo[OUT](
       sink: TableSink[_],
-      withChangeFlag: Boolean,
-      operatorName: String): (CodeGenOperatorFactory[OUT], TypeInformation[OUT]) = {
-
-    val physicalOutputType = TableSinkUtils.inferSinkPhysicalDataType(
-      sink.getConsumedDataType,
-      inputRowType,
-      withChangeFlag)
+      physicalOutputType: DataType,
+      withChangeFlag: Boolean): TypeInformation[OUT] = {
     val physicalTypeInfo = fromDataTypeToTypeInfo(physicalOutputType)
-
     val outputTypeInfo = if (withChangeFlag) {
       val consumedClass = sink.getConsumedDataType.getConversionClass
       if (consumedClass == classOf[(_, _)]) {
         createTuple2TypeInformation(Types.BOOLEAN, physicalTypeInfo)
       } else if (consumedClass == classOf[JTuple2[_, _]]) {
         new TupleTypeInfo(Types.BOOLEAN, physicalTypeInfo)
+      } else {
+        throw new TableException("This should not happen.")
       }
     } else {
       physicalTypeInfo
     }
+    outputTypeInfo.asInstanceOf[TypeInformation[OUT]]
+  }
 
+  /** Code gen a operator to convert internal type rows to external type. **/
+  def generateRowConverterOperator[OUT](
+      ctx: CodeGeneratorContext,
+      inputRowType: RowType,
+      sink: TableSink[_],
+      physicalOutputType: DataType,
+      withChangeFlag: Boolean,
+      operatorName: String,
+      rowtimeIndex: Int = -1): CodeGenOperatorFactory[OUT] = {
+    val physicalTypeInfo = fromDataTypeToTypeInfo(physicalOutputType)
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
     var afterIndexModify = inputTerm
+    var modifiedRowtimeIndex = rowtimeIndex
     val fieldIndexProcessCode = physicalTypeInfo match {
       case pojo: PojoTypeInfo[_] =>
         val mapping = pojo.getFieldNames.map { name =>
@@ -88,6 +93,10 @@ object SinkCodeGenerator {
           (0 until pojo.getArity)
             .map(pojo.getTypeAt)
             .map(fromTypeInfoToLogicalType): _*)
+        if (rowtimeIndex >= 0) {
+          modifiedRowtimeIndex = outputRowType.getFieldIndex(
+            inputRowType.getFieldNames.get(rowtimeIndex))
+        }
         val conversion = resultGenerator.generateConverterResultExpression(
           outputRowType,
           classOf[GenericRowData])
@@ -115,7 +124,7 @@ object SinkCodeGenerator {
            |$tupleClass $resultTerm = new $tupleClass();
            |$resultTerm.setField($flagResultTerm, 0);
            |$resultTerm.setField($outTerm, 1);
-           |${generateCollect(resultTerm)}
+           |${generateCollectCode(afterIndexModify, resultTerm, modifiedRowtimeIndex)}
          """.stripMargin
       } else {
         // Scala Case Class
@@ -134,11 +143,11 @@ object SinkCodeGenerator {
            |$fieldsTerm[0] = $flagResultTerm;
            |$fieldsTerm[1] = $outTerm;
            |$tupleClass $resultTerm = ($tupleClass) $serializerTerm.createInstance($fieldsTerm);
-           |${generateCollect(resultTerm)}
+           |${generateCollectCode(afterIndexModify, resultTerm, modifiedRowtimeIndex)}
          """.stripMargin
       }
     } else {
-      generateCollect(outTerm)
+      generateCollectCode(afterIndexModify, outTerm, modifiedRowtimeIndex)
     }
 
     val generated = OperatorCodeGenerator.generateOneInputStreamOperator[RowData, OUT](
@@ -149,6 +158,22 @@ object SinkCodeGenerator {
          |$retractProcessCode
          |""".stripMargin,
       inputRowType)
-    (new CodeGenOperatorFactory[OUT](generated), outputTypeInfo.asInstanceOf[TypeInformation[OUT]])
+    new CodeGenOperatorFactory[OUT](generated)
+  }
+
+  private def generateCollectCode(
+      afterIndexModify: String,
+      resultTerm: String,
+      modifiedRowtimeIndex: Int): String = {
+    if (modifiedRowtimeIndex >= 0) {
+      val rowtimeTerm = CodeGenUtils.newName("rowtime")
+      s"""
+         | Long $rowtimeTerm =
+         | $afterIndexModify.getTimestamp($modifiedRowtimeIndex, 3).getMillisecond();
+         | ${generateCollectWithTimestamp(resultTerm, rowtimeTerm)}
+          """.stripMargin
+    } else {
+      generateCollect(resultTerm)
+    }
   }
 }

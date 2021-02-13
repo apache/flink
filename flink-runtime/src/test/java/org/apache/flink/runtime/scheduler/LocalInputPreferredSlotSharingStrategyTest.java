@@ -18,9 +18,10 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroupDesc;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroupImpl;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingTopology;
@@ -29,11 +30,14 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertThat;
 
@@ -63,8 +67,8 @@ public class LocalInputPreferredSlotSharingStrategyTest extends TestLogger {
         ev22 = topology.newExecutionVertex(JOB_VERTEX_ID_2, 1);
 
         final SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
-        slotSharingGroup.addVertexToGroup(JOB_VERTEX_ID_1, ResourceSpec.UNKNOWN);
-        slotSharingGroup.addVertexToGroup(JOB_VERTEX_ID_2, ResourceSpec.UNKNOWN);
+        slotSharingGroup.addVertexToGroup(JOB_VERTEX_ID_1);
+        slotSharingGroup.addVertexToGroup(JOB_VERTEX_ID_2);
         slotSharingGroups = Collections.singleton(slotSharingGroup);
     }
 
@@ -73,9 +77,9 @@ public class LocalInputPreferredSlotSharingStrategyTest extends TestLogger {
         topology.connect(ev11, ev22);
         topology.connect(ev12, ev21);
 
-        final CoLocationGroupDesc coLocationGroup =
-                CoLocationGroupDesc.from(JOB_VERTEX_ID_1, JOB_VERTEX_ID_2);
-        final Set<CoLocationGroupDesc> coLocationGroups = Collections.singleton(coLocationGroup);
+        final CoLocationGroup coLocationGroup =
+                new TestingCoLocationGroup(JOB_VERTEX_ID_1, JOB_VERTEX_ID_2);
+        final Set<CoLocationGroup> coLocationGroups = Collections.singleton(coLocationGroup);
 
         final SlotSharingStrategy strategy =
                 new LocalInputPreferredSlotSharingStrategy(
@@ -144,9 +148,9 @@ public class LocalInputPreferredSlotSharingStrategyTest extends TestLogger {
     @Test
     public void testVerticesInDifferentSlotSharingGroups() {
         final SlotSharingGroup slotSharingGroup1 = new SlotSharingGroup();
-        slotSharingGroup1.addVertexToGroup(JOB_VERTEX_ID_1, ResourceSpec.UNKNOWN);
+        slotSharingGroup1.addVertexToGroup(JOB_VERTEX_ID_1);
         final SlotSharingGroup slotSharingGroup2 = new SlotSharingGroup();
-        slotSharingGroup2.addVertexToGroup(JOB_VERTEX_ID_2, ResourceSpec.UNKNOWN);
+        slotSharingGroup2.addVertexToGroup(JOB_VERTEX_ID_2);
 
         final Set<SlotSharingGroup> slotSharingGroups = new HashSet<>();
         slotSharingGroups.add(slotSharingGroup1);
@@ -169,5 +173,53 @@ public class LocalInputPreferredSlotSharingStrategyTest extends TestLogger {
         assertThat(
                 strategy.getExecutionSlotSharingGroup(ev22.getId()).getExecutionVertexIds(),
                 containsInAnyOrder(ev22.getId()));
+    }
+
+    @Test
+    public void testSetSlotSharingGroupResource() {
+        final SlotSharingGroup slotSharingGroup1 = new SlotSharingGroup();
+        final ResourceProfile resourceProfile1 = ResourceProfile.fromResources(1, 10);
+        slotSharingGroup1.addVertexToGroup(JOB_VERTEX_ID_1);
+        slotSharingGroup1.setResourceProfile(resourceProfile1);
+        final SlotSharingGroup slotSharingGroup2 = new SlotSharingGroup();
+        final ResourceProfile resourceProfile2 = ResourceProfile.fromResources(2, 20);
+        slotSharingGroup2.addVertexToGroup(JOB_VERTEX_ID_2);
+        slotSharingGroup2.setResourceProfile(resourceProfile2);
+
+        final Set<SlotSharingGroup> slotSharingGroups = new HashSet<>();
+        slotSharingGroups.add(slotSharingGroup1);
+        slotSharingGroups.add(slotSharingGroup2);
+
+        final SlotSharingStrategy strategy =
+                new LocalInputPreferredSlotSharingStrategy(
+                        topology, slotSharingGroups, Collections.emptySet());
+
+        assertThat(strategy.getExecutionSlotSharingGroups(), hasSize(4));
+        assertThat(
+                strategy.getExecutionSlotSharingGroup(ev11.getId()).getResourceProfile(),
+                equalTo(resourceProfile1));
+        assertThat(
+                strategy.getExecutionSlotSharingGroup(ev12.getId()).getResourceProfile(),
+                equalTo(resourceProfile1));
+        assertThat(
+                strategy.getExecutionSlotSharingGroup(ev21.getId()).getResourceProfile(),
+                equalTo(resourceProfile2));
+        assertThat(
+                strategy.getExecutionSlotSharingGroup(ev22.getId()).getResourceProfile(),
+                equalTo(resourceProfile2));
+    }
+
+    private class TestingCoLocationGroup extends CoLocationGroupImpl {
+
+        private final List<JobVertexID> vertexIDs;
+
+        private TestingCoLocationGroup(JobVertexID... vertexIDs) {
+            this.vertexIDs = Arrays.asList(vertexIDs);
+        }
+
+        @Override
+        public List<JobVertexID> getVertexIds() {
+            return vertexIDs;
+        }
     }
 }

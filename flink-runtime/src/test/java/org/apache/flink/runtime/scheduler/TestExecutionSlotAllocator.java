@@ -56,9 +56,9 @@ public class TestExecutionSlotAllocator implements ExecutionSlotAllocator, SlotO
 
     @Override
     public List<SlotExecutionVertexAssignment> allocateSlotsFor(
-            final List<ExecutionVertexSchedulingRequirements> schedulingRequirementsCollection) {
+            final List<ExecutionVertexID> executionVertexIds) {
         final List<SlotExecutionVertexAssignment> slotVertexAssignments =
-                createSlotVertexAssignments(schedulingRequirementsCollection);
+                createSlotVertexAssignments(executionVertexIds);
         registerPendingRequests(slotVertexAssignments);
         maybeCompletePendingRequests();
         return slotVertexAssignments;
@@ -72,14 +72,10 @@ public class TestExecutionSlotAllocator implements ExecutionSlotAllocator, SlotO
     }
 
     private List<SlotExecutionVertexAssignment> createSlotVertexAssignments(
-            final Collection<ExecutionVertexSchedulingRequirements>
-                    schedulingRequirementsCollection) {
+            final Collection<ExecutionVertexID> executionVertexIds) {
 
         final List<SlotExecutionVertexAssignment> result = new ArrayList<>();
-        for (ExecutionVertexSchedulingRequirements schedulingRequirements :
-                schedulingRequirementsCollection) {
-            final ExecutionVertexID executionVertexId =
-                    schedulingRequirements.getExecutionVertexId();
+        for (ExecutionVertexID executionVertexId : executionVertexIds) {
             final CompletableFuture<LogicalSlot> logicalSlotFuture = new CompletableFuture<>();
             result.add(new SlotExecutionVertexAssignment(executionVertexId, logicalSlotFuture));
         }

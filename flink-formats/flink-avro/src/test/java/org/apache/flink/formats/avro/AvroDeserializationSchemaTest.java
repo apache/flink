@@ -31,11 +31,21 @@ import java.util.Random;
 
 import static org.apache.flink.formats.avro.utils.AvroTestUtils.writeRecord;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 /** Tests for {@link AvroDeserializationSchema}. */
 public class AvroDeserializationSchemaTest {
 
     private static final Address address = TestDataGenerator.generateRandomAddress(new Random());
+
+    @Test
+    public void testNullRecord() throws Exception {
+        DeserializationSchema<Address> deserializer =
+                AvroDeserializationSchema.forSpecific(Address.class);
+
+        Address deserializedAddress = deserializer.deserialize(null);
+        assertNull(deserializedAddress);
+    }
 
     @Test
     public void testGenericRecord() throws Exception {

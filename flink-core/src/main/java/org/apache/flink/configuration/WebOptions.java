@@ -124,40 +124,37 @@ public class WebOptions {
                     .withDeprecatedKeys("jobmanager.web.checkpoints.history")
                     .withDescription("Number of checkpoints to remember for recent history.");
 
-    /** Time, in milliseconds, after which cached stats are cleaned up if not accessed. */
+    /** @deprecated - no longer used. */
+    @Deprecated
     public static final ConfigOption<Integer> BACKPRESSURE_CLEANUP_INTERVAL =
             key("web.backpressure.cleanup-interval")
                     .defaultValue(10 * 60 * 1000)
                     .withDeprecatedKeys("jobmanager.web.backpressure.cleanup-interval")
-                    .withDescription(
-                            "Time, in milliseconds, after which cached stats are cleaned up if not accessed.");
+                    .withDescription("This config option is no longer used");
 
-    /**
-     * Time, in milliseconds, after which available stats are deprecated and need to be refreshed
-     * (by resampling).
-     */
+    /** @deprecated - no longer used. */
+    @Deprecated
     public static final ConfigOption<Integer> BACKPRESSURE_REFRESH_INTERVAL =
             key("web.backpressure.refresh-interval")
                     .defaultValue(60 * 1000)
                     .withDeprecatedKeys("jobmanager.web.backpressure.refresh-interval")
-                    .withDescription(
-                            "Time, in milliseconds, after which available stats are deprecated and need to be refreshed"
-                                    + " (by resampling).");
+                    .withDescription("This config option is no longer used");
 
-    /** Number of samples to take to determine back pressure. */
+    /** @deprecated - no longer used. */
+    @Deprecated
     public static final ConfigOption<Integer> BACKPRESSURE_NUM_SAMPLES =
             key("web.backpressure.num-samples")
                     .defaultValue(100)
                     .withDeprecatedKeys("jobmanager.web.backpressure.num-samples")
-                    .withDescription("Number of samples to take to determine back pressure.");
+                    .withDescription("This config option is no longer used");
 
-    /** Delay between samples to determine back pressure in milliseconds. */
+    /** @deprecated - no longer used. */
+    @Deprecated
     public static final ConfigOption<Integer> BACKPRESSURE_DELAY =
             key("web.backpressure.delay-between-samples")
                     .defaultValue(50)
                     .withDeprecatedKeys("jobmanager.web.backpressure.delay-between-samples")
-                    .withDescription(
-                            "Delay between samples to determine back pressure in milliseconds.");
+                    .withDescription("This config option is no longer used");
 
     /** Timeout for asynchronous operations by the web monitor in milliseconds. */
     public static final ConfigOption<Long> TIMEOUT =

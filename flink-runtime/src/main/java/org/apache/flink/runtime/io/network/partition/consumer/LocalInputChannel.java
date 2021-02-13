@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -27,6 +28,7 @@ import org.apache.flink.runtime.io.network.TaskEventPublisher;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FileRegionBuffer;
+import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -122,7 +124,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
     // Consume
     // ------------------------------------------------------------------------
 
-    public void checkpointStarted(CheckpointBarrier barrier) {
+    public void checkpointStarted(CheckpointBarrier barrier) throws CheckpointException {
         channelStatePersister.startPersisting(barrier.getId(), Collections.emptyList());
     }
 
@@ -142,10 +144,11 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 
             if (subpartitionView == null) {
                 LOG.debug(
-                        "{}: Requesting LOCAL subpartition {} of partition {}.",
+                        "{}: Requesting LOCAL subpartition {} of partition {}. {}",
                         this,
                         subpartitionIndex,
-                        partitionId);
+                        partitionId,
+                        channelStatePersister);
 
                 try {
                     ResultSubpartitionView subpartitionView =
@@ -255,6 +258,13 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
         numBuffersIn.inc();
         channelStatePersister.checkForBarrier(buffer);
         channelStatePersister.maybePersist(buffer);
+        NetworkActionsLogger.traceInput(
+                "LocalInputChannel#getNextBuffer",
+                buffer,
+                inputGate.getOwningTaskName(),
+                channelInfo,
+                channelStatePersister,
+                next.getSequenceNumber());
         return Optional.of(
                 new BufferAndAvailability(
                         buffer,

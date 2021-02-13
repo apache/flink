@@ -17,6 +17,7 @@
 
 package org.apache.flink.test.checkpointing;
 
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
@@ -146,7 +147,10 @@ public class UnalignedCheckpointCompatibilityITCase extends TestLogger {
                 () -> miniCluster.getMiniCluster().getExecutionGraph(jobClient.getJobID()).get());
         Thread.sleep(FIRST_RUN_BACKPRESSURE_MS); // wait for some backpressure from sink
 
-        Future<Map<String, Object>> accFuture = jobClient.getAccumulators();
+        Future<Map<String, Object>> accFuture =
+                jobClient
+                        .getJobExecutionResult()
+                        .thenApply(JobExecutionResult::getAllAccumulatorResults);
         Future<String> savepointFuture =
                 jobClient.stopWithSavepoint(false, tempFolder().toURI().toString());
         return new Tuple2<>(savepointFuture.get(), accFuture.get());

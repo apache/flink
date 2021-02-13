@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecCalc;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.types.logical.RowType;
@@ -31,7 +31,16 @@ import org.apache.calcite.rex.RexProgram;
 public class BatchExecCalc extends CommonExecCalc implements BatchExecNode<RowData> {
 
     public BatchExecCalc(
-            RexProgram calcProgram, ExecEdge inputEdge, RowType outputType, String description) {
-        super(calcProgram, TableStreamOperator.class, false, inputEdge, outputType, description);
+            RexProgram calcProgram,
+            InputProperty inputProperty,
+            RowType outputType,
+            String description) {
+        super(
+                calcProgram,
+                TableStreamOperator.class,
+                false, // retainHeader
+                inputProperty,
+                outputType,
+                description);
     }
 }

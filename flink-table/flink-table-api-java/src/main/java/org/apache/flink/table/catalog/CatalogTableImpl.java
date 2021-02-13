@@ -50,7 +50,7 @@ public class CatalogTableImpl extends AbstractCatalogTable {
         return new CatalogTableImpl(
                 getSchema().copy(),
                 new ArrayList<>(getPartitionKeys()),
-                new HashMap<>(getProperties()),
+                new HashMap<>(getOptions()),
                 getComment());
     }
 
@@ -71,7 +71,7 @@ public class CatalogTableImpl extends AbstractCatalogTable {
         descriptor.putTableSchema(Schema.SCHEMA, getSchema());
         descriptor.putPartitionKeys(getPartitionKeys());
 
-        Map<String, String> properties = new HashMap<>(getProperties());
+        Map<String, String> properties = new HashMap<>(getOptions());
         properties.remove(CatalogConfig.IS_GENERIC);
 
         descriptor.putProperties(properties);

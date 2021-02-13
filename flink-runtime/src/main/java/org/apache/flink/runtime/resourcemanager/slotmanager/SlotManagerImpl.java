@@ -165,7 +165,8 @@ public class SlotManagerImpl implements SlotManager {
         this.defaultWorkerResourceSpec = slotManagerConfiguration.getDefaultWorkerResourceSpec();
         this.numSlotsPerWorker = slotManagerConfiguration.getNumSlotsPerWorker();
         this.defaultSlotResourceProfile =
-                generateDefaultSlotResourceProfile(defaultWorkerResourceSpec, numSlotsPerWorker);
+                SlotManagerUtils.generateDefaultSlotResourceProfile(
+                        defaultWorkerResourceSpec, numSlotsPerWorker);
         this.slotManagerMetricGroup = Preconditions.checkNotNull(slotManagerMetricGroup);
         this.maxSlotNum = slotManagerConfiguration.getMaxSlotNum();
         this.redundantTaskManagerNum = slotManagerConfiguration.getRedundantTaskManagerNum();
@@ -229,30 +230,38 @@ public class SlotManagerImpl implements SlotManager {
 
     @Override
     public ResourceProfile getRegisteredResource() {
-        return getResourceFromNumSlots(getNumberRegisteredSlots());
+        return taskManagerRegistrations.values().stream()
+                .map(TaskManagerRegistration::getTotalResource)
+                .reduce(ResourceProfile.ZERO, ResourceProfile::merge);
     }
 
     @Override
     public ResourceProfile getRegisteredResourceOf(InstanceID instanceID) {
-        return getResourceFromNumSlots(getNumberRegisteredSlotsOf(instanceID));
+        return Optional.ofNullable(taskManagerRegistrations.get(instanceID))
+                .map(TaskManagerRegistration::getTotalResource)
+                .orElse(ResourceProfile.ZERO);
     }
 
     @Override
     public ResourceProfile getFreeResource() {
-        return getResourceFromNumSlots(getNumberFreeSlots());
+        return taskManagerRegistrations.values().stream()
+                .map(
+                        taskManagerRegistration ->
+                                taskManagerRegistration
+                                        .getDefaultSlotResourceProfile()
+                                        .multiply(taskManagerRegistration.getNumberFreeSlots()))
+                .reduce(ResourceProfile.ZERO, ResourceProfile::merge);
     }
 
     @Override
     public ResourceProfile getFreeResourceOf(InstanceID instanceID) {
-        return getResourceFromNumSlots(getNumberFreeSlotsOf(instanceID));
-    }
-
-    private ResourceProfile getResourceFromNumSlots(int numSlots) {
-        if (numSlots < 0 || defaultSlotResourceProfile == null) {
-            return ResourceProfile.UNKNOWN;
-        } else {
-            return defaultSlotResourceProfile.multiply(numSlots);
-        }
+        return Optional.ofNullable(taskManagerRegistrations.get(instanceID))
+                .map(
+                        taskManagerRegistration ->
+                                taskManagerRegistration
+                                        .getDefaultSlotResourceProfile()
+                                        .multiply(taskManagerRegistration.getNumberFreeSlots()))
+                .orElse(ResourceProfile.ZERO);
     }
 
     @VisibleForTesting
@@ -454,12 +463,17 @@ public class SlotManagerImpl implements SlotManager {
      *
      * @param taskExecutorConnection for the new task manager
      * @param initialSlotReport for the new task manager
+     * @param totalResourceProfile for the new task manager
+     * @param defaultSlotResourceProfile for the new task manager
      * @return True if the task manager has not been registered before and is registered
      *     successfully; otherwise false
      */
     @Override
     public boolean registerTaskManager(
-            final TaskExecutorConnection taskExecutorConnection, SlotReport initialSlotReport) {
+            final TaskExecutorConnection taskExecutorConnection,
+            SlotReport initialSlotReport,
+            ResourceProfile totalResourceProfile,
+            ResourceProfile defaultSlotResourceProfile) {
         checkInit();
 
         LOG.debug(
@@ -491,7 +505,11 @@ public class SlotManagerImpl implements SlotManager {
             }
 
             TaskManagerRegistration taskManagerRegistration =
-                    new TaskManagerRegistration(taskExecutorConnection, reportedSlots);
+                    new TaskManagerRegistration(
+                            taskExecutorConnection,
+                            reportedSlots,
+                            totalResourceProfile,
+                            defaultSlotResourceProfile);
 
             taskManagerRegistrations.put(
                     taskExecutorConnection.getInstanceID(), taskManagerRegistration);
@@ -1340,19 +1358,6 @@ public class SlotManagerImpl implements SlotManager {
         if (null != request) {
             request.cancel(false);
         }
-    }
-
-    @VisibleForTesting
-    public static ResourceProfile generateDefaultSlotResourceProfile(
-            WorkerResourceSpec workerResourceSpec, int numSlotsPerWorker) {
-        return ResourceProfile.newBuilder()
-                .setCpuCores(workerResourceSpec.getCpuCores().divide(numSlotsPerWorker))
-                .setTaskHeapMemory(workerResourceSpec.getTaskHeapSize().divide(numSlotsPerWorker))
-                .setTaskOffHeapMemory(
-                        workerResourceSpec.getTaskOffHeapSize().divide(numSlotsPerWorker))
-                .setManagedMemory(workerResourceSpec.getManagedMemSize().divide(numSlotsPerWorker))
-                .setNetworkMemory(workerResourceSpec.getNetworkMemSize().divide(numSlotsPerWorker))
-                .build();
     }
 
     // ---------------------------------------------------------------------------------------------

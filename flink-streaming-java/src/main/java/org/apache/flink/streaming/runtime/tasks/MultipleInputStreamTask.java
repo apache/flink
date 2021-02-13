@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -30,11 +31,11 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig.InputConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
-import org.apache.flink.streaming.runtime.io.CheckpointBarrierHandler;
-import org.apache.flink.streaming.runtime.io.CheckpointedInputGate;
-import org.apache.flink.streaming.runtime.io.InputProcessorUtil;
 import org.apache.flink.streaming.runtime.io.StreamMultipleInputProcessorFactory;
 import org.apache.flink.streaming.runtime.io.StreamTaskSourceInput;
+import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHandler;
+import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
+import org.apache.flink.streaming.runtime.io.checkpointing.InputProcessorUtil;
 import org.apache.flink.streaming.runtime.metrics.MinWatermarkGauge;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 
@@ -250,7 +251,8 @@ public class MultipleInputStreamTask<OUT>
     }
 
     @Override
-    public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) throws IOException {
+    public void abortCheckpointOnBarrier(long checkpointId, CheckpointException cause)
+            throws IOException {
         CompletableFuture<Boolean> resultFuture =
                 pendingCheckpointCompletedFutures.remove(checkpointId);
         if (resultFuture != null) {

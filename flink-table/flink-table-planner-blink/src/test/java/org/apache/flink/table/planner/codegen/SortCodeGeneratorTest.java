@@ -42,6 +42,7 @@ import org.apache.flink.table.data.util.DataFormatTestUtil;
 import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.data.writer.BinaryWriter;
 import org.apache.flink.table.planner.codegen.sort.SortCodeGenerator;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.utils.SortUtil;
 import org.apache.flink.table.runtime.generated.GeneratedNormalizedKeyComputer;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
@@ -116,10 +117,8 @@ public class SortCodeGeneratorTest {
                 new TimestampType(9)
             };
 
-    private int[] fields;
-    private int[] keys;
-    private boolean[] orders;
-    private boolean[] nullsIsLast;
+    private RowType inputType;
+    private SortSpec sortSpec;
 
     private static final DataType INT_ROW_TYPE =
             DataTypes.ROW(DataTypes.FIELD("f0", DataTypes.INT())).bridgedTo(Row.class);
@@ -149,37 +148,42 @@ public class SortCodeGeneratorTest {
     public void testOneKey() throws Exception {
         for (int time = 0; time < 100; time++) {
             Random rnd = new Random();
-            fields = new int[rnd.nextInt(9) + 1];
+            LogicalType[] fields = new LogicalType[rnd.nextInt(9) + 1];
             for (int i = 0; i < fields.length; i++) {
-                fields[i] = rnd.nextInt(types.length);
+                fields[i] = types[rnd.nextInt(types.length)];
             }
+            inputType = RowType.of(fields);
 
-            keys = new int[] {0};
-            orders = new boolean[] {rnd.nextBoolean()};
-            nullsIsLast = SortUtil.getNullDefaultOrders(orders);
+            SortSpec.SortSpecBuilder builder = SortSpec.builder();
+            boolean order = rnd.nextBoolean();
+            builder.addField(0, order, SortUtil.getNullDefaultOrder(order));
+            sortSpec = builder.build();
+
             testInner();
         }
     }
 
     private void randomKeysAndOrders() {
         Random rnd = new Random();
-        fields = new int[rnd.nextInt(9) + 1];
+        LogicalType[] fields = new LogicalType[rnd.nextInt(9) + 1];
         for (int i = 0; i < fields.length; i++) {
-            fields[i] = rnd.nextInt(types.length);
+            fields[i] = types[rnd.nextInt(types.length)];
         }
+        inputType = RowType.of(fields);
 
-        keys = new int[rnd.nextInt(fields.length) + 1];
+        int keyCount = rnd.nextInt(fields.length) + 1;
         LinkedList<Integer> indexQueue = new LinkedList<>();
-        for (int i = 0; i < fields.length; i++) {
+        for (int i = 0; i < keyCount; i++) {
             indexQueue.add(i);
         }
         Collections.shuffle(indexQueue);
-        orders = new boolean[keys.length];
-        for (int i = 0; i < keys.length; i++) {
-            keys[i] = indexQueue.poll();
-            orders[i] = rnd.nextBoolean();
+
+        SortSpec.SortSpecBuilder builder = SortSpec.builder();
+        for (int i = 0; i < keyCount; i++) {
+            boolean order = rnd.nextBoolean();
+            builder.addField(indexQueue.poll(), order, SortUtil.getNullDefaultOrder(order));
         }
-        nullsIsLast = SortUtil.getNullDefaultOrders(orders);
+        sortSpec = builder.build();
     }
 
     private Object[] shuffle(Object[] objects) {
@@ -188,9 +192,9 @@ public class SortCodeGeneratorTest {
     }
 
     private BinaryRowData row(int i, Object[][] values) {
-        BinaryRowData row = new BinaryRowData(fields.length);
+        BinaryRowData row = new BinaryRowData(inputType.getFieldCount());
         BinaryRowWriter writer = new BinaryRowWriter(row);
-        for (int j = 0; j < fields.length; j++) {
+        for (int j = 0; j < inputType.getFieldCount(); j++) {
             Object value = values[j][i];
             if (value == null) {
                 writer.setNullAt(j);
@@ -199,8 +203,8 @@ public class SortCodeGeneratorTest {
                         writer,
                         j,
                         value,
-                        types[fields[j]],
-                        InternalSerializers.create(types[fields[j]]));
+                        inputType.getTypeAt(j),
+                        InternalSerializers.create(inputType.getTypeAt(j)));
             }
         }
 
@@ -210,9 +214,9 @@ public class SortCodeGeneratorTest {
 
     private BinaryRowData[] getTestData() {
         BinaryRowData[] result = new BinaryRowData[RECORD_NUM];
-        Object[][] values = new Object[fields.length][];
-        for (int i = 0; i < fields.length; i++) {
-            values[i] = shuffle(generateValues(types[fields[i]]));
+        Object[][] values = new Object[inputType.getFieldCount()][];
+        for (int i = 0; i < inputType.getFieldCount(); i++) {
+            values[i] = shuffle(generateValues(inputType.getTypeAt(i)));
         }
         for (int i = 0; i < RECORD_NUM; i++) {
             result[i] = row(i, values);
@@ -450,36 +454,16 @@ public class SortCodeGeneratorTest {
         }
     }
 
-    private LogicalType[] getFieldTypes() {
-        LogicalType[] result = new LogicalType[fields.length];
-        for (int i = 0; i < fields.length; i++) {
-            result[i] = types[fields[i]];
-        }
-        return result;
-    }
-
-    private LogicalType[] getKeyTypes() {
-        LogicalType[] result = new LogicalType[keys.length];
-        for (int i = 0; i < keys.length; i++) {
-            result[i] = types[fields[keys[i]]];
-        }
-        return result;
-    }
-
     private void testInner() throws Exception {
         List<MemorySegment> segments = new ArrayList<>();
         for (int i = 0; i < 100; i++) {
             segments.add(MemorySegmentFactory.wrap(new byte[32768]));
         }
 
-        LogicalType[] fieldTypes = getFieldTypes();
-        LogicalType[] keyTypes = getKeyTypes();
-
         Tuple2<NormalizedKeyComputer, RecordComparator> tuple2 =
-                getSortBaseWithNulls(
-                        this.getClass().getSimpleName(), keyTypes, keys, orders, nullsIsLast);
+                getSortBaseWithNulls(this.getClass().getSimpleName(), inputType, sortSpec);
 
-        BinaryRowDataSerializer serializer = new BinaryRowDataSerializer(fieldTypes.length);
+        BinaryRowDataSerializer serializer = new BinaryRowDataSerializer(inputType.getFieldCount());
 
         BinaryInMemorySortBuffer sortBuffer =
                 BinaryInMemorySortBuffer.createBuffer(
@@ -510,10 +494,13 @@ public class SortCodeGeneratorTest {
             result.add(row.copy());
         }
 
+        int[] keys = sortSpec.getFieldIndices();
+        LogicalType[] keyTypes = sortSpec.getFieldTypes(inputType);
+        boolean[] orders = sortSpec.getAscendingOrders();
         data.sort(
                 (o1, o2) -> {
                     for (int i = 0; i < keys.length; i++) {
-                        LogicalType t = types[fields[keys[i]]];
+                        LogicalType t = inputType.getTypeAt(keys[i]);
                         boolean order = orders[i];
                         Object first = null;
                         Object second = null;
@@ -613,11 +600,11 @@ public class SortCodeGeneratorTest {
         for (int i = 0; i < data.size(); i++) {
             builder.append("\n")
                     .append("expect: ")
-                    .append(DataFormatTestUtil.rowDataToString(data.get(i), fieldTypes))
+                    .append(DataFormatTestUtil.rowDataToString(data.get(i), inputType))
                     .append("; actual: ")
-                    .append(DataFormatTestUtil.rowDataToString(result.get(i), fieldTypes));
+                    .append(DataFormatTestUtil.rowDataToString(result.get(i), inputType));
         }
-        builder.append("\n").append("types: ").append(Arrays.asList(fieldTypes));
+        builder.append("\n").append("types: ").append(Arrays.asList(inputType.getChildren()));
         builder.append("\n").append("keys: ").append(Arrays.toString(keys));
         String msg = builder.toString();
         for (int i = 0; i < data.size(); i++) {
@@ -648,14 +635,8 @@ public class SortCodeGeneratorTest {
     }
 
     public static Tuple2<NormalizedKeyComputer, RecordComparator> getSortBaseWithNulls(
-            String namePrefix,
-            LogicalType[] keyTypes,
-            int[] keys,
-            boolean[] orders,
-            boolean[] nullsIsLast)
-            throws IllegalAccessException, InstantiationException {
-        SortCodeGenerator generator =
-                new SortCodeGenerator(new TableConfig(), keys, keyTypes, orders, nullsIsLast);
+            String namePrefix, RowType inputType, SortSpec sortSpec) {
+        SortCodeGenerator generator = new SortCodeGenerator(new TableConfig(), inputType, sortSpec);
         GeneratedNormalizedKeyComputer computer =
                 generator.generateNormalizedKeyComputer(namePrefix + "Computer");
         GeneratedRecordComparator comparator =

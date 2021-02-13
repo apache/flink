@@ -228,7 +228,8 @@ public class TaskManagerCheckInSlotManagerTest extends TestLogger {
                         .setRedundantTaskManagerNum(redundantTaskManagerNum)
                         .buildAndStartWithDirectExec(resourceManagerId, resourceManagerActions)) {
 
-            slotManager.registerTaskManager(taskManagerConnection, slotReport);
+            slotManager.registerTaskManager(
+                    taskManagerConnection, slotReport, ResourceProfile.ANY, ResourceProfile.ANY);
             assertThat(releaseFuture.get(), is(equalTo(taskManagerConnection.getInstanceID())));
         }
     }
@@ -289,13 +290,23 @@ public class TaskManagerCheckInSlotManagerTest extends TestLogger {
                 new TaskExecutorConnection(resourceID, taskExecutorGateway);
 
         mainThreadExecutor.execute(
-                () -> slotManager.registerTaskManager(taskManagerConnection, slotReport));
+                () ->
+                        slotManager.registerTaskManager(
+                                taskManagerConnection,
+                                slotReport,
+                                ResourceProfile.ANY,
+                                ResourceProfile.ANY));
     }
 
     private SlotManagerImpl createAndStartSlotManagerWithTM() {
         SlotManagerImpl slotManager = createAndStartSlotManager(0, 1);
         mainThreadExecutor.execute(
-                () -> slotManager.registerTaskManager(taskManagerConnection, slotReport));
+                () ->
+                        slotManager.registerTaskManager(
+                                taskManagerConnection,
+                                slotReport,
+                                ResourceProfile.ANY,
+                                ResourceProfile.ANY));
         return slotManager;
     }
 

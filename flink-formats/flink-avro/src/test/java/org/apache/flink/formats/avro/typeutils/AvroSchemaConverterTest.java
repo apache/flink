@@ -20,13 +20,16 @@ package org.apache.flink.formats.avro.typeutils;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.formats.avro.utils.AvroTestUtils;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.types.Row;
 
 import org.apache.avro.Schema;
@@ -117,9 +120,7 @@ public class AvroSchemaConverterTest {
                 (RowType)
                         TableSchema.builder()
                                 .field("a", DataTypes.STRING())
-                                .field(
-                                        "b",
-                                        DataTypes.RAW(Types.GENERIC(AvroSchemaConverterTest.class)))
+                                .field("b", DataTypes.RAW(Void.class, VoidSerializer.INSTANCE))
                                 .build()
                                 .toRowDataType()
                                 .getLogicalType();
@@ -620,7 +621,10 @@ public class AvroSchemaConverterTest {
                                 DataTypes.FIELD("type_fixed", DataTypes.VARBINARY(16)),
                                 DataTypes.FIELD(
                                         "type_union",
-                                        DataTypes.RAW(Types.GENERIC(Object.class)).notNull()),
+                                        new AtomicDataType(
+                                                new TypeInformationRawType<>(
+                                                        false, Types.GENERIC(Object.class)),
+                                                Object.class)),
                                 DataTypes.FIELD("type_nested", address),
                                 DataTypes.FIELD("type_bytes", DataTypes.BYTES().notNull()),
                                 DataTypes.FIELD("type_date", DataTypes.DATE().notNull()),

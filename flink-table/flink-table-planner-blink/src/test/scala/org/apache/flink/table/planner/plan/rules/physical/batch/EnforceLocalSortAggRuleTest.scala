@@ -46,7 +46,7 @@ class EnforceLocalSortAggRuleTest extends EnforceLocalAggRuleTestBase {
     // remove the original BatchExecSortAggRule and add BatchExecSortAggRuleForOnePhase
     // to let the physical phase generate one phase aggregate
     program.getFlinkRuleSetProgram(FlinkBatchProgram.PHYSICAL)
-      .get.remove(RuleSets.ofList(BatchExecSortAggRule.INSTANCE))
+      .get.remove(RuleSets.ofList(BatchPhysicalSortAggRule.INSTANCE))
     program.getFlinkRuleSetProgram(FlinkBatchProgram.PHYSICAL)
       .get.add(RuleSets.ofList(BatchExecSortAggRuleForOnePhase.INSTANCE))
 
@@ -82,7 +82,7 @@ class EnforceLocalSortAggRuleTest extends EnforceLocalAggRuleTestBase {
   * value, and only enable one phase aggregate.
   * This rule only used for test.
   */
-class BatchExecSortAggRuleForOnePhase extends BatchExecSortAggRule {
+class BatchExecSortAggRuleForOnePhase extends BatchPhysicalSortAggRule {
   override protected def isTwoPhaseAggWorkable(
       aggFunctions: Array[UserDefinedFunction], tableConfig: TableConfig): Boolean = false
 

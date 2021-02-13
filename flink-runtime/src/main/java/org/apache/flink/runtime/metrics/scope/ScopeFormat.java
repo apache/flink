@@ -38,14 +38,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public abstract class ScopeFormat {
 
-    private static CharacterFilter defaultFilter =
-            new CharacterFilter() {
-                @Override
-                public String filterCharacters(String input) {
-                    return input;
-                }
-            };
-
     // ------------------------------------------------------------------------
     //  Scope Format Special Characters
     // ------------------------------------------------------------------------
@@ -206,18 +198,6 @@ public abstract class ScopeFormat {
      */
     public static String asVariable(String scope) {
         return SCOPE_VARIABLE_PREFIX + scope + SCOPE_VARIABLE_SUFFIX;
-    }
-
-    public static String concat(String... components) {
-        return concat(defaultFilter, '.', components);
-    }
-
-    public static String concat(CharacterFilter filter, String... components) {
-        return concat(filter, '.', components);
-    }
-
-    public static String concat(Character delimiter, String... components) {
-        return concat(defaultFilter, delimiter, components);
     }
 
     /**

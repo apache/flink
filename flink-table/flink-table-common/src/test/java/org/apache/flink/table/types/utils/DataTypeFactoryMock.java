@@ -18,6 +18,10 @@
 
 package org.apache.flink.table.types.utils;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.VoidSerializer;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
@@ -65,8 +69,29 @@ public class DataTypeFactoryMock implements DataTypeFactory {
     }
 
     @Override
+    public <T> DataType createDataType(TypeInformation<T> typeInfo) {
+        return TypeInfoDataTypeConverter.toDataType(this, typeInfo);
+    }
+
+    @Override
     public <T> DataType createRawDataType(Class<T> clazz) {
         expectedClass.ifPresent(expected -> assertEquals(expected, clazz));
         return dataType.orElseThrow(IllegalStateException::new);
+    }
+
+    @Override
+    public <T> DataType createRawDataType(TypeInformation<T> typeInfo) {
+        return dataType.orElseThrow(IllegalStateException::new);
+    }
+
+    /** Simulates a RAW type. */
+    public static DataType dummyRaw(Class<?> clazz) {
+        return DataTypes.RAW(clazz, dummySerializer());
+    }
+
+    /** Simulates a serializer. */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public static <T> TypeSerializer<T> dummySerializer() {
+        return (TypeSerializer) VoidSerializer.INSTANCE;
     }
 }

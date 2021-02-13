@@ -52,7 +52,7 @@ class StreamSqlTests(SqlTests, PyFlinkStreamTableTestCase):
         result.execute_insert("sinks").wait()
         actual = source_sink_utils.results()
 
-        expected = ['2,Hi,Hello', '3,Hello,Hello']
+        expected = ['+I[2, Hi, Hello]', '+I[3, Hello, Hello]']
         self.assert_equals(actual, expected)
 
     def test_execute_sql(self):
@@ -109,7 +109,7 @@ class StreamSqlTests(SqlTests, PyFlinkStreamTableTestCase):
         self.t_env.execute("test_sql_job")
 
         actual = source_sink_utils.results()
-        expected = ['1,Hi,Hello', '2,Hello,Hello']
+        expected = ['+I[1, Hi, Hello]', '+I[2, Hello, Hello]']
         self.assert_equals(actual, expected)
 
 

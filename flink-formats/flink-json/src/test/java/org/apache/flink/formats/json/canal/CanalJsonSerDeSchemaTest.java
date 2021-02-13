@@ -75,10 +75,22 @@ public class CanalJsonSerDeSchemaTest {
                                 PHYSICAL_DATA_TYPE,
                                 Collections.emptyList(),
                                 InternalTypeInfo.of(PHYSICAL_DATA_TYPE.getLogicalType()))
-                        .setDatabase("mydb")
-                        .setTable("product")
+                        .setDatabase("^my.*")
+                        .setTable("^prod.*")
                         .build();
         runTest(lines, deserializationSchema);
+    }
+
+    @Test
+    public void testDeserializeNullRow() throws Exception {
+        final List<ReadableMetadata> requestedMetadata = Arrays.asList(ReadableMetadata.values());
+        final CanalJsonDeserializationSchema deserializationSchema =
+                createCanalJsonDeserializationSchema(null, null, requestedMetadata);
+        final SimpleCollector collector = new SimpleCollector();
+
+        deserializationSchema.deserialize(null, collector);
+        deserializationSchema.deserialize(new byte[0], collector);
+        assertEquals(0, collector.list.size());
     }
 
     @Test
@@ -97,6 +109,7 @@ public class CanalJsonSerDeSchemaTest {
                     assertThat(row.getMap(6).size(), equalTo(4));
                     assertThat(row.getArray(7).getString(0).toString(), equalTo("id"));
                     assertThat(row.getTimestamp(8, 3).getMillisecond(), equalTo(1589373515477L));
+                    assertThat(row.getTimestamp(9, 3).getMillisecond(), equalTo(1589373515000L));
                 });
         testDeserializationWithMetadata(
                 "canal-data-filter-table.txt",
@@ -112,6 +125,7 @@ public class CanalJsonSerDeSchemaTest {
                     assertThat(row.getMap(6).size(), equalTo(4));
                     assertThat(row.getArray(7).getString(0).toString(), equalTo("id"));
                     assertThat(row.getTimestamp(8, 3).getMillisecond(), equalTo(1598944146308L));
+                    assertThat(row.getTimestamp(9, 3).getMillisecond(), equalTo(1598944132000L));
                 });
     }
 
@@ -174,11 +188,11 @@ public class CanalJsonSerDeSchemaTest {
                         "+I(103,12-pack drill bits,12-pack of drill bits with sizes ranging from #40 to #3,0.8)",
                         "+I(104,hammer,12oz carpenter's hammer,0.75)",
                         "+I(105,hammer,14oz carpenter's hammer,0.875)",
-                        "+I(106,hammer,16oz carpenter's hammer,1.0)",
+                        "+I(106,hammer,null,1.0)",
                         "+I(107,rocks,box of assorted rocks,5.3)",
                         "+I(108,jacket,water resistent black wind breaker,0.1)",
                         "+I(109,spare tire,24 inch spare tire,22.2)",
-                        "-U(106,hammer,16oz carpenter's hammer,1.0)",
+                        "-U(106,hammer,null,1.0)",
                         "+U(106,hammer,18oz carpenter hammer,1.0)",
                         "-U(107,rocks,box of assorted rocks,5.3)",
                         "+U(107,rocks,box of assorted rocks,5.1)",
@@ -205,7 +219,8 @@ public class CanalJsonSerDeSchemaTest {
                         (RowType) PHYSICAL_DATA_TYPE.getLogicalType(),
                         TimestampFormat.ISO_8601,
                         JsonOptions.MapNullKeyMode.LITERAL,
-                        "null");
+                        "null",
+                        true);
         serializationSchema.open(null);
 
         List<String> result = new ArrayList<>();
@@ -220,11 +235,11 @@ public class CanalJsonSerDeSchemaTest {
                         "{\"data\":[{\"id\":103,\"name\":\"12-pack drill bits\",\"description\":\"12-pack of drill bits with sizes ranging from #40 to #3\",\"weight\":0.8}],\"type\":\"INSERT\"}",
                         "{\"data\":[{\"id\":104,\"name\":\"hammer\",\"description\":\"12oz carpenter's hammer\",\"weight\":0.75}],\"type\":\"INSERT\"}",
                         "{\"data\":[{\"id\":105,\"name\":\"hammer\",\"description\":\"14oz carpenter's hammer\",\"weight\":0.875}],\"type\":\"INSERT\"}",
-                        "{\"data\":[{\"id\":106,\"name\":\"hammer\",\"description\":\"16oz carpenter's hammer\",\"weight\":1.0}],\"type\":\"INSERT\"}",
+                        "{\"data\":[{\"id\":106,\"name\":\"hammer\",\"description\":null,\"weight\":1.0}],\"type\":\"INSERT\"}",
                         "{\"data\":[{\"id\":107,\"name\":\"rocks\",\"description\":\"box of assorted rocks\",\"weight\":5.3}],\"type\":\"INSERT\"}",
                         "{\"data\":[{\"id\":108,\"name\":\"jacket\",\"description\":\"water resistent black wind breaker\",\"weight\":0.1}],\"type\":\"INSERT\"}",
                         "{\"data\":[{\"id\":109,\"name\":\"spare tire\",\"description\":\"24 inch spare tire\",\"weight\":22.2}],\"type\":\"INSERT\"}",
-                        "{\"data\":[{\"id\":106,\"name\":\"hammer\",\"description\":\"16oz carpenter's hammer\",\"weight\":1.0}],\"type\":\"DELETE\"}",
+                        "{\"data\":[{\"id\":106,\"name\":\"hammer\",\"description\":null,\"weight\":1.0}],\"type\":\"DELETE\"}",
                         "{\"data\":[{\"id\":106,\"name\":\"hammer\",\"description\":\"18oz carpenter hammer\",\"weight\":1.0}],\"type\":\"INSERT\"}",
                         "{\"data\":[{\"id\":107,\"name\":\"rocks\",\"description\":\"box of assorted rocks\",\"weight\":5.3}],\"type\":\"DELETE\"}",
                         "{\"data\":[{\"id\":107,\"name\":\"rocks\",\"description\":\"box of assorted rocks\",\"weight\":5.1}],\"type\":\"INSERT\"}",
@@ -251,26 +266,32 @@ public class CanalJsonSerDeSchemaTest {
         // we only read the first line for keeping the test simple
         final String firstLine = readLines(resourceFile).get(0);
         final List<ReadableMetadata> requestedMetadata = Arrays.asList(ReadableMetadata.values());
+        final CanalJsonDeserializationSchema deserializationSchema =
+                createCanalJsonDeserializationSchema(database, table, requestedMetadata);
+        final SimpleCollector collector = new SimpleCollector();
+
+        deserializationSchema.deserialize(firstLine.getBytes(StandardCharsets.UTF_8), collector);
+        assertEquals(9, collector.list.size());
+        testConsumer.accept(collector.list.get(0));
+    }
+
+    private CanalJsonDeserializationSchema createCanalJsonDeserializationSchema(
+            String database, String table, List<ReadableMetadata> requestedMetadata) {
         final DataType producedDataType =
                 DataTypeUtils.appendRowFields(
                         PHYSICAL_DATA_TYPE,
                         requestedMetadata.stream()
                                 .map(m -> DataTypes.FIELD(m.key, m.dataType))
                                 .collect(Collectors.toList()));
-        final CanalJsonDeserializationSchema deserializationSchema =
-                CanalJsonDeserializationSchema.builder(
-                                PHYSICAL_DATA_TYPE,
-                                requestedMetadata,
-                                InternalTypeInfo.of(producedDataType.getLogicalType()))
-                        .setDatabase(database)
-                        .setTable(table)
-                        .setIgnoreParseErrors(false)
-                        .setTimestampFormat(TimestampFormat.ISO_8601)
-                        .build();
-        final SimpleCollector collector = new SimpleCollector();
-        deserializationSchema.deserialize(firstLine.getBytes(StandardCharsets.UTF_8), collector);
-        assertEquals(9, collector.list.size());
-        testConsumer.accept(collector.list.get(0));
+        return CanalJsonDeserializationSchema.builder(
+                        PHYSICAL_DATA_TYPE,
+                        requestedMetadata,
+                        InternalTypeInfo.of(producedDataType.getLogicalType()))
+                .setDatabase(database)
+                .setTable(table)
+                .setIgnoreParseErrors(false)
+                .setTimestampFormat(TimestampFormat.ISO_8601)
+                .build();
     }
 
     // --------------------------------------------------------------------------------------------

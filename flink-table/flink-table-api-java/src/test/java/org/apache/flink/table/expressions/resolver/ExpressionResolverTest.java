@@ -331,6 +331,9 @@ public class ExpressionResolverTest {
                             name -> Optional.empty(),
                             new FunctionLookupMock(functions),
                             new DataTypeFactoryMock(),
+                            (sqlExpression, inputSchema) -> {
+                                throw new UnsupportedOperationException();
+                            },
                             Arrays.stream(schemas)
                                     .map(
                                             schema ->

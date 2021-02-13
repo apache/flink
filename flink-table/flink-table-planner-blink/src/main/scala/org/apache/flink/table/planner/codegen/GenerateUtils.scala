@@ -18,12 +18,6 @@
 
 package org.apache.flink.table.planner.codegen
 
-import java.math.{BigDecimal => JBigDecimal}
-import java.time.ZoneOffset
-
-import org.apache.calcite.avatica.util.ByteString
-import org.apache.calcite.util.TimestampString
-import org.apache.commons.lang3.StringEscapeUtils
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.{AtomicType => AtomicTypeInfo}
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
@@ -34,12 +28,20 @@ import org.apache.flink.table.data.writer.BinaryRowWriter
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.calls.CurrentTimePointCallGen
+import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec
 import org.apache.flink.table.planner.plan.utils.SortUtil
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isCharacterString, isReference, isTemporal}
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, getFieldTypes}
 import org.apache.flink.table.util.TimestampStringUtils.toLocalDateTime
+
+import org.apache.calcite.avatica.util.ByteString
+import org.apache.calcite.util.TimestampString
+import org.apache.commons.lang3.StringEscapeUtils
+
+import java.math.{BigDecimal => JBigDecimal}
+import java.time.ZoneOffset
 
 import scala.annotation.tailrec
 import scala.collection.mutable
@@ -510,18 +512,20 @@ object GenerateUtils {
       contextTerm: String): GeneratedExpression = {
     val resultType = new TimestampType(true, TimestampKind.ROWTIME, 3)
     val resultTypeTerm = primitiveTypeTermForType(resultType)
-    val Seq(resultTerm, nullTerm) = ctx.addReusableLocalVariables(
+    val Seq(resultTerm, nullTerm, timestamp) = ctx.addReusableLocalVariables(
       (resultTypeTerm, "result"),
-      ("boolean", "isNull"))
+      ("boolean", "isNull"),
+      ("Long", "timestamp"))
 
     val accessCode =
       s"""
-         |$resultTerm = $TIMESTAMP_DATA.fromEpochMillis($contextTerm.timestamp());
-         |if ($resultTerm == null) {
-         |  throw new RuntimeException("Rowtime timestamp is null. Please make sure that a " +
-         |    "proper TimestampAssigner is defined and the stream environment uses the EventTime " +
-         |    "time characteristic.");
+         |$timestamp = $contextTerm.timestamp();
+         |if ($timestamp == null) {
+         |  throw new RuntimeException("Rowtime timestamp is not defined. Please make sure that " +
+         |    "a proper TimestampAssigner is defined and the stream environment " +
+         |    "uses the EventTime time characteristic.");
          |}
+         |$resultTerm = $TIMESTAMP_DATA.fromEpochMillis($timestamp);
          |$nullTerm = false;
        """.stripMargin.trim
 
@@ -759,13 +763,10 @@ object GenerateUtils {
       s"$compareFunc($leftTerm, $rightTerm)"
     case ROW | STRUCTURED_TYPE =>
       val fieldCount = getFieldCount(t)
-      val orders = (0 until fieldCount).map(_ => true).toArray
       val comparisons = generateRowCompare(
         ctx,
-        (0 until fieldCount).toArray,
-        getFieldTypes(t).toArray(Array[LogicalType]()),
-        orders,
-        SortUtil.getNullDefaultOrders(orders),
+        t,
+        SortUtil.getAscendingSortSpec((0 until fieldCount).toArray),
         "a",
         "b")
       val compareFunc = newName("compareRow")
@@ -866,27 +867,22 @@ object GenerateUtils {
   }
 
   /**
-    * Generates code for comparing row keys.
-    */
+   * Generates code for comparing row keys.
+   */
   def generateRowCompare(
-    ctx: CodeGeneratorContext,
-    keys: Array[Int],
-    keyTypes: Array[LogicalType],
-    orders: Array[Boolean],
-    nullsIsLast: Array[Boolean],
-    leftTerm: String,
-    rightTerm: String): String = {
+      ctx: CodeGeneratorContext,
+      inputType: LogicalType,
+      sortSpec: SortSpec,
+      leftTerm: String,
+      rightTerm: String): String = {
 
+    val fieldTypes = getFieldTypes(inputType)
     val compares = new mutable.ArrayBuffer[String]
-
-    for (i <- keys.indices) {
-      val index = keys(i)
-
-      val symbol = if (orders(i)) "" else "-"
-
-      val nullIsLastRet = if (nullsIsLast(i)) 1 else -1
-
-      val t = keyTypes(i)
+    sortSpec.getFieldSpecs.foreach { fieldSpec =>
+      val index = fieldSpec.getFieldIndex
+      val symbol = if (fieldSpec.getIsAscendingOrder) "" else "-"
+      val nullIsLastRet = if (fieldSpec.getNullIsLast) 1 else -1
+      val t = fieldTypes.get(index)
 
       val typeTerm = primitiveTypeTermForType(t)
       val fieldA = newName("fieldA")
@@ -908,7 +904,7 @@ object GenerateUtils {
            |} else {
            |  $typeTerm $fieldA = ${rowFieldReadAccess(ctx, index, leftTerm, t)};
            |  $typeTerm $fieldB = ${rowFieldReadAccess(ctx, index, rightTerm, t)};
-           |  int $comp = ${generateCompare(ctx, t, nullsIsLast(i), fieldA, fieldB)};
+           |  int $comp = ${generateCompare(ctx, t, fieldSpec.getNullIsLast, fieldA, fieldB)};
            |  if ($comp != 0) {
            |    return $symbol$comp;
            |  }

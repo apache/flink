@@ -119,8 +119,8 @@ LogicalProject(a=[$0], b=[$1], count_c=[$2], rank_num=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[a, b, count_c, $3], changelogMode=[I,UA,D])
-+- Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[], orderBy=[count_c DESC], select=[a, b, count_c, w0$o0, $3], changelogMode=[I,UA,D])
+Calc(select=[a, b, count_c, w0$o0], changelogMode=[I,UA,D])
++- Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[], orderBy=[count_c DESC], select=[a, b, count_c, w0$o0, w0$o0], changelogMode=[I,UA,D])
    +- Exchange(distribution=[single], changelogMode=[I,UA,D])
       +- Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[count_c DESC], select=[a, b, count_c, w0$o0], changelogMode=[I,UA,D])
          +- Exchange(distribution=[hash[a]], changelogMode=[I,UA])
@@ -152,7 +152,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[$3])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, c, 1:BIGINT AS $3])
+Calc(select=[a, b, c, 1:BIGINT AS w0$o0])
 +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[b DESC], select=[a, b, c])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c])
@@ -381,7 +381,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, $3], changelogMode=[I,UA,D])
+Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, w0$o0], changelogMode=[I,UA,D])
 +- Exchange(distribution=[hash[a]], changelogMode=[I])
    +- Calc(select=[a, b, c], changelogMode=[I])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
@@ -409,7 +409,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, $3], changelogMode=[I,UA,D])
+Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, w0$o0], changelogMode=[I,UA,D])
 +- Exchange(distribution=[hash[a]], changelogMode=[I])
    +- Calc(select=[a, b, c], changelogMode=[I])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])

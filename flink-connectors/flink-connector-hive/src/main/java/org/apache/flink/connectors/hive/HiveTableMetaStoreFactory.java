@@ -18,13 +18,13 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.flink.connectors.hive.util.HiveConfUtils;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.filesystem.TableMetaStoreFactory;
 
-import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
@@ -69,7 +69,7 @@ public class HiveTableMetaStoreFactory implements TableMetaStoreFactory {
         private HiveTableMetaStore() throws TException {
             client =
                     HiveMetastoreClientFactory.create(
-                            new HiveConf(conf.conf(), HiveConf.class), hiveVersion);
+                            HiveConfUtils.create(conf.conf()), hiveVersion);
             sd = client.getTable(database, tableName).getSd();
         }
 

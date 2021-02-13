@@ -48,7 +48,6 @@ import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorToJobManagerHeartbeatPayload;
@@ -131,10 +130,6 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 
     @Nonnull
     private final BiFunction<String, Boolean, CompletableFuture<String>> stopWithSavepointFunction;
-
-    @Nonnull
-    private final Function<JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>>
-            requestOperatorBackPressureStatsFunction;
 
     @Nonnull private final BiConsumer<AllocationID, Throwable> notifyAllocationFailureConsumer;
 
@@ -232,9 +227,6 @@ public class TestingJobMasterGateway implements JobMasterGateway {
             @Nonnull
                     BiFunction<String, Boolean, CompletableFuture<String>>
                             stopWithSavepointFunction,
-            @Nonnull
-                    Function<JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>>
-                            requestOperatorBackPressureStatsFunction,
             @Nonnull BiConsumer<AllocationID, Throwable> notifyAllocationFailureConsumer,
             @Nonnull
                     Consumer<
@@ -301,7 +293,6 @@ public class TestingJobMasterGateway implements JobMasterGateway {
         this.requestJobSupplier = requestJobSupplier;
         this.triggerSavepointFunction = triggerSavepointFunction;
         this.stopWithSavepointFunction = stopWithSavepointFunction;
-        this.requestOperatorBackPressureStatsFunction = requestOperatorBackPressureStatsFunction;
         this.notifyAllocationFailureConsumer = notifyAllocationFailureConsumer;
         this.acknowledgeCheckpointConsumer = acknowledgeCheckpointConsumer;
         this.declineCheckpointConsumer = declineCheckpointConsumer;
@@ -416,12 +407,6 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     }
 
     @Override
-    public CompletableFuture<OperatorBackPressureStatsResponse> requestOperatorBackPressureStats(
-            JobVertexID jobVertexId) {
-        return requestOperatorBackPressureStatsFunction.apply(jobVertexId);
-    }
-
-    @Override
     public void notifyAllocationFailure(AllocationID allocationID, Exception cause) {
         notifyAllocationFailureConsumer.accept(allocationID, cause);
     }
@@ -448,6 +433,13 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     public void declineCheckpoint(DeclineCheckpoint declineCheckpoint) {
         declineCheckpointConsumer.accept(declineCheckpoint);
     }
+
+    @Override
+    public void reportCheckpointMetrics(
+            JobID jobID,
+            ExecutionAttemptID executionAttemptID,
+            long checkpointId,
+            CheckpointMetrics checkpointMetrics) {}
 
     @Override
     public JobMasterId getFencingToken() {

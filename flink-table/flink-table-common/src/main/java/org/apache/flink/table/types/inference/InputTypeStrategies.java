@@ -24,6 +24,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.strategies.AndArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.AnyArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.CastInputTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.CommonArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.CommonInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ComparableTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.CompositeArgumentTypeStrategy;
@@ -199,6 +200,19 @@ public final class InputTypeStrategies {
 
     /** Strategy that checks that the argument has a composite type. */
     public static final ArgumentTypeStrategy COMPOSITE = new CompositeArgumentTypeStrategy();
+
+    /**
+     * Argument type strategy that checks and casts for a common, least restrictive type of all
+     * arguments.
+     */
+    public static final ArgumentTypeStrategy COMMON_ARG = new CommonArgumentTypeStrategy(false);
+
+    /**
+     * Argument type strategy that checks and casts for a common, least restrictive type of all
+     * arguments. But leaves nullability untouched.
+     */
+    public static final ArgumentTypeStrategy COMMON_ARG_NULLABLE =
+            new CommonArgumentTypeStrategy(true);
 
     /**
      * Strategy for an argument that corresponds to an explicitly defined type casting. Implicit

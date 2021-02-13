@@ -19,22 +19,20 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.state.AbstractSnapshotStrategy;
-import org.apache.flink.runtime.state.AsyncSnapshotCallable;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamWithResultProvider;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
-import org.apache.flink.runtime.state.DoneFuture;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
+import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
-import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
+import org.apache.flink.runtime.state.SnapshotResources;
 import org.apache.flink.runtime.state.SnapshotResult;
+import org.apache.flink.runtime.state.SnapshotStrategy;
 import org.apache.flink.runtime.state.StateSerializerProvider;
 import org.apache.flink.runtime.state.StateSnapshot;
 import org.apache.flink.runtime.state.StateSnapshotRestore;
@@ -50,60 +48,48 @@ import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.FutureTask;
-import java.util.concurrent.RunnableFuture;
 
-/**
- * Base class for the snapshots of the heap backend that outlines the algorithm and offers some
- * hooks to realize the concrete strategies. Subclasses must be threadsafe.
- */
-class HeapSnapshotStrategy<K> extends AbstractSnapshotStrategy<KeyedStateHandle>
-        implements SnapshotStrategySynchronicityBehavior<K> {
+import static org.apache.flink.runtime.state.CheckpointStreamWithResultProvider.createDuplicatingStream;
+import static org.apache.flink.runtime.state.CheckpointStreamWithResultProvider.createSimpleStream;
+import static org.apache.flink.runtime.state.CheckpointStreamWithResultProvider.toKeyedStateHandleSnapshotResult;
 
-    private final SnapshotStrategySynchronicityBehavior<K> snapshotStrategySynchronicityTrait;
+/** A strategy how to perform a snapshot of a {@link HeapKeyedStateBackend}. */
+class HeapSnapshotStrategy<K>
+        implements SnapshotStrategy<KeyedStateHandle, HeapSnapshotStrategy.HeapSnapshotResources> {
+
     private final Map<String, StateTable<K, ?, ?>> registeredKVStates;
-    private final Map<String, HeapPriorityQueueSnapshotRestoreWrapper> registeredPQStates;
+    private final Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates;
     private final StreamCompressionDecorator keyGroupCompressionDecorator;
     private final LocalRecoveryConfig localRecoveryConfig;
     private final KeyGroupRange keyGroupRange;
-    private final CloseableRegistry cancelStreamRegistry;
     private final StateSerializerProvider<K> keySerializerProvider;
 
     HeapSnapshotStrategy(
-            SnapshotStrategySynchronicityBehavior<K> snapshotStrategySynchronicityTrait,
             Map<String, StateTable<K, ?, ?>> registeredKVStates,
-            Map<String, HeapPriorityQueueSnapshotRestoreWrapper> registeredPQStates,
+            Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates,
             StreamCompressionDecorator keyGroupCompressionDecorator,
             LocalRecoveryConfig localRecoveryConfig,
             KeyGroupRange keyGroupRange,
-            CloseableRegistry cancelStreamRegistry,
             StateSerializerProvider<K> keySerializerProvider) {
-        super("Heap backend snapshot");
-        this.snapshotStrategySynchronicityTrait = snapshotStrategySynchronicityTrait;
         this.registeredKVStates = registeredKVStates;
         this.registeredPQStates = registeredPQStates;
         this.keyGroupCompressionDecorator = keyGroupCompressionDecorator;
         this.localRecoveryConfig = localRecoveryConfig;
         this.keyGroupRange = keyGroupRange;
-        this.cancelStreamRegistry = cancelStreamRegistry;
         this.keySerializerProvider = keySerializerProvider;
     }
 
-    @Nonnull
     @Override
-    public RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot(
-            long checkpointId,
-            long timestamp,
-            @Nonnull CheckpointStreamFactory primaryStreamFactory,
-            @Nonnull CheckpointOptions checkpointOptions)
-            throws IOException {
+    public HeapSnapshotResources syncPrepareResources(long checkpointId) {
 
         if (!hasRegisteredState()) {
-            return DoneFuture.of(SnapshotResult.empty());
+            return new HeapSnapshotResources(
+                    Collections.emptyList(), Collections.emptyMap(), Collections.emptyMap());
         }
 
         int numStates = registeredKVStates.size() + registeredPQStates.size();
@@ -134,6 +120,23 @@ class HeapSnapshotStrategy<K> extends AbstractSnapshotStrategy<KeyedStateHandle>
                 registeredPQStates,
                 StateMetaInfoSnapshot.BackendStateType.PRIORITY_QUEUE);
 
+        return new HeapSnapshotResources(
+                metaInfoSnapshots, cowStateStableSnapshots, stateNamesToId);
+    }
+
+    @Override
+    public SnapshotResultSupplier<KeyedStateHandle> asyncSnapshot(
+            HeapSnapshotResources syncPartResource,
+            long checkpointId,
+            long timestamp,
+            @Nonnull CheckpointStreamFactory streamFactory,
+            @Nonnull CheckpointOptions checkpointOptions) {
+
+        List<StateMetaInfoSnapshot> metaInfoSnapshots = syncPartResource.getMetaInfoSnapshots();
+        if (metaInfoSnapshots.isEmpty()) {
+            return snapshotCloseableRegistry -> SnapshotResult.empty();
+        }
+
         final KeyedBackendSerializationProxy<K> serializationProxy =
                 new KeyedBackendSerializationProxy<>(
                         // TODO: this code assumes that writing a serializer is threadsafe, we
@@ -150,116 +153,65 @@ class HeapSnapshotStrategy<K> extends AbstractSnapshotStrategy<KeyedStateHandle>
                         localRecoveryConfig.isLocalRecoveryEnabled()
                                         && !checkpointOptions.getCheckpointType().isSavepoint()
                                 ? () ->
-                                        CheckpointStreamWithResultProvider.createDuplicatingStream(
+                                        createDuplicatingStream(
                                                 checkpointId,
                                                 CheckpointedStateScope.EXCLUSIVE,
-                                                primaryStreamFactory,
+                                                streamFactory,
                                                 localRecoveryConfig
                                                         .getLocalStateDirectoryProvider())
                                 : () ->
-                                        CheckpointStreamWithResultProvider.createSimpleStream(
-                                                CheckpointedStateScope.EXCLUSIVE,
-                                                primaryStreamFactory);
+                                        createSimpleStream(
+                                                CheckpointedStateScope.EXCLUSIVE, streamFactory);
 
-        // --------------------------------------------------- this becomes the end of sync part
+        return (snapshotCloseableRegistry) -> {
+            final Map<StateUID, Integer> stateNamesToId = syncPartResource.getStateNamesToId();
+            final Map<StateUID, StateSnapshot> cowStateStableSnapshots =
+                    syncPartResource.getCowStateStableSnapshots();
+            final CheckpointStreamWithResultProvider streamWithResultProvider =
+                    checkpointStreamSupplier.get();
 
-        final AsyncSnapshotCallable<SnapshotResult<KeyedStateHandle>> asyncSnapshotCallable =
-                new AsyncSnapshotCallable<SnapshotResult<KeyedStateHandle>>() {
-                    @Override
-                    protected SnapshotResult<KeyedStateHandle> callInternal() throws Exception {
+            snapshotCloseableRegistry.registerCloseable(streamWithResultProvider);
 
-                        final CheckpointStreamWithResultProvider streamWithResultProvider =
-                                checkpointStreamSupplier.get();
+            final CheckpointStreamFactory.CheckpointStateOutputStream localStream =
+                    streamWithResultProvider.getCheckpointOutputStream();
 
-                        snapshotCloseableRegistry.registerCloseable(streamWithResultProvider);
+            final DataOutputViewStreamWrapper outView =
+                    new DataOutputViewStreamWrapper(localStream);
+            serializationProxy.write(outView);
 
-                        final CheckpointStreamFactory.CheckpointStateOutputStream localStream =
-                                streamWithResultProvider.getCheckpointOutputStream();
+            final long[] keyGroupRangeOffsets = new long[keyGroupRange.getNumberOfKeyGroups()];
 
-                        final DataOutputViewStreamWrapper outView =
-                                new DataOutputViewStreamWrapper(localStream);
-                        serializationProxy.write(outView);
+            for (int keyGroupPos = 0;
+                    keyGroupPos < keyGroupRange.getNumberOfKeyGroups();
+                    ++keyGroupPos) {
+                int keyGroupId = keyGroupRange.getKeyGroupId(keyGroupPos);
+                keyGroupRangeOffsets[keyGroupPos] = localStream.getPos();
+                outView.writeInt(keyGroupId);
 
-                        final long[] keyGroupRangeOffsets =
-                                new long[keyGroupRange.getNumberOfKeyGroups()];
+                for (Map.Entry<StateUID, StateSnapshot> stateSnapshot :
+                        cowStateStableSnapshots.entrySet()) {
+                    StateSnapshot.StateKeyGroupWriter partitionedSnapshot =
+                            stateSnapshot.getValue().getKeyGroupWriter();
+                    try (OutputStream kgCompressionOut =
+                            keyGroupCompressionDecorator.decorateWithCompression(localStream)) {
+                        DataOutputViewStreamWrapper kgCompressionView =
+                                new DataOutputViewStreamWrapper(kgCompressionOut);
+                        kgCompressionView.writeShort(stateNamesToId.get(stateSnapshot.getKey()));
+                        partitionedSnapshot.writeStateInKeyGroup(kgCompressionView, keyGroupId);
+                    } // this will just close the outer compression stream
+                }
+            }
 
-                        for (int keyGroupPos = 0;
-                                keyGroupPos < keyGroupRange.getNumberOfKeyGroups();
-                                ++keyGroupPos) {
-                            int keyGroupId = keyGroupRange.getKeyGroupId(keyGroupPos);
-                            keyGroupRangeOffsets[keyGroupPos] = localStream.getPos();
-                            outView.writeInt(keyGroupId);
-
-                            for (Map.Entry<StateUID, StateSnapshot> stateSnapshot :
-                                    cowStateStableSnapshots.entrySet()) {
-                                StateSnapshot.StateKeyGroupWriter partitionedSnapshot =
-                                        stateSnapshot.getValue().getKeyGroupWriter();
-                                try (OutputStream kgCompressionOut =
-                                        keyGroupCompressionDecorator.decorateWithCompression(
-                                                localStream)) {
-                                    DataOutputViewStreamWrapper kgCompressionView =
-                                            new DataOutputViewStreamWrapper(kgCompressionOut);
-                                    kgCompressionView.writeShort(
-                                            stateNamesToId.get(stateSnapshot.getKey()));
-                                    partitionedSnapshot.writeStateInKeyGroup(
-                                            kgCompressionView, keyGroupId);
-                                } // this will just close the outer compression stream
-                            }
-                        }
-
-                        if (snapshotCloseableRegistry.unregisterCloseable(
-                                streamWithResultProvider)) {
-                            KeyGroupRangeOffsets kgOffs =
-                                    new KeyGroupRangeOffsets(keyGroupRange, keyGroupRangeOffsets);
-                            SnapshotResult<StreamStateHandle> result =
-                                    streamWithResultProvider
-                                            .closeAndFinalizeCheckpointStreamResult();
-                            return CheckpointStreamWithResultProvider
-                                    .toKeyedStateHandleSnapshotResult(result, kgOffs);
-                        } else {
-                            throw new IOException("Stream already unregistered.");
-                        }
-                    }
-
-                    @Override
-                    protected void cleanupProvidedResources() {
-                        for (StateSnapshot tableSnapshot : cowStateStableSnapshots.values()) {
-                            tableSnapshot.release();
-                        }
-                    }
-
-                    @Override
-                    protected void logAsyncSnapshotComplete(long startTime) {
-                        if (snapshotStrategySynchronicityTrait.isAsynchronous()) {
-                            logAsyncCompleted(primaryStreamFactory, startTime);
-                        }
-                    }
-                };
-
-        final FutureTask<SnapshotResult<KeyedStateHandle>> task =
-                asyncSnapshotCallable.toAsyncSnapshotFutureTask(cancelStreamRegistry);
-        finalizeSnapshotBeforeReturnHook(task);
-
-        return task;
-    }
-
-    @Override
-    public void finalizeSnapshotBeforeReturnHook(Runnable runnable) {
-        snapshotStrategySynchronicityTrait.finalizeSnapshotBeforeReturnHook(runnable);
-    }
-
-    @Override
-    public boolean isAsynchronous() {
-        return snapshotStrategySynchronicityTrait.isAsynchronous();
-    }
-
-    @Override
-    public <N, V> StateTable<K, N, V> newStateTable(
-            InternalKeyContext<K> keyContext,
-            RegisteredKeyValueStateBackendMetaInfo<N, V> newMetaInfo,
-            TypeSerializer<K> keySerializer) {
-        return snapshotStrategySynchronicityTrait.newStateTable(
-                keyContext, newMetaInfo, keySerializer);
+            if (snapshotCloseableRegistry.unregisterCloseable(streamWithResultProvider)) {
+                KeyGroupRangeOffsets kgOffs =
+                        new KeyGroupRangeOffsets(keyGroupRange, keyGroupRangeOffsets);
+                SnapshotResult<StreamStateHandle> result =
+                        streamWithResultProvider.closeAndFinalizeCheckpointStreamResult();
+                return toKeyedStateHandleSnapshotResult(result, kgOffs, KeyGroupsStateHandle::new);
+            } else {
+                throw new IOException("Stream already unregistered.");
+            }
+        };
     }
 
     private void processSnapshotMetaInfoForAllStates(
@@ -288,5 +240,39 @@ class HeapSnapshotStrategy<K> extends AbstractSnapshotStrategy<KeyedStateHandle>
 
     public TypeSerializer<K> getKeySerializer() {
         return keySerializerProvider.currentSchemaSerializer();
+    }
+
+    static class HeapSnapshotResources implements SnapshotResources {
+        private final List<StateMetaInfoSnapshot> metaInfoSnapshots;
+        private final Map<StateUID, StateSnapshot> cowStateStableSnapshots;
+        private final Map<StateUID, Integer> stateNamesToId;
+
+        HeapSnapshotResources(
+                @Nonnull List<StateMetaInfoSnapshot> metaInfoSnapshots,
+                @Nonnull Map<StateUID, StateSnapshot> cowStateStableSnapshots,
+                @Nonnull Map<StateUID, Integer> stateNamesToId) {
+            this.metaInfoSnapshots = metaInfoSnapshots;
+            this.cowStateStableSnapshots = cowStateStableSnapshots;
+            this.stateNamesToId = stateNamesToId;
+        }
+
+        @Override
+        public void release() {
+            for (StateSnapshot stateSnapshot : cowStateStableSnapshots.values()) {
+                stateSnapshot.release();
+            }
+        }
+
+        public List<StateMetaInfoSnapshot> getMetaInfoSnapshots() {
+            return metaInfoSnapshots;
+        }
+
+        public Map<StateUID, StateSnapshot> getCowStateStableSnapshots() {
+            return cowStateStableSnapshots;
+        }
+
+        public Map<StateUID, Integer> getStateNamesToId() {
+            return stateNamesToId;
+        }
     }
 }

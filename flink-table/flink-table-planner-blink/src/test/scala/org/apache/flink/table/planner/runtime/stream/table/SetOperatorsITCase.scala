@@ -25,10 +25,11 @@ import org.apache.flink.table.planner.plan.utils.NonPojo
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink, TestingRetractSink}
+import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.types.Row
 
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.{Rule, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
@@ -36,6 +37,9 @@ import scala.collection.mutable
 
 @RunWith(classOf[Parameterized])
 class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   @Test
   def testUnion(): Unit = {

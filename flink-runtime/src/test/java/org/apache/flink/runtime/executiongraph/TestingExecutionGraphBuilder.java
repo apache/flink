@@ -26,14 +26,15 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
-import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
-import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -41,7 +42,6 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -57,11 +57,6 @@ public class TestingExecutionGraphBuilder {
     private ScheduledExecutorService futureExecutor = TestingUtils.defaultExecutor();
     private Executor ioExecutor = TestingUtils.defaultExecutor();
     private Time rpcTimeout = AkkaUtils.getDefaultTimeout();
-    private SlotProvider slotProvider =
-            new TestingSlotProvider(
-                    slotRequestId ->
-                            CompletableFuture.completedFuture(
-                                    new TestingLogicalSlotBuilder().createTestingLogicalSlot()));
     private ClassLoader userClassLoader = ExecutionGraph.class.getClassLoader();
     private BlobWriter blobWriter = VoidBlobWriter.getInstance();
     private Time allocationTimeout = AkkaUtils.getDefaultTimeout();
@@ -70,8 +65,9 @@ public class TestingExecutionGraphBuilder {
     private Configuration jobMasterConfig = new Configuration();
     private JobGraph jobGraph = new JobGraph();
     private MetricGroup metricGroup = new UnregisteredMetricsGroup();
-    private CheckpointRecoveryFactory checkpointRecoveryFactory =
-            new StandaloneCheckpointRecoveryFactory();
+    private CompletedCheckpointStore completedCheckpointStore =
+            new StandaloneCompletedCheckpointStore(1);
+    private CheckpointIDCounter checkpointIdCounter = new StandaloneCheckpointIDCounter();
     private ExecutionDeploymentListener executionDeploymentListener =
             NoOpExecutionDeploymentListener.get();
     private ExecutionStateUpdateListener executionStateUpdateListener = (execution, newState) -> {};
@@ -100,11 +96,6 @@ public class TestingExecutionGraphBuilder {
 
     public TestingExecutionGraphBuilder setRpcTimeout(Time rpcTimeout) {
         this.rpcTimeout = rpcTimeout;
-        return this;
-    }
-
-    public TestingExecutionGraphBuilder setSlotProvider(SlotProvider slotProvider) {
-        this.slotProvider = slotProvider;
         return this;
     }
 
@@ -139,9 +130,15 @@ public class TestingExecutionGraphBuilder {
         return this;
     }
 
-    public TestingExecutionGraphBuilder setCheckpointRecoveryFactory(
-            CheckpointRecoveryFactory checkpointRecoveryFactory) {
-        this.checkpointRecoveryFactory = checkpointRecoveryFactory;
+    public TestingExecutionGraphBuilder setCompletedCheckpointStore(
+            CompletedCheckpointStore completedCheckpointStore) {
+        this.completedCheckpointStore = completedCheckpointStore;
+        return this;
+    }
+
+    public TestingExecutionGraphBuilder setCheckpointIdCounter(
+            CheckpointIDCounter checkpointIdCounter) {
+        this.checkpointIdCounter = checkpointIdCounter;
         return this;
     }
 
@@ -159,18 +156,17 @@ public class TestingExecutionGraphBuilder {
 
     public ExecutionGraph build() throws JobException, JobExecutionException {
         return ExecutionGraphBuilder.buildGraph(
-                null,
                 jobGraph,
                 jobMasterConfig,
                 futureExecutor,
                 ioExecutor,
-                slotProvider,
                 userClassLoader,
-                checkpointRecoveryFactory,
+                completedCheckpointStore,
+                new CheckpointsCleaner(),
+                checkpointIdCounter,
                 rpcTimeout,
                 metricGroup,
                 blobWriter,
-                allocationTimeout,
                 LOG,
                 shuffleMaster,
                 partitionTracker,

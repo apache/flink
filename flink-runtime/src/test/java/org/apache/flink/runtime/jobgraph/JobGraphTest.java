@@ -26,7 +26,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroupDesc;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
@@ -34,7 +34,6 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -397,12 +396,7 @@ public class JobGraphTest extends TestLogger {
                         false,
                         0);
 
-        return new JobCheckpointingSettings(
-                Collections.emptyList(),
-                Collections.emptyList(),
-                Collections.emptyList(),
-                checkpointCoordinatorConfiguration,
-                null);
+        return new JobCheckpointingSettings(checkpointCoordinatorConfiguration, null);
     }
 
     @Test
@@ -426,7 +420,7 @@ public class JobGraphTest extends TestLogger {
     }
 
     @Test
-    public void testGetCoLocationGroupDescriptors() {
+    public void testGetCoLocationGroups() {
         final JobVertex v1 = new JobVertex("1");
         final JobVertex v2 = new JobVertex("2");
         final JobVertex v3 = new JobVertex("3");
@@ -439,11 +433,10 @@ public class JobGraphTest extends TestLogger {
 
         final JobGraph jobGraph = new JobGraph(v1, v2, v3, v4);
 
-        assertThat(jobGraph.getCoLocationGroupDescriptors(), hasSize(1));
+        assertThat(jobGraph.getCoLocationGroups(), hasSize(1));
 
-        final CoLocationGroupDesc onlyCoLocationGroupDesc =
-                jobGraph.getCoLocationGroupDescriptors().iterator().next();
-        assertThat(
-                onlyCoLocationGroupDesc.getVertices(), containsInAnyOrder(v1.getID(), v2.getID()));
+        final CoLocationGroup onlyCoLocationGroup =
+                jobGraph.getCoLocationGroups().iterator().next();
+        assertThat(onlyCoLocationGroup.getVertexIds(), containsInAnyOrder(v1.getID(), v2.getID()));
     }
 }

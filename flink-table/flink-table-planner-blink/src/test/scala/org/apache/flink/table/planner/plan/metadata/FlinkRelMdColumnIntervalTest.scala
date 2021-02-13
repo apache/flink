@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecRank
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalRank
 import org.apache.flink.table.planner.plan.stats._
 import org.apache.flink.table.planner.plan.utils.ColumnIntervalUtil
 import org.apache.flink.table.planner.{JBoolean, JDouble}
@@ -331,7 +331,8 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
         assertNull(mq.getColumnInterval(rank, 5))
         assertNull(mq.getColumnInterval(rank, 6))
         rank match {
-          case r: BatchExecRank if !r.isGlobal => // local batch rank does not output rank function
+          case r: BatchPhysicalRank if !r.isGlobal =>
+              // local batch rank does not output rank function
           case _ => assertEquals(ValueInterval(bd(1), bd(5)), mq.getColumnInterval(rank, 7))
         }
     }

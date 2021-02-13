@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch.table;
 
-import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
@@ -183,7 +183,10 @@ public class Elasticsearch7DynamicSinkFactoryTest {
                                                                 DataTypes.FIELD(
                                                                         "a", DataTypes.BIGINT()))
                                                         .notNull())
-                                        .field("f", DataTypes.RAW(Types.BIG_INT).notNull())
+                                        .field(
+                                                "f",
+                                                DataTypes.RAW(Void.class, VoidSerializer.INSTANCE)
+                                                        .notNull())
                                         .field("g", DataTypes.BYTES().notNull())
                                         .primaryKey("a", "b", "c", "d", "e", "f", "g")
                                         .build())

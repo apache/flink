@@ -42,7 +42,7 @@ Calc(select=[(o_amount * rate) AS rate])
   </TestCase>
   <TestCase name="testComplexJoin">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM (SELECT o_amount * rate as rate, secondary_key as secondary_key FROM Orders AS o, LATERAL TABLE (Rates(o_rowtime)) AS r WHERE currency = o_currency OR secondary_key = o_secondary_key), Table3 WHERE t3_secondary_key = secondary_key]]>
+      <![CDATA[SELECT * FROM (SELECT o_amount * rate as rate, secondary_key as secondary_key FROM Orders AS o, LATERAL TABLE (Rates(o_rowtime)) AS r WHERE currency = o_currency AND (rate > 120 OR secondary_key = o_secondary_key)), Table3 WHERE t3_secondary_key = secondary_key]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -50,7 +50,7 @@ LogicalProject(rate=[$0], secondary_key=[$1], t3_comment=[$2], t3_secondary_key=
 +- LogicalFilter(condition=[=($3, $1)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalProject(rate=[*($2, $8)], secondary_key=[$9])
-      :  +- LogicalFilter(condition=[OR(=($7, $3), =($9, $4))])
+      :  +- LogicalFilter(condition=[AND(=($7, $3), OR(>($8, 120), =($9, $4)))])
       :     +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
       :        :- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
       :        +- LogicalTableFunctionScan(invocation=[Rates($cor0.o_rowtime)], rowType=[RecordType:peek_no_expand(TIME ATTRIBUTE(ROWTIME) rowtime, VARCHAR(2147483647) comment, VARCHAR(2147483647) currency, INTEGER rate, INTEGER secondary_key)])
@@ -62,11 +62,11 @@ LogicalProject(rate=[$0], secondary_key=[$1], t3_comment=[$2], t3_secondary_key=
 Join(joinType=[InnerJoin], where=[(t3_secondary_key = secondary_key)], select=[rate, secondary_key, t3_comment, t3_secondary_key], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[secondary_key]])
 :  +- Calc(select=[(o_amount * rate) AS rate, secondary_key])
-:     +- TemporalJoin(joinType=[InnerJoin], where=[(__TEMPORAL_JOIN_CONDITION(o_rowtime, rowtime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency)) AND ((currency = o_currency) OR (secondary_key = o_secondary_key)))], select=[o_rowtime, o_amount, o_currency, o_secondary_key, rowtime, currency, rate, secondary_key])
-:        :- Exchange(distribution=[single])
+:     +- TemporalJoin(joinType=[InnerJoin], where=[(__TEMPORAL_JOIN_CONDITION(o_rowtime, rowtime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency)) AND (currency = o_currency) AND ((rate > 120) OR (secondary_key = o_secondary_key)))], select=[o_rowtime, o_amount, o_currency, o_secondary_key, rowtime, currency, rate, secondary_key])
+:        :- Exchange(distribution=[hash[o_currency]])
 :        :  +- Calc(select=[o_rowtime, o_amount, o_currency, o_secondary_key])
 :        :     +- DataStreamScan(table=[[default_catalog, default_database, Orders]], fields=[o_rowtime, o_comment, o_amount, o_currency, o_secondary_key])
-:        +- Exchange(distribution=[single])
+:        +- Exchange(distribution=[hash[currency]])
 :           +- Calc(select=[rowtime, currency, rate, secondary_key], where=[(rate > 110)])
 :              +- DataStreamScan(table=[[default_catalog, default_database, RatesHistory]], fields=[rowtime, comment, currency, rate, secondary_key])
 +- Exchange(distribution=[hash[t3_secondary_key]])
@@ -117,11 +117,12 @@ LogicalProject(rate=[*($0, $4)])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[(o_amount * rate) AS rate])
-+- TemporalJoin(joinType=[InnerJoin], where=[(__TEMPORAL_JOIN_CONDITION(o_proctime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency)) AND (currency = o_currency))], select=[o_amount, o_currency, o_proctime, currency, rate, proctime])
++- TemporalJoin(joinType=[InnerJoin], where=[(__TEMPORAL_JOIN_CONDITION(o_proctime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency)) AND (currency = o_currency))], select=[o_amount, o_currency, o_proctime, currency, rate])
    :- Exchange(distribution=[hash[o_currency]])
    :  +- DataStreamScan(table=[[default_catalog, default_database, ProctimeOrders]], fields=[o_amount, o_currency, o_proctime])
    +- Exchange(distribution=[hash[currency]])
-      +- DataStreamScan(table=[[default_catalog, default_database, ProctimeRatesHistory]], fields=[currency, rate, proctime])
+      +- Calc(select=[currency, rate])
+         +- DataStreamScan(table=[[default_catalog, default_database, ProctimeRatesHistory]], fields=[currency, rate, proctime])
 ]]>
     </Resource>
   </TestCase>

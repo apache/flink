@@ -26,6 +26,7 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -124,9 +125,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
             },
             new Object[] {"Parallel cogroup, p = 5", createCogroupSettings(5)},
             new Object[] {"Parallel cogroup, p = 10", createCogroupSettings(10)},
-            // todo: enable after completely  fixing FLINK-20654
-            //            new Object[] {"Parallel union, p = 5", createUnionSettings(5)},
-            //            new Object[] {"Parallel union, p = 10", createUnionSettings(10)},
+            new Object[] {"Parallel union, p = 5", createUnionSettings(5)},
+            new Object[] {"Parallel union, p = 10", createUnionSettings(10)},
         };
     }
 
@@ -206,11 +206,11 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                                 "source")
                         .slotSharingGroup(slotSharing ? "default" : "source")
                         .disableChaining()
-                        .map(i -> i)
+                        .map(i -> checkHeader(i))
                         .name("forward")
                         .uid("forward")
                         .slotSharingGroup(slotSharing ? "default" : "forward")
-                        .keyBy(i -> i % parallelism * parallelism)
+                        .keyBy(i -> withoutHeader(i) % parallelism * parallelism)
                         .process(new KeyedIdentityFunction())
                         .name("keyed")
                         .uid("keyed");
@@ -269,7 +269,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
         final SingleOutputStreamOperator<Long> deduplicated =
                 combinedSource
                         .partitionCustom(
-                                (key, numPartitions) -> (int) (key % numPartitions), l -> l)
+                                (key, numPartitions) -> (int) (withoutHeader(key) % numPartitions),
+                                l -> l)
                         .flatMap(new CountingMapFunction(numSources));
         addFailingPipeline(minCheckpoints, slotSharing, deduplicated);
     }
@@ -306,7 +307,7 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
     protected static class ShiftingPartitioner implements Partitioner<Long> {
         @Override
         public int partition(Long key, int numPartitions) {
-            return (int) ((key + 1) % numPartitions);
+            return (int) ((withoutHeader(key) + 1) % numPartitions);
         }
     }
 
@@ -314,7 +315,7 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
     protected static class ChunkDistributingPartitioner implements Partitioner<Long> {
         @Override
         public int partition(Long key, int numPartitions) {
-            return (int) ((key / numPartitions) % numPartitions);
+            return (int) ((withoutHeader(key) / numPartitions) % numPartitions);
         }
     }
 
@@ -341,16 +342,26 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
         public void initializeState(FunctionInitializationContext context) throws Exception {
             super.initializeState(context);
             backpressure = false;
+            LOG.info(
+                    "Inducing backpressure=false @ {} subtask ({} attempt)",
+                    getRuntimeContext().getIndexOfThisSubtask(),
+                    getRuntimeContext().getAttemptNumber());
         }
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
             super.snapshotState(context);
             backpressure = state.completedCheckpoints < minCheckpoints;
+            LOG.info(
+                    "Inducing backpressure={} @ {} subtask ({} attempt)",
+                    backpressure,
+                    getRuntimeContext().getIndexOfThisSubtask(),
+                    getRuntimeContext().getAttemptNumber());
         }
 
         @Override
         public void invoke(Long value, Context context) throws Exception {
+            value = withoutHeader(value);
             int parallelism = state.lastRecordInPartitions.length;
             int partition = (int) (value % parallelism);
             long lastRecord = state.lastRecordInPartitions[partition];
@@ -433,16 +444,18 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
 
         @Override
         public void flatMap1(Long value, Collector<Long> out) {
-            state.lastLeft = value;
-            if (state.lastRight >= value) {
+            long baseValue = withoutHeader(value);
+            state.lastLeft = baseValue;
+            if (state.lastRight >= baseValue) {
                 out.collect(value);
             }
         }
 
         @Override
         public void flatMap2(Long value, Collector<Long> out) {
-            state.lastRight = value;
-            if (state.lastLeft >= value) {
+            long baseValue = withoutHeader(value);
+            state.lastRight = baseValue;
+            if (state.lastLeft >= baseValue) {
                 out.collect(value);
             }
         }
@@ -468,6 +481,7 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
 
         @Override
         public void processElement(Long value, Context ctx, Collector<Long> out) {
+            checkHeader(value);
             out.collect(value);
         }
     }
@@ -486,7 +500,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
 
         @Override
         public void flatMap(Long value, Collector<Long> out) throws Exception {
-            final int offset = StrictMath.toIntExact(value * withdrawnCount);
+            long baseValue = withoutHeader(value);
+            final int offset = StrictMath.toIntExact(baseValue * withdrawnCount);
             for (int index = 0; index < withdrawnCount; index++) {
                 if (!seenRecords.get(index + offset)) {
                     seenRecords.set(index + offset);
@@ -506,7 +521,9 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
         public void initializeState(FunctionInitializationContext context) throws Exception {
             stateList =
                     context.getOperatorStateStore()
-                            .getListState(new ListStateDescriptor<>("state", BitSet.class));
+                            .getListState(
+                                    new ListStateDescriptor<>(
+                                            "state", new GenericTypeInfo<>(BitSet.class)));
             this.seenRecords = getOnlyElement(stateList.get(), new BitSet());
         }
     }

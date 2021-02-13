@@ -24,11 +24,9 @@ import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -42,14 +40,12 @@ import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.query.KvStateLocation;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStats;
 import org.apache.flink.runtime.state.KeyGroupRange;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -71,12 +67,6 @@ public class TestingSchedulerNG implements SchedulerNG {
         this.suspendConsumer = suspendConsumer;
         this.triggerSavepointFunction = triggerSavepointFunction;
     }
-
-    @Override
-    public void initialize(ComponentMainThreadExecutor mainThreadExecutor) {}
-
-    @Override
-    public void registerJobStatusListener(JobStatusListener jobStatusListener) {}
 
     @Override
     public void startScheduling() {
@@ -178,13 +168,6 @@ public class TestingSchedulerNG implements SchedulerNG {
     }
 
     @Override
-    public Optional<OperatorBackPressureStats> requestOperatorBackPressureStats(
-            JobVertexID jobVertexId) {
-        failOperation();
-        return Optional.empty();
-    }
-
-    @Override
     public CompletableFuture<String> triggerSavepoint(
             @Nullable String targetDirectory, boolean cancelJob) {
         return triggerSavepointFunction.apply(targetDirectory, cancelJob);
@@ -224,6 +207,13 @@ public class TestingSchedulerNG implements SchedulerNG {
         failOperation();
         return null;
     }
+
+    @Override
+    public void reportCheckpointMetrics(
+            JobID jobID,
+            ExecutionAttemptID executionAttemptID,
+            long checkpointId,
+            CheckpointMetrics checkpointMetrics) {}
 
     public static Builder newBuilder() {
         return new Builder();

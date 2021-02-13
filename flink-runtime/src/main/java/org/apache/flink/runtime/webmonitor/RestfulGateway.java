@@ -25,7 +25,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -35,7 +34,6 @@ import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.util.SerializedValue;
@@ -168,18 +166,6 @@ public interface RestfulGateway extends RpcGateway {
      * @return A future to the {@link JobStatus} of the given job
      */
     default CompletableFuture<JobStatus> requestJobStatus(JobID jobId, @RpcTimeout Time timeout) {
-        throw new UnsupportedOperationException();
-    }
-
-    /**
-     * Requests the statistics on operator back pressure.
-     *
-     * @param jobId Job for which the stats are requested.
-     * @param jobVertexId JobVertex for which the stats are requested.
-     * @return A Future to the {@link OperatorBackPressureStatsResponse}.
-     */
-    default CompletableFuture<OperatorBackPressureStatsResponse> requestOperatorBackPressureStats(
-            JobID jobId, JobVertexID jobVertexId) {
         throw new UnsupportedOperationException();
     }
 

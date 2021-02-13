@@ -20,8 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecPythonCalc
-import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecPythonCalc
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -52,7 +51,7 @@ class BatchPhysicalPythonCalc(
   override def translateToExecNode(): ExecNode[_] = {
     new BatchExecPythonCalc(
       getProgram,
-      ExecEdge.DEFAULT,
+      InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
   }

@@ -18,10 +18,15 @@
 
 package org.apache.flink.types;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.util.StringUtils;
+
+import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -66,6 +71,25 @@ public final class RowUtils {
     }
 
     // --------------------------------------------------------------------------------------------
+    // Internal utilities
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Internal flag to enable the legacy {@link Row#toString()} implementation for tests. In
+     * general, tests should not depend on the string representation of rows but should fully
+     * compare instances (especially data types of fields). This flag will be dropped once all tests
+     * have been updated.
+     */
+    public static boolean USE_LEGACY_TO_STRING = false;
+
+    /** Internal utility for creating a row in static named-position field mode. */
+    @Internal
+    public static Row createRowWithNamedPositions(
+            RowKind kind, Object[] fieldByPosition, LinkedHashMap<String, Integer> positionByName) {
+        return new Row(kind, fieldByPosition, null, positionByName);
+    }
+
+    // --------------------------------------------------------------------------------------------
     // Default scoped for Row class only
     // --------------------------------------------------------------------------------------------
 
@@ -73,46 +97,105 @@ public final class RowUtils {
      * Compares two objects with proper (nested) equality semantics. This method supports all
      * external and most internal conversion classes of the table ecosystem.
      */
-    static boolean deepEqualsRow(Row row1, Row row2) {
-        if (row1.getKind() != row2.getKind()) {
+    static boolean deepEqualsRow(
+            RowKind kind1,
+            @Nullable Object[] fieldByPosition1,
+            @Nullable Map<String, Object> fieldByName1,
+            @Nullable LinkedHashMap<String, Integer> positionByName1,
+            RowKind kind2,
+            @Nullable Object[] fieldByPosition2,
+            @Nullable Map<String, Object> fieldByName2,
+            @Nullable LinkedHashMap<String, Integer> positionByName2) {
+        if (kind1 != kind2) {
             return false;
         }
-        if (row1.getArity() != row2.getArity()) {
-            return false;
+        // positioned == positioned
+        else if (fieldByPosition1 != null && fieldByPosition2 != null) {
+            // positionByName is not included
+            return deepEqualsInternal(fieldByPosition1, fieldByPosition2);
         }
-        for (int pos = 0; pos < row1.getArity(); pos++) {
-            final Object f1 = row1.getField(pos);
-            final Object f2 = row2.getField(pos);
-            if (!deepEqualsInternal(f1, f2)) {
-                return false;
-            }
+        // named == named
+        else if (fieldByName1 != null && fieldByName2 != null) {
+            return deepEqualsInternal(fieldByName1, fieldByName2);
         }
-        return true;
+        // named positioned == named
+        else if (positionByName1 != null && fieldByName2 != null) {
+            return deepEqualsNamedRows(fieldByPosition1, positionByName1, fieldByName2);
+        }
+        // named == named positioned
+        else if (positionByName2 != null && fieldByName1 != null) {
+            return deepEqualsNamedRows(fieldByPosition2, positionByName2, fieldByName1);
+        }
+        return false;
     }
 
     /**
      * Hashes two objects with proper (nested) equality semantics. This method supports all external
      * and most internal conversion classes of the table ecosystem.
      */
-    static int deepHashCodeRow(Row row) {
-        int result = row.getKind().toByteValue(); // for stable hash across JVM instances
-        for (int i = 0; i < row.getArity(); i++) {
-            result = 31 * result + deepHashCodeInternal(row.getField(i));
+    static int deepHashCodeRow(
+            RowKind kind,
+            @Nullable Object[] fieldByPosition,
+            @Nullable Map<String, Object> fieldByName) {
+        int result = kind.toByteValue(); // for stable hash across JVM instances
+        if (fieldByPosition != null) {
+            // positionByName is not included
+            result = 31 * result + deepHashCodeInternal(fieldByPosition);
+        } else {
+            result = 31 * result + deepHashCodeInternal(fieldByName);
         }
         return result;
     }
 
+    /**
+     * Converts a row to a string representation. This method supports all external and most
+     * internal conversion classes of the table ecosystem.
+     */
+    static String deepToStringRow(
+            RowKind kind,
+            @Nullable Object[] fieldByPosition,
+            @Nullable Map<String, Object> fieldByName) {
+        final StringBuilder sb = new StringBuilder();
+        if (fieldByPosition != null) {
+            if (USE_LEGACY_TO_STRING) {
+                deepToStringArrayLegacy(sb, fieldByPosition);
+            } else {
+                sb.append(kind.shortString());
+                deepToStringArray(sb, fieldByPosition);
+            }
+        } else {
+            assert fieldByName != null;
+            sb.append(kind.shortString());
+            deepToStringMap(sb, fieldByName);
+        }
+        return sb.toString();
+    }
+
     // --------------------------------------------------------------------------------------------
-    // Internal utilities
+    // Helper methods
     // --------------------------------------------------------------------------------------------
+
+    private static boolean deepEqualsNamedRows(
+            Object[] fieldByPosition1,
+            LinkedHashMap<String, Integer> positionByName1,
+            Map<String, Object> fieldByName2) {
+        for (Map.Entry<String, Object> entry : fieldByName2.entrySet()) {
+            final Integer pos = positionByName1.get(entry.getKey());
+            if (pos == null) {
+                return false;
+            }
+            if (!deepEqualsInternal(fieldByPosition1[pos], entry.getValue())) {
+                return false;
+            }
+        }
+        return true;
+    }
 
     private static boolean deepEqualsInternal(Object o1, Object o2) {
         if (o1 == o2) {
             return true;
         } else if (o1 == null || o2 == null) {
             return false;
-        } else if (o1 instanceof Row && o2 instanceof Row) {
-            return deepEqualsRow((Row) o1, (Row) o2);
         } else if (o1 instanceof Object[] && o2 instanceof Object[]) {
             return deepEqualsArray((Object[]) o1, (Object[]) o2);
         } else if (o1 instanceof Map && o2 instanceof Map) {
@@ -205,9 +288,7 @@ public final class RowUtils {
         if (o == null) {
             return 0;
         }
-        if (o instanceof Row) {
-            return deepHashCodeRow((Row) o);
-        } else if (o instanceof Object[]) {
+        if (o instanceof Object[]) {
             return deepHashCodeArray((Object[]) o);
         } else if (o instanceof Map) {
             return deepHashCodeMap((Map<?, ?>) o);
@@ -239,6 +320,71 @@ public final class RowUtils {
             result = 31 * result + deepHashCodeInternal(e);
         }
         return result;
+    }
+
+    private static void deepToStringInternal(StringBuilder sb, Object o) {
+        if (o instanceof Object[]) {
+            deepToStringArray(sb, (Object[]) o);
+        } else if (o instanceof Map) {
+            deepToStringMap(sb, (Map<?, ?>) o);
+        } else if (o instanceof List) {
+            deepToStringList(sb, (List<?>) o);
+        } else {
+            sb.append(StringUtils.arrayAwareToString(o));
+        }
+    }
+
+    private static void deepToStringArray(StringBuilder sb, Object[] a) {
+        sb.append('[');
+        boolean isFirst = true;
+        for (Object o : a) {
+            if (isFirst) {
+                isFirst = false;
+            } else {
+                sb.append(", ");
+            }
+            deepToStringInternal(sb, o);
+        }
+        sb.append(']');
+    }
+
+    private static void deepToStringArrayLegacy(StringBuilder sb, Object[] a) {
+        for (int i = 0; i < a.length; i++) {
+            if (i > 0) {
+                sb.append(",");
+            }
+            sb.append(StringUtils.arrayAwareToString(a[i]));
+        }
+    }
+
+    private static <K, V> void deepToStringMap(StringBuilder sb, Map<K, V> m) {
+        sb.append('{');
+        boolean isFirst = true;
+        for (Map.Entry<K, V> entry : m.entrySet()) {
+            if (isFirst) {
+                isFirst = false;
+            } else {
+                sb.append(", ");
+            }
+            deepToStringInternal(sb, entry.getKey());
+            sb.append('=');
+            deepToStringInternal(sb, entry.getValue());
+        }
+        sb.append('}');
+    }
+
+    private static <E> void deepToStringList(StringBuilder sb, List<E> l) {
+        sb.append('[');
+        boolean isFirst = true;
+        for (E element : l) {
+            if (isFirst) {
+                isFirst = false;
+            } else {
+                sb.append(", ");
+            }
+            deepToStringInternal(sb, element);
+        }
+        sb.append(']');
     }
 
     private RowUtils() {

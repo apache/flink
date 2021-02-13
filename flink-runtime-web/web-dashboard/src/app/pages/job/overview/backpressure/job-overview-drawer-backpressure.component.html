@@ -52,14 +52,14 @@
     </tr>
     <tr>
       <th>SubTask</th>
-      <th>Ratio</th>
-      <th>Status</th>
+      <th>Backpressured / Idle / Busy</th>
+      <th>Backpressure Status</th>
     </tr>
   </thead>
   <tbody>
     <tr *ngFor="let subtask of listOfSubTaskBackpressure;trackBy:trackBackPressureBy;">
       <td>{{ subtask['subtask'] }}</td>
-      <td>{{ subtask['ratio'] }}</td>
+      <td>{{ this.prettyPrint(subtask['ratio']) }} / {{ this.prettyPrint(subtask['idleRatio']) }} / {{ this.prettyPrint(subtask['busyRatio']) }}</td>
       <td>
         <flink-backpressure-badge [state]="backpressure['backpressure-level']"></flink-backpressure-badge>
       </td>

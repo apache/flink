@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
@@ -40,6 +39,7 @@ import org.mockito.stubbing.Answer;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -142,7 +142,7 @@ public class CheckpointCoordinatorMasterHooksTest {
         verify(hook2, times(1)).reset();
 
         // shutdown
-        cc.shutdown(JobStatus.CANCELED);
+        cc.shutdown();
         verify(hook1, times(1)).close();
         verify(hook2, times(1)).close();
     }
@@ -459,9 +459,6 @@ public class CheckpointCoordinatorMasterHooksTest {
         return new CheckpointCoordinator(
                 jid,
                 chkConfig,
-                new ExecutionVertex[0],
-                ackVertices,
-                new ExecutionVertex[0],
                 Collections.emptyList(),
                 new StandaloneCheckpointIDCounter(),
                 new StandaloneCompletedCheckpointStore(10),
@@ -470,7 +467,10 @@ public class CheckpointCoordinatorMasterHooksTest {
                 new CheckpointsCleaner(),
                 testingScheduledExecutor,
                 SharedStateRegistry.DEFAULT_FACTORY,
-                new CheckpointFailureManager(0, NoOpFailJobCall.INSTANCE));
+                new CheckpointFailureManager(0, NoOpFailJobCall.INSTANCE),
+                new CheckpointPlanCalculator(
+                        jid, new ArrayList<>(), Arrays.asList(ackVertices), new ArrayList<>()),
+                new ExecutionAttemptMappingProvider(Arrays.asList(ackVertices)));
     }
 
     private static <T> T mockGeneric(Class<?> clazz) {

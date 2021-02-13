@@ -21,7 +21,7 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroupDesc;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
@@ -66,5 +66,5 @@ interface ExecutionSlotAllocationContext extends InputsLocationsRetriever, State
      *
      * @return all co-location groups in the job
      */
-    Set<CoLocationGroupDesc> getCoLocationGroups();
+    Set<CoLocationGroup> getCoLocationGroups();
 }

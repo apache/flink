@@ -20,6 +20,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.SerializerTestInstance;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -28,30 +29,62 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.types.RowUtils;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.Serializable;
+import java.util.LinkedHashMap;
 import java.util.Objects;
 
 public class RowSerializerTest {
 
     @Test
     public void testRowSerializer() {
-        TypeInformation<Row> typeInfo =
-                new RowTypeInfo(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
-        Row row1 = new Row(2);
-        row1.setKind(RowKind.UPDATE_BEFORE);
-        row1.setField(0, 1);
-        row1.setField(1, "a");
+        final TypeInformation<Row> rowTypeInfo =
+                Types.ROW_NAMED(
+                        new String[] {"a", "b", "c", "d"},
+                        Types.INT,
+                        Types.STRING,
+                        Types.DOUBLE,
+                        Types.BOOLEAN);
 
-        Row row2 = new Row(2);
-        row2.setKind(RowKind.INSERT);
-        row2.setField(0, 2);
-        row2.setField(1, null);
+        final Row positionedRow = Row.withPositions(RowKind.UPDATE_BEFORE, 4);
+        positionedRow.setKind(RowKind.UPDATE_BEFORE);
+        positionedRow.setField(0, 1);
+        positionedRow.setField(1, "a");
+        positionedRow.setField(2, null);
+        positionedRow.setField(3, false);
 
-        TypeSerializer<Row> serializer = typeInfo.createSerializer(new ExecutionConfig());
-        RowSerializerTestInstance instance = new RowSerializerTestInstance(serializer, row1, row2);
+        final Row namedRow = Row.withNames(RowKind.UPDATE_BEFORE);
+        namedRow.setField("a", 1);
+        namedRow.setField("b", "a");
+        namedRow.setField("c", null);
+        namedRow.setField("d", false);
+
+        final Row sparseNamedRow = Row.withNames(RowKind.UPDATE_BEFORE);
+        namedRow.setField("a", 1);
+        namedRow.setField("b", "a");
+        namedRow.setField("d", false); // "c" is missing
+
+        final LinkedHashMap<String, Integer> positionByName = new LinkedHashMap<>();
+        positionByName.put("a", 0);
+        positionByName.put("b", 1);
+        positionByName.put("c", 2);
+        positionByName.put("d", 3);
+        final Row namedPositionedRow =
+                RowUtils.createRowWithNamedPositions(
+                        RowKind.UPDATE_BEFORE, new Object[4], positionByName);
+        namedPositionedRow.setField("a", 1);
+        namedPositionedRow.setField(1, "a");
+        namedPositionedRow.setField(2, null);
+        namedPositionedRow.setField("d", false);
+
+        final TypeSerializer<Row> serializer = rowTypeInfo.createSerializer(new ExecutionConfig());
+        final RowSerializerTestInstance instance =
+                new RowSerializerTestInstance(
+                        serializer, positionedRow, namedRow, sparseNamedRow, namedPositionedRow);
         instance.testAll();
     }
 
@@ -190,6 +223,7 @@ public class RowSerializerTest {
         return row;
     }
 
+    @Ignore("Prevents this class from being considered a test class by JUnit.")
     private class RowSerializerTestInstance extends SerializerTestInstance<Row> {
 
         RowSerializerTestInstance(TypeSerializer<Row> serializer, Row... testData) {

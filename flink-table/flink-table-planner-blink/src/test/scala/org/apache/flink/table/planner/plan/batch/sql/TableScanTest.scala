@@ -164,6 +164,26 @@ class TableScanTest extends TableTestBase {
   }
 
   @Test
+  def testDDLWithProctime(): Unit = {
+    util.addTable(
+      s"""
+        |create table proctime_t (
+        | a int,
+        | b varchar,
+        | c as a + 1,
+        | d as to_timestamp(b),
+        | e as my_udf(a),
+        | ptime as proctime()
+        |) with (
+        |  'connector' = 'values',
+        |  'bounded' = 'true'
+        |)
+      """.stripMargin
+    )
+    util.verifyExecPlan("SELECT * FROM proctime_t")
+  }
+
+  @Test
   def testTableApiScanWithComputedColumn(): Unit = {
     util.verifyExecPlan(util.tableEnv.from("computed_column_t"))
   }

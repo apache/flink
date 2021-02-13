@@ -20,7 +20,6 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.Archiveable;
-import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.io.InputSplit;
@@ -34,8 +33,6 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -92,8 +89,6 @@ public class ExecutionVertex
     /** The name in the format "myTask (2/7)", cached to avoid frequent string concatenations. */
     private final String taskNameWithSubtask;
 
-    private CoLocationConstraint locationConstraint;
-
     /** The current or latest execution attempt of this vertex's task. */
     private Execution currentExecution; // this field must never be null
 
@@ -105,19 +100,17 @@ public class ExecutionVertex
      * Creates an ExecutionVertex.
      *
      * @param timeout The RPC timeout to use for deploy / cancel calls
-     * @param initialGlobalModVersion The global modification version to initialize the first
-     *     Execution with.
      * @param createTimestamp The timestamp for the vertex creation, used to initialize the first
      *     Execution with.
      * @param maxPriorExecutionHistoryLength The number of prior Executions (= execution attempts)
      *     to keep.
      */
-    ExecutionVertex(
+    @VisibleForTesting
+    public ExecutionVertex(
             ExecutionJobVertex jobVertex,
             int subTaskIndex,
             IntermediateResult[] producedDataSets,
             Time timeout,
-            long initialGlobalModVersion,
             long createTimestamp,
             int maxPriorExecutionHistoryLength) {
 
@@ -147,20 +140,7 @@ public class ExecutionVertex
 
         this.currentExecution =
                 new Execution(
-                        getExecutionGraph().getFutureExecutor(),
-                        this,
-                        0,
-                        initialGlobalModVersion,
-                        createTimestamp,
-                        timeout);
-
-        // create a co-location scheduling hint, if necessary
-        CoLocationGroup clg = jobVertex.getCoLocationGroup();
-        if (clg != null) {
-            this.locationConstraint = clg.getLocationConstraint(subTaskIndex);
-        } else {
-            this.locationConstraint = null;
-        }
+                        getExecutionGraph().getFutureExecutor(), this, 0, createTimestamp, timeout);
 
         getExecutionGraph().registerExecution(currentExecution);
 
@@ -236,10 +216,6 @@ public class ExecutionVertex
 
     public ExecutionEdge[][] getAllInputEdges() {
         return inputEdges;
-    }
-
-    public CoLocationConstraint getLocationConstraint() {
-        return locationConstraint;
     }
 
     public InputSplit getNextInputSplit(String host) {
@@ -344,10 +320,6 @@ public class ExecutionVertex
 
     public Map<IntermediateResultPartitionID, IntermediateResultPartition> getProducedPartitions() {
         return resultPartitions;
-    }
-
-    public InputDependencyConstraint getInputDependencyConstraint() {
-        return getJobVertex().getInputDependencyConstraint();
     }
 
     // --------------------------------------------------------------------------------------------
@@ -575,48 +547,12 @@ public class ExecutionVertex
     //   Actions
     // --------------------------------------------------------------------------------------------
 
-    /**
-     * Archives the current Execution and creates a new Execution for this vertex.
-     *
-     * <p>This method atomically checks if the ExecutionGraph is still of an expected global mod.
-     * version and replaces the execution if that is the case. If the ExecutionGraph has increased
-     * its global mod. version in the meantime, this operation fails.
-     *
-     * <p>This mechanism can be used to prevent conflicts between various concurrent recovery and
-     * reconfiguration actions in a similar way as "optimistic concurrency control".
-     *
-     * @param timestamp The creation timestamp for the new Execution
-     * @param originatingGlobalModVersion
-     * @return Returns the new created Execution.
-     * @throws GlobalModVersionMismatch Thrown, if the execution graph has a new global mod version
-     *     than the one passed to this message.
-     */
-    public Execution resetForNewExecution(
-            final long timestamp, final long originatingGlobalModVersion)
-            throws GlobalModVersionMismatch {
-        LOG.debug(
-                "Resetting execution vertex {} for new execution.", getTaskNameWithSubtaskIndex());
-
-        synchronized (priorExecutions) {
-            // check if another global modification has been triggered since the
-            // action that originally caused this reset/restart happened
-            final long actualModVersion = getExecutionGraph().getGlobalModVersion();
-            if (actualModVersion > originatingGlobalModVersion) {
-                // global change happened since, reject this action
-                throw new GlobalModVersionMismatch(originatingGlobalModVersion, actualModVersion);
-            }
-
-            return resetForNewExecutionInternal(timestamp, originatingGlobalModVersion);
-        }
-    }
-
+    /** Archives the current Execution and creates a new Execution for this vertex. */
     public void resetForNewExecution() {
-        resetForNewExecutionInternal(
-                System.currentTimeMillis(), getExecutionGraph().getGlobalModVersion());
+        resetForNewExecutionInternal(System.currentTimeMillis());
     }
 
-    private Execution resetForNewExecutionInternal(
-            final long timestamp, final long originatingGlobalModVersion) {
+    private void resetForNewExecutionInternal(final long timestamp) {
         final Execution oldExecution = currentExecution;
         final ExecutionState oldState = oldExecution.getState();
 
@@ -638,7 +574,6 @@ public class ExecutionVertex
                             getExecutionGraph().getFutureExecutor(),
                             this,
                             oldExecution.getAttemptNumber() + 1,
-                            originatingGlobalModVersion,
                             timestamp,
                             timeout);
 
@@ -650,11 +585,6 @@ public class ExecutionVertex
                     assigner.returnInputSplit(inputSplits, getParallelSubtaskIndex());
                     inputSplits.clear();
                 }
-            }
-
-            CoLocationGroup grp = jobVertex.getCoLocationGroup();
-            if (grp != null) {
-                locationConstraint = grp.getLocationConstraint(subTaskIndex);
             }
 
             // register this execution at the execution graph, to receive call backs
@@ -670,8 +600,6 @@ public class ExecutionVertex
             for (IntermediateResultPartition resultPartition : resultPartitions.values()) {
                 resultPartition.resetForNewExecution();
             }
-
-            return newExecution;
         } else {
             throw new IllegalStateException(
                     "Cannot reset a vertex that is in non-terminal state " + oldState);
@@ -775,64 +703,6 @@ public class ExecutionVertex
         } else {
             return finishedBlockingPartitions;
         }
-    }
-
-    /**
-     * Check whether the InputDependencyConstraint is satisfied for this vertex.
-     *
-     * @return whether the input constraint is satisfied
-     */
-    boolean checkInputDependencyConstraints() {
-        if (inputEdges.length == 0) {
-            return true;
-        }
-
-        final InputDependencyConstraint inputDependencyConstraint = getInputDependencyConstraint();
-        switch (inputDependencyConstraint) {
-            case ANY:
-                return isAnyInputConsumable();
-            case ALL:
-                return areAllInputsConsumable();
-            default:
-                throw new IllegalStateException(
-                        "Unknown InputDependencyConstraint " + inputDependencyConstraint);
-        }
-    }
-
-    private boolean isAnyInputConsumable() {
-        for (int inputNumber = 0; inputNumber < inputEdges.length; inputNumber++) {
-            if (isInputConsumable(inputNumber)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean areAllInputsConsumable() {
-        for (int inputNumber = 0; inputNumber < inputEdges.length; inputNumber++) {
-            if (!isInputConsumable(inputNumber)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
-     * Get whether an input of the vertex is consumable. An input is consumable when when any
-     * partition in it is consumable.
-     *
-     * <p>Note that a BLOCKING result partition is only consumable when all partitions in the result
-     * are FINISHED.
-     *
-     * @return whether the input is consumable
-     */
-    boolean isInputConsumable(int inputNumber) {
-        for (ExecutionEdge executionEdge : inputEdges[inputNumber]) {
-            if (executionEdge.getSource().isConsumable()) {
-                return true;
-            }
-        }
-        return false;
     }
 
     // --------------------------------------------------------------------------------------------

@@ -77,6 +77,7 @@ public class KafkaPartitionSplitReader<T>
 
     public KafkaPartitionSplitReader(
             Properties props, KafkaRecordDeserializer<T> deserializationSchema, int subtaskId) {
+        this.subtaskId = subtaskId;
         Properties consumerProps = new Properties();
         consumerProps.putAll(props);
         consumerProps.setProperty(ConsumerConfig.CLIENT_ID_CONFIG, createConsumerClientId(props));
@@ -85,7 +86,6 @@ public class KafkaPartitionSplitReader<T>
         this.deserializationSchema = deserializationSchema;
         this.collector = new SimpleCollector<>();
         this.groupId = consumerProps.getProperty(ConsumerConfig.GROUP_ID_CONFIG);
-        this.subtaskId = subtaskId;
     }
 
     @Override

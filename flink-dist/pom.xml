@@ -504,6 +504,18 @@ under the License.
 	</profiles>
 
 	<build>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<artifactId>maven-assembly-plugin</artifactId>
+					<configuration>
+						<finalName>flink-${project.version}-bin</finalName>
+						<appendAssemblyId>false</appendAssemblyId>
+					</configuration>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -758,8 +770,6 @@ under the License.
 							<descriptors>
 								<descriptor>src/main/assemblies/bin.xml</descriptor>
 							</descriptors>
-							<finalName>flink-${project.version}-bin</finalName>
-							<appendAssemblyId>false</appendAssemblyId>
 						</configuration>
 					</execution>
 					<execution>
@@ -772,8 +782,6 @@ under the License.
 							<descriptors>
 								<descriptor>src/main/assemblies/opt.xml</descriptor>
 							</descriptors>
-							<finalName>flink-${project.version}-bin</finalName>
-							<appendAssemblyId>false</appendAssemblyId>
 						</configuration>
 					</execution>
 					<execution>
@@ -786,8 +794,6 @@ under the License.
 							<descriptors>
 								<descriptor>src/main/assemblies/plugins.xml</descriptor>
 							</descriptors>
-							<finalName>flink-${project.version}-bin</finalName>
-							<appendAssemblyId>false</appendAssemblyId>
 						</configuration>
 					</execution>
 				</executions>

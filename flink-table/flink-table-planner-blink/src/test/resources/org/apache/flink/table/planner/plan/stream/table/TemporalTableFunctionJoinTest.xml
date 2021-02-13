@@ -21,11 +21,11 @@ limitations under the License.
       <![CDATA[
 LogicalJoin(condition=[=($3, $1)], joinType=[inner])
 :- LogicalProject(rate=[AS(*($2, $8), _UTF-16LE'rate')], secondary_key=[AS($9, _UTF-16LE'secondary_key')])
-:  +- LogicalFilter(condition=[OR(=($7, $3), =($9, $4))])
+:  +- LogicalFilter(condition=[AND(=($7, $3), OR(>($8, 120:BIGINT), =($9, $4)))])
 :     +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
 :        :- LogicalProject(o_rowtime=[AS($0, _UTF-16LE'o_rowtime')], o_comment=[AS($1, _UTF-16LE'o_comment')], o_amount=[AS($2, _UTF-16LE'o_amount')], o_currency=[AS($3, _UTF-16LE'o_currency')], o_secondary_key=[AS($4, _UTF-16LE'o_secondary_key')])
 :        :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
-:        +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$functions$TemporalTableFunctionImpl$87edb49a77e545ed3da6318629a54024($0)], rowType=[RecordType(TIMESTAMP(3) rowtime, VARCHAR(2147483647) comment, VARCHAR(2147483647) currency, INTEGER rate, INTEGER secondary_key)], elementType=[class [Ljava.lang.Object;])
+:        +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$functions$TemporalTableFunctionImpl$879e2e896200363f113e410b6aadda05($0)], rowType=[RecordType(TIME ATTRIBUTE(ROWTIME) rowtime, VARCHAR(2147483647) comment, VARCHAR(2147483647) currency, INTEGER rate, INTEGER secondary_key)], elementType=[class [Ljava.lang.Object;])
 +- LogicalTableScan(table=[[default_catalog, default_database, ThirdTable]])
 ]]>
     </Resource>
@@ -34,11 +34,11 @@ LogicalJoin(condition=[=($3, $1)], joinType=[inner])
 Join(joinType=[InnerJoin], where=[(t3_secondary_key = secondary_key)], select=[rate, secondary_key, t3_comment, t3_secondary_key], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[secondary_key]])
 :  +- Calc(select=[(o_amount * rate) AS rate, secondary_key])
-:     +- TemporalJoin(joinType=[InnerJoin], where=[(__TEMPORAL_JOIN_CONDITION(o_rowtime, rowtime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency)) AND ((currency = o_currency) OR (secondary_key = o_secondary_key)))], select=[o_rowtime, o_amount, o_currency, o_secondary_key, rowtime, currency, rate, secondary_key])
-:        :- Exchange(distribution=[single])
+:     +- TemporalJoin(joinType=[InnerJoin], where=[(__TEMPORAL_JOIN_CONDITION(o_rowtime, rowtime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency)) AND (currency = o_currency) AND ((rate > 120:BIGINT) OR (secondary_key = o_secondary_key)))], select=[o_rowtime, o_amount, o_currency, o_secondary_key, rowtime, currency, rate, secondary_key])
+:        :- Exchange(distribution=[hash[o_currency]])
 :        :  +- Calc(select=[rowtime AS o_rowtime, o_amount, o_currency, o_secondary_key])
 :        :     +- DataStreamScan(table=[[default_catalog, default_database, Orders]], fields=[rowtime, o_comment, o_amount, o_currency, o_secondary_key])
-:        +- Exchange(distribution=[single])
+:        +- Exchange(distribution=[hash[currency]])
 :           +- Calc(select=[rowtime, currency, rate, secondary_key], where=[(rate > 110:BIGINT)])
 :              +- DataStreamScan(table=[[default_catalog, default_database, RatesHistory]], fields=[rowtime, comment, currency, rate, secondary_key])
 +- Exchange(distribution=[hash[t3_secondary_key]])
@@ -53,7 +53,7 @@ LogicalProject(rate=[AS(*($0, $4), _UTF-16LE'rate')])
 +- LogicalFilter(condition=[=($3, $1)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
       :- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
-      +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$functions$TemporalTableFunctionImpl$9f8cd64a3b5a060e7794a65524cd070a($2)], rowType=[RecordType(VARCHAR(2147483647) currency, INTEGER rate, TIME ATTRIBUTE(ROWTIME) rowtime)], elementType=[class [Ljava.lang.Object;])
+      +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$functions$TemporalTableFunctionImpl$7b64fb5334c47de8df24f3ab20394c19($2)], rowType=[RecordType(VARCHAR(2147483647) currency, INTEGER rate, TIME ATTRIBUTE(ROWTIME) rowtime)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -95,17 +95,18 @@ LogicalProject(rate=[AS(*($0, $4), _UTF-16LE'rate')])
 +- LogicalFilter(condition=[=($3, $1)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
       :- LogicalTableScan(table=[[default_catalog, default_database, ProctimeOrders]])
-      +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$functions$TemporalTableFunctionImpl$5e34ee5bc251237bdaefabb25bfc63dc($2)], rowType=[RecordType(VARCHAR(2147483647) currency, INTEGER rate, TIME ATTRIBUTE(PROCTIME) proctime)], elementType=[class [Ljava.lang.Object;])
+      +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$functions$TemporalTableFunctionImpl$3f15d21732a0cca300e47b78077046df($2)], rowType=[RecordType(VARCHAR(2147483647) currency, INTEGER rate, TIME ATTRIBUTE(PROCTIME) proctime)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[(o_amount * rate) AS rate])
-+- TemporalJoin(joinType=[InnerJoin], where=[(__TEMPORAL_JOIN_CONDITION(o_proctime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency)) AND (currency = o_currency))], select=[o_amount, o_currency, o_proctime, currency, rate, proctime])
++- TemporalJoin(joinType=[InnerJoin], where=[(__TEMPORAL_JOIN_CONDITION(o_proctime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency)) AND (currency = o_currency))], select=[o_amount, o_currency, o_proctime, currency, rate])
    :- Exchange(distribution=[hash[o_currency]])
    :  +- DataStreamScan(table=[[default_catalog, default_database, ProctimeOrders]], fields=[o_amount, o_currency, o_proctime])
    +- Exchange(distribution=[hash[currency]])
-      +- DataStreamScan(table=[[default_catalog, default_database, ProctimeRatesHistory]], fields=[currency, rate, proctime])
+      +- Calc(select=[currency, rate])
+         +- DataStreamScan(table=[[default_catalog, default_database, ProctimeRatesHistory]], fields=[currency, rate, proctime])
 ]]>
     </Resource>
   </TestCase>
@@ -116,7 +117,7 @@ LogicalProject(rate=[AS(*($0, $4), _UTF-16LE'rate')])
 +- LogicalFilter(condition=[=($3, $1)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
       :- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
-      +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$functions$TemporalTableFunctionImpl$9f8cd64a3b5a060e7794a65524cd070a($2)], rowType=[RecordType(VARCHAR(2147483647) currency, INTEGER rate, TIME ATTRIBUTE(ROWTIME) rowtime)], elementType=[class [Ljava.lang.Object;])
+      +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$functions$TemporalTableFunctionImpl$7b64fb5334c47de8df24f3ab20394c19($2)], rowType=[RecordType(VARCHAR(2147483647) currency, INTEGER rate, TIME ATTRIBUTE(ROWTIME) rowtime)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">

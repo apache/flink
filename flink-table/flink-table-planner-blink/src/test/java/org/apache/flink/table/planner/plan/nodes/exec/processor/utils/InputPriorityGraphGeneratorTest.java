@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.processor.utils;
 
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.TestingBatchExecNode;
 
 import org.junit.Assert;
@@ -35,7 +35,7 @@ public class InputPriorityGraphGeneratorTest {
 
     @Test
     public void testCalculatePipelinedAncestors() {
-        // P = ExecEdge.DamBehavior.PIPELINED, E = ExecEdge.DamBehavior.END_INPUT
+        // P = InputProperty.DamBehavior.PIPELINED, E = InputProperty.DamBehavior.END_INPUT
         //
         // 0 ------P----> 1 -E--> 2
         //   \-----P----> 3 -P-/
@@ -43,24 +43,27 @@ public class InputPriorityGraphGeneratorTest {
         // 6 -----E-----/
         TestingBatchExecNode[] nodes = new TestingBatchExecNode[7];
         for (int i = 0; i < nodes.length; i++) {
-            nodes[i] = new TestingBatchExecNode();
+            nodes[i] = new TestingBatchExecNode("TestingBatchExecNode" + i);
         }
         nodes[1].addInput(nodes[0]);
         nodes[2].addInput(
-                nodes[1], ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.END_INPUT).build());
+                nodes[1],
+                InputProperty.builder().damBehavior(InputProperty.DamBehavior.END_INPUT).build());
         nodes[2].addInput(nodes[3]);
         nodes[3].addInput(nodes[0]);
         nodes[3].addInput(nodes[5]);
         nodes[3].addInput(
-                nodes[6], ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.END_INPUT).build());
+                nodes[6],
+                InputProperty.builder().damBehavior(InputProperty.DamBehavior.END_INPUT).build());
         nodes[5].addInput(
-                nodes[4], ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.END_INPUT).build());
+                nodes[4],
+                InputProperty.builder().damBehavior(InputProperty.DamBehavior.END_INPUT).build());
 
         TestingInputPriorityConflictResolver resolver =
                 new TestingInputPriorityConflictResolver(
                         Collections.singletonList(nodes[2]),
                         Collections.emptySet(),
-                        ExecEdge.DamBehavior.END_INPUT);
+                        InputProperty.DamBehavior.END_INPUT);
         List<ExecNode<?>> ancestors = resolver.calculatePipelinedAncestors(nodes[2]);
         Assert.assertEquals(2, ancestors.size());
         Assert.assertTrue(ancestors.contains(nodes[0]));
@@ -69,25 +72,26 @@ public class InputPriorityGraphGeneratorTest {
 
     @Test
     public void testCalculateBoundedPipelinedAncestors() {
-        // P = ExecEdge.DamBehavior.PIPELINED, E = ExecEdge.DamBehavior.END_INPUT
+        // P = InputProperty.DamBehavior.PIPELINED, E = InputProperty.DamBehavior.END_INPUT
         //
         // 0 -P-> 1 -P-> 2
         // 3 -P-> 4 -E/
         TestingBatchExecNode[] nodes = new TestingBatchExecNode[5];
         for (int i = 0; i < nodes.length; i++) {
-            nodes[i] = new TestingBatchExecNode();
+            nodes[i] = new TestingBatchExecNode("TestingBatchExecNode" + i);
         }
         nodes[1].addInput(nodes[0]);
         nodes[2].addInput(nodes[1]);
         nodes[2].addInput(
-                nodes[4], ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.END_INPUT).build());
+                nodes[4],
+                InputProperty.builder().damBehavior(InputProperty.DamBehavior.END_INPUT).build());
         nodes[4].addInput(nodes[3]);
 
         TestingInputPriorityConflictResolver resolver =
                 new TestingInputPriorityConflictResolver(
                         Collections.singletonList(nodes[2]),
                         new HashSet<>(Collections.singleton(nodes[1])),
-                        ExecEdge.DamBehavior.END_INPUT);
+                        InputProperty.DamBehavior.END_INPUT);
         List<ExecNode<?>> ancestors = resolver.calculatePipelinedAncestors(nodes[2]);
         Assert.assertEquals(1, ancestors.size());
         Assert.assertTrue(ancestors.contains(nodes[1]));
@@ -98,7 +102,7 @@ public class InputPriorityGraphGeneratorTest {
         private TestingInputPriorityConflictResolver(
                 List<ExecNode<?>> roots,
                 Set<ExecNode<?>> boundaries,
-                ExecEdge.DamBehavior safeDamBehavior) {
+                InputProperty.DamBehavior safeDamBehavior) {
             super(roots, boundaries, safeDamBehavior);
         }
 

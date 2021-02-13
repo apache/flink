@@ -39,7 +39,7 @@ import org.apache.flink.runtime.jobmaster.JobMasterConfiguration;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerSharedServicesBuilder;
 import org.apache.flink.runtime.jobmaster.factories.UnregisteredJobManagerJobMetricGroupFactory;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolFactory;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolServiceFactory;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -73,7 +73,7 @@ public class JobMasterBuilder {
 
     private HeartbeatServices heartbeatServices = DEFAULT_HEARTBEAT_SERVICES;
 
-    private SlotPoolFactory slotPoolFactory = null;
+    private SlotPoolServiceFactory slotPoolFactory = null;
 
     private OnCompletionActions onCompletionActions = new TestingOnCompletionActions();
 
@@ -129,7 +129,7 @@ public class JobMasterBuilder {
         return this;
     }
 
-    public JobMasterBuilder withSlotPoolFactory(SlotPoolFactory slotPoolFactory) {
+    public JobMasterBuilder withSlotPoolFactory(SlotPoolServiceFactory slotPoolFactory) {
         this.slotPoolFactory = slotPoolFactory;
         return this;
     }
@@ -195,7 +195,7 @@ public class JobMasterBuilder {
                 highAvailabilityServices,
                 slotPoolFactory != null
                         ? slotPoolFactory
-                        : SlotPoolFactory.fromConfiguration(configuration),
+                        : SlotPoolServiceFactory.fromConfiguration(configuration),
                 jobManagerSharedServices,
                 heartbeatServices,
                 UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,

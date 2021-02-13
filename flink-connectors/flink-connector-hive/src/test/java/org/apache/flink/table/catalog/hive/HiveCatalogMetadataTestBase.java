@@ -23,8 +23,6 @@ import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogTestBase;
 import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.table.functions.hive.HiveGenericUDF;
-import org.apache.flink.table.functions.hive.HiveSimpleUDF;
 
 import org.junit.Assume;
 import org.junit.Test;
@@ -55,16 +53,6 @@ public abstract class HiveCatalogMetadataTestBase extends CatalogTestBase {
         catalog.getFunction(functionPath);
 
         catalog.dropFunction(functionPath, false);
-    }
-
-    @Override
-    protected CatalogFunction createFunction() {
-        return new CatalogFunctionImpl(HiveSimpleUDF.class.getCanonicalName());
-    }
-
-    @Override
-    protected CatalogFunction createAnotherFunction() {
-        return new CatalogFunctionImpl(HiveGenericUDF.class.getCanonicalName());
     }
 
     @Override

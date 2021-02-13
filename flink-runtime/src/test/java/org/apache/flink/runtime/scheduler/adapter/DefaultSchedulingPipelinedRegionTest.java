@@ -19,7 +19,6 @@
 
 package org.apache.flink.runtime.scheduler.adapter;
 
-import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
@@ -70,8 +69,7 @@ public class DefaultSchedulingPipelinedRegionTest extends TestLogger {
                 new DefaultExecutionVertex(
                         new ExecutionVertexID(new JobVertexID(), 0),
                         Collections.emptyList(),
-                        () -> ExecutionState.CREATED,
-                        InputDependencyConstraint.ANY);
+                        () -> ExecutionState.CREATED);
 
         final Set<DefaultExecutionVertex> vertices = Collections.singleton(vertex);
         final DefaultSchedulingPipelinedRegion pipelinedRegion =

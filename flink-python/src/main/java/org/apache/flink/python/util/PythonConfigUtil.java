@@ -18,8 +18,11 @@
 package org.apache.flink.python.util;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.PipelineOptions;
@@ -44,6 +47,8 @@ import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.WithBoundedness;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.TableException;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -128,6 +133,27 @@ public class PythonConfigUtil {
         firstStream.setSlotSharingGroup(secondStream.getSlotSharingGroup());
     }
 
+    /** Set Python Operator Use Managed Memory. */
+    public static void declareManagedMemory(
+            Transformation<?> transformation,
+            StreamExecutionEnvironment env,
+            TableConfig tableConfig) {
+        Configuration config = getMergedConfig(env, tableConfig);
+        if (config.getBoolean(PythonOptions.USE_MANAGED_MEMORY)) {
+            declareManagedMemory(transformation);
+        }
+    }
+
+    private static void declareManagedMemory(Transformation<?> transformation) {
+        if (isPythonOperator(transformation)) {
+            transformation.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
+        }
+        List<Transformation<?>> inputTransformations = transformation.getInputs();
+        for (Transformation inputTransformation : inputTransformations) {
+            declareManagedMemory(inputTransformation);
+        }
+    }
+
     /**
      * Generate a {@link StreamGraph} for transformations maintained by current {@link
      * StreamExecutionEnvironment}, and reset the merged env configurations with dependencies to
@@ -153,18 +179,7 @@ public class PythonConfigUtil {
             transformationsField.setAccessible(true);
             for (Transformation transform :
                     (List<Transformation<?>>) transformationsField.get(env)) {
-                if (transform instanceof OneInputTransformation
-                        && isPythonOperator(
-                                ((OneInputTransformation) transform).getOperatorFactory())) {
-                    transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
-                } else if (transform instanceof TwoInputTransformation
-                        && isPythonOperator(
-                                ((TwoInputTransformation) transform).getOperatorFactory())) {
-                    transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
-                } else if (transform instanceof AbstractMultipleInputTransformation
-                        && isPythonOperator(
-                                ((AbstractMultipleInputTransformation) transform)
-                                        .getOperatorFactory())) {
+                if (isPythonOperator(transform)) {
                     transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
                 }
             }
@@ -210,6 +225,19 @@ public class PythonConfigUtil {
         if (streamOperatorFactory instanceof SimpleOperatorFactory) {
             return ((SimpleOperatorFactory) streamOperatorFactory).getOperator()
                     instanceof AbstractPythonFunctionOperator;
+        } else {
+            return false;
+        }
+    }
+
+    private static boolean isPythonOperator(Transformation<?> transform) {
+        if (transform instanceof OneInputTransformation) {
+            return isPythonOperator(((OneInputTransformation) transform).getOperatorFactory());
+        } else if (transform instanceof TwoInputTransformation) {
+            return isPythonOperator(((TwoInputTransformation) transform).getOperatorFactory());
+        } else if (transform instanceof AbstractMultipleInputTransformation) {
+            return isPythonOperator(
+                    ((AbstractMultipleInputTransformation) transform).getOperatorFactory());
         } else {
             return false;
         }
@@ -269,5 +297,38 @@ public class PythonConfigUtil {
                                             != Boundedness.BOUNDED);
         }
         return !existsUnboundedSource;
+    }
+
+    public static Configuration getMergedConfig(
+            StreamExecutionEnvironment env, TableConfig tableConfig) {
+        try {
+            Configuration config = new Configuration(getEnvironmentConfig(env));
+            PythonDependencyUtils.merge(config, tableConfig.getConfiguration());
+            Configuration mergedConfig =
+                    PythonDependencyUtils.configurePythonDependencies(env.getCachedFiles(), config);
+            mergedConfig.setString("table.exec.timezone", tableConfig.getLocalTimeZone().getId());
+            return mergedConfig;
+        } catch (IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
+            throw new TableException("Method getMergedConfig failed.", e);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public static Configuration getMergedConfig(ExecutionEnvironment env, TableConfig tableConfig) {
+        try {
+            Field field = ExecutionEnvironment.class.getDeclaredField("cacheFile");
+            field.setAccessible(true);
+            Configuration config = new Configuration(env.getConfiguration());
+            PythonDependencyUtils.merge(config, tableConfig.getConfiguration());
+            Configuration mergedConfig =
+                    PythonDependencyUtils.configurePythonDependencies(
+                            (List<Tuple2<String, DistributedCache.DistributedCacheEntry>>)
+                                    field.get(env),
+                            config);
+            mergedConfig.setString("table.exec.timezone", tableConfig.getLocalTimeZone().getId());
+            return mergedConfig;
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            throw new TableException("Method getMergedConfig failed.", e);
+        }
     }
 }

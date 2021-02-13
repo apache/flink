@@ -21,20 +21,15 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
-import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
@@ -59,8 +54,6 @@ import static org.junit.Assert.assertNotNull;
 
 /** A collection of utility methods for testing the ExecutionGraph and its related classes. */
 public class ExecutionGraphTestUtils {
-
-    private static final Time DEFAULT_TIMEOUT = AkkaUtils.getDefaultTimeout();
 
     // ------------------------------------------------------------------------
     //  reaching states
@@ -313,46 +306,22 @@ public class ExecutionGraphTestUtils {
     public static ExecutionGraph createSimpleTestGraph() throws Exception {
         JobVertex vertex = createNoOpVertex(10);
 
-        return createSimpleTestGraph(new SimpleAckingTaskManagerGateway(), vertex);
+        return createSimpleTestGraph(vertex);
     }
 
     /** Creates an execution graph containing the given vertices. */
     public static ExecutionGraph createSimpleTestGraph(JobVertex... vertices) throws Exception {
-        return createSimpleTestGraph(new SimpleAckingTaskManagerGateway(), vertices);
-    }
-
-    /** Creates an execution graph containing the given vertices and the given restart strategy. */
-    public static ExecutionGraph createSimpleTestGraph(
-            TaskManagerGateway taskManagerGateway, JobVertex... vertices) throws Exception {
-
-        int numSlotsNeeded = 0;
-        for (JobVertex vertex : vertices) {
-            numSlotsNeeded += vertex.getParallelism();
-        }
-
-        SlotProvider slotProvider = new SimpleSlotProvider(numSlotsNeeded, taskManagerGateway);
-
-        return createSimpleTestGraph(slotProvider, vertices);
-    }
-
-    public static ExecutionGraph createSimpleTestGraph(
-            SlotProvider slotProvider, JobVertex... vertices) throws Exception {
-
-        return createExecutionGraph(slotProvider, TestingUtils.defaultExecutor(), vertices);
+        return createExecutionGraph(TestingUtils.defaultExecutor(), vertices);
     }
 
     public static ExecutionGraph createExecutionGraph(
-            SlotProvider slotProvider, ScheduledExecutorService executor, JobVertex... vertices)
-            throws Exception {
+            ScheduledExecutorService executor, JobVertex... vertices) throws Exception {
 
-        return createExecutionGraph(slotProvider, executor, Time.seconds(10L), vertices);
+        return createExecutionGraph(executor, Time.seconds(10L), vertices);
     }
 
     public static ExecutionGraph createExecutionGraph(
-            SlotProvider slotProvider,
-            ScheduledExecutorService executor,
-            Time timeout,
-            JobVertex... vertices)
+            ScheduledExecutorService executor, Time timeout, JobVertex... vertices)
             throws Exception {
 
         checkNotNull(vertices);
@@ -362,7 +331,6 @@ public class ExecutionGraphTestUtils {
                 .setJobGraph(new JobGraph(vertices))
                 .setFutureExecutor(executor)
                 .setIoExecutor(executor)
-                .setSlotProvider(slotProvider)
                 .setAllocationTimeout(timeout)
                 .setRpcTimeout(timeout)
                 .build();
@@ -438,12 +406,11 @@ public class ExecutionGraphTestUtils {
         jobGraph.setScheduleMode(scheduleMode);
 
         SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(jobGraph)
+                SchedulerTestingUtils.newSchedulerBuilder(
+                                jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread())
                         .setIoExecutor(executor)
                         .setFutureExecutor(executor)
                         .build();
-
-        scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
         return scheduler.getExecutionJobVertex(jobVertex.getID());
     }

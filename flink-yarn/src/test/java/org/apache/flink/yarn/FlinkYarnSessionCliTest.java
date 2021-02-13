@@ -160,11 +160,9 @@ public class FlinkYarnSessionCliTest extends TestLogger {
         CommandLine commandLine = yarnCLI.parseCommandLineOptions(params, true);
 
         Configuration executorConfig = yarnCLI.toConfiguration(commandLine);
-        ClusterClientFactory<ApplicationId> clientFactory = getClusterClientFactory(executorConfig);
-        YarnClusterDescriptor descriptor =
-                (YarnClusterDescriptor) clientFactory.createClusterDescriptor(executorConfig);
 
-        assertEquals(zkNamespaceCliInput, descriptor.getZookeeperNamespace());
+        assertThat(
+                executorConfig.get(HighAvailabilityOptions.HA_CLUSTER_ID), is(zkNamespaceCliInput));
     }
 
     @Test

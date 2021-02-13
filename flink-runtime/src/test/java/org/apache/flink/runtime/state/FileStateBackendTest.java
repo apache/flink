@@ -58,6 +58,11 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
         return true;
     }
 
+    @Override
+    protected boolean supportsAsynchronousSnapshots() {
+        return useAsyncMode;
+    }
+
     // disable these because the verification does not work for this state backend
     @Override
     @Test

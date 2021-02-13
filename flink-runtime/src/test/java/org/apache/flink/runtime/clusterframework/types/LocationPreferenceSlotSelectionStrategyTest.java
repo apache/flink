@@ -143,7 +143,8 @@ public class LocationPreferenceSlotSelectionStrategyTest extends SlotSelectionSt
     public void matchPreferredLocation() {
 
         SlotProfile slotProfile =
-                SlotProfile.preferredLocality(resourceProfile, Collections.singletonList(tml2));
+                SlotProfile.preferredLocality(
+                        biggerResourceProfile, Collections.singletonList(tml2));
         Optional<SlotSelectionStrategy.SlotInfoAndLocality> match = runMatching(slotProfile);
 
         Assert.assertEquals(slotInfo2, match.get().getSlotInfo());

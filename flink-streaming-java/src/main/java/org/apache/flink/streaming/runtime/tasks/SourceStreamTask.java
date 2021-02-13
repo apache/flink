@@ -66,7 +66,7 @@ public class SourceStreamTask<
      * Indicates whether this Task was purposefully finished (by finishTask()), in this case we want
      * to ignore exceptions thrown after finishing, to ensure shutdown works smoothly.
      */
-    private volatile boolean isFinished = false;
+    private volatile boolean wasStoppedExternally = false;
 
     public SourceStreamTask(Environment env) throws Exception {
         this(env, new Object());
@@ -80,6 +80,8 @@ public class SourceStreamTask<
                 StreamTaskActionExecutor.synchronizedExecutor(lock));
         this.lock = Preconditions.checkNotNull(lock);
         this.sourceThread = new LegacySourceFunctionThread();
+
+        getEnvironment().getMetricGroup().getIOMetricGroup().setEnableBusyTime(false);
     }
 
     @Override
@@ -168,7 +170,7 @@ public class SourceStreamTask<
                                             .isPresent()) {
                                 mailboxProcessor.reportThrowable(
                                         new CancelTaskException(sourceThreadThrowable));
-                            } else if (!isFinished && sourceThreadThrowable != null) {
+                            } else if (!wasStoppedExternally && sourceThreadThrowable != null) {
                                 mailboxProcessor.reportThrowable(sourceThreadThrowable);
                             } else {
                                 mailboxProcessor.allActionsCompleted();
@@ -194,7 +196,7 @@ public class SourceStreamTask<
 
     @Override
     protected void finishTask() throws Exception {
-        isFinished = true;
+        wasStoppedExternally = true;
         cancelTask();
     }
 
@@ -243,6 +245,11 @@ public class SourceStreamTask<
         public void run() {
             try {
                 mainOperator.run(lock, getStreamStatusMaintainer(), operatorChain);
+                if (!wasStoppedExternally && !isCanceled()) {
+                    synchronized (lock) {
+                        operatorChain.setIsStoppingBySyncSavepoint(false);
+                    }
+                }
                 completionFuture.complete(null);
             } catch (Throwable t) {
                 // Note, t can be also an InterruptedException

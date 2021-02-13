@@ -49,7 +49,8 @@ class RowBasedOperationTests(object):
             .execute_insert("Results") \
             .wait()
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["4,9", "3,4", "7,36", "10,81", "5,16"])
+        self.assert_equals(
+            actual, ["+I[4, 9]", "+I[3, 4]", "+I[7, 36]", "+I[10, 81]", "+I[5, 16]"])
 
     def test_map_with_pandas_udf(self):
         t = self.t_env.from_elements(
@@ -87,7 +88,9 @@ class RowBasedOperationTests(object):
 
         t.map(pandas_udf).map(pandas_udf_2).execute_insert("Results").wait()
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["4,8", "2,10", "2,28", "2,18", "4,14"])
+        self.assert_equals(
+            actual,
+            ["+I[4, 8]", "+I[2, 10]", "+I[2, 28]", "+I[2, 18]", "+I[4, 14]"])
 
     def test_flat_map(self):
         t = self.t_env.from_elements(
@@ -114,8 +117,10 @@ class RowBasedOperationTests(object):
             .execute_insert("Results") \
             .wait()
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["1,2,1,2,1,2", "1,3,1,3,1,3", "2,1,2,1,2,1",
-                                    "1,5,1,5,1,5", "1,6,1,6,1,6", "1,7,1,7,1,7"])
+        self.assert_equals(
+            actual,
+            ["+I[1, 2, 1, 2, 1, 2]", "+I[1, 3, 1, 3, 1, 3]", "+I[2, 1, 2, 1, 2, 1]",
+             "+I[1, 5, 1, 5, 1, 5]", "+I[1, 6, 1, 6, 1, 6]", "+I[1, 7, 1, 7, 1, 7]"])
 
 
 class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkBatchTableTestCase):
@@ -143,7 +148,7 @@ class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkBatchTab
             .execute_insert("Results") \
             .wait()
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["1,5.0,1", "2,2.0,2"])
+        self.assert_equals(actual, ["+I[1, 5.0, 1]", "+I[2, 2.0, 2]"])
 
     def test_aggregate_with_pandas_udaf_without_keys(self):
         t = self.t_env.from_elements(
@@ -168,7 +173,7 @@ class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkBatchTab
             .execute_insert("Results") \
             .wait()
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["3.8,8"])
+        self.assert_equals(actual, ["+I[3.8, 8]"])
 
     def test_window_aggregate_with_pandas_udaf(self):
         import datetime
@@ -214,8 +219,8 @@ class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkBatchTab
 
         actual = source_sink_utils.results()
         self.assert_equals(actual,
-                           ["2018-03-11 03:59:59.999,2.2,3",
-                            "2018-03-11 04:59:59.999,8.0,8"])
+                           ["+I[2018-03-11 03:59:59.999, 2.2, 3]",
+                            "+I[2018-03-11 04:59:59.999, 8.0, 8]"])
 
 
 class StreamRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkStreamTableTestCase):

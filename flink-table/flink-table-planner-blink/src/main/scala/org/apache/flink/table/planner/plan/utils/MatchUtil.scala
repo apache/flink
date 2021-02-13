@@ -20,10 +20,12 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.planner.codegen.MatchCodeGenerator.ALL_PATTERN_VARIABLE
+import org.apache.flink.table.planner.plan.logical.MatchRecognize
+import org.apache.flink.table.planner.plan.nodes.exec.spec.{MatchSpec, PartitionSpec}
 
 import org.apache.calcite.rex.{RexCall, RexNode, RexPatternFieldRef}
 
-import _root_.scala.collection.JavaConverters._
+import _root_.scala.collection.JavaConversions._
 
 object MatchUtil {
 
@@ -36,7 +38,7 @@ object MatchUtil {
       if (call.operands.size() == 0) {
         Some(ALL_PATTERN_VARIABLE)
       } else {
-        call.operands.asScala.map(n => n.accept(this)).reduce((op1, op2) => (op1, op2) match {
+        call.operands.map(n => n.accept(this)).reduce((op1, op2) => (op1, op2) match {
           case (None, None) => None
           case (x, None) => x
           case (None, x) => x
@@ -50,6 +52,23 @@ object MatchUtil {
     }
 
     override def visitNode(rexNode: RexNode): Option[String] = None
+  }
+
+  /**
+   * Convert [[MatchRecognize]] to [[MatchSpec]].
+   */
+  def createMatchSpec(logicalMatch: MatchRecognize): MatchSpec = {
+    new MatchSpec(
+      logicalMatch.pattern,
+      logicalMatch.patternDefinitions,
+      logicalMatch.measures,
+      logicalMatch.after,
+      logicalMatch.subsets,
+      logicalMatch.allRows,
+      new PartitionSpec(logicalMatch.partitionKeys.toArray),
+      SortUtil.getSortSpec(logicalMatch.orderKeys.getFieldCollations),
+      logicalMatch.interval
+    )
   }
 
 }

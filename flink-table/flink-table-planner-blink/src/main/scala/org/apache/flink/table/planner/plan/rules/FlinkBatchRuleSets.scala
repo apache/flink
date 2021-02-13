@@ -113,8 +113,15 @@ object FlinkBatchRuleSets {
       List(
         // Transform window to LogicalWindowAggregate
         BatchLogicalWindowAggregateRule.INSTANCE,
+        // slices a project into sections which contain window agg functions
+        // and sections which do not.
+        CoreRules.PROJECT_TO_LOGICAL_PROJECT_AND_WINDOW,
+        // adjust the sequence of window's groups.
+        WindowGroupReorderRule.INSTANCE,
         WindowPropertiesRules.WINDOW_PROPERTIES_RULE,
         WindowPropertiesRules.WINDOW_PROPERTIES_HAVING_RULE,
+        // let project transpose window operator.
+        CoreRules.PROJECT_WINDOW_TRANSPOSE,
         //ensure union set operator have the same row type
         new CoerceInputsRule(classOf[LogicalUnion], false),
         //ensure intersect set operator have the same row type
@@ -211,16 +218,6 @@ object FlinkBatchRuleSets {
     CoreRules.AGGREGATE_PROJECT_PULL_UP_CONSTANTS,
     // push project through a Union
     CoreRules.PROJECT_SET_OP_TRANSPOSE
-  )
-
-  val WINDOW_RULES: RuleSet = RuleSets.ofList(
-    // slices a project into sections which contain window agg functions and sections which do not.
-    CoreRules.PROJECT_TO_LOGICAL_PROJECT_AND_WINDOW,
-    //adjust the sequence of window's groups.
-    WindowGroupReorderRule.INSTANCE,
-    // Transform window to LogicalWindowAggregate
-    WindowPropertiesRules.WINDOW_PROPERTIES_RULE,
-    WindowPropertiesRules.WINDOW_PROPERTIES_HAVING_RULE
   )
 
   val JOIN_COND_EQUAL_TRANSFER_RULES: RuleSet = RuleSets.ofList((
@@ -397,7 +394,7 @@ object FlinkBatchRuleSets {
     BatchPhysicalBoundedStreamScanRule.INSTANCE,
     BatchPhysicalTableSourceScanRule.INSTANCE,
     BatchPhysicalLegacyTableSourceScanRule.INSTANCE,
-    BatchExecIntermediateTableScanRule.INSTANCE,
+    BatchPhysicalIntermediateTableScanRule.INSTANCE,
     BatchPhysicalValuesRule.INSTANCE,
     // calc
     BatchPhysicalCalcRule.INSTANCE,
@@ -405,40 +402,40 @@ object FlinkBatchRuleSets {
     // union
     BatchPhysicalUnionRule.INSTANCE,
     // sort
-    BatchExecSortRule.INSTANCE,
+    BatchPhysicalSortRule.INSTANCE,
     BatchPhysicalLimitRule.INSTANCE,
-    BatchExecSortLimitRule.INSTANCE,
+    BatchPhysicalSortLimitRule.INSTANCE,
     // rank
-    BatchExecRankRule.INSTANCE,
+    BatchPhysicalRankRule.INSTANCE,
     RemoveRedundantLocalRankRule.INSTANCE,
     // expand
     BatchPhysicalExpandRule.INSTANCE,
     // group agg
-    BatchExecHashAggRule.INSTANCE,
-    BatchExecSortAggRule.INSTANCE,
+    BatchPhysicalHashAggRule.INSTANCE,
+    BatchPhysicalSortAggRule.INSTANCE,
     RemoveRedundantLocalSortAggRule.WITHOUT_SORT,
     RemoveRedundantLocalSortAggRule.WITH_SORT,
     RemoveRedundantLocalHashAggRule.INSTANCE,
-    BatchExecPythonAggregateRule.INSTANCE,
+    BatchPhysicalPythonAggregateRule.INSTANCE,
     // over agg
-    BatchExecOverAggregateRule.INSTANCE,
+    BatchPhysicalOverAggregateRule.INSTANCE,
     // window agg
-    BatchExecWindowAggregateRule.INSTANCE,
-    BatchExecPythonWindowAggregateRule.INSTANCE,
+    BatchPhysicalWindowAggregateRule.INSTANCE,
+    BatchPhysicalPythonWindowAggregateRule.INSTANCE,
     // join
-    BatchExecHashJoinRule.INSTANCE,
-    BatchExecSortMergeJoinRule.INSTANCE,
-    BatchExecNestedLoopJoinRule.INSTANCE,
-    BatchExecSingleRowJoinRule.INSTANCE,
-    BatchExecLookupJoinRule.SNAPSHOT_ON_TABLESCAN,
-    BatchExecLookupJoinRule.SNAPSHOT_ON_CALC_TABLESCAN,
+    BatchPhysicalHashJoinRule.INSTANCE,
+    BatchPhysicalSortMergeJoinRule.INSTANCE,
+    BatchPhysicalNestedLoopJoinRule.INSTANCE,
+    BatchPhysicalSingleRowJoinRule.INSTANCE,
+    BatchPhysicalLookupJoinRule.SNAPSHOT_ON_TABLESCAN,
+    BatchPhysicalLookupJoinRule.SNAPSHOT_ON_CALC_TABLESCAN,
     // correlate
     BatchPhysicalConstantTableFunctionScanRule.INSTANCE,
     BatchPhysicalCorrelateRule.INSTANCE,
     BatchPhysicalPythonCorrelateRule.INSTANCE,
     // sink
-    BatchExecSinkRule.INSTANCE,
-    BatchExecLegacySinkRule.INSTANCE
+    BatchPhysicalSinkRule.INSTANCE,
+    BatchPhysicalLegacySinkRule.INSTANCE
   )
 
   /**

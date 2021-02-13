@@ -49,6 +49,11 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
         return true;
     }
 
+    @Override
+    protected boolean supportsAsynchronousSnapshots() {
+        return useAsyncmode;
+    }
+
     // disable these because the verification does not work for this state backend
     @Override
     @Test

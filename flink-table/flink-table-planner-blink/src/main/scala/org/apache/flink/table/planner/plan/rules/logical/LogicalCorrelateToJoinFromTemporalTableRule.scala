@@ -21,7 +21,7 @@ import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.connector.source.LookupTableSource
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.isRowtimeIndicatorType
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalLegacyTableSourceScan, FlinkLogicalTableSourceScan}
-import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecLookupJoin, StreamExecTemporalJoin}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalLookupJoin, StreamPhysicalTemporalJoin}
 import org.apache.flink.table.planner.plan.schema.{LegacyTableSourceTable, TableSourceTable, TimeIndicatorRelDataType}
 import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil
 import org.apache.flink.table.sources.LookupableTableSource
@@ -40,7 +40,7 @@ import scala.collection.JavaConverters._
 /**
   * The initial temporal table join (FOR SYSTEM_TIME AS OF) is a Correlate, rewrite it into a Join
   * to make join condition can be pushed-down. The join will be translated into
-  * [[StreamExecLookupJoin]] or translated into [[StreamExecTemporalJoin]] in physical.
+  * [[StreamPhysicalLookupJoin]] or translated into [[StreamPhysicalTemporalJoin]] in physical.
   *
   * Notice: This rule can only be used in [[HepPlanner]].
   */

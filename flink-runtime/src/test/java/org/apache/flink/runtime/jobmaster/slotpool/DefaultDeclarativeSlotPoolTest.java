@@ -481,8 +481,7 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
 
         final ResourceProfile largeResourceProfile =
                 ResourceProfile.newBuilder().setManagedMemoryMB(1024).build();
-        final ResourceProfile smallResourceProfile =
-                ResourceProfile.newBuilder().setManagedMemoryMB(512).build();
+        final ResourceProfile smallResourceProfile = ResourceProfile.UNKNOWN;
 
         slotPool.increaseResourceRequirementsBy(
                 ResourceCounter.withResource(largeResourceProfile, 1));
@@ -513,6 +512,35 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
         assertThat(
                 currentResourceRequirements,
                 hasItems(ResourceRequirement.create(largeResourceProfile, 2)));
+    }
+
+    @Test
+    public void testSetResourceRequirementsForInitialResourceRequirements() {
+        final DefaultDeclarativeSlotPool slotPool = new DefaultDeclarativeSlotPoolBuilder().build();
+
+        final ResourceCounter resourceRequirements =
+                ResourceCounter.withResource(RESOURCE_PROFILE_1, 2);
+
+        slotPool.setResourceRequirements(resourceRequirements);
+
+        assertThat(
+                slotPool.getResourceRequirements(),
+                is(toResourceRequirements(resourceRequirements)));
+    }
+
+    @Test
+    public void testSetResourceRequirementsOverwritesPreviousValue() {
+        final DefaultDeclarativeSlotPool slotPool = new DefaultDeclarativeSlotPoolBuilder().build();
+
+        slotPool.setResourceRequirements(ResourceCounter.withResource(RESOURCE_PROFILE_1, 1));
+
+        final ResourceCounter resourceRequirements =
+                ResourceCounter.withResource(RESOURCE_PROFILE_2, 1);
+        slotPool.setResourceRequirements(resourceRequirements);
+
+        assertThat(
+                slotPool.getResourceRequirements(),
+                is(toResourceRequirements(resourceRequirements)));
     }
 
     @Nonnull

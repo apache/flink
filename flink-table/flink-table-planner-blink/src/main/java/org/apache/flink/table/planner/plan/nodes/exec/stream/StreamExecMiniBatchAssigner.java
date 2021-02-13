@@ -24,9 +24,9 @@ import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.trait.MiniBatchInterval;
 import org.apache.flink.table.planner.plan.trait.MiniBatchMode;
 import org.apache.flink.table.runtime.operators.wmassigners.ProcTimeMiniBatchAssignerOperator;
@@ -53,10 +53,10 @@ public class StreamExecMiniBatchAssigner extends ExecNodeBase<RowData>
 
     public StreamExecMiniBatchAssigner(
             MiniBatchInterval miniBatchInterval,
-            ExecEdge inputEdge,
+            InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputEdge), outputType, description);
+        super(Collections.singletonList(inputProperty), outputType, description);
         this.miniBatchInterval = checkNotNull(miniBatchInterval);
     }
 
@@ -64,7 +64,7 @@ public class StreamExecMiniBatchAssigner extends ExecNodeBase<RowData>
     @Override
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
         final Transformation<RowData> inputTransform =
-                (Transformation<RowData>) getInputNodes().get(0).translateToPlan(planner);
+                (Transformation<RowData>) getInputEdges().get(0).translateToPlan(planner);
 
         final OneInputStreamOperator<RowData, RowData> operator;
         if (miniBatchInterval.mode() == MiniBatchMode.ProcTime()) {
@@ -80,7 +80,7 @@ public class StreamExecMiniBatchAssigner extends ExecNodeBase<RowData>
 
         return new OneInputTransformation<>(
                 inputTransform,
-                getDesc(),
+                getDescription(),
                 operator,
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism());

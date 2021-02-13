@@ -132,7 +132,7 @@ under the License.
 			<!-- Bump cassandra netty dependency -->
 			<groupId>io.netty</groupId>
 			<artifactId>netty-handler</artifactId>
-			<version>4.1.44.Final</version>
+			<version>4.1.46.Final</version>
 		</dependency>
 		<dependency>
 			<groupId>com.datastax.cassandra</groupId>
@@ -226,7 +226,7 @@ under the License.
 			<!-- Bump cassandra netty dependency -->
 			<groupId>io.netty</groupId>
 			<artifactId>netty-all</artifactId>
-			<version>4.1.44.Final</version>
+			<version>4.1.46.Final</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>

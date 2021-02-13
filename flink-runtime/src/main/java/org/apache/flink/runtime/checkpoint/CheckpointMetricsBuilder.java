@@ -40,6 +40,8 @@ public class CheckpointMetricsBuilder {
     private long syncDurationMillis = -1L;
     private long asyncDurationMillis = -1L;
     private long checkpointStartDelayNanos = -1L;
+    private boolean unalignedCheckpoint = false;
+    private long totalBytesPersisted = -1L;
 
     public CheckpointMetricsBuilder setBytesProcessedDuringAlignment(
             long bytesProcessedDuringAlignment) {
@@ -116,6 +118,16 @@ public class CheckpointMetricsBuilder {
         return checkpointStartDelayNanos;
     }
 
+    public CheckpointMetricsBuilder setUnalignedCheckpoint(boolean unalignedCheckpoint) {
+        this.unalignedCheckpoint = unalignedCheckpoint;
+        return this;
+    }
+
+    public CheckpointMetricsBuilder setTotalBytesPersisted(long totalBytesPersisted) {
+        this.totalBytesPersisted = totalBytesPersisted;
+        return this;
+    }
+
     public CheckpointMetrics build() {
         return new CheckpointMetrics(
                 checkStateAndGet(bytesProcessedDuringAlignment),
@@ -123,6 +135,20 @@ public class CheckpointMetricsBuilder {
                 checkStateAndGet(alignmentDurationNanos),
                 syncDurationMillis,
                 asyncDurationMillis,
-                checkpointStartDelayNanos);
+                checkpointStartDelayNanos,
+                unalignedCheckpoint,
+                totalBytesPersisted);
+    }
+
+    public CheckpointMetrics buildIncomplete() {
+        return new CheckpointMetrics(
+                bytesProcessedDuringAlignment.getNow(CheckpointMetrics.UNSET),
+                bytesPersistedDuringAlignment,
+                alignmentDurationNanos.getNow(CheckpointMetrics.UNSET),
+                syncDurationMillis,
+                asyncDurationMillis,
+                checkpointStartDelayNanos,
+                unalignedCheckpoint,
+                totalBytesPersisted);
     }
 }

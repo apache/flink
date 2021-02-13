@@ -28,11 +28,13 @@ import org.apache.flink.table.planner.runtime.stream.sql.ChangelogSourceITCase._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOff, MiniBatchOn}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithMiniBatchTestBase, TestData, TestingRetractSink}
+import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.types.{Row, RowKind}
+
 import org.junit.Assert.{assertEquals, assertFalse}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Test}
+import org.junit.{Before, Rule, Test}
 
 import java.lang.{Long => JLong}
 import java.util
@@ -49,6 +51,9 @@ class ChangelogSourceITCase(
     miniBatch: MiniBatchMode,
     state: StateBackendMode)
   extends StreamingWithMiniBatchTestBase(miniBatch, state) {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   @Before
   override def before(): Unit = {

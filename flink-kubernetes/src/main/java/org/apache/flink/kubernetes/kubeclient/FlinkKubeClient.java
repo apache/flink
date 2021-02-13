@@ -96,9 +96,6 @@ public interface FlinkKubeClient extends AutoCloseable {
      */
     List<KubernetesPod> getPodsWithLabels(Map<String, String> labels);
 
-    /** Log exceptions. */
-    void handleException(Exception e);
-
     /**
      * Watch the pods selected by labels and do the {@link WatchCallbackHandler}.
      *
@@ -200,6 +197,6 @@ public interface FlinkKubeClient extends AutoCloseable {
 
         void onError(List<T> resources);
 
-        void handleFatalError(Throwable throwable);
+        void handleError(Throwable throwable);
     }
 }

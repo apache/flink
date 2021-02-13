@@ -51,8 +51,7 @@ public class HiveTableFactory implements TableSourceFactory, TableSinkFactory {
         CatalogTable table = checkNotNull(context.getTable());
         Preconditions.checkArgument(table instanceof CatalogTableImpl);
 
-        boolean isGeneric =
-                Boolean.parseBoolean(table.getProperties().get(CatalogConfig.IS_GENERIC));
+        boolean isGeneric = Boolean.parseBoolean(table.getOptions().get(CatalogConfig.IS_GENERIC));
 
         // temporary table doesn't have the IS_GENERIC flag but we still consider it generic
         if (!isGeneric && !context.isTemporary()) {
@@ -68,8 +67,7 @@ public class HiveTableFactory implements TableSourceFactory, TableSinkFactory {
         CatalogTable table = checkNotNull(context.getTable());
         Preconditions.checkArgument(table instanceof CatalogTableImpl);
 
-        boolean isGeneric =
-                Boolean.parseBoolean(table.getProperties().get(CatalogConfig.IS_GENERIC));
+        boolean isGeneric = Boolean.parseBoolean(table.getOptions().get(CatalogConfig.IS_GENERIC));
 
         // temporary table doesn't have the IS_GENERIC flag but we still consider it generic
         if (!isGeneric && !context.isTemporary()) {

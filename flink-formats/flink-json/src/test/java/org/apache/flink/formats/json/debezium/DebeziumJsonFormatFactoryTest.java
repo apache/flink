@@ -95,7 +95,8 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
                         (RowType) PHYSICAL_DATA_TYPE.getLogicalType(),
                         TimestampFormat.ISO_8601,
                         JsonOptions.MapNullKeyMode.LITERAL,
-                        "null");
+                        "null",
+                        true);
 
         final DynamicTableSink actualSink = createTableSink(options);
         assert actualSink instanceof TestDynamicTableFactory.DynamicTableSinkMock;
@@ -212,6 +213,7 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
         options.put("debezium-json.timestamp-format.standard", "ISO-8601");
         options.put("debezium-json.map-null-key.mode", "LITERAL");
         options.put("debezium-json.map-null-key.literal", "null");
+        options.put("debezium-json.encode.decimal-as-plain-number", "true");
         return options;
     }
 

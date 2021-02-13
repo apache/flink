@@ -19,7 +19,6 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.annotation.DataTypeHint;
@@ -58,12 +57,12 @@ import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
-import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType.YearMonthResolution;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
+import org.apache.flink.table.types.utils.TypeInfoDataTypeConverter;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -157,6 +156,26 @@ public final class DataTypes {
     public static UnresolvedDataType of(String unresolvedName) {
         return new UnresolvedDataType(
                 () -> unresolvedName, (factory) -> factory.createDataType(unresolvedName));
+    }
+
+    /**
+     * Creates an unresolved type that will be resolved to a {@link DataType} by converting the
+     * given {@link TypeInformation} later.
+     *
+     * <p>{@link DataType} is richer than {@link TypeInformation} as it also includes details about
+     * the {@link LogicalType}. Therefore, some details will be added implicitly during the
+     * conversion. The mapping to data type happens on a best effort basis. If no data type is
+     * suitable, the type information is interpreted as {@link DataTypes#RAW(TypeInformation)}.
+     *
+     * <p>See {@link TypeInfoDataTypeConverter} for more information.
+     *
+     * <p>Note: In most of the cases, the {@link UnresolvedDataType} will be automatically resolved
+     * by the API. At other locations, a {@link DataTypeFactory} is provided.
+     */
+    public static UnresolvedDataType of(TypeInformation<?> typeInfo) {
+        return new UnresolvedDataType(
+                () -> String.format("'%s'", typeInfo.toString()),
+                (factory) -> factory.createDataType(typeInfo));
     }
 
     // we use SQL-like naming for data types and avoid Java keyword clashes
@@ -811,15 +830,19 @@ public final class DataTypes {
      *
      * <p>The raw type is an extension to the SQL standard.
      *
-     * <p>Compared to an {@link #RAW(Class, TypeSerializer)}, this type does not contain a {@link
-     * TypeSerializer} yet. The serializer will be generated from the enclosed {@link
-     * TypeInformation} but needs access to the {@link ExecutionConfig} of the current execution
-     * environment. Thus, this type is just a placeholder.
+     * <p>Compared to {@link #RAW(Class, TypeSerializer)}, this method produces an {@link
+     * UnresolvedDataType} where the serializer will be generated from the enclosed {@link
+     * TypeInformation} later.
      *
-     * @see TypeInformationRawType
+     * <p>Note: In most of the cases, the {@link UnresolvedDataType} will be automatically resolved
+     * by the API. At other locations, a {@link DataTypeFactory} is provided.
+     *
+     * @see RawType
      */
-    public static <T> DataType RAW(TypeInformation<T> typeInformation) {
-        return new AtomicDataType(new TypeInformationRawType<>(typeInformation));
+    public static <T> UnresolvedDataType RAW(TypeInformation<T> typeInformation) {
+        return new UnresolvedDataType(
+                () -> String.format(RawType.FORMAT, typeInformation.getTypeClass().getName(), "?"),
+                factory -> factory.createRawDataType(typeInformation));
     }
 
     /**

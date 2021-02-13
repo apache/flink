@@ -23,6 +23,7 @@ import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesException;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesTooOldResourceVersionException;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesWatch;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.leaderelection.LeaderElectionDriver;
@@ -33,6 +34,8 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.concurrent.GuardedBy;
 
 import java.util.List;
 import java.util.Map;
@@ -57,6 +60,8 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
 
     private static final Logger LOG = LoggerFactory.getLogger(KubernetesLeaderElectionDriver.class);
 
+    private final Object watchLock = new Object();
+
     private final FlinkKubeClient kubeClient;
 
     private final String configMapName;
@@ -70,11 +75,12 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
 
     private final LeaderElectionEventHandler leaderElectionEventHandler;
 
-    private final KubernetesWatch kubernetesWatch;
-
     private final FatalErrorHandler fatalErrorHandler;
 
     private volatile boolean running;
+
+    @GuardedBy("watchLock")
+    private KubernetesWatch kubernetesWatch;
 
     public KubernetesLeaderElectionDriver(
             FlinkKubeClient kubeClient,
@@ -111,7 +117,12 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
 
         LOG.info("Closing {}.", this);
         leaderElector.stop();
-        kubernetesWatch.close();
+
+        synchronized (watchLock) {
+            if (kubernetesWatch != null) {
+                kubernetesWatch.close();
+            }
+        }
     }
 
     @Override
@@ -234,10 +245,24 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
         }
 
         @Override
-        public void handleFatalError(Throwable throwable) {
-            fatalErrorHandler.onFatalError(
-                    new LeaderElectionException(
-                            "Error while watching the ConfigMap " + configMapName, throwable));
+        public void handleError(Throwable throwable) {
+            if (throwable instanceof KubernetesTooOldResourceVersionException) {
+                synchronized (watchLock) {
+                    if (running) {
+                        if (kubernetesWatch != null) {
+                            kubernetesWatch.close();
+                        }
+                        LOG.info("Creating a new watch on ConfigMap {}.", configMapName);
+                        kubernetesWatch =
+                                kubeClient.watchConfigMaps(
+                                        configMapName, new ConfigMapCallbackHandlerImpl());
+                    }
+                }
+            } else {
+                fatalErrorHandler.onFatalError(
+                        new LeaderElectionException(
+                                "Error while watching the ConfigMap " + configMapName, throwable));
+            }
         }
     }
 

@@ -19,8 +19,9 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.calcite.Rank
+import org.apache.flink.table.planner.plan.nodes.exec.spec.PartitionSpec
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecRank
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.runtime.operators.rank._
 
@@ -104,18 +105,15 @@ class StreamPhysicalRank(
   override def translateToExecNode(): ExecNode[_] = {
     val generateUpdateBefore = ChangelogPlanUtils.generateUpdateBefore(this)
     val fieldCollations = orderKey.getFieldCollations
-    val (sortFields, sortDirections, nullsIsLast) = SortUtil.getKeysAndOrders(fieldCollations)
     new StreamExecRank(
       rankType,
-      partitionKey.toArray,
-      sortFields,
-      sortDirections,
-      nullsIsLast,
+      new PartitionSpec(partitionKey.toArray),
+      SortUtil.getSortSpec(fieldCollations),
       rankRange,
       rankStrategy,
       outputRankNumber,
       generateUpdateBefore,
-      ExecEdge.DEFAULT,
+      InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription
     )

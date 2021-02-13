@@ -58,7 +58,7 @@ LogicalProject(f0=[$0], f1=[$1])
 +- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{0}])
    :- LogicalProject(f0=[AS($0, _UTF-16LE'f0')])
    :  +- LogicalValues(tuples=[[{ _UTF-16LE'danny#21' }, { _UTF-16LE'julian#55' }, { _UTF-16LE'fabian#30' }]])
-   +- LogicalTableFunctionScan(invocation=[myFunc($cor1.f0)], rowType=[*org.apache.flink.table.planner.utils.SimpleUser*])
+   +- LogicalTableFunctionScan(invocation=[myFunc($cor1.f0)], rowType=[*org.apache.flink.table.planner.utils.SimpleUser* NOT NULL])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -157,7 +157,7 @@ LogicalProject(f0=[$0], f1=[$1])
 +- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{0}])
    :- LogicalProject(f0=[AS($0, _UTF-16LE'f0')])
    :  +- LogicalValues(tuples=[[{ _UTF-16LE'danny#21' }, { _UTF-16LE'julian#55' }, { _UTF-16LE'fabian#30' }]])
-   +- LogicalTableFunctionScan(invocation=[myFunc($cor1.f0)], rowType=[*org.apache.flink.table.planner.utils.SimpleUser*])
+   +- LogicalTableFunctionScan(invocation=[myFunc($cor1.f0)], rowType=[*org.apache.flink.table.planner.utils.SimpleUser* NOT NULL])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">

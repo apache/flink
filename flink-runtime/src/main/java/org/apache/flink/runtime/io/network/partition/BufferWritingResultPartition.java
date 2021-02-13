@@ -19,15 +19,13 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.metrics.Meter;
-import org.apache.flink.metrics.MeterView;
-import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
+import org.apache.flink.runtime.metrics.TimerGauge;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.util.function.SupplierWithException;
 
@@ -64,7 +62,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
     /** For broadcast mode, a single BufferBuilder is shared by all subpartitions. */
     private BufferBuilder broadcastBufferBuilder;
 
-    private Meter idleTimeMsPerSecond = new MeterView(new SimpleCounter());
+    private TimerGauge backPressuredTimeMsPerSecond = new TimerGauge();
 
     public BufferWritingResultPartition(
             String owningTaskName,
@@ -193,7 +191,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
     @Override
     public void setMetricGroup(TaskIOMetricGroup metrics) {
         super.setMetricGroup(metrics);
-        idleTimeMsPerSecond = metrics.getIdleTimeMsPerSecond();
+        backPressuredTimeMsPerSecond = metrics.getBackPressuredTimePerSecond();
     }
 
     @Override
@@ -335,10 +333,10 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
             return bufferBuilder;
         }
 
-        final long start = System.currentTimeMillis();
+        backPressuredTimeMsPerSecond.markStart();
         try {
             bufferBuilder = bufferPool.requestBufferBuilderBlocking(targetSubpartition);
-            idleTimeMsPerSecond.markEvent(System.currentTimeMillis() - start);
+            backPressuredTimeMsPerSecond.markEnd();
             return bufferBuilder;
         } catch (InterruptedException e) {
             throw new IOException("Interrupted while waiting for buffer");
@@ -377,8 +375,8 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
     }
 
     @VisibleForTesting
-    public Meter getIdleTimeMsPerSecond() {
-        return idleTimeMsPerSecond;
+    public TimerGauge getBackPressuredTimeMsPerSecond() {
+        return backPressuredTimeMsPerSecond;
     }
 
     @VisibleForTesting

@@ -71,7 +71,7 @@ public class SingleLogicalSlotTest extends TestLogger {
 
     private SingleLogicalSlot createSingleLogicalSlot(SlotOwner slotOwner) {
         return new SingleLogicalSlot(
-                new SlotRequestId(), createSlotContext(), null, Locality.LOCAL, slotOwner);
+                new SlotRequestId(), createSlotContext(), Locality.LOCAL, slotOwner);
     }
 
     private static SlotContext createSlotContext() {

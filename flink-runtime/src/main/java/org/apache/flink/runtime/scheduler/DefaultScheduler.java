@@ -32,6 +32,7 @@ import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ExecutionFailureHandler;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy;
@@ -40,15 +41,13 @@ import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTime
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroupDesc;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
-import org.apache.flink.runtime.jobmaster.slotpool.ThrowingSlotProvider;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
@@ -101,12 +100,9 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
     private final Set<ExecutionVertexID> verticesWaitingForRestart;
 
-    private final Consumer<ComponentMainThreadExecutor> startUpAction;
-
     DefaultScheduler(
             final Logger log,
             final JobGraph jobGraph,
-            final BackPressureStatsTracker backPressureStatsTracker,
             final Executor ioExecutor,
             final Configuration jobMasterConfiguration,
             final Consumer<ComponentMainThreadExecutor> startUpAction,
@@ -126,28 +122,29 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
             final ExecutionVertexVersioner executionVertexVersioner,
             final ExecutionSlotAllocatorFactory executionSlotAllocatorFactory,
             final ExecutionDeploymentTracker executionDeploymentTracker,
-            long initializationTimestamp)
+            long initializationTimestamp,
+            final ComponentMainThreadExecutor mainThreadExecutor,
+            final JobStatusListener jobStatusListener)
             throws Exception {
 
         super(
                 log,
                 jobGraph,
-                backPressureStatsTracker,
                 ioExecutor,
                 jobMasterConfiguration,
-                new ThrowingSlotProvider(), // this is not used any more in the new scheduler
                 futureExecutor,
                 userCodeLoader,
                 checkpointRecoveryFactory,
                 rpcTimeout,
                 blobWriter,
                 jobManagerJobMetricGroup,
-                Time.seconds(0), // this is not used any more in the new scheduler
                 shuffleMaster,
                 partitionTracker,
                 executionVertexVersioner,
                 executionDeploymentTracker,
-                initializationTimestamp);
+                initializationTimestamp,
+                mainThreadExecutor,
+                jobStatusListener);
 
         this.log = log;
 
@@ -175,18 +172,12 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                         .createInstance(new DefaultExecutionSlotAllocationContext());
 
         this.verticesWaitingForRestart = new HashSet<>();
-        this.startUpAction = startUpAction;
+        startUpAction.accept(mainThreadExecutor);
     }
 
     // ------------------------------------------------------------------------
     // SchedulerNG
     // ------------------------------------------------------------------------
-
-    @Override
-    public void initialize(ComponentMainThreadExecutor mainThreadExecutor) {
-        super.initialize(mainThreadExecutor);
-        startUpAction.accept(mainThreadExecutor);
-    }
 
     @Override
     protected long getNumberOfRestarts() {
@@ -406,8 +397,6 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         return executionSlotAllocator.allocateSlotsFor(
                 executionVertexDeploymentOptions.stream()
                         .map(ExecutionVertexDeploymentOption::getExecutionVertexId)
-                        .map(this::getExecutionVertex)
-                        .map(ExecutionVertexSchedulingRequirementsMapper::from)
                         .collect(Collectors.toList()));
     }
 
@@ -602,8 +591,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         }
 
         @Override
-        public Set<CoLocationGroupDesc> getCoLocationGroups() {
-            return getJobGraph().getCoLocationGroupDescriptors();
+        public Set<CoLocationGroup> getCoLocationGroups() {
+            return getJobGraph().getCoLocationGroups();
         }
 
         @Override

@@ -26,6 +26,7 @@ import org.apache.flink.table.annotation.HintFlag;
 import org.apache.flink.table.annotation.InputGroup;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.catalog.Catalog;
@@ -36,6 +37,7 @@ import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.functions.SpecializedFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
 import org.apache.flink.table.planner.functions.BuiltInFunctionTestBase;
@@ -664,6 +666,52 @@ public class FunctionITCase extends StreamingTestBase {
     }
 
     @Test
+    public void testVarArgScalarFunction() throws Exception {
+        final List<Row> sourceData = Arrays.asList(Row.of("Bob", 1), Row.of("Alice", 2));
+
+        TestCollectionTableFactory.reset();
+        TestCollectionTableFactory.initData(sourceData);
+
+        tEnv().executeSql(
+                        "CREATE TABLE SourceTable("
+                                + "  s STRING, "
+                                + "  i INT"
+                                + ")"
+                                + "WITH ("
+                                + "  'connector' = 'COLLECTION'"
+                                + ")");
+
+        tEnv().createTemporarySystemFunction("VarArgScalarFunction", VarArgScalarFunction.class);
+
+        final TableResult result =
+                tEnv().executeSql(
+                                "SELECT "
+                                        + "  VarArgScalarFunction(), "
+                                        + "  VarArgScalarFunction(i), "
+                                        + "  VarArgScalarFunction(i, i), "
+                                        + "  VarArgScalarFunction(s), "
+                                        + "  VarArgScalarFunction(s, i) "
+                                        + "FROM SourceTable");
+
+        final List<Row> actual = CollectionUtil.iteratorToList(result.collect());
+        final List<Row> expected =
+                Arrays.asList(
+                        Row.of(
+                                "(INT...)",
+                                "(INT...)",
+                                "(INT...)",
+                                "(STRING, INT...)",
+                                "(STRING, INT...)"),
+                        Row.of(
+                                "(INT...)",
+                                "(INT...)",
+                                "(INT...)",
+                                "(STRING, INT...)",
+                                "(STRING, INT...)"));
+        assertThat(actual, equalTo(expected));
+    }
+
+    @Test
     public void testRawLiteralScalarFunction() throws Exception {
         final List<Row> sourceData =
                 Arrays.asList(
@@ -1002,6 +1050,45 @@ public class FunctionITCase extends StreamingTestBase {
     }
 
     @Test
+    public void testSpecializedFunction() {
+        final List<Row> sourceData =
+                Arrays.asList(
+                        Row.of("Bob", 1, new BigDecimal("123.45")),
+                        Row.of("Alice", 2, new BigDecimal("123.456")));
+
+        TestCollectionTableFactory.reset();
+        TestCollectionTableFactory.initData(sourceData);
+
+        tEnv().executeSql(
+                        "CREATE TABLE SourceTable("
+                                + "  s STRING, "
+                                + "  i INT,"
+                                + "  d DECIMAL(6, 3)"
+                                + ")"
+                                + "WITH ("
+                                + "  'connector' = 'COLLECTION'"
+                                + ")");
+
+        tEnv().createTemporarySystemFunction("TypeOfScalarFunction", TypeOfScalarFunction.class);
+
+        final TableResult result =
+                tEnv().executeSql(
+                                "SELECT "
+                                        + "  TypeOfScalarFunction('LITERAL'), "
+                                        + "  TypeOfScalarFunction(s), "
+                                        + "  TypeOfScalarFunction(i), "
+                                        + "  TypeOfScalarFunction(d) "
+                                        + "FROM SourceTable");
+
+        final List<Row> actual = CollectionUtil.iteratorToList(result.collect());
+        final List<Row> expected =
+                Arrays.asList(
+                        Row.of("CHAR(7) NOT NULL", "STRING", "INT", "DECIMAL(6, 3)"),
+                        Row.of("CHAR(7) NOT NULL", "STRING", "INT", "DECIMAL(6, 3)"));
+        assertThat(actual, equalTo(expected));
+    }
+
+    @Test
     public void testTimestampNotNull() {
         List<Row> sourceData = Arrays.asList(Row.of(1), Row.of(2));
         TestCollectionTableFactory.reset();
@@ -1130,6 +1217,18 @@ public class FunctionITCase extends StreamingTestBase {
             return TypeInference.newBuilder()
                     .outputTypeStrategy(TypeStrategies.argument(0))
                     .build();
+        }
+    }
+
+    /** Function for testing variable arguments. */
+    @SuppressWarnings("unused")
+    public static class VarArgScalarFunction extends ScalarFunction {
+        public String eval(Integer... i) {
+            return "(INT...)";
+        }
+
+        public String eval(String s, Integer... i2) {
+            return "(STRING, INT...)";
         }
     }
 
@@ -1334,6 +1433,31 @@ public class FunctionITCase extends StreamingTestBase {
         public void eval(@DataTypeHint("STRING") StringData s) {
             collect(Row.of(s.toString(), new byte[0]));
             collect(Row.of(s.toString(), s.toBytes()));
+        }
+    }
+
+    /** A specialized "compile time" function for returning the argument's data type. */
+    public static class TypeOfScalarFunction extends ScalarFunction implements SpecializedFunction {
+
+        private final String typeString;
+
+        public TypeOfScalarFunction() {
+            this("UNKNOWN");
+        }
+
+        public TypeOfScalarFunction(String typeString) {
+            this.typeString = typeString;
+        }
+
+        @SuppressWarnings("unused")
+        public String eval(@DataTypeHint(inputGroup = InputGroup.ANY) Object unused) {
+            return typeString;
+        }
+
+        @Override
+        public TypeOfScalarFunction specialize(SpecializedContext context) {
+            final List<DataType> dataTypes = context.getCallContext().getArgumentDataTypes();
+            return new TypeOfScalarFunction(dataTypes.get(0).toString());
         }
     }
 }

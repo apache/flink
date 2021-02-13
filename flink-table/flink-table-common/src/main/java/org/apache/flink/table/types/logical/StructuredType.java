@@ -78,6 +78,8 @@ import java.util.stream.Collectors;
 @PublicEvolving
 public final class StructuredType extends UserDefinedType {
 
+    public static final String FORMAT = "*%s*";
+
     private static final Set<String> INPUT_OUTPUT_CONVERSION =
             conversionSet(Row.class.getName(), RowData.class.getName());
 
@@ -360,7 +362,7 @@ public final class StructuredType extends UserDefinedType {
         assert implementationClass != null;
         // we use *class* to make it visible that this type is unregistered and not confuse it
         // with catalog types
-        return "*" + implementationClass.getName() + "*";
+        return withNullability(FORMAT, implementationClass.getName());
     }
 
     @Override

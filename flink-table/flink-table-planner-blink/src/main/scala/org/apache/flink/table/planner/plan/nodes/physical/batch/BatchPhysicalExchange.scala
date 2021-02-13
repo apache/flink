@@ -23,7 +23,7 @@ import org.apache.flink.streaming.api.transformations.ShuffleMode
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecExchange
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalExchange
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 
@@ -50,24 +50,24 @@ class BatchPhysicalExchange(
 
   override def translateToExecNode(): ExecNode[_] = {
     new BatchExecExchange(
-      getExecEdge,
+      getInputProperty,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
   }
 
-  private def getExecEdge: ExecEdge = {
+  private def getInputProperty: InputProperty = {
     if (distribution.getType == RelDistribution.Type.RANGE_DISTRIBUTED) {
       throw new UnsupportedOperationException("Range sort is not supported.")
     }
 
     val damBehavior = if (getShuffleMode eq ShuffleMode.BATCH) {
-      ExecEdge.DamBehavior.BLOCKING
+      InputProperty.DamBehavior.BLOCKING
     } else {
-      ExecEdge.DamBehavior.PIPELINED
+      InputProperty.DamBehavior.PIPELINED
     }
 
-    ExecEdge.builder.
-      requiredShuffle(getRequiredShuffle)
+    InputProperty.builder.
+      requiredDistribution(getRequiredDistribution)
       .damBehavior(damBehavior)
       .build
   }

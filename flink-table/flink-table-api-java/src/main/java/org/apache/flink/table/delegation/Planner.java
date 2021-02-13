@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.delegation;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.api.ExplainDetail;
@@ -94,4 +95,54 @@ public interface Planner {
      * @return completion hints that fit at the current cursor position
      */
     String[] getCompletionHints(String statement, int position);
+
+    /**
+     * Get the json plan of the given {@link ModifyOperation}s.
+     *
+     * <p>The json plan is the string json representation of an optimized ExecNode plan for the
+     * given statement. An ExecNode plan can be serialized to json plan, and a json plan can be
+     * deserialized to an ExecNode plan.
+     *
+     * <p>NOTES: Only the Blink planner supports this method.
+     *
+     * <p><b>NOTES:</b>: This is an experimental feature now.
+     *
+     * @param modifyOperations the {@link ModifyOperation}s to generate json plan.
+     * @return the string json representation of an optimized ExecNode plan for the given
+     *     operations.
+     */
+    @Experimental
+    String getJsonPlan(List<ModifyOperation> modifyOperations);
+
+    /**
+     * Returns the execution plan for the given json plan.
+     *
+     * <p>NOTES: Only the Blink planner supports this method.
+     *
+     * <p><b>NOTES:</b>: This is an experimental feature now.
+     *
+     * @param jsonPlan The json plan to be explained.
+     * @param extraDetails The extra explain details which the explain result should include, e.g.
+     *     estimated cost, changelog mode for streaming
+     * @return the execution plan.
+     */
+    @Experimental
+    String explainJsonPlan(String jsonPlan, ExplainDetail... extraDetails);
+
+    /**
+     * Converts a json plan into a set of runnable {@link Transformation}s.
+     *
+     * <p>The json plan is the string json representation of an optimized ExecNode plan for the
+     * given statement. An ExecNode plan can be serialized to json plan, and a json plan can be
+     * deserialized to an ExecNode plan.
+     *
+     * <p>NOTES: Only the Blink planner supports this method.
+     *
+     * <p><b>NOTES:</b>: This is an experimental feature now.
+     *
+     * @param jsonPlan The json plan to be translated.
+     * @return list of corresponding {@link Transformation}s.
+     */
+    @Experimental
+    List<Transformation<?>> translateJsonPlan(String jsonPlan);
 }

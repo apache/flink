@@ -73,7 +73,6 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.management.JMXService;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.TaskBackPressureResponse;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
@@ -91,7 +90,6 @@ import org.apache.flink.runtime.rest.messages.taskmanager.ThreadDumpInfo;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
@@ -242,8 +240,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     private final TaskExecutorPartitionTracker partitionTracker;
 
-    private final BackPressureSampleService backPressureSampleService;
-
     // --------- resource manager --------
 
     @Nullable private ResourceManagerAddress resourceManagerAddress;
@@ -268,8 +264,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             @Nullable String metricQueryServiceAddress,
             BlobCacheService blobCacheService,
             FatalErrorHandler fatalErrorHandler,
-            TaskExecutorPartitionTracker partitionTracker,
-            BackPressureSampleService backPressureSampleService) {
+            TaskExecutorPartitionTracker partitionTracker) {
 
         super(rpcService, AkkaRpcServiceUtils.createRandomName(TASK_MANAGER_NAME));
 
@@ -285,7 +280,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         this.taskManagerMetricGroup = checkNotNull(taskManagerMetricGroup);
         this.blobCacheService = checkNotNull(blobCacheService);
         this.metricQueryServiceAddress = metricQueryServiceAddress;
-        this.backPressureSampleService = checkNotNull(backPressureSampleService);
         this.externalResourceInfoProvider = checkNotNull(externalResourceInfoProvider);
 
         this.libraryCacheManager = taskExecutorServices.getLibraryCacheManager();
@@ -502,28 +496,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     //  RPC methods
     // ======================================================================
 
-    @Override
-    public CompletableFuture<TaskBackPressureResponse> requestTaskBackPressure(
-            ExecutionAttemptID executionAttemptId, int requestId, @RpcTimeout Time timeout) {
-
-        final Task task = taskSlotTable.getTask(executionAttemptId);
-        if (task == null) {
-            return FutureUtils.completedExceptionally(
-                    new IllegalStateException(
-                            String.format(
-                                    "Cannot request back pressure of task %s. "
-                                            + "Task is not known to the task manager.",
-                                    executionAttemptId)));
-        }
-        final CompletableFuture<Double> backPressureRatioFuture =
-                backPressureSampleService.sampleTaskBackPressure(task);
-
-        return backPressureRatioFuture.thenApply(
-                backPressureRatio ->
-                        new TaskBackPressureResponse(
-                                requestId, executionAttemptId, backPressureRatio));
-    }
-
     // ----------------------------------------------------------------------
     // Task lifecycle RPCs
     // ----------------------------------------------------------------------
@@ -674,7 +646,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                             tdd.getAttemptNumber(),
                             tdd.getProducedPartitions(),
                             tdd.getInputGates(),
-                            tdd.getTargetSlotNumber(),
                             memoryManager,
                             taskExecutorServices.getIOManager(),
                             taskExecutorServices.getShuffleEnvironment(),
@@ -696,7 +667,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                             partitionStateChecker,
                             getRpcService().getExecutor());
 
-            taskMetricGroup.gauge(MetricNames.IS_BACKPRESSURED, task::isBackPressured);
+            taskMetricGroup.gauge(MetricNames.IS_BACK_PRESSURED, task::isBackPressured);
 
             log.info(
                     "Received task {} ({}), deploy into slot with allocation id {}.",

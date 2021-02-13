@@ -61,9 +61,9 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     checkResult(
       "SELECT j, sum(k) FROM GenericTypedTable3 GROUP BY i, j",
       Seq(
-        row("1,1", 2),
-        row("1,1", 2),
-        row("10,1", 3)
+        row(row(1, 1), 2),
+        row(row(1, 1), 2),
+        row(row(10, 1), 3)
       )
     )
 

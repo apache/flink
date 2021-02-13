@@ -63,6 +63,8 @@ import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.FieldInfoUtils
 import org.apache.flink.types.Row
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
+
 import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql.parser.SqlParserPos
@@ -73,6 +75,7 @@ import org.junit.rules.{ExpectedException, TemporaryFolder, TestName}
 
 import _root_.java.math.{BigDecimal => JBigDecimal}
 import _root_.java.util
+import java.io.IOException
 import java.time.Duration
 
 import _root_.scala.collection.JavaConversions._
@@ -860,8 +863,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
 
     // build optimized exec plan if `expectedPlans` contains OPT_EXEC
     val optimizedExecPlan = if (expectedPlans.contains(PlanKind.OPT_EXEC)) {
-      val optimizedExecs = getPlanner.translateToExecNodePlan(optimizedRels)
-      System.lineSeparator + ExecNodePlanDumper.dagToString(optimizedExecs)
+      val execGraph = getPlanner.translateToExecNodeGraph(optimizedRels)
+      System.lineSeparator + ExecNodePlanDumper.dagToString(execGraph)
     } else {
       ""
     }
@@ -1602,7 +1605,17 @@ object TableTestUtil {
 
   def readFromResource(path: String): String = {
     val inputStream = getClass.getResource(path).getFile
-    Source.fromFile(inputStream).mkString
+    val source = Source.fromFile(inputStream)
+    val str = source.mkString
+    source.close()
+    str
+  }
+
+  @throws[IOException]
+  def getFormattedJson(json: String): String = {
+    val parser = new ObjectMapper().getFactory.createParser(json)
+    val jsonNode: JsonNode = parser.readValueAsTree[JsonNode]
+    jsonNode.toString
   }
 
   /**
@@ -1619,5 +1632,21 @@ object TableTestUtil {
    */
   def replaceStreamNodeId(s: String): String = {
     s.replaceAll("\"id\" : \\d+", "\"id\" : ").trim
+  }
+
+  /**
+   * ExecNode {id} is ignored, because id keeps incrementing in test class.
+   */
+  def replaceExecNodeId(s: String): String = {
+    s.replaceAll("\"id\":\\d+", "\"id\" :")
+      .replaceAll("\"source\":\\d+", "\"source\" :")
+      .replaceAll("\"target\":\\d+", "\"target\" :")
+  }
+
+  /**
+   * Ignore flink version value.
+   */
+  def replaceFlinkVersion(s: String): String = {
+    s.replaceAll("\"flinkVersion\":\"\\d+.\\d+(-SNAPSHOT)?\"", "\"flinkVersion\":\"\"")
   }
 }

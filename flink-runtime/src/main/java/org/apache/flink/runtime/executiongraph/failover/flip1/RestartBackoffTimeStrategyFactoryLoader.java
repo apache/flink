@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies.ExponentialDelayRestartStrategyConfiguration;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.FailureRateRestartStrategyConfiguration;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.FallbackRestartStrategyConfiguration;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.FixedDelayRestartStrategyConfiguration;
@@ -104,6 +105,18 @@ public final class RestartBackoffTimeStrategyFactoryLoader {
                             failureRateConfig.getDelayBetweenAttemptsInterval().toMilliseconds()));
         } else if (restartStrategyConfiguration instanceof FallbackRestartStrategyConfiguration) {
             return Optional.empty();
+        } else if (restartStrategyConfiguration
+                instanceof ExponentialDelayRestartStrategyConfiguration) {
+            final ExponentialDelayRestartStrategyConfiguration exponentialDelayConfig =
+                    (ExponentialDelayRestartStrategyConfiguration) restartStrategyConfiguration;
+            return Optional.of(
+                    new ExponentialDelayRestartBackoffTimeStrategy
+                            .ExponentialDelayRestartBackoffTimeStrategyFactory(
+                            exponentialDelayConfig.getInitialBackoff().toMilliseconds(),
+                            exponentialDelayConfig.getMaxBackoff().toMilliseconds(),
+                            exponentialDelayConfig.getBackoffMultiplier(),
+                            exponentialDelayConfig.getResetBackoffThreshold().toMilliseconds(),
+                            exponentialDelayConfig.getJitterFactor()));
         } else {
             throw new IllegalArgumentException(
                     "Unknown restart strategy configuration " + restartStrategyConfiguration + ".");
@@ -133,6 +146,11 @@ public final class RestartBackoffTimeStrategyFactoryLoader {
             case "failure-rate":
                 return Optional.of(
                         FailureRateRestartBackoffTimeStrategy.createFactory(clusterConfiguration));
+            case "exponentialdelay":
+            case "exponential-delay":
+                return Optional.of(
+                        ExponentialDelayRestartBackoffTimeStrategy.createFactory(
+                                clusterConfiguration));
             default:
                 throw new IllegalArgumentException(
                         "Unknown restart strategy " + restartStrategyName + ".");

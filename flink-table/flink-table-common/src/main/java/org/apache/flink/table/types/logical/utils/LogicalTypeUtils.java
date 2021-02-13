@@ -105,6 +105,7 @@ public final class LogicalTypeUtils {
             case RAW:
                 return RawValueData.class;
             case NULL:
+                return Object.class;
             case SYMBOL:
             case UNRESOLVED:
             default:

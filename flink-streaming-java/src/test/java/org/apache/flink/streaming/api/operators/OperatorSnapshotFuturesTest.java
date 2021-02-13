@@ -21,11 +21,15 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.state.DoneFuture;
 import org.apache.flink.runtime.state.InputChannelStateHandle;
+import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
+import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
+import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.streaming.runtime.tasks.ExceptionallyDoneFuture;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -33,12 +37,34 @@ import org.junit.Test;
 import java.util.concurrent.Future;
 import java.util.concurrent.RunnableFuture;
 
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.spy;
 
 /** Tests for {@link OperatorSnapshotFutures}. */
 public class OperatorSnapshotFuturesTest extends TestLogger {
+
+    @Test
+    public void testCancelReturnsStateSize() throws Exception {
+        KeyGroupsStateHandle s1 =
+                new KeyGroupsStateHandle(
+                        new KeyGroupRangeOffsets(0, 0),
+                        new ByteStreamStateHandle("", new byte[123]));
+        KeyGroupsStateHandle s2 =
+                new KeyGroupsStateHandle(
+                        new KeyGroupRangeOffsets(0, 0),
+                        new ByteStreamStateHandle("", new byte[456]));
+        OperatorSnapshotFutures futures =
+                new OperatorSnapshotFutures(
+                        DoneFuture.of(SnapshotResult.of(s1)),
+                        DoneFuture.of(SnapshotResult.of(s2)),
+                        DoneFuture.of(SnapshotResult.empty()),
+                        ExceptionallyDoneFuture.of(new RuntimeException()),
+                        ExceptionallyDoneFuture.of(new RuntimeException()),
+                        ExceptionallyDoneFuture.of(new RuntimeException()));
+        assertEquals(s1.getStateSize() + s2.getStateSize(), futures.cancel());
+    }
 
     /**
      * Tests that all runnable futures in an OperatorSnapshotResult are properly cancelled and if

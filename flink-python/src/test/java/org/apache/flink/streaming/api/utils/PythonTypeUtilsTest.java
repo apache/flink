@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.utils;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -41,7 +42,10 @@ import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.streaming.api.typeinfo.python.PickledByteArrayTypeInfo;
 import org.apache.flink.table.runtime.typeutils.serializers.python.BigDecSerializer;
+import org.apache.flink.table.runtime.typeutils.serializers.python.DateSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.StringSerializer;
+import org.apache.flink.table.runtime.typeutils.serializers.python.TimeSerializer;
+import org.apache.flink.table.runtime.typeutils.serializers.python.TimestampSerializer;
 
 import org.junit.Test;
 
@@ -82,6 +86,10 @@ public class PythonTypeUtilsTest {
                 FlinkFnApi.TypeInfo.TypeName.PICKLED_BYTES);
         typeInformationTypeNameMap.put(
                 BasicTypeInfo.BOOLEAN_TYPE_INFO, FlinkFnApi.TypeInfo.TypeName.BOOLEAN);
+        typeInformationTypeNameMap.put(SqlTimeTypeInfo.DATE, FlinkFnApi.TypeInfo.TypeName.SQL_DATE);
+        typeInformationTypeNameMap.put(SqlTimeTypeInfo.TIME, FlinkFnApi.TypeInfo.TypeName.SQL_TIME);
+        typeInformationTypeNameMap.put(
+                SqlTimeTypeInfo.TIMESTAMP, FlinkFnApi.TypeInfo.TypeName.SQL_TIMESTAMP);
 
         for (Map.Entry<TypeInformation, FlinkFnApi.TypeInfo.TypeName> entry :
                 typeInformationTypeNameMap.entrySet()) {
@@ -151,6 +159,9 @@ public class PythonTypeUtilsTest {
                 BytePrimitiveArraySerializer.INSTANCE);
         typeInformationTypeSerializerMap.put(
                 BasicTypeInfo.BOOLEAN_TYPE_INFO, BooleanSerializer.INSTANCE);
+        typeInformationTypeSerializerMap.put(SqlTimeTypeInfo.DATE, DateSerializer.INSTANCE);
+        typeInformationTypeSerializerMap.put(SqlTimeTypeInfo.TIME, TimeSerializer.INSTANCE);
+        typeInformationTypeSerializerMap.put(SqlTimeTypeInfo.TIMESTAMP, new TimestampSerializer(3));
 
         for (Map.Entry<TypeInformation, TypeSerializer> entry :
                 typeInformationTypeSerializerMap.entrySet()) {
@@ -181,7 +192,7 @@ public class PythonTypeUtilsTest {
                         rowTypeInfo);
         assertEquals(
                 convertedTypeSerializer,
-                new RowSerializer(new TypeSerializer[] {IntSerializer.INSTANCE}, false));
+                new RowSerializer(new TypeSerializer[] {IntSerializer.INSTANCE}, null));
 
         TupleTypeInfo tupleTypeInfo = (TupleTypeInfo) Types.TUPLE(Types.INT);
         convertedTypeSerializer =

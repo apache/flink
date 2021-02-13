@@ -95,6 +95,8 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 
     @Nullable private final String stateBackendName;
 
+    @Nullable private final String checkpointStorageName;
+
     public ArchivedExecutionGraph(
             JobID jobID,
             String jobName,
@@ -110,7 +112,8 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
             boolean isStoppable,
             @Nullable CheckpointCoordinatorConfiguration jobCheckpointingConfiguration,
             @Nullable CheckpointStatsSnapshot checkpointStatsSnapshot,
-            @Nullable String stateBackendName) {
+            @Nullable String stateBackendName,
+            @Nullable String checkpointStorageName) {
 
         this.jobID = Preconditions.checkNotNull(jobID);
         this.jobName = Preconditions.checkNotNull(jobName);
@@ -127,6 +130,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
         this.jobCheckpointingConfiguration = jobCheckpointingConfiguration;
         this.checkpointStatsSnapshot = checkpointStatsSnapshot;
         this.stateBackendName = stateBackendName;
+        this.checkpointStorageName = checkpointStorageName;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -257,6 +261,11 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
         return Optional.ofNullable(stateBackendName);
     }
 
+    @Override
+    public Optional<String> getCheckpointStorageName() {
+        return Optional.ofNullable(checkpointStorageName);
+    }
+
     class AllVerticesIterator implements Iterator<ArchivedExecutionVertex> {
 
         private final Iterator<ArchivedExecutionJobVertex> jobVertices;
@@ -346,7 +355,8 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
                 executionGraph.isStoppable(),
                 executionGraph.getCheckpointCoordinatorConfiguration(),
                 executionGraph.getCheckpointStatsSnapshot(),
-                executionGraph.getStateBackendName().orElse(null));
+                executionGraph.getStateBackendName().orElse(null),
+                executionGraph.getCheckpointStorageName().orElse(null));
     }
 
     /**
@@ -373,10 +383,11 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 
         ErrorInfo failureInfo = null;
         if (throwable != null) {
-            Preconditions.checkState(jobStatus == JobStatus.FAILED);
+            Preconditions.checkState(
+                    jobStatus == JobStatus.FAILED || jobStatus == JobStatus.SUSPENDED);
             long failureTime = System.currentTimeMillis();
             failureInfo = new ErrorInfo(throwable, failureTime);
-            timestamps[JobStatus.FAILED.ordinal()] = failureTime;
+            timestamps[jobStatus.ordinal()] = failureTime;
         }
 
         return new ArchivedExecutionGraph(
@@ -392,6 +403,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
                 serializedUserAccumulators,
                 new ExecutionConfig().archive(),
                 false,
+                null,
                 null,
                 null,
                 null);

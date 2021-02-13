@@ -15,7 +15,6 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import warnings
 from typing import Dict, List, Optional
 
 from py4j.java_gateway import java_import
@@ -728,19 +727,6 @@ class CatalogBaseTable(object):
         .. versionadded:: 1.11.0
         """
         return dict(self._j_catalog_base_table.getOptions())
-
-    def get_properties(self) -> Dict[str, str]:
-        """
-        Get the properties of the table.
-
-        :return: Property map of the table/view.
-
-        .. note:: This method is deprecated. Use :func:`~pyflink.table.CatalogBaseTable.get_options`
-                  instead.
-        """
-        warnings.warn("Deprecated in 1.11. Use CatalogBaseTable#get_options instead.",
-                      DeprecationWarning)
-        return dict(self._j_catalog_base_table.getProperties())
 
     def get_schema(self) -> TableSchema:
         """

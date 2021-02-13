@@ -26,6 +26,7 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -71,9 +72,20 @@ public abstract class StateBackendTestContext {
 
     protected abstract StateBackend createStateBackend();
 
+    protected CheckpointStorage createCheckpointStorage() {
+        if (stateBackend instanceof CheckpointStorage) {
+            return (CheckpointStorage) stateBackend;
+        }
+
+        throw new IllegalStateException(
+                "The state backend under test does not implement CheckpointStorage."
+                        + "Please override 'createCheckpointStorage' and provide an appropriate"
+                        + "checkpoint storage instance");
+    }
+
     private CheckpointStreamFactory createCheckpointStreamFactory() {
         try {
-            return stateBackend
+            return createCheckpointStorage()
                     .createCheckpointStorage(new JobID())
                     .resolveCheckpointStorageLocation(2L, checkpointOptions.getTargetLocation());
         } catch (IOException e) {

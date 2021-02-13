@@ -21,6 +21,7 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.ExecutionMode;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.core.testutils.CommonTestUtils;
@@ -45,15 +46,17 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for the {@link ArchivedExecutionGraph}. */
@@ -102,16 +105,12 @@ public class ArchivedExecutionGraphTest extends TestLogger {
                         false,
                         0);
         JobCheckpointingSettings checkpointingSettings =
-                new JobCheckpointingSettings(
-                        Arrays.asList(v1ID, v2ID),
-                        Arrays.asList(v1ID, v2ID),
-                        Arrays.asList(v1ID, v2ID),
-                        chkConfig,
-                        null);
+                new JobCheckpointingSettings(chkConfig, null);
         jobGraph.setSnapshotSettings(checkpointingSettings);
 
-        SchedulerBase scheduler = SchedulerTestingUtils.createScheduler(jobGraph);
-        scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+        SchedulerBase scheduler =
+                SchedulerTestingUtils.createScheduler(
+                        jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
         runtimeGraph = scheduler.getExecutionGraph();
 
@@ -132,6 +131,20 @@ public class ArchivedExecutionGraphTest extends TestLogger {
         ArchivedExecutionGraph archivedGraph = ArchivedExecutionGraph.createFrom(runtimeGraph);
 
         verifySerializability(archivedGraph);
+    }
+
+    @Test
+    public void testCreateFromInitializingJobForSuspendedJob() {
+        final ArchivedExecutionGraph suspendedExecutionGraph =
+                ArchivedExecutionGraph.createFromInitializingJob(
+                        new JobID(),
+                        "TestJob",
+                        JobStatus.SUSPENDED,
+                        new Exception("Test suspension exception"),
+                        System.currentTimeMillis());
+
+        assertThat(suspendedExecutionGraph.getState(), is(JobStatus.SUSPENDED));
+        assertThat(suspendedExecutionGraph.getFailureInfo(), notNullValue());
     }
 
     private static void compareExecutionGraph(

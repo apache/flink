@@ -25,9 +25,11 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
+import org.apache.flink.table.utils.LegacyRowResource;
 import org.apache.flink.types.Row;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -55,6 +57,8 @@ public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
     private static final String JSON_FORMAT = "json";
     private static final String CSV_FORMAT = "csv";
     private static final String AVRO_FORMAT = "avro";
+
+    @Rule public final LegacyRowResource usesLegacyRows = LegacyRowResource.INSTANCE;
 
     @Parameterized.Parameter public String format;
 
@@ -497,16 +501,31 @@ public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
                                 LocalDateTime.parse("2020-08-16T00:01:05")),
                         changelogRow(
                                 "+U",
-                                103L,
-                                "Richard",
-                                "London",
-                                LocalDateTime.parse("2020-08-16T01:01:05")),
-                        changelogRow(
-                                "+U",
                                 101L,
                                 "Alice",
                                 "Wuhan",
                                 LocalDateTime.parse("2020-08-16T00:02:00")),
+                        changelogRow(
+                                "+U",
+                                104L,
+                                "Tomato",
+                                "Hongkong",
+                                LocalDateTime.parse("2020-08-16T00:05:05")),
+                        changelogRow(
+                                "+U",
+                                105L,
+                                "Tim",
+                                "Shenzhen",
+                                LocalDateTime.parse("2020-08-16T00:06:00")),
+                        // Keep the timestamp in the records are in the ascending order.
+                        // It will keep the records in the kafka partition are in the order.
+                        // It has the same effects by adjusting the watermark strategy.
+                        changelogRow(
+                                "+U",
+                                103L,
+                                "Richard",
+                                "London",
+                                LocalDateTime.parse("2020-08-16T01:01:05")),
                         changelogRow(
                                 "+U",
                                 101L,
@@ -517,20 +536,8 @@ public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
                                 "+U",
                                 104L,
                                 "Tomato",
-                                "Hongkong",
-                                LocalDateTime.parse("2020-08-16T00:05:05")),
-                        changelogRow(
-                                "+U",
-                                104L,
-                                "Tomato",
                                 "Shenzhen",
                                 LocalDateTime.parse("2020-08-16T01:05:05")),
-                        changelogRow(
-                                "+U",
-                                105L,
-                                "Tim",
-                                "Shenzhen",
-                                LocalDateTime.parse("2020-08-16T00:06:00")),
                         changelogRow(
                                 "+U",
                                 105L,

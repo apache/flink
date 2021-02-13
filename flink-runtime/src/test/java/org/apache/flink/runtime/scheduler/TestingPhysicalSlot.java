@@ -68,12 +68,15 @@ public class TestingPhysicalSlot extends SimpleSlotContext implements PhysicalSl
 
     @Override
     public boolean tryAssignPayload(Payload payload) {
+        if (this.payload != null) {
+            return false;
+        }
         this.payload = payload;
         return true;
     }
 
     @Nullable
-    Payload getPayload() {
+    public Payload getPayload() {
         return payload;
     }
 

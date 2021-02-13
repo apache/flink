@@ -21,9 +21,12 @@ package org.apache.flink.table.planner.functions.aggfunctions;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.table.runtime.functions.aggregate.BuiltInAggregateFunction;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -32,7 +35,7 @@ import static org.apache.flink.table.types.utils.DataTypeUtils.toInternalDataTyp
 /** Built-in MIN with retraction aggregate function. */
 @Internal
 public final class MinWithRetractAggFunction<T extends Comparable<T>>
-        extends InternalAggregateFunction<
+        extends BuiltInAggregateFunction<
                 T, MinWithRetractAggFunction.MinWithRetractAccumulator<T>> {
 
     private static final long serialVersionUID = 4253774292802374843L;
@@ -48,8 +51,8 @@ public final class MinWithRetractAggFunction<T extends Comparable<T>>
     // --------------------------------------------------------------------------------------------
 
     @Override
-    public DataType[] getInputDataTypes() {
-        return new DataType[] {valueDataType};
+    public List<DataType> getArgumentDataTypes() {
+        return Collections.singletonList(valueDataType);
     }
 
     @Override

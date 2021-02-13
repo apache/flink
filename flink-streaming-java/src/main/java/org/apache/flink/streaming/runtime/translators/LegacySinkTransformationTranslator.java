@@ -23,6 +23,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.graph.SimpleTransformationTranslator;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
 import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
@@ -49,7 +50,8 @@ public class LegacySinkTransformationTranslator<IN>
         final Collection<Integer> ids = translateInternal(transformation, context);
         boolean isKeyed = transformation.getStateKeySelector() != null;
         if (isKeyed) {
-            BatchExecutionUtils.applySortingInputs(transformation.getId(), context);
+            BatchExecutionUtils.applyBatchExecutionSettings(
+                    transformation.getId(), context, StreamConfig.InputRequirement.SORTED);
         }
         return ids;
     }

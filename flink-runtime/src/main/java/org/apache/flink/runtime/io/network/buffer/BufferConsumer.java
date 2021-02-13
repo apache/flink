@@ -197,6 +197,19 @@ public class BufferConsumer implements Closeable {
         return currentReaderPosition < writerPosition.getLatest();
     }
 
+    public String toDebugString(boolean includeHash) {
+        Buffer buffer = null;
+        try (BufferConsumer copiedBufferConsumer = copy()) {
+            buffer = copiedBufferConsumer.build();
+            checkState(copiedBufferConsumer.isFinished());
+            return buffer.toDebugString(includeHash);
+        } finally {
+            if (buffer != null) {
+                buffer.recycleBuffer();
+            }
+        }
+    }
+
     /**
      * Cached reading wrapper around {@link PositionMarker}.
      *

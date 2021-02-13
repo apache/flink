@@ -53,6 +53,8 @@ public class CheckpointConfigInfo implements ResponseBody {
 
     public static final String FIELD_NAME_STATE_BACKEND = "state_backend";
 
+    public static final String FIELD_NAME_CHECKPOINT_STORAGE = "checkpoint_storage";
+
     public static final String FIELD_NAME_UNALIGNED_CHECKPOINTS = "unaligned_checkpoints";
 
     public static final String FIELD_NAME_TOLERABLE_FAILED_CHECKPOINTS =
@@ -79,6 +81,9 @@ public class CheckpointConfigInfo implements ResponseBody {
     @JsonProperty(FIELD_NAME_STATE_BACKEND)
     private final String stateBackend;
 
+    @JsonProperty(FIELD_NAME_CHECKPOINT_STORAGE)
+    private final String checkpointStorage;
+
     @JsonProperty(FIELD_NAME_UNALIGNED_CHECKPOINTS)
     private final boolean unalignedCheckpoints;
 
@@ -95,6 +100,7 @@ public class CheckpointConfigInfo implements ResponseBody {
             @JsonProperty(FIELD_NAME_EXTERNALIZED_CHECKPOINT_CONFIG)
                     ExternalizedCheckpointInfo externalizedCheckpointInfo,
             @JsonProperty(FIELD_NAME_STATE_BACKEND) String stateBackend,
+            @JsonProperty(FIELD_NAME_CHECKPOINT_STORAGE) String checkpointStorage,
             @JsonProperty(FIELD_NAME_UNALIGNED_CHECKPOINTS) boolean unalignedCheckpoints,
             @JsonProperty(FIELD_NAME_TOLERABLE_FAILED_CHECKPOINTS) int tolerableFailedCheckpoints) {
         this.processingMode = Preconditions.checkNotNull(processingMode);
@@ -104,6 +110,7 @@ public class CheckpointConfigInfo implements ResponseBody {
         this.maxConcurrentCheckpoints = maxConcurrentCheckpoints;
         this.externalizedCheckpointInfo = Preconditions.checkNotNull(externalizedCheckpointInfo);
         this.stateBackend = Preconditions.checkNotNull(stateBackend);
+        this.checkpointStorage = Preconditions.checkNotNull(checkpointStorage);
         this.unalignedCheckpoints = unalignedCheckpoints;
         this.tolerableFailedCheckpoints = tolerableFailedCheckpoints;
     }
@@ -124,6 +131,7 @@ public class CheckpointConfigInfo implements ResponseBody {
                 && processingMode == that.processingMode
                 && Objects.equals(externalizedCheckpointInfo, that.externalizedCheckpointInfo)
                 && Objects.equals(stateBackend, that.stateBackend)
+                && Objects.equals(checkpointStorage, that.checkpointStorage)
                 && unalignedCheckpoints == that.unalignedCheckpoints
                 && tolerableFailedCheckpoints == that.tolerableFailedCheckpoints;
     }
@@ -138,6 +146,7 @@ public class CheckpointConfigInfo implements ResponseBody {
                 maxConcurrentCheckpoints,
                 externalizedCheckpointInfo,
                 stateBackend,
+                checkpointStorage,
                 unalignedCheckpoints,
                 tolerableFailedCheckpoints);
     }

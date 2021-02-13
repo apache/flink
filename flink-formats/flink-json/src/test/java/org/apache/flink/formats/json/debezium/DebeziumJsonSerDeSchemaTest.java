@@ -257,7 +257,8 @@ public class DebeziumJsonSerDeSchemaTest {
                         (RowType) PHYSICAL_DATA_TYPE.getLogicalType(),
                         TimestampFormat.SQL,
                         JsonOptions.MapNullKeyMode.LITERAL,
-                        "null");
+                        "null",
+                        true);
 
         serializationSchema.open(null);
         actual = new ArrayList<>();

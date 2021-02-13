@@ -35,6 +35,9 @@ import org.apache.flink.table.runtime.operators.sort.BufferedKVExternalSorter;
 import org.apache.flink.table.runtime.operators.sort.IntNormalizedKeyComputer;
 import org.apache.flink.table.runtime.operators.sort.IntRecordComparator;
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
+import org.apache.flink.table.runtime.util.KeyValueIterator;
+import org.apache.flink.table.runtime.util.collections.binary.BytesHashMap;
+import org.apache.flink.table.runtime.util.collections.binary.BytesMap;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -96,7 +99,8 @@ public class SumHashAggTestOperator extends AbstractStreamOperator<RowData>
         currentKeyWriter.complete();
 
         // look up output buffer using current group key
-        BytesHashMap.LookupInfo lookupInfo = aggregateMap.lookup(currentKey);
+        BytesMap.LookupInfo<BinaryRowData, BinaryRowData> lookupInfo =
+                aggregateMap.lookup(currentKey);
         BinaryRowData currentAggBuffer = lookupInfo.getValue();
 
         if (!lookupInfo.isFound()) {
@@ -154,18 +158,13 @@ public class SumHashAggTestOperator extends AbstractStreamOperator<RowData>
 
         if (sorter == null) {
             // no spilling, output by iterating aggregate map.
-            MutableObjectIterator<BytesHashMap.Entry> iter = aggregateMap.getEntryIterator();
+            KeyValueIterator<BinaryRowData, BinaryRowData> iter = aggregateMap.getEntryIterator();
 
-            BinaryRowData reuseAggMapKey = new BinaryRowData(1);
-            BinaryRowData reuseAggBuffer = new BinaryRowData(1);
-            BytesHashMap.Entry reuseAggMapEntry =
-                    new BytesHashMap.Entry(reuseAggMapKey, reuseAggBuffer);
-
-            while (iter.next(reuseAggMapEntry) != null) {
+            while (iter.advanceNext()) {
                 // set result and output
                 aggValueOutput.setField(
-                        0, reuseAggBuffer.isNullAt(0) ? null : reuseAggBuffer.getLong(0));
-                hashAggOutput.replace(reuseAggMapKey, aggValueOutput);
+                        0, iter.getValue().isNullAt(0) ? null : iter.getValue().getLong(0));
+                hashAggOutput.replace(iter.getKey(), aggValueOutput);
                 getOutput().collect(outElement.replace(hashAggOutput));
             }
         } else {

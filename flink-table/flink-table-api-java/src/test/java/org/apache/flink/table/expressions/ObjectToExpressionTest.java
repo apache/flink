@@ -99,7 +99,7 @@ public class ObjectToExpressionTest {
     public void testRowWithDeleteKindConversion() {
         thrown.expect(ValidationException.class);
         thrown.expectMessage(
-                "Unsupported kind 'DELETE' of a row [1]. "
+                "Unsupported kind 'DELETE' of a row [-D[1]]. "
                         + "Only rows with 'INSERT' kind are supported when converting to an expression.");
         objectToExpression(Row.ofKind(RowKind.DELETE, 1));
     }
@@ -108,7 +108,7 @@ public class ObjectToExpressionTest {
     public void testRowWithUpdateBeforeKindConversion() {
         thrown.expect(ValidationException.class);
         thrown.expectMessage(
-                "Unsupported kind 'UPDATE_BEFORE' of a row [1]. "
+                "Unsupported kind 'UPDATE_BEFORE' of a row [-U[1]]. "
                         + "Only rows with 'INSERT' kind are supported when converting to an expression.");
         objectToExpression(Row.ofKind(RowKind.UPDATE_BEFORE, 1));
     }
@@ -117,7 +117,7 @@ public class ObjectToExpressionTest {
     public void testRowWithUpdateAfterKindConversion() {
         thrown.expect(ValidationException.class);
         thrown.expectMessage(
-                "Unsupported kind 'UPDATE_AFTER' of a row [1]. "
+                "Unsupported kind 'UPDATE_AFTER' of a row [+U[1]]. "
                         + "Only rows with 'INSERT' kind are supported when converting to an expression.");
         objectToExpression(Row.ofKind(RowKind.UPDATE_AFTER, 1));
     }

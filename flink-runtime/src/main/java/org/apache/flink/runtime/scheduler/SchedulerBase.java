@@ -25,7 +25,6 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
@@ -33,9 +32,12 @@ import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
+import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -50,7 +52,6 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraphBuilder;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionStateUpdateListener;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
@@ -63,41 +64,29 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTrackerDeploymentListenerAdapter;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
-import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
-import org.apache.flink.runtime.operators.coordination.CoordinationRequestHandler;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinatorHolder;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
-import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.query.KvStateLocation;
-import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStats;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.IntArrayList;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.FlinkRuntimeException;
-import org.apache.flink.util.IOUtils;
-import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.function.FunctionUtils;
 
@@ -139,19 +128,19 @@ public abstract class SchedulerBase implements SchedulerNG {
 
     protected final InputsLocationsRetriever inputsLocationsRetriever;
 
-    private final BackPressureStatsTracker backPressureStatsTracker;
-
     private final Executor ioExecutor;
 
     private final Configuration jobMasterConfiguration;
-
-    private final SlotProvider slotProvider;
 
     private final ScheduledExecutorService futureExecutor;
 
     private final ClassLoader userCodeLoader;
 
-    private final CheckpointRecoveryFactory checkpointRecoveryFactory;
+    private final CompletedCheckpointStore completedCheckpointStore;
+
+    private final CheckpointsCleaner checkpointsCleaner;
+
+    private final CheckpointIDCounter checkpointIdCounter;
 
     private final Time rpcTimeout;
 
@@ -159,61 +148,75 @@ public abstract class SchedulerBase implements SchedulerNG {
 
     private final JobManagerJobMetricGroup jobManagerJobMetricGroup;
 
-    private final Time slotRequestTimeout;
-
     protected final ExecutionVertexVersioner executionVertexVersioner;
 
-    private final Map<OperatorID, OperatorCoordinatorHolder> coordinatorMap;
+    private final KvStateHandler kvStateHandler;
 
-    private ComponentMainThreadExecutor mainThreadExecutor =
-            new ComponentMainThreadExecutor.DummyComponentMainThreadExecutor(
-                    "SchedulerBase is not initialized with proper main thread executor. "
-                            + "Call to SchedulerBase.setMainThreadExecutor(...) required.");
+    private final ExecutionGraphHandler executionGraphHandler;
+
+    private final OperatorCoordinatorHandler operatorCoordinatorHandler;
+
+    private final ComponentMainThreadExecutor mainThreadExecutor;
 
     public SchedulerBase(
             final Logger log,
             final JobGraph jobGraph,
-            final BackPressureStatsTracker backPressureStatsTracker,
             final Executor ioExecutor,
             final Configuration jobMasterConfiguration,
-            final SlotProvider slotProvider,
             final ScheduledExecutorService futureExecutor,
             final ClassLoader userCodeLoader,
             final CheckpointRecoveryFactory checkpointRecoveryFactory,
             final Time rpcTimeout,
             final BlobWriter blobWriter,
             final JobManagerJobMetricGroup jobManagerJobMetricGroup,
-            final Time slotRequestTimeout,
             final ShuffleMaster<?> shuffleMaster,
             final JobMasterPartitionTracker partitionTracker,
             final ExecutionVertexVersioner executionVertexVersioner,
             final ExecutionDeploymentTracker executionDeploymentTracker,
-            long initializationTimestamp)
+            long initializationTimestamp,
+            final ComponentMainThreadExecutor mainThreadExecutor,
+            final JobStatusListener jobStatusListener)
             throws Exception {
 
         this.log = checkNotNull(log);
         this.jobGraph = checkNotNull(jobGraph);
-        this.backPressureStatsTracker = checkNotNull(backPressureStatsTracker);
         this.ioExecutor = checkNotNull(ioExecutor);
         this.jobMasterConfiguration = checkNotNull(jobMasterConfiguration);
-        this.slotProvider = checkNotNull(slotProvider);
         this.futureExecutor = checkNotNull(futureExecutor);
         this.userCodeLoader = checkNotNull(userCodeLoader);
-        this.checkpointRecoveryFactory = checkNotNull(checkpointRecoveryFactory);
         this.rpcTimeout = checkNotNull(rpcTimeout);
 
         this.blobWriter = checkNotNull(blobWriter);
         this.jobManagerJobMetricGroup = checkNotNull(jobManagerJobMetricGroup);
-        this.slotRequestTimeout = checkNotNull(slotRequestTimeout);
         this.executionVertexVersioner = checkNotNull(executionVertexVersioner);
+        this.mainThreadExecutor = mainThreadExecutor;
+
+        this.checkpointsCleaner = new CheckpointsCleaner();
+        this.completedCheckpointStore =
+                SchedulerUtils.createCompletedCheckpointStoreIfCheckpointingIsEnabled(
+                        jobGraph,
+                        jobMasterConfiguration,
+                        userCodeLoader,
+                        checkNotNull(checkpointRecoveryFactory),
+                        log);
+        this.checkpointIdCounter =
+                SchedulerUtils.createCheckpointIDCounterIfCheckpointingIsEnabled(
+                        jobGraph, checkNotNull(checkpointRecoveryFactory));
 
         this.executionGraph =
                 createAndRestoreExecutionGraph(
                         jobManagerJobMetricGroup,
+                        completedCheckpointStore,
+                        checkpointsCleaner,
+                        checkpointIdCounter,
                         checkNotNull(shuffleMaster),
                         checkNotNull(partitionTracker),
                         checkNotNull(executionDeploymentTracker),
-                        initializationTimestamp);
+                        initializationTimestamp,
+                        mainThreadExecutor,
+                        jobStatusListener);
+
+        registerShutDownCheckpointServicesOnExecutionGraphTermination(executionGraph);
 
         this.schedulingTopology = executionGraph.getSchedulingTopology();
 
@@ -223,20 +226,60 @@ public abstract class SchedulerBase implements SchedulerNG {
         inputsLocationsRetriever =
                 new ExecutionGraphToInputsLocationsRetrieverAdapter(executionGraph);
 
-        this.coordinatorMap = createCoordinatorMap();
+        this.kvStateHandler = new KvStateHandler(executionGraph);
+        this.executionGraphHandler =
+                new ExecutionGraphHandler(executionGraph, log, ioExecutor, this.mainThreadExecutor);
+
+        this.operatorCoordinatorHandler =
+                new OperatorCoordinatorHandler(executionGraph, this::handleGlobalFailure);
+        operatorCoordinatorHandler.initializeOperatorCoordinators(this.mainThreadExecutor);
+    }
+
+    private void registerShutDownCheckpointServicesOnExecutionGraphTermination(
+            ExecutionGraph executionGraph) {
+        FutureUtils.assertNoException(
+                executionGraph.getTerminationFuture().thenAccept(this::shutDownCheckpointServices));
+    }
+
+    private void shutDownCheckpointServices(JobStatus jobStatus) {
+        Exception exception = null;
+
+        try {
+            completedCheckpointStore.shutdown(jobStatus, checkpointsCleaner);
+        } catch (Exception e) {
+            exception = e;
+        }
+
+        try {
+            checkpointIdCounter.shutdown(jobStatus);
+        } catch (Exception e) {
+            exception = ExceptionUtils.firstOrSuppressed(e, exception);
+        }
+
+        if (exception != null) {
+            log.error("Error while shutting down checkpoint services.", exception);
+        }
     }
 
     private ExecutionGraph createAndRestoreExecutionGraph(
             JobManagerJobMetricGroup currentJobManagerJobMetricGroup,
+            CompletedCheckpointStore completedCheckpointStore,
+            CheckpointsCleaner checkpointsCleaner,
+            CheckpointIDCounter checkpointIdCounter,
             ShuffleMaster<?> shuffleMaster,
             JobMasterPartitionTracker partitionTracker,
             ExecutionDeploymentTracker executionDeploymentTracker,
-            long initializationTimestamp)
+            long initializationTimestamp,
+            ComponentMainThreadExecutor mainThreadExecutor,
+            JobStatusListener jobStatusListener)
             throws Exception {
 
         ExecutionGraph newExecutionGraph =
                 createExecutionGraph(
                         currentJobManagerJobMetricGroup,
+                        completedCheckpointStore,
+                        checkpointsCleaner,
+                        checkpointIdCounter,
                         shuffleMaster,
                         partitionTracker,
                         executionDeploymentTracker,
@@ -256,11 +299,19 @@ public abstract class SchedulerBase implements SchedulerNG {
             }
         }
 
+        newExecutionGraph.setInternalTaskFailuresListener(
+                new UpdateSchedulerNgOnInternalFailuresListener(this, jobGraph.getJobID()));
+        newExecutionGraph.registerJobStatusListener(jobStatusListener);
+        newExecutionGraph.start(mainThreadExecutor);
+
         return newExecutionGraph;
     }
 
     private ExecutionGraph createExecutionGraph(
             JobManagerJobMetricGroup currentJobManagerJobMetricGroup,
+            CompletedCheckpointStore completedCheckpointStore,
+            CheckpointsCleaner checkpointsCleaner,
+            CheckpointIDCounter checkpointIdCounter,
             ShuffleMaster<?> shuffleMaster,
             final JobMasterPartitionTracker partitionTracker,
             ExecutionDeploymentTracker executionDeploymentTracker,
@@ -277,18 +328,17 @@ public abstract class SchedulerBase implements SchedulerNG {
                 };
 
         return ExecutionGraphBuilder.buildGraph(
-                null,
                 jobGraph,
                 jobMasterConfiguration,
                 futureExecutor,
                 ioExecutor,
-                slotProvider,
                 userCodeLoader,
-                checkpointRecoveryFactory,
+                completedCheckpointStore,
+                checkpointsCleaner,
+                checkpointIdCounter,
                 rpcTimeout,
                 currentJobManagerJobMetricGroup,
                 blobWriter,
-                slotRequestTimeout,
                 log,
                 shuffleMaster,
                 partitionTracker,
@@ -324,19 +374,9 @@ public abstract class SchedulerBase implements SchedulerNG {
     }
 
     protected void resetForNewExecutions(final Collection<ExecutionVertexID> vertices) {
-        final Set<CoLocationGroup> colGroups = new HashSet<>();
-        vertices.forEach(
-                executionVertexId -> {
-                    final ExecutionVertex ev = getExecutionVertex(executionVertexId);
-
-                    final CoLocationGroup cgroup = ev.getJobVertex().getCoLocationGroup();
-                    if (cgroup != null && !colGroups.contains(cgroup)) {
-                        cgroup.resetConstraints();
-                        colGroups.add(cgroup);
-                    }
-
-                    ev.resetForNewExecution();
-                });
+        vertices.stream()
+                .map(this::getExecutionVertex)
+                .forEach(ExecutionVertex::resetForNewExecution);
     }
 
     protected void restoreState(
@@ -559,24 +599,10 @@ public abstract class SchedulerBase implements SchedulerNG {
     // ------------------------------------------------------------------------
 
     @Override
-    public void initialize(final ComponentMainThreadExecutor mainThreadExecutor) {
-        this.mainThreadExecutor = checkNotNull(mainThreadExecutor);
-        initializeOperatorCoordinators(mainThreadExecutor);
-        executionGraph.setInternalTaskFailuresListener(
-                new UpdateSchedulerNgOnInternalFailuresListener(this, jobGraph.getJobID()));
-        executionGraph.start(mainThreadExecutor);
-    }
-
-    @Override
-    public void registerJobStatusListener(final JobStatusListener jobStatusListener) {
-        executionGraph.registerJobStatusListener(jobStatusListener);
-    }
-
-    @Override
     public final void startScheduling() {
         mainThreadExecutor.assertRunningInMainThread();
         registerJobMetrics();
-        startAllOperatorCoordinators();
+        operatorCoordinatorHandler.startAllOperatorCoordinators();
         startSchedulingInternal();
     }
 
@@ -593,7 +619,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 
         incrementVersionsOfAllVertices();
         executionGraph.suspend(cause);
-        disposeAllOperatorCoordinators();
+        operatorCoordinatorHandler.disposeAllOperatorCoordinators();
     }
 
     @Override
@@ -663,48 +689,7 @@ public abstract class SchedulerBase implements SchedulerNG {
             JobVertexID vertexID, ExecutionAttemptID executionAttempt) throws IOException {
         mainThreadExecutor.assertRunningInMainThread();
 
-        final Execution execution = executionGraph.getRegisteredExecutions().get(executionAttempt);
-        if (execution == null) {
-            // can happen when JobManager had already unregistered this execution upon on task
-            // failure,
-            // but TaskManager get some delay to aware of that situation
-            if (log.isDebugEnabled()) {
-                log.debug("Can not find Execution for attempt {}.", executionAttempt);
-            }
-            // but we should TaskManager be aware of this
-            throw new IllegalArgumentException(
-                    "Can not find Execution for attempt " + executionAttempt);
-        }
-
-        final ExecutionJobVertex vertex = executionGraph.getJobVertex(vertexID);
-        if (vertex == null) {
-            throw new IllegalArgumentException(
-                    "Cannot find execution vertex for vertex ID " + vertexID);
-        }
-
-        if (vertex.getSplitAssigner() == null) {
-            throw new IllegalStateException("No InputSplitAssigner for vertex ID " + vertexID);
-        }
-
-        final InputSplit nextInputSplit = execution.getNextInputSplit();
-
-        if (log.isDebugEnabled()) {
-            log.debug("Send next input split {}.", nextInputSplit);
-        }
-
-        try {
-            final byte[] serializedInputSplit = InstantiationUtil.serializeObject(nextInputSplit);
-            return new SerializedInputSplit(serializedInputSplit);
-        } catch (Exception ex) {
-            IOException reason =
-                    new IOException(
-                            "Could not serialize the next input split of class "
-                                    + nextInputSplit.getClass()
-                                    + ".",
-                            ex);
-            vertex.fail(reason);
-            throw reason;
-        }
+        return executionGraphHandler.requestNextInputSplit(vertexID, executionAttempt);
     }
 
     @Override
@@ -715,32 +700,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 
         mainThreadExecutor.assertRunningInMainThread();
 
-        final Execution execution =
-                executionGraph.getRegisteredExecutions().get(resultPartitionId.getProducerId());
-        if (execution != null) {
-            return execution.getState();
-        } else {
-            final IntermediateResult intermediateResult =
-                    executionGraph.getAllIntermediateResults().get(intermediateResultId);
-
-            if (intermediateResult != null) {
-                // Try to find the producing execution
-                Execution producerExecution =
-                        intermediateResult
-                                .getPartitionById(resultPartitionId.getPartitionId())
-                                .getProducer()
-                                .getCurrentExecutionAttempt();
-
-                if (producerExecution.getAttemptId().equals(resultPartitionId.getProducerId())) {
-                    return producerExecution.getState();
-                } else {
-                    throw new PartitionProducerDisposedException(resultPartitionId);
-                }
-            } else {
-                throw new IllegalArgumentException(
-                        "Intermediate data set with ID " + intermediateResultId + " not found.");
-            }
-        }
+        return executionGraphHandler.requestPartitionState(intermediateResultId, resultPartitionId);
     }
 
     @Override
@@ -777,29 +737,7 @@ public abstract class SchedulerBase implements SchedulerNG {
             throws UnknownKvStateLocation, FlinkJobNotFoundException {
         mainThreadExecutor.assertRunningInMainThread();
 
-        // sanity check for the correct JobID
-        if (jobGraph.getJobID().equals(jobId)) {
-            if (log.isDebugEnabled()) {
-                log.debug(
-                        "Lookup key-value state for job {} with registration " + "name {}.",
-                        jobGraph.getJobID(),
-                        registrationName);
-            }
-
-            final KvStateLocationRegistry registry = executionGraph.getKvStateLocationRegistry();
-            final KvStateLocation location = registry.getKvStateLocation(registrationName);
-            if (location != null) {
-                return location;
-            } else {
-                throw new UnknownKvStateLocation(registrationName);
-            }
-        } else {
-            if (log.isDebugEnabled()) {
-                log.debug(
-                        "Request of key-value state location for unknown job {} received.", jobId);
-            }
-            throw new FlinkJobNotFoundException(jobId);
-        }
+        return kvStateHandler.requestKvStateLocation(jobId, registrationName);
     }
 
     @Override
@@ -813,29 +751,13 @@ public abstract class SchedulerBase implements SchedulerNG {
             throws FlinkJobNotFoundException {
         mainThreadExecutor.assertRunningInMainThread();
 
-        if (jobGraph.getJobID().equals(jobId)) {
-            if (log.isDebugEnabled()) {
-                log.debug(
-                        "Key value state registered for job {} under name {}.",
-                        jobGraph.getJobID(),
-                        registrationName);
-            }
-
-            try {
-                executionGraph
-                        .getKvStateLocationRegistry()
-                        .notifyKvStateRegistered(
-                                jobVertexId,
-                                keyGroupRange,
-                                registrationName,
-                                kvStateId,
-                                kvStateServerAddress);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        } else {
-            throw new FlinkJobNotFoundException(jobId);
-        }
+        kvStateHandler.notifyKvStateRegistered(
+                jobId,
+                jobVertexId,
+                keyGroupRange,
+                registrationName,
+                kvStateId,
+                kvStateServerAddress);
     }
 
     @Override
@@ -847,24 +769,8 @@ public abstract class SchedulerBase implements SchedulerNG {
             throws FlinkJobNotFoundException {
         mainThreadExecutor.assertRunningInMainThread();
 
-        if (jobGraph.getJobID().equals(jobId)) {
-            if (log.isDebugEnabled()) {
-                log.debug(
-                        "Key value state unregistered for job {} under name {}.",
-                        jobGraph.getJobID(),
-                        registrationName);
-            }
-
-            try {
-                executionGraph
-                        .getKvStateLocationRegistry()
-                        .notifyKvStateUnregistered(jobVertexId, keyGroupRange, registrationName);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        } else {
-            throw new FlinkJobNotFoundException(jobId);
-        }
+        kvStateHandler.notifyKvStateUnregistered(
+                jobId, jobVertexId, keyGroupRange, registrationName);
     }
 
     @Override
@@ -872,17 +778,6 @@ public abstract class SchedulerBase implements SchedulerNG {
         mainThreadExecutor.assertRunningInMainThread();
 
         executionGraph.updateAccumulators(accumulatorSnapshot);
-    }
-
-    @Override
-    public Optional<OperatorBackPressureStats> requestOperatorBackPressureStats(
-            final JobVertexID jobVertexId) throws FlinkException {
-        final ExecutionJobVertex jobVertex = executionGraph.getJobVertex(jobVertexId);
-        if (jobVertex == null) {
-            throw new FlinkException("JobVertexID not found " + jobVertexId);
-        }
-
-        return backPressureStatsTracker.getOperatorBackPressureStats(jobVertex);
     }
 
     @Override
@@ -959,73 +854,21 @@ public abstract class SchedulerBase implements SchedulerNG {
             final long checkpointId,
             final CheckpointMetrics checkpointMetrics,
             final TaskStateSnapshot checkpointState) {
-        mainThreadExecutor.assertRunningInMainThread();
 
-        final CheckpointCoordinator checkpointCoordinator =
-                executionGraph.getCheckpointCoordinator();
-        final AcknowledgeCheckpoint ackMessage =
-                new AcknowledgeCheckpoint(
-                        jobID,
-                        executionAttemptID,
-                        checkpointId,
-                        checkpointMetrics,
-                        checkpointState);
-
-        final String taskManagerLocationInfo = retrieveTaskManagerLocation(executionAttemptID);
-
-        if (checkpointCoordinator != null) {
-            ioExecutor.execute(
-                    () -> {
-                        try {
-                            checkpointCoordinator.receiveAcknowledgeMessage(
-                                    ackMessage, taskManagerLocationInfo);
-                        } catch (Throwable t) {
-                            log.warn(
-                                    "Error while processing checkpoint acknowledgement message", t);
-                        }
-                    });
-        } else {
-            String errorMessage =
-                    "Received AcknowledgeCheckpoint message for job {} with no CheckpointCoordinator";
-            if (executionGraph.getState() == JobStatus.RUNNING) {
-                log.error(errorMessage, jobGraph.getJobID());
-            } else {
-                log.debug(errorMessage, jobGraph.getJobID());
-            }
-        }
+        executionGraphHandler.acknowledgeCheckpoint(
+                jobID, executionAttemptID, checkpointId, checkpointMetrics, checkpointState);
     }
 
     @Override
     public void declineCheckpoint(final DeclineCheckpoint decline) {
-        mainThreadExecutor.assertRunningInMainThread();
 
-        final CheckpointCoordinator checkpointCoordinator =
-                executionGraph.getCheckpointCoordinator();
-        final String taskManagerLocationInfo =
-                retrieveTaskManagerLocation(decline.getTaskExecutionId());
+        executionGraphHandler.declineCheckpoint(decline);
+    }
 
-        if (checkpointCoordinator != null) {
-            ioExecutor.execute(
-                    () -> {
-                        try {
-                            checkpointCoordinator.receiveDeclineMessage(
-                                    decline, taskManagerLocationInfo);
-                        } catch (Exception e) {
-                            log.error(
-                                    "Error in CheckpointCoordinator while processing {}",
-                                    decline,
-                                    e);
-                        }
-                    });
-        } else {
-            String errorMessage =
-                    "Received DeclineCheckpoint message for job {} with no CheckpointCoordinator";
-            if (executionGraph.getState() == JobStatus.RUNNING) {
-                log.error(errorMessage, jobGraph.getJobID());
-            } else {
-                log.debug(errorMessage, jobGraph.getJobID());
-            }
-        }
+    @Override
+    public void reportCheckpointMetrics(
+            JobID jobID, ExecutionAttemptID attemptId, long id, CheckpointMetrics metrics) {
+        executionGraphHandler.reportCheckpointMetrics(attemptId, id, metrics);
     }
 
     @Override
@@ -1110,17 +953,6 @@ public abstract class SchedulerBase implements SchedulerNG {
                         mainThreadExecutor);
     }
 
-    private String retrieveTaskManagerLocation(ExecutionAttemptID executionAttemptID) {
-        final Optional<Execution> currentExecution =
-                Optional.ofNullable(
-                        executionGraph.getRegisteredExecutions().get(executionAttemptID));
-
-        return currentExecution
-                .map(Execution::getAssignedResourceLocation)
-                .map(TaskManagerLocation::toString)
-                .orElse("Unknown location");
-    }
-
     // ------------------------------------------------------------------------
     //  Operator Coordinators
     //
@@ -1143,88 +975,16 @@ public abstract class SchedulerBase implements SchedulerNG {
             final OperatorEvent evt)
             throws FlinkException {
 
-        // Failure semantics (as per the javadocs of the method):
-        // If the task manager sends an event for a non-running task or an non-existing operator
-        // coordinator, then respond with an exception to the call. If task and coordinator exist,
-        // then we assume that the call from the TaskManager was valid, and any bubbling exception
-        // needs to cause a job failure.
-
-        final Execution exec = executionGraph.getRegisteredExecutions().get(taskExecutionId);
-        if (exec == null || exec.getState() != ExecutionState.RUNNING) {
-            // This situation is common when cancellation happens, or when the task failed while the
-            // event was just being dispatched asynchronously on the TM side.
-            // It should be fine in those expected situations to just ignore this event, but, to be
-            // on the safe, we notify the TM that the event could not be delivered.
-            throw new TaskNotRunningException(
-                    "Task is not known or in state running on the JobManager.");
-        }
-
-        final OperatorCoordinatorHolder coordinator = coordinatorMap.get(operatorId);
-        if (coordinator == null) {
-            throw new FlinkException("No coordinator registered for operator " + operatorId);
-        }
-
-        try {
-            coordinator.handleEventFromOperator(exec.getParallelSubtaskIndex(), evt);
-        } catch (Throwable t) {
-            ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
-            handleGlobalFailure(t);
-        }
+        operatorCoordinatorHandler.deliverOperatorEventToCoordinator(
+                taskExecutionId, operatorId, evt);
     }
 
     @Override
     public CompletableFuture<CoordinationResponse> deliverCoordinationRequestToCoordinator(
             OperatorID operator, CoordinationRequest request) throws FlinkException {
 
-        final OperatorCoordinatorHolder coordinatorHolder = coordinatorMap.get(operator);
-        if (coordinatorHolder == null) {
-            throw new FlinkException("Coordinator of operator " + operator + " does not exist");
-        }
-
-        final OperatorCoordinator coordinator = coordinatorHolder.coordinator();
-        if (coordinator instanceof CoordinationRequestHandler) {
-            return ((CoordinationRequestHandler) coordinator).handleCoordinationRequest(request);
-        } else {
-            throw new FlinkException(
-                    "Coordinator of operator " + operator + " cannot handle client event");
-        }
-    }
-
-    private void initializeOperatorCoordinators(ComponentMainThreadExecutor mainThreadExecutor) {
-        for (OperatorCoordinatorHolder coordinatorHolder : getAllCoordinators()) {
-            coordinatorHolder.lazyInitialize(this, mainThreadExecutor);
-        }
-    }
-
-    private void startAllOperatorCoordinators() {
-        final Collection<OperatorCoordinatorHolder> coordinators = getAllCoordinators();
-        try {
-            for (OperatorCoordinatorHolder coordinator : coordinators) {
-                coordinator.start();
-            }
-        } catch (Throwable t) {
-            ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
-            coordinators.forEach(IOUtils::closeQuietly);
-            throw new FlinkRuntimeException("Failed to start the operator coordinators", t);
-        }
-    }
-
-    private void disposeAllOperatorCoordinators() {
-        getAllCoordinators().forEach(IOUtils::closeQuietly);
-    }
-
-    private Collection<OperatorCoordinatorHolder> getAllCoordinators() {
-        return coordinatorMap.values();
-    }
-
-    private Map<OperatorID, OperatorCoordinatorHolder> createCoordinatorMap() {
-        Map<OperatorID, OperatorCoordinatorHolder> coordinatorMap = new HashMap<>();
-        for (ExecutionJobVertex vertex : executionGraph.getAllVertices().values()) {
-            for (OperatorCoordinatorHolder holder : vertex.getOperatorCoordinators()) {
-                coordinatorMap.put(holder.operatorId(), holder);
-            }
-        }
-        return coordinatorMap;
+        return operatorCoordinatorHandler.deliverCoordinationRequestToCoordinator(
+                operator, request);
     }
 
     // ------------------------------------------------------------------------

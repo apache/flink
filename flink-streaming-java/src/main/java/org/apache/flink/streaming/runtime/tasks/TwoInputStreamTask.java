@@ -21,9 +21,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
-import org.apache.flink.streaming.runtime.io.CheckpointedInputGate;
-import org.apache.flink.streaming.runtime.io.InputProcessorUtil;
 import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessorFactory;
+import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
+import org.apache.flink.streaming.runtime.io.checkpointing.InputProcessorUtil;
 
 import java.util.Collections;
 import java.util.List;

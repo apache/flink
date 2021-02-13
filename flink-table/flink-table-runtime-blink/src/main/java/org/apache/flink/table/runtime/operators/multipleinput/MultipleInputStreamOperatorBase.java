@@ -285,7 +285,7 @@ public abstract class MultipleInputStreamOperatorBase extends AbstractStreamOper
         streamConfig.setOperatorName(wrapper.getOperatorName());
         streamConfig.setNumberOfNetworkInputs(wrapper.getAllInputTypes().size());
         streamConfig.setNumberOfOutputs(wrapper.getOutputEdges().size());
-        streamConfig.setTypeSerializersIn(
+        streamConfig.setupNetworkInputs(
                 wrapper.getAllInputTypes().stream()
                         .map(t -> t.createSerializer(executionConfig))
                         .toArray(TypeSerializer[]::new));

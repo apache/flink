@@ -23,6 +23,7 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.api.common.resources.Resource;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -254,6 +255,7 @@ public class ResourceProfile implements Serializable {
      */
     public boolean isMatching(final ResourceProfile required) {
         checkNotNull(required, "Cannot check matching with null resources");
+        throwUnsupportedOperationExecptionIfUnknown();
 
         if (this.equals(ANY)) {
             return true;
@@ -263,21 +265,59 @@ public class ResourceProfile implements Serializable {
             return true;
         }
 
-        if (this.equals(UNKNOWN)) {
-            return false;
-        }
-
         if (required.equals(UNKNOWN)) {
             return true;
         }
 
-        if (cpuCores.getValue().compareTo(required.cpuCores.getValue()) >= 0
-                && taskHeapMemory.compareTo(required.taskHeapMemory) >= 0
-                && taskOffHeapMemory.compareTo(required.taskOffHeapMemory) >= 0
-                && managedMemory.compareTo(required.managedMemory) >= 0
-                && networkMemory.compareTo(required.networkMemory) >= 0) {
+        return false;
+    }
 
-            for (Map.Entry<String, Resource> resource : required.extendedResources.entrySet()) {
+    /**
+     * Check whether all fields of this resource profile are no less than the given resource
+     * profile.
+     *
+     * <p>It is not same with the total resource comparison. It return true iff each resource
+     * field(cpu, task heap memory, managed memory, etc.) is no less than the respective field of
+     * the given profile.
+     *
+     * <p>For example, assume that this profile has 1 core, 50 managed memory and 100 heap memory.
+     *
+     * <ol>
+     *   <li>The comparison will return false if the other profile has 2 core, 10 managed memory and
+     *       1000 heap memory.
+     *   <li>The comparison will return true if the other profile has 1 core, 50 managed memory and
+     *       150 heap memory.
+     * </ol>
+     *
+     * @param other the other resource profile
+     * @return true if all fields of this are no less than the other's, otherwise false
+     */
+    public boolean allFieldsNoLessThan(final ResourceProfile other) {
+        checkNotNull(other, "Cannot compare null resources");
+
+        if (this.equals(ANY)) {
+            return true;
+        }
+
+        if (this.equals(other)) {
+            return true;
+        }
+
+        if (this.equals(UNKNOWN)) {
+            return false;
+        }
+
+        if (other.equals(UNKNOWN)) {
+            return true;
+        }
+
+        if (cpuCores.getValue().compareTo(other.cpuCores.getValue()) >= 0
+                && taskHeapMemory.compareTo(other.taskHeapMemory) >= 0
+                && taskOffHeapMemory.compareTo(other.taskOffHeapMemory) >= 0
+                && managedMemory.compareTo(other.managedMemory) >= 0
+                && networkMemory.compareTo(other.networkMemory) >= 0) {
+
+            for (Map.Entry<String, Resource> resource : other.extendedResources.entrySet()) {
                 if (!extendedResources.containsKey(resource.getKey())
                         || extendedResources
                                         .get(resource.getKey())
@@ -376,7 +416,8 @@ public class ResourceProfile implements Serializable {
         }
 
         checkArgument(
-                isMatching(other), "Try to subtract an unmatched resource profile from this one.");
+                allFieldsNoLessThan(other),
+                "Try to subtract an unmatched resource profile from this one.");
 
         Map<String, Resource> resultExtendedResource = new HashMap<>(extendedResources);
 
@@ -518,6 +559,17 @@ public class ResourceProfile implements Serializable {
 
     public static Builder newBuilder() {
         return new Builder();
+    }
+
+    public static Builder newBuilder(ResourceProfile resourceProfile) {
+        Preconditions.checkArgument(!resourceProfile.equals(UNKNOWN));
+        return newBuilder()
+                .setCpuCores(resourceProfile.cpuCores)
+                .setTaskHeapMemory(resourceProfile.taskHeapMemory)
+                .setTaskOffHeapMemory(resourceProfile.taskOffHeapMemory)
+                .setManagedMemory(resourceProfile.managedMemory)
+                .setNetworkMemory(resourceProfile.networkMemory)
+                .addExtendedResources(resourceProfile.extendedResources);
     }
 
     /** Builder for the {@link ResourceProfile}. */

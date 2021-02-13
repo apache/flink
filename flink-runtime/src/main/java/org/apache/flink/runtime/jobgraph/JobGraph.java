@@ -26,7 +26,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroupDesc;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.IterableUtils;
@@ -82,6 +82,8 @@ public class JobGraph implements Serializable {
 
     /** The mode in which the job is scheduled. */
     private ScheduleMode scheduleMode = ScheduleMode.LAZY_FROM_SOURCES;
+
+    private JobType jobType = JobType.BATCH;
 
     /**
      * Whether approximate local recovery is enabled. This flag will be removed together with legacy
@@ -239,6 +241,14 @@ public class JobGraph implements Serializable {
         return scheduleMode;
     }
 
+    public void setJobType(JobType type) {
+        this.jobType = type;
+    }
+
+    public JobType getJobType() {
+        return jobType;
+    }
+
     public void enableApproximateLocalRecovery(boolean enabled) {
         this.approximateLocalRecovery = enabled;
     }
@@ -331,15 +341,16 @@ public class JobGraph implements Serializable {
         return Collections.unmodifiableSet(slotSharingGroups);
     }
 
-    public Set<CoLocationGroupDesc> getCoLocationGroupDescriptors() {
-        // invoke distinct() on CoLocationGroup first to avoid creating
-        // multiple CoLocationGroupDec from one CoLocationGroup
-        final Set<CoLocationGroupDesc> coLocationGroups =
+    /**
+     * Returns all {@link CoLocationGroup} instances associated with this {@code JobGraph}.
+     *
+     * @return The associated {@code CoLocationGroup} instances.
+     */
+    public Set<CoLocationGroup> getCoLocationGroups() {
+        final Set<CoLocationGroup> coLocationGroups =
                 IterableUtils.toStream(getVertices())
                         .map(JobVertex::getCoLocationGroup)
                         .filter(Objects::nonNull)
-                        .distinct()
-                        .map(CoLocationGroupDesc::from)
                         .collect(Collectors.toSet());
         return Collections.unmodifiableSet(coLocationGroups);
     }

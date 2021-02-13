@@ -1,5 +1,5 @@
 flink-connector-elasticsearch5
-Copyright 2014-2020 The Apache Software Foundation
+Copyright 2014-2021 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -7,22 +7,24 @@ The Apache Software Foundation (http://www.apache.org/).
 This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
 - com.carrotsearch:hppc:0.7.1
-- com.fasterxml.jackson.core:jackson-core:2.10.1
-- com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:2.10.1
-- com.fasterxml.jackson.dataformat:jackson-dataformat-smile:2.10.1
-- com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.10.1
+- com.fasterxml.jackson.core:jackson-core:2.12.1
+- com.fasterxml.jackson.core:jackson-databind:2.12.1
+- com.fasterxml.jackson.core:jackson-annotations:2.12.1
+- com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:2.12.1
+- com.fasterxml.jackson.dataformat:jackson-dataformat-smile:2.12.1
+- com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.12.1
 - com.github.spullara.mustache.java:compiler:0.9.3
 - com.tdunning:t-digest:3.0
 - commons-codec:commons-codec:1.13
 - commons-logging:commons-logging:1.1.3
 - io.netty:netty:3.10.6.Final
-- io.netty:netty-buffer:4.1.44.Final
-- io.netty:netty-codec:4.1.44.Final
-- io.netty:netty-codec-http:4.1.44.Final
-- io.netty:netty-common:4.1.44.Final
-- io.netty:netty-handler:4.1.44.Final
-- io.netty:netty-resolver:4.1.44.Final
-- io.netty:netty-transport:4.1.44.Final
+- io.netty:netty-buffer:4.1.46.Final
+- io.netty:netty-codec:4.1.46.Final
+- io.netty:netty-codec-http:4.1.46.Final
+- io.netty:netty-common:4.1.46.Final
+- io.netty:netty-handler:4.1.46.Final
+- io.netty:netty-resolver:4.1.46.Final
+- io.netty:netty-transport:4.1.46.Final
 - joda-time:joda-time:2.5
 - net.java.dev.jna:jna:4.2.2
 - org.apache.httpcomponents:httpasyncclient:4.1.2

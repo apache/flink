@@ -63,15 +63,14 @@ public class SlotManagerFailUnfulfillableTest extends TestLogger {
     @Test
     public void testTurnOnKeepsPendingFulfillableRequests() throws Exception {
         // setup
-        final ResourceProfile availableProfile = ResourceProfile.fromResources(2.0, 100);
-        final ResourceProfile fulfillableProfile = ResourceProfile.fromResources(1.0, 100);
+        final ResourceProfile resourceProfile = ResourceProfile.fromResources(2.0, 100);
 
         final SlotManager slotManager = createSlotManagerNotStartingNewTMs();
         slotManager.setFailUnfulfillableRequest(false);
-        registerFreeSlot(slotManager, availableProfile);
+        registerFreeSlot(slotManager, resourceProfile);
 
-        slotManager.registerSlotRequest(slotRequest(fulfillableProfile));
-        slotManager.registerSlotRequest(slotRequest(fulfillableProfile));
+        slotManager.registerSlotRequest(slotRequest(resourceProfile));
+        slotManager.registerSlotRequest(slotRequest(resourceProfile));
 
         // test
         slotManager.setFailUnfulfillableRequest(true);
@@ -111,7 +110,8 @@ public class SlotManagerFailUnfulfillableTest extends TestLogger {
     public void testTurnOnKeepsRequestsWithStartingTMs() throws Exception {
         // setup
         final ResourceProfile availableProfile = ResourceProfile.fromResources(2.0, 100);
-        final ResourceProfile newTmProfile = ResourceProfile.fromResources(2.0, 200);
+        final ResourceProfile newTmProfile =
+                SlotManagerUtils.generateDefaultSlotResourceProfile(WORKER_RESOURCE_SPEC, 1);
 
         final SlotManager slotManager = createSlotManagerStartingNewTMs();
         slotManager.setFailUnfulfillableRequest(false);
@@ -172,7 +172,8 @@ public class SlotManagerFailUnfulfillableTest extends TestLogger {
     public void testStartingTmKeepsSlotPendingWhenOn() throws Exception {
         // setup
         final ResourceProfile availableProfile = ResourceProfile.fromResources(2.0, 100);
-        final ResourceProfile newTmProfile = ResourceProfile.fromResources(2.0, 200);
+        final ResourceProfile newTmProfile =
+                SlotManagerUtils.generateDefaultSlotResourceProfile(WORKER_RESOURCE_SPEC, 1);
 
         final SlotManager slotManager = createSlotManagerStartingNewTMs();
         registerFreeSlot(slotManager, availableProfile);
@@ -234,7 +235,8 @@ public class SlotManagerFailUnfulfillableTest extends TestLogger {
                         Collections.singleton(
                                 new SlotStatus(new SlotID(resourceID, 0), slotProfile)));
 
-        slotManager.registerTaskManager(taskExecutorConnection, slotReport);
+        slotManager.registerTaskManager(
+                taskExecutorConnection, slotReport, ResourceProfile.ANY, ResourceProfile.ANY);
     }
 
     private static SlotRequest slotRequest(ResourceProfile profile) {

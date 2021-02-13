@@ -25,17 +25,22 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc5
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingAppendSink}
+import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
-import org.junit.{Ignore, Test}
+import org.junit.{Rule, Test}
 
 import java.sql.Timestamp
 import java.time.LocalDateTime
 
 import scala.collection.JavaConverters._
 
-class SourceWatermarkITCase extends StreamingTestBase{
+class SourceWatermarkITCase extends StreamingTestBase {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
+
   @Test
   def testSimpleWatermarkPushDown(): Unit = {
     val data = Seq(

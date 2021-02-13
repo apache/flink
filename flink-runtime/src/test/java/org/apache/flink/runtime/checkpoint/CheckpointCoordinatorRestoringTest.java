@@ -200,7 +200,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
         assertEquals(1, completedCheckpoints.size());
 
         // shutdown the store
-        store.shutdown(JobStatus.SUSPENDED, new CheckpointsCleaner(), () -> {});
+        store.shutdown(JobStatus.SUSPENDED, new CheckpointsCleaner());
 
         // restore the store
         Set<ExecutionJobVertex> tasks = new HashSet<>();
@@ -397,7 +397,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
             verify(statefulExec1, times(1)).setInitialState(MockitoHamcrest.argThat(matcher));
             verify(statelessExec1, times(0)).setInitialState(Mockito.<JobManagerTaskRestore>any());
 
-            coord.shutdown(JobStatus.FINISHED);
+            coord.shutdown();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

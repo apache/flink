@@ -1132,7 +1132,7 @@ class TableEnvironment(object, metaclass=ABCMeta):
         python_files = self.get_config().get_configuration().get_string(
             jvm.PythonOptions.PYTHON_FILES.key(), None)
         if python_files is not None:
-            python_files = jvm.PythonDependencyUtils.FILE_DELIMITER.join([python_files, file_path])
+            python_files = jvm.PythonDependencyUtils.FILE_DELIMITER.join([file_path, python_files])
         else:
             python_files = file_path
         self.get_config().get_configuration().set_string(
@@ -1736,6 +1736,11 @@ class StreamTableEnvironment(TableEnvironment):
         .. versionadded:: 1.12.0
         """
         j_data_stream = data_stream._j_data_stream
+        JPythonConfigUtil = get_gateway().jvm.org.apache.flink.python.util.PythonConfigUtil
+        JPythonConfigUtil.declareManagedMemory(
+            j_data_stream.getTransformation(),
+            self._get_j_env(),
+            self._j_tenv.getConfig())
         if len(fields) == 0:
             return Table(j_table=self._j_tenv.fromDataStream(j_data_stream), t_env=self)
         elif all(isinstance(f, Expression) for f in fields):

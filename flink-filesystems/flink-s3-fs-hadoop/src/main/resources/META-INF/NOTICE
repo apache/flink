@@ -1,5 +1,5 @@
 flink-s3-fs-hadoop
-Copyright 2014-2020 The Apache Software Foundation
+Copyright 2014-2021 The Apache Software Foundation
 
 This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
@@ -9,13 +9,13 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.amazonaws:aws-java-sdk-s3:1.11.788
 - com.amazonaws:aws-java-sdk-sts:1.11.788
 - com.amazonaws:jmespath-java:1.11.788
-- com.fasterxml.jackson.core:jackson-annotations:2.10.1
-- com.fasterxml.jackson.core:jackson-core:2.10.1
-- com.fasterxml.jackson.core:jackson-databind:2.10.1
-- com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:2.10.1
+- com.fasterxml.jackson.core:jackson-annotations:2.12.1
+- com.fasterxml.jackson.core:jackson-core:2.12.1
+- com.fasterxml.jackson.core:jackson-databind:2.12.1
+- com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:2.12.1
 - com.fasterxml.woodstox:woodstox-core:5.0.3
 - com.google.guava:guava:11.0.2
-- commons-beanutils:commons-beanutils:1.9.3
+- commons-beanutils:commons-beanutils:1.9.4
 - commons-codec:commons-codec:1.13
 - commons-collections:commons-collections:3.2.2
 - commons-io:commons-io:2.7

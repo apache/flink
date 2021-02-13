@@ -92,7 +92,7 @@ public class RowFunctionITCase extends BuiltInFunctionTestBase {
     public static class TakesRow extends ScalarFunction {
         public @DataTypeHint("ROW<i INT, s STRING>") Row eval(
                 @DataTypeHint("ROW<i INT, s STRING>") Row row, Integer i) {
-            row.setField(0, (int) row.getField(0) + i);
+            row.setField("i", (int) row.getField("i") + i);
             return row;
         }
     }

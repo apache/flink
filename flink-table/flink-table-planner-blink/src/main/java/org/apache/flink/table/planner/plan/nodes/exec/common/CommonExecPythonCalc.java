@@ -31,8 +31,8 @@ import org.apache.flink.table.functions.python.PythonFunctionKind;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.planner.plan.utils.PythonUtil;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -66,28 +66,30 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData> {
     private final RexProgram calcProgram;
 
     public CommonExecPythonCalc(
-            RexProgram calcProgram, ExecEdge inputEdge, RowType outputType, String description) {
-        super(Collections.singletonList(inputEdge), outputType, description);
+            RexProgram calcProgram,
+            InputProperty inputProperty,
+            RowType outputType,
+            String description) {
+        super(Collections.singletonList(inputProperty), outputType, description);
         this.calcProgram = calcProgram;
     }
 
     @SuppressWarnings("unchecked")
     @Override
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-        final ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
-        final Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
+        final ExecEdge inputEdge = getInputEdges().get(0);
+        final Transformation<RowData> inputTransform =
+                (Transformation<RowData>) inputEdge.translateToPlan(planner);
+        final Configuration config =
+                CommonPythonUtil.getMergedConfig(planner.getExecEnv(), planner.getTableConfig());
         OneInputTransformation<RowData, RowData> ret =
                 createPythonOneInputTransformation(
-                        inputTransform,
-                        calcProgram,
-                        getDesc(),
-                        CommonPythonUtil.getConfig(planner.getExecEnv(), planner.getTableConfig()));
+                        inputTransform, calcProgram, getDescription(), config);
         if (inputsContainSingleton()) {
             ret.setParallelism(1);
             ret.setMaxParallelism(1);
         }
-        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(
-                planner.getTableConfig().getConfiguration())) {
+        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(config)) {
             ret.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
         }
         return ret;
@@ -190,7 +192,7 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData> {
             PythonFunctionInfo[] pythonFunctionInfos,
             int[] forwardedFields,
             boolean isArrow) {
-        Class clazz;
+        Class<?> clazz;
         if (isArrow) {
             clazz = CommonPythonUtil.loadClass(ARROW_PYTHON_SCALAR_FUNCTION_OPERATOR_NAME);
         } else {
@@ -198,7 +200,7 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData> {
         }
 
         try {
-            Constructor ctor =
+            Constructor<?> ctor =
                     clazz.getConstructor(
                             Configuration.class,
                             PythonFunctionInfo[].class,

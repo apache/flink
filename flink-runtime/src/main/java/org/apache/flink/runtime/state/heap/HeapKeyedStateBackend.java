@@ -45,6 +45,7 @@ import org.apache.flink.runtime.state.PriorityComparable;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.RegisteredPriorityQueueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.SnapshotResult;
+import org.apache.flink.runtime.state.SnapshotStrategyRunner;
 import org.apache.flink.runtime.state.StateSnapshotRestore;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 import org.apache.flink.runtime.state.StateSnapshotTransformers;
@@ -58,7 +59,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.RunnableFuture;
@@ -97,7 +97,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
     private final Map<String, StateTable<K, ?, ?>> registeredKVStates;
 
     /** Map of registered priority queue set states. */
-    private final Map<String, HeapPriorityQueueSnapshotRestoreWrapper> registeredPQStates;
+    private final Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates;
 
     /** The configuration for local recovery. */
     private final LocalRecoveryConfig localRecoveryConfig;
@@ -106,7 +106,9 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
      * The snapshot strategy for this backend. This determines, e.g., if snapshots are synchronous
      * or asynchronous.
      */
-    private final HeapSnapshotStrategy<K> snapshotStrategy;
+    private final SnapshotStrategyRunner<KeyedStateHandle, ?> snapshotStrategyRunner;
+
+    private final StateTableFactory<K> stateTableFactory;
 
     /** Factory for state that is organized as priority queue. */
     private final HeapPriorityQueueSetFactory priorityQueueSetFactory;
@@ -120,10 +122,11 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             CloseableRegistry cancelStreamRegistry,
             StreamCompressionDecorator keyGroupCompressionDecorator,
             Map<String, StateTable<K, ?, ?>> registeredKVStates,
-            Map<String, HeapPriorityQueueSnapshotRestoreWrapper> registeredPQStates,
+            Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates,
             LocalRecoveryConfig localRecoveryConfig,
             HeapPriorityQueueSetFactory priorityQueueSetFactory,
-            HeapSnapshotStrategy<K> snapshotStrategy,
+            SnapshotStrategyRunner<KeyedStateHandle, ?> snapshotStrategyRunner,
+            StateTableFactory<K> stateTableFactory,
             InternalKeyContext<K> keyContext) {
         super(
                 kvStateRegistry,
@@ -137,9 +140,10 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         this.registeredKVStates = registeredKVStates;
         this.registeredPQStates = registeredPQStates;
         this.localRecoveryConfig = localRecoveryConfig;
-        LOG.info("Initializing heap keyed state backend with stream factory.");
         this.priorityQueueSetFactory = priorityQueueSetFactory;
-        this.snapshotStrategy = snapshotStrategy;
+        this.snapshotStrategyRunner = snapshotStrategyRunner;
+        this.stateTableFactory = stateTableFactory;
+        LOG.info("Initializing heap keyed state backend with stream factory.");
     }
 
     // ------------------------------------------------------------------------
@@ -272,7 +276,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                             newStateSerializer,
                             snapshotTransformFactory);
 
-            stateTable = snapshotStrategy.newStateTable(keyContext, newMetaInfo, keySerializer);
+            stateTable = stateTableFactory.newStateTable(keyContext, newMetaInfo, keySerializer);
             registeredKVStates.put(stateDesc.getName(), stateTable);
         }
 
@@ -345,22 +349,15 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
     @Nonnull
     @Override
-    @SuppressWarnings("unchecked")
     public RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot(
             final long checkpointId,
             final long timestamp,
             @Nonnull final CheckpointStreamFactory streamFactory,
             @Nonnull CheckpointOptions checkpointOptions)
-            throws IOException {
+            throws Exception {
 
-        long startTime = System.currentTimeMillis();
-
-        final RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshotRunner =
-                snapshotStrategy.snapshot(
-                        checkpointId, timestamp, streamFactory, checkpointOptions);
-
-        snapshotStrategy.logSyncCompleted(streamFactory, startTime);
-        return snapshotRunner;
+        return snapshotStrategyRunner.snapshot(
+                checkpointId, timestamp, streamFactory, checkpointOptions);
     }
 
     @Override
@@ -421,11 +418,6 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             sum += state.sizeOfNamespace(namespace);
         }
         return sum;
-    }
-
-    @Override
-    public boolean supportsAsynchronousSnapshots() {
-        return snapshotStrategy.isAsynchronous();
     }
 
     @VisibleForTesting

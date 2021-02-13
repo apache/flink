@@ -55,13 +55,15 @@ public class DebeziumJsonSerializationSchema implements SerializationSchema<RowD
             RowType rowType,
             TimestampFormat timestampFormat,
             JsonOptions.MapNullKeyMode mapNullKeyMode,
-            String mapNullKeyLiteral) {
+            String mapNullKeyLiteral,
+            boolean encodeDecimalAsPlainNumber) {
         jsonSerializer =
                 new JsonRowDataSerializationSchema(
                         createJsonRowType(fromLogicalToDataType(rowType)),
                         timestampFormat,
                         mapNullKeyMode,
-                        mapNullKeyLiteral);
+                        mapNullKeyLiteral,
+                        encodeDecimalAsPlainNumber);
     }
 
     @Override

@@ -22,12 +22,14 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.PartitionSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.utils.RankProcessStrategy;
 import org.apache.flink.table.runtime.operators.rank.ConstantRankRange;
 import org.apache.flink.table.runtime.operators.rank.RankType;
-import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
 
 /** Stream {@link ExecNode} for Limit. */
 public class StreamExecLimit extends StreamExecRank {
@@ -39,20 +41,18 @@ public class StreamExecLimit extends StreamExecRank {
             long limitEnd,
             boolean generateUpdateBefore,
             boolean needRetraction,
-            ExecEdge inputEdge,
-            LogicalType outputType,
+            InputProperty inputProperty,
+            RowType outputType,
             String description) {
         super(
                 RankType.ROW_NUMBER,
-                new int[0],
-                new int[0],
-                new boolean[0],
-                new boolean[0],
+                PartitionSpec.ALL_IN_ONE,
+                SortSpec.ANY,
                 new ConstantRankRange(limitStart + 1, limitEnd),
                 getRankStrategy(needRetraction),
-                false,
+                false, // outputRankNumber
                 generateUpdateBefore,
-                inputEdge,
+                inputProperty,
                 outputType,
                 description);
         this.limitEnd = limitEnd;

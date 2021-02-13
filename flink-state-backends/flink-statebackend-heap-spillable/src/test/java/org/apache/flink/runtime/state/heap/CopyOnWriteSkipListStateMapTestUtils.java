@@ -35,6 +35,8 @@ import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.heap.space.Allocator;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 
+import org.hamcrest.Matcher;
+
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
@@ -46,10 +48,13 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.state.heap.CopyOnWriteSkipListStateMap.DEFAULT_LOGICAL_REMOVED_KEYS_RATIO;
 import static org.apache.flink.runtime.state.heap.CopyOnWriteSkipListStateMap.DEFAULT_MAX_KEYS_TO_DELETE_ONE_TIME;
 import static org.apache.flink.runtime.state.heap.SkipListUtils.NIL_NODE;
+import static org.apache.flink.runtime.state.testutils.StateEntryMatcher.entry;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -173,6 +178,11 @@ class CopyOnWriteSkipListStateMapTestUtils {
         }
     }
 
+    enum SnapshotVerificationMode {
+        ITERATOR,
+        SERIALIZED
+    }
+
     static <K, N, S> void verifySnapshotWithoutTransform(
             Map<N, Map<K, S>> referenceStates,
             @Nonnull CopyOnWriteSkipListStateMapSnapshot<K, N, S> snapshot,
@@ -180,17 +190,51 @@ class CopyOnWriteSkipListStateMapTestUtils {
             TypeSerializer<N> namespaceSerializer,
             TypeSerializer<S> stateSerializer)
             throws IOException {
+        verifySnapshotWithoutTransform(
+                referenceStates,
+                snapshot,
+                keySerializer,
+                namespaceSerializer,
+                stateSerializer,
+                SnapshotVerificationMode.SERIALIZED);
+    }
+
+    static <K, N, S> void verifySnapshotWithoutTransform(
+            Map<N, Map<K, S>> referenceStates,
+            @Nonnull CopyOnWriteSkipListStateMapSnapshot<K, N, S> snapshot,
+            TypeSerializer<K> keySerializer,
+            TypeSerializer<N> namespaceSerializer,
+            TypeSerializer<S> stateSerializer,
+            SnapshotVerificationMode verificationMode)
+            throws IOException {
         ByteArrayOutputStreamWithPos outputStream = new ByteArrayOutputStreamWithPos();
         DataOutputView outputView = new DataOutputViewStreamWrapper(outputStream);
-        snapshot.writeState(keySerializer, namespaceSerializer, stateSerializer, outputView, null);
+        if (verificationMode == SnapshotVerificationMode.ITERATOR) {
+            Iterator<StateEntry<K, N, S>> iterator =
+                    snapshot.getIterator(keySerializer, namespaceSerializer, stateSerializer, null);
+            assertThat(() -> iterator, containsInAnyOrder(toMatchers(referenceStates)));
+        } else {
+            snapshot.writeState(
+                    keySerializer, namespaceSerializer, stateSerializer, outputView, null);
 
-        Map<N, Map<K, S>> actualStates =
-                readStateFromSnapshot(
-                        outputStream.toByteArray(),
-                        keySerializer,
-                        namespaceSerializer,
-                        stateSerializer);
-        assertEquals(referenceStates, actualStates);
+            Map<N, Map<K, S>> actualStates =
+                    readStateFromSnapshot(
+                            outputStream.toByteArray(),
+                            keySerializer,
+                            namespaceSerializer,
+                            stateSerializer);
+            assertEquals(referenceStates, actualStates);
+        }
+    }
+
+    private static <K, N, S> List<Matcher<? super StateEntry<K, N, S>>> toMatchers(
+            Map<N, Map<K, S>> referenceStates) {
+        return referenceStates.entrySet().stream()
+                .flatMap(
+                        e ->
+                                e.getValue().entrySet().stream()
+                                        .map(ks -> entry(ks.getKey(), e.getKey(), ks.getValue())))
+                .collect(Collectors.toList());
     }
 
     static <K, N, S> void verifySnapshotWithTransform(
@@ -201,10 +245,27 @@ class CopyOnWriteSkipListStateMapTestUtils {
             TypeSerializer<N> namespaceSerializer,
             TypeSerializer<S> stateSerializer)
             throws IOException {
+        verifySnapshotWithTransform(
+                referenceStates,
+                snapshot,
+                transformer,
+                keySerializer,
+                namespaceSerializer,
+                stateSerializer,
+                SnapshotVerificationMode.SERIALIZED);
+    }
+
+    static <K, N, S> void verifySnapshotWithTransform(
+            @Nonnull Map<N, Map<K, S>> referenceStates,
+            @Nonnull CopyOnWriteSkipListStateMapSnapshot<K, N, S> snapshot,
+            StateSnapshotTransformer<S> transformer,
+            TypeSerializer<K> keySerializer,
+            TypeSerializer<N> namespaceSerializer,
+            TypeSerializer<S> stateSerializer,
+            SnapshotVerificationMode verificationMode)
+            throws IOException {
         ByteArrayOutputStreamWithPos outputStream = new ByteArrayOutputStreamWithPos();
         DataOutputView outputView = new DataOutputViewStreamWrapper(outputStream);
-        snapshot.writeState(
-                keySerializer, namespaceSerializer, stateSerializer, outputView, transformer);
 
         Map<N, Map<K, S>> transformedStates = new HashMap<>();
         for (Map.Entry<N, Map<K, S>> namespaceEntry : referenceStates.entrySet()) {
@@ -218,13 +279,21 @@ class CopyOnWriteSkipListStateMapTestUtils {
             }
         }
 
-        Map<N, Map<K, S>> actualStates =
-                readStateFromSnapshot(
-                        outputStream.toByteArray(),
-                        keySerializer,
-                        namespaceSerializer,
-                        stateSerializer);
-        assertEquals(transformedStates, actualStates);
+        if (verificationMode == SnapshotVerificationMode.SERIALIZED) {
+            snapshot.writeState(
+                    keySerializer, namespaceSerializer, stateSerializer, outputView, transformer);
+            Map<N, Map<K, S>> actualStates =
+                    readStateFromSnapshot(
+                            outputStream.toByteArray(),
+                            keySerializer,
+                            namespaceSerializer,
+                            stateSerializer);
+            assertEquals(transformedStates, actualStates);
+        } else {
+            Iterator<StateEntry<K, N, S>> iterator =
+                    snapshot.getIterator(keySerializer, namespaceSerializer, stateSerializer, null);
+            assertThat(() -> iterator, containsInAnyOrder(toMatchers(referenceStates)));
+        }
     }
 
     private static <K, N, S> Map<N, Map<K, S>> readStateFromSnapshot(

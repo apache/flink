@@ -92,7 +92,8 @@ public final class ExtractionUtils {
         final int paramCount = executable.getParameterCount();
         final int classCount = classes.length;
         // check for enough classes for each parameter
-        if (classCount < paramCount || (executable.isVarArgs() && classCount < paramCount - 1)) {
+        if ((!executable.isVarArgs() && classCount != paramCount)
+                || (executable.isVarArgs() && classCount < paramCount - 1)) {
             return false;
         }
         int currentClass = 0;
@@ -109,8 +110,9 @@ public final class ExtractionUtils {
                                     classes[currentClass], paramComponent, true)) {
                         currentClass++;
                     }
-                } else if (parameterMatches(classes[currentClass], param)
-                        || parameterMatches(classes[currentClass], paramComponent)) {
+                } else if (currentClass < classCount
+                        && (parameterMatches(classes[currentClass], param)
+                                || parameterMatches(classes[currentClass], paramComponent))) {
                     currentClass++;
                 }
             }
@@ -604,7 +606,7 @@ public final class ExtractionUtils {
     // --------------------------------------------------------------------------------------------
 
     /** Result of the extraction in {@link #extractAssigningConstructor(Class, List)}. */
-    static class AssigningConstructor {
+    public static class AssigningConstructor {
         public final Constructor<?> constructor;
         public final List<String> parameterNames;
 
@@ -618,7 +620,7 @@ public final class ExtractionUtils {
      * Checks whether the given constructor takes all of the given fields with matching (possibly
      * primitive) type and name. An assigning constructor can define the order of fields.
      */
-    static @Nullable AssigningConstructor extractAssigningConstructor(
+    public static @Nullable AssigningConstructor extractAssigningConstructor(
             Class<?> clazz, List<Field> fields) {
         AssigningConstructor foundConstructor = null;
         for (Constructor<?> constructor : clazz.getDeclaredConstructors()) {

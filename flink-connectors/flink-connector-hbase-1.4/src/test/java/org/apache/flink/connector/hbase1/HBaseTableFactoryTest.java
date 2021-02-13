@@ -25,7 +25,6 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.connector.hbase.options.HBaseWriteOptions;
 import org.apache.flink.connector.hbase.source.HBaseLookupFunction;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
-import org.apache.flink.connector.hbase1.options.HBaseOptions;
 import org.apache.flink.connector.hbase1.sink.HBaseUpsertTableSink;
 import org.apache.flink.connector.hbase1.source.HBaseTableSource;
 import org.apache.flink.table.api.DataTypes;
@@ -69,6 +68,7 @@ public class HBaseTableFactoryTest {
         tableProperties.put("connector.write.buffer-flush.max-size", "10mb");
         tableProperties.put("connector.write.buffer-flush.max-rows", "1000");
         tableProperties.put("connector.write.buffer-flush.interval", "10s");
+        tableProperties.put("connector.properties.hbase.security.authentication", "kerberos");
 
         DescriptorProperties descriptorProperties = new DescriptorProperties(true);
         descriptorProperties.putTableSchema(SCHEMA, tableSchema);
@@ -201,15 +201,6 @@ public class HBaseTableFactoryTest {
                     Types.BIG_DEC, Types.SQL_TIMESTAMP, Types.SQL_DATE, Types.SQL_TIME
                 },
                 hbaseSchema.getQualifierTypes("f4"));
-
-        HBaseOptions expectedHBaseOptions =
-                HBaseOptions.builder()
-                        .setTableName("testHBastTable")
-                        .setZkQuorum("localhost:2181")
-                        .setZkNodeParent("/flink")
-                        .build();
-        HBaseOptions actualHBaseOptions = ((HBaseUpsertTableSink) sink).getHBaseOptions();
-        Assert.assertEquals(expectedHBaseOptions, actualHBaseOptions);
 
         HBaseWriteOptions expectedWriteOptions =
                 HBaseWriteOptions.builder()

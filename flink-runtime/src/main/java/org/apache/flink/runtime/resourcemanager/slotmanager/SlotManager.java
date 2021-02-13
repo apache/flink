@@ -122,11 +122,16 @@ public interface SlotManager extends AutoCloseable {
      *
      * @param taskExecutorConnection for the new task manager
      * @param initialSlotReport for the new task manager
+     * @param totalResourceProfile for the new task manager
+     * @param defaultSlotResourceProfile for the new task manager
      * @return True if the task manager has not been registered before and is registered
      *     successfully; otherwise false
      */
     boolean registerTaskManager(
-            TaskExecutorConnection taskExecutorConnection, SlotReport initialSlotReport);
+            TaskExecutorConnection taskExecutorConnection,
+            SlotReport initialSlotReport,
+            ResourceProfile totalResourceProfile,
+            ResourceProfile defaultSlotResourceProfile);
 
     /**
      * Unregisters the task manager identified by the given instance id and its associated slots

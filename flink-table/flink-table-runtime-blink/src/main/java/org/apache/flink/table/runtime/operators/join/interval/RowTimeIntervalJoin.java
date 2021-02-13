@@ -18,9 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.join.interval;
 
-import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
@@ -39,7 +37,7 @@ public final class RowTimeIntervalJoin extends TimeIntervalJoin {
             long allowedLateness,
             InternalTypeInfo<RowData> leftType,
             InternalTypeInfo<RowData> rightType,
-            GeneratedFunction<FlatJoinFunction<RowData, RowData, RowData>> genJoinFunc,
+            IntervalJoinFunction joinFunc,
             int leftTimeIdx,
             int rightTimeIdx) {
         super(
@@ -49,7 +47,7 @@ public final class RowTimeIntervalJoin extends TimeIntervalJoin {
                 allowedLateness,
                 leftType,
                 rightType,
-                genJoinFunc);
+                joinFunc);
         this.leftTimeIdx = leftTimeIdx;
         this.rightTimeIdx = rightTimeIdx;
     }

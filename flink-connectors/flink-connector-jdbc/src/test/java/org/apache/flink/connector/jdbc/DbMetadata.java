@@ -31,4 +31,11 @@ public interface DbMetadata extends Serializable {
     XADataSource buildXaDataSource();
 
     String getDriverClass();
+
+    default JdbcConnectionOptions toConnectionOptions() {
+        return new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
+                .withDriverName(getDriverClass())
+                .withUrl(getUrl())
+                .build();
+    }
 }

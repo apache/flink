@@ -1,0 +1,66 @@
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>historyserver.archive.clean-expired-jobs</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether HistoryServer should cleanup jobs that are no longer present `historyserver.archive.fs.dir`.</td>
+        </tr>
+        <tr>
+            <td><h5>historyserver.archive.fs.dir</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Comma separated list of directories to fetch archived jobs from. The history server will monitor these directories for archived jobs. You can configure the JobManager to archive jobs to a directory via `jobmanager.archive.fs.dir`.</td>
+        </tr>
+        <tr>
+            <td><h5>historyserver.archive.fs.refresh-interval</h5></td>
+            <td style="word-wrap: break-word;">10000</td>
+            <td>Long</td>
+            <td>Interval in milliseconds for refreshing the archived job directories.</td>
+        </tr>
+        <tr>
+            <td><h5>historyserver.archive.retained-jobs</h5></td>
+            <td style="word-wrap: break-word;">-1</td>
+            <td>Integer</td>
+            <td>The maximum number of jobs to retain in each archive directory defined by `historyserver.archive.fs.dir`. If set to `-1`(default), there is no limit to the number of archives. If set to `0` or less than `-1` HistoryServer will throw an <span markdown="span">`IllegalConfigurationException`</span>. </td>
+        </tr>
+        <tr>
+            <td><h5>historyserver.web.address</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Address of the HistoryServer's web interface.</td>
+        </tr>
+        <tr>
+            <td><h5>historyserver.web.port</h5></td>
+            <td style="word-wrap: break-word;">8082</td>
+            <td>Integer</td>
+            <td>Port of the HistoryServers's web interface.</td>
+        </tr>
+        <tr>
+            <td><h5>historyserver.web.refresh-interval</h5></td>
+            <td style="word-wrap: break-word;">10000</td>
+            <td>Long</td>
+            <td>The refresh interval for the HistoryServer web-frontend in milliseconds.</td>
+        </tr>
+        <tr>
+            <td><h5>historyserver.web.ssl.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Enable HTTPs access to the HistoryServer web frontend. This is applicable only when the global SSL flag security.ssl.enabled is set to true.</td>
+        </tr>
+        <tr>
+            <td><h5>historyserver.web.tmpdir</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>This configuration parameter allows defining the Flink web directory to be used by the history server web interface. The web interface will copy its static files into the directory.</td>
+        </tr>
+    </tbody>
+</table>

@@ -40,7 +40,6 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
@@ -61,7 +60,6 @@ import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceOverview;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.PermanentlyFencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -613,13 +611,6 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                                 return CompletableFuture.completedFuture(jobDetails.getStatus());
                             }
                         });
-    }
-
-    @Override
-    public CompletableFuture<OperatorBackPressureStatsResponse> requestOperatorBackPressureStats(
-            final JobID jobId, final JobVertexID jobVertexId) {
-        return performOperationOnJobMasterGateway(
-                jobId, gateway -> gateway.requestOperatorBackPressureStats(jobVertexId));
     }
 
     @Override

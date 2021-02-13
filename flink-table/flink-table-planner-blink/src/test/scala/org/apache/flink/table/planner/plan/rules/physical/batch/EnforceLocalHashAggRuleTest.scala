@@ -31,8 +31,8 @@ import org.junit.Before
 
 
 /**
-  * Test for [[EnforceLocalHashAggRule]].
-  */
+ * Test for [[EnforceLocalHashAggRule]].
+ */
 class EnforceLocalHashAggRuleTest extends EnforceLocalAggRuleTestBase {
 
   @Before
@@ -42,9 +42,9 @@ class EnforceLocalHashAggRuleTest extends EnforceLocalAggRuleTestBase {
     // remove the original BatchExecHashAggRule and add BatchExecHashAggRuleForOnePhase
     // to let the physical phase generate one phase aggregate
     program.getFlinkRuleSetProgram(FlinkBatchProgram.PHYSICAL)
-      .get.remove(RuleSets.ofList(BatchExecHashAggRule.INSTANCE))
+      .get.remove(RuleSets.ofList(BatchPhysicalHashAggRule.INSTANCE))
     program.getFlinkRuleSetProgram(FlinkBatchProgram.PHYSICAL)
-      .get.add(RuleSets.ofList(BatchExecHashAggRuleForOnePhase.INSTANCE))
+      .get.add(RuleSets.ofList(BatchPhysicalHashAggRuleForOnePhase.INSTANCE))
 
     var calciteConfig = TableConfigUtils.getCalciteConfig(util.tableEnv.getConfig)
     calciteConfig = CalciteConfig.createBuilder(calciteConfig)
@@ -60,11 +60,11 @@ class EnforceLocalHashAggRuleTest extends EnforceLocalAggRuleTestBase {
 }
 
 /**
-  * Planner rule that ignore the [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]]
-  * value, and only enable one phase aggregate.
-  * This rule only used for test.
-  */
-class BatchExecHashAggRuleForOnePhase extends BatchExecHashAggRule {
+ * Planner rule that ignore the [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]]
+ * value, and only enable one phase aggregate.
+ * This rule only used for test.
+ */
+class BatchPhysicalHashAggRuleForOnePhase extends BatchPhysicalHashAggRule {
   override protected def isTwoPhaseAggWorkable(
       aggFunctions: Array[UserDefinedFunction], tableConfig: TableConfig): Boolean = false
 
@@ -72,6 +72,6 @@ class BatchExecHashAggRuleForOnePhase extends BatchExecHashAggRule {
       aggFunctions: Array[UserDefinedFunction], tableConfig: TableConfig): Boolean = true
 }
 
-object BatchExecHashAggRuleForOnePhase {
-  val INSTANCE = new BatchExecHashAggRuleForOnePhase
+object BatchPhysicalHashAggRuleForOnePhase {
+  val INSTANCE = new BatchPhysicalHashAggRuleForOnePhase
 }

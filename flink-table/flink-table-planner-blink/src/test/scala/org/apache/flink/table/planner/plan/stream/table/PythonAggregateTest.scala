@@ -22,11 +22,11 @@ import org.apache.flink.api.java.tuple.Tuple1
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.dataview.{ListView, MapView}
-import org.apache.flink.table.planner.plan.nodes.common.CommonPythonAggregate
+import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.TestPythonAggregateFunction
-import org.apache.flink.table.planner.typeutils.DataViewUtils.{DataViewSpec, ListViewSpec, MapViewSpec}
+import org.apache.flink.table.planner.typeutils.DataViewUtils.{ListViewSpec, MapViewSpec}
 import org.apache.flink.table.planner.utils.TableTestBase
-import org.apache.flink.table.types.DataType
+
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -74,7 +74,7 @@ class PythonAggregateTest extends TableTestBase {
       DataTypes.FIELD("f1", ListView.newListViewDataType(DataTypes.STRING())),
       DataTypes.FIELD("f2", MapView.newMapViewDataType(DataTypes.STRING(), DataTypes.BIGINT())))
 
-    val specs = TestCommonPythonAggregate.extractDataViewSpecs(accType)
+    val specs = CommonPythonUtil.extractDataViewSpecs(0, accType)
 
     val expected = Array(
       new ListViewSpec(
@@ -103,7 +103,7 @@ class PythonAggregateTest extends TableTestBase {
     val accType = DataTypes.ROW(
       DataTypes.FIELD("f0", DataTypes.ROW(
         DataTypes.FIELD("f0", ListView.newListViewDataType(DataTypes.STRING())))))
-    TestCommonPythonAggregate.extractDataViewSpecs(accType)
+    CommonPythonUtil.extractDataViewSpecs(0, accType)
   }
 
   @Test(expected = classOf[TableException])
@@ -111,12 +111,6 @@ class PythonAggregateTest extends TableTestBase {
     val accType = DataTypes.STRUCTURED(
       classOf[Tuple1[_]],
       DataTypes.FIELD("f0", ListView.newListViewDataType(DataTypes.STRING())))
-    TestCommonPythonAggregate.extractDataViewSpecs(accType)
-  }
-}
-
-object TestCommonPythonAggregate extends CommonPythonAggregate {
-  def extractDataViewSpecs(accType: DataType): Array[DataViewSpec] = {
-    extractDataViewSpecs(0, accType)
+    CommonPythonUtil.extractDataViewSpecs(0, accType)
   }
 }

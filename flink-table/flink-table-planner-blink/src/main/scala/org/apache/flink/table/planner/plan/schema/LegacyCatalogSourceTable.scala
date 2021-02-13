@@ -176,7 +176,7 @@ class LegacyCatalogSourceTable[T](
       catalogTable.copy(
         FlinkHints.mergeTableOptions(
           hintedOptions,
-          catalogTable.getProperties))
+          catalogTable.getOptions))
     } else {
       catalogTable
     }

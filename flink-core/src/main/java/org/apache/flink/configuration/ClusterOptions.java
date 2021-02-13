@@ -21,10 +21,15 @@ package org.apache.flink.configuration;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
+import org.apache.flink.configuration.description.TextElement;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /** Options which control the cluster behaviour. */
 @PublicEvolving
@@ -103,6 +108,13 @@ public class ClusterOptions {
                                                     "FLINK-16510"))
                                     .build());
 
+    @Documentation.Section(Documentation.Sections.EXPERT_CLUSTER)
+    public static final ConfigOption<UserSystemExitMode> INTERCEPT_USER_SYSTEM_EXIT =
+            key("cluster.intercept-user-system-exit")
+                    .enumType(UserSystemExitMode.class)
+                    .defaultValue(UserSystemExitMode.DISABLED)
+                    .withDescription(UserSystemExitMode.getConfigDescription());
+
     @Documentation.ExcludeFromDocumentation
     public static final ConfigOption<Boolean> ENABLE_DECLARATIVE_RESOURCE_MANAGEMENT =
             ConfigOptions.key("cluster.declarative-resource-management.enabled")
@@ -111,8 +123,61 @@ public class ClusterOptions {
                     .withDescription(
                             "Defines whether the cluster uses declarative resource management.");
 
+    @Documentation.ExcludeFromDocumentation
+    public static final ConfigOption<Boolean> ENABLE_FINE_GRAINED_RESOURCE_MANAGEMENT =
+            ConfigOptions.key("cluster.fine-grained-resource-management.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Defines whether the cluster uses fine-grained resource management.");
+
     public static boolean isDeclarativeResourceManagementEnabled(Configuration configuration) {
         return configuration.get(ENABLE_DECLARATIVE_RESOURCE_MANAGEMENT)
                 && !System.getProperties().containsKey("flink.tests.disable-declarative");
+    }
+
+    public static boolean isFineGrainedResourceManagementEnabled(Configuration configuration) {
+        // TODO We need to bind fine-grained with declarative because in the first step we implement
+        // the feature base on the declarative protocol. We would be able to support both protocols
+        // and no longer need this binding after FLINK-20838.
+        return isDeclarativeResourceManagementEnabled(configuration)
+                && (configuration.get(ENABLE_FINE_GRAINED_RESOURCE_MANAGEMENT)
+                        || System.getProperties().containsKey("flink.tests.enable-fine-grained"));
+    }
+
+    /** The mode of how to handle user code attempting to exit JVM. */
+    public enum UserSystemExitMode {
+        DISABLED("Flink is not monitoring or intercepting calls to System.exit()"),
+        LOG("Log exit attempt with stack trace but still allowing exit to be performed"),
+        THROW("Throw exception when exit is attempted disallowing JVM termination");
+
+        private final String description;
+
+        UserSystemExitMode(String description) {
+            this.description = description;
+        }
+
+        public static Description getConfigDescription() {
+            Description.DescriptionBuilder builder = Description.builder();
+            List<TextElement> modeDescriptions =
+                    new ArrayList<>(UserSystemExitMode.values().length);
+            builder.text(
+                    "Flag to check user code exiting system by terminating JVM (e.g., System.exit())");
+            for (UserSystemExitMode mode : UserSystemExitMode.values()) {
+                modeDescriptions.add(
+                        text(String.format("%s - %s", mode.name(), mode.getDescription())));
+            }
+            builder.list(modeDescriptions.toArray(new TextElement[modeDescriptions.size()]));
+            builder.linebreak();
+            builder.text(
+                    "Note that this configuration option can interfere with %s: "
+                            + "In intercepted user-code, a call to System.exit() will not cause the JVM to halt, when %s is configured.",
+                    code(HALT_ON_FATAL_ERROR.key()), code(THROW.name()));
+            return builder.build();
+        }
+
+        public String getDescription() {
+            return description;
+        }
     }
 }

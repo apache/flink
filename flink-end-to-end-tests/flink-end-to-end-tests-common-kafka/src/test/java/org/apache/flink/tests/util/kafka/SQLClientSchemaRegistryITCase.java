@@ -133,9 +133,7 @@ public class SQLClientSchemaRegistryITCase {
                         " 'format' = 'avro-confluent',",
                         " 'avro-confluent.schema-registry.url' = 'http://"
                                 + INTER_CONTAINER_REGISTRY_ALIAS
-                                + ":8082"
-                                + "',",
-                        " 'avro-confluent.schema-registry.subject' = '" + categorySubject + "'",
+                                + ":8082'",
                         ");",
                         "",
                         "CREATE TABLE results (",
@@ -167,7 +165,7 @@ public class SQLClientSchemaRegistryITCase {
         // Create topic test-avro
         kafkaClient.createTopic(1, 1, testUserBehaviorTopic);
 
-        String behaviourSubject = "user_behavior";
+        String behaviourSubject = testUserBehaviorTopic + "-value";
         List<String> sqlLines =
                 Arrays.asList(
                         "CREATE TABLE user_behavior (",
@@ -186,8 +184,7 @@ public class SQLClientSchemaRegistryITCase {
                         " 'avro-confluent.schema-registry.url' = 'http://"
                                 + INTER_CONTAINER_REGISTRY_ALIAS
                                 + ":8082"
-                                + "',",
-                        " 'avro-confluent.schema-registry.subject' = '" + behaviourSubject + "'",
+                                + "'",
                         ");",
                         "",
                         "INSERT INTO user_behavior VALUES (1, 1, 1, 'buy', CAST (1234 AS TIMESTAMP(3)));");

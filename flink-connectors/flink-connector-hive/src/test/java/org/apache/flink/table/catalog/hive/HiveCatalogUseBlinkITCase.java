@@ -267,7 +267,7 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
                                     .execute()
                                     .collect());
             Assert.assertEquals(2, results.size());
-            Assert.assertEquals("[2013, 2019]", results.toString());
+            Assert.assertEquals("[+I[2013], +I[2019]]", results.toString());
         } finally {
             tableEnv.executeSql("drop table src");
         }
@@ -295,7 +295,7 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
                                     .execute()
                                     .collect());
             Assert.assertEquals(2, results.size());
-            Assert.assertEquals("[1, 3]", results.toString());
+            Assert.assertEquals("[+I[1], +I[3]]", results.toString());
         } finally {
             tableEnv.executeSql("drop table src");
         }

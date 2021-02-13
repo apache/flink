@@ -28,9 +28,11 @@ import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.runtime.utils.StreamITCase;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
+import org.apache.flink.table.utils.LegacyRowResource;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.time.LocalDateTime;
@@ -39,6 +41,9 @@ import java.util.List;
 
 /** End to end tests for {@link org.apache.flink.table.api.TableEnvironment#fromValues}. */
 public class ValuesITCase extends AbstractTestBase {
+
+    @ClassRule public static LegacyRowResource usesLegacyRows = LegacyRowResource.INSTANCE;
+
     @Test
     public void testTypeConversions() throws Exception {
         List<Row> data =

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -61,14 +62,21 @@ public class TestCheckpointResponder implements CheckpointResponder {
     }
 
     @Override
+    public void reportCheckpointMetrics(
+            JobID jobID,
+            ExecutionAttemptID executionAttemptID,
+            long checkpointId,
+            CheckpointMetrics checkpointMetrics) {}
+
+    @Override
     public void declineCheckpoint(
             JobID jobID,
             ExecutionAttemptID executionAttemptID,
             long checkpointId,
-            Throwable cause) {
+            CheckpointException checkpointException) {
 
         DeclineReport declineReport =
-                new DeclineReport(jobID, executionAttemptID, checkpointId, cause);
+                new DeclineReport(jobID, executionAttemptID, checkpointId, checkpointException);
 
         declineReports.add(declineReport);
 
@@ -130,19 +138,19 @@ public class TestCheckpointResponder implements CheckpointResponder {
 
     public static class DeclineReport extends AbstractReport {
 
-        public final Throwable cause;
+        public final CheckpointException cause;
 
         public DeclineReport(
                 JobID jobID,
                 ExecutionAttemptID executionAttemptID,
                 long checkpointId,
-                Throwable cause) {
+                CheckpointException cause) {
 
             super(jobID, executionAttemptID, checkpointId);
             this.cause = cause;
         }
 
-        public Throwable getCause() {
+        public CheckpointException getCause() {
             return cause;
         }
     }

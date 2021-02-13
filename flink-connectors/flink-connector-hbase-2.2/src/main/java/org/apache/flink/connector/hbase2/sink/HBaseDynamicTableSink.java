@@ -36,20 +36,20 @@ import org.apache.hadoop.conf.Configuration;
 @Internal
 public class HBaseDynamicTableSink implements DynamicTableSink {
 
-    private final String hbaseTableName;
+    private final String tableName;
     private final HBaseTableSchema hbaseTableSchema;
     private final Configuration hbaseConf;
     private final HBaseWriteOptions writeOptions;
     private final String nullStringLiteral;
 
     public HBaseDynamicTableSink(
-            String hbaseTableName,
+            String tableName,
             HBaseTableSchema hbaseTableSchema,
             Configuration hbaseConf,
             HBaseWriteOptions writeOptions,
             String nullStringLiteral) {
 
-        this.hbaseTableName = hbaseTableName;
+        this.tableName = tableName;
         this.hbaseTableSchema = hbaseTableSchema;
         this.hbaseConf = hbaseConf;
         this.writeOptions = writeOptions;
@@ -60,7 +60,7 @@ public class HBaseDynamicTableSink implements DynamicTableSink {
     public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
         HBaseSinkFunction<RowData> sinkFunction =
                 new HBaseSinkFunction<>(
-                        hbaseTableName,
+                        tableName,
                         hbaseConf,
                         new RowDataToMutationConverter(hbaseTableSchema, nullStringLiteral),
                         writeOptions.getBufferFlushMaxSizeInBytes(),
@@ -84,7 +84,7 @@ public class HBaseDynamicTableSink implements DynamicTableSink {
     @Override
     public DynamicTableSink copy() {
         return new HBaseDynamicTableSink(
-                hbaseTableName, hbaseTableSchema, hbaseConf, writeOptions, nullStringLiteral);
+                tableName, hbaseTableSchema, hbaseConf, writeOptions, nullStringLiteral);
     }
 
     @Override
@@ -102,5 +102,15 @@ public class HBaseDynamicTableSink implements DynamicTableSink {
     @VisibleForTesting
     public HBaseWriteOptions getWriteOptions() {
         return writeOptions;
+    }
+
+    @VisibleForTesting
+    public Configuration getConfiguration() {
+        return this.hbaseConf;
+    }
+
+    @VisibleForTesting
+    public String getTableName() {
+        return this.tableName;
     }
 }

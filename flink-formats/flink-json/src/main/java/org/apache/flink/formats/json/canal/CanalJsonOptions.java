@@ -40,14 +40,16 @@ public class CanalJsonOptions {
                     .stringType()
                     .noDefaultValue()
                     .withDescription(
-                            "Only read changelog rows which match the specific database (by comparing the \"database\" meta field in the record).");
+                            "An optional regular expression to only read the specific databases changelog rows by regular matching the \"database\" meta field in the Canal record."
+                                    + "The pattern string is compatible with Java's Pattern.");
 
     public static final ConfigOption<String> TABLE_INCLUDE =
             ConfigOptions.key("table.include")
                     .stringType()
                     .noDefaultValue()
                     .withDescription(
-                            "Only read changelog rows which match the specific table (by comparing the \"table\" meta field in the record).");
+                            "An optional regular expression to only read the specific tables changelog rows by regular matching the \"table\" meta field in the Canal record."
+                                    + "The pattern string is compatible with Java's Pattern.");
 
     // --------------------------------------------------------------------------------------------
     // Validation

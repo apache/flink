@@ -530,6 +530,19 @@ public final class Expressions {
         return apiCall(functionInstance, arguments);
     }
 
+    /**
+     * A call to a SQL expression.
+     *
+     * <p>The given string is parsed and translated into an {@link Expression} during planning. Only
+     * the translated expression is evaluated during runtime.
+     *
+     * <p>Note: Currently, calls are limited to simple scalar expressions. Calls to aggregate or
+     * table-valued functions are not supported. Sub-queries are also not allowed.
+     */
+    public static ApiExpression callSql(String sqlExpression) {
+        return apiCall(BuiltInFunctionDefinitions.CALL_SQL, sqlExpression);
+    }
+
     private static ApiExpression apiCall(FunctionDefinition functionDefinition, Object... args) {
         List<Expression> arguments =
                 Stream.of(args)

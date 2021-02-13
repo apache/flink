@@ -25,6 +25,9 @@ import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecExchange;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitor;
 import org.apache.flink.table.types.logical.LogicalType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,25 +39,55 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @param <T> The type of the elements that result from this node.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public abstract class ExecNodeBase<T> implements ExecNode<T> {
 
-    private final String description;
-    private final List<ExecEdge> inputEdges;
-    private final LogicalType outputType;
-    // TODO remove this field once edge support `source` and `target`,
-    //  and then we can get/set `inputNodes` through `inputEdges`.
-    private List<ExecNode<?>> inputNodes;
+    /** The unique identifier for each ExecNode in the json plan. */
+    @JsonIgnore private final int id;
 
-    private transient Transformation<T> transformation;
+    @JsonIgnore private final String description;
 
-    protected ExecNodeBase(List<ExecEdge> inputEdges, LogicalType outputType, String description) {
-        this.inputEdges = new ArrayList<>(checkNotNull(inputEdges));
+    @JsonIgnore private final LogicalType outputType;
+
+    @JsonIgnore private final List<InputProperty> inputProperties;
+
+    @JsonIgnore private List<ExecEdge> inputEdges;
+
+    @JsonIgnore private transient Transformation<T> transformation;
+
+    /** This is used to assign a unique ID to every ExecNode. */
+    private static Integer idCounter = 0;
+
+    /** Generate an unique ID for ExecNode. */
+    public static int getNewNodeId() {
+        idCounter++;
+        return idCounter;
+    }
+
+    // used for json creator
+    protected ExecNodeBase(
+            int id,
+            List<InputProperty> inputProperties,
+            LogicalType outputType,
+            String description) {
+        this.id = id;
+        this.inputProperties = checkNotNull(inputProperties);
         this.outputType = checkNotNull(outputType);
         this.description = checkNotNull(description);
     }
 
+    protected ExecNodeBase(
+            List<InputProperty> inputProperties, LogicalType outputType, String description) {
+        this(getNewNodeId(), inputProperties, outputType, description);
+    }
+
     @Override
-    public String getDesc() {
+    public final int getId() {
+        return id;
+    }
+
+    @Override
+    public String getDescription() {
         return description;
     }
 
@@ -64,33 +97,30 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
     }
 
     @Override
-    public List<ExecNode<?>> getInputNodes() {
-        checkNotNull(inputNodes, "inputNodes should not be null, please call setInputNodes first.");
-        return inputNodes;
+    public List<InputProperty> getInputProperties() {
+        return inputProperties;
     }
 
+    @JsonIgnore
     @Override
     public List<ExecEdge> getInputEdges() {
-        return checkNotNull(inputEdges, "inputEdges should not be null.");
+        return checkNotNull(
+                inputEdges,
+                "inputEdges should not null, please call `setInputEdges(List<ExecEdge>)` first.");
     }
 
-    // TODO remove this method once edge support `source` and `target`,
-    //  and then we can get/set `inputNodes` through `inputEdges`.
-    public void setInputNodes(List<ExecNode<?>> inputNodes) {
-        checkArgument(checkNotNull(inputNodes).size() == checkNotNull(inputEdges).size());
-        this.inputNodes = new ArrayList<>(inputNodes);
+    @JsonIgnore
+    @Override
+    public void setInputEdges(List<ExecEdge> inputEdges) {
+        checkNotNull(inputEdges, "inputEdges should not be null.");
+        this.inputEdges = new ArrayList<>(inputEdges);
     }
 
     @Override
-    public void replaceInputNode(int ordinalInParent, ExecNode<?> newInputNode) {
-        checkArgument(ordinalInParent >= 0 && ordinalInParent < inputNodes.size());
-        inputNodes.set(ordinalInParent, newInputNode);
-    }
-
-    @Override
-    public void replaceInputEdge(int ordinalInParent, ExecEdge newInputEdge) {
-        checkArgument(ordinalInParent >= 0 && ordinalInParent < inputEdges.size());
-        inputEdges.set(ordinalInParent, newInputEdge);
+    public void replaceInputEdge(int index, ExecEdge newInputEdge) {
+        List<ExecEdge> edges = getInputEdges();
+        checkArgument(index >= 0 && index < edges.size());
+        edges.set(index, newInputEdge);
     }
 
     public Transformation<T> translateToPlan(Planner planner) {
@@ -110,11 +140,15 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
 
     /** Whether there is singleton exchange node as input. */
     protected boolean inputsContainSingleton() {
-        return getInputNodes().stream()
+        return getInputEdges().stream()
+                .map(ExecEdge::getSource)
                 .anyMatch(
                         i ->
                                 i instanceof CommonExecExchange
-                                        && i.getInputEdges().get(0).getRequiredShuffle().getType()
-                                                == ExecEdge.ShuffleType.SINGLETON);
+                                        && i.getInputProperties()
+                                                        .get(0)
+                                                        .getRequiredDistribution()
+                                                        .getType()
+                                                == InputProperty.DistributionType.SINGLETON);
     }
 }

@@ -30,7 +30,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.utils.ScanUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
-import org.apache.flink.table.runtime.operators.AbstractProcessStreamOperator;
+import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -96,7 +96,7 @@ public class StreamExecDataStreamScan extends ExecNodeBase<RowData>
             }
             CodeGeneratorContext ctx =
                     new CodeGeneratorContext(planner.getTableConfig())
-                            .setOperatorBaseClass(AbstractProcessStreamOperator.class);
+                            .setOperatorBaseClass(TableStreamOperator.class);
             transformation =
                     ScanUtil.convertToInternalRow(
                             ctx,

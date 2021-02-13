@@ -17,7 +17,6 @@
 ################################################################################
 import datetime
 import decimal
-
 import pytz
 
 from pyflink.common import Row
@@ -58,7 +57,7 @@ class PandasUDFITTests(object):
             .execute_insert("Results") \
             .wait()
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["1,3,6,3", "3,2,14,5"])
+        self.assert_equals(actual, ["+I[1, 3, 6, 3]", "+I[3, 2, 14, 5]"])
 
     def test_all_data_types(self):
         import pandas as pd
@@ -276,12 +275,13 @@ class PandasUDFITTests(object):
             row_func(t.u)) \
             .execute_insert("Results").wait()
         actual = source_sink_utils.results()
-        self.assert_equals(actual,
-                           ["1,32767,-2147483648,1,true,false,1.0,1.0,hello,中文,"
-                            "[102, 108, 105, 110, 107],1000000000000000000.050000000000000000,"
-                            "1000000000000000000.059999999999999999,2014-09-13,01:00:01,"
-                            "1970-01-02 00:00:00.123,[hello, 中文, null],[1970-01-02 00:00:00.123],"
-                            "[1, 2],[hello, 中文, null],1,hello,1970-01-02 00:00:00.123,[1, 2]"])
+        self.assert_equals(
+            actual,
+            ["+I[1, 32767, -2147483648, 1, true, false, 1.0, 1.0, hello, 中文, "
+             "[102, 108, 105, 110, 107], 1000000000000000000.050000000000000000, "
+             "1000000000000000000.059999999999999999, 2014-09-13, 01:00:01, "
+             "1970-01-02 00:00:00.123, [hello, 中文, null], [1970-01-02 00:00:00.123], "
+             "[1, 2], [hello, 中文, null], +I[1, hello, 1970-01-02 00:00:00.123, [1, 2]]]"])
 
 
 class BlinkPandasUDFITTests(object):
@@ -315,7 +315,7 @@ class BlinkPandasUDFITTests(object):
         t.select(local_zoned_timestamp_func(local_zoned_timestamp_func(t.a))) \
             .execute_insert("Results").wait()
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["1970-01-02T00:00:00.123Z"])
+        self.assert_equals(actual, ["+I[1970-01-02T00:00:00.123Z]"])
 
 
 class StreamPandasUDFITTests(PandasUDFITTests,
@@ -335,7 +335,7 @@ class BatchPandasUDFITTests(PyFlinkBatchTableTestCase):
         t = t.where(add_one(t.b) <= 3) \
             .select(t.a, t.b + 1, add(t.a + 1, subtract_one(t.c)) + 2, add(add_one(t.a), 1))
         result = self.collect(t)
-        self.assert_equals(result, ["1,3,6,3", "3,2,14,5"])
+        self.assert_equals(result, ["+I[1, 3, 6, 3]", "+I[3, 2, 14, 5]"])
 
 
 class BlinkBatchPandasUDFITTests(PandasUDFITTests,
@@ -360,6 +360,7 @@ if __name__ == '__main__':
 
     try:
         import xmlrunner
+
         testRunner = xmlrunner.XMLTestRunner(output='target/test-reports')
     except ImportError:
         testRunner = None

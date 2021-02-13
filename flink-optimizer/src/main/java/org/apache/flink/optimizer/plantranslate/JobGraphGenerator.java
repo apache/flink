@@ -67,6 +67,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphUtils;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
@@ -246,6 +247,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 
         // create the job graph object
         JobGraph graph = new JobGraph(jobId, program.getJobName());
+        graph.setJobType(JobType.BATCH);
         try {
             graph.setExecutionConfig(program.getOriginalPlan().getExecutionConfig());
         } catch (IOException e) {
@@ -255,13 +257,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
         }
 
         // add vertices to the graph
-        for (JobVertex vertex : this.vertices.values()) {
-            vertex.setInputDependencyConstraint(
-                    program.getOriginalPlan()
-                            .getExecutionConfig()
-                            .getDefaultInputDependencyConstraint());
-            graph.addVertex(vertex);
-        }
+        this.vertices.values().forEach(graph::addVertex);
 
         for (JobVertex vertex : this.auxVertices) {
             graph.addVertex(vertex);

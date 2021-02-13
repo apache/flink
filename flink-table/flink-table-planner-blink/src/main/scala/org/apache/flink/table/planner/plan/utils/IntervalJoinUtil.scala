@@ -18,22 +18,18 @@
 
 package org.apache.flink.table.planner.plan.utils
 
-import java.util
+import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RelTimeIndicatorConverter}
+import org.apache.flink.table.planner.codegen._
+import org.apache.flink.table.planner.plan.nodes.exec.spec.IntervalJoinSpec.WindowBounds
+import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlKind
-import org.apache.flink.api.common.functions.FlatJoinFunction
-import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.data.RowData
-import org.apache.flink.table.data.utils.JoinedRowData
-import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RelTimeIndicatorConverter}
-import org.apache.flink.table.planner.codegen._
-import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType
-import org.apache.flink.table.runtime.generated.GeneratedFunction
-import org.apache.flink.table.types.logical.RowType
+
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -41,13 +37,6 @@ import scala.collection.JavaConversions._
   * Util for interval join operator.
   */
 object IntervalJoinUtil {
-
-  case class WindowBounds(
-      isEventTime: Boolean,
-      leftLowerBound: Long,
-      leftUpperBound: Long,
-      leftTimeIdx: Int,
-      rightTimeIdx: Int)
 
   protected case class WindowBound(bound: Long, isLeftLower: Boolean)
 
@@ -76,78 +65,6 @@ object IntervalJoinUtil {
         c.operands.exists(accessesTimeAttribute(_, inputType))
       case _ => false
     }
-  }
-
-  /**
-    * Generates a JoinFunction that applies additional join predicates and projects the result.
-    *
-    * @param  config          table env config
-    * @param  joinType        join type to determine whether input can be null
-    * @param  leftType        left stream type
-    * @param  rightType       right stream type
-    * @param  returnType      return type
-    * @param  otherCondition  non-equi condition
-    * @param  funcName        name of generated function
-    */
-  private[flink] def generateJoinFunction(
-      config: TableConfig,
-      joinType: JoinRelType,
-      leftType: RowType,
-      rightType: RowType,
-      returnType: RelDataType,
-      otherCondition: Option[RexNode],
-      funcName: String): GeneratedFunction[FlatJoinFunction[RowData, RowData, RowData]] = {
-
-    // whether input can be null
-    val nullCheck = joinType match {
-      case JoinRelType.INNER => false
-      case JoinRelType.LEFT => true
-      case JoinRelType.RIGHT => true
-      case JoinRelType.FULL => true
-    }
-
-    val ctx = CodeGeneratorContext(config)
-    val collectorTerm = CodeGenUtils.DEFAULT_COLLECTOR_TERM
-
-    val returnTypeInfo = FlinkTypeFactory.toLogicalRowType(returnType)
-    val joinedRow = "joinedRow"
-    ctx.addReusableOutputRecord(returnTypeInfo, classOf[JoinedRowData], joinedRow)
-
-    val exprGenerator = new ExprCodeGenerator(ctx, nullCheck)
-      .bindInput(leftType)
-      .bindSecondInput(rightType)
-
-    val leftRow = CodeGenUtils.DEFAULT_INPUT1_TERM
-    val rightRow = CodeGenUtils.DEFAULT_INPUT2_TERM
-    val buildJoinedRow =
-      s"""
-         |$joinedRow.replace($leftRow,$rightRow);""".stripMargin
-
-    val body = otherCondition match {
-      case None =>
-        s"""
-           |$buildJoinedRow
-           |$collectorTerm.collect($joinedRow);
-           |""".stripMargin
-      case Some(remainCondition) =>
-        val genCond = exprGenerator.generateExpression(remainCondition)
-        s"""
-           |${genCond.code}
-           |if (${genCond.resultTerm}) {
-           |  $buildJoinedRow
-           |  $collectorTerm.collect($joinedRow);
-           |}""".stripMargin
-    }
-
-    FunctionCodeGenerator.generateFunction(
-      ctx,
-      funcName,
-      classOf[FlatJoinFunction[RowData, RowData, RowData]],
-      body,
-      returnTypeInfo,
-      leftType,
-      input2Type = Some(rightType),
-      collectorTerm = collectorTerm)
   }
 
   /**
@@ -241,14 +158,14 @@ object IntervalJoinUtil {
       }
 
     val bounds = if (timePreds.head.leftInputOnLeftSide) {
-      Some(WindowBounds(
+      Some(new WindowBounds(
         timePreds.head.isEventTime,
         leftLowerBound,
         leftUpperBound,
         timePreds.head.leftTimeIdx,
         timePreds.head.rightTimeIdx))
     } else {
-      Some(WindowBounds(
+      Some(new WindowBounds(
         timePreds.head.isEventTime,
         leftLowerBound,
         leftUpperBound,
@@ -396,7 +313,7 @@ object IntervalJoinUtil {
         try {
           accessedType = inputType.getFieldList.get(ref.getIndex).getType
         } catch {
-          case e =>
+          case e: Throwable =>
             e.printStackTrace()
         }
         accessedType match {

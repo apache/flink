@@ -27,6 +27,9 @@ import org.apache.flink.util.FileUtils
 
 import org.junit.{Before, Test}
 
+import java.time.{LocalDateTime, ZoneId}
+import java.time.format.DateTimeFormatter
+
 class TableSourceITCase extends BatchTestBase {
 
   @Before
@@ -93,6 +96,18 @@ class TableSourceITCase extends BatchTestBase {
         row(1, "Hi"),
         row(2, "Hello"),
         row(3, "Hello world"))
+    )
+  }
+
+  @Test
+  def testSimpleProjectWithProcTime(): Unit = {
+    checkResult(
+      "SELECT a, c, CHAR_LENGTH(DATE_FORMAT(PROCTIME(), 'yyyy-MM-dd HH:mm')) FROM MyTable",
+      Seq(
+        row(1, "Hi", 16),
+        row(2, "Hello", 16),
+        row(3, "Hello world", 16)
+      )
     )
   }
 

@@ -22,6 +22,7 @@ import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.io.network.partition.CheckpointedResultPartition;
 import org.apache.flink.runtime.io.network.partition.CheckpointedResultSubpartition;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
@@ -116,6 +117,10 @@ class ResultSubpartitionRecoveredStateHandler
             throws IOException {
         bufferBuilderAndConsumer.f0.finish();
         if (bufferBuilderAndConsumer.f1.isDataAvailable()) {
+            NetworkActionsLogger.traceRecover(
+                    "ResultSubpartitionRecoveredStateHandler#recover",
+                    bufferBuilderAndConsumer.f1,
+                    subpartitionInfo);
             boolean added =
                     getSubpartition(subpartitionInfo)
                             .add(bufferBuilderAndConsumer.f1, Integer.MIN_VALUE);

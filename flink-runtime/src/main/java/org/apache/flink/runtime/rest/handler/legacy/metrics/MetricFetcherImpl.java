@@ -111,6 +111,13 @@ public class MetricFetcherImpl<T extends RestfulGateway> implements MetricFetche
         }
     }
 
+    @Override
+    public long getLastUpdateTime() {
+        synchronized (this) {
+            return lastUpdateTime;
+        }
+    }
+
     private void fetchMetrics() {
         LOG.debug("Start fetching metrics.");
 

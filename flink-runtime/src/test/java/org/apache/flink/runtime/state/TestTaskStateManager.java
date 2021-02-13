@@ -117,6 +117,12 @@ public class TestTaskStateManager implements TaskStateManager {
         }
     }
 
+    @Override
+    public void reportIncompleteTaskStateSnapshots(
+            CheckpointMetaData checkpointMetaData, CheckpointMetrics checkpointMetrics) {
+        reportedCheckpointId = checkpointMetaData.getCheckpointId();
+    }
+
     @Nonnull
     @Override
     public PrioritizedOperatorSubtaskState prioritizedOperatorState(OperatorID operatorID) {

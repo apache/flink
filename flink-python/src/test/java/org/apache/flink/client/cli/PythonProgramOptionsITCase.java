@@ -19,7 +19,6 @@
 package org.apache.flink.client.cli;
 
 import org.apache.flink.client.program.PackagedProgram;
-import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonOptions;
 
@@ -48,9 +47,7 @@ public class PythonProgramOptionsITCase {
      * ITCase.
      */
     @Test
-    public void testConfigurePythonExecution()
-            throws IllegalAccessException, NoSuchFieldException, CliArgsException,
-                    ProgramInvocationException, IOException {
+    public void testConfigurePythonExecution() throws Exception {
         final String[] args = {
             "--python", "xxx.py",
             "--pyModule", "xxx",

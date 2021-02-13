@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.operators.aggregate;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.runtime.util.MemorySegmentPool;
+import org.apache.flink.table.runtime.util.collections.binary.BytesHashMap;
 
 import java.util.List;
 

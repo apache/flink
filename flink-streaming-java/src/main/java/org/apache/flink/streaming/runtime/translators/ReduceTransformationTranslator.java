@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.translators;
 
+import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
 import org.apache.flink.streaming.api.operators.BatchGroupedReduceOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
@@ -53,7 +54,8 @@ public class ReduceTransformationTranslator<IN, KEY>
                         transformation.getKeySelector(),
                         transformation.getKeyTypeInfo(),
                         context);
-        BatchExecutionUtils.applySortingInputs(transformation.getId(), context);
+        BatchExecutionUtils.applyBatchExecutionSettings(
+                transformation.getId(), context, StreamConfig.InputRequirement.SORTED);
 
         return ids;
     }

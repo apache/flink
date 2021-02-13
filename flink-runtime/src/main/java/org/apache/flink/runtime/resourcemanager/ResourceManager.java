@@ -145,7 +145,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
     private final ClusterInformation clusterInformation;
 
-    private final ResourceManagerMetricGroup resourceManagerMetricGroup;
+    protected final ResourceManagerMetricGroup resourceManagerMetricGroup;
 
     protected final Executor ioExecutor;
 
@@ -247,7 +247,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             leaderElectionService.start(this);
             jobLeaderIdService.start(new JobLeaderIdActionsImpl());
 
-            registerTaskExecutorMetrics();
+            registerMetrics();
         } catch (Exception e) {
             handleStartResourceManagerServicesException(e);
         }
@@ -464,7 +464,11 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                 taskExecutors.get(taskManagerResourceId);
 
         if (workerTypeWorkerRegistration.getInstanceID().equals(taskManagerRegistrationId)) {
-            if (slotManager.registerTaskManager(workerTypeWorkerRegistration, slotReport)) {
+            if (slotManager.registerTaskManager(
+                    workerTypeWorkerRegistration,
+                    slotReport,
+                    workerTypeWorkerRegistration.getTotalResourceProfile(),
+                    workerTypeWorkerRegistration.getDefaultSlotResourceProfile())) {
                 onWorkerRegistered(workerTypeWorkerRegistration.getWorker());
             }
             return CompletableFuture.completedFuture(Acknowledge.get());
@@ -946,7 +950,9 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                             taskExecutorRegistration.getDataPort(),
                             taskExecutorRegistration.getJmxPort(),
                             taskExecutorRegistration.getHardwareDescription(),
-                            taskExecutorRegistration.getMemoryConfiguration());
+                            taskExecutorRegistration.getMemoryConfiguration(),
+                            taskExecutorRegistration.getTotalResourceProfile(),
+                            taskExecutorRegistration.getDefaultSlotResourceProfile());
 
             log.info(
                     "Registering TaskManager with ResourceID {} ({}) at ResourceManager",
@@ -974,7 +980,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         }
     }
 
-    private void registerTaskExecutorMetrics() {
+    protected void registerMetrics() {
         resourceManagerMetricGroup.gauge(
                 MetricNames.NUM_REGISTERED_TASK_MANAGERS, () -> (long) taskExecutors.size());
     }

@@ -35,7 +35,6 @@ import org.apache.flink.runtime.rest.messages.DashboardConfiguration;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
-import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
@@ -202,8 +201,7 @@ public class HistoryServer {
         List<RefreshLocation> refreshDirs = new ArrayList<>();
         for (String refreshDirectory : refreshDirectories.split(",")) {
             try {
-                Path refreshPath =
-                        WebMonitorUtils.validateAndNormalizeUri(new Path(refreshDirectory).toUri());
+                Path refreshPath = new Path(refreshDirectory);
                 FileSystem refreshFS = refreshPath.getFileSystem();
                 refreshDirs.add(new RefreshLocation(refreshPath, refreshFS));
             } catch (Exception e) {

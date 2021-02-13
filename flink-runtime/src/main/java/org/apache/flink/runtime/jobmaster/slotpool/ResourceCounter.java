@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -33,7 +34,7 @@ import java.util.Set;
  * <p>ResourceCounter contains a set of {@link ResourceProfile ResourceProfiles} and their
  * associated counts. The counts are always positive (> 0).
  */
-final class ResourceCounter {
+public final class ResourceCounter {
 
     private final Map<ResourceProfile, Integer> resources;
 
@@ -231,7 +232,10 @@ final class ResourceCounter {
      * @return ResourceCounter which contains the specified resourceProfile and its count
      */
     public static ResourceCounter withResource(ResourceProfile resourceProfile, int count) {
-        return new ResourceCounter(Collections.singletonMap(resourceProfile, count));
+        Preconditions.checkArgument(count >= 0);
+        return count == 0
+                ? empty()
+                : new ResourceCounter(Collections.singletonMap(resourceProfile, count));
     }
 
     @Override

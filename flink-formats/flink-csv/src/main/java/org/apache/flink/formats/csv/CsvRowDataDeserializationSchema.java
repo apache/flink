@@ -30,6 +30,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectRea
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvSchema;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Objects;
@@ -112,6 +114,11 @@ public final class CsvRowDataDeserializationSchema implements DeserializationSch
             return this;
         }
 
+        public Builder disableQuoteCharacter() {
+            this.csvSchema = this.csvSchema.rebuild().disableQuoteChar().build();
+            return this;
+        }
+
         public Builder setQuoteCharacter(char c) {
             this.csvSchema = this.csvSchema.rebuild().setQuoteChar(c).build();
             return this;
@@ -140,7 +147,10 @@ public final class CsvRowDataDeserializationSchema implements DeserializationSch
     }
 
     @Override
-    public RowData deserialize(byte[] message) throws IOException {
+    public RowData deserialize(@Nullable byte[] message) throws IOException {
+        if (message == null) {
+            return null;
+        }
         try {
             final JsonNode root = objectReader.readValue(message);
             return (RowData) runtimeConverter.convert(root);
