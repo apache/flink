@@ -57,6 +57,13 @@ public interface PartitionRequestClient {
     void resumeConsumption(RemoteInputChannel inputChannel);
 
     /**
+     * Acknowledges all user records are processed for this channel.
+     *
+     * @param inputChannel The input channel to resume data consumption.
+     */
+    void acknowledgeAllRecordsProcessed(RemoteInputChannel inputChannel);
+
+    /**
      * Sends a task event backwards to an intermediate result partition.
      *
      * @param partitionId The identifier of result partition.

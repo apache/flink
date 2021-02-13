@@ -25,6 +25,8 @@ import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -62,6 +64,11 @@ public class MockIndexedInputGate extends IndexedInputGate {
 
     @Override
     public void resumeConsumption(InputChannelInfo channelInfo) {}
+
+    @Override
+    public void acknowledgeAllRecordsProcessed(InputChannelInfo channelInfo) throws IOException {
+        throw new UnsupportedEncodingException();
+    }
 
     @Override
     public int getNumberOfInputChannels() {

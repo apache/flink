@@ -234,6 +234,9 @@ public class AlignedCheckpointsMassiveRandomTest {
         @Override
         public void checkpointStopped(long cancelledCheckpointId) {}
 
+        public void acknowledgeAllRecordsProcessed(InputChannelInfo channelInfo)
+                throws IOException {}
+
         @Override
         public void setup() {}
 
