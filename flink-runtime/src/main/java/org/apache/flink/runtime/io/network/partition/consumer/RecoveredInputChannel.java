@@ -132,12 +132,12 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
                 // Similar to notifyBufferAvailable(), make sure that we never add a buffer
                 // after releaseAllResources() released all buffers from receivedBuffers.
                 if (isReleased) {
-                    return;
+                    wasEmpty = false;
+                } else {
+                    wasEmpty = receivedBuffers.isEmpty();
+                    receivedBuffers.add(buffer);
+                    recycleBuffer = false;
                 }
-
-                wasEmpty = receivedBuffers.isEmpty();
-                receivedBuffers.add(buffer);
-                recycleBuffer = false;
             }
 
             if (wasEmpty) {
