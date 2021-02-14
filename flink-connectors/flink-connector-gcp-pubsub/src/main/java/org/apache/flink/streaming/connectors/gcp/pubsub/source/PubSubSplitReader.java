@@ -5,110 +5,59 @@ import org.apache.flink.connector.base.source.reader.RecordsBySplits;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
-import org.apache.flink.streaming.connectors.gcp.pubsub.BlockingGrpcPubSubSubscriber;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubDeserializationSchema;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubSubscriber;
-import org.apache.flink.util.Collector;
 
-import com.google.pubsub.v1.ProjectSubscriptionName;
-import com.google.pubsub.v1.PullRequest;
 import com.google.pubsub.v1.ReceivedMessage;
-import com.google.pubsub.v1.SubscriberGrpc;
-import io.grpc.ManagedChannel;
-import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
 /** @param <T> the type of the record. */
 public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSubSplit> {
+    private static final Logger LOG = LoggerFactory.getLogger(PubSubSplitReader.class);
     private final PubSubSubscriber subscriber;
     private final PubSubDeserializationSchema<T> deserializationSchema;
-    private final PubSubCollector collector;
+    private final List<String> messageIdsToAcknowledge = new ArrayList<>();
+    private boolean isEndOfStreamSignalled = false;
 
     public PubSubSplitReader(
-            PubSubDeserializationSchema deserializationSchema,
-            String projectName,
-            String subscriptionName,
-            String hostAndPort)
-            throws IOException {
-        ManagedChannel managedChannel =
-                NettyChannelBuilder.forTarget(hostAndPort)
-                        .usePlaintext() // This is 'Ok' because this is ONLY used for testing.
-                        .build();
+            PubSubDeserializationSchema deserializationSchema, PubSubSubscriber subscriber) {
 
-        //		TODO: doing this without giving credentials will not work universally, there should be a
-        // factory for creating pubsub subscribers like with the old source...
-        SubscriberGrpc.SubscriberBlockingStub stub = SubscriberGrpc.newBlockingStub(managedChannel);
-
-        String projectSubscriptionName =
-                ProjectSubscriptionName.format(projectName, subscriptionName);
-
-        PullRequest pullRequest =
-                PullRequest.newBuilder()
-                        //			TODO: add arg for this
-                        .setMaxMessages(3)
-                        .setSubscription(projectSubscriptionName)
-                        .build();
-
-        //		TODO: add args for these two; retries is 10 in existing PubSubSource, timeout the same
-        int retries = 2;
-        Duration timeout = Duration.ofSeconds(1);
-
-        this.subscriber =
-                new BlockingGrpcPubSubSubscriber(
-                        projectSubscriptionName,
-                        managedChannel,
-                        stub,
-                        pullRequest,
-                        retries,
-                        timeout);
-
+        this.subscriber = subscriber;
         this.deserializationSchema = deserializationSchema;
-        this.collector = new PubSubCollector();
     }
 
     @Override
     public RecordsWithSplitIds<Tuple2<T, Long>> fetch() throws IOException {
-        //        PubSubSplitRecords<Tuple2<T, Long>> recordsBySplit = new PubSubSplitRecords<>();
-
         RecordsBySplits.Builder<Tuple2<T, Long>> recordsBySplits = new RecordsBySplits.Builder<>();
-        List<ReceivedMessage> receivedMessages = subscriber.pull();
-        //		TODO: no checkpointing yet...
-        List<String> messageIdsToAck = new ArrayList<>();
-        for (ReceivedMessage receivedMessage : receivedMessages) {
+
+        for (ReceivedMessage receivedMessage : subscriber.pull()) {
             try {
-                deserializationSchema.deserialize(receivedMessage.getMessage(), collector);
-                // TODO: is there any case, where there can be more than one message in collector?
-                collector
-                        .getMessages()
-                        .forEach(
-                                r -> {
-                                    recordsBySplits.add(
-                                            "0",
-                                            new Tuple2<>(
-                                                    r,
-                                                    receivedMessage
-                                                            .getMessage()
-                                                            .getPublishTime()
-                                                            .getSeconds()));
-                                    System.out.println(
-                                            r.toString() + " " + receivedMessage.getAckId());
-                                });
-                System.out.println(receivedMessage.getAckId());
-                messageIdsToAck.add(receivedMessage.getAckId());
+                T message = deserializationSchema.deserialize(receivedMessage.getMessage());
+                if (deserializationSchema.isEndOfStream(message)) {
+                    //                    TODO: has to be changed somehow for checkpointing...
+                    //                    recordsBySplits.addFinishedSplit(PubSubSplit.SPLIT_ID);
+                } else {
+                    recordsBySplits.add(
+                            PubSubSplit.SPLIT_ID,
+                            new Tuple2<>(
+                                    message,
+                                    receivedMessage.getMessage().getPublishTime().getSeconds()));
+                }
             } catch (Exception e) {
                 throw new IOException("Failed to deserialize received message due to", e);
-            } finally {
-                collector.reset();
             }
+
+            //            LOG.info(
+            //                    "About to add message ID {} to messages to be acknowledged",
+            //                    receivedMessage.getAckId());
+            messageIdsToAcknowledge.add(receivedMessage.getAckId());
         }
-        subscriber.acknowledge(messageIdsToAck);
-        if (collector.isEndOfStreamSignalled()) {
-            recordsBySplits.addFinishedSplit(PubSubSplit.SPLIT_ID);
-        }
+
         return recordsBySplits.build();
     }
 
@@ -123,34 +72,13 @@ public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSub
         subscriber.close();
     }
 
-    private class PubSubCollector implements Collector<T> {
-        private final List<T> messages = new ArrayList<>();
+    //    ------------------------------------------------------
 
-        private boolean endOfStreamSignalled = false;
-
-        @Override
-        public void collect(T message) {
-            if (endOfStreamSignalled || deserializationSchema.isEndOfStream(message)) {
-                this.endOfStreamSignalled = true;
-                return;
-            }
-
-            messages.add(message);
-        }
-
-        @Override
-        public void close() {}
-
-        private List<T> getMessages() {
-            return messages;
-        }
-
-        private void reset() {
-            messages.clear();
-        }
-
-        public boolean isEndOfStreamSignalled() {
-            return endOfStreamSignalled;
+    public void notifyCheckpointComplete() {
+        LOG.info("Acknowledging messages with IDs {}", messageIdsToAcknowledge);
+        if (!messageIdsToAcknowledge.isEmpty()) {
+            subscriber.acknowledge(messageIdsToAcknowledge);
+            messageIdsToAcknowledge.clear();
         }
     }
 }

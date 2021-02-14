@@ -34,13 +34,13 @@ import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
 import java.io.IOException;
 import java.time.Duration;
 
-class DefaultPubSubSubscriberFactory implements PubSubSubscriberFactory {
+public class DefaultPubSubSubscriberFactory implements PubSubSubscriberFactory {
     private final int retries;
     private final Duration timeout;
     private final int maxMessagesPerPull;
     private final String projectSubscriptionName;
 
-    DefaultPubSubSubscriberFactory(
+    public DefaultPubSubSubscriberFactory(
             String projectSubscriptionName,
             int retries,
             Duration pullTimeout,

@@ -33,7 +33,7 @@ public class PubSubSourceEnumerator
 
     @Override
     public PubSubEnumeratorCheckpoint snapshotState() throws Exception {
-        return null;
+        return new PubSubEnumeratorCheckpoint();
     }
 
     @Override

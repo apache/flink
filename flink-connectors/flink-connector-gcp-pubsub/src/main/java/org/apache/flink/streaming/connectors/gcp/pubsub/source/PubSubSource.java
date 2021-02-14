@@ -31,67 +31,44 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.streaming.connectors.gcp.pubsub.DefaultPubSubSubscriberFactory;
 import org.apache.flink.streaming.connectors.gcp.pubsub.DeserializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubDeserializationSchema;
+import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubSubscriberFactory;
 import org.apache.flink.util.Preconditions;
 
 import com.google.auth.Credentials;
+import com.google.pubsub.v1.ProjectSubscriptionName;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Properties;
 import java.util.function.Supplier;
+
+import static com.google.cloud.pubsub.v1.SubscriptionAdminSettings.defaultCredentialsProviderBuilder;
 
 /** */
 public class PubSubSource<OUT>
         implements Source<OUT, PubSubSplit, PubSubEnumeratorCheckpoint>, ResultTypeQueryable<OUT> {
     protected final PubSubDeserializationSchema<OUT> deserializationSchema;
-
-    private final Boundedness boundedness;
+    protected final PubSubSubscriberFactory pubSubSubscriberFactory;
     private final Properties props;
     private final Credentials credentials;
-    private final String projectName;
-    private final String subscriptionName;
-    private final String hostAndPort;
 
-    //	TODO: make private and provide builder
-    public PubSubSource(
+    PubSubSource(
             PubSubDeserializationSchema<OUT> deserializationSchema,
-            Boundedness boundedness,
+            PubSubSubscriberFactory pubSubSubscriberFactory,
             Properties props,
-            Credentials credentials,
-            String projectName,
-            String subscriptionName,
-            String hostAndPort) {
+            Credentials credentials) {
         this.deserializationSchema = deserializationSchema;
-        this.boundedness = boundedness;
+        this.pubSubSubscriberFactory = pubSubSubscriberFactory;
         this.props = props;
         this.credentials = credentials;
-        this.projectName = projectName;
-        this.subscriptionName = subscriptionName;
-        this.hostAndPort = hostAndPort;
-    }
-
-    public PubSubSource(
-            DeserializationSchema<OUT> deserializationSchema,
-            Boundedness boundedness,
-            Properties props,
-            Credentials credentials,
-            String projectName,
-            String subscriptionName,
-            String hostAndPort) {
-        Preconditions.checkNotNull(deserializationSchema);
-        this.deserializationSchema = new DeserializationSchemaWrapper<>(deserializationSchema);
-        this.boundedness = boundedness;
-        this.props = props;
-        this.credentials = credentials;
-        this.projectName = projectName;
-        this.subscriptionName = subscriptionName;
-        this.hostAndPort = hostAndPort;
     }
 
     @Override
     public Boundedness getBoundedness() {
-        return this.boundedness;
+        return Boundedness.CONTINUOUS_UNBOUNDED;
     }
 
     @Override
@@ -102,7 +79,8 @@ public class PubSubSource<OUT>
                 () -> {
                     try {
                         return new PubSubSplitReader<>(
-                                deserializationSchema, projectName, subscriptionName, hostAndPort);
+                                deserializationSchema,
+                                pubSubSubscriberFactory.getSubscriber(credentials));
                     } catch (IOException e) {
                         e.printStackTrace();
                         return null;
@@ -139,12 +117,141 @@ public class PubSubSource<OUT>
     @Override
     public SimpleVersionedSerializer<PubSubEnumeratorCheckpoint>
             getEnumeratorCheckpointSerializer() {
-        return null;
+        //        TODO:
+        return new PubSubEnumeratorCheckpointSerializer();
     }
 
     @Override
     public TypeInformation<OUT> getProducedType() {
         return deserializationSchema.getProducedType();
+    }
+
+    public static DeserializationSchemaBuilder newBuilder() {
+        return new DeserializationSchemaBuilder();
+    }
+
+    /** @param <OUT> */
+    public static class PubSubSourceBuilder<OUT>
+            implements ProjectNameBuilder<OUT>, SubscriptionNameBuilder<OUT> {
+        private final PubSubDeserializationSchema<OUT> deserializationSchema;
+        private String projectName;
+        private String subscriptionName;
+
+        private PubSubSubscriberFactory pubSubSubscriberFactory;
+        private Properties props;
+        private Credentials credentials;
+        //        TODO:
+        private int messagePerSecondRateLimit = 100000;
+
+        private PubSubSourceBuilder(DeserializationSchema<OUT> deserializationSchema) {
+            Preconditions.checkNotNull(deserializationSchema);
+            this.deserializationSchema = new DeserializationSchemaWrapper<>(deserializationSchema);
+        }
+
+        private PubSubSourceBuilder(PubSubDeserializationSchema<OUT> deserializationSchema) {
+            Preconditions.checkNotNull(deserializationSchema);
+            this.deserializationSchema = deserializationSchema;
+        }
+
+        @Override
+        public SubscriptionNameBuilder<OUT> withProjectName(String projectName) {
+            Preconditions.checkNotNull(projectName);
+            this.projectName = projectName;
+            return this;
+        }
+
+        @Override
+        public PubSubSourceBuilder<OUT> withSubscriptionName(String subscriptionName) {
+            Preconditions.checkNotNull(subscriptionName);
+            this.subscriptionName = subscriptionName;
+            return this;
+        }
+
+        public PubSubSourceBuilder<OUT> withCredentials(Credentials credentials) {
+            this.credentials = credentials;
+            return this;
+        }
+
+        public PubSubSourceBuilder<OUT> withPubSubSubscriberFactory(
+                PubSubSubscriberFactory pubSubSubscriberFactory) {
+            this.pubSubSubscriberFactory = pubSubSubscriberFactory;
+            return this;
+        }
+
+        public PubSubSourceBuilder<OUT> withPubSubSubscriberFactory(
+                int maxMessagesPerPull, Duration perRequestTimeout, int retries) {
+            this.pubSubSubscriberFactory =
+                    new DefaultPubSubSubscriberFactory(
+                            ProjectSubscriptionName.format(projectName, subscriptionName),
+                            retries,
+                            perRequestTimeout,
+                            maxMessagesPerPull);
+            return this;
+        }
+
+        public PubSubSourceBuilder<OUT> withMessageRateLimit(int messagePerSecondRateLimit) {
+            this.messagePerSecondRateLimit = messagePerSecondRateLimit;
+            return this;
+        }
+
+        //        TODO:
+        public PubSubSourceBuilder setProps(Properties props) {
+            this.props = props;
+            return this;
+        }
+
+        public PubSubSource<OUT> build() throws IOException {
+            if (credentials == null) {
+                credentials = defaultCredentialsProviderBuilder().build().getCredentials();
+            }
+
+            if (pubSubSubscriberFactory == null) {
+                pubSubSubscriberFactory =
+                        new DefaultPubSubSubscriberFactory(
+                                ProjectSubscriptionName.format(projectName, subscriptionName),
+                                3,
+                                Duration.ofSeconds(15),
+                                100);
+            }
+
+            // TODO:
+            //                    new GuavaFlinkConnectorRateLimiter(),
+            //                    messagePerSecondRateLimit);
+            return new PubSubSource(
+                    deserializationSchema, pubSubSubscriberFactory, props, credentials);
+        }
+    }
+
+    //    TODO: are these three needed?
+    /** Part of {@link PubSubSourceBuilder} to set required fields. */
+    public static class DeserializationSchemaBuilder {
+        /**
+         * Set the DeserializationSchema used to deserialize incoming PubSubMessages. If you want
+         * access to meta data of a PubSubMessage use the overloaded
+         * withDeserializationSchema({@link PubSubDeserializationSchema}) method instead.
+         */
+        public <OUT> ProjectNameBuilder<OUT> withDeserializationSchema(
+                DeserializationSchema<OUT> deserializationSchema) {
+            return new PubSubSourceBuilder<>(deserializationSchema);
+        }
+
+        /** Set the DeserializationSchema used to deserialize incoming PubSubMessages. */
+        public <OUT> ProjectNameBuilder<OUT> withDeserializationSchema(
+                PubSubDeserializationSchema<OUT> deserializationSchema) {
+            return new PubSubSourceBuilder<>(deserializationSchema);
+        }
+    }
+
+    /** Part of {@link PubSubSourceBuilder} to set required fields. */
+    public interface ProjectNameBuilder<OUT> {
+        /** Set the project name of the subscription to pull messages from. */
+        SubscriptionNameBuilder<OUT> withProjectName(String projectName);
+    }
+
+    /** Part of {@link PubSubSourceBuilder} to set required fields. */
+    public interface SubscriptionNameBuilder<OUT> {
+        /** Set the subscription name of the subscription to pull messages from. */
+        PubSubSourceBuilder<OUT> withSubscriptionName(String subscriptionName);
     }
 
     // ----------- private helper methods ---------------

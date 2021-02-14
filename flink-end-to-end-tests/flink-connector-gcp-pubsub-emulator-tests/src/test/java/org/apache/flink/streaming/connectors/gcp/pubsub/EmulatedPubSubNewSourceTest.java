@@ -19,12 +19,12 @@ package org.apache.flink.streaming.connectors.gcp.pubsub;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.gcp.pubsub.emulator.EmulatorCredentials;
 import org.apache.flink.streaming.connectors.gcp.pubsub.emulator.GCloudUnitTestBase;
+import org.apache.flink.streaming.connectors.gcp.pubsub.emulator.PubSubSubscriberFactoryForEmulator;
 import org.apache.flink.streaming.connectors.gcp.pubsub.emulator.PubsubHelper;
 import org.apache.flink.streaming.connectors.gcp.pubsub.source.PubSubSource;
 
@@ -35,6 +35,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -122,21 +123,30 @@ public class EmulatedPubSubNewSourceTest extends GCloudUnitTestBase {
                 });
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        //		env.enableCheckpointing(100);
+        env.enableCheckpointing(100);
         //		env.setParallelism(4);
         env.setParallelism(1);
         env.setRestartStrategy(RestartStrategies.noRestart());
 
         // TODO: use builder
         PubSubSource<String> source =
-                new PubSubSource<>(
-                        new SimpleStringSchemaWithStopMarkerDetection(),
-                        Boundedness.CONTINUOUS_UNBOUNDED,
-                        new Properties(),
-                        EmulatorCredentials.getInstance(),
-                        PROJECT_NAME,
-                        SUBSCRIPTION_NAME,
-                        getPubSubHostPort());
+                PubSubSource.newBuilder()
+                        .withDeserializationSchema(new SimpleStringSchemaWithStopMarkerDetection())
+                        .withProjectName(PROJECT_NAME)
+                        .withSubscriptionName(SUBSCRIPTION_NAME)
+                        .withCredentials(EmulatorCredentials.getInstance())
+                        .withPubSubSubscriberFactory(
+                                new PubSubSubscriberFactoryForEmulator(
+                                        getPubSubHostPort(),
+                                        PROJECT_NAME,
+                                        SUBSCRIPTION_NAME,
+                                        //                                        10,
+                                        2,
+                                        Duration.ofSeconds(1), // timeout
+                                        3))
+                        // TODOI: necessary?
+                        .setProps(new Properties())
+                        .build();
 
         DataStream<String> fromPubSub =
                 env.fromSource(source, WatermarkStrategy.noWatermarks(), "test-pubsub-new-source");

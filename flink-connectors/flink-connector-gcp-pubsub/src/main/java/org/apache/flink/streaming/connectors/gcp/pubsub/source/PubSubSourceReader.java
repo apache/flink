@@ -6,9 +6,13 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordEmitter;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.SingleThreadMultiplexSourceReaderBase;
-import org.apache.flink.connector.base.source.reader.fetcher.SingleThreadFetcherManager;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -16,6 +20,8 @@ import java.util.function.Supplier;
 public class PubSubSourceReader<T>
         extends SingleThreadMultiplexSourceReaderBase<
                 Tuple2<T, Long>, T, PubSubSplit, PubSubSplitState> {
+    private static final Logger LOG = LoggerFactory.getLogger(PubSubSourceReader.class);
+
     public PubSubSourceReader(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<Tuple2<T, Long>>> elementsQueue,
             Supplier<PubSubSplitReader<T>> splitReaderSupplier,
@@ -25,7 +31,7 @@ public class PubSubSourceReader<T>
         //		TODO: right super constructor?
         super(
                 elementsQueue,
-                new SingleThreadFetcherManager<>(elementsQueue, splitReaderSupplier::get),
+                new PubSubSourceFetcherManager<>(elementsQueue, splitReaderSupplier::get),
                 recordEmitter,
                 config,
                 context);
@@ -38,6 +44,18 @@ public class PubSubSourceReader<T>
         //        } catch (Exception e) {
         //            e.printStackTrace();
         //        }
+    }
+
+    @Override
+    public List<PubSubSplit> snapshotState(long checkpointId) {
+        // maybe match number of currently dealt-out splits (even though they are all the same)?
+        return Arrays.asList(new PubSubSplit());
+    }
+
+    @Override
+    public void notifyCheckpointComplete(long checkpointId) throws Exception {
+        LOG.info("Acknowledging Pub/Sub messages for checkpoint {}", checkpointId);
+        ((PubSubSourceFetcherManager<T>) splitFetcherManager).acknowledgeMessages();
     }
 
     @Override
