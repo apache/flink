@@ -363,8 +363,12 @@ public class ArchivedExecutionGraphTest extends TestLogger {
         assertEquals(
                 runtimeVertex.getStateTimestamp(ExecutionState.FAILED),
                 archivedVertex.getStateTimestamp(ExecutionState.FAILED));
-        assertEquals(
-                runtimeVertex.getFailureCauseAsString(), archivedVertex.getFailureCauseAsString());
+        assertThat(
+                runtimeVertex.getFailureInfo().map(ErrorInfo::getExceptionAsString),
+                is(archivedVertex.getFailureInfo().map(ErrorInfo::getExceptionAsString)));
+        assertThat(
+                runtimeVertex.getFailureInfo().map(ErrorInfo::getTimestamp),
+                is(archivedVertex.getFailureInfo().map(ErrorInfo::getTimestamp)));
         assertEquals(
                 runtimeVertex.getCurrentAssignedResourceLocation(),
                 archivedVertex.getCurrentAssignedResourceLocation());
@@ -384,9 +388,12 @@ public class ArchivedExecutionGraphTest extends TestLogger {
         assertEquals(
                 runtimeExecution.getAssignedResourceLocation(),
                 archivedExecution.getAssignedResourceLocation());
-        assertEquals(
-                runtimeExecution.getFailureCauseAsString(),
-                archivedExecution.getFailureCauseAsString());
+        assertThat(
+                runtimeExecution.getFailureInfo().map(ErrorInfo::getExceptionAsString),
+                is(archivedExecution.getFailureInfo().map(ErrorInfo::getExceptionAsString)));
+        assertThat(
+                runtimeExecution.getFailureInfo().map(ErrorInfo::getTimestamp),
+                is(archivedExecution.getFailureInfo().map(ErrorInfo::getTimestamp)));
         assertEquals(
                 runtimeExecution.getStateTimestamp(ExecutionState.CREATED),
                 archivedExecution.getStateTimestamp(ExecutionState.CREATED));

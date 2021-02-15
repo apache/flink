@@ -37,7 +37,6 @@ import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.EvictingBoundedList;
-import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
 
@@ -246,12 +245,8 @@ public class ExecutionVertex
     }
 
     @Override
-    public String getFailureCauseAsString() {
-        return ExceptionUtils.stringifyException(getFailureCause());
-    }
-
-    public Throwable getFailureCause() {
-        return currentExecution.getFailureCause();
+    public Optional<ErrorInfo> getFailureInfo() {
+        return currentExecution.getFailureInfo();
     }
 
     public CompletableFuture<TaskManagerLocation> getCurrentTaskManagerLocationFuture() {
