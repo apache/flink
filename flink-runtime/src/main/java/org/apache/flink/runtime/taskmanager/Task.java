@@ -1039,12 +1039,12 @@ public class Task
                         newState);
             } else {
                 LOG.warn(
-                        "{} ({}) switched from {} to {}.",
+                        "{} ({}) switched from {} to {} with failure cause: {}",
                         taskNameWithSubtask,
                         executionId,
                         currentState,
                         newState,
-                        cause);
+                        ExceptionUtils.stringifyException(cause));
             }
 
             return true;
