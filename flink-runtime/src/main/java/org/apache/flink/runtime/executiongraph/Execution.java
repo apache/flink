@@ -55,7 +55,6 @@ import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.OptionalFailure;
@@ -153,7 +152,8 @@ public class Execution
 
     private LogicalSlot assignedResource;
 
-    private Throwable failureCause; // once assigned, never changes
+    private Optional<ErrorInfo> failureCause =
+            Optional.empty(); // once an ErrorInfo is set, never changes
 
     /**
      * Information to restore the task on recovery, such as checkpoint id and task state snapshot.
@@ -317,13 +317,9 @@ public class Execution
                 : null;
     }
 
-    public Throwable getFailureCause() {
-        return failureCause;
-    }
-
     @Override
-    public String getFailureCauseAsString() {
-        return ExceptionUtils.stringifyException(getFailureCause());
+    public Optional<ErrorInfo> getFailureInfo() {
+        return failureCause;
     }
 
     @Override
@@ -1133,7 +1129,9 @@ public class Execution
         checkState(transitionState(current, FAILED, t));
 
         // success (in a manner of speaking)
-        this.failureCause = t;
+        this.failureCause =
+                Optional.of(
+                        ErrorInfo.createErrorInfoWithNullableCause(t, getStateTimestamp(FAILED)));
 
         updateAccumulatorsAndMetrics(userAccumulators, metrics);
 

@@ -27,6 +27,7 @@ import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ArchivedExecution;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -123,7 +124,9 @@ public class JobExceptionsHandlerTest extends TestLogger {
                                     new ExecutionAttemptID(),
                                     attempt,
                                     expectedState,
-                                    "error",
+                                    new ErrorInfo(
+                                            new RuntimeException("error"),
+                                            System.currentTimeMillis()),
                                     assignedResourceLocation,
                                     allocationID,
                                     subtaskIndex,

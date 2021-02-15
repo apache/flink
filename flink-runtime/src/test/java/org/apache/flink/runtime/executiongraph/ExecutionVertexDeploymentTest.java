@@ -45,9 +45,11 @@ import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionVertex;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.core.StringContains.containsString;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
@@ -76,7 +78,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
                 // as expected
             }
 
-            assertNull(vertex.getFailureCause());
+            assertFalse(vertex.getFailureInfo().isPresent());
 
             assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
             assertTrue(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0);
@@ -107,7 +109,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
                 // as expected
             }
 
-            assertNull(vertex.getFailureCause());
+            assertFalse(vertex.getFailureInfo().isPresent());
 
             assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
             assertTrue(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0);
@@ -172,8 +174,10 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
             vertex.deployToSlot(slot);
 
             assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
-            assertNotNull(vertex.getFailureCause());
-            assertTrue(vertex.getFailureCause().getMessage().contains(ERROR_MESSAGE));
+            assertTrue(vertex.getFailureInfo().isPresent());
+            assertThat(
+                    vertex.getFailureInfo().map(ErrorInfo::getExceptionAsString).get(),
+                    containsString(ERROR_MESSAGE));
 
             assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
             assertTrue(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0);
@@ -202,7 +206,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
             // wait until the state transition must be done
             for (int i = 0; i < 100; i++) {
                 if (vertex.getExecutionState() == ExecutionState.FAILED
-                        && vertex.getFailureCause() != null) {
+                        && vertex.getFailureInfo().isPresent()) {
                     break;
                 } else {
                     Thread.sleep(10);
@@ -210,8 +214,10 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
             }
 
             assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
-            assertNotNull(vertex.getFailureCause());
-            assertTrue(vertex.getFailureCause().getMessage().contains(ERROR_MESSAGE));
+            assertTrue(vertex.getFailureInfo().isPresent());
+            assertThat(
+                    vertex.getFailureInfo().map(ErrorInfo::getExceptionAsString).get(),
+                    containsString(ERROR_MESSAGE));
 
             assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
             assertTrue(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0);
@@ -241,7 +247,12 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
             vertex.fail(testError);
 
             assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
-            assertEquals(testError, vertex.getFailureCause());
+            assertThat(
+                    vertex.getFailureInfo()
+                            .map(ErrorInfo::getException)
+                            .get()
+                            .deserializeError(ClassLoader.getSystemClassLoader()),
+                    is(testError));
 
             assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
             assertTrue(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0);

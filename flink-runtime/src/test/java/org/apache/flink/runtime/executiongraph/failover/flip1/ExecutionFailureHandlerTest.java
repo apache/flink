@@ -27,6 +27,7 @@ import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingTopology;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.TestLogger;
 
+import org.hamcrest.core.IsSame;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -37,6 +38,7 @@ import java.util.stream.Collectors;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -73,21 +75,17 @@ public class ExecutionFailureHandlerTest extends TestLogger {
                 Collections.singleton(new ExecutionVertexID(new JobVertexID(), 0));
         failoverStrategy.setTasksToRestart(tasksToRestart);
 
+        Exception cause = new Exception("test failure");
         // trigger a task failure
         final FailureHandlingResult result =
                 executionFailureHandler.getFailureHandlingResult(
-                        new ExecutionVertexID(new JobVertexID(), 0), new Exception("test failure"));
+                        new ExecutionVertexID(new JobVertexID(), 0), cause);
 
         // verify results
         assertTrue(result.canRestart());
         assertEquals(RESTART_DELAY_MS, result.getRestartDelayMS());
         assertEquals(tasksToRestart, result.getVerticesToRestart());
-        try {
-            result.getError();
-            fail("Cannot get error when the restarting is accepted");
-        } catch (IllegalStateException ex) {
-            // expected
-        }
+        assertThat(result.getError(), IsSame.sameInstance(cause));
         assertEquals(1, executionFailureHandler.getNumberOfRestarts());
     }
 

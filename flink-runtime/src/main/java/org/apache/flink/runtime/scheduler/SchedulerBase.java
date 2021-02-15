@@ -44,6 +44,7 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionDeploymentListener;
@@ -54,6 +55,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionStateUpdateListener;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
+import org.apache.flink.runtime.executiongraph.failover.flip1.FailureHandlingResult;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -96,6 +98,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -157,6 +160,8 @@ public abstract class SchedulerBase implements SchedulerNG {
     private final OperatorCoordinatorHandler operatorCoordinatorHandler;
 
     private final ComponentMainThreadExecutor mainThreadExecutor;
+
+    private final List<ErrorInfo> taskFailureHistory = new ArrayList<>();
 
     public SchedulerBase(
             final Logger log,
@@ -516,6 +521,7 @@ public abstract class SchedulerBase implements SchedulerNG {
     protected void failJob(Throwable cause) {
         incrementVersionsOfAllVertices();
         executionGraph.failJob(cause);
+        getTerminationFuture().thenRun(() -> archiveGlobalFailure(cause));
     }
 
     protected final SchedulingTopology getSchedulingTopology() {
@@ -635,6 +641,42 @@ public abstract class SchedulerBase implements SchedulerNG {
         return executionGraph.getTerminationFuture().thenApply(FunctionUtils.nullFn());
     }
 
+    protected final void archiveGlobalFailure(@Nullable Throwable failure) {
+        archiveGlobalFailure(failure, executionGraph.getStatusTimestamp(JobStatus.FAILED));
+    }
+
+    protected final void archiveGlobalFailure(@Nullable Throwable failure, long timestamp) {
+        taskFailureHistory.add(ErrorInfo.createErrorInfoWithNullableCause(failure, timestamp));
+        log.debug("Archive global failure.", failure);
+    }
+
+    protected final void archiveFromFailureHandlingResult(
+            FailureHandlingResult failureHandlingResult) {
+        final Optional<Execution> executionOptional =
+                failureHandlingResult
+                        .getExecutionVertexIdOfFailedTask()
+                        .map(this::getExecutionVertex)
+                        .map(ExecutionVertex::getCurrentExecutionAttempt);
+
+        if (executionOptional.isPresent()) {
+            final Execution failedExecution = executionOptional.get();
+            failedExecution
+                    .getFailureInfo()
+                    .ifPresent(
+                            failureInfo -> {
+                                taskFailureHistory.add(failureInfo);
+                                log.debug(
+                                        "Archive local failure causing attempt {} to fail: {}",
+                                        failedExecution.getAttemptId(),
+                                        failureInfo.getExceptionAsString());
+                            });
+        } else {
+            // fallback in case of a global fail over - no failed state is set and, therefore, no
+            // timestamp was taken
+            archiveGlobalFailure(failureHandlingResult.getError(), System.currentTimeMillis());
+        }
+    }
+
     @Override
     public final boolean updateTaskExecutionState(
             final TaskExecutionStateTransition taskExecutionState) {
@@ -714,6 +756,11 @@ public abstract class SchedulerBase implements SchedulerNG {
 
     protected void notifyPartitionDataAvailableInternal(
             IntermediateResultPartitionID resultPartitionId) {}
+
+    @VisibleForTesting
+    protected List<ErrorInfo> getExceptionHistory() {
+        return taskFailureHistory;
+    }
 
     @Override
     public ArchivedExecutionGraph requestJob() {

@@ -25,6 +25,7 @@ import org.apache.flink.runtime.util.EvictingBoundedList;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.util.Optional;
 
 /** {@code ArchivedExecutionVertex} is a readonly representation of {@link ExecutionVertex}. */
 public class ArchivedExecutionVertex implements AccessExecutionVertex, Serializable {
@@ -90,8 +91,8 @@ public class ArchivedExecutionVertex implements AccessExecutionVertex, Serializa
     }
 
     @Override
-    public String getFailureCauseAsString() {
-        return currentExecution.getFailureCauseAsString();
+    public Optional<ErrorInfo> getFailureInfo() {
+        return currentExecution.getFailureInfo();
     }
 
     @Override
