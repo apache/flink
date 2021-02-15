@@ -45,6 +45,7 @@ under the License.
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<flink.version>@project.version@</flink.version>
+		<target.java.version>@target.java.version@</target.java.version>
 		<scala.binary.version>2.11</scala.binary.version>
 		<scala.version>2.11.12</scala.version>
 		<log4j.version>@log4j.version@</log4j.version>
@@ -186,6 +187,7 @@ under the License.
 				<configuration>
 					<args>
 						<arg>-nobootcp</arg>
+						<arg>-target:jvm-${target.java.version}</arg>
 					</args>
 				</configuration>
 			</plugin>
