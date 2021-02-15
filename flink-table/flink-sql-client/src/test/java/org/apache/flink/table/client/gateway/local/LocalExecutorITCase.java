@@ -88,6 +88,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.client.gateway.local.ExecutionContextTest.CATALOGS_ENVIRONMENT_FILE;
+import static org.apache.flink.table.client.gateway.local.ExecutionContextTest.MODULES_ENVIRONMENT_FILE;
+import static org.apache.flink.table.client.gateway.local.ExecutionContextTest.createModuleReplaceVars;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.CoreMatchers.is;
@@ -1616,6 +1618,46 @@ public class LocalExecutorITCase extends TestLogger {
         assertShowResult(executor.executeSql(sessionId, "show functions"), hasItems("lowerudf"));
 
         executor.closeSession(sessionId);
+    }
+
+    @Test
+    public void testLoadModule() throws Exception {
+        final Executor executor =
+                createModifiedExecutor(
+                        MODULES_ENVIRONMENT_FILE, clusterClient, createModuleReplaceVars());
+        final SessionContext session = new SessionContext("test-session", new Environment());
+        String sessionId = executor.openSession(session);
+        assertEquals("test-session", sessionId);
+
+        exception.expect(SqlExecutionException.class);
+        exception.expectMessage("Could not execute statement: load module core");
+        executor.executeSql(sessionId, "load module core");
+
+        executor.executeSql(sessionId, "load module hive");
+        assertShowResult(
+                executor.executeSql(sessionId, "show modules"), Arrays.asList("core", "hive"));
+    }
+
+    @Test
+    public void testUnloadModule() throws Exception {
+        final Executor executor =
+                createModifiedExecutor(
+                        MODULES_ENVIRONMENT_FILE, clusterClient, createModuleReplaceVars());
+        final SessionContext session = new SessionContext("test-session", new Environment());
+        String sessionId = executor.openSession(session);
+        assertEquals("test-session", sessionId);
+
+        exception.expect(SqlExecutionException.class);
+        exception.expectMessage("Could not execute statement: unload module hive");
+        executor.executeSql(sessionId, "unload module hive");
+
+        executor.executeSql(sessionId, "load module hive");
+        assertShowResult(
+                executor.executeSql(sessionId, "show modules"), Arrays.asList("core", "hive"));
+
+        executor.executeSql(sessionId, "unload module hive");
+        assertShowResult(
+                executor.executeSql(sessionId, "show modules"), Collections.singletonList("core"));
     }
 
     private void executeStreamQueryTable(

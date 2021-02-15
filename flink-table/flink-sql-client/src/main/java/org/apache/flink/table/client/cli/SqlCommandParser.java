@@ -23,6 +23,7 @@ import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.ExplainOperation;
+import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ShowCatalogsOperation;
@@ -32,6 +33,7 @@ import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
 import org.apache.flink.table.operations.ShowPartitionsOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
+import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
@@ -168,6 +170,10 @@ public final class SqlCommandParser {
             cmd = SqlCommand.ALTER_FUNCTION;
         } else if (operation instanceof ExplainOperation) {
             cmd = SqlCommand.EXPLAIN;
+        } else if (operation instanceof LoadModuleOperation) {
+            cmd = SqlCommand.LOAD_MODULE;
+        } else if (operation instanceof UnloadModuleOperation) {
+            cmd = SqlCommand.UNLOAD_MODULE;
         } else if (operation instanceof DescribeTableOperation) {
             cmd = SqlCommand.DESCRIBE;
             operands =
@@ -251,6 +257,10 @@ public final class SqlCommandParser {
 
         // FLINK-17396
         SHOW_MODULES("SHOW\\s+MODULES", NO_OPERANDS),
+
+        LOAD_MODULE,
+
+        UNLOAD_MODULE,
 
         SHOW_PARTITIONS,
 

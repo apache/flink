@@ -282,19 +282,27 @@ public class SqlCommandParserTest {
                         // show current database
                         TestItem.validSql(
                                 "show current database", SqlCommand.SHOW_CURRENT_DATABASE),
+                        // load module
                         TestItem.validSql(
-                                "show 	current 	database", SqlCommand.SHOW_CURRENT_DATABASE),
-                        // show tables
-                        TestItem.validSql("SHOW TABLES;", SqlCommand.SHOW_TABLES),
-                        TestItem.validSql("  SHOW   TABLES   ;", SqlCommand.SHOW_TABLES),
-                        // show functions
-                        TestItem.validSql("SHOW FUNCTIONS;", SqlCommand.SHOW_FUNCTIONS),
-                        TestItem.validSql("  SHOW    FUNCTIONS   ", SqlCommand.SHOW_FUNCTIONS),
-                        // show modules
-                        TestItem.validSql("SHOW MODULES", SqlCommand.SHOW_MODULES)
-                                .cannotParseComment(),
-                        TestItem.validSql("  SHOW    MODULES   ", SqlCommand.SHOW_MODULES)
-                                .cannotParseComment(),
+                                "LOAD MODULE dummy", SqlCommand.LOAD_MODULE, "LOAD MODULE dummy"),
+                        TestItem.validSql(
+                                "LOAD MODULE dummy WITH ('dummy-version' = '1')",
+                                SqlCommand.LOAD_MODULE,
+                                "LOAD MODULE dummy WITH ('dummy-version' = '1')"),
+                        TestItem.invalidSql(
+                                "LOAD MODULE 'dummy'",
+                                SqlExecutionException.class,
+                                "Encountered \"\\'dummy\\'\""),
+                        TestItem.invalidSql(
+                                "LOAD MODULE my_dummy WITH ('type'='dummy')",
+                                SqlExecutionException.class,
+                                "Property 'type' = 'dummy' is not supported, please remove it "
+                                        + "and rename module to 'dummy' and try again"),
+                        // unload module
+                        TestItem.validSql(
+                                "UNLOAD MODULE dummy",
+                                SqlCommand.UNLOAD_MODULE,
+                                "UNLOAD MODULE dummy"),
                         // Test create function.
                         TestItem.invalidSql(
                                 "CREATE FUNCTION ",

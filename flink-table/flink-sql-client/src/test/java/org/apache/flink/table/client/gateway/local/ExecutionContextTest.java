@@ -97,7 +97,7 @@ import static org.powermock.api.mockito.PowerMockito.when;
 public class ExecutionContextTest {
 
     private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
-    private static final String MODULES_ENVIRONMENT_FILE = "test-sql-client-modules.yaml";
+    public static final String MODULES_ENVIRONMENT_FILE = "test-sql-client-modules.yaml";
     public static final String CATALOGS_ENVIRONMENT_FILE = "test-sql-client-catalogs.yaml";
     private static final String STREAMING_ENVIRONMENT_FILE = "test-sql-client-streaming.yaml";
     private static final String CONFIGURATION_ENVIRONMENT_FILE =
@@ -413,19 +413,23 @@ public class ExecutionContextTest {
         return replaceVars;
     }
 
+    static Map<String, String> createModuleReplaceVars() {
+        Map<String, String> replaceVars = new HashMap<>();
+        replaceVars.put("$VAR_PLANNER", "old");
+        replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
+        replaceVars.put("$VAR_RESULT_MODE", "changelog");
+        replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
+        replaceVars.put("$VAR_MAX_ROWS", "100");
+        return replaceVars;
+    }
+
     private <T> ExecutionContext<T> createDefaultExecutionContext() throws Exception {
         final Map<String, String> replaceVars = createDefaultReplaceVars();
         return createExecutionContext(DEFAULTS_ENVIRONMENT_FILE, replaceVars);
     }
 
     private <T> ExecutionContext<T> createModuleExecutionContext() throws Exception {
-        final Map<String, String> replaceVars = new HashMap<>();
-        replaceVars.put("$VAR_PLANNER", "old");
-        replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
-        replaceVars.put("$VAR_RESULT_MODE", "changelog");
-        replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
-        replaceVars.put("$VAR_MAX_ROWS", "100");
-        return createExecutionContext(MODULES_ENVIRONMENT_FILE, replaceVars);
+        return createExecutionContext(MODULES_ENVIRONMENT_FILE, createModuleReplaceVars());
     }
 
     private <T> ExecutionContext<T> createCatalogExecutionContext() throws Exception {
