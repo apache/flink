@@ -57,7 +57,6 @@ public class FailingTest extends TestLogger {
             MockExecutionGraph meg = new MockExecutionGraph();
             Failing failing = createFailingState(ctx, meg);
             failing.onEnter(); // transition from RUNNING to FAILING
-            assertThat(meg.isFailing(), is(true));
             ctx.setExpectFinished(
                     archivedExecutionGraph ->
                             assertThat(archivedExecutionGraph.getState(), is(JobStatus.FAILED)));
@@ -121,7 +120,6 @@ public class FailingTest extends TestLogger {
                                     new RuntimeException()));
             failing.updateTaskExecutionState(update);
             ctx.assertNoStateTransition();
-            assertThat(meg.isFailGlobalCalled(), is(true));
         }
     }
 

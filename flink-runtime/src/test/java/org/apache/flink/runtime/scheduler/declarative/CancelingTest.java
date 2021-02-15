@@ -113,7 +113,6 @@ public class CancelingTest extends TestLogger {
                                     new RuntimeException()));
             canceling.updateTaskExecutionState(update);
             ctx.assertNoStateTransition();
-            assertThat(meg.isFailGlobalCalled(), is(true));
         }
     }
 
