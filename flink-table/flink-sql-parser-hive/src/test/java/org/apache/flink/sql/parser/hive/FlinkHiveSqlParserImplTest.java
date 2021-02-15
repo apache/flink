@@ -441,4 +441,17 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
         sql("show partitions tbl").ok("SHOW PARTITIONS `TBL`");
         sql("show partitions tbl partition (p=1)").ok("SHOW PARTITIONS `TBL` PARTITION (`P` = 1)");
     }
+
+    @Test
+    public void testLoadModule() {
+        sql("load module hive").ok("LOAD MODULE `HIVE`");
+
+        sql("load module hive with ('hive-version' = '3.1.2')")
+                .ok("LOAD MODULE `HIVE` WITH (\n  'hive-version' = '3.1.2'\n)");
+    }
+
+    @Test
+    public void testUnloadModule() {
+        sql("unload module hive").ok("UNLOAD MODULE `HIVE`");
+    }
 }

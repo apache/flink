@@ -57,6 +57,7 @@
     "org.apache.flink.sql.parser.dml.RichSqlInsertKeyword"
     "org.apache.flink.sql.parser.dql.SqlDescribeCatalog"
     "org.apache.flink.sql.parser.dql.SqlDescribeDatabase"
+    "org.apache.flink.sql.parser.dql.SqlLoadModule"
     "org.apache.flink.sql.parser.dql.SqlShowCatalogs"
     "org.apache.flink.sql.parser.dql.SqlShowCurrentCatalog"
     "org.apache.flink.sql.parser.dql.SqlShowDatabases"
@@ -65,6 +66,7 @@
     "org.apache.flink.sql.parser.dql.SqlShowTables"
     "org.apache.flink.sql.parser.dql.SqlShowViews"
     "org.apache.flink.sql.parser.dql.SqlRichDescribeTable"
+    "org.apache.flink.sql.parser.dql.SqlUnloadModule"
     "org.apache.flink.sql.parser.type.ExtendedSqlCollectionTypeNameSpec"
     "org.apache.flink.sql.parser.type.ExtendedSqlRowTypeNameSpec"
     "org.apache.flink.sql.parser.type.SqlMapTypeNameSpec"
@@ -91,6 +93,7 @@
     "EXTENDED"
     "FUNCTIONS"
     "IF"
+    "LOAD"
     "METADATA"
     "OVERWRITE"
     "OVERWRITING"
@@ -102,6 +105,7 @@
     "SCALA"
     "STRING"
     "TABLES"
+    "UNLOAD"
     "USE"
     "VIEWS"
     "VIRTUAL"
@@ -233,6 +237,7 @@
     "LENGTH"
     "LEVEL"
     "LIBRARY"
+    "LOAD"
     "LOCATOR"
     "M"
     "MAP"
@@ -405,6 +410,7 @@
     "UNCOMMITTED"
     "UNCONDITIONAL"
     "UNDER"
+    "UNLOAD"
     "UNNAMED"
     "USAGE"
     "USER_DEFINED_TYPE_CATALOG"
@@ -450,6 +456,7 @@
   # Example: SqlShowDatabases(), SqlShowTables().
   statementParserMethods: [
     "RichSqlInsert()"
+    "SqlLoadModule()"
     "SqlShowCatalogs()"
     "SqlShowCurrentCatalogOrDatabase()"
     "SqlDescribeCatalog()"
@@ -464,6 +471,7 @@
     "SqlRichDescribeTable()"
     "SqlAlterTable()"
     "SqlShowViews()"
+    "SqlUnloadModule()"
   ]
 
   # List of methods for parsing custom literals.
