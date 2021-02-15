@@ -19,10 +19,9 @@
 package org.apache.flink.table.calcite
 
 import org.apache.flink.sql.parser.ExtendedSqlNode
-import org.apache.flink.sql.parser.dql.{SqlRichDescribeTable, SqlShowCatalogs, SqlShowCurrentCatalog, SqlShowCurrentDatabase, SqlShowDatabases, SqlShowFunctions, SqlShowTables, SqlShowViews}
+import org.apache.flink.sql.parser.dql.{SqlLoadModule, SqlRichDescribeTable, SqlShowCatalogs, SqlShowCurrentCatalog, SqlShowCurrentDatabase, SqlShowDatabases, SqlShowFunctions, SqlShowTables, SqlShowViews, SqlUnloadModule}
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.catalog.CatalogReader
-
 import org.apache.calcite.plan.RelOptTable.ViewExpander
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelRoot
@@ -37,7 +36,6 @@ import org.apache.calcite.tools.{FrameworkConfig, RelConversionException}
 import _root_.java.lang.{Boolean => JBoolean}
 import _root_.java.util
 import _root_.java.util.function.{Function => JFunction}
-
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 
@@ -132,7 +130,9 @@ class FlinkPlannerImpl(
         || sqlNode.isInstanceOf[SqlShowTables]
         || sqlNode.isInstanceOf[SqlShowFunctions]
         || sqlNode.isInstanceOf[SqlShowViews]
-        || sqlNode.isInstanceOf[SqlRichDescribeTable]) {
+        || sqlNode.isInstanceOf[SqlRichDescribeTable]
+        || sqlNode.isInstanceOf[SqlLoadModule]
+        || sqlNode.isInstanceOf[SqlUnloadModule]) {
         return sqlNode
       }
       sqlNode match {
