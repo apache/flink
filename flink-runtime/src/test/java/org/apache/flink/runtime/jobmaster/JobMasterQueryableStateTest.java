@@ -59,6 +59,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
+import static org.hamcrest.CoreMatchers.either;
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -307,8 +309,9 @@ public class JobMasterQueryableStateTest extends TestLogger {
                         ExceptionUtils.findThrowableWithMessage(e, "Registration name clash")
                                 .isPresent());
 
-                assertEquals(
-                        JobStatus.FAILED, jobMasterGateway.requestJobStatus(testingTimeout).get());
+                assertThat(
+                        jobMasterGateway.requestJobStatus(testingTimeout).get(),
+                        either(is(JobStatus.FAILED)).or(is(JobStatus.FAILING)));
             }
         } finally {
             RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
