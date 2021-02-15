@@ -23,6 +23,8 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import javax.annotation.Nullable;
 
+import java.util.Optional;
+
 /** Common interface for the runtime {@link ExecutionVertex} and {@link ArchivedExecutionVertex}. */
 public interface AccessExecutionVertex {
     /**
@@ -65,9 +67,10 @@ public interface AccessExecutionVertex {
      * Returns the exception that caused the job to fail. This is the first root exception that was
      * not recoverable and triggered job failure.
      *
-     * @return failure exception as a string, or {@code "(null)"}
+     * @return failure exception wrapped in an {@code Optional} of {@link ErrorInfo}, or an empty
+     *     {@link Optional} if no exception was caught.
      */
-    String getFailureCauseAsString();
+    Optional<ErrorInfo> getFailureInfo();
 
     /**
      * Returns the {@link TaskManagerLocation} for this execution vertex.
