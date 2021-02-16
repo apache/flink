@@ -37,13 +37,7 @@ Apache Flink 集成了通用的 Kafka 连接器，它会尽力与 Kafka client �
 当前 Kafka client 向后兼容 0.10.0 或更高版本的 Kafka broker。
 有关 Kafka 兼容性的更多细节，请参考  [Kafka 官方文档](https://kafka.apache.org/protocol.html#protocol_compatibility)。
 
-```xml
-<dependency>
-	<groupId>org.apache.flink</groupId>
-	<artifactId>flink-connector-kafka{{< scala_version >}}</artifactId>
-	<version>{{< version >}}</version>
-</dependency>
-``` 
+{{< artifact flink-connector-kafka withScalaVersion >}}
 
 Flink 目前的流连接器还不是二进制发行版的一部分。
 [在此处]({{< ref "docs/dev/datastream/project-configuration" >}})可以了解到如何链接它们，从而在集群中运行。

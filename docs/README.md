@@ -93,6 +93,26 @@ The ToC can be ommitted by adding the following to the front matter of the page:
 Flink uses [shortcodes](https://gohugo.io/content-management/shortcodes/) to add custom functionality
 to its documentation markdown. The following are available for use:  
 
+#### Flink Artifact
+
+    {{< artfiact flink-core >}}
+
+This will be replaced by the maven artifact for flink-streaming-java that users should copy into their pom.xml file. It will render out to:
+
+```xml
+<dependency>
+    <groupdId>org.apache.flink</groupId>
+    <artifactId>flink-core</artifactId>
+    <version><!-- current flink version --></version>
+</dependency>
+```
+
+It includes a number of optional flags:
+
+* withScalaVersion: Includes the scala version suffix to the artifact id
+* withTestScope: Includes `<scope>test</scope>` to the module. Useful for marking test dependencies.
+* withTestClassifier: Includes `<classifier>tests</classifier>`. Useful when users should be pulling in Flinks tests dependencies. This is mostly for the test harnesses and probably not what you want. 
+
 #### Back to Top
 
 	{{< top >}}

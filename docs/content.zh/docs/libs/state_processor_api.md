@@ -37,16 +37,7 @@ For example, you can now arbitrarily modify the data types of states, adjust the
 
 To get started with the state processor api, include the following library in your application.
 
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-state-processor-api{{< scala_version >}}</artifactId>
-  <version>{{< version >}}</version>
-  <scope>provided</scope>
-</dependency>
-```
-
-
+{{< artifact flink-state-processor-api withScalaVersion >}}
 
 ## Mapping Application State to DataSets 
 

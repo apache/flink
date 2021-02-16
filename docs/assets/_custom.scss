@@ -233,3 +233,7 @@ pre.chroma code {
 .configuration td {
     background: white;
 }
+
+.markdown table tr:nth-child(2n) {
+    background: white;
+} 

@@ -153,28 +153,9 @@ class IncrementFlatMapFunctionTest extends FlatSpec with MockFactory {
 
 要使用测试工具，还需要一组其他的依赖项（测试范围）。
 
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-test-utils{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version }}</version>
-  <scope>test</scope>
-</dependency>
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-runtime{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version }}</version>
-  <scope>test</scope>
-  <classifier>tests</classifier>
-</dependency>
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-streaming-java{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version }}</version>
-  <scope>test</scope>
-  <classifier>tests</classifier>
-</dependency>
-```
+{{< artifact flink-test-utils withScalaVersion withTestScope >}}
+{{< artifact flink-runtime withScalaVersion withTestScope >}}
+{{< artifact flink-streaming-java withScalaVersion withTestScope withTestClassifier >}}
 
 现在，可以使用测试工具将记录和 watermark 推送到用户自定义函数或自定义算子中，控制处理时间，最后对算子的输出（包括旁路输出）进行校验。
 
@@ -420,13 +401,7 @@ Apache Flink 提供了一个名为 `MiniClusterWithClientResource` 的 Junit 规
 
 要使用 `MiniClusterWithClientResource`，需要添加一个额外的依赖项（测试范围）。
 
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-test-utils{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version }}</version>
-</dependency>
-```
+{{< artifact flink-test-utils withScalaVersion withTestScope >}}
 
 让我们采用与前面几节相同的简单 `MapFunction`来做示例。
 

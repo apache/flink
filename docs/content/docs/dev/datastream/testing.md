@@ -28,8 +28,6 @@ under the License.
 
 Testing is an integral part of every software development process as such Apache Flink comes with tooling to test your application code on multiple levels of the testing pyramid.
 
-
-
 ## Testing User-Defined Functions
 
 Usually, one can assume that Flink produces correct results outside of a user-defined function. Therefore, it is recommended to test those classes that contain the main business logic with unit tests as much as possible.
@@ -153,28 +151,9 @@ For this Flink comes with a collection of so called test harnesses, which can be
 
 To use the test harnesses a set of additional dependencies (test scoped) is needed.
 
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-test-utils{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version }}</version>
-  <scope>test</scope>
-</dependency>
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-runtime{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version }}</version>
-  <scope>test</scope>
-  <classifier>tests</classifier>
-</dependency>
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-streaming-java{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version }}</version>
-  <scope>test</scope>
-  <classifier>tests</classifier>
-</dependency>
-```
+{{< artifact flink-test-utils withScalaVersion withTestScope >}}
+{{< artifact flink-runtime withScalaVersion withTestScope >}}
+{{< artifact flink-streaming-java withScalaVersion withTestScope withTestClassifier >}}
 
 Now, the test harnesses can be used to push records and watermarks into your user-defined functions or custom operators, control processing time and finally assert on the output of the operator (including side outputs).
 
@@ -420,13 +399,7 @@ called `MiniClusterWithClientResource`.
 
 To use `MiniClusterWithClientResource` one additional dependency (test scoped) is needed.
 
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-test-utils{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version }}</version>
-</dependency>
-```
+{{< artifact flink-test-utils withScalaVersion withTestScope >}}
 
 Let us take the same simple `MapFunction` as in the previous sections.
 

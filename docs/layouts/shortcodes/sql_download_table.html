@@ -27,14 +27,16 @@ dependencies are required for both projects using a build automation tool (such 
 and SQL Client with SQL JAR bundles.</p>
 
 {{ if eq $connector.versions nil }}
-<table>
+<table style="display:table;margin-left:auto;margin-right:auto" id="download-table">
   <thead>
     <th style="text-align:left">Maven dependency</th>
     <th style="text-align:left">SQL Client</th>
   </thead>
   <tbody>
     <tr>
-        <td style="text-align: left"><code class="highlighter-rouge">{{- partial "docs/interpolate" $connector.maven -}}</code></td>
+        <td style="text-align: left">
+          {{ template "maven-artifact" (dict "ArtifactId" $connector.maven ) }}
+        </td>
         {{ if eq $connector.builtin true }}
           <td style="text-align: left">Built-in</td>
         {{ else if $.Site.Params.IsStable }}
@@ -61,7 +63,8 @@ and SQL Client with SQL JAR bundles.</p>
       <tr>
       <td style="text-align: left">{{ .version }}</td>
       <td style="text-align: left">
-        <code class="highlighter-rouge">{{- partial "docs/interpolate" .maven -}}</code></td>
+        {{ template "maven-artifact" (dict "ArtifactId" .maven ) }}
+      </td>
       {{ if eq .builtin true }}
       <td style="text-align: left">Built-in</td>
       {{ else if eq .nosqljar true}}
@@ -79,3 +82,17 @@ and SQL Client with SQL JAR bundles.</p>
   </tbody>
 </table>
 {{ end }}
+
+{{/* 
+  Generates an XML snippet for the maven artifact. 
+  IMPORTANT: the whitespace is relevant. Do not change without looking at the 
+  rendered documentation. 
+*/}}
+{{ define "maven-artifact" }}{{/* (dict "ArtifactId" .ArtifactId */}}
+<div id="{{ .ArtifactId }}" onclick="selectText('{{ .ArtifactId }}')" class="highlight"><pre class="chroma"><code class="language-xml" data-lang="xml"><span class="nt">&ltdependency&gt</span>
+  <span class="nt">&ltgroupId&gt</span>org.apache.flink<span class="nt">&lt/groupId&gt</span>
+  <span class="nt">&ltartifactId&gt</span>{{- partial "docs/interpolate" .ArtifactId -}}<span class="nt">&lt/artifactId&gt</span>
+  <span class="nt">&ltversion&gt</span>{{- site.Params.Version -}}<span class="nt">&lt/version&gt</span>
+<span class="nt">&lt/dependency&gt</span></code></pre></div>
+{{ end }}
+

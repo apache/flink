@@ -43,22 +43,10 @@ FlinkCEP是在Flink上层实现的复杂事件处理库。
 
 {{< tabs "722d55a5-7f12-4bcc-b080-b28d5e8860ac" >}}
 {{< tab "Java" >}}
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-cep{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version }}</version>
-</dependency>
-```
+{{< artifact flink-cep withScalaVersion >}}
 {{< /tab >}}
 {{< tab "Scala" >}}
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-cep-scala{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version }}</version>
-</dependency>
-```
+{{< artifact flink-cep-scala withScalaVersion >}}
 {{< /tab >}}
 {{< /tabs >}}
 

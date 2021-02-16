@@ -30,13 +30,7 @@ under the License.
 Flink Streaming 通过一个内置的 `TwitterSource` 类来创建到 tweets 流的连接。
 使用 Twitter 连接器，需要在工程中添加下面的依赖：
 
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-connector-twitter{{< scala_version >}}</artifactId>
-  <version>{{< version >}}</version>
-</dependency>
-```
+{{< artifact flink-connector-twitter withScalaVersion >}}
 
 注意：当前的二进制发行版还没有这些连接器。集群执行请参考[这里]({{< ref "docs/dev/datastream/project-configuration" >}}).
 
