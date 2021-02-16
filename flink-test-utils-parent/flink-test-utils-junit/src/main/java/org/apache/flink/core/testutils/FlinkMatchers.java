@@ -81,6 +81,11 @@ public class FlinkMatchers {
         return futureWillCompleteExceptionally(Throwable.class, timeout);
     }
 
+    /** Checks for a {@link Throwable} that matches by class. */
+    public static Matcher<Throwable> containsCause(Class<? extends Throwable> failureCause) {
+        return new ContainsCauseMatcher(failureCause);
+    }
+
     /** Checks for a {@link Throwable} that matches by class and message. */
     public static Matcher<Throwable> containsCause(Throwable failureCause) {
         return new ContainsCauseAndMessageMatcher(failureCause);
@@ -226,6 +231,38 @@ public class FlinkMatchers {
                             + timeout.toMillis()
                             + " milliseconds with: "
                             + validationDescription);
+        }
+    }
+
+    private static final class ContainsCauseMatcher extends TypeSafeDiagnosingMatcher<Throwable> {
+
+        private final Class<? extends Throwable> failureCause;
+
+        private ContainsCauseMatcher(Class<? extends Throwable> failureCause) {
+            this.failureCause = failureCause;
+        }
+
+        @Override
+        protected boolean matchesSafely(Throwable throwable, Description description) {
+            final Optional<Throwable> optionalCause =
+                    findThrowable(throwable, cause -> cause.getClass() == failureCause);
+
+            if (!optionalCause.isPresent()) {
+                description
+                        .appendText("The throwable ")
+                        .appendValue(throwable)
+                        .appendText(" does not contain the expected failure cause ")
+                        .appendValue(failureCause.getSimpleName());
+            }
+
+            return optionalCause.isPresent();
+        }
+
+        @Override
+        public void describeTo(Description description) {
+            description
+                    .appendText("Expected failure cause is ")
+                    .appendValue(failureCause.getSimpleName());
         }
     }
 
