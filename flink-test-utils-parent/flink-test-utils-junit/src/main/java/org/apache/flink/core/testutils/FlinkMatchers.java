@@ -83,7 +83,7 @@ public class FlinkMatchers {
 
     /** Checks for a {@link Throwable} that matches by class and message. */
     public static Matcher<Throwable> containsCause(Throwable failureCause) {
-        return new ContainsCauseMatcher(failureCause);
+        return new ContainsCauseAndMessageMatcher(failureCause);
     }
 
     /** Checks for a {@link Throwable} that contains the expected error message. */
@@ -229,11 +229,12 @@ public class FlinkMatchers {
         }
     }
 
-    private static final class ContainsCauseMatcher extends TypeSafeDiagnosingMatcher<Throwable> {
+    private static final class ContainsCauseAndMessageMatcher
+            extends TypeSafeDiagnosingMatcher<Throwable> {
 
         private final Throwable failureCause;
 
-        private ContainsCauseMatcher(Throwable failureCause) {
+        private ContainsCauseAndMessageMatcher(Throwable failureCause) {
             this.failureCause = failureCause;
         }
 
