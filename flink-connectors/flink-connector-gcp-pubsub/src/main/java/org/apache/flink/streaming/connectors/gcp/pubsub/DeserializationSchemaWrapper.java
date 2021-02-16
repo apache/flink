@@ -48,12 +48,12 @@ public class DeserializationSchemaWrapper<T> implements PubSubDeserializationSch
 
     @Override
     public T deserialize(PubsubMessage pubsubMessage) throws Exception {
-        return deserializationSchema.deserialize(pubsubMessage.getData().toByteArray());
+        throw new UnsupportedOperationException("Should never be called");
     }
 
     @Override
     public void deserialize(PubsubMessage message, Collector<T> out) throws Exception {
-        deserialize(message, out);
+        deserializationSchema.deserialize(message.getData().toByteArray(), out);
     }
 
     @Override

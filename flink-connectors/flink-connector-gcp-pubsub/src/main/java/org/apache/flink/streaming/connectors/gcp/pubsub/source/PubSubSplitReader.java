@@ -7,6 +7,7 @@ import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubDeserializationSchema;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubSubscriber;
+import org.apache.flink.util.Collector;
 
 import com.google.pubsub.v1.ReceivedMessage;
 import org.slf4j.Logger;
@@ -21,6 +22,7 @@ public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSub
     private static final Logger LOG = LoggerFactory.getLogger(PubSubSplitReader.class);
     private final PubSubSubscriber subscriber;
     private final PubSubDeserializationSchema<T> deserializationSchema;
+    private final PubSubCollector collector;
     private final List<String> messageIdsToAcknowledge = new ArrayList<>();
     private boolean isEndOfStreamSignalled = false;
 
@@ -29,6 +31,7 @@ public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSub
 
         this.subscriber = subscriber;
         this.deserializationSchema = deserializationSchema;
+        this.collector = new PubSubCollector();
     }
 
     @Override
@@ -37,25 +40,33 @@ public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSub
 
         for (ReceivedMessage receivedMessage : subscriber.pull()) {
             try {
-                T message = deserializationSchema.deserialize(receivedMessage.getMessage());
-                if (deserializationSchema.isEndOfStream(message)) {
-                    //                    TODO: has to be changed somehow for checkpointing...
-                    //                    recordsBySplits.addFinishedSplit(PubSubSplit.SPLIT_ID);
-                } else {
-                    recordsBySplits.add(
-                            PubSubSplit.SPLIT_ID,
-                            new Tuple2<>(
-                                    message,
-                                    receivedMessage.getMessage().getPublishTime().getSeconds()));
-                }
+                deserializationSchema.deserialize(receivedMessage.getMessage(), collector);
+                collector
+                        .getMessages()
+                        .forEach(
+                                message ->
+                                        recordsBySplits.add(
+                                                PubSubSplit.SPLIT_ID,
+                                                new Tuple2<>(
+                                                        message,
+                                                        receivedMessage
+                                                                .getMessage()
+                                                                .getPublishTime()
+                                                                .getSeconds())));
             } catch (Exception e) {
                 throw new IOException("Failed to deserialize received message due to", e);
+            } finally {
+                collector.reset();
             }
 
             //            LOG.info(
             //                    "About to add message ID {} to messages to be acknowledged",
             //                    receivedMessage.getAckId());
             messageIdsToAcknowledge.add(receivedMessage.getAckId());
+        }
+
+        if (collector.isEndOfStreamSignalled()) {
+            recordsBySplits.addFinishedSplit(PubSubSplit.SPLIT_ID);
         }
 
         return recordsBySplits.build();
@@ -70,6 +81,37 @@ public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSub
     @Override
     public void close() throws Exception {
         subscriber.close();
+    }
+
+    private class PubSubCollector implements Collector<T> {
+        private final List<T> messages = new ArrayList<>();
+
+        private boolean endOfStreamSignalled = false;
+
+        @Override
+        public void collect(T message) {
+            if (endOfStreamSignalled || deserializationSchema.isEndOfStream(message)) {
+                this.endOfStreamSignalled = true;
+                return;
+            }
+
+            messages.add(message);
+        }
+
+        @Override
+        public void close() {}
+
+        private List<T> getMessages() {
+            return messages;
+        }
+
+        private void reset() {
+            messages.clear();
+        }
+
+        public boolean isEndOfStreamSignalled() {
+            return endOfStreamSignalled;
+        }
     }
 
     //    ------------------------------------------------------
