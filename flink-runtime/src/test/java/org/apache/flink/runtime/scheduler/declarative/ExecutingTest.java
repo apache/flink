@@ -56,6 +56,7 @@ import org.slf4j.Logger;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -264,6 +265,32 @@ public class ExecutingTest extends TestLogger {
             assertThat(exec.getJob(), instanceOf(ArchivedExecutionGraph.class));
             assertThat(exec.getJob().getJobID(), is(jobId));
             assertThat(exec.getJobStatus(), is(JobStatus.RUNNING));
+        }
+    }
+
+    @Test
+    public void testStateDoesNotExposeGloballyTerminalExecutionGraph() throws Exception {
+        try (MockExecutingContext ctx = new MockExecutingContext()) {
+            final FinishingMockExecutionGraph finishingMockExecutionGraph =
+                    new FinishingMockExecutionGraph();
+            Executing executing =
+                    new ExecutingStateBuilder()
+                            .setExecutionGraph(finishingMockExecutionGraph)
+                            .build(ctx);
+
+            // ideally we'd delay the async call to #onGloballyTerminalState instead, but the
+            // context does not support that
+            ctx.setExpectFinished(eg -> {});
+            executing.onEnter();
+
+            finishingMockExecutionGraph.finish();
+
+            // this is just a sanity check for the test
+            assertThat(executing.getExecutionGraph().getState(), is(JobStatus.FINISHED));
+
+            assertThat(executing.getJobStatus(), is(JobStatus.RUNNING));
+            assertThat(executing.getJob().getState(), is(JobStatus.RUNNING));
+            assertThat(executing.getJob().getStatusTimestamp(JobStatus.FINISHED), is(0L));
         }
     }
 
@@ -517,6 +544,72 @@ public class ExecutingTest extends TestLogger {
         @Override
         public Iterable<ExecutionJobVertex> getVerticesTopologically() {
             return getVerticesTopologicallySupplier.get();
+        }
+    }
+
+    private static class FinishingMockExecutionGraph extends ExecutionGraph {
+
+        private JobStatus jobStatus = JobStatus.RUNNING;
+        private final CompletableFuture<JobStatus> terminationFuture = new CompletableFuture<>();
+
+        public FinishingMockExecutionGraph() throws IOException {
+            super(
+                    new JobInformation(
+                            new JobID(),
+                            "Test Job",
+                            new SerializedValue<>(new ExecutionConfig()),
+                            new Configuration(),
+                            Collections.emptyList(),
+                            Collections.emptyList()),
+                    TestingUtils.defaultExecutor(),
+                    TestingUtils.defaultExecutor(),
+                    AkkaUtils.getDefaultTimeout(),
+                    1,
+                    ExecutionGraph.class.getClassLoader(),
+                    VoidBlobWriter.getInstance(),
+                    PartitionReleaseStrategyFactoryLoader.loadPartitionReleaseStrategyFactory(
+                            new Configuration()),
+                    NettyShuffleMaster.INSTANCE,
+                    NoOpJobMasterPartitionTracker.INSTANCE,
+                    ScheduleMode.EAGER,
+                    NoOpExecutionDeploymentListener.get(),
+                    (execution, newState) -> {},
+                    0L);
+        }
+
+        public void finish() {
+            this.jobStatus = JobStatus.FINISHED;
+            terminationFuture.complete(JobStatus.FINISHED);
+        }
+
+        @Override
+        public JobStatus getState() {
+            return this.jobStatus;
+        }
+
+        @Override
+        public long getStatusTimestamp(JobStatus status) {
+            switch (status) {
+                case INITIALIZING:
+                    return 1;
+                case CREATED:
+                    return 2;
+                case RUNNING:
+                    return 3;
+                case FINISHED:
+                    return 4;
+            }
+            return 0;
+        }
+
+        @Override
+        public CompletableFuture<JobStatus> getTerminationFuture() {
+            return terminationFuture;
+        }
+
+        @Override
+        public String getJsonPlan() {
+            return "";
         }
     }
 
