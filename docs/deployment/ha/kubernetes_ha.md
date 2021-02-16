@@ -31,6 +31,21 @@ Flink's Kubernetes HA services use [Kubernetes](https://kubernetes.io/) for high
 Kubernetes high availability services can only be used when deploying to Kubernetes.
 Consequently, they can be configured when using [standalone Flink on Kubernetes]({% link deployment/resource-providers/standalone/kubernetes.md %}) or the [native Kubernetes integration]({% link deployment/resource-providers/native_kubernetes.md %})
 
+## Prerequisites
+
+In order to use Flink's Kubernetes HA services you must fulfill the following prerequisites:
+
+- Kubernetes >= 1.9.
+- Service account with permissions to create, edit, delete ConfigMaps.
+  Take a look at how to configure a service account for [Flink's native Kubernetes integration]({% link deployment/resource-providers/native_kubernetes.md %}#rbac) and [standalone Flink on Kubernetes]({% link deployment/resource-providers/standalone/kubernetes.md %}#kubernetes-high-availability-services) for more information.
+
+## Prerequisites
+
+In order to use Flink's Kubernetes HA services you must fulfill the following prerequisites:
+
+- Kubernetes >= 1.9.
+- `default` service account with [RBAC]({% link deployment/resource-providers/native_kubernetes.md %}#rbac) permissions to create, edit, delete ConfigMaps.
+
 ## Configuration
 
 In order to start an HA-cluster you have to configure the following configuration keys:
