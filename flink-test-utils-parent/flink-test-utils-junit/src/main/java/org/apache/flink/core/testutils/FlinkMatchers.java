@@ -262,26 +262,6 @@ public class FlinkMatchers {
         public void describeTo(Description description) {
             description.appendText("Expected failure cause is ").appendValue(failureCause);
         }
-
-        // copied from flink-core to not mess up the dependency design too much, just for a little
-        // utility method
-        private static Optional<Throwable> findThrowable(
-                Throwable throwable, Predicate<Throwable> predicate) {
-            if (throwable == null || predicate == null) {
-                return Optional.empty();
-            }
-
-            Throwable t = throwable;
-            while (t != null) {
-                if (predicate.test(t)) {
-                    return Optional.of(t);
-                } else {
-                    t = t.getCause();
-                }
-            }
-
-            return Optional.empty();
-        }
     }
 
     private static final class ContainsMessageMatcher extends TypeSafeDiagnosingMatcher<Throwable> {
@@ -295,7 +275,7 @@ public class FlinkMatchers {
         @Override
         protected boolean matchesSafely(Throwable throwable, Description description) {
             final Optional<Throwable> optionalCause =
-                    findThrowableWithMessage(throwable, errorMessage);
+                    findThrowable(throwable, this::containsErrorMessage);
 
             if (!optionalCause.isPresent()) {
                 description
@@ -313,25 +293,29 @@ public class FlinkMatchers {
             description.appendText("Expected error message is ").appendValue(errorMessage);
         }
 
-        // copied from flink-core to not mess up the dependency design too much, just for a little
-        // utility method
-        private static Optional<Throwable> findThrowableWithMessage(
-                Throwable throwable, String searchMessage) {
-            if (throwable == null || searchMessage == null) {
-                return Optional.empty();
-            }
+        private boolean containsErrorMessage(Throwable t) {
+            return t.getMessage() != null && t.getMessage().contains(errorMessage);
+        }
+    }
 
-            Throwable t = throwable;
-            while (t != null) {
-                if (t.getMessage() != null && t.getMessage().contains(searchMessage)) {
-                    return Optional.of(t);
-                } else {
-                    t = t.getCause();
-                }
-            }
-
+    // copied from flink-core to not mess up the dependency design too much, just for a little
+    // utility method
+    private static Optional<Throwable> findThrowable(
+            Throwable throwable, Predicate<Throwable> predicate) {
+        if (throwable == null || predicate == null) {
             return Optional.empty();
         }
+
+        Throwable t = throwable;
+        while (t != null) {
+            if (predicate.test(t)) {
+                return Optional.of(t);
+            } else {
+                t = t.getCause();
+            }
+        }
+
+        return Optional.empty();
     }
 
     private static final class WillNotCompleteMatcher
