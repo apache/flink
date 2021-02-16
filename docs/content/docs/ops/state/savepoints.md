@@ -46,9 +46,12 @@ In contrast to all this, Savepoints are created, owned, and deleted by the user.
 changing parallelism, forking a second job like for a red/blue deployment, and so on. Of course, Savepoints must survive job termination. Conceptually, Savepoints can be a bit more expensive to produce and restore and focus
 more on portability and support for the previously mentioned changes to the job.
 
-Those conceptual differences aside, the current implementations of Checkpoints and Savepoints are basically using the same code and produce the same format. However, there is currently one exception from this, and we might
-introduce more differences in the future. The exception is incremental checkpoints with the RocksDB state backend. They are using some RocksDB internal format instead of Flink’s native savepoint format. This makes them the
-first instance of a more lightweight checkpointing mechanism, compared to Savepoints.
+Flink's savepoint binary format is unified across all state backends. That means you can take a savepoint with one state backend and then restore it using another.
+
+{{< hint info >}}
+State backends did not start producing a common format until version 1.13. Therefore, if you want to switch the state backend you should first upgrade your Flink version then
+take a savepoint with the new version, and only after that, you can restore it with a different state backend.
+{{< /hint >}}
 
 ## Assigning Operator IDs
 
