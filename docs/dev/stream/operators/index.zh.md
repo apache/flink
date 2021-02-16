@@ -26,7 +26,7 @@ under the License.
 
 用户通过算子能将一个或多个 DataStream 转换成新的 DataStream，在应用程序中可以将多个数据转换算子合并成一个复杂的数据流拓扑。
 
-这部分内容将描述 Flink DataStream API 中基本的数据转换API，数据转换后各种数据分区方式，以及算子的链接策略。
+这部分内容将描述 Flink DataStream API 中基本的数据转换 API，数据转换后各种数据分区方式，以及算子的链接策略。
 
 * toc
 {:toc}
@@ -51,7 +51,7 @@ under the License.
     <tr>
           <td><h5><strong>Map</strong></h5>DataStream &rarr; DataStream</td>
           <td>
-            <p>输入一个数据并对应输出一个数据。 如下 map 函数将输入流的每一个数据乘2后输出:</p>
+            <p>输入一个数据并对应输出一个数据。 如下 map 函数将输入流的每一个数据乘 2 后输出:</p>
 {% highlight java %}
 DataStream<Integer> dataStream = //...
 dataStream.map(new MapFunction<Integer, Integer>() {
@@ -67,7 +67,7 @@ dataStream.map(new MapFunction<Integer, Integer>() {
         <tr>
           <td><h5><strong>FlatMap</strong></h5>DataStream &rarr; DataStream</td>
           <td>
-            <p>输入一个数据，产生并输出0个，1个或多个数据。 如下 flatmap 函数将输入的单个句子根据空格分隔成多个单词并逐个输出：</p>
+            <p>输入一个数据，产生并输出 0 个，1 个或多个数据。 如下 flatmap 函数将输入的单个句子根据空格分隔成多个单词并逐个输出：</p>
 {% highlight java %}
 dataStream.flatMap(new FlatMapFunction<String, String>() {
     @Override
@@ -84,7 +84,7 @@ dataStream.flatMap(new FlatMapFunction<String, String>() {
         <tr>
           <td><h5><strong>Filter</strong></h5>DataStream &rarr; DataStream</td>
           <td>
-            <p>根据每个输入元素计算 boolean 函数，并保留函数输出值为 True 的元素。 如下是滤除值为0的过滤函数：
+            <p>根据每个输入元素计算 boolean 函数，并保留函数输出值为 True 的元素。 如下是滤除值为 0 的过滤函数：
             </p>
 {% highlight java %}
 dataStream.filter(new FilterFunction<Integer>() {
@@ -99,7 +99,7 @@ dataStream.filter(new FilterFunction<Integer>() {
         <tr>
           <td><h5><strong>KeyBy</strong></h5>DataStream &rarr; KeyedStream</td>
           <td>
-            <p>将一个流的数据分发到各个独立分区，相同 key 值的元素将分发到同一个分区。<em>keyBy()</em>内部使用 Hash 分发数据。Flink 支持多种方式<a href="{% link dev/stream/state/state.zh.md %}#keyed-datastream">指定 key</a>。</p>
+            <p>将一个流的数据分发到各个独立分区，相同 key 值的元素将分发到同一个分区。<em>keyBy()</em> 内部使用 Hash 分发数据。Flink 支持多种方式<a href="{% link dev/stream/state/state.zh.md %}#keyed-datastream">指定 key</a>。</p>
             <p>
             这个转换操作将返回一个 <em>KeyedStream</em>，你需要通过它来使用<a href="{% link dev/stream/state/state.zh.md %}#keyed-state">keyed state</a>。</p>
 {% highlight java %}
@@ -167,7 +167,7 @@ dataStream.keyBy(value -> value.f0).window(TumblingEventTimeWindows.of(Time.seco
           <td><h5><strong>WindowAll</strong></h5>DataStream &rarr; AllWindowedStream</td>
           <td>
               <p>窗口也可以被定义在普通的 DataStream 上。这种窗口将流中的所有事件都按照某些条件（比如之前五秒的数据）组合起来。关于窗口的完整描述请见 <a href="windows.html">windows</a>。</p>
-              <p><strong>WARNING:</strong> 在很多情况下，这是一个 <strong>非并行</strong> 的转换。所有数据都会被 windowAll 算子汇集到一个 task 中。</p>
+              <p><strong>WARNING:</strong> 在很多情况下，这是一个<strong>非并行</strong>的转换。所有数据都会被 windowAll 算子汇集到一个 task 中。</p>
 {% highlight java %}
 dataStream.windowAll(TumblingEventTimeWindows.of(Time.seconds(5))); // Last 5 seconds of data
 {% endhighlight %}
@@ -376,7 +376,7 @@ DataStream<Long> output = iterationBody.filter(new FilterFunction<Long>(){
     <tr>
           <td><h5><strong>Map</strong></h5>DataStream &rarr; DataStream</td>
           <td>
-            <p>输入一个数据并对应输出一个数据。 如下 map 函数将输入流的每一个数据乘2后输出:</p>
+            <p>输入一个数据并对应输出一个数据。 如下 map 函数将输入流的每一个数据乘 2 后输出:</p>
 {% highlight scala %}
 dataStream.map { x => x * 2 }
 {% endhighlight %}
@@ -386,7 +386,7 @@ dataStream.map { x => x * 2 }
         <tr>
           <td><h5><strong>FlatMap</strong></h5>DataStream &rarr; DataStream</td>
           <td>
-            <p>输入一个数据，产生并输出0个，1个或多个数据。 如下 flatmap 函数将输入的单个句子根据空格分隔成多个单词并逐个输出：</p>
+            <p>输入一个数据，产生并输出 0 个，1 个或多个数据。 如下 flatmap 函数将输入的单个句子根据空格分隔成多个单词并逐个输出：</p>
 {% highlight scala %}
 dataStream.flatMap { str => str.split(" ") }
 {% endhighlight %}
@@ -395,7 +395,7 @@ dataStream.flatMap { str => str.split(" ") }
         <tr>
           <td><h5><strong>Filter</strong></h5>DataStream &rarr; DataStream</td>
           <td>
-            <p>根据每个输入元素计算 boolean 函数，并保留函数输出值为 True 的元素。 如下是滤除值为0的过滤函数：
+            <p>根据每个输入元素计算 boolean 函数，并保留函数输出值为 True 的元素。 如下是滤除值为 0 的过滤函数：
             </p>
 {% highlight scala %}
 dataStream.filter { _ != 0 }
@@ -405,7 +405,7 @@ dataStream.filter { _ != 0 }
         <tr>
           <td><h5><strong>KeyBy</strong></h5>DataStream &rarr; KeyedStream</td>
           <td>
-            <p>将一个流的数据分发到各个独立分区，相同 key 值的元素将分发到同一个分区。<em>keyBy()</em>内部使用 Hash 分发数据。Flink 支持多种方式<a href="{% link dev/stream/state/state.zh.md %}#keyed-datastream">指定 key</a>。</p>
+            <p>将一个流的数据分发到各个独立分区，相同 key 值的元素将分发到同一个分区。<em>keyBy()</em> 内部使用 Hash 分发数据。Flink 支持多种方式<a href="{% link dev/stream/state/state.zh.md %}#keyed-datastream">指定 key</a>。</p>
             <p>
             这个转换操作将返回一个 <em>KeyedStream</em>，你需要通过它来使用<a href="{% link dev/stream/state/state.zh.md %}#keyed-state">keyed state</a>。</p>
 {% highlight scala %}
@@ -467,7 +467,7 @@ dataStream.keyBy(_._1).window(TumblingEventTimeWindows.of(Time.seconds(5))) // L
           <td><h5><strong>WindowAll</strong></h5>DataStream &rarr; AllWindowedStream</td>
           <td>
               <p>窗口也可以被定义在普通的 DataStream 上。这种窗口将流中的所有事件都按照某些条件（比如之前五秒的数据）组合起来。关于窗口的完整描述请见 <a href="windows.html">windows</a>。</p>
-              <p><strong>WARNING:</strong> 在很多情况下，这是一个 <strong>非并行</strong> 的转换。所有数据都会被 windowAll 算子汇集到一个 task 中。</p>
+              <p><strong>WARNING:</strong> 在很多情况下，这是一个<strong>非并行</strong>的转换。所有数据都会被 windowAll 算子汇集到一个 task 中。</p>
 {% highlight scala %}
 dataStream.windowAll(TumblingEventTimeWindows.of(Time.seconds(5))) // Last 5 seconds of data
 {% endhighlight %}
@@ -621,7 +621,7 @@ is not supported by the API out-of-the-box. To use this feature, you should use 
     <tr>
           <td><h5><strong>Map</strong></h5>DataStream &rarr; DataStream</td>
           <td>
-            <p>输入一个数据并对应输出一个数据。 如下 map 函数将输入流的每一个数据乘2后输出:</p>
+            <p>输入一个数据并对应输出一个数据。 如下 map 函数将输入流的每一个数据乘 2 后输出:</p>
 {% highlight python %}
 data_stream = env.from_collection(collection=[1, 2, 3, 4, 5])
 data_stream.map(lambda x: 2 * x, output_type=Types.INT())
@@ -632,7 +632,7 @@ data_stream.map(lambda x: 2 * x, output_type=Types.INT())
         <tr>
           <td><h5><strong>FlatMap</strong></h5>DataStream &rarr; DataStream</td>
           <td>
-            <p>输入一个数据，产生并输出0个，1个或多个数据。 如下 flatmap 函数将输入的单个句子根据空格分隔成多个单词并逐个输出：</p>
+            <p>输入一个数据，产生并输出 0 个，1 个或多个数据。 如下 flatmap 函数将输入的单个句子根据空格分隔成多个单词并逐个输出：</p>
 {% highlight python %}
 data_stream = env.from_collection(collection=['hello apache flink', 'streaming compute'])
 data_stream.flat_map(lambda x: x.split(' '), result_type=Types.STRING())
@@ -642,7 +642,7 @@ data_stream.flat_map(lambda x: x.split(' '), result_type=Types.STRING())
         <tr>
           <td><h5><strong>Filter</strong></h5>DataStream &rarr; DataStream</td>
           <td>
-            <p>根据每个输入元素计算 bool 函数，并保留函数输出值为 True 的元素。 如下是滤除值为0的过滤函数：
+            <p>根据每个输入元素计算 bool 函数，并保留函数输出值为 True 的元素。 如下是滤除值为 0 的过滤函数：
             </p>
 {% highlight python %}
 data_stream = env.from_collection(collection=[0, 1, 2, 3, 4, 5])
@@ -653,7 +653,7 @@ data_stream.filter(lambda x: x != 0)
         <tr>
           <td><h5><strong>KeyBy</strong></h5>DataStream &rarr; KeyedStream</td>
           <td>
-            <p>将一个流的数据分发到各个独立分区，相同 key 值的元素将分发到同一个分区。<em>keyBy()</em>内部使用 Hash 分发数据。Flink 支持多种方式<a href="{% link dev/stream/state/state.zh.md %}#keyed-datastream">指定 key</a>。</p>
+            <p>将一个流的数据分发到各个独立分区，相同 key 值的元素将分发到同一个分区。<em>keyBy()</em> 内部使用 Hash 分发数据。Flink 支持多种方式<a href="{% link dev/stream/state/state.zh.md %}#keyed-datastream">指定 key</a>。</p>
             <p>
             这个转换操作将返回一个 <em>KeyedStream</em>，你需要通过它来使用<a href="{% link dev/stream/state/state.zh.md %}#keyed-state">keyed state</a>。</p>
 {% highlight python %}
@@ -861,9 +861,9 @@ dataStream.rebalance();
            是网络数据传输，具体取决于其他配置值，如 TaskManager 的 slot 槽数。
         </p>
         <p>
-            上游算子直接分发数据到下游算子子集的确定将取决于上下游算子各自的并发度配置。例如，如果上游算子并发度为2，下游算子并发度为6，
+            上游算子直接分发数据到下游算子子集的确定将取决于上下游算子各自的并发度配置。例如，如果上游算子并发度为 2，下游算子并发度为 6，
             那么上游算子的其中一个并发实例将数据分发到下游中的三个算子， 另外一个上游算子则将数据分发到下游的另外三个实例中。再如，当下游
-           算子只有2个并发，而上游算子有6个并发的时候，上游中的三个并发将会分发数据至下游其中一个并发，而另外三个上游算子则将数据分发至另
+           算子只有 2 个并发，而上游算子有 6 个并发的时候，上游中的三个并发将会分发数据至下游其中一个并发，而另外三个上游算子则将数据分发至另
            一个下游并发实例。
         </p>
         <p>
@@ -957,9 +957,9 @@ dataStream.rebalance()
            是网络数据传输，具体取决于其他配置值，如 TaskManager 的 slot 槽数。
         </p>
         <p>
-            上游算子直接分发数据到下游算子子集的确定将取决于上下游算子各自的并发度配置。例如，如果上游算子并发度为2，下游算子并发度为6，
+            上游算子直接分发数据到下游算子子集的确定将取决于上下游算子各自的并发度配置。例如，如果上游算子并发度为 2，下游算子并发度为 6，
             那么上游算子的其中一个并发实例将数据分发到下游中的三个算子， 另外一个上游算子则将数据分发到下游的另外三个实例中。再如，当下游
-           算子只有2个并发，而上游算子有6个并发的时候，上游中的三个并发将会分发数据至下游其中一个并发，而另外三个上游算子则将数据分发至另
+           算子只有 2 个并发，而上游算子有 6 个并发的时候，上游中的三个并发将会分发数据至下游其中一个并发，而另外三个上游算子则将数据分发至另
            一个下游并发实例。
         </p>
         <p>
@@ -1053,9 +1053,9 @@ data_stream.rebalance()
            是网络数据传输，具体取决于其他配置值，如 TaskManager 的 slot 槽数。
         </p>
         <p>
-            上游算子直接分发数据到下游算子子集的确定将取决于上下游算子各自的并发度配置。例如，如果上游算子并发度为2，下游算子并发度为6，
+            上游算子直接分发数据到下游算子子集的确定将取决于上下游算子各自的并发度配置。例如，如果上游算子并发度为 2，下游算子并发度为 6，
             那么上游算子的其中一个并发实例将数据分发到下游中的三个算子， 另外一个上游算子则将数据分发到下游的另外三个实例中。再如，当下游
-           算子只有2个并发，而上游算子有6个并发的时候，上游中的三个并发将会分发数据至下游其中一个并发，而另外三个上游算子则将数据分发至另
+           算子只有 2 个并发，而上游算子有 6 个并发的时候，上游中的三个并发将会分发数据至下游其中一个并发，而另外三个上游算子则将数据分发至另
            一个下游并发实例。
         </p>
         <p>
