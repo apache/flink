@@ -29,8 +29,6 @@ under the License.
 
 Flink provides an [Apache Kafka](https://kafka.apache.org) connector for reading data from and writing data to Kafka topics with exactly-once guarantees.
 
-
-
 ## Dependency
 
 Apache Flink ships with a universal Kafka connector which attempts to track the latest version of the Kafka client.
@@ -38,13 +36,7 @@ The version of the client it uses may change between Flink releases.
 Modern Kafka clients are backwards compatible with broker versions 0.10.0 or later.
 For details on Kafka compatibility, please refer to the official [Kafka documentation](https://kafka.apache.org/protocol.html#protocol_compatibility).
 
-```xml
-<dependency>
-	<groupId>org.apache.flink</groupId>
-	<artifactId>flink-connector-kafka{{< scala_version >}}</artifactId>
-	<version>{{< version >}}</version>
-</dependency>
-```
+{{< artifact flink-connector-kafka withScalaVersion >}}
 
 Flink's streaming connectors are not currently part of the binary distribution.
 See how to link with them for cluster execution [here]({{< ref "docs/dev/datastream/project-configuration" >}}).
@@ -113,22 +105,10 @@ For convenience, Flink provides the following schemas out of the box:
     
 {{< tabs "8c6721c7-4a48-496e-b0fe-6522cf6a5e13" >}}
 {{< tab "AvroDeserializationSchema" >}}
-```xml
-<dependency>
-    <groupId>org.apache.flink</groupId>
-    <artifactId>flink-avro</artifactId>
-    <version>{{site.version }}</version>
-</dependency>
-```
+{{< artifact flink-avro >}}
 {{< /tab >}}
 {{< tab "ConfluentRegistryAvroDeserializationSchema" >}}
-```xml
-<dependency>
-    <groupId>org.apache.flink</groupId>
-    <artifactId>flink-avro-confluent-registry</artifactId>
-    <version>{{site.version }}</version>
-</dependency>
-```
+{{< artifact flink-avro-confluent-registry >}}
 {{< /tab >}}
 {{< /tabs >}}
 
@@ -567,14 +547,14 @@ to follow these steps:
 
 ## Troubleshooting
 
-<div class="alert alert-warning">
+{{< hint info >}}
 If you have a problem with Kafka when using Flink, keep in mind that Flink only wraps
 <a href="https://kafka.apache.org/documentation/#consumerapi">KafkaConsumer</a> or
 <a href="https://kafka.apache.org/documentation/#producerapi">KafkaProducer</a>
 and your problem might be independent of Flink and sometimes can be solved by upgrading Kafka brokers,
 reconfiguring Kafka brokers or reconfiguring <tt>KafkaConsumer</tt> or <tt>KafkaProducer</tt> in Flink.
 Some examples of common problems are listed below.
-</div>
+{{< /hint >}}
 
 ### Data loss
 

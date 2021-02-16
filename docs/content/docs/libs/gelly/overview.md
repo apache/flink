@@ -45,22 +45,10 @@ Add the following dependency to your `pom.xml` to use Gelly.
 
 {{< tabs "96de5128-3c66-4942-9498-e9a8ae439314" >}}
 {{< tab "Java" >}}
-```xml
-<dependency>
-    <groupId>org.apache.flink</groupId>
-    <artifactId>flink-gelly{{< scala_version >}}</artifactId>
-    <version>{{< version >}}</version>
-</dependency>
-```
+{{< artifact flink-gelly withScalaVersion >}}
 {{< /tab >}}
 {{< tab "Scala" >}}
-```xml
-<dependency>
-    <groupId>org.apache.flink</groupId>
-    <artifactId>flink-gelly-scala{{< scala_version >}}</artifactId>
-    <version>{{< version >}}</version>
-</dependency>
-```
+{{< artifact flink-gelly-scala withScalaVersion >}}
 {{< /tab >}}
 {{< /tabs >}}
 

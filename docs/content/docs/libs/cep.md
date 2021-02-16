@@ -44,22 +44,10 @@ add the FlinkCEP dependency to the `pom.xml` of your project.
 
 {{< tabs "3b3e4675-dd86-4b2d-8487-9c8711f234b3" >}}
 {{< tab "Java" >}}
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-cep{{< scala_version >}}</artifactId>
-  <version>{{< version >}}</version>
-</dependency>
-```
+{{< artifact flink-cep withScalaVersion >}}
 {{< /tab >}}
 {{< tab "Scala" >}}
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-cep-scala{{< scala_version >}}</artifactId>
-  <version>{{< version >}}</version>
-</dependency>
-```
+{{< artifact flink-cep-scala withScalaVersion >}}
 {{< /tab >}}
 {{< /tabs >}}
 

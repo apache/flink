@@ -35,6 +35,9 @@ function onSwitch(tabId) {
     })
 }
 
+/**
+ * Function to collapse the ToC in desktop mode.
+ */
 function collapseToc() {
     document.querySelector(".book-toc").setAttribute("style", "display:none");
     document.querySelector(".expand-toc").setAttribute("style", "display:block");
@@ -42,10 +45,29 @@ function collapseToc() {
     sessionStorage.setItem("collapse-toc", "true");
 }
 
+/**
+ * Function to expand the ToC in desktop mode.
+ */
 function expandToc() {
     document.querySelector(".book-toc").setAttribute("style", "display:block");
     document.querySelector(".expand-toc").setAttribute("style", "display:none");
     sessionStorage.removeItem("collapse-toc");
+}
+
+/**
+ * Selects all text within the given container.
+ */
+function selectText(containerId) {
+    if (document.selection) {
+        var range = document.body.createTextRange();
+        range.moveToElementText(document.getElementById(containerId));
+        range.select();
+    } else if (window.getSelection) {
+        var range = document.createRange();
+        range.selectNode(document.getElementById(containerId));
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+    }
 }
 
 document.addEventListener("DOMContentLoaded", function(event) { 

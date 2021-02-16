@@ -30,13 +30,7 @@ This connector provides a sink that writes data to a JDBC database.
 
 To use it, add the following dependency to your project (along with your JDBC-driver):
 
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-connector-jdbc{{< scala_version >}}</artifactId>
-  <version>{{< version >}}</version>
-</dependency>
-```
+{{< artifact flink-connector-jdbc withScalaVersion >}}
 
 Note that the streaming connectors are currently __NOT__ part of the binary distribution. See how to link with them for cluster execution [here]({{< ref "docs/dev/datastream/project-configuration" >}}).
 

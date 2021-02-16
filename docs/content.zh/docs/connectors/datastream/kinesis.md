@@ -31,13 +31,7 @@ The Kinesis connector provides access to [Amazon AWS Kinesis Streams](http://aws
 
 To use the connector, add the following Maven dependency to your project:
 
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-connector-kinesis{{< scala_version >}}</artifactId>
-  <version>{{< version >}}</version>
-</dependency>
-```
+{{< artifact flink-connector-kinesis withScalaVersion >}}
 
 {{< hint warning >}}
 **Attention** Prior to Flink version 1.10.0 the `flink-connector-kinesis{{< scala_version >}}` has a dependency on code licensed under the [Amazon Software License](https://aws.amazon.com/asl/).

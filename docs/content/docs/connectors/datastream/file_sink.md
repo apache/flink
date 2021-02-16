@@ -166,13 +166,7 @@ For writing to other Parquet compatible data formats, users need to create the P
 
 To use the Parquet bulk encoder in your application you need to add the following dependency:
 
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-parquet{{< scala_version >}}</artifactId>
-  <version>{{< version >}}</version>
-</dependency>
-```
+{{< artifact flink-parquet withScalaVersion >}}
 
 A `FileSink` that writes Avro data to Parquet format can be created like this:
 
@@ -259,13 +253,7 @@ AvroWriters class.
 
 To use the Avro writers in your application you need to add the following dependency:
 
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-avro</artifactId>
-  <version>{{< version >}}</version>
-</dependency>
-```
+{{< artifact flink-avro withScalaVersion >}}
 
 A `FileSink` that writes data to Avro files can be created like this:
 
@@ -430,13 +418,8 @@ class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
 
 To use the ORC bulk encoder in an application, users need to add the following dependency:
 
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-orc{{< scala_version >}}</artifactId>
-  <version>{{< version >}}</version>
-</dependency>
-```
+{{< artifact flink-orc withScalaVersion >}}
+
 
 And then a `FileSink` that writes data in ORC format can be created like this:
 
@@ -554,13 +537,7 @@ class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
 
 To use the `SequenceFile` bulk encoder in your application you need to add the following dependency:
 
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-sequence-file</artifactId>
-  <version>{{< version >}}</version>
-</dependency>
-```
+{{< artifact flink-sequence-file withScalaVersion >}}
 
 A simple `SequenceFile` writer can be created like this:
 

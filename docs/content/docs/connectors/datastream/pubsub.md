@@ -30,13 +30,7 @@ This connector provides a Source and Sink that can read from and write to
 [Google Cloud PubSub](https://cloud.google.com/pubsub). To use this connector, add the
 following dependency to your project:
 
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-connector-gcp-pubsub{{< scala_version >}}</artifactId>
-  <version>{{< version >}}</version>
-</dependency>
-```
+{{< artifact flink-connector-gcp-pubsub withScalaVersion >}}
 
 {{< hint warning >}}
 <b>Note</b>: This connector has been added to Flink recently. It has not received widespread testing yet.

@@ -37,26 +37,22 @@ of the Elasticsearch installation:
 <table class="table table-bordered">
   <thead>
     <tr>
-      <th class="text-left">Maven Dependency</th>
-      <th class="text-left">Supported since</th>
       <th class="text-left">Elasticsearch version</th>
+      <th class="text-left">Maven Dependency</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-        <td>flink-connector-elasticsearch5{{< scala_version >}}</td>
-        <td>1.3.0</td>
         <td>5.x</td>
+        <td>{{< artifact flink-connector-elasticsearch5 withScalaVersion >}}</td>
     </tr>
     <tr>
-        <td>flink-connector-elasticsearch6{{< scala_version >}}</td>
-        <td>1.6.0</td>
         <td>6.x</td>
+        <td>{{< artifact flink-connector-elasticsearch6 withScalaVersion >}}</td>
     </tr>
     <tr>
-        <td>flink-connector-elasticsearch7{{< scala_version >}}</td>
-        <td>1.10.0</td>
         <td>7 and later versions</td>
+        <td>{{< artifact flink-connector-elasticsearch7 withScalaVersion >}}</td>
     </tr>
   </tbody>
 </table>
