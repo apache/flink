@@ -49,7 +49,7 @@ under the License.
   </thead>
   <tbody>
     <tr>
-          <td><strong>Map</strong><br>DataStream &rarr; DataStream</td>
+          <td><h5><strong>Map</strong></h5>DataStream &rarr; DataStream</td>
           <td>
             <p>输入一个数据并对应输出一个数据。 如下 map 函数将输入流的每一个数据乘2后输出:</p>
 {% highlight java %}
@@ -65,7 +65,7 @@ dataStream.map(new MapFunction<Integer, Integer>() {
         </tr>
 
         <tr>
-          <td><strong>FlatMap</strong><br>DataStream &rarr; DataStream</td>
+          <td><h5><strong>FlatMap</strong></h5>DataStream &rarr; DataStream</td>
           <td>
             <p>输入一个数据，产生并输出0个，1个或多个数据。 如下 flatmap 函数将输入的单个句子根据空格分隔成多个单词并逐个输出：</p>
 {% highlight java %}
@@ -82,7 +82,7 @@ dataStream.flatMap(new FlatMapFunction<String, String>() {
           </td>
         </tr>
         <tr>
-          <td><strong>Filter</strong><br>DataStream &rarr; DataStream</td>
+          <td><h5><strong>Filter</strong></h5>DataStream &rarr; DataStream</td>
           <td>
             <p>根据每个输入元素计算 boolean 函数，并保留函数输出值为 True 的元素。 如下是滤除值为0的过滤函数：
             </p>
@@ -97,7 +97,7 @@ dataStream.filter(new FilterFunction<Integer>() {
           </td>
         </tr>
         <tr>
-          <td><strong>KeyBy</strong><br>DataStream &rarr; KeyedStream</td>
+          <td><h5><strong>KeyBy</strong></h5>DataStream &rarr; KeyedStream</td>
           <td>
             <p>将一个流的数据分发到各个独立分区，相同 key 值的元素将分发到同一个分区。<em>keyBy()</em>内部使用 Hash 分发数据。Flink 支持多种方式<a href="{% link dev/stream/state/state.zh.md %}#keyed-datastream">指定 key</a>。</p>
             <p>
@@ -117,7 +117,7 @@ dataStream.keyBy(value -> value.f0) // Key by the first element of a Tuple
           </td>
         </tr>
         <tr>
-          <td><strong>Reduce</strong><br>KeyedStream &rarr; DataStream</td>
+          <td><h5><strong>Reduce</strong></h5>KeyedStream &rarr; DataStream</td>
           <td>
             <p>以滚动的形式"压缩" KeyedStream ， 将当前元素和上一次压缩合并的值进行新一轮压缩并输出新的压缩值。
                     <br/>
@@ -136,7 +136,7 @@ keyedStream.reduce(new ReduceFunction<Integer>() {
           </td>
         </tr>
         <tr>
-          <td><strong>Aggregations</strong><br>KeyedStream &rarr; DataStream</td>
+          <td><h5><strong>Aggregations</strong></h5>KeyedStream &rarr; DataStream</td>
           <td>
             <p>在 keyed stream 上滚动地聚合数据。min 和 minBy 的区别在于 min 直接返回最小值，而 minBy 返回在当前属性上拥有最小值的元素（max 和 maxBy 也一样）</p>
 {% highlight java %}
@@ -154,7 +154,7 @@ keyedStream.maxBy("key");
           </td>
         </tr>
         <tr>
-          <td><strong>Window</strong><br>KeyedStream &rarr; WindowedStream</td>
+          <td><h5><strong>Window</strong></h5>KeyedStream &rarr; WindowedStream</td>
           <td>
             <p>窗口可以被定义在分区后的 KeyedStream 上。窗口将每个 key 中的数据根据某些条件（比如之前五秒的数据）组合起来。关于窗口的完整描述请见 <a href="windows.html">windows</a>。
 {% highlight java %}
@@ -164,7 +164,7 @@ dataStream.keyBy(value -> value.f0).window(TumblingEventTimeWindows.of(Time.seco
           </td>
         </tr>
         <tr>
-          <td><strong>WindowAll</strong><br>DataStream &rarr; AllWindowedStream</td>
+          <td><h5><strong>WindowAll</strong></h5>DataStream &rarr; AllWindowedStream</td>
           <td>
               <p>窗口也可以被定义在普通的 DataStream 上。这种窗口将流中的所有事件都按照某些条件（比如之前五秒的数据）组合起来。关于窗口的完整描述请见 <a href="windows.html">windows</a>。</p>
               <p><strong>WARNING:</strong> 在很多情况下，这是一个 <strong>非并行</strong> 的转换。所有数据都会被 windowAll 算子汇集到一个 task 中。</p>
@@ -174,7 +174,7 @@ dataStream.windowAll(TumblingEventTimeWindows.of(Time.seconds(5))); // Last 5 se
           </td>
         </tr>
         <tr>
-          <td><strong>Window Apply</strong><br>WindowedStream &rarr; DataStream<br>AllWindowedStream &rarr; DataStream</td>
+          <td><h5><strong>Window Apply</strong></h5>WindowedStream &rarr; DataStream<br>AllWindowedStream &rarr; DataStream</td>
           <td>
             <p>对窗口使用函数。下面是一个手动对窗口内元素求和的函数。</p>
             <p><strong>注意：</strong>如果你使用的是 windowAll 转换，你需要用 AllWindowFunction 而不是 WindowFunction。</p>
@@ -208,7 +208,7 @@ allWindowedStream.apply (new AllWindowFunction<Tuple2<String,Integer>, Integer, 
           </td>
         </tr>
         <tr>
-          <td><strong>Window Reduce</strong><br>WindowedStream &rarr; DataStream</td>
+          <td><h5><strong>Window Reduce</strong></h5>WindowedStream &rarr; DataStream</td>
           <td>
             <p>对窗口使用 reduce 函数并返回 reduce 后的值。</p>
 {% highlight java %}
@@ -221,7 +221,7 @@ windowedStream.reduce (new ReduceFunction<Tuple2<String,Integer>>() {
           </td>
         </tr>
         <tr>
-          <td><strong>Aggregations on windows</strong><br>WindowedStream &rarr; DataStream</td>
+          <td><h5><strong>Aggregations on windows</strong></h5>WindowedStream &rarr; DataStream</td>
           <td>
             <p>聚合窗口中的内容。min 和 minBy 的区别在于 min 直接返回最小值，而 minBy 返回在当前属性上拥有最小值的元素（max 和 maxBy 同理）</p>
 {% highlight java %}
@@ -239,7 +239,7 @@ windowedStream.maxBy("key");
           </td>
         </tr>
         <tr>
-          <td><strong>Union</strong><br>DataStream* &rarr; DataStream</td>
+          <td><h5><strong>Union</strong></h5>DataStream* &rarr; DataStream</td>
           <td>
             <p>将两个或多个数据流合并成一个包含所有流的数据的新流。注意：如果一个数据流和自身进行合并，这个流中的每个数据将在合并后的流中出现两次。</p>
 {% highlight java %}
@@ -248,7 +248,7 @@ dataStream.union(otherStream1, otherStream2, ...);
           </td>
         </tr>
         <tr>
-          <td><strong>Window Join</strong><br>DataStream,DataStream &rarr; DataStream</td>
+          <td><h5><strong>Window Join</strong></h5>DataStream,DataStream &rarr; DataStream</td>
           <td>
             <p>根据指定的 key 和窗口，join 两个数据流。</p>
 {% highlight java %}
@@ -260,7 +260,7 @@ dataStream.join(otherStream)
           </td>
         </tr>
         <tr>
-          <td><strong>Interval Join</strong><br>KeyedStream,KeyedStream &rarr; DataStream</td>
+          <td><h5><strong>Interval Join</strong></h5>KeyedStream,KeyedStream &rarr; DataStream</td>
           <td>
             <p>将分别属于两个 keyed stream 的元素 e1 和 e2 根据一个共同的 key 和指定的时间范围 Join 在一起，使 e1.timestamp + lowerBound <= e2.timestamp <= e1.timestamp + upperBound</p>
 {% highlight java %}
@@ -275,7 +275,7 @@ keyedStream.intervalJoin(otherKeyedStream)
           </td>
         </tr>
         <tr>
-          <td><strong>Window CoGroup</strong><br>DataStream,DataStream &rarr; DataStream</td>
+          <td><h5><strong>Window CoGroup</strong></h5>DataStream,DataStream &rarr; DataStream</td>
           <td>
              <p>根据指定的 key 和窗口，cogroup 两个数据流。</p>
 {% highlight java %}
@@ -287,7 +287,7 @@ dataStream.coGroup(otherStream)
           </td>
         </tr>
         <tr>
-          <td><strong>Connect</strong><br>DataStream,DataStream &rarr; ConnectedStreams</td>
+          <td><h5><strong>Connect</strong></h5>DataStream,DataStream &rarr; ConnectedStreams</td>
           <td>
             <p>连接两个数据流并保留各自的类型。connect 允许这两个流共享状态。</p>
 {% highlight java %}
@@ -299,7 +299,7 @@ ConnectedStreams<Integer, String> connectedStreams = someStream.connect(otherStr
           </td>
         </tr>
         <tr>
-          <td><strong>CoMap, CoFlatMap</strong><br>ConnectedStreams &rarr; DataStream</td>
+          <td><h5><strong>CoMap, CoFlatMap</strong></h5>ConnectedStreams &rarr; DataStream</td>
           <td>
             <p>对 ConnectedStream 中的每个流进行和单个流类似的 map/flatMap 操作。</p>
 {% highlight java %}
@@ -332,7 +332,7 @@ connectedStreams.flatMap(new CoFlatMapFunction<Integer, String, String>() {
           </td>
         </tr>
         <tr>
-          <td><strong>Iterate</strong><br>DataStream &rarr; IterativeStream &rarr; DataStream</td>
+          <td><h5><strong>Iterate</strong></h5>DataStream &rarr; IterativeStream &rarr; DataStream</td>
           <td>
             <p>
                 通过将某些算子的输出连接到之前算子的输入，来创建一个反馈循环。这在定义持续更新模型的算法时非常有用。下例开启了一个流，并持续迭代。大于 0 的元素会被反馈回之前的算子，剩下的会向下游传递。
@@ -374,7 +374,7 @@ DataStream<Long> output = iterationBody.filter(new FilterFunction<Long>(){
   </thead>
   <tbody>
     <tr>
-          <td><strong>Map</strong><br>DataStream &rarr; DataStream</td>
+          <td><h5><strong>Map</strong></h5>DataStream &rarr; DataStream</td>
           <td>
             <p>输入一个数据并对应输出一个数据。 如下 map 函数将输入流的每一个数据乘2后输出:</p>
 {% highlight scala %}
@@ -384,7 +384,7 @@ dataStream.map { x => x * 2 }
         </tr>
 
         <tr>
-          <td><strong>FlatMap</strong><br>DataStream &rarr; DataStream</td>
+          <td><h5><strong>FlatMap</strong></h5>DataStream &rarr; DataStream</td>
           <td>
             <p>输入一个数据，产生并输出0个，1个或多个数据。 如下 flatmap 函数将输入的单个句子根据空格分隔成多个单词并逐个输出：</p>
 {% highlight scala %}
@@ -393,7 +393,7 @@ dataStream.flatMap { str => str.split(" ") }
           </td>
         </tr>
         <tr>
-          <td><strong>Filter</strong><br>DataStream &rarr; DataStream</td>
+          <td><h5><strong>Filter</strong></h5>DataStream &rarr; DataStream</td>
           <td>
             <p>根据每个输入元素计算 boolean 函数，并保留函数输出值为 True 的元素。 如下是滤除值为0的过滤函数：
             </p>
@@ -403,7 +403,7 @@ dataStream.filter { _ != 0 }
           </td>
         </tr>
         <tr>
-          <td><strong>KeyBy</strong><br>DataStream &rarr; KeyedStream</td>
+          <td><h5><strong>KeyBy</strong></h5>DataStream &rarr; KeyedStream</td>
           <td>
             <p>将一个流的数据分发到各个独立分区，相同 key 值的元素将分发到同一个分区。<em>keyBy()</em>内部使用 Hash 分发数据。Flink 支持多种方式<a href="{% link dev/stream/state/state.zh.md %}#keyed-datastream">指定 key</a>。</p>
             <p>
@@ -423,7 +423,7 @@ dataStream.keyBy(_._1) // Key by the first element of a Tuple
           </td>
         </tr>
         <tr>
-          <td><strong>Reduce</strong><br>KeyedStream &rarr; DataStream</td>
+          <td><h5><strong>Reduce</strong></h5>KeyedStream &rarr; DataStream</td>
           <td>
             <p>以滚动的形式"压缩" KeyedStream ， 将当前元素和上一次压缩合并的值进行新一轮压缩并输出新的压缩值。
                     <br/>
@@ -436,7 +436,7 @@ keyedStream.reduce { _ + _ }
           </td>
         </tr>
         <tr>
-          <td><strong>Aggregations</strong><br>KeyedStream &rarr; DataStream</td>
+          <td><h5><strong>Aggregations</strong></h5>KeyedStream &rarr; DataStream</td>
           <td>
             <p>在 keyed stream 上滚动地聚合数据。min 和 minBy 的区别在于 min 直接返回最小值，而 minBy 返回在当前属性上拥有最小值的元素（max 和 maxBy 同理）</p>
 {% highlight scala %}
@@ -454,7 +454,7 @@ keyedStream.maxBy("key")
           </td>
         </tr>
         <tr>
-          <td><strong>Window</strong><br>KeyedStream &rarr; WindowedStream</td>
+          <td><h5><strong>Window</strong></h5>KeyedStream &rarr; WindowedStream</td>
           <td>
             <p>窗口可以被定义在分区后的 KeyedStream 上。窗口将每个 key 中的数据根据某些条件（比如之前五秒的数据）组合起来。关于窗口的完整描述请见 <a href="windows.html">windows</a>。
 {% highlight scala %}
@@ -464,7 +464,7 @@ dataStream.keyBy(_._1).window(TumblingEventTimeWindows.of(Time.seconds(5))) // L
           </td>
         </tr>
         <tr>
-          <td><strong>WindowAll</strong><br>DataStream &rarr; AllWindowedStream</td>
+          <td><h5><strong>WindowAll</strong></h5>DataStream &rarr; AllWindowedStream</td>
           <td>
               <p>窗口也可以被定义在普通的 DataStream 上。这种窗口将流中的所有事件都按照某些条件（比如之前五秒的数据）组合起来。关于窗口的完整描述请见 <a href="windows.html">windows</a>。</p>
               <p><strong>WARNING:</strong> 在很多情况下，这是一个 <strong>非并行</strong> 的转换。所有数据都会被 windowAll 算子汇集到一个 task 中。</p>
@@ -474,7 +474,7 @@ dataStream.windowAll(TumblingEventTimeWindows.of(Time.seconds(5))) // Last 5 sec
           </td>
         </tr>
         <tr>
-          <td><strong>Window Apply</strong><br>WindowedStream &rarr; DataStream<br>AllWindowedStream &rarr; DataStream</td>
+          <td><h5><strong>Window Apply</strong></h5>WindowedStream &rarr; DataStream<br>AllWindowedStream &rarr; DataStream</td>
           <td>
             <p>对窗口使用函数。下面是一个手动对窗口内元素求和的函数。</p>
             <p><strong>注意：</strong>如果你使用的是 windowAll 转换，你需要用 AllWindowFunction 而不是 WindowFunction。</p>
@@ -488,7 +488,7 @@ allWindowedStream.apply { AllWindowFunction }
           </td>
         </tr>
         <tr>
-          <td><strong>Window Reduce</strong><br>WindowedStream &rarr; DataStream</td>
+          <td><h5><strong>Window Reduce</strong></h5>WindowedStream &rarr; DataStream</td>
           <td>
             <p>对窗口使用 reduce 函数并返回 reduce 后的值。</p>
 {% highlight scala %}
@@ -497,7 +497,7 @@ windowedStream.reduce { _ + _ }
           </td>
         </tr>
         <tr>
-          <td><strong>Aggregations on windows</strong><br>WindowedStream &rarr; DataStream</td>
+          <td><h5><strong>Aggregations on windows</strong></h5>WindowedStream &rarr; DataStream</td>
           <td>
             <p>聚合窗口中的内容。min 和 minBy 的区别在于 min 直接返回最小值，而 minBy 返回在当前属性上拥有最小值的元素（max 和 maxBy 同理）</p>
 {% highlight scala %}
@@ -515,7 +515,7 @@ windowedStream.maxBy("key")
           </td>
         </tr>
         <tr>
-          <td><strong>Union</strong><br>DataStream* &rarr; DataStream</td>
+          <td><h5><strong>Union</strong></h5>DataStream* &rarr; DataStream</td>
           <td>
             <p>将两个或多个数据流合并成一个包含所有流的数据的新流。注意：如果一个数据流和自身进行合并，这个流中的每个数据将在合并后的流中出现两次。</p>
 {% highlight scala %}
@@ -524,7 +524,7 @@ dataStream.union(otherStream1, otherStream2, ...)
           </td>
         </tr>
         <tr>
-          <td><strong>Window Join</strong><br>DataStream,DataStream &rarr; DataStream</td>
+          <td><h5><strong>Window Join</strong></h5>DataStream,DataStream &rarr; DataStream</td>
           <td>
              <p>根据指定的 key 和窗口，join 两个数据流。</p>
 {% highlight scala %}
@@ -536,7 +536,7 @@ dataStream.join(otherStream)
           </td>
         </tr>
         <tr>
-          <td><strong>Window CoGroup</strong><br>DataStream,DataStream &rarr; DataStream</td>
+          <td><h5><strong>Window CoGroup</strong></h5>DataStream,DataStream &rarr; DataStream</td>
           <td>
             <p>根据指定的 key 和窗口，cogroup 两个数据流。</p>
 {% highlight scala %}
@@ -548,7 +548,7 @@ dataStream.coGroup(otherStream)
           </td>
         </tr>
         <tr>
-          <td><strong>Connect</strong><br>DataStream,DataStream &rarr; ConnectedStreams</td>
+          <td><h5><strong>Connect</strong></h5>DataStream,DataStream &rarr; ConnectedStreams</td>
           <td>
             <p>连接两个数据流并保留各自的类型。connect 允许这两个流共享状态。</p>
 {% highlight scala %}
@@ -560,7 +560,7 @@ val connectedStreams = someStream.connect(otherStream)
           </td>
         </tr>
         <tr>
-          <td><strong>CoMap, CoFlatMap</strong><br>ConnectedStreams &rarr; DataStream</td>
+          <td><h5><strong>CoMap, CoFlatMap</strong></h5>ConnectedStreams &rarr; DataStream</td>
           <td>
             <p>对 ConnectedStream 中的每个流进行和单个流类似的 map/flatMap 操作。</p>
 {% highlight scala %}
@@ -576,7 +576,7 @@ connectedStreams.flatMap(
           </td>
         </tr>
         <tr>
-          <td><strong>Iterate</strong><br>DataStream &rarr; IterativeStream  &rarr; DataStream</td>
+          <td><h5><strong>Iterate</strong></h5>DataStream &rarr; IterativeStream  &rarr; DataStream</td>
           <td>
             <p>
                 通过将某些算子的输出连接到之前算子的输入，来创建一个反馈循环。这在定义持续更新模型的算法时非常有用。下例开启了一个流，并持续迭代。大于 0 的元素会被反馈回之前的算子，剩下的会向下游传递。
@@ -619,7 +619,7 @@ is not supported by the API out-of-the-box. To use this feature, you should use 
   </thead>
   <tbody>
     <tr>
-          <td><strong>Map</strong><br>DataStream &rarr; DataStream</td>
+          <td><h5><strong>Map</strong></h5>DataStream &rarr; DataStream</td>
           <td>
             <p>输入一个数据并对应输出一个数据。 如下 map 函数将输入流的每一个数据乘2后输出:</p>
 {% highlight python %}
@@ -630,7 +630,7 @@ data_stream.map(lambda x: 2 * x, output_type=Types.INT())
         </tr>
 
         <tr>
-          <td><strong>FlatMap</strong><br>DataStream &rarr; DataStream</td>
+          <td><h5><strong>FlatMap</strong></h5>DataStream &rarr; DataStream</td>
           <td>
             <p>输入一个数据，产生并输出0个，1个或多个数据。 如下 flatmap 函数将输入的单个句子根据空格分隔成多个单词并逐个输出：</p>
 {% highlight python %}
@@ -640,7 +640,7 @@ data_stream.flat_map(lambda x: x.split(' '), result_type=Types.STRING())
           </td>
         </tr>
         <tr>
-          <td><strong>Filter</strong><br>DataStream &rarr; DataStream</td>
+          <td><h5><strong>Filter</strong></h5>DataStream &rarr; DataStream</td>
           <td>
             <p>根据每个输入元素计算 bool 函数，并保留函数输出值为 True 的元素。 如下是滤除值为0的过滤函数：
             </p>
@@ -651,7 +651,7 @@ data_stream.filter(lambda x: x != 0)
           </td>
         </tr>
         <tr>
-          <td><strong>KeyBy</strong><br>DataStream &rarr; KeyedStream</td>
+          <td><h5><strong>KeyBy</strong></h5>DataStream &rarr; KeyedStream</td>
           <td>
             <p>将一个流的数据分发到各个独立分区，相同 key 值的元素将分发到同一个分区。<em>keyBy()</em>内部使用 Hash 分发数据。Flink 支持多种方式<a href="{% link dev/stream/state/state.zh.md %}#keyed-datastream">指定 key</a>。</p>
             <p>
@@ -671,7 +671,7 @@ data_stream.key_by(lambda x: x[1], key_type_info=Types.STRING()) // Key by the r
           </td>
         </tr>
         <tr>
-          <td><strong>Reduce</strong><br>KeyedStream &rarr; DataStream</td>
+          <td><h5><strong>Reduce</strong></h5>KeyedStream &rarr; DataStream</td>
           <td>
             <p>以滚动的形式"压缩" KeyedStream ， 将当前元素和上一次压缩合并的值进行新一轮压缩并输出新的压缩值。
               <br/>
@@ -685,7 +685,7 @@ data_stream.key_by(lambda x: x[1]).reduce(lambda a, b: (a[0] + b[0], b[1]))
           </td>
         </tr>
          <tr>
-                  <td><strong>Union</strong><br>DataStream* &rarr; DataStream</td>
+                  <td><h5><strong>Union</strong></h5>DataStream* &rarr; DataStream</td>
                   <td>
                     <p>将两个或多个数据流合并成一个包含所有流的数据的新流。注意：如果一个数据流和自身进行合并，这个流中的每个数据将在合并后的流中出现两次。</p>
 {% highlight python %}
@@ -694,7 +694,7 @@ data_stream.union(otherStream1, otherStream2, ...)
                   </td>
                </tr>
          <tr>
-                   <td><strong>Connect</strong><br>DataStream,DataStream &rarr; ConnectedStreams</td>
+                   <td><h5><strong>Connect</strong></h5>DataStream,DataStream &rarr; ConnectedStreams</td>
                    <td>
                      <p>连接两个数据流并保留各自的类型。connect 允许这两个流共享状态。</p>
 {% highlight python %}
@@ -705,7 +705,7 @@ connected_streams = stream_1.connect(stream_2)
                    </td>
                  </tr>
          <tr>
-                   <td><strong>CoMap, CoFlatMap</strong><br>ConnectedStreams &rarr; DataStream</td>
+                   <td><h5><strong>CoMap, CoFlatMap</strong></h5>ConnectedStreams &rarr; DataStream</td>
                    <td>
                      <p>对 ConnectedStream 中的每个流进行和单个流类似的 map/flatMap 操作。</p>
 {% highlight python %}
@@ -755,7 +755,7 @@ connectedStreams.flatMap(MyCoFlatMapFunction())
   </thead>
   <tbody>
    <tr>
-      <td><strong>Project</strong><br>DataStream &rarr; DataStream</td>
+      <td><h5><strong>Project</strong></h5>DataStream &rarr; DataStream</td>
       <td>
         <p>从元组类型的数据流中抽取元组中部分元素
 {% highlight java %}
@@ -782,7 +782,7 @@ DataStream<Tuple2<String, Integer>> out = in.project(2,0);
   </thead>
   <tbody>
    <tr>
-      <td><strong>Project</strong><br>DataStream &rarr; DataStream</td>
+      <td><h5><strong>Project</strong></h5>DataStream &rarr; DataStream</td>
       <td>
         <p>从元组类型的数据流中抽取元组中部分元素
 {% highlight python %}
@@ -819,7 +819,7 @@ Flink 也提供以下方法让用户根据需要在数据转换完成后对数�
   </thead>
   <tbody>
    <tr>
-      <td><strong>Custom partitioning</strong><br>DataStream &rarr; DataStream</td>
+      <td><h5><strong>Custom partitioning</strong></h5>DataStream &rarr; DataStream</td>
       <td>
         <p>
             根据用户定义的分区逻辑将数据分区到指定 task 。
@@ -831,7 +831,7 @@ dataStream.partitionCustom(partitioner, 0);
       </td>
     </tr>
    <tr>
-     <td><strong>Random partitioning</strong><br>DataStream &rarr; DataStream</td>
+     <td><h5><strong>Random partitioning</strong></h5>DataStream &rarr; DataStream</td>
      <td>
        <p>
             将数据随机均匀分区。
@@ -842,7 +842,7 @@ dataStream.shuffle();
      </td>
    </tr>
    <tr>
-      <td><strong>Rebalancing (Round-robin partitioning)</strong><br>DataStream &rarr; DataStream</td>
+      <td><h5><strong>Rebalancing (Round-robin partitioning)</strong></h5>DataStream &rarr; DataStream</td>
       <td>
         <p>
             以 Round-robin 轮询的方式将数据分发到各个分区，使得每个分区负载相同。在出现数据倾斜的时候使用这种分区方式能提升性能。
@@ -853,7 +853,7 @@ dataStream.rebalance();
       </td>
     </tr>
     <tr>
-      <td><strong>Rescaling</strong><br>DataStream &rarr; DataStream</td>
+      <td><h5><strong>Rescaling</strong></h5>DataStream &rarr; DataStream</td>
       <td>
         <p>
             将元素以 Round-robin 轮询的方式分发到下游部分算子中. 如果用户希望实现数据管道， 如数据源的各个并发实例直接将数据分发到下游的部
@@ -887,7 +887,7 @@ dataStream.rescale();
       </td>
     </tr>
    <tr>
-      <td><strong>Broadcasting</strong><br>DataStream &rarr; DataStream</td>
+      <td><h5><strong>Broadcasting</strong></h5>DataStream &rarr; DataStream</td>
       <td>
         <p>
             将每个数据广播至所有 partition 。
@@ -915,7 +915,7 @@ dataStream.broadcast();
   </thead>
   <tbody>
    <tr>
-      <td><strong>Custom partitioning</strong><br>DataStream &rarr; DataStream</td>
+      <td><h5><strong>Custom partitioning</strong></h5>DataStream &rarr; DataStream</td>
       <td>
         <p>
             根据用户定义的分区逻辑将数据分区到指定 task 。
@@ -927,7 +927,7 @@ dataStream.partitionCustom(partitioner, 0)
       </td>
     </tr>
    <tr>
-     <td><strong>Random partitioning</strong><br>DataStream &rarr; DataStream</td>
+     <td><h5><strong>Random partitioning</strong></h5>DataStream &rarr; DataStream</td>
      <td>
        <p>
             将数据随机均匀分区。
@@ -938,7 +938,7 @@ dataStream.shuffle()
      </td>
    </tr>
    <tr>
-      <td><strong>Rebalancing (Round-robin partitioning)</strong><br>DataStream &rarr; DataStream</td>
+      <td><h5><strong>Rebalancing (Round-robin partitioning)</strong></h5>DataStream &rarr; DataStream</td>
       <td>
         <p>
             以 Round-robin 轮询的方式将数据分发到各个分区，使得每个分区负载相同。在出现数据倾斜的时候使用这种分区方式能提升性能。
@@ -949,7 +949,7 @@ dataStream.rebalance()
       </td>
     </tr>
     <tr>
-      <td><strong>Rescaling</strong><br>DataStream &rarr; DataStream</td>
+      <td><h5><strong>Rescaling</strong></h5>DataStream &rarr; DataStream</td>
       <td>
         <p>
             将元素以 Round-robin 轮询的方式分发到下游部分算子中. 如果用户希望实现数据管道， 如数据源的各个并发实例直接将数据分发到下游的部
@@ -983,7 +983,7 @@ dataStream.rescale()
       </td>
     </tr>
    <tr>
-      <td><strong>Broadcasting</strong><br>DataStream &rarr; DataStream</td>
+      <td><h5><strong>Broadcasting</strong></h5>DataStream &rarr; DataStream</td>
       <td>
         <p>
             将每个数据广播至所有 partition 。
@@ -1011,7 +1011,7 @@ dataStream.broadcast()
   </thead>
   <tbody>
    <tr>
-      <td><strong>Custom partitioning</strong><br>DataStream &rarr; DataStream</td>
+      <td><h5><strong>Custom partitioning</strong></h5>DataStream &rarr; DataStream</td>
       <td>
         <p>
             根据用户定义的分区逻辑将数据分区到指定 task 。
@@ -1023,7 +1023,7 @@ data_stream.partition_custom(lambda key, num_partition: key % partition, lambda 
       </td>
     </tr>
    <tr>
-     <td><strong>Random partitioning</strong><br>DataStream &rarr; DataStream</td>
+     <td><h5><strong>Random partitioning</strong></h5>DataStream &rarr; DataStream</td>
      <td>
        <p>
             将数据随机均匀分区。
@@ -1034,7 +1034,7 @@ data_stream.shuffle()
      </td>
    </tr>
    <tr>
-      <td><strong>Rebalancing (Round-robin partitioning)</strong><br>DataStream &rarr; DataStream</td>
+      <td><h5><strong>Rebalancing (Round-robin partitioning)</strong></h5>DataStream &rarr; DataStream</td>
       <td>
         <p>
             以 Round-robin 轮询的方式将数据分发到各个分区，使得每个分区负载相同。在出现数据倾斜的时候使用这种分区方式能提升性能。
@@ -1045,7 +1045,7 @@ data_stream.rebalance()
       </td>
     </tr>
     <tr>
-      <td><strong>Rescaling</strong><br>DataStream &rarr; DataStream</td>
+      <td><h5><strong>Rescaling</strong></h5>DataStream &rarr; DataStream</td>
       <td>
         <p>
             将元素以 Round-robin 轮询的方式分发到下游部分算子中. 如果用户希望实现数据管道， 如数据源的各个并发实例直接将数据分发到下游的部
@@ -1079,7 +1079,7 @@ data_stream.rescale()
       </td>
     </tr>
    <tr>
-      <td><strong>Broadcasting</strong><br>DataStream &rarr; DataStream</td>
+      <td><h5><strong>Broadcasting</strong></h5>DataStream &rarr; DataStream</td>
       <td>
         <p>
             将每个数据广播至所有 partition 。
