@@ -61,13 +61,23 @@ function selectText(containerId) {
     if (document.selection) {
         var range = document.body.createTextRange();
         range.moveToElementText(document.getElementById(containerId));
-        range.select();
+        range.select().createTextRange();
+        document.execCommand("copy");
     } else if (window.getSelection) {
         var range = document.createRange();
         range.selectNode(document.getElementById(containerId));
         window.getSelection().removeAllRanges();
         window.getSelection().addRange(range);
+        document.execCommand("copy");
     }
+
+    document.querySelectorAll("[copyable='flink-module']").forEach(function(alert) {
+        alert.setAttribute("style", "text-align:center;display:none");
+    });
+
+    document.querySelectorAll("[copyable='flink-module'][copyattribute='" + containerId +"'").forEach(function(alert) {
+        alert.setAttribute("style", "text-align:center;display:block");
+    });
 }
 
 document.addEventListener("DOMContentLoaded", function(event) { 
