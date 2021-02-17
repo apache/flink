@@ -47,12 +47,10 @@ public class MaterializedCollectBatchResultTest {
                                 new DataType[] {DataTypes.STRING(), DataTypes.BIGINT()})
                         .build();
 
-        TestMaterializedCollectBatchResult result = null;
-        try {
-            result =
-                    new TestMaterializedCollectBatchResult(
-                            new TestTableResult(ResultKind.SUCCESS_WITH_CONTENT, tableSchema),
-                            Integer.MAX_VALUE);
+        try (TestMaterializedCollectBatchResult result =
+                new TestMaterializedCollectBatchResult(
+                        new TestTableResult(ResultKind.SUCCESS_WITH_CONTENT, tableSchema),
+                        Integer.MAX_VALUE)) {
 
             result.isRetrieving = true;
 
@@ -77,10 +75,6 @@ public class MaterializedCollectBatchResultTest {
             assertEquals(Collections.singletonList(Row.of("A", 1)), result.retrievePage(3));
             assertEquals(Collections.singletonList(Row.of("C", 2)), result.retrievePage(4));
             assertEquals(Collections.singletonList(Row.of("A", 1)), result.retrievePage(5));
-        } finally {
-            if (result != null) {
-                result.close();
-            }
         }
     }
 
@@ -93,14 +87,11 @@ public class MaterializedCollectBatchResultTest {
                                 new DataType[] {DataTypes.STRING(), DataTypes.BIGINT()})
                         .build();
 
-        TestMaterializedCollectBatchResult result = null;
-        try {
-            result =
-                    new TestMaterializedCollectBatchResult(
-                            new TestTableResult(ResultKind.SUCCESS_WITH_CONTENT, tableSchema),
-                            2, // limit the materialized table to 2 rows
-                            3); // with 3 rows overcommitment
-
+        try (TestMaterializedCollectBatchResult result =
+                new TestMaterializedCollectBatchResult(
+                        new TestTableResult(ResultKind.SUCCESS_WITH_CONTENT, tableSchema),
+                        2, // limit the materialized table to 2 rows
+                        3)) { // with 3 rows overcommitment
             result.isRetrieving = true;
 
             result.processRecord(Tuple2.of(true, Row.of("D", 1)));
@@ -129,10 +120,6 @@ public class MaterializedCollectBatchResultTest {
             assertEquals(
                     Arrays.asList(null, Row.of("C", 1), Row.of("A", 1)),
                     result.getMaterializedTable());
-        } finally {
-            if (result != null) {
-                result.close();
-            }
         }
     }
 
@@ -140,7 +127,8 @@ public class MaterializedCollectBatchResultTest {
     // Helper classes
     // --------------------------------------------------------------------------------------------
 
-    private static class TestMaterializedCollectBatchResult extends MaterializedCollectBatchResult {
+    private static class TestMaterializedCollectBatchResult extends MaterializedCollectBatchResult
+            implements AutoCloseable {
 
         public boolean isRetrieving;
 

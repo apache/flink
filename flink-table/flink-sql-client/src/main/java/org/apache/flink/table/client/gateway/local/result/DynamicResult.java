@@ -23,7 +23,7 @@ package org.apache.flink.table.client.gateway.local.result;
  *
  * <p>Note: Make sure to call close() after the result is not needed anymore.
  */
-public interface DynamicResult extends Result {
+public interface DynamicResult {
 
     /**
      * Returns whether this result is materialized such that snapshots can be taken or results must

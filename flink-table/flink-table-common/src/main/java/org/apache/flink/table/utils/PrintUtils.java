@@ -60,9 +60,18 @@ public class PrintUtils {
     /**
      * Displays the result in a tableau form.
      *
-     * <p>For example: +-------------+---------+-------------+ | boolean_col | int_col | varchar_col
-     * | +-------------+---------+-------------+ | true | 1 | abc | | false | 2 | def | | (NULL) |
-     * (NULL) | (NULL) | +-------------+---------+-------------+ 3 rows in result
+     * <p>For example:
+     *
+     * <pre>
+     * +-------------+---------+-------------+
+     * | boolean_col | int_col | varchar_col |
+     * +-------------+---------+-------------+
+     * |        true |       1 |         abc |
+     * |       false |       2 |         def |
+     * |      (NULL) |  (NULL) |      (NULL) |
+     * +-------------+---------+-------------+
+     * 3 rows in set
+     * </pre>
      */
     public static void printAsTableauForm(
             TableSchema tableSchema, Iterator<Row> it, PrintWriter printWriter) {
@@ -87,7 +96,7 @@ public class PrintUtils {
      * | +U |       false |       3 |         def |
      * | -D |      (NULL) |  (NULL) |      (NULL) |
      * +----+-------------+---------+-------------+
-     * 4 rows in result
+     * 4 rows in set
      * </pre>
      *
      * @param tableSchema The schema of the data to print
@@ -374,15 +383,11 @@ public class PrintUtils {
         int value = UCharacter.getIntPropertyValue(codePoint, UProperty.EAST_ASIAN_WIDTH);
         switch (value) {
             case UCharacter.EastAsianWidth.NEUTRAL:
-                return false;
             case UCharacter.EastAsianWidth.AMBIGUOUS:
-                return false;
             case UCharacter.EastAsianWidth.HALFWIDTH:
-                return false;
-            case UCharacter.EastAsianWidth.FULLWIDTH:
-                return true;
             case UCharacter.EastAsianWidth.NARROW:
                 return false;
+            case UCharacter.EastAsianWidth.FULLWIDTH:
             case UCharacter.EastAsianWidth.WIDE:
                 return true;
             default:

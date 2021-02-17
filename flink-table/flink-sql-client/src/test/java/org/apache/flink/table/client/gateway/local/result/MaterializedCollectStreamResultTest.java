@@ -48,13 +48,10 @@ public class MaterializedCollectStreamResultTest {
                                 new DataType[] {DataTypes.STRING(), DataTypes.BIGINT()})
                         .build();
 
-        TestMaterializedCollectStreamResult result = null;
-        try {
-            result =
-                    new TestMaterializedCollectStreamResult(
-                            new TestTableResult(ResultKind.SUCCESS_WITH_CONTENT, tableSchema),
-                            Integer.MAX_VALUE);
-
+        try (TestMaterializedCollectStreamResult result =
+                new TestMaterializedCollectStreamResult(
+                        new TestTableResult(ResultKind.SUCCESS_WITH_CONTENT, tableSchema),
+                        Integer.MAX_VALUE)) {
             result.isRetrieving = true;
 
             result.processRecord(Tuple2.of(true, Row.ofKind(RowKind.INSERT, "A", 1)));
@@ -83,10 +80,6 @@ public class MaterializedCollectStreamResultTest {
             assertEquals(TypedResult.payload(1), result.snapshot(1));
 
             assertEquals(Collections.singletonList(Row.of("B", 1)), result.retrievePage(1));
-        } finally {
-            if (result != null) {
-                result.close();
-            }
         }
     }
 
@@ -99,13 +92,11 @@ public class MaterializedCollectStreamResultTest {
                                 new DataType[] {DataTypes.STRING(), DataTypes.BIGINT()})
                         .build();
 
-        TestMaterializedCollectStreamResult result = null;
-        try {
-            result =
-                    new TestMaterializedCollectStreamResult(
-                            new TestTableResult(ResultKind.SUCCESS_WITH_CONTENT, tableSchema),
-                            2, // limit the materialized table to 2 rows
-                            3); // with 3 rows overcommitment
+        // limit the materialized table to 2 rows
+        // with 3 rows overcommitment
+        try (TestMaterializedCollectStreamResult result =
+                new TestMaterializedCollectStreamResult(
+                        new TestTableResult(ResultKind.SUCCESS_WITH_CONTENT, tableSchema), 2, 3)) {
 
             result.isRetrieving = true;
 
@@ -135,10 +126,6 @@ public class MaterializedCollectStreamResultTest {
             assertEquals(
                     Collections.singletonList(Row.of("C", 1)), // regular clean up has taken place
                     result.getMaterializedTable());
-        } finally {
-            if (result != null) {
-                result.close();
-            }
         }
     }
 
@@ -146,8 +133,8 @@ public class MaterializedCollectStreamResultTest {
     // Helper classes
     // --------------------------------------------------------------------------------------------
 
-    private static class TestMaterializedCollectStreamResult
-            extends MaterializedCollectStreamResult {
+    private static class TestMaterializedCollectStreamResult extends MaterializedCollectStreamResult
+            implements AutoCloseable {
 
         public boolean isRetrieving;
 
