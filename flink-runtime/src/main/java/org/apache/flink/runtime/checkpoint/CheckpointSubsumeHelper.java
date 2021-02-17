@@ -17,11 +17,12 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.util.function.ThrowingConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Deque;
+import java.util.Iterator;
+import java.util.Optional;
 
 /**
  * Encapsulates the logic to subsume older checkpoints by {@link CompletedCheckpointStore checkpoint
@@ -46,21 +47,60 @@ class CheckpointSubsumeHelper {
     private static final Logger LOG = LoggerFactory.getLogger(CheckpointSubsumeHelper.class);
 
     public static void subsume(
-            Deque<CompletedCheckpoint> checkpoints,
-            int numRetain,
-            ThrowingConsumer<CompletedCheckpoint, Exception> subsumeAction)
+            Deque<CompletedCheckpoint> checkpoints, int numRetain, SubsumeAction subsumeAction)
             throws Exception {
         if (checkpoints.isEmpty() || checkpoints.size() <= numRetain) {
             return;
         }
+        CompletedCheckpoint latest = checkpoints.peekLast();
+        Optional<CompletedCheckpoint> latestNotSavepoint = getLatestNotSavepoint(checkpoints);
+        Iterator<CompletedCheckpoint> iterator = checkpoints.iterator();
+        while (checkpoints.size() > numRetain && iterator.hasNext()) {
+            CompletedCheckpoint next = iterator.next();
+            if (canSubsume(next, latest, latestNotSavepoint)) {
+                iterator.remove();
+                try {
+                    subsumeAction.subsume(next);
+                } catch (Exception e) {
+                    LOG.warn("Fail to subsume the old checkpoint.", e);
+                }
+            }
+            // Don't break out from the loop to subsume intermediate savepoints
+        }
+    }
 
-        while (checkpoints.size() > numRetain) {
-            CompletedCheckpoint completedCheckpoint = checkpoints.removeFirst();
-            try {
-                subsumeAction.accept(completedCheckpoint);
-            } catch (Exception e) {
-                LOG.warn("Fail to subsume the old checkpoint.", e);
+    private static Optional<CompletedCheckpoint> getLatestNotSavepoint(
+            Deque<CompletedCheckpoint> completed) {
+        Iterator<CompletedCheckpoint> descendingIterator = completed.descendingIterator();
+        while (descendingIterator.hasNext()) {
+            CompletedCheckpoint next = descendingIterator.next();
+            if (!next.getProperties().isSavepoint()) {
+                return Optional.of(next);
             }
         }
+        return Optional.empty();
+    }
+
+    private static boolean canSubsume(
+            CompletedCheckpoint next,
+            CompletedCheckpoint latest,
+            Optional<CompletedCheckpoint> latestNonSavepoint) {
+        if (next == latest) {
+            return false;
+        } else if (next.getProperties().isSavepoint()) {
+            return true;
+        } else if (latest.getProperties().isSynchronous()) {
+            // If the job has stopped with a savepoint then it's safe to subsume because no future
+            // snapshots will be taken during this run
+            return true;
+        } else {
+            // Don't remove the latest non-savepoint lest invalidate future incremental snapshots
+            return latestNonSavepoint.filter(checkpoint -> checkpoint != next).isPresent();
+        }
+    }
+
+    @FunctionalInterface
+    interface SubsumeAction {
+        void subsume(CompletedCheckpoint checkpoint) throws Exception;
     }
 }
