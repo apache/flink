@@ -18,6 +18,8 @@
 
 package org.apache.flink.formats.parquet.utils;
 
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 
 import org.apache.parquet.schema.MessageType;
@@ -146,6 +148,21 @@ public class ParquetSchemaConverterTest {
         MessageType simpleType = new MessageType("simple", simpleStandardTypes);
         RowTypeInfo rowTypeInfo = (RowTypeInfo) ParquetSchemaConverter.fromParquetType(simpleType);
         assertEquals(TestUtil.SIMPLE_ROW_TYPE, rowTypeInfo);
+    }
+
+    @Test public void testDecimalParquetLogicalType(){
+        MessageType messageType =
+                new MessageType(
+                        "test",
+                        new PrimitiveType(
+                                Type.Repetition.OPTIONAL,
+                                PrimitiveType.PrimitiveTypeName.INT32,
+                                "int32WithDecimal", OriginalType.DECIMAL));
+        RowTypeInfo rowTypeInfo = (RowTypeInfo) ParquetSchemaConverter.fromParquetType(messageType);
+        assertEquals(Types.ROW_NAMED(
+                new String[] {"int32WithDecimal"},
+                BasicTypeInfo.INT_TYPE_INFO), rowTypeInfo);
+
     }
 
     @Test
