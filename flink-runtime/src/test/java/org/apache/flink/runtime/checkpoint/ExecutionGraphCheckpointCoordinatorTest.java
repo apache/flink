@@ -38,7 +38,6 @@ import org.hamcrest.Matchers;
 import org.junit.Test;
 
 import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.Matchers.is;
@@ -167,90 +166,5 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
                 CheckpointStatsTrackerTest.createTestTracker());
 
         return executionGraph;
-    }
-
-    private static final class TestingCheckpointIDCounter implements CheckpointIDCounter {
-
-        private final CompletableFuture<JobStatus> shutdownStatus;
-
-        private TestingCheckpointIDCounter(CompletableFuture<JobStatus> shutdownStatus) {
-            this.shutdownStatus = shutdownStatus;
-        }
-
-        @Override
-        public void start() {}
-
-        @Override
-        public void shutdown(JobStatus jobStatus) {
-            shutdownStatus.complete(jobStatus);
-        }
-
-        @Override
-        public long getAndIncrement() {
-            throw new UnsupportedOperationException("Not implemented.");
-        }
-
-        @Override
-        public long get() {
-            throw new UnsupportedOperationException("Not implemented.");
-        }
-
-        @Override
-        public void setCount(long newId) {
-            throw new UnsupportedOperationException("Not implemented.");
-        }
-    }
-
-    private static final class TestingCompletedCheckpointStore implements CompletedCheckpointStore {
-
-        private final CompletableFuture<JobStatus> shutdownStatus;
-
-        private TestingCompletedCheckpointStore(CompletableFuture<JobStatus> shutdownStatus) {
-            this.shutdownStatus = shutdownStatus;
-        }
-
-        @Override
-        public void recover() {
-            throw new UnsupportedOperationException("Not implemented.");
-        }
-
-        @Override
-        public void addCheckpoint(
-                CompletedCheckpoint checkpoint,
-                CheckpointsCleaner checkpointsCleaner,
-                Runnable postCleanup) {
-            throw new UnsupportedOperationException("Not implemented.");
-        }
-
-        @Override
-        public CompletedCheckpoint getLatestCheckpoint(boolean isPreferCheckpointForRecovery) {
-            throw new UnsupportedOperationException("Not implemented.");
-        }
-
-        @Override
-        public void shutdown(
-                JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner, Runnable postCleanup) {
-            shutdownStatus.complete(jobStatus);
-        }
-
-        @Override
-        public List<CompletedCheckpoint> getAllCheckpoints() {
-            throw new UnsupportedOperationException("Not implemented.");
-        }
-
-        @Override
-        public int getNumberOfRetainedCheckpoints() {
-            throw new UnsupportedOperationException("Not implemented.");
-        }
-
-        @Override
-        public int getMaxNumberOfRetainedCheckpoints() {
-            throw new UnsupportedOperationException("Not implemented.");
-        }
-
-        @Override
-        public boolean requiresExternalizedCheckpoints() {
-            throw new UnsupportedOperationException("Not implemented.");
-        }
     }
 }
