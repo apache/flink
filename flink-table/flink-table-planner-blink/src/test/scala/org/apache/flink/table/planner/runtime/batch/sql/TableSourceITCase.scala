@@ -27,9 +27,6 @@ import org.apache.flink.util.FileUtils
 
 import org.junit.{Before, Test}
 
-import java.time.{LocalDateTime, ZoneId}
-import java.time.format.DateTimeFormatter
-
 class TableSourceITCase extends BatchTestBase {
 
   @Before
@@ -282,7 +279,7 @@ class TableSourceITCase extends BatchTestBase {
          |CREATE TABLE MyFileSourceTable (
          |  `a` STRING
          |) WITH (
-         |  'connector' = 'filesource',
+         |  'connector' = 'file',
          |  'path' = '${file.toURI}'
          |)
          |""".stripMargin

@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
+import org.apache.flink.streaming.api.transformations.SinkTransformation;
 import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
@@ -40,6 +41,7 @@ import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.OutputFormatProvider;
 import org.apache.flink.table.connector.sink.SinkFunctionProvider;
+import org.apache.flink.table.connector.sink.SinkProvider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
@@ -136,24 +138,6 @@ public abstract class CommonExecSink extends ExecNodeBase<Object> {
                     runtimeProvider instanceof ParallelismProvider,
                     "runtimeProvider with `ParallelismProvider` implementation is required");
 
-            final SinkFunction<RowData> sinkFunction;
-            if (runtimeProvider instanceof SinkFunctionProvider) {
-                sinkFunction = ((SinkFunctionProvider) runtimeProvider).createSinkFunction();
-            } else if (runtimeProvider instanceof OutputFormatProvider) {
-                OutputFormat<RowData> outputFormat =
-                        ((OutputFormatProvider) runtimeProvider).createOutputFormat();
-                sinkFunction = new OutputFormatSinkFunction<>(outputFormat);
-            } else {
-                throw new TableException("This should not happen.");
-            }
-
-            if (sinkFunction instanceof InputTypeConfigurable) {
-                ((InputTypeConfigurable) sinkFunction).setInputType(inputTypeInfo, env.getConfig());
-            }
-
-            final SinkOperator operator =
-                    new SinkOperator(env.clean(sinkFunction), rowtimeFieldIndex, enforcer);
-
             final int inputParallelism = inputTransform.getParallelism();
             final int parallelism;
             final Optional<Integer> parallelismOptional =
@@ -201,6 +185,31 @@ public abstract class CommonExecSink extends ExecNodeBase<Object> {
                 finalInputTransform = new PartitionTransformation<>(inputTransform, partitioner);
                 finalInputTransform.setParallelism(parallelism);
             }
+
+            final SinkFunction<RowData> sinkFunction;
+            if (runtimeProvider instanceof SinkFunctionProvider) {
+                sinkFunction = ((SinkFunctionProvider) runtimeProvider).createSinkFunction();
+            } else if (runtimeProvider instanceof OutputFormatProvider) {
+                OutputFormat<RowData> outputFormat =
+                        ((OutputFormatProvider) runtimeProvider).createOutputFormat();
+                sinkFunction = new OutputFormatSinkFunction<>(outputFormat);
+            } else if (runtimeProvider instanceof SinkProvider) {
+                return new SinkTransformation<>(
+                        finalInputTransform,
+                        ((SinkProvider) runtimeProvider).createSink(),
+                        getDescription(),
+                        parallelism);
+            } else {
+                throw new TableException("This should not happen.");
+            }
+
+            final SinkOperator operator =
+                    new SinkOperator(env.clean(sinkFunction), rowtimeFieldIndex, enforcer);
+
+            if (sinkFunction instanceof InputTypeConfigurable) {
+                ((InputTypeConfigurable) sinkFunction).setInputType(inputTypeInfo, env.getConfig());
+            }
+
             return new LegacySinkTransformation<>(
                     finalInputTransform,
                     getDescription(),
