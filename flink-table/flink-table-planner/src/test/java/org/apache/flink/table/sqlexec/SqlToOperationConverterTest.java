@@ -44,14 +44,11 @@ import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
-import org.apache.flink.table.descriptors.ModuleDescriptorValidator;
 import org.apache.flink.table.expressions.ExpressionBridge;
 import org.apache.flink.table.expressions.PlannerExpressionConverter;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
-import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
@@ -665,46 +662,6 @@ public class SqlToOperationConverterTest {
         properties.put("k1", "v1");
         properties.put("K2", "V2");
         assertEquals(properties, alterTableOptionsOperation.getCatalogTable().getOptions());
-    }
-
-    @Test
-    public void testLoadModule() {
-        final String sql = "LOAD MODULE dummy WITH ('k1' = 'v1', 'k2' = 'v2')";
-        final String expectedModuleName = "dummy";
-        final Map<String, String> expectedProperties = new HashMap<>();
-        expectedProperties.put("k1", "v1");
-        expectedProperties.put("k2", "v2");
-        expectedProperties.put(ModuleDescriptorValidator.MODULE_TYPE, "dummy");
-
-        Operation operation = parse(sql, SqlDialect.DEFAULT);
-        assert operation instanceof LoadModuleOperation;
-        final LoadModuleOperation loadModuleOperation = (LoadModuleOperation) operation;
-
-        assertEquals(expectedModuleName, loadModuleOperation.getModuleName());
-        assertEquals(expectedProperties, loadModuleOperation.getProperties());
-    }
-
-    @Test
-    public void testLoadModuleWithTypeProperty() {
-        final String sql =
-                "LOAD MODULE my_module WITH ('type' = 'dummy', 'k1' = 'v1', 'k2' = " + "'v2')";
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage(
-                "Property 'type' = 'dummy' is not supported, please remove it and rename module "
-                        + "to 'dummy' and try again");
-        parse(sql, SqlDialect.DEFAULT);
-    }
-
-    @Test
-    public void testUnloadModule() {
-        final String sql = "UNLOAD MODULE DUMMY";
-        final String expectedModuleName = "dummy";
-
-        Operation operation = parse(sql, SqlDialect.DEFAULT);
-        assert operation instanceof UnloadModuleOperation;
-        final UnloadModuleOperation unloadModuleOperation = (UnloadModuleOperation) operation;
-
-        assertEquals(expectedModuleName, unloadModuleOperation.getModuleName());
     }
 
     // ~ Tool Methods ----------------------------------------------------------

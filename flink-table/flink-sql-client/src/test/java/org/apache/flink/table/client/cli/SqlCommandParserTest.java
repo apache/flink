@@ -282,22 +282,28 @@ public class SqlCommandParserTest {
                         // show current database
                         TestItem.validSql(
                                 "show current database", SqlCommand.SHOW_CURRENT_DATABASE),
-                        // load module
+                        // load module with module name as identifier
                         TestItem.validSql(
                                 "LOAD MODULE dummy", SqlCommand.LOAD_MODULE, "LOAD MODULE dummy"),
+                        // load module with module name as reversed keyword
+                        TestItem.validSql(
+                                "LOAD MODULE `MODULE`",
+                                SqlCommand.LOAD_MODULE,
+                                "LOAD MODULE `MODULE`"),
+                        // load module with module name as literal
+                        TestItem.invalidSql(
+                                "LOAD MODULE 'dummy'",
+                                SqlExecutionException.class,
+                                "Encountered \"\\'dummy\\'\""),
                         TestItem.validSql(
                                 "LOAD MODULE dummy WITH ('dummy-version' = '1')",
                                 SqlCommand.LOAD_MODULE,
                                 "LOAD MODULE dummy WITH ('dummy-version' = '1')"),
                         TestItem.invalidSql(
-                                "LOAD MODULE 'dummy'",
-                                SqlExecutionException.class,
-                                "Encountered \"\\'dummy\\'\""),
-                        TestItem.invalidSql(
                                 "LOAD MODULE my_dummy WITH ('type'='dummy')",
                                 SqlExecutionException.class,
-                                "Property 'type' = 'dummy' is not supported, please remove it "
-                                        + "and rename module to 'dummy' and try again"),
+                                "Property 'type' = 'dummy' is not supported since module name "
+                                        + "is used to find module"),
                         // unload module
                         TestItem.validSql(
                                 "UNLOAD MODULE dummy",

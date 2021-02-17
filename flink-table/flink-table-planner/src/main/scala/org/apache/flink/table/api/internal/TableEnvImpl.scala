@@ -32,7 +32,7 @@ import org.apache.flink.table.delegation.Parser
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.resolver.SqlExpressionResolver
 import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup
-import org.apache.flink.table.factories.{ModuleFactory, TableFactoryService, TableFactoryUtil, TableSinkFactoryContextImpl}
+import org.apache.flink.table.factories.{TableFactoryUtil, TableSinkFactoryContextImpl}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, _}
 import org.apache.flink.table.module.{Module, ModuleEntry, ModuleManager}
 import org.apache.flink.table.operations.ddl._
@@ -143,13 +143,13 @@ abstract class TableEnvImpl(
     "Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
       "INSERT, CREATE TABLE, DROP TABLE, ALTER TABLE, USE CATALOG, USE [CATALOG.]DATABASE, " +
       "CREATE DATABASE, DROP DATABASE, ALTER DATABASE, CREATE FUNCTION, DROP FUNCTION, " +
-      "ALTER FUNCTION, CREATE VIEW, DROP VIEW, LOAD MODULE, UNLOAD MODULE."
+      "ALTER FUNCTION, CREATE VIEW, DROP VIEW."
   private val UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG =
     "Unsupported SQL query! executeSql() only accepts a single SQL statement of type " +
       "CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, " +
       "CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, USE CATALOG, USE [CATALOG.]DATABASE, " +
       "SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW FUNCTIONS, CREATE VIEW, DROP VIEW, " +
-      "SHOW VIEWS, LOAD MODULE, UNLOAD MODULE, INSERT, DESCRIBE."
+      "SHOW VIEWS, INSERT, DESCRIBE."
 
   private def isStreamingMode: Boolean = this match {
     case _: BatchTableEnvImpl => false
@@ -641,8 +641,7 @@ abstract class TableEnvImpl(
            _: CreateDatabaseOperation | _: DropDatabaseOperation | _: AlterDatabaseOperation |
            _: CreateCatalogFunctionOperation | _: CreateTempSystemFunctionOperation |
            _: DropCatalogFunctionOperation | _: DropTempSystemFunctionOperation |
-           _: AlterCatalogFunctionOperation | _: UseCatalogOperation | _: UseDatabaseOperation |
-           _: LoadModuleOperation | _: UnloadModuleOperation =>
+           _: AlterCatalogFunctionOperation | _: UseCatalogOperation | _: UseDatabaseOperation =>
         executeOperation(operation)
       case _ => throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG)
     }
@@ -790,33 +789,6 @@ abstract class TableEnvImpl(
           catalogManager.dropView(
             dropViewOperation.getViewIdentifier,
             dropViewOperation.isIfExists)
-        }
-        TableResultImpl.TABLE_RESULT_OK
-      case loadModuleOperation: LoadModuleOperation =>
-        val exMsg = getDDLOpExecuteErrorMsg(loadModuleOperation.asSummaryString())
-        try {
-          val properties = loadModuleOperation.getProperties
-          val moduleFactory = TableFactoryService.find(classOf[ModuleFactory], properties,
-            userClassLoader)
-          moduleManager.loadModule(loadModuleOperation.getModuleName,
-            moduleFactory.createModule(properties))
-        } catch {
-          case ex: ValidationException => {
-            throw new ValidationException(s"$exMsg. ${ex.getMessage}", ex)
-          }
-          case ex: Exception => {
-            throw new TableException(s"$exMsg. ${ex.getMessage}", ex)
-          }
-        }
-        TableResultImpl.TABLE_RESULT_OK
-      case unloadModuleOperation: UnloadModuleOperation =>
-        val exMsg = getDDLOpExecuteErrorMsg(unloadModuleOperation.asSummaryString())
-        try {
-          moduleManager.unloadModule(unloadModuleOperation.getModuleName)
-        } catch {
-          case ex: ValidationException => {
-            throw new ValidationException(s"$exMsg. ${ex.getMessage}", ex)
-          }
         }
         TableResultImpl.TABLE_RESULT_OK
       case _: ShowViewsOperation =>

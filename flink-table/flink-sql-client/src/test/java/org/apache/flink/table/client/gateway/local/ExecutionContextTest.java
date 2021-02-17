@@ -415,7 +415,7 @@ public class ExecutionContextTest {
 
     static Map<String, String> createModuleReplaceVars() {
         Map<String, String> replaceVars = new HashMap<>();
-        replaceVars.put("$VAR_PLANNER", "old");
+        replaceVars.put("$VAR_PLANNER", "blink");
         replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
         replaceVars.put("$VAR_RESULT_MODE", "changelog");
         replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");

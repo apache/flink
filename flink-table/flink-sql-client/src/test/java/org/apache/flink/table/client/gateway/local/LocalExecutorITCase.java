@@ -87,6 +87,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.apache.flink.table.client.gateway.local.ExecutionContextTest.CATALOGS_ENVIRONMENT_FILE;
 import static org.apache.flink.table.client.gateway.local.ExecutionContextTest.MODULES_ENVIRONMENT_FILE;
 import static org.apache.flink.table.client.gateway.local.ExecutionContextTest.createModuleReplaceVars;
@@ -1621,7 +1622,9 @@ public class LocalExecutorITCase extends TestLogger {
     }
 
     @Test
-    public void testLoadModule() throws Exception {
+    public void testLoadModuleWithModuleConfEnabled() throws Exception {
+        // only blink planner supports LOAD MODULE syntax
+        Assume.assumeTrue(planner.equals("blink"));
         final Executor executor =
                 createModifiedExecutor(
                         MODULES_ENVIRONMENT_FILE, clusterClient, createModuleReplaceVars());
@@ -1629,17 +1632,21 @@ public class LocalExecutorITCase extends TestLogger {
         String sessionId = executor.openSession(session);
         assertEquals("test-session", sessionId);
 
-        exception.expect(SqlExecutionException.class);
-        exception.expectMessage("Could not execute statement: load module core");
-        executor.executeSql(sessionId, "load module core");
+        assertThrows(
+                "Could not execute statement: load module core",
+                SqlExecutionException.class,
+                () -> executor.executeSql(sessionId, "load module core"));
 
         executor.executeSql(sessionId, "load module hive");
-        assertShowResult(
-                executor.executeSql(sessionId, "show modules"), Arrays.asList("core", "hive"));
+        assertEquals(
+                executor.listModules(sessionId),
+                Arrays.asList("core", "mymodule", "myhive", "myhive2", "hive"));
     }
 
     @Test
-    public void testUnloadModule() throws Exception {
+    public void testUnloadModuleWithModuleConfEnabled() throws Exception {
+        // only blink planner supports UNLOAD MODULE syntax
+        Assume.assumeTrue(planner.equals("blink"));
         final Executor executor =
                 createModifiedExecutor(
                         MODULES_ENVIRONMENT_FILE, clusterClient, createModuleReplaceVars());
@@ -1647,17 +1654,51 @@ public class LocalExecutorITCase extends TestLogger {
         String sessionId = executor.openSession(session);
         assertEquals("test-session", sessionId);
 
+        executor.executeSql(sessionId, "unload module mymodule");
+        assertEquals(executor.listModules(sessionId), Arrays.asList("core", "myhive", "myhive2"));
+
         exception.expect(SqlExecutionException.class);
-        exception.expectMessage("Could not execute statement: unload module hive");
-        executor.executeSql(sessionId, "unload module hive");
+        exception.expectMessage("Could not execute statement: unload module mymodule");
+        executor.executeSql(sessionId, "unload module mymodule");
+    }
+
+    @Test
+    public void testHiveBuiltInFunctionWithHiveModuleEnabled() throws Exception {
+        // only blink planner supports LOAD MODULE syntax
+        Assume.assumeTrue(planner.equals("blink"));
+
+        final URL url = getClass().getClassLoader().getResource("test-data.csv");
+        Objects.requireNonNull(url);
+        final Map<String, String> replaceVars = new HashMap<>();
+        replaceVars.put("$VAR_PLANNER", planner);
+        replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
+        replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
+        replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
+        replaceVars.put("$VAR_MAX_ROWS", "100");
+        replaceVars.put("$VAR_RESULT_MODE", "table");
+
+        final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
+        final SessionContext session = new SessionContext("test-session", new Environment());
+        String sessionId = executor.openSession(session);
+        assertEquals("test-session", sessionId);
+
+        // cannot use hive built-in function without loading hive module
+        assertThrows(
+                "Could not execute statement: select substring_index('www.apache.org', '.', 2) from TableNumber1",
+                SqlExecutionException.class,
+                () ->
+                        executor.executeSql(
+                                sessionId,
+                                "select substring_index('www.apache.org', '.', 2) from TableNumber1"));
 
         executor.executeSql(sessionId, "load module hive");
-        assertShowResult(
-                executor.executeSql(sessionId, "show modules"), Arrays.asList("core", "hive"));
+        assertEquals(executor.listModules(sessionId), Arrays.asList("core", "hive"));
 
-        executor.executeSql(sessionId, "unload module hive");
         assertShowResult(
-                executor.executeSql(sessionId, "show modules"), Collections.singletonList("core"));
+                executor.executeSql(
+                        sessionId,
+                        "select substring_index('www.apache.org', '.', 2) from TableNumber1"),
+                hasItems("www.apache"));
     }
 
     private void executeStreamQueryTable(

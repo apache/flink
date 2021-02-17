@@ -884,19 +884,18 @@ public class SqlToOperationConverter {
                 String moduleType = option.getValueString();
                 throw new ValidationException(
                         String.format(
-                                "Property 'type' = '%s' is not supported, please remove it and "
-                                        + "rename module to '%s' and try again",
-                                moduleType, moduleType));
+                                "Property 'type' = '%s' is not supported since module name "
+                                        + "is used to find module",
+                                moduleType));
             }
             properties.put(option.getKeyString(), option.getValueString());
         }
-        properties.put(MODULE_TYPE, moduleName);
         return new LoadModuleOperation(moduleName, properties);
     }
 
     /** Convert UNLOAD MODULE statement. */
     private Operation convertUnloadModule(SqlUnloadModule sqlUnloadModule) {
-        String moduleName = sqlUnloadModule.moduleName().toLowerCase();
+        String moduleName = sqlUnloadModule.moduleName();
         return new UnloadModuleOperation(moduleName);
     }
 

@@ -45,7 +45,6 @@ import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.delegation.Parser;
-import org.apache.flink.table.descriptors.ModuleDescriptorValidator;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
@@ -300,7 +299,6 @@ public class SqlToOperationConverterTest {
         final Map<String, String> expectedProperties = new HashMap<>();
         expectedProperties.put("k1", "v1");
         expectedProperties.put("k2", "v2");
-        expectedProperties.put(ModuleDescriptorValidator.MODULE_TYPE, "dummy");
 
         Operation operation = parse(sql, SqlDialect.DEFAULT);
         assert operation instanceof LoadModuleOperation;
@@ -316,14 +314,14 @@ public class SqlToOperationConverterTest {
                 "LOAD MODULE my_module WITH ('type' = 'dummy', 'k1' = 'v1', 'k2' = 'v2')";
         thrown.expect(ValidationException.class);
         thrown.expectMessage(
-                "Property 'type' = 'dummy' is not supported, please remove it and rename module "
-                        + "to 'dummy' and try again");
+                "Property 'type' = 'dummy' is not supported since module name "
+                        + "is used to find module");
         parse(sql, SqlDialect.DEFAULT);
     }
 
     @Test
     public void testUnloadModule() {
-        final String sql = "UNLOAD MODULE DUMMY";
+        final String sql = "UNLOAD MODULE dummy";
         final String expectedModuleName = "dummy";
 
         Operation operation = parse(sql, SqlDialect.DEFAULT);

@@ -69,6 +69,7 @@ import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.delegation.PlannerFactory;
 import org.apache.flink.table.descriptors.ConnectTableDescriptor;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
+import org.apache.flink.table.descriptors.ModuleDescriptorValidator;
 import org.apache.flink.table.descriptors.StreamTableDescriptor;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
@@ -1163,7 +1164,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     private TableResult loadModule(LoadModuleOperation operation) {
         String exMsg = getDDLOpExecuteErrorMsg(operation.asSummaryString());
         try {
-            Map<String, String> properties = operation.getProperties();
+            // find module by name
+            Map<String, String> properties = new HashMap<>(operation.getProperties());
+            properties.put(ModuleDescriptorValidator.MODULE_TYPE, operation.getModuleName());
             final ModuleFactory factory =
                     TableFactoryService.find(ModuleFactory.class, properties, userClassLoader);
             moduleManager.loadModule(operation.getModuleName(), factory.createModule(properties));

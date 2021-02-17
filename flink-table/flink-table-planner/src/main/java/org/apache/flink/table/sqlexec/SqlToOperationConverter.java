@@ -36,7 +36,6 @@ import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.sql.parser.ddl.SqlUseCatalog;
 import org.apache.flink.sql.parser.ddl.SqlUseDatabase;
 import org.apache.flink.sql.parser.dml.RichSqlInsert;
-import org.apache.flink.sql.parser.dql.SqlLoadModule;
 import org.apache.flink.sql.parser.dql.SqlRichDescribeTable;
 import org.apache.flink.sql.parser.dql.SqlShowCatalogs;
 import org.apache.flink.sql.parser.dql.SqlShowCurrentCatalog;
@@ -45,7 +44,6 @@ import org.apache.flink.sql.parser.dql.SqlShowDatabases;
 import org.apache.flink.sql.parser.dql.SqlShowFunctions;
 import org.apache.flink.sql.parser.dql.SqlShowTables;
 import org.apache.flink.sql.parser.dql.SqlShowViews;
-import org.apache.flink.sql.parser.dql.SqlUnloadModule;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
@@ -68,7 +66,6 @@ import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.ExplainOperation;
-import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.PlannerQueryOperation;
 import org.apache.flink.table.operations.ShowCatalogsOperation;
@@ -78,7 +75,6 @@ import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.ShowViewsOperation;
-import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
@@ -120,8 +116,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-
-import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
 
 /**
  * Mix-in tool class for {@code SqlNode} that allows DDL commands to be converted to {@link
@@ -211,10 +205,6 @@ public class SqlToOperationConverter {
                 throw new ValidationException("Partial inserts are not supported");
             }
             return Optional.of(converter.convertSqlInsert((RichSqlInsert) validated));
-        } else if (validated instanceof SqlLoadModule) {
-            return Optional.of(converter.convertLoadModule((SqlLoadModule) validated));
-        } else if (validated instanceof SqlUnloadModule) {
-            return Optional.of(converter.convertUnloadModule((SqlUnloadModule) validated));
         } else if (validated.getKind().belongsTo(SqlKind.QUERY)) {
             return Optional.of(converter.convertSqlQuery(validated));
         } else {
@@ -415,32 +405,6 @@ public class SqlToOperationConverter {
             return new DropCatalogFunctionOperation(
                     identifier, sqlDropFunction.getIfExists(), sqlDropFunction.isTemporary());
         }
-    }
-
-    /** Convert LOAD MODULE statement. */
-    private Operation convertLoadModule(SqlLoadModule sqlLoadModule) {
-        String moduleName = sqlLoadModule.moduleName();
-        Map<String, String> properties = new HashMap<>();
-        for (SqlNode node : sqlLoadModule.getPropertyList().getList()) {
-            SqlTableOption option = (SqlTableOption) node;
-            if (MODULE_TYPE.equals(option.getKeyString())) {
-                String moduleType = option.getValueString();
-                throw new ValidationException(
-                        String.format(
-                                "Property 'type' = '%s' is not supported, please remove it and "
-                                        + "rename module to '%s' and try again",
-                                moduleType, moduleType));
-            }
-            properties.put(option.getKeyString(), option.getValueString());
-        }
-        properties.put(MODULE_TYPE, moduleName);
-        return new LoadModuleOperation(moduleName, properties);
-    }
-
-    /** Convert UNLOAD MODULE statement. */
-    private Operation convertUnloadModule(SqlUnloadModule sqlUnloadModule) {
-        String moduleName = sqlUnloadModule.moduleName().toLowerCase();
-        return new UnloadModuleOperation(moduleName);
     }
 
     /** Fallback method for sql query. */

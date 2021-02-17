@@ -32,11 +32,13 @@ import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks
 import org.apache.flink.types.Row
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql.SqlExplainLevel
+import org.apache.flink.core.testutils.CommonTestUtils.assertThrows
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit.rules.ExpectedException
 import org.junit.{Rule, Test}
 
 import _root_.java.util
+import java.util.concurrent.Callable
 import _root_.scala.collection.JavaConverters._
 
 class TableEnvironmentTest {
@@ -530,25 +532,27 @@ class TableEnvironmentTest {
       """.stripMargin
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage(
-      "Could not execute LOAD MODULE: (moduleName: [dummy], properties: [{dummy-version=2, " +
-        "type=dummy}]). A module with name 'dummy' already exists")
+      "Could not execute LOAD MODULE: (moduleName: [dummy], properties: [{dummy-version=2}])." +
+        " A module with name 'dummy' already exists")
     tableEnv.executeSql(statement2)
   }
 
   @Test
   def testExecuteSqlWithLoadCaseSensitiveModuleName(): Unit = {
-    expectedException.expect(classOf[TableException])
-    expectedException.expectMessage(
-      "Could not execute LOAD MODULE: (moduleName: [Dummy], properties: [{dummy-version=1, " +
-        "type=Dummy}]). Could not find a suitable table factory for 'org.apache.flink.table" +
-        ".factories.ModuleFactory' in\nthe classpath.")
     val statement1 =
       """
         |LOAD MODULE Dummy WITH (
         |  'dummy-version' = '1'
         |)
       """.stripMargin
-    tableEnv.executeSql(statement1)
+
+    val code = new Callable[TableResult] {
+      override def call(): TableResult = tableEnv.executeSql(statement1)
+    }
+    assertThrows(
+      "Could not execute LOAD MODULE: (moduleName: [Dummy], properties: [{dummy-version=1}])." +
+        " Could not find a suitable table factory for 'org.apache.flink.table" +
+        ".factories.ModuleFactory' in\nthe classpath.", classOf[TableException], code)
 
     val statement2 =
       """
