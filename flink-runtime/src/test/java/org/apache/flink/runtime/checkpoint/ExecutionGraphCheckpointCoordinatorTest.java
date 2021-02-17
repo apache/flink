@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
@@ -39,8 +38,6 @@ import org.apache.flink.util.TestLogger;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 
-import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.Matchers.is;
@@ -164,110 +161,5 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
                         .build();
 
         return scheduler;
-    }
-
-    private static class TestingCheckpointRecoveryFactory implements CheckpointRecoveryFactory {
-
-        private final CompletedCheckpointStore store;
-        private final CheckpointIDCounter counter;
-
-        private TestingCheckpointRecoveryFactory(
-                CompletedCheckpointStore store, CheckpointIDCounter counter) {
-            this.store = store;
-            this.counter = counter;
-        }
-
-        @Override
-        public CompletedCheckpointStore createCheckpointStore(
-                JobID jobId, int maxNumberOfCheckpointsToRetain, ClassLoader userClassLoader) {
-            return store;
-        }
-
-        @Override
-        public CheckpointIDCounter createCheckpointIDCounter(JobID jobId) {
-            return counter;
-        }
-    }
-
-    private static final class TestingCheckpointIDCounter implements CheckpointIDCounter {
-
-        private final CompletableFuture<JobStatus> shutdownStatus;
-
-        private TestingCheckpointIDCounter(CompletableFuture<JobStatus> shutdownStatus) {
-            this.shutdownStatus = shutdownStatus;
-        }
-
-        @Override
-        public void start() {}
-
-        @Override
-        public void shutdown(JobStatus jobStatus) {
-            shutdownStatus.complete(jobStatus);
-        }
-
-        @Override
-        public long getAndIncrement() {
-            throw new UnsupportedOperationException("Not implemented.");
-        }
-
-        @Override
-        public long get() {
-            throw new UnsupportedOperationException("Not implemented.");
-        }
-
-        @Override
-        public void setCount(long newId) {
-            throw new UnsupportedOperationException("Not implemented.");
-        }
-    }
-
-    private static final class TestingCompletedCheckpointStore implements CompletedCheckpointStore {
-
-        private final CompletableFuture<JobStatus> shutdownStatus;
-
-        private TestingCompletedCheckpointStore(CompletableFuture<JobStatus> shutdownStatus) {
-            this.shutdownStatus = shutdownStatus;
-        }
-
-        @Override
-        public void recover() {}
-
-        @Override
-        public void addCheckpoint(
-                CompletedCheckpoint checkpoint,
-                CheckpointsCleaner checkpointsCleaner,
-                Runnable postCleanup) {
-            throw new UnsupportedOperationException("Not implemented.");
-        }
-
-        @Override
-        public CompletedCheckpoint getLatestCheckpoint(boolean isPreferCheckpointForRecovery) {
-            return null;
-        }
-
-        @Override
-        public void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner) {
-            shutdownStatus.complete(jobStatus);
-        }
-
-        @Override
-        public List<CompletedCheckpoint> getAllCheckpoints() {
-            return Collections.emptyList();
-        }
-
-        @Override
-        public int getNumberOfRetainedCheckpoints() {
-            throw new UnsupportedOperationException("Not implemented.");
-        }
-
-        @Override
-        public int getMaxNumberOfRetainedCheckpoints() {
-            throw new UnsupportedOperationException("Not implemented.");
-        }
-
-        @Override
-        public boolean requiresExternalizedCheckpoints() {
-            throw new UnsupportedOperationException("Not implemented.");
-        }
     }
 }
