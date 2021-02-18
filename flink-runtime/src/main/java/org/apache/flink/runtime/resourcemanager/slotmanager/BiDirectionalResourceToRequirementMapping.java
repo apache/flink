@@ -19,7 +19,7 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.slots.ResourceCounter;
+import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.Preconditions;
 
 import java.util.HashMap;
@@ -56,9 +56,15 @@ class BiDirectionalResourceToRequirementMapping {
             ResourceProfile primaryKey,
             ResourceProfile secondaryKey,
             int increment) {
-        primaryMap
-                .computeIfAbsent(primaryKey, ignored -> new ResourceCounter())
-                .incrementCount(secondaryKey, increment);
+        primaryMap.compute(
+                primaryKey,
+                (resourceProfile, resourceCounter) -> {
+                    if (resourceCounter == null) {
+                        return ResourceCounter.withResource(secondaryKey, increment);
+                    } else {
+                        return resourceCounter.add(secondaryKey, increment);
+                    }
+                });
     }
 
     private static void internalDecrementCount(
@@ -74,23 +80,20 @@ class BiDirectionalResourceToRequirementMapping {
                             "Attempting to decrement count of %s->%s, but primary key was unknown.",
                             resourceProfile,
                             secondaryKey);
-                    resourceCounter.decrementCount(secondaryKey, decrement);
-                    return resourceCounter.isEmpty() ? null : resourceCounter;
+                    final ResourceCounter newCounter =
+                            resourceCounter.subtract(secondaryKey, decrement);
+                    return newCounter.isEmpty() ? null : newCounter;
                 });
     }
 
-    public Map<ResourceProfile, Integer> getResourcesFulfilling(ResourceProfile requirement) {
+    public ResourceCounter getResourcesFulfilling(ResourceProfile requirement) {
         Preconditions.checkNotNull(requirement);
-        return requirementToFulfillingResources
-                .getOrDefault(requirement, ResourceCounter.EMPTY)
-                .getResourceProfilesWithCount();
+        return requirementToFulfillingResources.getOrDefault(requirement, ResourceCounter.empty());
     }
 
-    public Map<ResourceProfile, Integer> getRequirementsFulfilledBy(ResourceProfile resource) {
+    public ResourceCounter getRequirementsFulfilledBy(ResourceProfile resource) {
         Preconditions.checkNotNull(resource);
-        return resourceToFulfilledRequirement
-                .getOrDefault(resource, ResourceCounter.EMPTY)
-                .getResourceProfilesWithCount();
+        return resourceToFulfilledRequirement.getOrDefault(resource, ResourceCounter.empty());
     }
 
     public Set<ResourceProfile> getAllResourceProfiles() {
@@ -104,15 +107,15 @@ class BiDirectionalResourceToRequirementMapping {
     public int getNumFulfillingResources(ResourceProfile requirement) {
         Preconditions.checkNotNull(requirement);
         return requirementToFulfillingResources
-                .getOrDefault(requirement, ResourceCounter.EMPTY)
-                .getResourceCount();
+                .getOrDefault(requirement, ResourceCounter.empty())
+                .getTotalResourceCount();
     }
 
     public int getNumFulfilledRequirements(ResourceProfile resource) {
         Preconditions.checkNotNull(resource);
         return resourceToFulfilledRequirement
-                .getOrDefault(resource, ResourceCounter.EMPTY)
-                .getResourceCount();
+                .getOrDefault(resource, ResourceCounter.empty())
+                .getTotalResourceCount();
     }
 
     @VisibleForTesting

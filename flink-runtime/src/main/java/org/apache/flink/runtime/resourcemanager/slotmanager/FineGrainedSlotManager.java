@@ -33,10 +33,10 @@ import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
-import org.apache.flink.runtime.slots.ResourceCounter;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
+import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
@@ -505,7 +505,7 @@ public class FineGrainedSlotManager implements SlotManager {
             for (Map.Entry<InstanceID, ResourceCounter> tmEntry : jobEntry.getValue().entrySet()) {
                 final InstanceID instanceID = tmEntry.getKey();
                 for (Map.Entry<ResourceProfile, Integer> slotEntry :
-                        tmEntry.getValue().getResourceProfilesWithCount().entrySet()) {
+                        tmEntry.getValue().getResourcesWithCount()) {
                     for (int i = 0; i < slotEntry.getValue(); ++i) {
                         allocationFutures.add(
                                 slotStatusSyncer.allocateSlot(

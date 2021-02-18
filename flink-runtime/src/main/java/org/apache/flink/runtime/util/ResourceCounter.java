@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmaster.slotpool;
+package org.apache.flink.runtime.util;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.util.Preconditions;
@@ -51,6 +51,15 @@ public final class ResourceCounter {
      */
     public int getResourceCount(ResourceProfile resourceProfile) {
         return resources.getOrDefault(resourceProfile, 0);
+    }
+
+    /**
+     * Computes the total number of resources in this counter.
+     *
+     * @return the total number of resources in this counter
+     */
+    public int getTotalResourceCount() {
+        return resources.isEmpty() ? 0 : resources.values().stream().reduce(0, Integer::sum);
     }
 
     /**
