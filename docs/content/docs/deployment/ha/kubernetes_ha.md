@@ -36,7 +36,8 @@ Consequently, they can be configured when using [standalone Flink on Kubernetes]
 In order to use Flink's Kubernetes HA services you must fulfill the following prerequisites:
 
 - Kubernetes >= 1.9.
-- `default` service account with [RBAC]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}}#rbac) permissions to create, edit, delete ConfigMaps.
+- Service account with permissions to create, edit, delete ConfigMaps. 
+  Take a look at how to configure a service account for [Flink's native Kubernetes integration]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}}#rbac) and [standalone Flink on Kubernetes]({{< ref "docs/deployment/resource-providers/standalone/kubernetes" >}}#kubernetes-high-availability-services) for more information. 
 
 
 ## Configuration
