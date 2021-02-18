@@ -25,7 +25,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionEdge;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.executiongraph.TestingExecutionGraphBuilder;
+import org.apache.flink.runtime.executiongraph.TestingDefaultExecutionGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -114,7 +114,7 @@ public class RescalePartitionerTest extends StreamPartitionerTest {
         assertEquals(4, mapVertex.getParallelism());
         assertEquals(2, sinkVertex.getParallelism());
 
-        ExecutionGraph eg = TestingExecutionGraphBuilder.newBuilder().build();
+        ExecutionGraph eg = TestingDefaultExecutionGraphBuilder.newBuilder().build();
 
         try {
             eg.attachJobGraph(jobVertices);

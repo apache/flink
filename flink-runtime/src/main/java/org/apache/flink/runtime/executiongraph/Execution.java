@@ -114,7 +114,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class Execution
         implements AccessExecution, Archiveable<ArchivedExecution>, LogicalSlot.Payload {
 
-    private static final Logger LOG = ExecutionGraph.LOG;
+    private static final Logger LOG = DefaultExecutionGraph.LOG;
 
     private static final int NUM_CANCEL_CALL_TRIES = 3;
 
@@ -385,7 +385,7 @@ public class Execution
         return FutureUtils.thenApplyAsyncIfNotDone(
                 registerProducedPartitions(
                         vertex, location, attemptId, notifyPartitionDataAvailable),
-                vertex.getExecutionGraph().getJobMasterMainThreadExecutor(),
+                vertex.getExecutionGraphAccessor().getJobMasterMainThreadExecutor(),
                 producedPartitionsCache -> {
                     producedPartitions = producedPartitionsCache;
                     startTrackingPartitions(
@@ -436,7 +436,7 @@ public class Execution
             PartitionDescriptor partitionDescriptor = PartitionDescriptor.from(partition);
             int maxParallelism = getPartitionMaxParallelism(partition);
             CompletableFuture<? extends ShuffleDescriptor> shuffleDescriptorFuture =
-                    vertex.getExecutionGraph()
+                    vertex.getExecutionGraphAccessor()
                             .getShuffleMaster()
                             .registerPartitionWithProducer(partitionDescriptor, producerDescriptor);
 
@@ -574,7 +574,7 @@ public class Execution
             final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
 
             final ComponentMainThreadExecutor jobMasterMainThreadExecutor =
-                    vertex.getExecutionGraph().getJobMasterMainThreadExecutor();
+                    vertex.getExecutionGraphAccessor().getJobMasterMainThreadExecutor();
 
             getVertex().notifyPendingDeployment(this);
             // We run the submission in the future executor so that the serialization of large TDDs
@@ -916,7 +916,7 @@ public class Execution
                         finishPartitionsAndUpdateConsumers();
                         updateAccumulatorsAndMetrics(userAccumulators, metrics);
                         releaseAssignedResource(null);
-                        vertex.getExecutionGraph().deregisterExecution(this);
+                        vertex.getExecutionGraphAccessor().deregisterExecution(this);
                     } finally {
                         vertex.executionFinished(this);
                     }
@@ -1018,7 +1018,7 @@ public class Execution
                                     "Asynchronous race: Found %s in state %s after successful cancel call.",
                                     vertex.getTaskNameWithSubtaskIndex(), state);
                     LOG.error(message);
-                    vertex.getExecutionGraph().failGlobal(new Exception(message));
+                    vertex.getExecutionGraphAccessor().failGlobal(new Exception(message));
                 }
                 return;
             }
@@ -1027,7 +1027,7 @@ public class Execution
 
     private void finishCancellation(boolean releasePartitions) {
         releaseAssignedResource(new FlinkException("Execution " + this + " was cancelled."));
-        vertex.getExecutionGraph().deregisterExecution(this);
+        vertex.getExecutionGraphAccessor().deregisterExecution(this);
         handlePartitionCleanup(releasePartitions, releasePartitions);
     }
 
@@ -1107,7 +1107,7 @@ public class Execution
         }
 
         if (!fromSchedulerNg) {
-            vertex.getExecutionGraph()
+            vertex.getExecutionGraphAccessor()
                     .notifySchedulerNgAboutInternalTaskFailure(
                             attemptId, t, cancelTask, releasePartitions);
             return;
@@ -1123,7 +1123,7 @@ public class Execution
         updateAccumulatorsAndMetrics(userAccumulators, metrics);
 
         releaseAssignedResource(t);
-        vertex.getExecutionGraph().deregisterExecution(this);
+        vertex.getExecutionGraphAccessor().deregisterExecution(this);
 
         maybeReleasePartitionsAndSendCancelRpcCall(current, cancelTask, releasePartitions);
     }
@@ -1212,7 +1212,7 @@ public class Execution
         if (slot != null) {
             final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
             final ComponentMainThreadExecutor jobMasterMainThreadExecutor =
-                    getVertex().getExecutionGraph().getJobMasterMainThreadExecutor();
+                    getVertex().getExecutionGraphAccessor().getJobMasterMainThreadExecutor();
 
             CompletableFuture<Acknowledge> cancelResultFuture =
                     FutureUtils.retry(
@@ -1233,7 +1233,7 @@ public class Execution
             final ResourceID taskExecutorId,
             final Collection<ResultPartitionDeploymentDescriptor> partitions) {
         JobMasterPartitionTracker partitionTracker =
-                vertex.getExecutionGraph().getPartitionTracker();
+                vertex.getExecutionGraphAccessor().getPartitionTracker();
         for (ResultPartitionDeploymentDescriptor partition : partitions) {
             partitionTracker.startTrackingPartition(taskExecutorId, partition);
         }
@@ -1247,7 +1247,7 @@ public class Execution
 
         final Collection<ResultPartitionID> partitionIds = getPartitionIds();
         final JobMasterPartitionTracker partitionTracker =
-                getVertex().getExecutionGraph().getPartitionTracker();
+                getVertex().getExecutionGraphAccessor().getPartitionTracker();
 
         if (!partitionIds.isEmpty()) {
             if (releaseBlockingPartitions) {
@@ -1274,7 +1274,7 @@ public class Execution
             final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
 
             final ShuffleMaster<?> shuffleMaster =
-                    getVertex().getExecutionGraph().getShuffleMaster();
+                    getVertex().getExecutionGraphAccessor().getShuffleMaster();
 
             Set<ResultPartitionID> partitionIds =
                     producedPartitions.values().stream()
@@ -1326,7 +1326,7 @@ public class Execution
                                             failure));
                         }
                     },
-                    getVertex().getExecutionGraph().getJobMasterMainThreadExecutor());
+                    getVertex().getExecutionGraphAccessor().getJobMasterMainThreadExecutor());
         }
     }
 
@@ -1344,7 +1344,7 @@ public class Execution
 
         if (slot != null) {
             ComponentMainThreadExecutor jobMasterMainThreadExecutor =
-                    getVertex().getExecutionGraph().getJobMasterMainThreadExecutor();
+                    getVertex().getExecutionGraphAccessor().getJobMasterMainThreadExecutor();
 
             slot.releaseSlot(cause)
                     .whenComplete(
@@ -1527,6 +1527,8 @@ public class Execution
     }
 
     private void assertRunningInJobMasterMainThread() {
-        vertex.getExecutionGraph().assertRunningInJobMasterMainThread();
+        vertex.getExecutionGraphAccessor()
+                .getJobMasterMainThreadExecutor()
+                .assertRunningInMainThread();
     }
 }
