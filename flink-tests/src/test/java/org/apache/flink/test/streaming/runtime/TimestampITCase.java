@@ -50,6 +50,7 @@ import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindo
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -57,6 +58,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -159,6 +161,7 @@ public class TimestampITCase extends TestLogger {
     }
 
     @Test
+    @Category(FailsWithAdaptiveScheduler.class) // FLINK-21333
     public void testWatermarkPropagationNoFinalWatermarkOnStop() throws Exception {
 
         // for this test to work, we need to be sure that no other jobs are being executed

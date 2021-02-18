@@ -74,6 +74,7 @@ import org.apache.flink.runtime.io.network.partition.TestingJobMasterPartitionTr
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -127,6 +128,7 @@ import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.testutils.ClassLoaderUtils;
+import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -141,6 +143,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nonnull;
@@ -762,6 +765,7 @@ public class JobMasterTest extends TestLogger {
      * submission.
      */
     @Test
+    @Category(FailsWithAdaptiveScheduler.class) // FLINK-21398
     public void testRestoringFromSavepoint() throws Exception {
 
         // create savepoint data
@@ -803,6 +807,7 @@ public class JobMasterTest extends TestLogger {
      * allowed.
      */
     @Test
+    @Category(FailsWithAdaptiveScheduler.class) // FLINK-21398
     public void testRestoringModifiedJobFromSavepoint() throws Exception {
 
         // create savepoint data
@@ -860,6 +865,7 @@ public class JobMasterTest extends TestLogger {
 
     /** Tests that an existing checkpoint will have precedence over an savepoint. */
     @Test
+    @Category(FailsWithAdaptiveScheduler.class) // FLINK-21398
     public void testCheckpointPrecedesSavepointRecovery() throws Exception {
 
         // create savepoint data
@@ -1045,6 +1051,7 @@ public class JobMasterTest extends TestLogger {
      * if this execution fails.
      */
     @Test
+    @Category(FailsWithAdaptiveScheduler.class) // FLINK-21450
     public void testRequestNextInputSplitWithLocalFailover() throws Exception {
 
         configuration.setString(
@@ -1058,6 +1065,7 @@ public class JobMasterTest extends TestLogger {
     }
 
     @Test
+    @Category(FailsWithAdaptiveScheduler.class) // FLINK-21399
     public void testRequestNextInputSplitWithGlobalFailover() throws Exception {
         configuration.setInteger(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
         configuration.set(
@@ -1092,6 +1100,7 @@ public class JobMasterTest extends TestLogger {
         source.setInvokableClass(AbstractInvokable.class);
 
         final JobGraph inputSplitJobGraph = new JobGraph(source);
+        jobGraph.setJobType(JobType.STREAMING);
 
         final ExecutionConfig executionConfig = new ExecutionConfig();
         executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(100, 0));
@@ -1926,6 +1935,7 @@ public class JobMasterTest extends TestLogger {
     private JobGraph createJobGraphFromJobVerticesWithCheckpointing(
             SavepointRestoreSettings savepointRestoreSettings, JobVertex... jobVertices) {
         final JobGraph jobGraph = new JobGraph(jobVertices);
+        jobGraph.setJobType(JobType.STREAMING);
 
         // enable checkpointing which is required to resume from a savepoint
         final CheckpointCoordinatorConfiguration checkpoinCoordinatorConfiguration =

@@ -20,11 +20,13 @@ package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -46,6 +48,7 @@ import static org.apache.flink.test.checkpointing.EventTimeWindowCheckpointingIT
  * EventTimeWindowCheckpointingITCase}.
  */
 @RunWith(Parameterized.class)
+@Category(FailsWithAdaptiveScheduler.class) // FLINK-21400
 public class LocalRecoveryITCase extends TestLogger {
 
     @Rule public TestName testName = new TestName();
