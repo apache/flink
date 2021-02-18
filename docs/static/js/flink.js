@@ -18,21 +18,36 @@
 */
 
 /**
- * Function to synchronize all tabs on a page. 
+ * Function to synchronize all tabs on a page to a given user selection. 
+ * 
+ * The selection of a tab group should only change if it contains an 
+ * input with the given tabId. Otherwise, its current seletion should
+ * remain unchanged.
  * 
  * See layouts/shortcodes/tabs.html
  */
 function onSwitch(tabId) {
-    allTabItems = document.querySelectorAll("[data-tab-group='flink-tabs']");
-    targetTabItems = document.querySelectorAll("[data-tab-group='flink-tabs'][data-tab-item='" + tabId + "']");
+    var selectorForId = "[data-tab-group='flink-tabs'][data-tab-item='" + tabId + "']";
 
-    allTabItems.forEach(function(tab) {
-        tab.removeAttribute("checked")
-    })
-
-    targetTabItems.forEach(function(tab) {
-        tab.setAttribute("checked", "checked")
-    })
+    Array
+        // find all tab group elements on the page
+        .from(document.getElementsByClassName("book-tabs"))
+        // filter out any elements that do not contain 
+        // the specific tab the user wants to switch to.
+        // these tabs should remain on their current selection
+        .filter(div => div.querySelectorAll(selectorForId).length > 0)
+        // extract the input elements for all tab groups
+        // that do contain the target tab id
+        .flatMap(div => Array.from(div.querySelectorAll("[data-tab-group='flink-tabs']")))
+        // check input elements that contain the selected tabId
+        // and uncheck all others
+        .forEach(input => {
+            if (input.matches(selectorForId)) {
+                input.setAttribute("checked", "checked")
+            } else {
+                input.removeAttribute("checked")
+            }
+        });
 }
 
 /**
@@ -138,6 +153,16 @@ function showCurrentCopyAlert(containerId) {
 if (window.NodeList && !NodeList.prototype.forEach) {
     NodeList.prototype.forEach = Array.prototype.forEach;
 }
+
+/**
+ * Adds forEach to Element for old versions
+ * of microsoft IE and Edge.
+ */
+if (!Element.prototype.matches) {
+  Element.prototype.matches = Element.prototype.msMatchesSelector ||
+                              Element.prototype.webkitMatchesSelector;
+}
+
 
 document.addEventListener("DOMContentLoaded", function(event) { 
     if (sessionStorage.getItem("collapse-toc") === "true") {
