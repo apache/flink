@@ -71,6 +71,7 @@ public class JobDetailsInfoTest extends RestResponseMarshallingTestBase<JobDetai
                 1L,
                 2L,
                 1L,
+                8888L,
                 1984L,
                 timestamps,
                 jobVertexInfos,
@@ -96,10 +97,12 @@ public class JobDetailsInfoTest extends RestResponseMarshallingTestBase<JobDetai
             tasksPerState.put(executionState, random.nextInt());
         }
 
+        int parallelism = 1 + (random.nextInt() / 3);
         return new JobDetailsInfo.JobVertexDetailsInfo(
                 new JobVertexID(),
                 "jobVertex" + random.nextLong(),
-                random.nextInt(),
+                2 * parallelism,
+                parallelism,
                 ExecutionState.values()[random.nextInt(ExecutionState.values().length)],
                 random.nextLong(),
                 random.nextLong(),
