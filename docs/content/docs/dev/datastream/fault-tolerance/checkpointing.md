@@ -46,7 +46,7 @@ Flink's checkpointing mechanism interacts with durable storage for streams and s
 
 ## Enabling and Configuring Checkpointing
 
-By default, checkpointing is disabled. To enable checkpointing, call `enableCheckpointing(n)` on the `StreamExecutionEnvironment`, where *n* is the checkpoint interval in milliseconds.
+By default, checkpointing is disabled. To enable checkpointing, call `enableCheckpointing(n)` on the `StreamExecutionEnvironment`, where *n* is the [checkpoint interval]({{< ref "docs/ops/production_ready#choose-the-right-checkpoint-interval" >}}) in milliseconds.
 
 Other parameters for checkpointing include:
 
