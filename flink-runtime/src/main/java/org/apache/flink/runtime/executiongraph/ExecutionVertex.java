@@ -62,7 +62,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class ExecutionVertex
         implements AccessExecutionVertex, Archiveable<ArchivedExecutionVertex> {
 
-    private static final Logger LOG = ExecutionGraph.LOG;
+    private static final Logger LOG = DefaultExecutionGraph.LOG;
 
     public static final int MAX_DISTINCT_LOCATIONS_TO_CONSIDER = 8;
 
@@ -136,9 +136,13 @@ public class ExecutionVertex
 
         this.currentExecution =
                 new Execution(
-                        getExecutionGraph().getFutureExecutor(), this, 0, createTimestamp, timeout);
+                        getExecutionGraphAccessor().getFutureExecutor(),
+                        this,
+                        0,
+                        createTimestamp,
+                        timeout);
 
-        getExecutionGraph().registerExecution(currentExecution);
+        getExecutionGraphAccessor().registerExecution(currentExecution);
 
         this.timeout = timeout;
         this.inputSplits = new ArrayList<>();
@@ -306,7 +310,7 @@ public class ExecutionVertex
         }
     }
 
-    public ExecutionGraph getExecutionGraph() {
+    public InternalExecutionGraphAccessor getExecutionGraphAccessor() {
         return this.jobVertex.getGraph();
     }
 
@@ -452,7 +456,7 @@ public class ExecutionVertex
                 // failures and vertex resets
                 // do not release pipelined partitions here to save RPC calls
                 oldExecution.handlePartitionCleanup(false, true);
-                getExecutionGraph()
+                getExecutionGraphAccessor()
                         .getPartitionReleaseStrategy()
                         .vertexUnfinished(executionVertexId);
             }
@@ -461,7 +465,7 @@ public class ExecutionVertex
 
             final Execution newExecution =
                     new Execution(
-                            getExecutionGraph().getFutureExecutor(),
+                            getExecutionGraphAccessor().getFutureExecutor(),
                             this,
                             oldExecution.getAttemptNumber() + 1,
                             timestamp,
@@ -478,12 +482,12 @@ public class ExecutionVertex
             }
 
             // register this execution at the execution graph, to receive call backs
-            getExecutionGraph().registerExecution(newExecution);
+            getExecutionGraphAccessor().registerExecution(newExecution);
 
             // if the execution was 'FINISHED' before, tell the ExecutionGraph that
             // we take one step back on the road to reaching global FINISHED
             if (oldState == FINISHED) {
-                getExecutionGraph().vertexUnFinished();
+                getExecutionGraphAccessor().vertexUnFinished();
             }
 
             // reset the intermediate results
@@ -600,7 +604,7 @@ public class ExecutionVertex
     // --------------------------------------------------------------------------------------------
 
     void executionFinished(Execution execution) {
-        getExecutionGraph().vertexFinished();
+        getExecutionGraphAccessor().vertexFinished();
     }
 
     // --------------------------------------------------------------------------------------------
@@ -611,7 +615,7 @@ public class ExecutionVertex
         // only forward this notification if the execution is still the current execution
         // otherwise we have an outdated execution
         if (isCurrentExecution(execution)) {
-            getExecutionGraph()
+            getExecutionGraphAccessor()
                     .getExecutionDeploymentListener()
                     .onStartedDeployment(
                             execution.getAttemptId(),
@@ -623,7 +627,7 @@ public class ExecutionVertex
         // only forward this notification if the execution is still the current execution
         // otherwise we have an outdated execution
         if (isCurrentExecution(execution)) {
-            getExecutionGraph()
+            getExecutionGraphAccessor()
                     .getExecutionDeploymentListener()
                     .onCompletedDeployment(execution.getAttemptId());
         }
@@ -634,7 +638,7 @@ public class ExecutionVertex
         // only forward this notification if the execution is still the current execution
         // otherwise we have an outdated execution
         if (isCurrentExecution(execution)) {
-            getExecutionGraph().notifyExecutionChange(execution, newState);
+            getExecutionGraphAccessor().notifyExecutionChange(execution, newState);
         }
     }
 

@@ -54,10 +54,10 @@ import static org.mockito.Mockito.when;
  * This class contains test concerning the correct conversion from {@link JobGraph} to {@link
  * ExecutionGraph} objects.
  */
-public class ExecutionGraphConstructionTest {
+public class DefaultExecutionGraphConstructionTest {
 
-    private ExecutionGraph createExecutionGraph() throws Exception {
-        return TestingExecutionGraphBuilder.newBuilder().build();
+    private ExecutionGraph createDefaultExecutionGraph() throws Exception {
+        return TestingDefaultExecutionGraphBuilder.newBuilder().build();
     }
 
     @Test
@@ -76,8 +76,8 @@ public class ExecutionGraphConstructionTest {
 
         List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2, v3));
 
-        ExecutionGraph eg1 = createExecutionGraph();
-        ExecutionGraph eg2 = createExecutionGraph();
+        ExecutionGraph eg1 = createDefaultExecutionGraph();
+        ExecutionGraph eg2 = createDefaultExecutionGraph();
         eg1.attachJobGraph(ordered);
         eg2.attachJobGraph(ordered);
 
@@ -134,7 +134,7 @@ public class ExecutionGraphConstructionTest {
 
         List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
 
-        ExecutionGraph eg = createExecutionGraph();
+        ExecutionGraph eg = createDefaultExecutionGraph();
         try {
             eg.attachJobGraph(ordered);
         } catch (JobException e) {
@@ -173,7 +173,7 @@ public class ExecutionGraphConstructionTest {
 
         List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3));
 
-        ExecutionGraph eg = createExecutionGraph();
+        ExecutionGraph eg = createDefaultExecutionGraph();
         try {
             eg.attachJobGraph(ordered);
         } catch (JobException e) {
@@ -238,7 +238,7 @@ public class ExecutionGraphConstructionTest {
 
         List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3));
 
-        ExecutionGraph eg = createExecutionGraph();
+        ExecutionGraph eg = createDefaultExecutionGraph();
         try {
             eg.attachJobGraph(ordered);
         } catch (JobException e) {
@@ -303,7 +303,7 @@ public class ExecutionGraphConstructionTest {
 
         List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1));
 
-        ExecutionGraph eg = createExecutionGraph();
+        ExecutionGraph eg = createDefaultExecutionGraph();
         try {
             eg.attachJobGraph(ordered);
         } catch (JobException e) {
@@ -359,7 +359,7 @@ public class ExecutionGraphConstructionTest {
 
         List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v5, v4));
 
-        ExecutionGraph eg = createExecutionGraph();
+        ExecutionGraph eg = createDefaultExecutionGraph();
         try {
             eg.attachJobGraph(ordered);
             fail("Attached wrong jobgraph");
@@ -424,7 +424,7 @@ public class ExecutionGraphConstructionTest {
 
             List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
 
-            ExecutionGraph eg = createExecutionGraph();
+            ExecutionGraph eg = createDefaultExecutionGraph();
             try {
                 eg.attachJobGraph(ordered);
             } catch (JobException e) {
@@ -458,7 +458,7 @@ public class ExecutionGraphConstructionTest {
 
             List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3));
 
-            ExecutionGraph eg = createExecutionGraph();
+            ExecutionGraph eg = createDefaultExecutionGraph();
 
             try {
                 eg.attachJobGraph(ordered);

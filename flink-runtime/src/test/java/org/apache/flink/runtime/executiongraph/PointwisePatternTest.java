@@ -256,7 +256,7 @@ public class PointwisePatternTest {
     }
 
     private ExecutionGraph getDummyExecutionGraph() throws Exception {
-        return TestingExecutionGraphBuilder.newBuilder().build();
+        return TestingDefaultExecutionGraphBuilder.newBuilder().build();
     }
 
     private void testLowToHigh(int lowDop, int highDop) throws Exception {

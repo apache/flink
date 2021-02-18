@@ -34,8 +34,8 @@ import java.net.InetSocketAddress;
  * Tests {@link ExecutionGraph} deployment when offloading job and task information into the BLOB
  * server.
  */
-public class ExecutionGraphDeploymentWithBlobCacheTest
-        extends ExecutionGraphDeploymentWithBlobServerTest {
+public class DefaultExecutionGraphDeploymentWithBlobCacheTest
+        extends DefaultExecutionGraphDeploymentWithBlobServerTest {
 
     @Before
     @Override

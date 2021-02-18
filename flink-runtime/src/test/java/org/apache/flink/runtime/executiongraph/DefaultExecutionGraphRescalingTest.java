@@ -28,8 +28,6 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -42,15 +40,10 @@ import static org.junit.Assert.fail;
  * This class contains tests that verify when rescaling a {@link JobGraph}, constructed {@link
  * ExecutionGraph}s are correct.
  */
-public class ExecutionGraphRescalingTest extends TestLogger {
-
-    private static final Logger TEST_LOGGER =
-            LoggerFactory.getLogger(ExecutionGraphRescalingTest.class);
+public class DefaultExecutionGraphRescalingTest extends TestLogger {
 
     @Test
     public void testExecutionGraphArbitraryDopConstructionTest() throws Exception {
-
-        final Configuration config = new Configuration();
 
         final int initialParallelism = 5;
         final int maxParallelism = 10;
@@ -58,7 +51,8 @@ public class ExecutionGraphRescalingTest extends TestLogger {
                 createVerticesForSimpleBipartiteJobGraph(initialParallelism, maxParallelism);
         final JobGraph jobGraph = new JobGraph(jobVertices);
 
-        ExecutionGraph eg = TestingExecutionGraphBuilder.newBuilder().setJobGraph(jobGraph).build();
+        ExecutionGraph eg =
+                TestingDefaultExecutionGraphBuilder.newBuilder().setJobGraph(jobGraph).build();
 
         for (JobVertex jv : jobVertices) {
             assertThat(jv.getParallelism(), is(initialParallelism));
@@ -73,7 +67,7 @@ public class ExecutionGraphRescalingTest extends TestLogger {
             jv.setParallelism(scaleDownParallelism);
         }
 
-        eg = TestingExecutionGraphBuilder.newBuilder().setJobGraph(jobGraph).build();
+        eg = TestingDefaultExecutionGraphBuilder.newBuilder().setJobGraph(jobGraph).build();
 
         for (JobVertex jv : jobVertices) {
             assertThat(jv.getParallelism(), is(1));
@@ -88,7 +82,7 @@ public class ExecutionGraphRescalingTest extends TestLogger {
             jv.setParallelism(scaleUpParallelism);
         }
 
-        eg = TestingExecutionGraphBuilder.newBuilder().setJobGraph(jobGraph).build();
+        eg = TestingDefaultExecutionGraphBuilder.newBuilder().setJobGraph(jobGraph).build();
 
         for (JobVertex jv : jobVertices) {
             assertThat(jv.getParallelism(), is(scaleUpParallelism));
@@ -118,7 +112,7 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 
         try {
             // this should fail since we set the parallelism to maxParallelism + 1
-            TestingExecutionGraphBuilder.newBuilder().setJobGraph(jobGraph).build();
+            TestingDefaultExecutionGraphBuilder.newBuilder().setJobGraph(jobGraph).build();
 
             fail(
                     "Building the ExecutionGraph with a parallelism higher than the max parallelism should fail.");

@@ -23,7 +23,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.TestingExecutionGraphBuilder;
+import org.apache.flink.runtime.executiongraph.TestingDefaultExecutionGraphBuilder;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.FlinkException;
@@ -203,7 +203,7 @@ public class WaitingForResourcesTest extends TestLogger {
         private Supplier<Boolean> hasEnoughResourcesSupplier = () -> false;
         private SupplierWithException<ExecutionGraph, FlinkException>
                 createExecutionGraphWithAvailableResources =
-                        () -> TestingExecutionGraphBuilder.newBuilder().build();
+                        () -> TestingDefaultExecutionGraphBuilder.newBuilder().build();
         private final List<ScheduledRunnable> scheduledRunnables = new ArrayList<>();
         private boolean hasStateTransition = false;
 

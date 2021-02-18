@@ -18,33 +18,17 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.JobInformation;
-import org.apache.flink.runtime.executiongraph.NoOpExecutionDeploymentListener;
-import org.apache.flink.runtime.executiongraph.TestingExecutionGraphBuilder;
-import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategyFactoryLoader;
-import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import java.io.IOException;
 import java.time.Duration;
-import java.util.Collections;
 import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.scheduler.adaptive.WaitingForResourcesTest.assertNonNull;
@@ -57,10 +41,11 @@ public class RestartingTest extends TestLogger {
     @Test
     public void testExecutionGraphCancellationOnEnter() throws Exception {
         try (MockRestartingContext ctx = new MockRestartingContext()) {
-            CancellableExecutionGraph cancellableExecutionGraph = new CancellableExecutionGraph();
-            createRestartingState(ctx, cancellableExecutionGraph);
+            StateTrackingMockExecutionGraph mockExecutionGraph =
+                    new StateTrackingMockExecutionGraph();
+            createRestartingState(ctx, mockExecutionGraph);
 
-            assertThat(cancellableExecutionGraph.isCancelled(), is(true));
+            assertThat(mockExecutionGraph.getState(), is(JobStatus.CANCELLING));
         }
     }
 
@@ -85,8 +70,7 @@ public class RestartingTest extends TestLogger {
     @Test
     public void testSuspend() throws Exception {
         try (MockRestartingContext ctx = new MockRestartingContext()) {
-            CancellableExecutionGraph cancellableExecutionGraph = new CancellableExecutionGraph();
-            Restarting restarting = createRestartingState(ctx, cancellableExecutionGraph);
+            Restarting restarting = createRestartingState(ctx);
             ctx.setExpectFinished(
                     archivedExecutionGraph ->
                             assertThat(archivedExecutionGraph.getState(), is(JobStatus.SUSPENDED)));
@@ -98,8 +82,7 @@ public class RestartingTest extends TestLogger {
     @Test
     public void testGlobalFailuresAreIgnored() throws Exception {
         try (MockRestartingContext ctx = new MockRestartingContext()) {
-            CancellableExecutionGraph cancellableExecutionGraph = new CancellableExecutionGraph();
-            Restarting restarting = createRestartingState(ctx, cancellableExecutionGraph);
+            Restarting restarting = createRestartingState(ctx);
             restarting.handleGlobalFailure(new RuntimeException());
             ctx.assertNoStateTransition();
         }
@@ -108,10 +91,13 @@ public class RestartingTest extends TestLogger {
     @Test
     public void testStateDoesNotExposeGloballyTerminalExecutionGraph() throws Exception {
         try (MockRestartingContext ctx = new MockRestartingContext()) {
-            Restarting restarting = createRestartingState(ctx);
+            StateTrackingMockExecutionGraph mockExecutionGraph =
+                    new StateTrackingMockExecutionGraph();
+            Restarting restarting = createRestartingState(ctx, mockExecutionGraph);
 
             // ideally we'd just delay the state transitions, but the context does not support that
             ctx.setExpectWaitingForResources();
+            mockExecutionGraph.completeTerminationFuture(JobStatus.CANCELED);
 
             // this is just a sanity check for the test
             assertThat(restarting.getExecutionGraph().getState(), is(JobStatus.CANCELED));
@@ -148,8 +134,7 @@ public class RestartingTest extends TestLogger {
 
     public Restarting createRestartingState(MockRestartingContext ctx)
             throws JobException, JobExecutionException {
-        ExecutionGraph executionGraph = TestingExecutionGraphBuilder.newBuilder().build();
-        return createRestartingState(ctx, executionGraph);
+        return createRestartingState(ctx, new StateTrackingMockExecutionGraph());
     }
 
     private static class MockRestartingContext extends MockStateWithExecutionGraphContext
@@ -198,45 +183,6 @@ public class RestartingTest extends TestLogger {
             super.close();
             cancellingStateValidator.close();
             waitingForResourcesStateValidator.close();
-        }
-    }
-
-    static class CancellableExecutionGraph extends ExecutionGraph {
-        private boolean cancelled = false;
-
-        CancellableExecutionGraph() throws IOException {
-            super(
-                    new JobInformation(
-                            new JobID(),
-                            "Test Job",
-                            new SerializedValue<>(new ExecutionConfig()),
-                            new Configuration(),
-                            Collections.emptyList(),
-                            Collections.emptyList()),
-                    TestingUtils.defaultExecutor(),
-                    TestingUtils.defaultExecutor(),
-                    AkkaUtils.getDefaultTimeout(),
-                    1,
-                    ExecutionGraph.class.getClassLoader(),
-                    VoidBlobWriter.getInstance(),
-                    PartitionReleaseStrategyFactoryLoader.loadPartitionReleaseStrategyFactory(
-                            new Configuration()),
-                    NettyShuffleMaster.INSTANCE,
-                    NoOpJobMasterPartitionTracker.INSTANCE,
-                    TaskDeploymentDescriptorFactory.PartitionLocationConstraint.MUST_BE_KNOWN,
-                    NoOpExecutionDeploymentListener.get(),
-                    (execution, newState) -> {},
-                    0L);
-            setJsonPlan("");
-        }
-
-        @Override
-        public void cancel() {
-            cancelled = true;
-        }
-
-        public boolean isCancelled() {
-            return cancelled;
         }
     }
 }

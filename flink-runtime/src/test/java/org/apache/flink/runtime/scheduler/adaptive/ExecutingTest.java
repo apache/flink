@@ -18,45 +18,48 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.blob.VoidBlobWriter;
+import org.apache.flink.runtime.blob.BlobWriter;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.ExecutionDeploymentListener;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
+import org.apache.flink.runtime.executiongraph.InternalExecutionGraphAccessor;
 import org.apache.flink.runtime.executiongraph.JobInformation;
-import org.apache.flink.runtime.executiongraph.NoOpExecutionDeploymentListener;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
-import org.apache.flink.runtime.executiongraph.TestingExecutionGraphBuilder;
-import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategyFactoryLoader;
-import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
+import org.apache.flink.runtime.executiongraph.TestingDefaultExecutionGraphBuilder;
+import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategy;
+import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
+import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.types.Either;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 import org.slf4j.Logger;
 
-import java.io.IOException;
+import javax.annotation.Nonnull;
+
 import java.time.Duration;
 import java.util.Collections;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -270,7 +273,7 @@ public class ExecutingTest extends TestLogger {
             // context does not support that
             ctx.setExpectFinished(eg -> {});
 
-            finishingMockExecutionGraph.finish();
+            finishingMockExecutionGraph.completeTerminationFuture(JobStatus.FINISHED);
 
             // this is just a sanity check for the test
             assertThat(executing.getExecutionGraph().getState(), is(JobStatus.FINISHED));
@@ -282,7 +285,8 @@ public class ExecutingTest extends TestLogger {
     }
 
     private final class ExecutingStateBuilder {
-        private ExecutionGraph executionGraph = TestingExecutionGraphBuilder.newBuilder().build();
+        private ExecutionGraph executionGraph =
+                TestingDefaultExecutionGraphBuilder.newBuilder().build();
         private OperatorCoordinatorHandler operatorCoordinatorHandler;
 
         private ExecutingStateBuilder() throws JobException, JobExecutionException {
@@ -480,45 +484,22 @@ public class ExecutingTest extends TestLogger {
         }
     }
 
-    private static class MockExecutionGraph extends ExecutionGraph {
+    private static class MockExecutionGraph extends StateTrackingMockExecutionGraph {
         private final boolean updateStateReturnValue;
         private final Supplier<Iterable<ExecutionJobVertex>> getVerticesTopologicallySupplier;
 
-        MockExecutionGraph(Supplier<Iterable<ExecutionJobVertex>> getVerticesTopologicallySupplier)
-                throws IOException {
+        MockExecutionGraph(
+                Supplier<Iterable<ExecutionJobVertex>> getVerticesTopologicallySupplier) {
             this(false, getVerticesTopologicallySupplier);
         }
 
-        MockExecutionGraph(boolean updateStateReturnValue) throws IOException {
+        MockExecutionGraph(boolean updateStateReturnValue) {
             this(updateStateReturnValue, null);
         }
 
         private MockExecutionGraph(
                 boolean updateStateReturnValue,
-                Supplier<Iterable<ExecutionJobVertex>> getVerticesTopologicallySupplier)
-                throws IOException {
-            super(
-                    new JobInformation(
-                            new JobID(),
-                            "Test Job",
-                            new SerializedValue<>(new ExecutionConfig()),
-                            new Configuration(),
-                            Collections.emptyList(),
-                            Collections.emptyList()),
-                    TestingUtils.defaultExecutor(),
-                    TestingUtils.defaultExecutor(),
-                    AkkaUtils.getDefaultTimeout(),
-                    1,
-                    ExecutionGraph.class.getClassLoader(),
-                    VoidBlobWriter.getInstance(),
-                    PartitionReleaseStrategyFactoryLoader.loadPartitionReleaseStrategyFactory(
-                            new Configuration()),
-                    NettyShuffleMaster.INSTANCE,
-                    NoOpJobMasterPartitionTracker.INSTANCE,
-                    TaskDeploymentDescriptorFactory.PartitionLocationConstraint.MUST_BE_KNOWN,
-                    NoOpExecutionDeploymentListener.get(),
-                    (execution, newState) -> {},
-                    0L);
+                Supplier<Iterable<ExecutionJobVertex>> getVerticesTopologicallySupplier) {
             this.updateStateReturnValue = updateStateReturnValue;
             this.getVerticesTopologicallySupplier = getVerticesTopologicallySupplier;
         }
@@ -534,46 +515,7 @@ public class ExecutingTest extends TestLogger {
         }
     }
 
-    private static class FinishingMockExecutionGraph extends ExecutionGraph {
-
-        private JobStatus jobStatus = JobStatus.RUNNING;
-        private final CompletableFuture<JobStatus> terminationFuture = new CompletableFuture<>();
-
-        public FinishingMockExecutionGraph() throws IOException {
-            super(
-                    new JobInformation(
-                            new JobID(),
-                            "Test Job",
-                            new SerializedValue<>(new ExecutionConfig()),
-                            new Configuration(),
-                            Collections.emptyList(),
-                            Collections.emptyList()),
-                    TestingUtils.defaultExecutor(),
-                    TestingUtils.defaultExecutor(),
-                    AkkaUtils.getDefaultTimeout(),
-                    1,
-                    ExecutionGraph.class.getClassLoader(),
-                    VoidBlobWriter.getInstance(),
-                    PartitionReleaseStrategyFactoryLoader.loadPartitionReleaseStrategyFactory(
-                            new Configuration()),
-                    NettyShuffleMaster.INSTANCE,
-                    NoOpJobMasterPartitionTracker.INSTANCE,
-                    TaskDeploymentDescriptorFactory.PartitionLocationConstraint.MUST_BE_KNOWN,
-                    NoOpExecutionDeploymentListener.get(),
-                    (execution, newState) -> {},
-                    0L);
-        }
-
-        public void finish() {
-            this.jobStatus = JobStatus.FINISHED;
-            terminationFuture.complete(JobStatus.FINISHED);
-        }
-
-        @Override
-        public JobStatus getState() {
-            return this.jobStatus;
-        }
-
+    private static class FinishingMockExecutionGraph extends StateTrackingMockExecutionGraph {
         @Override
         public long getStatusTimestamp(JobStatus status) {
             switch (status) {
@@ -587,16 +529,6 @@ public class ExecutingTest extends TestLogger {
                     return 4;
             }
             return 0;
-        }
-
-        @Override
-        public CompletableFuture<JobStatus> getTerminationFuture() {
-            return terminationFuture;
-        }
-
-        @Override
-        public String getJsonPlan() {
-            return "";
         }
     }
 
@@ -632,7 +564,7 @@ public class ExecutingTest extends TestLogger {
 
         public MockOperatorCoordinatorHandler() throws JobException, JobExecutionException {
             super(
-                    TestingExecutionGraphBuilder.newBuilder().build(),
+                    TestingDefaultExecutionGraphBuilder.newBuilder().build(),
                     (throwable) -> {
                         throw new RuntimeException("Error in test", throwable);
                     });
@@ -651,12 +583,14 @@ public class ExecutingTest extends TestLogger {
     static class MockExecutionJobVertex extends ExecutionJobVertex {
         private final MockExecutionVertex mockExecutionVertex;
 
-        MockExecutionJobVertex() throws JobException, JobExecutionException {
-            this(TestingExecutionGraphBuilder.newBuilder().build());
-        }
-
-        MockExecutionJobVertex(ExecutionGraph executionGraph) throws JobException {
-            super(executionGraph, new JobVertex("test"), 1, 1, Time.milliseconds(1L), 1L);
+        MockExecutionJobVertex() throws JobException {
+            super(
+                    new MockInternalExecutionGraphAccessor(),
+                    new JobVertex("test"),
+                    1,
+                    1,
+                    Time.milliseconds(1L),
+                    1L);
             mockExecutionVertex = new MockExecutionVertex(this);
         }
 
@@ -689,5 +623,94 @@ public class ExecutingTest extends TestLogger {
         public boolean isDeployed() {
             return deployed;
         }
+    }
+
+    private static class MockInternalExecutionGraphAccessor
+            implements InternalExecutionGraphAccessor {
+
+        @Override
+        public Executor getFutureExecutor() {
+            return ForkJoinPool.commonPool();
+        }
+
+        // --- mocked methods
+
+        @Override
+        public ClassLoader getUserClassLoader() {
+            return null;
+        }
+
+        @Override
+        public JobID getJobID() {
+            return null;
+        }
+
+        @Override
+        public BlobWriter getBlobWriter() {
+            return null;
+        }
+
+        @Override
+        public Either<SerializedValue<JobInformation>, PermanentBlobKey>
+                getJobInformationOrBlobKey() {
+            return null;
+        }
+
+        @Override
+        public TaskDeploymentDescriptorFactory.PartitionLocationConstraint
+                getPartitionLocationConstraint() {
+            return null;
+        }
+
+        @Nonnull
+        @Override
+        public ComponentMainThreadExecutor getJobMasterMainThreadExecutor() {
+            return null;
+        }
+
+        @Override
+        public ShuffleMaster<?> getShuffleMaster() {
+            return null;
+        }
+
+        @Override
+        public JobMasterPartitionTracker getPartitionTracker() {
+            return null;
+        }
+
+        @Override
+        public void registerExecution(Execution exec) {}
+
+        @Override
+        public void deregisterExecution(Execution exec) {}
+
+        @Override
+        public PartitionReleaseStrategy getPartitionReleaseStrategy() {
+            return null;
+        }
+
+        @Override
+        public void failGlobal(Throwable t) {}
+
+        @Override
+        public void notifySchedulerNgAboutInternalTaskFailure(
+                ExecutionAttemptID attemptId,
+                Throwable t,
+                boolean cancelTask,
+                boolean releasePartitions) {}
+
+        @Override
+        public void vertexFinished() {}
+
+        @Override
+        public void vertexUnFinished() {}
+
+        @Override
+        public ExecutionDeploymentListener getExecutionDeploymentListener() {
+            return null;
+        }
+
+        @Override
+        public void notifyExecutionChange(Execution execution, ExecutionState newExecutionState) {}
     }
 }

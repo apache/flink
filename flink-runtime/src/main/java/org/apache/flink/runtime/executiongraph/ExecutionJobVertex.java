@@ -83,13 +83,13 @@ public class ExecutionJobVertex
         implements AccessExecutionJobVertex, Archiveable<ArchivedExecutionJobVertex> {
 
     /** Use the same log for all ExecutionGraph classes. */
-    private static final Logger LOG = ExecutionGraph.LOG;
+    private static final Logger LOG = DefaultExecutionGraph.LOG;
 
     public static final int VALUE_NOT_SET = -1;
 
     private final Object stateMonitor = new Object();
 
-    private final ExecutionGraph graph;
+    private final InternalExecutionGraphAccessor graph;
 
     private final JobVertex jobVertex;
 
@@ -127,7 +127,7 @@ public class ExecutionJobVertex
 
     @VisibleForTesting
     public ExecutionJobVertex(
-            ExecutionGraph graph,
+            InternalExecutionGraphAccessor graph,
             JobVertex jobVertex,
             int defaultParallelism,
             int maxPriorAttemptsHistoryLength,
@@ -297,7 +297,7 @@ public class ExecutionJobVertex
         this.maxParallelism = maxParallelism;
     }
 
-    public ExecutionGraph getGraph() {
+    public InternalExecutionGraphAccessor getGraph() {
         return graph;
     }
 

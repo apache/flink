@@ -65,7 +65,7 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
         assertThat(checkpointCoordinator, Matchers.notNullValue());
         assertThat(checkpointCoordinator.isShutdown(), is(false));
 
-        graph.failGlobal(new Exception("Test Exception"));
+        graph.failJob(new Exception("Test Exception"));
 
         assertThat(checkpointCoordinator.isShutdown(), is(true));
         assertThat(counterShutdownFuture.get(), is(JobStatus.FAILED));

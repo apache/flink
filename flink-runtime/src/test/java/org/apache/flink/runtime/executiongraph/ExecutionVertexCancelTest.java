@@ -264,9 +264,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
                         || exec.getState() == ExecutionState.CANCELED);
 
         assertFalse(exec.getAssignedResource().isAlive());
-        assertEquals(
-                vertices.length - 1,
-                exec.getVertex().getExecutionGraph().getRegisteredExecutions().size());
+        assertEquals(vertices.length - 1, graph.getRegisteredExecutions().size());
     }
 
     private static class CancelSequenceSimpleAckingTaskManagerGateway

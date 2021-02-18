@@ -46,7 +46,8 @@ import static org.mockito.Mockito.doAnswer;
  * Tests {@link ExecutionGraph} deployment when offloading job and task information into the BLOB
  * server.
  */
-public class ExecutionGraphDeploymentWithBlobServerTest extends ExecutionGraphDeploymentTest {
+public class DefaultExecutionGraphDeploymentWithBlobServerTest
+        extends DefaultExecutionGraphDeploymentTest {
 
     private Set<byte[]> seenHashes =
             Collections.newSetFromMap(new ConcurrentHashMap<byte[], Boolean>());
@@ -87,7 +88,7 @@ public class ExecutionGraphDeploymentWithBlobServerTest extends ExecutionGraphDe
     }
 
     @Override
-    protected void checkJobOffloaded(ExecutionGraph eg) throws Exception {
+    protected void checkJobOffloaded(DefaultExecutionGraph eg) throws Exception {
         Either<SerializedValue<JobInformation>, PermanentBlobKey> jobInformationOrBlobKey =
                 eg.getJobInformationOrBlobKey();
 

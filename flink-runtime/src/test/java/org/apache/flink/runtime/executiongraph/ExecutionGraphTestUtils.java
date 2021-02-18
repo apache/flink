@@ -326,13 +326,16 @@ public class ExecutionGraphTestUtils {
         checkNotNull(vertices);
         checkNotNull(timeout);
 
-        return TestingExecutionGraphBuilder.newBuilder()
-                .setJobGraph(new JobGraph(vertices))
-                .setFutureExecutor(executor)
-                .setIoExecutor(executor)
-                .setAllocationTimeout(timeout)
-                .setRpcTimeout(timeout)
-                .build();
+        ExecutionGraph executionGraph =
+                TestingDefaultExecutionGraphBuilder.newBuilder()
+                        .setJobGraph(new JobGraph(vertices))
+                        .setFutureExecutor(executor)
+                        .setIoExecutor(executor)
+                        .setAllocationTimeout(timeout)
+                        .setRpcTimeout(timeout)
+                        .build();
+        executionGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+        return executionGraph;
     }
 
     public static JobVertex createNoOpVertex(int parallelism) {
