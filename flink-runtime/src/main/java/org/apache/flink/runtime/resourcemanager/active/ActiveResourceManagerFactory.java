@@ -78,13 +78,9 @@ public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceID
                 ioExecutor);
     }
 
-    private Configuration createActiveResourceManagerConfiguration(
-            Configuration originalConfiguration) {
-        final Configuration copiedConfig = new Configuration(originalConfiguration);
-        // In active mode, it depends on the ResourceManager to set the ResourceID of TaskManagers.
-        copiedConfig.removeConfig(TaskManagerOptions.TASK_MANAGER_RESOURCE_ID);
+    private Configuration createActiveResourceManagerConfiguration(Configuration configuration) {
         return TaskExecutorProcessUtils.getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
-                copiedConfig, TaskManagerOptions.TOTAL_PROCESS_MEMORY);
+                configuration, TaskManagerOptions.TOTAL_PROCESS_MEMORY);
     }
 
     @Override
