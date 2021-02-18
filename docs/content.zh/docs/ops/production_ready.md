@@ -64,7 +64,7 @@ See the [description of state backends]({{< ref "docs/ops/state/state_backends" 
 The JobManager serves as a central coordinator for each Flink deployment, being responsible for both scheduling and resource management of the cluster.
 It is a single point of failure within the cluster, and if it crashes, no new jobs can be submitted, and running applications will fail. 
 
-Configuring [High Availability]({{< ref "docs/deployment/ha/overview" >}}), in conjunction with Apache Zookeeper, allows for a swift recovery and is highly recommended for production setups. 
+Configuring [High Availability]({{< ref "docs/deployment/ha/overview" >}}), in conjunction with Apache Zookeeper or Flinks Kubernetes based service, allows for a swift recovery and is highly recommended for production setups.
 
 
 {{< top >}}
