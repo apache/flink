@@ -150,19 +150,20 @@ public class ParquetSchemaConverterTest {
         assertEquals(TestUtil.SIMPLE_ROW_TYPE, rowTypeInfo);
     }
 
-    @Test public void testDecimalParquetLogicalType(){
+    @Test
+    public void testDecimalParquetLogicalType() {
         MessageType messageType =
                 new MessageType(
                         "test",
                         new PrimitiveType(
                                 Type.Repetition.OPTIONAL,
                                 PrimitiveType.PrimitiveTypeName.INT32,
-                                "int32WithDecimal", OriginalType.DECIMAL));
+                                "int32WithDecimal",
+                                OriginalType.DECIMAL));
         RowTypeInfo rowTypeInfo = (RowTypeInfo) ParquetSchemaConverter.fromParquetType(messageType);
-        assertEquals(Types.ROW_NAMED(
-                new String[] {"int32WithDecimal"},
-                BasicTypeInfo.INT_TYPE_INFO), rowTypeInfo);
-
+        assertEquals(
+                Types.ROW_NAMED(new String[] {"int32WithDecimal"}, BasicTypeInfo.INT_TYPE_INFO),
+                rowTypeInfo);
     }
 
     @Test

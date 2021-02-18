@@ -128,7 +128,8 @@ public class ParquetSchemaConverter {
                 case INT32:
                     if (originalType != null) {
                         switch (originalType) {
-                            case DECIMAL: // for 1 <= precision (number of digits before the decimal point) <= 9, the INT32 stores the unscaled value
+                            case DECIMAL: // for 1 <= precision (number of digits before the decimal
+                                // point) <= 9, the INT32 stores the unscaled value
                                 typeInfo = BasicTypeInfo.INT_TYPE_INFO;
                                 break;
                             case TIME_MICROS:
@@ -177,7 +178,8 @@ public class ParquetSchemaConverter {
                                 typeInfo = SqlTimeTypeInfo.TIMESTAMP;
                                 break;
                             case INT_64:
-                            case DECIMAL:// for 1 <= precision (number of digits before the decimal point) <= 18, the INT64 stores the unscaled value
+                            case DECIMAL: // for 1 <= precision (number of digits before the decimal
+                                // point) <= 18, the INT64 stores the unscaled value
                                 typeInfo = BasicTypeInfo.LONG_TYPE_INFO;
                                 break;
                             default:
