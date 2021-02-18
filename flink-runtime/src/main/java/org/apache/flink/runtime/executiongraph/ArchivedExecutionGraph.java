@@ -353,9 +353,8 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
         final long[] timestamps = new long[JobStatus.values().length];
 
         // if the state is overridden with a non-globally-terminal state then we need to erase
-        // traces of globally-terminal states
-        final boolean clearGloballyTerminalStateTimestamps =
-                statusOverride != null && !statusOverride.isGloballyTerminalState();
+        // traces of globally-terminal states for consistency
+        final boolean clearGloballyTerminalStateTimestamps = statusOverride != null;
 
         for (JobStatus jobStatus : JobStatus.values()) {
             final int ordinal = jobStatus.ordinal();
