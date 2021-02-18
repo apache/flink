@@ -514,6 +514,33 @@ public class ResourceProfileTest extends TestLogger {
         assertThat(resourceProfile.toString(), allOf(containsCPUCores(), containsTaskHeapMemory()));
     }
 
+    @Test
+    public void testZeroExtendedResourceFromConstructor() {
+        final ResourceProfile resourceProfile =
+                ResourceProfile.newBuilder()
+                        .addExtendedResource("gpu", new GPUResource(0.0))
+                        .build();
+        assertEquals(resourceProfile.getExtendedResources().size(), 0);
+    }
+
+    @Test
+    public void testZeroExtendedResourceFromSubtract() {
+        final ResourceProfile resourceProfile =
+                ResourceProfile.newBuilder()
+                        .addExtendedResource("gpu", new GPUResource(1.0))
+                        .build();
+        assertEquals(resourceProfile.subtract(resourceProfile).getExtendedResources().size(), 0);
+    }
+
+    @Test
+    public void testZeroExtendedResourceFromMultiply() {
+        final ResourceProfile resourceProfile =
+                ResourceProfile.newBuilder()
+                        .addExtendedResource("gpu", new GPUResource(1.0))
+                        .build();
+        assertEquals(resourceProfile.multiply(0).getExtendedResources().size(), 0);
+    }
+
     private Matcher<String> containsTaskHeapMemory() {
         return containsString("taskHeapMemory=");
     }

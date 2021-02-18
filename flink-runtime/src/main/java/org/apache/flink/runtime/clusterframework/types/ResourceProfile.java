@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.api.common.resources.Resource;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.util.Preconditions;
 
@@ -34,6 +35,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -113,7 +115,7 @@ public class ResourceProfile implements Serializable {
     private final MemorySize networkMemory;
 
     /** A extensible field for user specified resources from {@link ResourceSpec}. */
-    private final Map<String, Resource> extendedResources = new HashMap<>(1);
+    private final Map<String, Resource> extendedResources;
 
     // ------------------------------------------------------------------------
 
@@ -143,9 +145,11 @@ public class ResourceProfile implements Serializable {
         this.taskOffHeapMemory = checkNotNull(taskOffHeapMemory);
         this.managedMemory = checkNotNull(managedMemory);
         this.networkMemory = checkNotNull(networkMemory);
-        if (extendedResources != null) {
-            this.extendedResources.putAll(extendedResources);
-        }
+
+        this.extendedResources =
+                checkNotNull(extendedResources).entrySet().stream()
+                        .filter(entry -> !checkNotNull(entry.getValue()).isZero())
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
     /**
@@ -157,6 +161,7 @@ public class ResourceProfile implements Serializable {
         this.taskOffHeapMemory = null;
         this.managedMemory = null;
         this.networkMemory = null;
+        this.extendedResources = new HashMap<>();
     }
 
     // ------------------------------------------------------------------------
@@ -427,9 +432,7 @@ public class ResourceProfile implements Serializable {
                             name,
                             (ignored, oldResource) -> {
                                 Resource resultResource = oldResource.subtract(resource);
-                                return resultResource.getValue().compareTo(BigDecimal.ZERO) == 0
-                                        ? null
-                                        : resultResource;
+                                return resultResource.isZero() ? null : resultResource;
                             });
                 });
 
@@ -453,10 +456,15 @@ public class ResourceProfile implements Serializable {
             return UNKNOWN;
         }
 
-        Map<String, Resource> resultExtendedResource = new HashMap<>(extendedResources.size());
-        for (Map.Entry<String, Resource> entry : extendedResources.entrySet()) {
-            resultExtendedResource.put(entry.getKey(), entry.getValue().multiply(multiplier));
-        }
+        Map<String, Resource> resultExtendedResource =
+                extendedResources.entrySet().stream()
+                        .map(
+                                entry ->
+                                        Tuple2.of(
+                                                entry.getKey(),
+                                                entry.getValue().multiply(multiplier)))
+                        .filter(tuple -> !tuple.f1.isZero())
+                        .collect(Collectors.toMap(tuple -> tuple.f0, tuple -> tuple.f1));
 
         return new ResourceProfile(
                 cpuCores.multiply(multiplier),
