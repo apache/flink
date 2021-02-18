@@ -22,7 +22,9 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.concurrent.RestartableException;
 import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
+import org.apache.flink.runtime.rest.auth.RestClientAuth;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
@@ -88,13 +90,17 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.PROXY_AUTHENTICATION_REQUIRED;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 
 /** This client is the counter-part to the {@link RestServerEndpoint}. */
 public class RestClient implements AutoCloseableAsync {
@@ -111,10 +117,13 @@ public class RestClient implements AutoCloseableAsync {
 
     private final AtomicBoolean isRunning = new AtomicBoolean(true);
 
+    private final Optional<RestClientAuth> auth;
+
     public RestClient(RestClientConfiguration configuration, Executor executor) {
         Preconditions.checkNotNull(configuration);
         this.executor = Preconditions.checkNotNull(executor);
         this.terminationFuture = new CompletableFuture<>();
+        this.auth = configuration.getAuth();
 
         final SSLHandlerFactory sslHandlerFactory = configuration.getSslHandlerFactory();
         ChannelInitializer<SocketChannel> initializer =
@@ -146,7 +155,7 @@ public class RestClient implements AutoCloseableAsync {
                                                     configuration.getIdlenessTimeout(),
                                                     configuration.getIdlenessTimeout(),
                                                     TimeUnit.MILLISECONDS))
-                                    .addLast(new ClientHandler());
+                                    .addLast(new ClientHandler(auth));
                         } catch (Throwable t) {
                             t.printStackTrace();
                             ExceptionUtils.rethrow(t);
@@ -324,7 +333,8 @@ public class RestClient implements AutoCloseableAsync {
                         targetUrl,
                         messageHeaders.getHttpMethod().getNettyHttpMethod(),
                         payload,
-                        fileUploads);
+                        fileUploads,
+                        auth);
 
         final JavaType responseType;
 
@@ -344,12 +354,21 @@ public class RestClient implements AutoCloseableAsync {
         return submitRequest(targetAddress, targetPort, httpRequest, responseType);
     }
 
+    private static HttpHeaders addAuthorization(
+            final Optional<RestClientAuth> auth,
+            final HttpMethod method,
+            final String uri,
+            final HttpHeaders headers) {
+        return auth.map(a -> a.addAuthorization(method, uri, headers)).orElse(headers);
+    }
+
     private static Request createRequest(
             String targetAddress,
             String targetUrl,
             HttpMethod httpMethod,
             ByteBuf jsonPayload,
-            Collection<FileUpload> fileUploads)
+            Collection<FileUpload> fileUploads,
+            Optional<RestClientAuth> auth)
             throws IOException {
         if (fileUploads.isEmpty()) {
 
@@ -357,8 +376,7 @@ public class RestClient implements AutoCloseableAsync {
                     new DefaultFullHttpRequest(
                             HttpVersion.HTTP_1_1, httpMethod, targetUrl, jsonPayload);
 
-            httpRequest
-                    .headers()
+            addAuthorization(auth, httpMethod, targetUrl, httpRequest.headers())
                     .set(HttpHeaders.Names.HOST, targetAddress)
                     .set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE)
                     .add(HttpHeaders.Names.CONTENT_LENGTH, jsonPayload.capacity())
@@ -369,8 +387,7 @@ public class RestClient implements AutoCloseableAsync {
             HttpRequest httpRequest =
                     new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, httpMethod, targetUrl);
 
-            httpRequest
-                    .headers()
+            addAuthorization(auth, httpMethod, targetUrl, httpRequest.headers())
                     .set(HttpHeaders.Names.HOST, targetAddress)
                     .set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);
 
@@ -549,36 +566,56 @@ public class RestClient implements AutoCloseableAsync {
 
         private final CompletableFuture<JsonResponse> jsonFuture = new CompletableFuture<>();
 
+        private final Optional<RestClientAuth> auth;
+
+        private ClientHandler(final Optional<RestClientAuth> auth) {
+            this.auth = auth;
+        }
+
         CompletableFuture<JsonResponse> getJsonFuture() {
             return jsonFuture;
         }
 
         @Override
         protected void channelRead0(ChannelHandlerContext ctx, Object msg) {
-            if (msg instanceof HttpResponse
-                    && ((HttpResponse) msg).status().equals(REQUEST_ENTITY_TOO_LARGE)) {
-                jsonFuture.completeExceptionally(
-                        new RestClientException(
-                                String.format(
-                                        REQUEST_ENTITY_TOO_LARGE + ". Try to raise [%s]",
-                                        RestOptions.CLIENT_MAX_CONTENT_LENGTH.key()),
-                                ((HttpResponse) msg).status()));
-            } else if (msg instanceof FullHttpResponse) {
-                readRawResponse((FullHttpResponse) msg);
-            } else {
+            boolean implementationError = true;
+            HttpResponseStatus status = INTERNAL_SERVER_ERROR;
+            if (msg instanceof HttpResponse) {
+                implementationError = false;
+                final HttpResponse response = (HttpResponse) msg;
+                status = response.status();
+                if (status.equals(REQUEST_ENTITY_TOO_LARGE)) {
+                    jsonFuture.completeExceptionally(
+                            new RestClientException(
+                                    String.format(
+                                            REQUEST_ENTITY_TOO_LARGE + ". Try to raise [%s]",
+                                            RestOptions.CLIENT_MAX_CONTENT_LENGTH.key()),
+                                    status));
+                } else if (status.equals(UNAUTHORIZED)
+                        || status.equals(PROXY_AUTHENTICATION_REQUIRED)) {
+                    final Exception ex;
+                    if (auth.map(a -> a.isRestartable(response)).orElse(false)) {
+                        ex =
+                                new RestartableException(
+                                        "Restart to response authentication challenge", auth);
+                    } else {
+                        ex = new RestClientException("Failed to authenticate", status);
+                    }
+                    jsonFuture.completeExceptionally(ex);
+                } else if (msg instanceof FullHttpResponse) {
+                    readRawResponse((FullHttpResponse) msg);
+                } else {
+                    implementationError = true;
+                }
+            }
+
+            if (implementationError) {
                 LOG.error(
                         "Implementation error: Received a response that wasn't a FullHttpResponse.");
-                if (msg instanceof HttpResponse) {
-                    jsonFuture.completeExceptionally(
-                            new RestClientException(
-                                    "Implementation error: Received a response that wasn't a FullHttpResponse.",
-                                    ((HttpResponse) msg).getStatus()));
-                } else {
-                    jsonFuture.completeExceptionally(
-                            new RestClientException(
-                                    "Implementation error: Received a response that wasn't a FullHttpResponse.",
-                                    HttpResponseStatus.INTERNAL_SERVER_ERROR));
-                }
+                jsonFuture.completeExceptionally(
+                        new RestClientException(
+                                "Implementation error: Received a response that wasn't a FullHttpResponse.",
+                                status));
             }
             ctx.close();
         }

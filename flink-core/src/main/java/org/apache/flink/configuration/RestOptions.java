@@ -166,4 +166,16 @@ public class RestOptions {
                             "Thread priority of the REST server's executor for processing asynchronous requests. "
                                     + "Lowering the thread priority will give Flink's main components more CPU time whereas "
                                     + "increasing will allocate more time for the REST server's processing.");
+
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    public static final ConfigOption<String> CLIENT_AUTH_USERNAME =
+            key("rest.client.auth.username")
+                    .noDefaultValue()
+                    .withDescription("Rest client authentication user name.");
+
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    public static final ConfigOption<String> CLIENT_AUTH_PASSWORD =
+            key("rest.client.auth.password")
+                    .noDefaultValue()
+                    .withDescription("Rest client authentication password.");
 }

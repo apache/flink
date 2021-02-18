@@ -50,4 +50,19 @@ public class RestOptionsTest extends TestLogger {
 
         assertThat(actualAddress, is(equalTo(expectedAddress)));
     }
+
+    @Test
+    public void testBasicAuthFallbackKeys() {
+        final Configuration configuration = new Configuration();
+        final String expectedUserName = "auth_user";
+        final String expectedPassword = "auth_password";
+        configuration.setString(RestOptions.CLIENT_AUTH_USERNAME, expectedUserName);
+        configuration.setString(RestOptions.CLIENT_AUTH_PASSWORD, expectedPassword);
+
+        final String actualUserName = configuration.getString(RestOptions.CLIENT_AUTH_USERNAME);
+        final String actualPassword = configuration.getString(RestOptions.CLIENT_AUTH_PASSWORD);
+
+        assertThat(actualUserName, is(equalTo(expectedUserName)));
+        assertThat(actualPassword, is(equalTo(expectedPassword)));
+    }
 }

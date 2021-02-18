@@ -22,11 +22,14 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
 import org.apache.flink.runtime.net.SSLUtils;
+import org.apache.flink.runtime.rest.auth.RestClientAuth;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 import javax.net.ssl.SSLEngine;
+
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -41,11 +44,14 @@ public final class RestClientConfiguration {
 
     private final int maxContentLength;
 
+    private final Optional<RestClientAuth> auth;
+
     private RestClientConfiguration(
             @Nullable final SSLHandlerFactory sslHandlerFactory,
             final long connectionTimeout,
             final long idlenessTimeout,
-            final int maxContentLength) {
+            final int maxContentLength,
+            @Nullable final Optional<RestClientAuth> auth) {
         checkArgument(
                 maxContentLength > 0,
                 "maxContentLength must be positive, was: %s",
@@ -54,6 +60,7 @@ public final class RestClientConfiguration {
         this.connectionTimeout = connectionTimeout;
         this.idlenessTimeout = idlenessTimeout;
         this.maxContentLength = maxContentLength;
+        this.auth = auth;
     }
 
     /**
@@ -85,6 +92,10 @@ public final class RestClientConfiguration {
         return maxContentLength;
     }
 
+    public Optional<RestClientAuth> getAuth() {
+        return auth.map(RestClientAuth::copy);
+    }
+
     /**
      * Creates and returns a new {@link RestClientConfiguration} from the given {@link
      * Configuration}.
@@ -114,9 +125,11 @@ public final class RestClientConfiguration {
 
         final long idlenessTimeout = config.getLong(RestOptions.IDLENESS_TIMEOUT);
 
-        int maxContentLength = config.getInteger(RestOptions.CLIENT_MAX_CONTENT_LENGTH);
+        final int maxContentLength = config.getInteger(RestOptions.CLIENT_MAX_CONTENT_LENGTH);
+
+        final Optional<RestClientAuth> auth = RestClientAuth.fromConfiguration(config);
 
         return new RestClientConfiguration(
-                sslHandlerFactory, connectionTimeout, idlenessTimeout, maxContentLength);
+                sslHandlerFactory, connectionTimeout, idlenessTimeout, maxContentLength, auth);
     }
 }

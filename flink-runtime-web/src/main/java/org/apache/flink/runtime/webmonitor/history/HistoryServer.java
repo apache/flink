@@ -100,6 +100,7 @@ public class HistoryServer {
     private final HistoryServerArchiveFetcher archiveFetcher;
 
     @Nullable private final SSLHandlerFactory serverSSLFactory;
+
     private WebFrontendBootstrap netty;
 
     private final Object startupShutdownLock = new Object();

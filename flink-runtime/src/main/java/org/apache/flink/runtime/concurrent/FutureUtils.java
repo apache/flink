@@ -165,7 +165,16 @@ public class FutureUtils {
                                                 "Operation future was cancelled.", throwable));
                             } else {
                                 throwable = ExceptionUtils.stripExecutionException(throwable);
-                                if (!retryPredicate.test(throwable)) {
+                                if (ExceptionUtils.findThrowable(
+                                                throwable, RestartableException.class)
+                                        .isPresent()) {
+                                    retryOperation(
+                                            resultFuture,
+                                            operation,
+                                            retries,
+                                            retryPredicate,
+                                            executor);
+                                } else if (!retryPredicate.test(throwable)) {
                                     resultFuture.completeExceptionally(
                                             new RetryException(
                                                     "Stopped retrying the operation because the error is not "
@@ -360,7 +369,26 @@ public class FutureUtils {
                                                 "Operation future was cancelled.", throwable));
                             } else {
                                 throwable = ExceptionUtils.stripExecutionException(throwable);
-                                if (!retryPredicate.test(throwable)) {
+                                if (ExceptionUtils.findThrowable(
+                                                throwable, RestartableException.class)
+                                        .isPresent()) {
+                                    final ScheduledFuture<?> scheduledFuture =
+                                            scheduledExecutor.schedule(
+                                                    (Runnable)
+                                                            () ->
+                                                                    retryOperationWithDelay(
+                                                                            resultFuture,
+                                                                            operation,
+                                                                            retryStrategy,
+                                                                            retryPredicate,
+                                                                            scheduledExecutor),
+                                                    0,
+                                                    TimeUnit.MILLISECONDS);
+
+                                    resultFuture.whenComplete(
+                                            (innerT, innerThrowable) ->
+                                                    scheduledFuture.cancel(false));
+                                } else if (!retryPredicate.test(throwable)) {
                                     resultFuture.completeExceptionally(throwable);
                                 } else if (retryStrategy.getNumRemainingRetries() > 0) {
                                     long retryDelayMillis =
