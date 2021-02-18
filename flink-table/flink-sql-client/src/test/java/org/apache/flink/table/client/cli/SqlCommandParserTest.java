@@ -299,11 +299,6 @@ public class SqlCommandParserTest {
                                 "LOAD MODULE dummy WITH ('dummy-version' = '1')",
                                 SqlCommand.LOAD_MODULE,
                                 "LOAD MODULE dummy WITH ('dummy-version' = '1')"),
-                        TestItem.invalidSql(
-                                "LOAD MODULE my_dummy WITH ('type'='dummy')",
-                                SqlExecutionException.class,
-                                "Property 'type' = 'dummy' is not supported since module name "
-                                        + "is used to find module"),
                         // unload module
                         TestItem.validSql(
                                 "UNLOAD MODULE dummy",

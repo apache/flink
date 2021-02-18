@@ -69,7 +69,6 @@ import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.delegation.PlannerFactory;
 import org.apache.flink.table.descriptors.ConnectTableDescriptor;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
-import org.apache.flink.table.descriptors.ModuleDescriptorValidator;
 import org.apache.flink.table.descriptors.StreamTableDescriptor;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
@@ -151,6 +150,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+
+import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
 
 /**
  * Implementation of {@link TableEnvironment} that works exclusively with Table API interfaces. Only
@@ -1166,7 +1167,14 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         try {
             // find module by name
             Map<String, String> properties = new HashMap<>(operation.getProperties());
-            properties.put(ModuleDescriptorValidator.MODULE_TYPE, operation.getModuleName());
+            if (properties.containsKey(MODULE_TYPE)) {
+                throw new ValidationException(
+                        String.format(
+                                "Property 'type' = '%s' is not supported since module name "
+                                        + "is used to find module",
+                                properties.get(MODULE_TYPE)));
+            }
+            properties.put(MODULE_TYPE, operation.getModuleName());
             final ModuleFactory factory =
                     TableFactoryService.find(ModuleFactory.class, properties, userClassLoader);
             moduleManager.loadModule(operation.getModuleName(), factory.createModule(properties));

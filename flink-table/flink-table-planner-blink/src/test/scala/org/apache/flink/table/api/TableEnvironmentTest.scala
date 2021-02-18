@@ -32,13 +32,11 @@ import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks
 import org.apache.flink.types.Row
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql.SqlExplainLevel
-import org.apache.flink.core.testutils.CommonTestUtils.assertThrows
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit.rules.ExpectedException
 import org.junit.{Rule, Test}
 
 import _root_.java.util
-import java.util.concurrent.Callable
 import _root_.scala.collection.JavaConverters._
 
 class TableEnvironmentTest {
@@ -510,6 +508,17 @@ class TableEnvironmentTest {
     val result = tableEnv.executeSql("LOAD MODULE dummy")
     assertEquals(ResultKind.SUCCESS, result.getResultKind)
     assert(tableEnv.listModules().sameElements(Array[String]("core", "dummy")))
+
+    val statement =
+      """
+        |LOAD MODULE dummy WITH (
+        |'type' = 'dummy'
+        |)
+      """.stripMargin
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage(
+      "Property 'type' = 'dummy' is not supported since module name is used to find module")
+    tableEnv.executeSql(statement)
   }
 
   @Test
@@ -546,13 +555,16 @@ class TableEnvironmentTest {
         |)
       """.stripMargin
 
-    val code = new Callable[TableResult] {
-      override def call(): TableResult = tableEnv.executeSql(statement1)
+    try {
+      tableEnv.executeSql(statement1)
+    } catch {
+      case e: TableException =>
+        assertTrue(e.getMessage.contains("Could not execute LOAD MODULE: (moduleName: [Dummy], " +
+          "properties: [{dummy-version=1}]). Could not find a suitable table factory for " +
+          "'org.apache.flink.table.factories.ModuleFactory' in\nthe classpath."))
+      case e =>
+        fail("This should not happen, " + e.getMessage)
     }
-    assertThrows(
-      "Could not execute LOAD MODULE: (moduleName: [Dummy], properties: [{dummy-version=1}])." +
-        " Could not find a suitable table factory for 'org.apache.flink.table" +
-        ".factories.ModuleFactory' in\nthe classpath.", classOf[TableException], code)
 
     val statement2 =
       """

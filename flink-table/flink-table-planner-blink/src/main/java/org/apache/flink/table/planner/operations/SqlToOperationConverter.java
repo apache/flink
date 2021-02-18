@@ -150,8 +150,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
-
 /**
  * Mix-in tool class for {@code SqlNode} that allows DDL commands to be converted to {@link
  * Operation}.
@@ -880,14 +878,6 @@ public class SqlToOperationConverter {
         Map<String, String> properties = new HashMap<>();
         for (SqlNode node : sqlLoadModule.getPropertyList().getList()) {
             SqlTableOption option = (SqlTableOption) node;
-            if (MODULE_TYPE.equals(option.getKeyString())) {
-                String moduleType = option.getValueString();
-                throw new ValidationException(
-                        String.format(
-                                "Property 'type' = '%s' is not supported since module name "
-                                        + "is used to find module",
-                                moduleType));
-            }
             properties.put(option.getKeyString(), option.getValueString());
         }
         return new LoadModuleOperation(moduleName, properties);

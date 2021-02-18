@@ -309,17 +309,6 @@ public class SqlToOperationConverterTest {
     }
 
     @Test
-    public void testLoadModuleWithTypeProperty() {
-        final String sql =
-                "LOAD MODULE my_module WITH ('type' = 'dummy', 'k1' = 'v1', 'k2' = 'v2')";
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage(
-                "Property 'type' = 'dummy' is not supported since module name "
-                        + "is used to find module");
-        parse(sql, SqlDialect.DEFAULT);
-    }
-
-    @Test
     public void testUnloadModule() {
         final String sql = "UNLOAD MODULE dummy";
         final String expectedModuleName = "dummy";
