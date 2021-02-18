@@ -22,8 +22,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.slots.ResourceCounter;
 import org.apache.flink.runtime.slots.ResourceRequirement;
+import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
@@ -98,15 +98,16 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
             Collection<ResourceRequirement> missingResources,
             Map<InstanceID, Tuple2<ResourceProfile, ResourceProfile>> registeredResources,
             ResourceAllocationResult.Builder resultBuilder) {
-        final ResourceCounter outstandingRequirements = new ResourceCounter();
+        ResourceCounter outstandingRequirements = ResourceCounter.empty();
 
         for (ResourceRequirement resourceRequirement : missingResources) {
             int numMissingRequirements =
                     tryFindSlotsForRequirement(
                             jobId, resourceRequirement, registeredResources, resultBuilder);
             if (numMissingRequirements > 0) {
-                outstandingRequirements.incrementCount(
-                        resourceRequirement.getResourceProfile(), numMissingRequirements);
+                outstandingRequirements =
+                        outstandingRequirements.add(
+                                resourceRequirement.getResourceProfile(), numMissingRequirements);
             }
         }
         return outstandingRequirements;
@@ -191,7 +192,7 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
             Map<PendingTaskManagerId, ResourceProfile> availableResources,
             ResourceAllocationResult.Builder resultBuilder) {
         for (Map.Entry<ResourceProfile, Integer> missingResource :
-                unfulfilledRequirements.getResourceProfilesWithCount().entrySet()) {
+                unfulfilledRequirements.getResourcesWithCount()) {
             // for this strategy, all pending resources should have the same default slot resource
             final ResourceProfile effectiveProfile =
                     getEffectiveResourceProfile(

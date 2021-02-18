@@ -22,8 +22,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.slots.ResourceCounter;
 import org.apache.flink.runtime.slots.ResourceRequirement;
+import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -107,17 +107,25 @@ public class DefaultResourceAllocationStrategyTest extends TestLogger {
         assertThat(result.getPendingTaskManagersToAllocate().size(), is(1));
         final PendingTaskManagerId newAllocated =
                 result.getPendingTaskManagersToAllocate().get(0).getPendingTaskManagerId();
-        final ResourceCounter allFulfilledRequirements = new ResourceCounter();
-        result.getAllocationsOnPendingResources()
-                .get(pendingTaskManagerId)
-                .get(jobId)
-                .getResourceProfilesWithCount()
-                .forEach(allFulfilledRequirements::incrementCount);
-        result.getAllocationsOnPendingResources()
-                .get(newAllocated)
-                .get(jobId)
-                .getResourceProfilesWithCount()
-                .forEach(allFulfilledRequirements::incrementCount);
+        ResourceCounter allFulfilledRequirements = ResourceCounter.empty();
+        for (Map.Entry<ResourceProfile, Integer> resourceWithCount :
+                result.getAllocationsOnPendingResources()
+                        .get(pendingTaskManagerId)
+                        .get(jobId)
+                        .getResourcesWithCount()) {
+            allFulfilledRequirements =
+                    allFulfilledRequirements.add(
+                            resourceWithCount.getKey(), resourceWithCount.getValue());
+        }
+        for (Map.Entry<ResourceProfile, Integer> resourceWithCount :
+                result.getAllocationsOnPendingResources()
+                        .get(newAllocated)
+                        .get(jobId)
+                        .getResourcesWithCount()) {
+            allFulfilledRequirements =
+                    allFulfilledRequirements.add(
+                            resourceWithCount.getKey(), resourceWithCount.getValue());
+        }
 
         assertThat(allFulfilledRequirements.getResourceCount(DEFAULT_SLOT_RESOURCE), is(7));
         assertThat(allFulfilledRequirements.getResourceCount(largeResource), is(1));

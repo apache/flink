@@ -23,8 +23,8 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
-import org.apache.flink.runtime.slots.ResourceCounter;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
+import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -86,8 +86,8 @@ public class FineGrainedTaskManagerTrackerTest extends TestLogger {
         final FineGrainedTaskManagerTracker taskManagerTracker =
                 new FineGrainedTaskManagerTracker();
         final JobID jobId = new JobID();
-        final ResourceCounter resourceCounter = new ResourceCounter();
-        resourceCounter.incrementCount(ResourceProfile.ANY, 1);
+        final ResourceCounter resourceCounter =
+                ResourceCounter.withResource(ResourceProfile.ANY, 1);
 
         // Add pending task manager
         taskManagerTracker.addPendingTaskManager(
@@ -247,7 +247,7 @@ public class FineGrainedTaskManagerTrackerTest extends TestLogger {
         final PendingTaskManagerId pendingTaskManagerId2 = PendingTaskManagerId.generate();
         final JobID jobId = new JobID();
         final ResourceCounter resourceCounter =
-                new ResourceCounter(Collections.singletonMap(ResourceProfile.ANY, 1));
+                ResourceCounter.withResource(ResourceProfile.ANY, 1);
         taskManagerTracker.addPendingTaskManager(
                 new PendingTaskManager(
                         pendingTaskManagerId1, ResourceProfile.ANY, ResourceProfile.ANY));

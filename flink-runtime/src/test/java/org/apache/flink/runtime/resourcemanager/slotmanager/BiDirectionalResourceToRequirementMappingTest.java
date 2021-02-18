@@ -18,14 +18,17 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /** Test for the {@link BiDirectionalResourceToRequirementMapping}. */
 public class BiDirectionalResourceToRequirementMappingTest extends TestLogger {
@@ -40,8 +43,12 @@ public class BiDirectionalResourceToRequirementMappingTest extends TestLogger {
 
         mapping.incrementCount(requirement, resource, 1);
 
-        assertThat(mapping.getRequirementsFulfilledBy(resource).get(requirement), is(1));
-        assertThat(mapping.getResourcesFulfilling(requirement).get(resource), is(1));
+        assertThat(
+                mapping.getRequirementsFulfilledBy(resource),
+                equalTo(ResourceCounter.withResource(requirement, 1)));
+        assertThat(
+                mapping.getResourcesFulfilling(requirement),
+                equalTo(ResourceCounter.withResource(resource, 1)));
 
         assertThat(mapping.getAllRequirementProfiles(), contains(requirement));
         assertThat(mapping.getAllResourceProfiles(), contains(resource));
@@ -58,9 +65,8 @@ public class BiDirectionalResourceToRequirementMappingTest extends TestLogger {
         mapping.incrementCount(requirement, resource, 1);
         mapping.decrementCount(requirement, resource, 1);
 
-        assertThat(
-                mapping.getRequirementsFulfilledBy(resource).getOrDefault(requirement, 0), is(0));
-        assertThat(mapping.getResourcesFulfilling(requirement).getOrDefault(resource, 0), is(0));
+        assertTrue(mapping.getRequirementsFulfilledBy(resource).isEmpty());
+        assertTrue(mapping.getResourcesFulfilling(requirement).isEmpty());
 
         assertThat(mapping.getAllRequirementProfiles(), empty());
         assertThat(mapping.getAllResourceProfiles(), empty());
