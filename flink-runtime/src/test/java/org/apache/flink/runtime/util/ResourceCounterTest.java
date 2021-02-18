@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmaster.slotpool;
+package org.apache.flink.runtime.util;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.util.TestLogger;
@@ -89,6 +89,15 @@ public class ResourceCounterTest extends TestLogger {
         final ResourceCounter resourceCounter = ResourceCounter.withResources(createResources());
 
         assertThat(resourceCounter.getResourceCount(ResourceProfile.newBuilder().build()), is(0));
+    }
+
+    @Test
+    public void testGetTotalResourceCount() {
+        final Map<ResourceProfile, Integer> resources = createResources();
+
+        final ResourceCounter resourceCounter = ResourceCounter.withResources(resources);
+
+        assertThat(resourceCounter.getTotalResourceCount(), is(5));
     }
 
     @Test
