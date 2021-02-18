@@ -119,16 +119,16 @@ public final class PerJobMiniClusterFactory {
     private MiniClusterConfiguration getMiniClusterConfig(int maximumParallelism) {
         Configuration configuration = new Configuration(this.configuration);
 
-		// we need to set this since a lot of test expect this because TestBaseUtils.startCluster()
-		// enabled this by default. (see MiniClusterResource#startMiniCluster)
-		// or we can remove this after FLINK-18717 is resolved?
-		if (!configuration.contains(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE)) {
-			configuration.setBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, true);
-		}
+        // we need to set this since a lot of test expect this because TestBaseUtils.startCluster()
+        // enabled this by default. (see MiniClusterResource#startMiniCluster)
+        // or we can remove this after FLINK-18717 is resolved?
+        if (!configuration.contains(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE)) {
+            configuration.setBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, true);
+        }
 
-		if (!configuration.contains(RestOptions.BIND_PORT)) {
-			configuration.setString(RestOptions.BIND_PORT, "0");
-		}
+        if (!configuration.contains(RestOptions.BIND_PORT)) {
+            configuration.setString(RestOptions.BIND_PORT, "0");
+        }
 
         int numTaskManagers =
                 configuration.getInteger(
