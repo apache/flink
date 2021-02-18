@@ -31,6 +31,9 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.ConfigurationException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nullable;
 
 import java.util.concurrent.Executor;
@@ -41,6 +44,8 @@ import java.util.concurrent.Executor;
  * @param <T> type of the workers of the ResourceManager
  */
 public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
+
+    protected final Logger log = LoggerFactory.getLogger(getClass());
 
     public ResourceManager<T> createResourceManager(
             Configuration configuration,

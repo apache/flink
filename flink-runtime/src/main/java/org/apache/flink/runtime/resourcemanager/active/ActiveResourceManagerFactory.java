@@ -18,8 +18,11 @@
 
 package org.apache.flink.runtime.resourcemanager.active;
 
+import org.apache.flink.configuration.ClusterOptions;
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
@@ -54,6 +57,33 @@ public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceID
             Configuration configuration) {
         return TaskExecutorProcessUtils.getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
                 configuration, TaskManagerOptions.TOTAL_PROCESS_MEMORY);
+    }
+
+    @Override
+    protected Configuration getEffectiveConfigurationForResourceManager(
+            Configuration configuration) {
+        if (ClusterOptions.isFineGrainedResourceManagementEnabled(configuration)) {
+            final Configuration copiedConfig = new Configuration(configuration);
+
+            if (copiedConfig.removeConfig(TaskManagerOptions.TOTAL_PROCESS_MEMORY)) {
+                logIgnoreTotalMemory(TaskManagerOptions.TOTAL_PROCESS_MEMORY);
+            }
+
+            if (copiedConfig.removeConfig(TaskManagerOptions.TOTAL_FLINK_MEMORY)) {
+                logIgnoreTotalMemory(TaskManagerOptions.TOTAL_FLINK_MEMORY);
+            }
+
+            return copiedConfig;
+        }
+
+        return configuration;
+    }
+
+    private void logIgnoreTotalMemory(ConfigOption<MemorySize> option) {
+        log.warn(
+                "Configured size for '{}' is ignored. Total memory size for TaskManagers are"
+                        + " dynamically decided in fine-grained resource management.",
+                option.key());
     }
 
     @Override
