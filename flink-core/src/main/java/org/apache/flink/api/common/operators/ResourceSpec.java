@@ -27,10 +27,12 @@ import org.apache.flink.configuration.MemorySize;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
-import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -84,7 +86,7 @@ public final class ResourceSpec implements Serializable {
     @Nullable // can be null only for UNKNOWN
     private final MemorySize managedMemory;
 
-    private final Map<String, Resource> extendedResources = new HashMap<>(1);
+    private final Map<String, Resource> extendedResources;
 
     private ResourceSpec(
             final Resource cpuCores,
@@ -101,11 +103,10 @@ public final class ResourceSpec implements Serializable {
         this.taskOffHeapMemory = checkNotNull(taskOffHeapMemory);
         this.managedMemory = checkNotNull(managedMemory);
 
-        for (Resource resource : extendedResources) {
-            if (resource != null) {
-                this.extendedResources.put(resource.getName(), resource);
-            }
-        }
+        this.extendedResources =
+                Arrays.stream(extendedResources)
+                        .filter(resource -> !checkNotNull(resource).isZero())
+                        .collect(Collectors.toMap(Resource::getName, Function.identity()));
     }
 
     /** Creates a new ResourceSpec with all fields unknown. */
@@ -114,6 +115,7 @@ public final class ResourceSpec implements Serializable {
         this.taskHeapMemory = null;
         this.taskOffHeapMemory = null;
         this.managedMemory = null;
+        this.extendedResources = new HashMap<>();
     }
 
     /**
@@ -175,9 +177,7 @@ public final class ResourceSpec implements Serializable {
                     resource,
                     (v1, v2) -> {
                         final Resource subtracted = v1.subtract(v2);
-                        return subtracted.getValue().compareTo(BigDecimal.ZERO) == 0
-                                ? null
-                                : subtracted;
+                        return subtracted.isZero() ? null : subtracted;
                     });
         }
         return target;
