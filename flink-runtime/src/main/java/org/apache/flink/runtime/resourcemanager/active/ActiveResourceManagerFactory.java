@@ -29,7 +29,6 @@ import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTrackerImpl;
-import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.ThresholdMeter;
 import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
@@ -51,34 +50,8 @@ public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceID
         extends ResourceManagerFactory<WorkerType> {
 
     @Override
-    public ResourceManager<WorkerType> createResourceManager(
-            Configuration configuration,
-            ResourceID resourceId,
-            RpcService rpcService,
-            HighAvailabilityServices highAvailabilityServices,
-            HeartbeatServices heartbeatServices,
-            FatalErrorHandler fatalErrorHandler,
-            ClusterInformation clusterInformation,
-            @Nullable String webInterfaceUrl,
-            MetricRegistry metricRegistry,
-            String hostname,
-            Executor ioExecutor)
-            throws Exception {
-        return super.createResourceManager(
-                createActiveResourceManagerConfiguration(configuration),
-                resourceId,
-                rpcService,
-                highAvailabilityServices,
-                heartbeatServices,
-                fatalErrorHandler,
-                clusterInformation,
-                webInterfaceUrl,
-                metricRegistry,
-                hostname,
-                ioExecutor);
-    }
-
-    private Configuration createActiveResourceManagerConfiguration(Configuration configuration) {
+    protected Configuration getEffectiveConfigurationForResourceManagerAndRuntimeServices(
+            Configuration configuration) {
         return TaskExecutorProcessUtils.getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
                 configuration, TaskManagerOptions.TOTAL_PROCESS_MEMORY);
     }

@@ -56,6 +56,9 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
             Executor ioExecutor)
             throws Exception {
 
+        final Configuration effectiveResourceManagerAndRuntimeServicesConfig =
+                getEffectiveConfigurationForResourceManagerAndRuntimeServices(configuration);
+
         final ResourceManagerMetricGroup resourceManagerMetricGroup =
                 ResourceManagerMetricGroup.create(metricRegistry, hostname);
         final SlotManagerMetricGroup slotManagerMetricGroup =
@@ -63,13 +66,14 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
 
         final ResourceManagerRuntimeServices resourceManagerRuntimeServices =
                 createResourceManagerRuntimeServices(
-                        configuration,
+                        effectiveResourceManagerAndRuntimeServicesConfig,
                         rpcService,
                         highAvailabilityServices,
                         slotManagerMetricGroup);
 
         return createResourceManager(
-                configuration,
+                getEffectiveConfigurationForResourceManager(
+                        effectiveResourceManagerAndRuntimeServicesConfig),
                 resourceId,
                 rpcService,
                 highAvailabilityServices,
@@ -80,6 +84,25 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
                 resourceManagerMetricGroup,
                 resourceManagerRuntimeServices,
                 ioExecutor);
+    }
+
+    /**
+     * Configuration changes in this method will be visible to both {@link ResourceManager} and
+     * {@link ResourceManagerRuntimeServices}. This can be overwritten by {@link
+     * #getEffectiveConfigurationForResourceManager}.
+     */
+    protected Configuration getEffectiveConfigurationForResourceManagerAndRuntimeServices(
+            final Configuration configuration) {
+        return configuration;
+    }
+
+    /**
+     * Configuration changes in this method will be visible to only {@link ResourceManager}. This
+     * can overwrite {@link #getEffectiveConfigurationForResourceManagerAndRuntimeServices}.
+     */
+    protected Configuration getEffectiveConfigurationForResourceManager(
+            final Configuration configuration) {
+        return configuration;
     }
 
     protected abstract ResourceManager<T> createResourceManager(
