@@ -25,7 +25,7 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.TestingExecutionGraphBuilder;
+import org.apache.flink.runtime.executiongraph.TestingDefaultExecutionGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
@@ -99,7 +99,7 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
         final JobGraph copy = CommonTestUtils.createCopySerializable(jobGraph);
 
         final ExecutionGraph eg =
-                TestingExecutionGraphBuilder.newBuilder()
+                TestingDefaultExecutionGraphBuilder.newBuilder()
                         .setJobGraph(copy)
                         .setUserClassLoader(classLoader)
                         .build();

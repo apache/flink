@@ -33,7 +33,10 @@ import javax.annotation.Nullable;
 import java.util.Map;
 import java.util.Optional;
 
-/** Common interface for the runtime {@link ExecutionGraph} and {@link ArchivedExecutionGraph}. */
+/**
+ * Common interface for the runtime {@link DefaultExecutionGraph} and {@link
+ * ArchivedExecutionGraph}.
+ */
 public interface AccessExecutionGraph extends JobStatusProvider {
     /**
      * Returns the job plan as a JSON string.
@@ -158,13 +161,6 @@ public interface AccessExecutionGraph extends JobStatusProvider {
      * @return map containing serialized values of user-defined accumulators
      */
     Map<String, SerializedValue<OptionalFailure<Object>>> getAccumulatorsSerialized();
-
-    /**
-     * Returns whether this execution graph was archived.
-     *
-     * @return true, if the execution graph was archived, false otherwise
-     */
-    boolean isArchived();
 
     /**
      * Returns the state backend name for this ExecutionGraph.

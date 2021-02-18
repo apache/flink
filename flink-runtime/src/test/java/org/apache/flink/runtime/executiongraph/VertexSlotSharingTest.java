@@ -79,7 +79,7 @@ public class VertexSlotSharingTest {
 
             List<JobVertex> vertices = new ArrayList<>(Arrays.asList(v1, v2, v3, v4, v5));
 
-            ExecutionGraph eg = TestingExecutionGraphBuilder.newBuilder().build();
+            ExecutionGraph eg = TestingDefaultExecutionGraphBuilder.newBuilder().build();
             eg.attachJobGraph(vertices);
 
             // verify that the vertices are all in the same slot sharing group

@@ -28,10 +28,10 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionEdge;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
+import org.apache.flink.runtime.executiongraph.InternalExecutionGraphAccessor;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -140,23 +140,24 @@ public class TaskDeploymentDescriptorFactory {
 
     public static TaskDeploymentDescriptorFactory fromExecutionVertex(
             ExecutionVertex executionVertex, int attemptNumber) throws IOException {
-        ExecutionGraph executionGraph = executionVertex.getExecutionGraph();
+        InternalExecutionGraphAccessor internalExecutionGraphAccessor =
+                executionVertex.getExecutionGraphAccessor();
         return new TaskDeploymentDescriptorFactory(
                 executionVertex.getCurrentExecutionAttempt().getAttemptId(),
                 attemptNumber,
-                getSerializedJobInformation(executionGraph),
+                getSerializedJobInformation(internalExecutionGraphAccessor),
                 getSerializedTaskInformation(
                         executionVertex.getJobVertex().getTaskInformationOrBlobKey()),
-                executionGraph.getJobID(),
-                executionGraph.getPartitionLocationConstraint(),
+                internalExecutionGraphAccessor.getJobID(),
+                internalExecutionGraphAccessor.getPartitionLocationConstraint(),
                 executionVertex.getParallelSubtaskIndex(),
                 executionVertex.getAllInputEdges());
     }
 
     private static MaybeOffloaded<JobInformation> getSerializedJobInformation(
-            ExecutionGraph executionGraph) {
+            InternalExecutionGraphAccessor internalExecutionGraphAccessor) {
         Either<SerializedValue<JobInformation>, PermanentBlobKey> jobInformationOrBlobKey =
-                executionGraph.getJobInformationOrBlobKey();
+                internalExecutionGraphAccessor.getJobInformationOrBlobKey();
         if (jobInformationOrBlobKey.isLeft()) {
             return new TaskDeploymentDescriptor.NonOffloaded<>(jobInformationOrBlobKey.left());
         } else {

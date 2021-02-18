@@ -42,7 +42,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
-/** An archived execution graph represents a serializable form of the {@link ExecutionGraph}. */
+/** An archived execution graph represents a serializable form of an {@link ExecutionGraph}. */
 public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializable {
 
     private static final long serialVersionUID = 7231383912742578428L;
@@ -229,11 +229,6 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
     @Override
     public CheckpointStatsSnapshot getCheckpointStatsSnapshot() {
         return checkpointStatsSnapshot;
-    }
-
-    @Override
-    public boolean isArchived() {
-        return true;
     }
 
     @Override

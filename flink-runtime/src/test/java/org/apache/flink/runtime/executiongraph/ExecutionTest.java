@@ -253,7 +253,7 @@ public class ExecutionTest extends TestLogger {
         jobGraph.addVertex(source);
         jobGraph.addVertex(target);
         ExecutionGraph executionGraph =
-                TestingExecutionGraphBuilder.newBuilder()
+                TestingDefaultExecutionGraphBuilder.newBuilder()
                         .setJobGraph(jobGraph)
                         .setShuffleMaster(shuffleMaster)
                         .build();

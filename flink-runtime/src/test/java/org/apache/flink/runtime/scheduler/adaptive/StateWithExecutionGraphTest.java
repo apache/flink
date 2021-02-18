@@ -49,7 +49,8 @@ public class StateWithExecutionGraphTest extends TestLogger {
             throws Exception {
         try (MockStateWithExecutionGraphContext context =
                 new MockStateWithExecutionGraphContext()) {
-            final MockExecutionGraph testingExecutionGraph = new MockExecutionGraph();
+            final StateTrackingMockExecutionGraph testingExecutionGraph =
+                    new StateTrackingMockExecutionGraph();
             testingExecutionGraph.transitionToRunning();
 
             final TestingStateWithExecutionGraph stateWithExecutionGraph =
@@ -61,7 +62,7 @@ public class StateWithExecutionGraphTest extends TestLogger {
 
             // transition to FAILED
             testingExecutionGraph.failJob(new FlinkException("Transition job to FAILED state"));
-            testingExecutionGraph.completeCancellation();
+            testingExecutionGraph.completeTerminationFuture(JobStatus.FAILED);
 
             assertThat(testingExecutionGraph.getState(), is(JobStatus.FAILED));
 
@@ -75,7 +76,8 @@ public class StateWithExecutionGraphTest extends TestLogger {
     }
 
     private TestingStateWithExecutionGraph createStateWithExecutionGraph(
-            MockStateWithExecutionGraphContext context, MockExecutionGraph testingExecutionGraph) {
+            MockStateWithExecutionGraphContext context,
+            StateTrackingMockExecutionGraph testingExecutionGraph) {
 
         final ExecutionGraphHandler executionGraphHandler =
                 new ExecutionGraphHandler(
