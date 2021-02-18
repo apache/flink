@@ -23,7 +23,7 @@
     "core-js": "^2.5.4",
     "d3": "^5.9.1",
     "dagre": "^0.8.4",
-    "monaco-editor": "^0.16.0",
+    "monaco-editor": "^0.18.0",
     "ng-zorro-antd": "^7.2.0",
     "rxjs": "~6.3.3",
     "tslib": "^1.9.0",
