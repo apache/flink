@@ -460,6 +460,21 @@ public class ResourceProfileTest extends TestLogger {
         assertEquals(rp2, rp1.multiply(by));
     }
 
+    @Test
+    public void testMultiplyZero() {
+        final ResourceProfile rp1 =
+                ResourceProfile.newBuilder()
+                        .setCpuCores(1.0)
+                        .setTaskHeapMemoryMB(100)
+                        .setTaskOffHeapMemoryMB(100)
+                        .setNetworkMemoryMB(100)
+                        .setManagedMemoryMB(100)
+                        .addExtendedResource("gpu", new GPUResource(1.0))
+                        .build();
+
+        assertEquals(ResourceProfile.ZERO, rp1.multiply(0));
+    }
+
     @Test(expected = IllegalArgumentException.class)
     public void testMultiplyNegative() {
         final ResourceProfile rp =
@@ -530,15 +545,6 @@ public class ResourceProfileTest extends TestLogger {
                         .addExtendedResource("gpu", new GPUResource(1.0))
                         .build();
         assertEquals(resourceProfile.subtract(resourceProfile).getExtendedResources().size(), 0);
-    }
-
-    @Test
-    public void testZeroExtendedResourceFromMultiply() {
-        final ResourceProfile resourceProfile =
-                ResourceProfile.newBuilder()
-                        .addExtendedResource("gpu", new GPUResource(1.0))
-                        .build();
-        assertEquals(resourceProfile.multiply(0).getExtendedResources().size(), 0);
     }
 
     private Matcher<String> containsTaskHeapMemory() {

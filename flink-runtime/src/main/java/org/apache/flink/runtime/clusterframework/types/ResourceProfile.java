@@ -429,11 +429,7 @@ public class ResourceProfile implements Serializable {
         other.extendedResources.forEach(
                 (String name, Resource resource) -> {
                     resultExtendedResource.compute(
-                            name,
-                            (ignored, oldResource) -> {
-                                Resource resultResource = oldResource.subtract(resource);
-                                return resultResource.isZero() ? null : resultResource;
-                            });
+                            name, (ignored, oldResource) -> oldResource.subtract(resource));
                 });
 
         return new ResourceProfile(
@@ -456,6 +452,10 @@ public class ResourceProfile implements Serializable {
             return UNKNOWN;
         }
 
+        if (multiplier == 0) {
+            return ZERO;
+        }
+
         Map<String, Resource> resultExtendedResource =
                 extendedResources.entrySet().stream()
                         .map(
@@ -463,7 +463,6 @@ public class ResourceProfile implements Serializable {
                                         Tuple2.of(
                                                 entry.getKey(),
                                                 entry.getValue().multiply(multiplier)))
-                        .filter(tuple -> !tuple.f1.isZero())
                         .collect(Collectors.toMap(tuple -> tuple.f0, tuple -> tuple.f1));
 
         return new ResourceProfile(
