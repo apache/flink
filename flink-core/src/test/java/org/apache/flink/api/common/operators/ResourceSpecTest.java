@@ -20,10 +20,13 @@ package org.apache.flink.api.common.operators;
 
 import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.api.common.resources.GPUResource;
+import org.apache.flink.api.common.resources.Resource;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
+
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -218,6 +221,8 @@ public class ResourceSpecTest extends TestLogger {
         final ResourceSpec resourceSpec =
                 ResourceSpec.newBuilder(1.0, 100).setGPUResource(1.0).build();
 
+        Map<String, Resource> map = resourceSpec.subtract(resourceSpec).getExtendedResources();
+        System.out.println(map);
         assertEquals(resourceSpec.subtract(resourceSpec).getExtendedResources().size(), 0);
     }
 }

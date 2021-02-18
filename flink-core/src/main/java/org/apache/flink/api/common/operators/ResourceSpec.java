@@ -162,25 +162,18 @@ public final class ResourceSpec implements Serializable {
                 other.lessThanOrEqual(this),
                 "Cannot subtract a larger ResourceSpec from this one.");
 
-        final ResourceSpec target =
-                new ResourceSpec(
-                        this.cpuCores.subtract(other.cpuCores),
-                        this.taskHeapMemory.subtract(other.taskHeapMemory),
-                        this.taskOffHeapMemory.subtract(other.taskOffHeapMemory),
-                        this.managedMemory.subtract(other.managedMemory));
-
-        target.extendedResources.putAll(extendedResources);
-
+        Map<String, Resource> resultExtendedResources = new HashMap<>(extendedResources);
         for (Resource resource : other.extendedResources.values()) {
-            target.extendedResources.merge(
-                    resource.getName(),
-                    resource,
-                    (v1, v2) -> {
-                        final Resource subtracted = v1.subtract(v2);
-                        return subtracted.isZero() ? null : subtracted;
-                    });
+            resultExtendedResources.merge(
+                    resource.getName(), resource, (v1, v2) -> v1.subtract(v2));
         }
-        return target;
+
+        return new ResourceSpec(
+                this.cpuCores.subtract(other.cpuCores),
+                this.taskHeapMemory.subtract(other.taskHeapMemory),
+                this.taskOffHeapMemory.subtract(other.taskOffHeapMemory),
+                this.managedMemory.subtract(other.managedMemory),
+                resultExtendedResources.values().toArray(new Resource[0]));
     }
 
     public Resource getCpuCores() {
@@ -334,7 +327,7 @@ public final class ResourceSpec implements Serializable {
         private MemorySize taskHeapMemory;
         private MemorySize taskOffHeapMemory = MemorySize.ZERO;
         private MemorySize managedMemory = MemorySize.ZERO;
-        private GPUResource gpuResource;
+        private GPUResource gpuResource = new GPUResource(0.0);
 
         private Builder(CPUResource cpuCores, MemorySize taskHeapMemory) {
             this.cpuCores = cpuCores;
