@@ -63,6 +63,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.testutils.EntropyInjectingTestFileSystem;
+import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
@@ -74,6 +75,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -440,6 +442,7 @@ public class SavepointITCase extends TestLogger {
     }
 
     @Test
+    @Category(FailsWithAdaptiveScheduler.class) // FLINK-21333
     public void testStopSavepointWithBoundedInput() throws Exception {
         final int numTaskManagers = 2;
         final int numSlotsPerTaskManager = 2;

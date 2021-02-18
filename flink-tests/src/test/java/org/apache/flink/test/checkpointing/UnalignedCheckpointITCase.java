@@ -37,9 +37,11 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction;
+import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
 import org.apache.flink.util.Collector;
 
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -95,6 +97,7 @@ import static org.apache.flink.shaded.guava18.com.google.common.collect.Iterable
  * </ul>
  */
 @RunWith(Parameterized.class)
+@Category(FailsWithAdaptiveScheduler.class) // FLINK-21400
 public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
 
     @Parameterized.Parameters(name = "{0}")

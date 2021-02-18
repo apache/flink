@@ -26,15 +26,15 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory.changelog
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase
 import org.apache.flink.table.planner.runtime.utils.TestData.{data1, nullData4, smallTupleData3, tupleData3, tupleData5}
 import org.apache.flink.table.utils.LegacyRowResource
+import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler
 import org.apache.flink.util.ExceptionUtils
-
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
+import org.junit.experimental.categories.Category
 import org.junit.{Rule, Test}
 
 import java.lang.{Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
 import java.util.concurrent.atomic.AtomicInteger
-
 import scala.collection.JavaConversions._
 import scala.util.{Failure, Success, Try}
 
@@ -691,6 +691,7 @@ class TableSinkITCase extends StreamingTestBase {
   }
 
   @Test
+  @Category(Array(classOf[FailsWithAdaptiveScheduler])) // FLINK-21403
   def testParallelismWithSinkFunction(): Unit = {
     val negativeParallelism = -1
     val validParallelism = 1
@@ -732,6 +733,7 @@ class TableSinkITCase extends StreamingTestBase {
   }
 
   @Test
+  @Category(Array(classOf[FailsWithAdaptiveScheduler])) // FLINK-21403
   def testParallelismWithOutputFormat(): Unit = {
     val negativeParallelism = -1
     val oversizedParallelism = Int.MaxValue
