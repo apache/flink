@@ -27,10 +27,12 @@ import org.apache.flink.configuration.MemorySize;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
-import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -84,7 +86,7 @@ public final class ResourceSpec implements Serializable {
     @Nullable // can be null only for UNKNOWN
     private final MemorySize managedMemory;
 
-    private final Map<String, Resource> extendedResources = new HashMap<>(1);
+    private final Map<String, Resource> extendedResources;
 
     private ResourceSpec(
             final Resource cpuCores,
@@ -101,11 +103,10 @@ public final class ResourceSpec implements Serializable {
         this.taskOffHeapMemory = checkNotNull(taskOffHeapMemory);
         this.managedMemory = checkNotNull(managedMemory);
 
-        for (Resource resource : extendedResources) {
-            if (resource != null) {
-                this.extendedResources.put(resource.getName(), resource);
-            }
-        }
+        this.extendedResources =
+                Arrays.stream(extendedResources)
+                        .filter(resource -> !checkNotNull(resource).isZero())
+                        .collect(Collectors.toMap(Resource::getName, Function.identity()));
     }
 
     /** Creates a new ResourceSpec with all fields unknown. */
@@ -114,6 +115,7 @@ public final class ResourceSpec implements Serializable {
         this.taskHeapMemory = null;
         this.taskOffHeapMemory = null;
         this.managedMemory = null;
+        this.extendedResources = new HashMap<>();
     }
 
     /**
@@ -160,27 +162,18 @@ public final class ResourceSpec implements Serializable {
                 other.lessThanOrEqual(this),
                 "Cannot subtract a larger ResourceSpec from this one.");
 
-        final ResourceSpec target =
-                new ResourceSpec(
-                        this.cpuCores.subtract(other.cpuCores),
-                        this.taskHeapMemory.subtract(other.taskHeapMemory),
-                        this.taskOffHeapMemory.subtract(other.taskOffHeapMemory),
-                        this.managedMemory.subtract(other.managedMemory));
-
-        target.extendedResources.putAll(extendedResources);
-
+        Map<String, Resource> resultExtendedResources = new HashMap<>(extendedResources);
         for (Resource resource : other.extendedResources.values()) {
-            target.extendedResources.merge(
-                    resource.getName(),
-                    resource,
-                    (v1, v2) -> {
-                        final Resource subtracted = v1.subtract(v2);
-                        return subtracted.getValue().compareTo(BigDecimal.ZERO) == 0
-                                ? null
-                                : subtracted;
-                    });
+            resultExtendedResources.merge(
+                    resource.getName(), resource, (v1, v2) -> v1.subtract(v2));
         }
-        return target;
+
+        return new ResourceSpec(
+                this.cpuCores.subtract(other.cpuCores),
+                this.taskHeapMemory.subtract(other.taskHeapMemory),
+                this.taskOffHeapMemory.subtract(other.taskOffHeapMemory),
+                this.managedMemory.subtract(other.managedMemory),
+                resultExtendedResources.values().toArray(new Resource[0]));
     }
 
     public Resource getCpuCores() {
@@ -334,7 +327,7 @@ public final class ResourceSpec implements Serializable {
         private MemorySize taskHeapMemory;
         private MemorySize taskOffHeapMemory = MemorySize.ZERO;
         private MemorySize managedMemory = MemorySize.ZERO;
-        private GPUResource gpuResource;
+        private GPUResource gpuResource = new GPUResource(0.0);
 
         private Builder(CPUResource cpuCores, MemorySize taskHeapMemory) {
             this.cpuCores = cpuCores;

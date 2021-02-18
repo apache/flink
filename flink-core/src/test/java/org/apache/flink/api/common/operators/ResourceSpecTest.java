@@ -205,4 +205,19 @@ public class ResourceSpecTest extends TestLogger {
         final ResourceSpec subtracted = rs1.subtract(rs2);
         assertEquals(ResourceSpec.UNKNOWN, subtracted);
     }
+
+    @Test
+    public void testZeroExtendedResourceFromConstructor() {
+        final ResourceSpec resourceSpec =
+                ResourceSpec.newBuilder(1.0, 100).setGPUResource(0.0).build();
+        assertEquals(resourceSpec.getExtendedResources().size(), 0);
+    }
+
+    @Test
+    public void testZeroExtendedResourceFromSubtract() {
+        final ResourceSpec resourceSpec =
+                ResourceSpec.newBuilder(1.0, 100).setGPUResource(1.0).build();
+
+        assertEquals(resourceSpec.subtract(resourceSpec).getExtendedResources().size(), 0);
+    }
 }
