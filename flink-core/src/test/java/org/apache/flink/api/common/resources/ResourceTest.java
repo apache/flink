@@ -152,6 +152,15 @@ public class ResourceTest extends TestLogger {
         resource.multiply(by);
     }
 
+    @Test
+    public void testIsZero() {
+        final Resource resource1 = new TestResource(0.0);
+        final Resource resource2 = new TestResource(1.0);
+
+        assertTrue(resource1.isZero());
+        assertFalse(resource2.isZero());
+    }
+
     private static void assertTestResourceValueEquals(final double value, final Resource resource) {
         assertEquals(new TestResource(value), resource);
     }
