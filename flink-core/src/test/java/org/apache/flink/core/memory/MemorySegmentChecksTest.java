@@ -40,13 +40,23 @@ public class MemorySegmentChecksTest {
     }
 
     @Test(expected = NullPointerException.class)
-    public void testHybridOffHeapNullBuffer2() {
-        new OffHeapMemorySegment((ByteBuffer) null, new Object());
+    public void testDirectNullBuffer() {
+        new DirectMemorySegment((ByteBuffer) null, new Object());
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void testHybridNonDirectBuffer() {
-        new OffHeapMemorySegment(ByteBuffer.allocate(1024), new Object());
+    public void testDirectNonDirectBuffer() {
+        new DirectMemorySegment(ByteBuffer.allocate(1024), new Object());
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void testUnsafeNullBuffer() {
+        new UnsafeMemorySegment((ByteBuffer) null, new Object(), null);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testUnsafeNonDirectBuffer() {
+        new UnsafeMemorySegment(ByteBuffer.allocate(1024), new Object(), null);
     }
 
     @Test(expected = IllegalArgumentException.class)
