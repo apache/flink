@@ -22,23 +22,20 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 
 import org.junit.Test;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 
+import static org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.powermock.api.mockito.PowerMockito.doReturn;
-import static org.powermock.api.mockito.PowerMockito.doThrow;
-import static org.powermock.api.mockito.PowerMockito.mock;
 
 /** Tests for basic {@link CompletedCheckpointStore} contract. */
 public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointStoreTest {
@@ -100,24 +97,28 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
         CompletedCheckpointStore store =
                 createCompletedCheckpoints(numCheckpointsToRetain, Executors.directExecutor());
 
-        for (long i = 0; i <= numCheckpointsToRetain; ++i) {
-            CompletedCheckpoint checkpointToAdd = mock(CompletedCheckpoint.class);
-            doReturn(i).when(checkpointToAdd).getCheckpointID();
-            doReturn(Collections.emptyMap()).when(checkpointToAdd).getOperatorStates();
-            doThrow(new IOException()).when(checkpointToAdd).discardOnSubsume();
-
-            try {
-                store.addCheckpoint(checkpointToAdd, new CheckpointsCleaner(), () -> {});
-
-                // The checkpoint should be in the store if we successfully add it into the store.
-                List<CompletedCheckpoint> addedCheckpoints = store.getAllCheckpoints();
-                assertTrue(addedCheckpoints.contains(checkpointToAdd));
-            } catch (Exception e) {
-                // The checkpoint should not be in the store if any exception is thrown.
-                List<CompletedCheckpoint> addedCheckpoints = store.getAllCheckpoints();
-                assertFalse(addedCheckpoints.contains(checkpointToAdd));
-            }
+        CountDownLatch discardAttempted = new CountDownLatch(1);
+        for (long i = 0; i < numCheckpointsToRetain + 1; ++i) {
+            CompletedCheckpoint checkpointToAdd =
+                    new CompletedCheckpoint(
+                            new JobID(),
+                            i,
+                            i,
+                            i,
+                            Collections.emptyMap(),
+                            Collections.emptyList(),
+                            CheckpointProperties.forCheckpoint(NEVER_RETAIN_AFTER_TERMINATION),
+                            new TestCompletedCheckpointStorageLocation()) {
+                        @Override
+                        public boolean discardOnSubsume() {
+                            discardAttempted.countDown();
+                            throw new RuntimeException();
+                        }
+                    };
+            // should fail despite the exception
+            store.addCheckpoint(checkpointToAdd, new CheckpointsCleaner(), () -> {});
         }
+        discardAttempted.await();
     }
 
     @Test
