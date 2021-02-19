@@ -26,6 +26,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.MultiShotLatch;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
@@ -71,6 +72,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
@@ -573,6 +575,45 @@ public class SourceStreamTaskTest {
         harness.waitForTaskCompletion(Long.MAX_VALUE, true);
     }
 
+    @Test
+    public void testStopWithSavepointShouldNotInterruptTheSource() throws Exception {
+        long checkpointId = 1;
+        WasInterruptedTestingSource interruptedTestingSource = new WasInterruptedTestingSource();
+        try (StreamTaskMailboxTestHarness<String> harness =
+                new StreamTaskMailboxTestHarnessBuilder<>(SourceStreamTask::new, STRING_TYPE_INFO)
+                        .setupOutputForSingletonOperatorChain(
+                                new StreamSource<>(interruptedTestingSource))
+                        .build()) {
+
+            harness.processSingleStep();
+
+            Future<Boolean> triggerFuture =
+                    harness.streamTask.triggerCheckpointAsync(
+                            new CheckpointMetaData(checkpointId, 1),
+                            new CheckpointOptions(SYNC_SAVEPOINT, getDefault()),
+                            false);
+            while (!triggerFuture.isDone()) {
+                harness.streamTask.runMailboxStep();
+            }
+            triggerFuture.get();
+
+            Future<Void> notifyFuture =
+                    harness.streamTask.notifyCheckpointCompleteAsync(checkpointId);
+            while (!notifyFuture.isDone()) {
+                harness.streamTask.runMailboxStep();
+            }
+            notifyFuture.get();
+
+            WasInterruptedTestingSource.allowExit();
+
+            harness.waitForTaskCompletion();
+            harness.finishProcessing();
+
+            assertTrue(notifyFuture.isDone());
+            assertFalse(interruptedTestingSource.wasInterrupted());
+        }
+    }
+
     private static class MockSource
             implements SourceFunction<Tuple2<Long, Integer>>, ListCheckpointed<Serializable> {
         private static final long serialVersionUID = 1;
@@ -856,6 +897,46 @@ public class SourceStreamTaskTest {
 
         private void output(String record) {
             output.collect(new StreamRecord<>(record));
+        }
+    }
+
+    /**
+     * This source sleeps a little bit before processing cancellation and records whether it was
+     * interrupted by the {@link SourceStreamTask} or not.
+     */
+    private static class WasInterruptedTestingSource implements SourceFunction<String> {
+        private static final long serialVersionUID = 1L;
+
+        private static final OneShotLatch ALLOW_EXIT = new OneShotLatch();
+        private static final AtomicBoolean WAS_INTERRUPTED = new AtomicBoolean();
+
+        private volatile boolean running = true;
+
+        @Override
+        public void run(SourceContext<String> ctx) throws Exception {
+            ALLOW_EXIT.reset();
+            WAS_INTERRUPTED.set(false);
+
+            try {
+                while (running || !ALLOW_EXIT.isTriggered()) {
+                    Thread.sleep(1);
+                }
+            } catch (InterruptedException e) {
+                WAS_INTERRUPTED.set(true);
+            }
+        }
+
+        @Override
+        public void cancel() {
+            running = false;
+        }
+
+        public static boolean wasInterrupted() {
+            return WAS_INTERRUPTED.get();
+        }
+
+        public static void allowExit() {
+            ALLOW_EXIT.trigger();
         }
     }
 }
