@@ -80,13 +80,6 @@ public class KubernetesResourceManagerDriver
 
     private volatile boolean running;
 
-    /**
-     * Incompletion of this future indicates that there was a pod creation failure recently and the
-     * driver should not retry creating pods until the future become completed again. It's
-     * guaranteed to be modified in main thread.
-     */
-    private CompletableFuture<Void> podCreationCoolDown;
-
     public KubernetesResourceManagerDriver(
             Configuration flinkConfig,
             KubeClientFactory kubeClientFactory,
@@ -95,7 +88,6 @@ public class KubernetesResourceManagerDriver
         this.clusterId = Preconditions.checkNotNull(configuration.getClusterId());
         this.kubeClientFactory = Preconditions.checkNotNull(kubeClientFactory);
         this.requestResourceFutures = new HashMap<>();
-        this.podCreationCoolDown = FutureUtils.completedVoidFuture();
         this.running = false;
     }
 
