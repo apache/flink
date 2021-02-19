@@ -20,7 +20,6 @@ package org.apache.flink.runtime.jobmaster.utils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.dispatcher.SchedulerNGFactoryFactory;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -31,15 +30,16 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.DefaultExecutionDeploymentReconciler;
 import org.apache.flink.runtime.jobmaster.DefaultExecutionDeploymentTracker;
+import org.apache.flink.runtime.jobmaster.DefaultSlotPoolServiceSchedulerFactory;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentReconciler;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobMasterConfiguration;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
+import org.apache.flink.runtime.jobmaster.SlotPoolServiceSchedulerFactory;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerSharedServicesBuilder;
 import org.apache.flink.runtime.jobmaster.factories.UnregisteredJobManagerJobMetricGroupFactory;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolServiceFactory;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -73,7 +73,7 @@ public class JobMasterBuilder {
 
     private HeartbeatServices heartbeatServices = DEFAULT_HEARTBEAT_SERVICES;
 
-    private SlotPoolServiceFactory slotPoolFactory = null;
+    private SlotPoolServiceSchedulerFactory slotPoolServiceSchedulerFactory = null;
 
     private OnCompletionActions onCompletionActions = new TestingOnCompletionActions();
 
@@ -129,8 +129,9 @@ public class JobMasterBuilder {
         return this;
     }
 
-    public JobMasterBuilder withSlotPoolFactory(SlotPoolServiceFactory slotPoolFactory) {
-        this.slotPoolFactory = slotPoolFactory;
+    public JobMasterBuilder withSlotPoolServiceSchedulerFactory(
+            SlotPoolServiceSchedulerFactory slotPoolServiceSchedulerFactory) {
+        this.slotPoolServiceSchedulerFactory = slotPoolServiceSchedulerFactory;
         return this;
     }
 
@@ -193,9 +194,9 @@ public class JobMasterBuilder {
                 jmResourceId,
                 jobGraph,
                 highAvailabilityServices,
-                slotPoolFactory != null
-                        ? slotPoolFactory
-                        : SlotPoolServiceFactory.fromConfiguration(
+                slotPoolServiceSchedulerFactory != null
+                        ? slotPoolServiceSchedulerFactory
+                        : DefaultSlotPoolServiceSchedulerFactory.fromConfiguration(
                                 configuration, jobGraph.getJobType()),
                 jobManagerSharedServices,
                 heartbeatServices,
@@ -203,10 +204,6 @@ public class JobMasterBuilder {
                 onCompletionActions,
                 fatalErrorHandler,
                 JobMasterBuilder.class.getClassLoader(),
-                schedulerFactory != null
-                        ? schedulerFactory
-                        : SchedulerNGFactoryFactory.createSchedulerNGFactory(
-                                configuration, jobGraph.getJobType()),
                 shuffleMaster,
                 partitionTrackerFactory,
                 executionDeploymentTracker,

@@ -57,7 +57,6 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
-import org.apache.flink.runtime.dispatcher.SchedulerNGFactoryFactory;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
@@ -104,7 +103,7 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceConfiguration;
-import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
+import org.apache.flink.runtime.scheduler.DefaultSchedulerFactory;
 import org.apache.flink.runtime.scheduler.TestingSchedulerNG;
 import org.apache.flink.runtime.scheduler.TestingSchedulerNGFactory;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
@@ -291,10 +290,6 @@ public class JobMasterTest extends TestLogger {
             final JobMasterConfiguration jobMasterConfiguration =
                     JobMasterConfiguration.fromConfiguration(configuration);
 
-            final SchedulerNGFactory schedulerNGFactory =
-                    SchedulerNGFactoryFactory.createSchedulerNGFactory(
-                            configuration, jobGraph.getJobType());
-
             final JobMaster jobMaster =
                     new JobMaster(
                             rpcService1,
@@ -303,7 +298,7 @@ public class JobMasterTest extends TestLogger {
                             jmResourceId,
                             jobGraph,
                             haServices,
-                            SlotPoolServiceFactory.fromConfiguration(
+                            DefaultSlotPoolServiceSchedulerFactory.fromConfiguration(
                                     configuration, jobGraph.getJobType()),
                             jobManagerSharedServices,
                             heartbeatServices,
@@ -311,7 +306,6 @@ public class JobMasterTest extends TestLogger {
                             new JobMasterBuilder.TestingOnCompletionActions(),
                             testingFatalErrorHandler,
                             JobMasterTest.class.getClassLoader(),
-                            schedulerNGFactory,
                             NettyShuffleMaster.INSTANCE,
                             NoOpJobMasterPartitionTracker.FACTORY,
                             new DefaultExecutionDeploymentTracker(),
@@ -471,7 +465,10 @@ public class JobMasterTest extends TestLogger {
         final JobMaster jobMaster =
                 new JobMasterBuilder(JobGraphTestUtils.createSingleVertexJobGraph(), rpcService)
                         .withHeartbeatServices(new HeartbeatServices(5L, 1000L))
-                        .withSlotPoolFactory(new TestingSlotPoolFactory(hasReceivedSlotOffers))
+                        .withSlotPoolServiceSchedulerFactory(
+                                DefaultSlotPoolServiceSchedulerFactory.create(
+                                        new TestingSlotPoolFactory(hasReceivedSlotOffers),
+                                        new DefaultSchedulerFactory()))
                         .createJobMaster();
 
         jobMaster.start();
