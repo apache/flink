@@ -150,7 +150,7 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
         RowData keyRow = GenericRowData.of(keys);
         if (cache != null) {
             List<RowData> cachedRows = cache.getIfPresent(keyRow);
-            if (cachedRows != null && cacheRows.size() > 0) {
+            if (cachedRows != null) {
                 for (RowData cachedRow : cachedRows) {
                     collect(cachedRow);
                 }
@@ -175,7 +175,9 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
                             collect(row);
                         }
                         rows.trimToSize();
-                        cache.put(keyRow, rows);
+                        if(rows.size() > 0) {
+                            cache.put(keyRow, rows);
+                        }
                     }
                 }
                 break;
