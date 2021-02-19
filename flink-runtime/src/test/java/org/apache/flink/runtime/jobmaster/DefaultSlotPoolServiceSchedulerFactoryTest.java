@@ -37,7 +37,7 @@ public class DefaultSlotPoolServiceSchedulerFactoryTest extends TestLogger {
     @Test
     public void testFallsBackToDefaultSchedulerIfBatchJob() {
         final Configuration configuration = new Configuration();
-        configuration.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Declarative);
+        configuration.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
         configuration.set(ClusterOptions.ENABLE_DECLARATIVE_RESOURCE_MANAGEMENT, true);
 
         final DefaultSlotPoolServiceSchedulerFactory defaultSlotPoolServiceSchedulerFactory =
