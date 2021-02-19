@@ -175,8 +175,10 @@ public class SkipListKeyComparatorTest extends TestLogger {
             N namespace1,
             K key2,
             N namespace2) {
-        MemorySegment b1 = MemorySegmentFactory.wrap(keySerializer.serialize(key1, namespace1));
-        MemorySegment b2 = MemorySegmentFactory.wrap(keySerializer.serialize(key2, namespace2));
+        MemorySegment b1 =
+                MemorySegmentFactory.wrapHeapSegment(keySerializer.serialize(key1, namespace1));
+        MemorySegment b2 =
+                MemorySegmentFactory.wrapHeapSegment(keySerializer.serialize(key2, namespace2));
         return SkipListKeyComparator.compareTo(b1, 0, b2, 0);
     }
 
@@ -189,7 +191,11 @@ public class SkipListKeyComparatorTest extends TestLogger {
                 skipListKeySerializerForNamespaceCompare.serialize(
                         key, convertStringToByteArray(targetNamespace));
         return SkipListKeyComparator.compareNamespaceAndNode(
-                MemorySegmentFactory.wrap(n), 0, n.length, MemorySegmentFactory.wrap(k), 0);
+                MemorySegmentFactory.wrapHeapSegment(n),
+                0,
+                n.length,
+                MemorySegmentFactory.wrapHeapSegment(k),
+                0);
     }
 
     private byte[] convertStringToByteArray(@Nonnull String str) {

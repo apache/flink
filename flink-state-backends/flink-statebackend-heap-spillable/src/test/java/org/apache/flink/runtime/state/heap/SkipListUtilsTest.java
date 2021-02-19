@@ -43,7 +43,7 @@ public class SkipListUtilsTest extends TestLogger {
             int totalKeySpaceLen = keyMetaLen + keyLen;
             int offset = 100;
             MemorySegment segment =
-                    MemorySegmentFactory.allocateUnpooledSegment(totalKeySpaceLen + offset);
+                    MemorySegmentFactory.allocateHeapSegment(totalKeySpaceLen + offset);
             putKeySpace(keySpace, segment, offset);
             verifyGetKeySpace(keySpace, segment, offset);
         }
@@ -58,7 +58,7 @@ public class SkipListUtilsTest extends TestLogger {
             int totalValueSpaceLen = valueMetaLen + valueLen;
             int offset = 100;
             MemorySegment segment =
-                    MemorySegmentFactory.allocateUnpooledSegment(totalValueSpaceLen + offset);
+                    MemorySegmentFactory.allocateHeapSegment(totalValueSpaceLen + offset);
             putValueSpace(valueSpace, segment, offset);
             verifyGetValueSpace(valueSpace, segment, offset);
         }
@@ -98,7 +98,7 @@ public class SkipListUtilsTest extends TestLogger {
         SkipListUtils.putKeyData(
                 memorySegment,
                 offset,
-                MemorySegmentFactory.wrap(keySpace.keyData),
+                MemorySegmentFactory.wrapHeapSegment(keySpace.keyData),
                 0,
                 keySpace.keyData.length,
                 keySpace.level);
@@ -122,7 +122,7 @@ public class SkipListUtilsTest extends TestLogger {
                     SkipListUtils.getPrevIndexNode(memorySegment, offset, keySpace.level, i));
         }
         int keyDataOffset = SkipListUtils.getKeyDataOffset(keySpace.level);
-        MemorySegment keyDataSegment = MemorySegmentFactory.wrap(keySpace.keyData);
+        MemorySegment keyDataSegment = MemorySegmentFactory.wrapHeapSegment(keySpace.keyData);
         assertEquals(
                 0,
                 memorySegment.compare(
@@ -157,7 +157,7 @@ public class SkipListUtilsTest extends TestLogger {
                 SkipListUtils.getNextValuePointer(memorySegment, offset));
         assertEquals(valueSpace.valueData.length, SkipListUtils.getValueLen(memorySegment, offset));
         int valueDataOffset = SkipListUtils.getValueMetaLen();
-        MemorySegment valueDataSegment = MemorySegmentFactory.wrap(valueSpace.valueData);
+        MemorySegment valueDataSegment = MemorySegmentFactory.wrapHeapSegment(valueSpace.valueData);
         assertEquals(
                 0,
                 memorySegment.compare(

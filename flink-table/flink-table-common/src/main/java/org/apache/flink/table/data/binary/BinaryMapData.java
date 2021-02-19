@@ -92,7 +92,7 @@ public final class BinaryMapData extends BinarySection implements MapData {
 
     public BinaryMapData copy(BinaryMapData reuse) {
         byte[] bytes = BinarySegmentUtils.copyToBytes(segments, offset, sizeInBytes);
-        reuse.pointTo(MemorySegmentFactory.wrap(bytes), 0, sizeInBytes);
+        reuse.pointTo(MemorySegmentFactory.wrapHeapSegment(bytes), 0, sizeInBytes);
         return reuse;
     }
 
@@ -108,7 +108,7 @@ public final class BinaryMapData extends BinarySection implements MapData {
     public static BinaryMapData valueOf(BinaryArrayData key, BinaryArrayData value) {
         checkArgument(key.segments.length == 1 && value.getSegments().length == 1);
         byte[] bytes = new byte[4 + key.sizeInBytes + value.sizeInBytes];
-        MemorySegment segment = MemorySegmentFactory.wrap(bytes);
+        MemorySegment segment = MemorySegmentFactory.wrapHeapSegment(bytes);
         segment.putInt(0, key.sizeInBytes);
         key.getSegments()[0].copyTo(key.getOffset(), segment, 4, key.sizeInBytes);
         value.getSegments()[0].copyTo(

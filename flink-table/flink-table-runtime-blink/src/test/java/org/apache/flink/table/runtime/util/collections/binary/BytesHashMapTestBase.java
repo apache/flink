@@ -79,7 +79,8 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
         this.valueSerializer = new BinaryRowDataSerializer(VALUE_TYPES.length);
         this.defaultValue = valueSerializer.createInstance();
         int valueSize = defaultValue.getFixedLengthPartSize();
-        this.defaultValue.pointTo(MemorySegmentFactory.wrap(new byte[valueSize]), 0, valueSize);
+        this.defaultValue.pointTo(
+                MemorySegmentFactory.wrapHeapSegment(new byte[valueSize]), 0, valueSize);
     }
 
     /**
@@ -363,7 +364,7 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
     private void verifyKeyPresent(K[] keys, AbstractBytesHashMap<K> table) {
         Assert.assertEquals(NUM_ENTRIES, table.getNumElements());
         BinaryRowData present = new BinaryRowData(0);
-        present.pointTo(MemorySegmentFactory.wrap(new byte[8]), 0, 8);
+        present.pointTo(MemorySegmentFactory.wrapHeapSegment(new byte[8]), 0, 8);
         for (int i = 0; i < NUM_ENTRIES; i++) {
             K groupKey = keys[i];
             // look up and retrieve
@@ -376,7 +377,7 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
 
     private void verifyKeyInsert(K[] keys, AbstractBytesHashMap<K> table) throws IOException {
         BinaryRowData present = new BinaryRowData(0);
-        present.pointTo(MemorySegmentFactory.wrap(new byte[8]), 0, 8);
+        present.pointTo(MemorySegmentFactory.wrapHeapSegment(new byte[8]), 0, 8);
         for (int i = 0; i < NUM_ENTRIES; i++) {
             K groupKey = keys[i];
             // look up and insert

@@ -231,7 +231,7 @@ public class ArrayDataSerializer extends TypeSerializer<ArrayData> {
         int length = source.readInt();
         byte[] bytes = new byte[length];
         source.readFully(bytes);
-        reuse.pointTo(MemorySegmentFactory.wrap(bytes), 0, bytes.length);
+        reuse.pointTo(MemorySegmentFactory.wrapHeapSegment(bytes), 0, bytes.length);
         return reuse;
     }
 

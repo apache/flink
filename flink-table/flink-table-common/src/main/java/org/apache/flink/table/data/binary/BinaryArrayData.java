@@ -518,7 +518,7 @@ public final class BinaryArrayData extends BinarySection implements ArrayData, T
 
     public BinaryArrayData copy(BinaryArrayData reuse) {
         byte[] bytes = BinarySegmentUtils.copyToBytes(segments, offset, sizeInBytes);
-        reuse.pointTo(MemorySegmentFactory.wrap(bytes), 0, sizeInBytes);
+        reuse.pointTo(MemorySegmentFactory.wrapHeapSegment(bytes), 0, sizeInBytes);
         return reuse;
     }
 
@@ -579,7 +579,7 @@ public final class BinaryArrayData extends BinarySection implements ArrayData, T
                 arr, offset, data, BYTE_ARRAY_BASE_OFFSET + headerInBytes, valueRegionInBytes);
 
         BinaryArrayData result = new BinaryArrayData();
-        result.pointTo(MemorySegmentFactory.wrap(data), 0, (int) totalSize);
+        result.pointTo(MemorySegmentFactory.wrapHeapSegment(data), 0, (int) totalSize);
         return result;
     }
 }

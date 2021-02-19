@@ -194,7 +194,7 @@ public class HashTableRecordWidthCombinations {
     private static List<MemorySegment> getMemory(int numSegments, int segmentSize) {
         ArrayList<MemorySegment> list = new ArrayList<MemorySegment>(numSegments);
         for (int i = 0; i < numSegments; i++) {
-            list.add(MemorySegmentFactory.allocateUnpooledSegment(segmentSize));
+            list.add(MemorySegmentFactory.allocateHeapSegment(segmentSize));
         }
         return list;
     }

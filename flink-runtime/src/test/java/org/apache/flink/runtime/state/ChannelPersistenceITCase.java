@@ -17,7 +17,7 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.core.memory.HeapMemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
@@ -300,7 +300,7 @@ public class ChannelPersistenceITCase {
     private static Buffer wrapWithBuffer(byte[] data) {
         NetworkBuffer buffer =
                 new NetworkBuffer(
-                        HeapMemorySegment.FACTORY.allocateUnpooledSegment(data.length, null),
+                        MemorySegmentFactory.allocateHeapSegment(data.length, null),
                         FreeingBufferRecycler.INSTANCE);
         buffer.writeBytes(data);
         return buffer;

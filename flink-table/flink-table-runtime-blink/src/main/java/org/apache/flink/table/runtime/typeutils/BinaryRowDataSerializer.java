@@ -98,7 +98,7 @@ public class BinaryRowDataSerializer extends AbstractRowDataSerializer<BinaryRow
         int length = source.readInt();
         byte[] bytes = new byte[length];
         source.readFully(bytes);
-        row.pointTo(MemorySegmentFactory.wrap(bytes), 0, length);
+        row.pointTo(MemorySegmentFactory.wrapHeapSegment(bytes), 0, length);
         return row;
     }
 
@@ -111,7 +111,7 @@ public class BinaryRowDataSerializer extends AbstractRowDataSerializer<BinaryRow
 
         int length = source.readInt();
         if (segments == null || segments[0].size() < length) {
-            segments = new MemorySegment[] {MemorySegmentFactory.wrap(new byte[length])};
+            segments = new MemorySegment[] {MemorySegmentFactory.wrapHeapSegment(new byte[length])};
         }
         source.readFully(segments[0].getArray(), 0, length);
         reuse.pointTo(segments, 0, length);

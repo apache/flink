@@ -48,6 +48,6 @@ public class TestMemorySegmentPool implements MemorySegmentPool {
 
     @Override
     public MemorySegment nextSegment() {
-        return MemorySegmentFactory.wrap(new byte[pageSize]);
+        return MemorySegmentFactory.wrapHeapSegment(new byte[pageSize]);
     }
 }

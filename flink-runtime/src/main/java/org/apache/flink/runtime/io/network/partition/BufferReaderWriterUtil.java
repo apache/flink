@@ -91,7 +91,7 @@ public final class BufferReaderWriterUtil {
         memory.position(memory.limit());
         memory.limit(memory.capacity());
 
-        MemorySegment memorySegment = MemorySegmentFactory.wrapOffHeapMemory(buf);
+        MemorySegment memorySegment = MemorySegmentFactory.wrapDirectSegment(buf);
 
         Buffer.DataType dataType =
                 isEvent ? Buffer.DataType.EVENT_BUFFER : Buffer.DataType.DATA_BUFFER;

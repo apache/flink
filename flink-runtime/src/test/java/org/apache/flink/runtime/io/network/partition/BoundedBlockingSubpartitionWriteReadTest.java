@@ -221,7 +221,7 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 
     private static void writeLongs(BoundedBlockingSubpartition partition, long nums)
             throws IOException {
-        final MemorySegment memory = MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE);
+        final MemorySegment memory = MemorySegmentFactory.allocateHeapSegment(BUFFER_SIZE);
 
         long l = 0;
         while (nums > 0) {

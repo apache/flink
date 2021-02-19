@@ -150,7 +150,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
                         }
 
                         MemorySegment segment =
-                                MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
+                                MemorySegmentFactory.allocateHeapSegment(bufferSize);
 
                         int next = numberOfBuffers * (bufferSize / Integer.BYTES);
 

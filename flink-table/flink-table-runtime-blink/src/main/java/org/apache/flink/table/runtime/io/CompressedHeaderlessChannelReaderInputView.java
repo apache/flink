@@ -70,14 +70,14 @@ public class CompressedHeaderlessChannelReaderInputView extends AbstractChannelR
         super(0);
         this.numBlocksRemaining = numBlocks;
         this.reader = ioManager.createBufferFileReader(id, this);
-        uncompressedBuffer = MemorySegmentFactory.wrap(new byte[compressionBlockSize]);
+        uncompressedBuffer = MemorySegmentFactory.wrapHeapSegment(new byte[compressionBlockSize]);
         decompressor = compressionCodecFactory.getDecompressor();
         cause = new AtomicReference<>();
 
         BlockCompressor compressor = compressionCodecFactory.getCompressor();
         for (int i = 0; i < 2; i++) {
             MemorySegment segment =
-                    MemorySegmentFactory.wrap(
+                    MemorySegmentFactory.wrapHeapSegment(
                             new byte[compressor.getMaxCompressedSize(compressionBlockSize)]);
             reader.readInto(new NetworkBuffer(segment, this));
         }

@@ -131,8 +131,7 @@ final class FileChannelBoundedData implements BoundedData {
             this.buffers = new ArrayDeque<>(NUM_BUFFERS);
 
             for (int i = 0; i < NUM_BUFFERS; i++) {
-                buffers.addLast(
-                        MemorySegmentFactory.allocateUnpooledOffHeapMemory(bufferSize, null));
+                buffers.addLast(MemorySegmentFactory.allocateDirectSegment(bufferSize, null));
             }
 
             this.subpartitionView = checkNotNull(subpartitionView);

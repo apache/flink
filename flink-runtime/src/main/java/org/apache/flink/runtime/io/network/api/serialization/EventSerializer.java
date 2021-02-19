@@ -275,7 +275,7 @@ public class EventSerializer {
     public static Buffer toBuffer(AbstractEvent event, boolean hasPriority) throws IOException {
         final ByteBuffer serializedEvent = EventSerializer.toSerializedEvent(event);
 
-        MemorySegment data = MemorySegmentFactory.wrap(serializedEvent.array());
+        MemorySegment data = MemorySegmentFactory.wrapHeapSegment(serializedEvent.array());
 
         final Buffer buffer =
                 new NetworkBuffer(
@@ -289,7 +289,7 @@ public class EventSerializer {
             throws IOException {
         final ByteBuffer serializedEvent = EventSerializer.toSerializedEvent(event);
 
-        MemorySegment data = MemorySegmentFactory.wrap(serializedEvent.array());
+        MemorySegment data = MemorySegmentFactory.wrapHeapSegment(serializedEvent.array());
 
         return new BufferConsumer(
                 data, FreeingBufferRecycler.INSTANCE, getDataType(event, hasPriority));

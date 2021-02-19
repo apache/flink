@@ -457,7 +457,7 @@ public class SortCodeGeneratorTest {
     private void testInner() throws Exception {
         List<MemorySegment> segments = new ArrayList<>();
         for (int i = 0; i < 100; i++) {
-            segments.add(MemorySegmentFactory.wrap(new byte[32768]));
+            segments.add(MemorySegmentFactory.wrapHeapSegment(new byte[32768]));
         }
 
         Tuple2<NormalizedKeyComputer, RecordComparator> tuple2 =

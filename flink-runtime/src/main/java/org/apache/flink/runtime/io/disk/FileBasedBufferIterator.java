@@ -28,7 +28,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 
-import static org.apache.flink.core.memory.MemorySegmentFactory.wrap;
+import static org.apache.flink.core.memory.MemorySegmentFactory.wrapHeapSegment;
 import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType.DATA_BUFFER;
 import static org.apache.flink.util.IOUtils.closeAll;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -73,7 +73,7 @@ public class FileBasedBufferIterator implements CloseableIterator<Buffer> {
         offset += bytesRead;
         bytesToRead -= bytesRead;
         return new NetworkBuffer(
-                wrap(buffer), FreeingBufferRecycler.INSTANCE, DATA_BUFFER, bytesRead);
+                wrapHeapSegment(buffer), FreeingBufferRecycler.INSTANCE, DATA_BUFFER, bytesRead);
     }
 
     private int read(byte[] buffer) {

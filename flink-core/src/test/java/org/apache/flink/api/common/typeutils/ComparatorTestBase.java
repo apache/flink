@@ -256,7 +256,7 @@ public abstract class ComparatorTestBase<T> extends TestLogger {
     // Help Function for setting up a memory segment and normalize the keys of the data array in it
     public MemorySegment setupNormalizedKeysMemSegment(
             T[] data, int normKeyLen, TypeComparator<T> comparator) {
-        MemorySegment memSeg = MemorySegmentFactory.allocateUnpooledSegment(2048);
+        MemorySegment memSeg = MemorySegmentFactory.allocateHeapSegment(2048);
 
         // Setup normalized Keys in the memory segment
         int offset = 0;

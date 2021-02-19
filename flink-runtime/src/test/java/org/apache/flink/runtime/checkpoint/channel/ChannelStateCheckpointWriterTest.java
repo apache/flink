@@ -17,8 +17,8 @@
 
 package org.apache.flink.runtime.checkpoint.channel;
 
-import org.apache.flink.core.memory.HeapMemorySegment;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter.ChannelStateWriteResult;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
@@ -46,7 +46,7 @@ import java.util.stream.IntStream;
 import static java.util.Collections.singletonList;
 import static org.apache.flink.core.fs.Path.fromLocalFile;
 import static org.apache.flink.core.fs.local.LocalFileSystem.getSharedInstance;
-import static org.apache.flink.core.memory.MemorySegmentFactory.wrap;
+import static org.apache.flink.core.memory.MemorySegmentFactory.wrapHeapSegment;
 import static org.apache.flink.runtime.state.CheckpointedStateScope.EXCLUSIVE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -116,7 +116,7 @@ public class ChannelStateCheckpointWriterTest {
                         checkpointStreamFactory.createCheckpointStateOutputStream(EXCLUSIVE));
         NetworkBuffer buffer =
                 new NetworkBuffer(
-                        HeapMemorySegment.FACTORY.allocateUnpooledSegment(threshold / 2, null),
+                        MemorySegmentFactory.allocateHeapSegment(threshold / 2, null),
                         FreeingBufferRecycler.INSTANCE);
         writer.writeInput(new InputChannelInfo(1, 2), buffer);
         writer.completeOutput();
@@ -147,7 +147,7 @@ public class ChannelStateCheckpointWriterTest {
         ChannelStateCheckpointWriter writer = createWriter(new ChannelStateWriteResult());
         NetworkBuffer buffer =
                 new NetworkBuffer(
-                        HeapMemorySegment.FACTORY.allocateUnpooledSegment(10, null),
+                        MemorySegmentFactory.allocateHeapSegment(10, null),
                         FreeingBufferRecycler.INSTANCE);
         writer.writeInput(new InputChannelInfo(1, 2), buffer);
         assertTrue(buffer.isRecycled());
@@ -234,7 +234,7 @@ public class ChannelStateCheckpointWriterTest {
     private void write(
             ChannelStateCheckpointWriter writer, InputChannelInfo channelInfo, byte[] data)
             throws Exception {
-        MemorySegment segment = wrap(data);
+        MemorySegment segment = wrapHeapSegment(data);
         NetworkBuffer buffer =
                 new NetworkBuffer(
                         segment,

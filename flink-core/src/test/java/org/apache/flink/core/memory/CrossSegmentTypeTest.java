@@ -160,9 +160,9 @@ public class CrossSegmentTypeTest {
     private static MemorySegment[] createSegments(int size) {
         MemorySegment[] segments = {
             new HeapMemorySegment(new byte[size]),
-            MemorySegmentFactory.allocateUnpooledSegment(size),
-            MemorySegmentFactory.allocateUnpooledOffHeapMemory(size),
-            MemorySegmentFactory.allocateOffHeapUnsafeMemory(size)
+            MemorySegmentFactory.allocateHeapSegment(size),
+            MemorySegmentFactory.allocateDirectSegment(size),
+            MemorySegmentFactory.allocateUnsafeSegment(size)
         };
         return segments;
     }
@@ -174,7 +174,7 @@ public class CrossSegmentTypeTest {
         byte[] expected = new byte[pageSize];
         byte[] actual = new byte[pageSize];
         byte[] unsafeCopy = new byte[pageSize];
-        MemorySegment unsafeCopySeg = MemorySegmentFactory.allocateUnpooledSegment(pageSize);
+        MemorySegment unsafeCopySeg = MemorySegmentFactory.allocateHeapSegment(pageSize);
 
         // zero out the memory
         seg1.put(0, expected);
