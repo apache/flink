@@ -19,14 +19,11 @@
 package org.apache.flink.core.memory;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.nio.ByteBuffer;
-import java.util.function.Consumer;
-import java.util.function.Function;
 
 import static org.apache.flink.core.memory.MemoryUtils.getByteBufferAddress;
 
@@ -73,6 +70,7 @@ public abstract class OffHeapMemorySegment extends MemorySegment {
         offHeapBuffer = null; // to enable GC of unsafe memory
     }
 
+    @Override
     protected ByteBuffer wrapInternal(int offset, int length) {
         if (!isFreed()) {
             try {
@@ -86,15 +84,5 @@ public abstract class OffHeapMemorySegment extends MemorySegment {
         } else {
             throw new IllegalStateException("segment has been freed");
         }
-    }
-
-    @Override
-    public <T> T processAsByteBuffer(Function<ByteBuffer, T> processFunction) {
-        return Preconditions.checkNotNull(processFunction).apply(wrapInternal(0, size()));
-    }
-
-    @Override
-    public void processAsByteBuffer(Consumer<ByteBuffer> processConsumer) {
-        Preconditions.checkNotNull(processConsumer).accept(wrapInternal(0, size()));
     }
 }

@@ -19,6 +19,7 @@
 package org.apache.flink.core.memory;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.Preconditions;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -277,7 +278,18 @@ public abstract class MemorySegment {
      * @throws IndexOutOfBoundsException Thrown, if offset is negative or larger than the memory
      *     segment size, or if the offset plus the length is larger than the segment size.
      */
-    public abstract ByteBuffer wrap(int offset, int length);
+    public ByteBuffer wrap(int offset, int length) {
+        return wrapInternal(offset, length);
+    }
+
+    /**
+     * This is an internal interface for wrapping the chunk of the underlying memory located between
+     * <tt>offset</tt> and <tt>offset + * length</tt> in a NIO ByteBuffer, without transferring the
+     * ownership of the memory.
+     *
+     * @see #wrap(int, int)
+     */
+    protected abstract ByteBuffer wrapInternal(int offset, int length);
 
     /**
      * Gets the owner of this memory segment. Returns null, if the owner was not set.
@@ -1576,7 +1588,9 @@ public abstract class MemorySegment {
      * @param processFunction to be applied to the segment as {@link ByteBuffer}.
      * @return the value that the process function returns.
      */
-    public abstract <T> T processAsByteBuffer(Function<ByteBuffer, T> processFunction);
+    public final <T> T processAsByteBuffer(Function<ByteBuffer, T> processFunction) {
+        return Preconditions.checkNotNull(processFunction).apply(wrapInternal(0, size()));
+    }
 
     /**
      * Supplies a {@link ByteBuffer} that represents this entire segment to the given process
@@ -1588,5 +1602,7 @@ public abstract class MemorySegment {
      *
      * @param processConsumer to accept the segment as {@link ByteBuffer}.
      */
-    public abstract void processAsByteBuffer(Consumer<ByteBuffer> processConsumer);
+    public final void processAsByteBuffer(Consumer<ByteBuffer> processConsumer) {
+        Preconditions.checkNotNull(processConsumer).accept(wrapInternal(0, size()));
+    }
 }
