@@ -1639,6 +1639,10 @@ object TableTestUtil {
     str
   }
 
+  def readFromResourceAndRemoveLastLinkBreak(path: String): String = {
+    readFromResource(path).stripSuffix("\n")
+  }
+
   @throws[IOException]
   def getFormattedJson(json: String): String = {
     val parser = new ObjectMapper().getFactory.createParser(json)
@@ -1651,10 +1655,6 @@ object TableTestUtil {
     val parser = new ObjectMapper().getFactory.createParser(json)
     val jsonNode: JsonNode = parser.readValueAsTree[JsonNode]
     jsonNode.toPrettyString
-  }
-
-  def readFromResourceAndRemoveLastLinkBreak(path: String): String = {
-    readFromResource(path).stripSuffix("\n")
   }
 
   /**
@@ -1677,15 +1677,15 @@ object TableTestUtil {
    * ExecNode {id} is ignored, because id keeps incrementing in test class.
    */
   def replaceExecNodeId(s: String): String = {
-    s.replaceAll("\"id\"\\s*:\\s*\\d+", "\"id\":")
-      .replaceAll("\"source\"\\s*:\\s*\\d+", "\"source\":")
-      .replaceAll("\"target\"\\s*:\\s*\\d+", "\"target\":")
+    s.replaceAll("\"id\"\\s*:\\s*\\d+", "\"id\": 0")
+      .replaceAll("\"source\"\\s*:\\s*\\d+", "\"source\": 0")
+      .replaceAll("\"target\"\\s*:\\s*\\d+", "\"target\": 0")
   }
 
   /**
    * Ignore flink version value.
    */
   def replaceFlinkVersion(s: String): String = {
-    s.replaceAll("\"flinkVersion\"\\s*:\\s*\"\\d+.\\d+(-SNAPSHOT)?\"", "\"flinkVersion\":\"\"")
+    s.replaceAll("\"flinkVersion\":\"[\\w.-]*\"", "\"flinkVersion\":\"\"")
   }
 }
