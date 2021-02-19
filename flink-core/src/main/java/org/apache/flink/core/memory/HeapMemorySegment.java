@@ -114,16 +114,6 @@ public final class HeapMemorySegment extends MemorySegment {
     }
 
     @Override
-    public final void get(int index, byte[] dst) {
-        get(index, dst, 0, dst.length);
-    }
-
-    @Override
-    public final void put(int index, byte[] src) {
-        put(index, src, 0, src.length);
-    }
-
-    @Override
     public final void get(int index, byte[] dst, int offset, int length) {
         // system arraycopy does the boundary checks anyways, no need to check extra
         System.arraycopy(this.memory, index, dst, offset, length);
@@ -133,16 +123,6 @@ public final class HeapMemorySegment extends MemorySegment {
     public final void put(int index, byte[] src, int offset, int length) {
         // system arraycopy does the boundary checks anyways, no need to check extra
         System.arraycopy(src, offset, this.memory, index, length);
-    }
-
-    @Override
-    public final boolean getBoolean(int index) {
-        return this.memory[index] != 0;
-    }
-
-    @Override
-    public final void putBoolean(int index, boolean value) {
-        this.memory[index] = (byte) (value ? 1 : 0);
     }
 
     // -------------------------------------------------------------------------

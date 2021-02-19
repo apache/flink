@@ -91,24 +91,10 @@ public class MemorySegmentChecksTest {
         public void put(int index, byte b) {}
 
         @Override
-        public void get(int index, byte[] dst) {}
-
-        @Override
-        public void put(int index, byte[] src) {}
-
-        @Override
         public void get(int index, byte[] dst, int offset, int length) {}
 
         @Override
         public void put(int index, byte[] src, int offset, int length) {}
-
-        @Override
-        public boolean getBoolean(int index) {
-            return false;
-        }
-
-        @Override
-        public void putBoolean(int index, boolean value) {}
 
         @Override
         public void get(DataOutput out, int offset, int length) {}
