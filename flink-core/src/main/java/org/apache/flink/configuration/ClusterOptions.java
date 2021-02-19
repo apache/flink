@@ -140,19 +140,19 @@ public class ClusterOptions {
     }
 
     public static JobManagerOptions.SchedulerType getSchedulerType(Configuration configuration) {
-        if (isDeclarativeSchedulerEnabled(configuration)) {
-            return JobManagerOptions.SchedulerType.Declarative;
+        if (isAdaptiveSchedulerEnabled(configuration)) {
+            return JobManagerOptions.SchedulerType.Adaptive;
         } else {
             return configuration.get(JobManagerOptions.SCHEDULER);
         }
     }
 
-    public static boolean isDeclarativeSchedulerEnabled(Configuration configuration) {
+    public static boolean isAdaptiveSchedulerEnabled(Configuration configuration) {
         if (configuration.contains(JobManagerOptions.SCHEDULER)) {
             return configuration.get(JobManagerOptions.SCHEDULER)
-                    == JobManagerOptions.SchedulerType.Declarative;
+                    == JobManagerOptions.SchedulerType.Adaptive;
         } else {
-            return System.getProperties().containsKey("flink.tests.enable-declarative-scheduler");
+            return System.getProperties().containsKey("flink.tests.enable-adaptive-scheduler");
         }
     }
 

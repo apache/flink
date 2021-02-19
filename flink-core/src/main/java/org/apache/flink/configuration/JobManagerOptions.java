@@ -361,13 +361,13 @@ public class JobManagerOptions {
                                     .list(
                                             text("'Ng': new generation scheduler"),
                                             text(
-                                                    "'Declarative': declarative scheduler; supports reactive mode"))
+                                                    "'Adaptive': adaptive scheduler; supports reactive mode"))
                                     .build());
 
     /** Type of scheduler implementation. */
     public enum SchedulerType {
         Ng,
-        Declarative
+        Adaptive
     }
 
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
