@@ -18,16 +18,11 @@
 
 package org.apache.flink.runtime.rest.handler.legacy;
 
-import org.apache.flink.api.common.ArchivedExecutionConfig;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
@@ -44,7 +39,6 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
@@ -296,44 +290,6 @@ public class DefaultExecutionGraphCacheTest extends TestLogger {
 
         public int getNumRequestJobCalls() {
             return numRequestJobCalls.get();
-        }
-    }
-
-    private static final class SuspendableAccessExecutionGraph extends ArchivedExecutionGraph {
-
-        private static final long serialVersionUID = -6796543726305778101L;
-
-        private JobStatus jobStatus;
-
-        public SuspendableAccessExecutionGraph(JobID jobId) {
-            super(
-                    jobId,
-                    "DefaultExecutionGraphCacheTest",
-                    Collections.emptyMap(),
-                    Collections.emptyList(),
-                    new long[0],
-                    JobStatus.RUNNING,
-                    new ErrorInfo(new FlinkException("Test"), 42L),
-                    "",
-                    new StringifiedAccumulatorResult[0],
-                    Collections.emptyMap(),
-                    new ArchivedExecutionConfig(new ExecutionConfig()),
-                    false,
-                    null,
-                    null,
-                    "stateBackendName",
-                    "checkpointStorageName");
-
-            jobStatus = super.getState();
-        }
-
-        @Override
-        public JobStatus getState() {
-            return jobStatus;
-        }
-
-        public void setJobStatus(JobStatus jobStatus) {
-            this.jobStatus = jobStatus;
         }
     }
 }
