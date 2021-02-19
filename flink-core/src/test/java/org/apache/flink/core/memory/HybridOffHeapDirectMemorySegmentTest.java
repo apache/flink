@@ -30,7 +30,7 @@ import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/** Tests for the {@link HybridMemorySegment} in off-heap mode using direct memory. */
+/** Tests for the {@link OffHeapMemorySegment} in off-heap mode using direct memory. */
 @RunWith(Parameterized.class)
 public class HybridOffHeapDirectMemorySegmentTest extends MemorySegmentTestBase {
 
@@ -51,7 +51,7 @@ public class HybridOffHeapDirectMemorySegmentTest extends MemorySegmentTestBase 
     @Test
     public void testHybridHeapSegmentSpecifics() {
         final int bufSize = 411;
-        HybridMemorySegment seg = (HybridMemorySegment) createSegment(bufSize);
+        OffHeapMemorySegment seg = (OffHeapMemorySegment) createSegment(bufSize);
 
         assertFalse(seg.isFreed());
         assertTrue(seg.isOffHeap());

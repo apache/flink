@@ -20,8 +20,8 @@ package org.apache.flink.runtime.memory;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.core.memory.HybridMemorySegment;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.OffHeapMemorySegment;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.LongFunctionWithException;
@@ -55,7 +55,7 @@ import static org.apache.flink.core.memory.MemorySegmentFactory.allocateOffHeapU
  * reused later.
  *
  * <p>The memory segments are represented as off-heap unsafe memory regions (both via {@link
- * HybridMemorySegment}). Releasing a memory segment will make it re-claimable by the garbage
+ * OffHeapMemorySegment}). Releasing a memory segment will make it re-claimable by the garbage
  * collector, but does not necessarily immediately releases the underlying memory.
  */
 public class MemoryManager {

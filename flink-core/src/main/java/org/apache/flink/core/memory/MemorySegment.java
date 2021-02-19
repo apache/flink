@@ -38,10 +38,9 @@ import static org.apache.flink.core.memory.MemoryUtils.getByteBufferAddress;
  * memory (byte array) or by off-heap memory.
  *
  * <p>The methods for individual memory access are specialized in the classes {@link
- * org.apache.flink.core.memory.HeapMemorySegment} and {@link
- * org.apache.flink.core.memory.HybridMemorySegment}. All methods that operate across two memory
- * segments are implemented in this class, to transparently handle the mixing of memory segment
- * types.
+ * org.apache.flink.core.memory.HeapMemorySegment} and {@link OffHeapMemorySegment}. All methods
+ * that operate across two memory segments are implemented in this class, to transparently handle
+ * the mixing of memory segment types.
  *
  * <p>This class fulfills conceptually a similar purpose as Java's {@link java.nio.ByteBuffer}. We
  * add this specialized class for various reasons:
@@ -91,8 +90,7 @@ import static org.apache.flink.core.memory.MemoryUtils.getByteBufferAddress;
  * <p><i>Note on efficiency</i>: For best efficiency, the code that uses this class should make sure
  * that only one subclass is loaded, or that the methods that are abstract in this class are used
  * only from one of the subclasses (either the {@link
- * org.apache.flink.core.memory.HeapMemorySegment}, or the {@link
- * org.apache.flink.core.memory.HybridMemorySegment}).
+ * org.apache.flink.core.memory.HeapMemorySegment}, or the {@link OffHeapMemorySegment}).
  *
  * <p>That way, all the abstract methods in the MemorySegment base class have only one loaded actual
  * implementation. This is easy for the JIT to recognize through class hierarchy analysis, or by
@@ -127,22 +125,22 @@ public abstract class MemorySegment {
      * segment will point to undefined addresses outside the heap and may in out-of-order execution
      * cases cause segmentation faults.
      */
-    protected final byte[] heapMemory;
+    private final byte[] heapMemory;
 
     /**
      * The address to the data, relative to the heap memory byte array. If the heap memory byte
      * array is <tt>null</tt>, this becomes an absolute memory address outside the heap.
      */
-    protected long address;
+    private long address;
 
     /**
      * The address one byte after the last addressable byte, i.e. <tt>address + size</tt> while the
      * segment is not disposed.
      */
-    protected final long addressLimit;
+    private final long addressLimit;
 
     /** The size in bytes of the memory segment. */
-    protected final int size;
+    private final int size;
 
     /** Optional owner of the memory segment. */
     private final Object owner;
