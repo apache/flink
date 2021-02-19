@@ -104,6 +104,24 @@ public class RestartingTest extends TestLogger {
         }
     }
 
+    @Test
+    public void testStateDoesNotExposeGloballyTerminalExecutionGraph() throws Exception {
+        try (MockRestartingContext ctx = new MockRestartingContext()) {
+            Restarting restarting = createRestartingState(ctx);
+
+            // ideally we'd just delay the state transitions, but the context does not support that
+            ctx.setExpectWaitingForResources();
+            restarting.onEnter();
+
+            // this is just a sanity check for the test
+            assertThat(restarting.getExecutionGraph().getState(), is(JobStatus.CANCELED));
+
+            assertThat(restarting.getJobStatus(), is(JobStatus.RESTARTING));
+            assertThat(restarting.getJob().getState(), is(JobStatus.RESTARTING));
+            assertThat(restarting.getJob().getStatusTimestamp(JobStatus.CANCELED), is(0L));
+        }
+    }
+
     public Restarting createRestartingState(
             MockRestartingContext ctx, ExecutionGraph executionGraph) {
         final ExecutionGraphHandler executionGraphHandler =
