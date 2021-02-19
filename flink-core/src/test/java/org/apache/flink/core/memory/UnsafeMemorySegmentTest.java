@@ -36,12 +36,12 @@ public class UnsafeMemorySegmentTest extends MemorySegmentTestBase {
 
     @Override
     MemorySegment createSegment(int size) {
-        return MemorySegmentFactory.allocateOffHeapUnsafeMemory(size);
+        return MemorySegmentFactory.allocateUnsafeSegment(size);
     }
 
     @Override
     MemorySegment createSegment(int size, Object owner) {
-        return MemorySegmentFactory.allocateOffHeapUnsafeMemory(size, owner, () -> {});
+        return MemorySegmentFactory.allocateUnsafeSegment(size, owner, () -> {});
     }
 
     @Override
@@ -53,8 +53,7 @@ public class UnsafeMemorySegmentTest extends MemorySegmentTestBase {
     @Test
     public void testCallCleanerOnFree() {
         final CompletableFuture<Void> cleanerFuture = new CompletableFuture<>();
-        MemorySegmentFactory.allocateOffHeapUnsafeMemory(
-                        10, null, () -> cleanerFuture.complete(null))
+        MemorySegmentFactory.allocateUnsafeSegment(10, null, () -> cleanerFuture.complete(null))
                 .free();
         assertTrue(cleanerFuture.isDone());
     }

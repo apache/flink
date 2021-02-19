@@ -896,7 +896,7 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
         inView.skipBytesToRead(8);
 
         if (segment == null || segment.size() < length) {
-            segment = MemorySegmentFactory.wrap(new byte[length]);
+            segment = MemorySegmentFactory.wrapHeapSegment(new byte[length]);
         }
         inView.readFully(segment.getHeapMemory(), 0, length);
         reuse.pointTo(segment, 0, length);

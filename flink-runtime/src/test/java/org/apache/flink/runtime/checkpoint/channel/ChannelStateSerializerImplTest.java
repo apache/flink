@@ -17,7 +17,6 @@
 
 package org.apache.flink.runtime.checkpoint.channel;
 
-import org.apache.flink.core.memory.HeapMemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
@@ -91,7 +90,7 @@ public class ChannelStateSerializerImplTest {
         byte[] data = generateData(100);
         BufferBuilder bufferBuilder =
                 new BufferBuilder(
-                        HeapMemorySegment.FACTORY.allocateUnpooledSegment(data.length, null),
+                        MemorySegmentFactory.allocateHeapSegment(data.length, null),
                         FreeingBufferRecycler.INSTANCE);
         BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
 
@@ -112,7 +111,7 @@ public class ChannelStateSerializerImplTest {
     private NetworkBuffer getBuffer(byte[] data) {
         NetworkBuffer buffer =
                 new NetworkBuffer(
-                        HeapMemorySegment.FACTORY.allocateUnpooledSegment(data.length, null),
+                        MemorySegmentFactory.allocateHeapSegment(data.length, null),
                         FreeingBufferRecycler.INSTANCE);
         buffer.writeBytes(data);
         return buffer;
@@ -130,7 +129,7 @@ public class ChannelStateSerializerImplTest {
         serializer.writeHeader(out);
         NetworkBuffer buffer =
                 new NetworkBuffer(
-                        MemorySegmentFactory.allocateUnpooledSegment(data.length),
+                        MemorySegmentFactory.allocateHeapSegment(data.length),
                         FreeingBufferRecycler.INSTANCE);
         try {
             buffer.writeBytes(data);
@@ -149,7 +148,7 @@ public class ChannelStateSerializerImplTest {
         assertEquals(data.length, size);
         NetworkBuffer buffer =
                 new NetworkBuffer(
-                        MemorySegmentFactory.allocateUnpooledSegment(data.length),
+                        MemorySegmentFactory.allocateHeapSegment(data.length),
                         FreeingBufferRecycler.INSTANCE);
         try {
             int read = serializer.readData(is, wrap(buffer), size);

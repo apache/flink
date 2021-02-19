@@ -112,7 +112,9 @@ public final class BinaryRawValueData<T> extends LazyBinaryFormat<T> implements 
         try {
             byte[] bytes = InstantiationUtil.serializeToByteArray(serializer, javaObject);
             return new BinarySection(
-                    new MemorySegment[] {MemorySegmentFactory.wrap(bytes)}, 0, bytes.length);
+                    new MemorySegment[] {MemorySegmentFactory.wrapHeapSegment(bytes)},
+                    0,
+                    bytes.length);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -141,6 +143,8 @@ public final class BinaryRawValueData<T> extends LazyBinaryFormat<T> implements 
      */
     public static <T> BinaryRawValueData<T> fromBytes(byte[] bytes, int offset, int numBytes) {
         return new BinaryRawValueData<>(
-                new MemorySegment[] {MemorySegmentFactory.wrap(bytes)}, offset, numBytes);
+                new MemorySegment[] {MemorySegmentFactory.wrapHeapSegment(bytes)},
+                offset,
+                numBytes);
     }
 }

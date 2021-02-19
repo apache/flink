@@ -91,7 +91,7 @@ public class AsynchronousBufferFileWriterTest {
 
         Buffer buffer =
                 new NetworkBuffer(
-                        MemorySegmentFactory.allocateUnpooledSegment(4096),
+                        MemorySegmentFactory.allocateHeapSegment(4096),
                         FreeingBufferRecycler.INSTANCE);
         try {
             writer.writeBlock(buffer);

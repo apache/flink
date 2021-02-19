@@ -51,7 +51,7 @@ public final class MemorySegmentFactory {
      * @param buffer The heap memory region.
      * @return A new memory segment that targets the given heap memory region.
      */
-    public static MemorySegment wrap(byte[] buffer) {
+    public static HeapMemorySegment wrapHeapSegment(byte[] buffer) {
         return new HeapMemorySegment(buffer);
     }
 
@@ -64,11 +64,11 @@ public final class MemorySegmentFactory {
      * @return A new memory segment that targets a copy of the given heap memory region.
      * @throws IllegalArgumentException if start > end or end > bytes.length
      */
-    public static MemorySegment wrapCopy(byte[] bytes, int start, int end)
+    public static HeapMemorySegment wrapCopyHeapSegment(byte[] bytes, int start, int end)
             throws IllegalArgumentException {
         checkArgument(end >= start);
         checkArgument(end <= bytes.length);
-        MemorySegment copy = allocateUnpooledSegment(end - start);
+        HeapMemorySegment copy = allocateHeapSegment(end - start);
         copy.put(0, bytes, start, copy.size());
         return copy;
     }
@@ -78,34 +78,34 @@ public final class MemorySegmentFactory {
      *
      * @see ByteBuffer#putInt(int)
      */
-    public static MemorySegment wrapInt(int value) {
-        return wrap(ByteBuffer.allocate(Integer.BYTES).putInt(value).array());
+    public static HeapMemorySegment wrapIntHeapSegment(int value) {
+        return wrapHeapSegment(ByteBuffer.allocate(Integer.BYTES).putInt(value).array());
     }
 
     /**
      * Allocates some unpooled memory and creates a new memory segment that represents that memory.
      *
-     * <p>This method is similar to {@link #allocateUnpooledSegment(int, Object)}, but the memory
+     * <p>This method is similar to {@link #allocateHeapSegment(int, Object)}, but the memory
      * segment will have null as the owner.
      *
      * @param size The size of the memory segment to allocate.
      * @return A new memory segment, backed by unpooled heap memory.
      */
-    public static MemorySegment allocateUnpooledSegment(int size) {
-        return allocateUnpooledSegment(size, null);
+    public static HeapMemorySegment allocateHeapSegment(int size) {
+        return allocateHeapSegment(size, null);
     }
 
     /**
      * Allocates some unpooled memory and creates a new memory segment that represents that memory.
      *
-     * <p>This method is similar to {@link #allocateUnpooledSegment(int)}, but additionally sets the
+     * <p>This method is similar to {@link #allocateHeapSegment(int)}, but additionally sets the
      * owner of the memory segment.
      *
      * @param size The size of the memory segment to allocate.
      * @param owner The owner to associate with the memory segment.
      * @return A new memory segment, backed by unpooled heap memory.
      */
-    public static MemorySegment allocateUnpooledSegment(int size, Object owner) {
+    public static HeapMemorySegment allocateHeapSegment(int size, Object owner) {
         return new HeapMemorySegment(new byte[size], owner);
     }
 
@@ -116,8 +116,8 @@ public final class MemorySegmentFactory {
      * @param size The size of the off-heap memory segment to allocate.
      * @return A new memory segment, backed by unpooled off-heap memory.
      */
-    public static MemorySegment allocateUnpooledOffHeapMemory(int size) {
-        return allocateUnpooledOffHeapMemory(size, null);
+    public static DirectMemorySegment allocateDirectSegment(int size) {
+        return allocateDirectSegment(size, null);
     }
 
     /**
@@ -128,14 +128,14 @@ public final class MemorySegmentFactory {
      * @param owner The owner to associate with the off-heap memory segment.
      * @return A new memory segment, backed by unpooled off-heap memory.
      */
-    public static MemorySegment allocateUnpooledOffHeapMemory(int size, Object owner) {
+    public static DirectMemorySegment allocateDirectSegment(int size, Object owner) {
         ByteBuffer memory = allocateDirectMemory(size);
         return new DirectMemorySegment(memory, owner);
     }
 
     @VisibleForTesting
-    public static MemorySegment allocateOffHeapUnsafeMemory(int size) {
-        return allocateOffHeapUnsafeMemory(size, null, NO_OP);
+    public static UnsafeMemorySegment allocateUnsafeSegment(int size) {
+        return allocateUnsafeSegment(size, null, NO_OP);
     }
 
     private static ByteBuffer allocateDirectMemory(int size) {
@@ -171,7 +171,7 @@ public final class MemorySegmentFactory {
      * @param customCleanupAction A custom action to run upon calling GC cleaner.
      * @return A new memory segment, backed by off-heap unsafe memory.
      */
-    public static MemorySegment allocateOffHeapUnsafeMemory(
+    public static UnsafeMemorySegment allocateUnsafeSegment(
             int size, Object owner, Runnable customCleanupAction) {
         long address = MemoryUtils.allocateUnsafe(size);
         ByteBuffer offHeapBuffer = MemoryUtils.wrapUnsafeMemoryWithByteBuffer(address, size);
@@ -191,7 +191,7 @@ public final class MemorySegmentFactory {
      *     segment.
      * @return A new memory segment representing the given off-heap memory.
      */
-    public static MemorySegment wrapOffHeapMemory(ByteBuffer memory) {
+    public static DirectMemorySegment wrapDirectSegment(ByteBuffer memory) {
         return new DirectMemorySegment(memory, null);
     }
 }

@@ -78,8 +78,7 @@ public class SortMergeSubpartitionReader implements ResultSubpartitionView, Buff
 
         // allocate two pieces of unmanaged segments for data reading
         for (int i = 0; i < NUM_READ_BUFFERS; i++) {
-            this.readBuffers.add(
-                    MemorySegmentFactory.allocateUnpooledOffHeapMemory(bufferSize, null));
+            this.readBuffers.add(MemorySegmentFactory.allocateDirectSegment(bufferSize, null));
         }
 
         this.fileReader = new PartitionedFileReader(partitionedFile, subpartitionIndex);

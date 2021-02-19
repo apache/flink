@@ -38,7 +38,7 @@ public class BitSetTest {
 
     public BitSetTest(int byteSize) {
         this.byteSize = byteSize;
-        memorySegment = MemorySegmentFactory.allocateUnpooledSegment(byteSize);
+        memorySegment = MemorySegmentFactory.allocateHeapSegment(byteSize);
     }
 
     @Before

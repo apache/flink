@@ -108,7 +108,7 @@ public class SortMergeResultPartition extends ResultPartition {
 
         this.networkBufferSize = networkBufferSize;
         this.numDataBuffers = new int[numSubpartitions];
-        this.writeBuffer = MemorySegmentFactory.allocateUnpooledOffHeapMemory(networkBufferSize);
+        this.writeBuffer = MemorySegmentFactory.allocateDirectSegment(networkBufferSize);
 
         PartitionedFileWriter fileWriter = null;
         try {

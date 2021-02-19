@@ -50,14 +50,12 @@ public class OperationsOnFreedSegmentTest {
     @Test
     public void testCompare() {
         MemorySegment aliveHeap = new HeapMemorySegment(new byte[PAGE_SIZE]);
-        MemorySegment aliveHybridHeap = MemorySegmentFactory.wrap(new byte[PAGE_SIZE]);
-        MemorySegment aliveHybridOffHeap =
-                MemorySegmentFactory.allocateUnpooledOffHeapMemory(PAGE_SIZE);
+        MemorySegment aliveHybridHeap = MemorySegmentFactory.wrapHeapSegment(new byte[PAGE_SIZE]);
+        MemorySegment aliveHybridOffHeap = MemorySegmentFactory.allocateDirectSegment(PAGE_SIZE);
 
         MemorySegment freedHeap = new HeapMemorySegment(new byte[PAGE_SIZE]);
-        MemorySegment freedHybridHeap = MemorySegmentFactory.wrap(new byte[PAGE_SIZE]);
-        MemorySegment freedHybridOffHeap =
-                MemorySegmentFactory.allocateUnpooledOffHeapMemory(PAGE_SIZE);
+        MemorySegment freedHybridHeap = MemorySegmentFactory.wrapHeapSegment(new byte[PAGE_SIZE]);
+        MemorySegment freedHybridOffHeap = MemorySegmentFactory.allocateDirectSegment(PAGE_SIZE);
         freedHeap.free();
         freedHybridHeap.free();
         freedHybridOffHeap.free();
@@ -128,10 +126,9 @@ public class OperationsOnFreedSegmentTest {
 
     private static MemorySegment[] createTestSegments() {
         MemorySegment heap = new HeapMemorySegment(new byte[PAGE_SIZE]);
-        MemorySegment hybridHeap = MemorySegmentFactory.wrap(new byte[PAGE_SIZE]);
-        MemorySegment hybridOffHeap = MemorySegmentFactory.allocateUnpooledOffHeapMemory(PAGE_SIZE);
-        MemorySegment hybridOffHeapUnsafe =
-                MemorySegmentFactory.allocateOffHeapUnsafeMemory(PAGE_SIZE);
+        MemorySegment hybridHeap = MemorySegmentFactory.wrapHeapSegment(new byte[PAGE_SIZE]);
+        MemorySegment hybridOffHeap = MemorySegmentFactory.allocateDirectSegment(PAGE_SIZE);
+        MemorySegment hybridOffHeapUnsafe = MemorySegmentFactory.allocateUnsafeSegment(PAGE_SIZE);
 
         MemorySegment[] segments = {heap, hybridHeap, hybridOffHeap, hybridOffHeapUnsafe};
 

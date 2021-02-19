@@ -40,12 +40,12 @@ public class DirectMemorySegmentTest extends MemorySegmentTestBase {
 
     @Override
     MemorySegment createSegment(int size) {
-        return MemorySegmentFactory.allocateUnpooledOffHeapMemory(size);
+        return MemorySegmentFactory.allocateDirectSegment(size);
     }
 
     @Override
     MemorySegment createSegment(int size, Object owner) {
-        return MemorySegmentFactory.allocateUnpooledOffHeapMemory(size, owner);
+        return MemorySegmentFactory.allocateDirectSegment(size, owner);
     }
 
     @Test

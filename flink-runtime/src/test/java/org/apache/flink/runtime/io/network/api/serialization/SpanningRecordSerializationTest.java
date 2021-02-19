@@ -295,7 +295,7 @@ public class SpanningRecordSerializationTest extends TestLogger {
     private static Buffer appendLeftOverBytes(Buffer buffer, byte[] leftOverBytes) {
         BufferBuilder bufferBuilder =
                 new BufferBuilder(
-                        MemorySegmentFactory.allocateUnpooledSegment(
+                        MemorySegmentFactory.allocateHeapSegment(
                                 buffer.readableBytes() + leftOverBytes.length),
                         FreeingBufferRecycler.INSTANCE);
         try (BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer()) {

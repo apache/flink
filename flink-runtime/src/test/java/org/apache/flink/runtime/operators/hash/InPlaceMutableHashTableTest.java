@@ -489,7 +489,7 @@ public class InPlaceMutableHashTableTest extends MutableHashTableTestBase {
         List<MemorySegment> memory = new ArrayList<>();
 
         for (int i = 0; i < numPages; i++) {
-            memory.add(MemorySegmentFactory.allocateUnpooledSegment(pageSize));
+            memory.add(MemorySegmentFactory.allocateHeapSegment(pageSize));
         }
 
         return memory;

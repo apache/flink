@@ -37,19 +37,18 @@ public class EndiannessAccessChecks {
 
     @Test
     public void testHybridOnHeapSegment() {
-        testBigAndLittleEndianAccessUnaligned(MemorySegmentFactory.wrap(new byte[11111]));
+        testBigAndLittleEndianAccessUnaligned(
+                MemorySegmentFactory.wrapHeapSegment(new byte[11111]));
     }
 
     @Test
     public void testHybridOffHeapSegment() {
-        testBigAndLittleEndianAccessUnaligned(
-                MemorySegmentFactory.allocateUnpooledOffHeapMemory(11111));
+        testBigAndLittleEndianAccessUnaligned(MemorySegmentFactory.allocateDirectSegment(11111));
     }
 
     @Test
     public void testHybridOffHeapUnsafeSegment() {
-        testBigAndLittleEndianAccessUnaligned(
-                MemorySegmentFactory.allocateOffHeapUnsafeMemory(11111));
+        testBigAndLittleEndianAccessUnaligned(MemorySegmentFactory.allocateUnsafeSegment(11111));
     }
 
     private void testBigAndLittleEndianAccessUnaligned(MemorySegment segment) {

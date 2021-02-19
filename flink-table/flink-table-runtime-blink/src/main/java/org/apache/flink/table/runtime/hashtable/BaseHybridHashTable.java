@@ -43,7 +43,7 @@ import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.apache.flink.core.memory.MemorySegmentFactory.allocateUnpooledSegment;
+import static org.apache.flink.core.memory.MemorySegmentFactory.allocateHeapSegment;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** Base table for {@link LongHybridHashTable} and {@link BinaryHashTable}. */
@@ -495,8 +495,7 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
                         segmentSize);
         return new HeaderlessChannelReaderInputView(
                 inReader,
-                Arrays.asList(
-                        allocateUnpooledSegment(segmentSize), allocateUnpooledSegment(segmentSize)),
+                Arrays.asList(allocateHeapSegment(segmentSize), allocateHeapSegment(segmentSize)),
                 blockCount,
                 lastSegmentLimit,
                 false);

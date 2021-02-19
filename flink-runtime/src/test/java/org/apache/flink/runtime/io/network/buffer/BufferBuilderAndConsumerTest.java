@@ -283,7 +283,7 @@ public class BufferBuilderAndConsumerTest {
 
     private static BufferBuilder createBufferBuilder() {
         return new BufferBuilder(
-                MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE),
+                MemorySegmentFactory.allocateHeapSegment(BUFFER_SIZE),
                 FreeingBufferRecycler.INSTANCE);
     }
 }

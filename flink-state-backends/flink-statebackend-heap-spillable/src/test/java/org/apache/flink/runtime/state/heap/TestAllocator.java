@@ -121,7 +121,7 @@ public class TestAllocator extends TestLogger implements Allocator {
             this.offset = 14;
             this.chunkId = chunkId;
             this.size = size + offset;
-            this.segment = MemorySegmentFactory.allocateUnpooledSegment(size);
+            this.segment = MemorySegmentFactory.allocateHeapSegment(size);
         }
 
         @Override

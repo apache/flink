@@ -420,7 +420,7 @@ public final class BinaryRowData extends BinarySection implements RowData, Typed
 
     private BinaryRowData copyInternal(BinaryRowData reuse) {
         byte[] bytes = BinarySegmentUtils.copyToBytes(segments, offset, sizeInBytes);
-        reuse.pointTo(MemorySegmentFactory.wrap(bytes), 0, sizeInBytes);
+        reuse.pointTo(MemorySegmentFactory.wrapHeapSegment(bytes), 0, sizeInBytes);
         return reuse;
     }
 

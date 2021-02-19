@@ -92,7 +92,7 @@ public class PartitionedFileWriteReadTest {
             PartitionedFileReader fileReader =
                     new PartitionedFileReader(partitionedFile, subpartition);
             while (fileReader.hasRemaining()) {
-                MemorySegment readBuffer = MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
+                MemorySegment readBuffer = MemorySegmentFactory.allocateHeapSegment(bufferSize);
                 Buffer buffer = fileReader.readBuffer(readBuffer, (buf) -> {});
                 buffersRead[subpartition].add(buffer);
             }
@@ -137,7 +137,7 @@ public class PartitionedFileWriteReadTest {
             PartitionedFileReader fileReader =
                     new PartitionedFileReader(partitionedFile, subpartition);
             while (fileReader.hasRemaining()) {
-                MemorySegment readBuffer = MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
+                MemorySegment readBuffer = MemorySegmentFactory.allocateHeapSegment(bufferSize);
                 Buffer buffer = checkNotNull(fileReader.readBuffer(readBuffer, (buf) -> {}));
                 assertBufferEquals(checkNotNull(subpartitionBuffers[subpartition].poll()), buffer);
             }
@@ -158,14 +158,15 @@ public class PartitionedFileWriteReadTest {
 
         int dataSize = random.nextInt(bufferSize) + 1;
         byte[] data = new byte[dataSize];
-        return new NetworkBuffer(MemorySegmentFactory.wrap(data), (buf) -> {}, dataType, dataSize);
+        return new NetworkBuffer(
+                MemorySegmentFactory.wrapHeapSegment(data), (buf) -> {}, dataType, dataSize);
     }
 
     @Test(expected = IllegalStateException.class)
     public void testNotWriteDataOfTheSameSubpartitionTogether() throws Exception {
         PartitionedFileWriter partitionedFileWriter = createPartitionedFileWriter(2);
         try {
-            MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(1024);
+            MemorySegment segment = MemorySegmentFactory.allocateHeapSegment(1024);
 
             NetworkBuffer buffer1 = new NetworkBuffer(segment, (buf) -> {});
             partitionedFileWriter.writeBuffer(buffer1, 1);
@@ -184,7 +185,7 @@ public class PartitionedFileWriteReadTest {
     public void testWriteFinishedPartitionedFile() throws Exception {
         PartitionedFileWriter partitionedFileWriter = createAndFinishPartitionedFileWriter();
 
-        MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(1024);
+        MemorySegment segment = MemorySegmentFactory.allocateHeapSegment(1024);
         NetworkBuffer buffer = new NetworkBuffer(segment, (buf) -> {});
 
         partitionedFileWriter.writeBuffer(buffer, 0);
@@ -200,14 +201,14 @@ public class PartitionedFileWriteReadTest {
     public void testReadClosedPartitionedFile() throws Exception {
         PartitionedFileReader partitionedFileReader = createAndClosePartitionedFiledReader();
 
-        MemorySegment target = MemorySegmentFactory.allocateUnpooledSegment(1024);
+        MemorySegment target = MemorySegmentFactory.allocateHeapSegment(1024);
         partitionedFileReader.readBuffer(target, FreeingBufferRecycler.INSTANCE);
     }
 
     @Test
     public void testReadEmptyPartitionedFile() throws Exception {
         try (PartitionedFileReader partitionedFileReader = createPartitionedFiledReader()) {
-            MemorySegment target = MemorySegmentFactory.allocateUnpooledSegment(1024);
+            MemorySegment target = MemorySegmentFactory.allocateHeapSegment(1024);
             assertNull(partitionedFileReader.readBuffer(target, FreeingBufferRecycler.INSTANCE));
         }
     }

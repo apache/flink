@@ -58,11 +58,11 @@ public final class CompressedHeaderlessChannelWriterOutputView
         super(compressionBlockSize, 0);
 
         this.compressionBlockSize = compressionBlockSize;
-        buffer = MemorySegmentFactory.wrap(new byte[compressionBlockSize]);
+        buffer = MemorySegmentFactory.wrapHeapSegment(new byte[compressionBlockSize]);
         compressor = compressionCodecFactory.getCompressor();
         for (int i = 0; i < 2; i++) {
             compressedBuffers.add(
-                    MemorySegmentFactory.wrap(
+                    MemorySegmentFactory.wrapHeapSegment(
                             new byte[compressor.getMaxCompressedSize(compressionBlockSize)]));
         }
         this.writer = writer;
