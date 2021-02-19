@@ -32,7 +32,8 @@ import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks
 import org.apache.flink.types.Row
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql.SqlExplainLevel
-import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
+import org.apache.flink.core.testutils.FlinkMatchers.containsMessage
+import org.junit.Assert.{assertEquals, assertFalse, assertThat, assertTrue, fail}
 import org.junit.rules.ExpectedException
 import org.junit.{Rule, Test}
 
@@ -557,13 +558,12 @@ class TableEnvironmentTest {
 
     try {
       tableEnv.executeSql(statement1)
+      fail("Expected an exception")
     } catch {
-      case e: TableException =>
-        assertTrue(e.getMessage.contains("Could not execute LOAD MODULE: (moduleName: [Dummy], " +
+      case t: Throwable =>
+        assertThat(t, containsMessage("Could not execute LOAD MODULE: (moduleName: [Dummy], " +
           "properties: [{dummy-version=1}]). Could not find a suitable table factory for " +
           "'org.apache.flink.table.factories.ModuleFactory' in\nthe classpath."))
-      case e =>
-        fail("This should not happen, " + e.getMessage)
     }
 
     val statement2 =
