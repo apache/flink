@@ -42,7 +42,7 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerFactory;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
-import org.apache.flink.runtime.scheduler.declarative.DeclarativeSchedulerFactory;
+import org.apache.flink.runtime.scheduler.adaptive.AdaptiveSchedulerFactory;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.util.clock.SystemClock;
 
@@ -144,10 +144,10 @@ public final class DefaultSlotPoolServiceSchedulerFactory
             JobManagerOptions.SchedulerType schedulerType =
                     ClusterOptions.getSchedulerType(configuration);
 
-            if (schedulerType == JobManagerOptions.SchedulerType.Declarative
+            if (schedulerType == JobManagerOptions.SchedulerType.Adaptive
                     && jobType == JobType.BATCH) {
                 LOG.info(
-                        "Declarative Scheduler configured, but Batch job detected. Changing scheduler type to NG / DefaultScheduler.");
+                        "Adaptive Scheduler configured, but Batch job detected. Changing scheduler type to NG / DefaultScheduler.");
                 // overwrite
                 schedulerType = JobManagerOptions.SchedulerType.Ng;
             }
@@ -162,8 +162,8 @@ public final class DefaultSlotPoolServiceSchedulerFactory
                                     slotIdleTimeout,
                                     batchSlotTimeout);
                     break;
-                case Declarative:
-                    schedulerNGFactory = new DeclarativeSchedulerFactory();
+                case Adaptive:
+                    schedulerNGFactory = new AdaptiveSchedulerFactory();
                     slotPoolServiceFactory =
                             new DeclarativeSlotPoolServiceFactory(
                                     SystemClock.getInstance(), slotIdleTimeout, rpcTimeout);
