@@ -193,9 +193,9 @@ public class BufferCompressionTest {
     private static Buffer createBufferAndFillWithLongValues(boolean isDirect) {
         MemorySegment segment;
         if (isDirect) {
-            segment = MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE);
+            segment = MemorySegmentFactory.allocateHeapSegment(BUFFER_SIZE);
         } else {
-            segment = MemorySegmentFactory.allocateUnpooledOffHeapMemory(BUFFER_SIZE);
+            segment = MemorySegmentFactory.allocateDirectSegment(BUFFER_SIZE);
         }
         for (int i = 0; i < NUM_LONGS; ++i) {
             segment.putLongLittleEndian(8 * i, i);

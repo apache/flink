@@ -84,7 +84,7 @@ class SkipListKeySerializer<K, N> {
         }
 
         final byte[] result = outputStream.toByteArray();
-        final MemorySegment segment = MemorySegmentFactory.wrap(result);
+        final MemorySegment segment = MemorySegmentFactory.wrapHeapSegment(result);
 
         // set length of namespace and key
         segment.putInt(0, keyStartPos - Integer.BYTES);
@@ -142,13 +142,13 @@ class SkipListKeySerializer<K, N> {
     Tuple2<byte[], byte[]> getSerializedKeyAndNamespace(MemorySegment memorySegment, int offset) {
         // read namespace
         int namespaceLen = memorySegment.getInt(offset);
-        MemorySegment namespaceSegment = MemorySegmentFactory.allocateUnpooledSegment(namespaceLen);
+        MemorySegment namespaceSegment = MemorySegmentFactory.allocateHeapSegment(namespaceLen);
         memorySegment.copyTo(offset + Integer.BYTES, namespaceSegment, 0, namespaceLen);
 
         // read key
         int keyOffset = offset + Integer.BYTES + namespaceLen;
         int keyLen = memorySegment.getInt(keyOffset);
-        MemorySegment keySegment = MemorySegmentFactory.allocateUnpooledSegment(keyLen);
+        MemorySegment keySegment = MemorySegmentFactory.allocateHeapSegment(keyLen);
         memorySegment.copyTo(keyOffset + Integer.BYTES, keySegment, 0, keyLen);
 
         return Tuple2.of(keySegment.getArray(), namespaceSegment.getArray());
@@ -166,6 +166,6 @@ class SkipListKeySerializer<K, N> {
     }
 
     MemorySegment serializeNamespaceToSegment(N namespace) {
-        return MemorySegmentFactory.wrap(serializeNamespace(namespace));
+        return MemorySegmentFactory.wrapHeapSegment(serializeNamespace(namespace));
     }
 }

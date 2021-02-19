@@ -385,7 +385,7 @@ public class SkipListUtils {
      * @param value value data.
      */
     public static void putValueData(MemorySegment memorySegment, int offset, byte[] value) {
-        MemorySegment valueSegment = MemorySegmentFactory.wrap(value);
+        MemorySegment valueSegment = MemorySegmentFactory.wrapHeapSegment(value);
         valueSegment.copyTo(0, memorySegment, offset + getValueMetaLen(), value.length);
     }
 

@@ -38,10 +38,10 @@ public class ByteArrayInputStreamWithPos extends MemorySegmentInputStreamWithPos
     }
 
     public ByteArrayInputStreamWithPos(byte[] buffer, int offset, int length) {
-        super(MemorySegmentFactory.wrap(buffer), offset, length);
+        super(MemorySegmentFactory.wrapHeapSegment(buffer), offset, length);
     }
 
     public void setBuffer(byte[] buffer, int off, int len) {
-        setSegment(MemorySegmentFactory.wrap(buffer), off, len);
+        setSegment(MemorySegmentFactory.wrapHeapSegment(buffer), off, len);
     }
 }

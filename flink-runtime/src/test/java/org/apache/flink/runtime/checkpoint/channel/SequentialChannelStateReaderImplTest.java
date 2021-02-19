@@ -346,7 +346,7 @@ public class SequentialChannelStateReaderImplTest {
 
     private NetworkBuffer wrap(byte[] bytes) {
         return new NetworkBuffer(
-                MemorySegmentFactory.wrap(bytes),
+                MemorySegmentFactory.wrapHeapSegment(bytes),
                 FreeingBufferRecycler.INSTANCE,
                 Buffer.DataType.DATA_BUFFER,
                 bytes.length);

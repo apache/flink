@@ -45,7 +45,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
-import static org.apache.flink.core.memory.MemorySegmentFactory.allocateOffHeapUnsafeMemory;
+import static org.apache.flink.core.memory.MemorySegmentFactory.allocateUnsafeSegment;
 
 /**
  * The memory manager governs the memory that Flink uses for sorting, hashing, caching or off-heap
@@ -245,7 +245,7 @@ public class MemoryManager {
                                     : currentSegmentsForOwner;
                     for (long i = numberOfPages; i > 0; i--) {
                         MemorySegment segment =
-                                allocateOffHeapUnsafeMemory(getPageSize(), owner, pageCleanup);
+                                allocateUnsafeSegment(getPageSize(), owner, pageCleanup);
                         target.add(segment);
                         segmentsForOwner.add(segment);
                     }

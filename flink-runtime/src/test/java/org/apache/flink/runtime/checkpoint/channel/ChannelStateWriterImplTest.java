@@ -17,7 +17,7 @@
 
 package org.apache.flink.runtime.checkpoint.channel;
 
-import org.apache.flink.core.memory.HeapMemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter.ChannelStateWriteResult;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -260,7 +260,7 @@ public class ChannelStateWriterImplTest {
 
     private NetworkBuffer getBuffer() {
         return new NetworkBuffer(
-                HeapMemorySegment.FACTORY.allocateUnpooledSegment(123, null),
+                MemorySegmentFactory.allocateHeapSegment(123, null),
                 FreeingBufferRecycler.INSTANCE);
     }
 

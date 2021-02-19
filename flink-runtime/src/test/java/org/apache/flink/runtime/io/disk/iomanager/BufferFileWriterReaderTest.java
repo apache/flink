@@ -203,7 +203,7 @@ public class BufferFileWriterReaderTest {
 
     private Buffer createBuffer() {
         return new NetworkBuffer(
-                MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE), BUFFER_RECYCLER);
+                MemorySegmentFactory.allocateHeapSegment(BUFFER_SIZE), BUFFER_RECYCLER);
     }
 
     static int fillBufferWithAscendingNumbers(Buffer buffer, int currentNumber, int size) {

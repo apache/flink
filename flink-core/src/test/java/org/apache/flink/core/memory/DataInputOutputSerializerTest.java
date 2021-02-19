@@ -37,7 +37,7 @@ public class DataInputOutputSerializerTest {
         SerializationTestType randomInt = Util.randomRecord(SerializationTestTypeFactory.INT);
 
         DataOutputSerializer serializer = new DataOutputSerializer(randomInt.length());
-        MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(randomInt.length());
+        MemorySegment segment = MemorySegmentFactory.allocateHeapSegment(randomInt.length());
 
         try {
             // empty buffer, read buffer should be empty

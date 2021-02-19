@@ -75,7 +75,7 @@ public class NetworkBufferTest extends AbstractByteBufTest {
     private static NetworkBuffer newBuffer(
             int length, int maxCapacity, boolean isBuffer, BufferRecycler recycler) {
         final MemorySegment segment =
-                MemorySegmentFactory.allocateUnpooledSegment(
+                MemorySegmentFactory.allocateHeapSegment(
                         Math.min(maxCapacity, MAX_CAPACITY_UPPER_BOUND));
 
         Buffer.DataType dataType =
@@ -127,7 +127,7 @@ public class NetworkBufferTest extends AbstractByteBufTest {
     }
 
     private static void testGetMemorySegment(boolean isBuffer) {
-        final MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(1024);
+        final MemorySegment segment = MemorySegmentFactory.allocateHeapSegment(1024);
         Buffer.DataType dataType =
                 isBuffer ? Buffer.DataType.DATA_BUFFER : Buffer.DataType.EVENT_BUFFER;
         NetworkBuffer buffer = new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE, dataType);

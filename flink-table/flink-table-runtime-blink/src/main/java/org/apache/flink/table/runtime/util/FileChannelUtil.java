@@ -40,7 +40,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import static org.apache.flink.core.memory.MemorySegmentFactory.allocateUnpooledSegment;
+import static org.apache.flink.core.memory.MemorySegmentFactory.allocateHeapSegment;
 
 /** File channel util for runtime. */
 public class FileChannelUtil {
@@ -71,8 +71,7 @@ public class FileChannelUtil {
             return new HeaderlessChannelReaderInputView(
                     reader,
                     Arrays.asList(
-                            allocateUnpooledSegment(segmentSize),
-                            allocateUnpooledSegment(segmentSize)),
+                            allocateHeapSegment(segmentSize), allocateHeapSegment(segmentSize)),
                     channel.getBlockCount(),
                     channel.getNumBytesInLastBlock(),
                     false);
@@ -97,8 +96,7 @@ public class FileChannelUtil {
             return new HeaderlessChannelWriterOutputView(
                     blockWriter,
                     Arrays.asList(
-                            allocateUnpooledSegment(segmentSize),
-                            allocateUnpooledSegment(segmentSize)),
+                            allocateHeapSegment(segmentSize), allocateHeapSegment(segmentSize)),
                     segmentSize);
         }
     }

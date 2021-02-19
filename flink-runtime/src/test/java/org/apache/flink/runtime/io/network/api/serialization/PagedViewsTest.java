@@ -380,7 +380,7 @@ public class PagedViewsTest {
         private final int segmentSize;
 
         private TestOutputView(int segmentSize) {
-            super(MemorySegmentFactory.allocateUnpooledSegment(segmentSize), segmentSize, 0);
+            super(MemorySegmentFactory.allocateHeapSegment(segmentSize), segmentSize, 0);
 
             this.segmentSize = segmentSize;
         }
@@ -389,7 +389,7 @@ public class PagedViewsTest {
         protected MemorySegment nextSegment(MemorySegment current, int positionInCurrent)
                 throws IOException {
             segments.add(new SegmentWithPosition(current, positionInCurrent));
-            return MemorySegmentFactory.allocateUnpooledSegment(segmentSize);
+            return MemorySegmentFactory.allocateHeapSegment(segmentSize);
         }
 
         public void close() {

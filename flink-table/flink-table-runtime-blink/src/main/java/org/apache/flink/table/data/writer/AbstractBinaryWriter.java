@@ -301,7 +301,9 @@ abstract class AbstractBinaryWriter implements BinaryWriter {
         if (newCapacity - minCapacity < 0) {
             newCapacity = minCapacity;
         }
-        segment = MemorySegmentFactory.wrap(Arrays.copyOf(segment.getArray(), newCapacity));
+        segment =
+                MemorySegmentFactory.wrapHeapSegment(
+                        Arrays.copyOf(segment.getArray(), newCapacity));
         afterGrow();
     }
 

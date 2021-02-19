@@ -39,19 +39,19 @@ public class DirectMemorySegmentTest extends MemorySegmentTestBase {
     }
 
     @Override
-    MemorySegment createSegment(int size) {
-        return MemorySegmentFactory.allocateUnpooledOffHeapMemory(size);
+    DirectMemorySegment createSegment(int size) {
+        return MemorySegmentFactory.allocateDirectSegment(size);
     }
 
     @Override
-    MemorySegment createSegment(int size, Object owner) {
-        return MemorySegmentFactory.allocateUnpooledOffHeapMemory(size, owner);
+    DirectMemorySegment createSegment(int size, Object owner) {
+        return MemorySegmentFactory.allocateDirectSegment(size, owner);
     }
 
     @Test
     public void testDirectSegmentSpecifics() {
         final int bufSize = 411;
-        OffHeapMemorySegment seg = (OffHeapMemorySegment) createSegment(bufSize);
+        DirectMemorySegment seg = createSegment(bufSize);
 
         assertFalse(seg.isFreed());
         assertTrue(seg.isOffHeap());
