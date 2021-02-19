@@ -132,8 +132,28 @@ public class ClusterOptions {
                             "Defines whether the cluster uses fine-grained resource management.");
 
     public static boolean isDeclarativeResourceManagementEnabled(Configuration configuration) {
-        return configuration.get(ENABLE_DECLARATIVE_RESOURCE_MANAGEMENT)
-                && !System.getProperties().containsKey("flink.tests.disable-declarative");
+        if (configuration.contains(ENABLE_DECLARATIVE_RESOURCE_MANAGEMENT)) {
+            return configuration.get(ENABLE_DECLARATIVE_RESOURCE_MANAGEMENT);
+        } else {
+            return !System.getProperties().containsKey("flink.tests.disable-declarative");
+        }
+    }
+
+    public static JobManagerOptions.SchedulerType getSchedulerType(Configuration configuration) {
+        if (isDeclarativeSchedulerEnabled(configuration)) {
+            return JobManagerOptions.SchedulerType.Declarative;
+        } else {
+            return configuration.get(JobManagerOptions.SCHEDULER);
+        }
+    }
+
+    public static boolean isDeclarativeSchedulerEnabled(Configuration configuration) {
+        if (configuration.contains(JobManagerOptions.SCHEDULER)) {
+            return configuration.get(JobManagerOptions.SCHEDULER)
+                    == JobManagerOptions.SchedulerType.Declarative;
+        } else {
+            return System.getProperties().containsKey("flink.tests.enable-declarative-scheduler");
+        }
     }
 
     public static boolean isFineGrainedResourceManagementEnabled(Configuration configuration) {

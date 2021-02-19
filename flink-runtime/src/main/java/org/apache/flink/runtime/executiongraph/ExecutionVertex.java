@@ -105,7 +105,8 @@ public class ExecutionVertex
      * @param maxPriorExecutionHistoryLength The number of prior Executions (= execution attempts)
      *     to keep.
      */
-    ExecutionVertex(
+    @VisibleForTesting
+    public ExecutionVertex(
             ExecutionJobVertex jobVertex,
             int subTaskIndex,
             IntermediateResult[] producedDataSets,

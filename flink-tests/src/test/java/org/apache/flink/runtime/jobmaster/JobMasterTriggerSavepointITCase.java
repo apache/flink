@@ -100,9 +100,6 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
 
         jobGraph.setSnapshotSettings(
                 new JobCheckpointingSettings(
-                        Collections.singletonList(vertex.getID()),
-                        Collections.singletonList(vertex.getID()),
-                        Collections.singletonList(vertex.getID()),
                         new CheckpointCoordinatorConfiguration(
                                 checkpointInterval,
                                 60_000,

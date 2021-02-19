@@ -22,6 +22,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.util.event.NotificationListener;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.function.FunctionUtils;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -314,8 +315,7 @@ final class SegmentReadRequest implements ReadRequest {
         final FileChannel c = this.channel.fileChannel;
         if (c.size() - c.position() > 0) {
             try {
-                final ByteBuffer wrapper = this.segment.wrap(0, this.segment.size());
-                this.channel.fileChannel.read(wrapper);
+                this.segment.processAsByteBuffer(FunctionUtils.uncheckedConsumer(c::read));
             } catch (NullPointerException npex) {
                 throw new IOException("Memory segment has been released.");
             }
@@ -347,8 +347,10 @@ final class SegmentWriteRequest implements WriteRequest {
     @Override
     public void write() throws IOException {
         try {
-            FileUtils.writeCompletely(
-                    this.channel.fileChannel, this.segment.wrap(0, this.segment.size()));
+            this.segment.processAsByteBuffer(
+                    FunctionUtils.uncheckedConsumer(
+                            (buffer) ->
+                                    FileUtils.writeCompletely(this.channel.fileChannel, buffer)));
         } catch (NullPointerException npex) {
             throw new IOException("Memory segment has been released.");
         }

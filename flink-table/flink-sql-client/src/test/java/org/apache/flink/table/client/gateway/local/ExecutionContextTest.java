@@ -24,6 +24,7 @@ import org.apache.flink.client.python.PythonFunctionFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -47,10 +48,17 @@ import org.apache.flink.table.functions.python.PythonScalarFunction;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.testutils.junit.FailsOnJava11;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.commons.cli.Options;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
+import org.junit.runner.RunWith;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.net.URL;
 import java.time.Duration;
@@ -69,8 +77,23 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.powermock.api.mockito.PowerMockito.when;
 
 /** Test for {@link ExecutionContext}. */
+@RunWith(PowerMockRunner.class)
+@PrepareForTest(PythonFunctionFactory.class)
+@PowerMockIgnore({
+    "org.apache.hive.*",
+    "org.apache.hadoop.*",
+    "com.sun.org.apache.xerces.*",
+    "javax.xml.*",
+    "org.xml.*",
+    "javax.management.*",
+    "org.w3c.dom.*",
+    "org.datanucleus.*"
+})
 public class ExecutionContextTest {
 
     private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
@@ -160,6 +183,7 @@ public class ExecutionContextTest {
     }
 
     @Test
+    @Category(FailsOnJava11.class)
     public void testCatalogs() throws Exception {
         final String inmemoryCatalog = "inmemorycatalog";
         final String hiveCatalog = "hivecatalog";
@@ -203,6 +227,7 @@ public class ExecutionContextTest {
     }
 
     @Test
+    @Category(FailsOnJava11.class)
     public void testDatabases() throws Exception {
         final String hiveCatalog = "hivecatalog";
 
@@ -248,20 +273,19 @@ public class ExecutionContextTest {
 
     @Test
     public void testPythonFunction() throws Exception {
-        PythonFunctionFactory pythonFunctionFactory =
-                PythonFunctionFactory.PYTHON_FUNCTION_FACTORY_REF.get();
         PythonFunctionFactory testFunctionFactory =
                 (moduleName, objectName) ->
                         new PythonScalarFunction(null, null, null, null, null, false, false, null);
-        try {
-            PythonFunctionFactory.PYTHON_FUNCTION_FACTORY_REF.set(testFunctionFactory);
-            ExecutionContext context = createPythonFunctionExecutionContext();
-            final String[] expected = new String[] {"pythonudf"};
-            final String[] actual = context.getTableEnvironment().listUserDefinedFunctions();
-            assertArrayEquals(expected, actual);
-        } finally {
-            PythonFunctionFactory.PYTHON_FUNCTION_FACTORY_REF.set(pythonFunctionFactory);
-        }
+        PowerMockito.mockStatic(PythonFunctionFactory.class);
+        when(PythonFunctionFactory.getPythonFunction(
+                        anyString(), any(ReadableConfig.class), any(ClassLoader.class)))
+                .thenCallRealMethod();
+        when(PythonFunctionFactory.createPythonFunctionFactory(any(ReadableConfig.class)))
+                .thenReturn(testFunctionFactory);
+        ExecutionContext context = createPythonFunctionExecutionContext();
+        final String[] expected = new String[] {"pythonudf"};
+        final String[] actual = context.getTableEnvironment().listUserDefinedFunctions();
+        assertArrayEquals(expected, actual);
     }
 
     @Test

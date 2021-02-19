@@ -39,7 +39,6 @@ flink-python/**/*.so
 atlassian-ide-plugin.xml
 out/
 /docs/api
-/docs/content
 /docs/.bundle
 /docs/.rubydeps
 /docs/ruby2/.bundle

@@ -113,14 +113,7 @@ public interface LogicalSlot {
     CompletableFuture<?> releaseSlot(@Nullable Throwable cause);
 
     /**
-     * Gets the slot number on the TaskManager.
-     *
-     * @return slot number
-     */
-    int getPhysicalSlotNumber();
-
-    /**
-     * Gets the allocation id of this slot.
+     * Gets the allocation id of this slot. Multiple logical slots can share the same allocation id.
      *
      * @return allocation id of this slot
      */

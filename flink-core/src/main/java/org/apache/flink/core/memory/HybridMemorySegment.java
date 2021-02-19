@@ -19,6 +19,7 @@
 package org.apache.flink.core.memory;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -30,6 +31,8 @@ import java.nio.BufferOverflowException;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ReadOnlyBufferException;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 import static org.apache.flink.core.memory.MemoryUtils.getByteBufferAddress;
 
@@ -57,6 +60,15 @@ public final class HybridMemorySegment extends MemorySegment {
      */
     @Nullable private ByteBuffer offHeapBuffer;
 
+    @Nullable private final Runnable cleaner;
+
+    /**
+     * Wrapping is not allowed when the underlying memory is unsafe. Unsafe memory can be actively
+     * released, without reference counting. Therefore, access from wrapped buffers, which may not
+     * be aware of the releasing of memory, could be risky.
+     */
+    private final boolean allowWrap;
+
     /**
      * Creates a new memory segment that represents the memory backing the given direct byte buffer.
      * Note that the given ByteBuffer must be direct {@link
@@ -70,8 +82,32 @@ public final class HybridMemorySegment extends MemorySegment {
      * @throws IllegalArgumentException Thrown, if the given ByteBuffer is not direct.
      */
     HybridMemorySegment(@Nonnull ByteBuffer buffer, @Nullable Object owner) {
+        this(buffer, owner, true, null);
+    }
+
+    /**
+     * Creates a new memory segment that represents the memory backing the given direct byte buffer.
+     * Note that the given ByteBuffer must be direct {@link
+     * java.nio.ByteBuffer#allocateDirect(int)}, otherwise this method with throw an
+     * IllegalArgumentException.
+     *
+     * <p>The memory segment references the given owner.
+     *
+     * @param buffer The byte buffer whose memory is represented by this memory segment.
+     * @param owner The owner references by this memory segment.
+     * @param allowWrap Whether wrapping {@link ByteBuffer}s from the segment is allowed.
+     * @param cleaner The cleaner to be called on free segment.
+     * @throws IllegalArgumentException Thrown, if the given ByteBuffer is not direct.
+     */
+    HybridMemorySegment(
+            @Nonnull ByteBuffer buffer,
+            @Nullable Object owner,
+            boolean allowWrap,
+            @Nullable Runnable cleaner) {
         super(getByteBufferAddress(buffer), buffer.capacity(), owner);
         this.offHeapBuffer = buffer;
+        this.allowWrap = allowWrap;
+        this.cleaner = cleaner;
     }
 
     /**
@@ -85,6 +121,8 @@ public final class HybridMemorySegment extends MemorySegment {
     HybridMemorySegment(byte[] buffer, Object owner) {
         super(buffer, owner);
         this.offHeapBuffer = null;
+        this.allowWrap = true;
+        this.cleaner = null;
     }
 
     // -------------------------------------------------------------------------
@@ -94,26 +132,22 @@ public final class HybridMemorySegment extends MemorySegment {
     @Override
     public void free() {
         super.free();
-        offHeapBuffer = null; // to enable GC of unsafe memory
-    }
-
-    /**
-     * Gets the buffer that owns the memory of this memory segment.
-     *
-     * @return The byte buffer that owns the memory of this memory segment.
-     */
-    public ByteBuffer getOffHeapBuffer() {
-        if (offHeapBuffer != null) {
-            return offHeapBuffer;
-        } else if (isFreed()) {
-            throw new IllegalStateException("segment has been freed");
-        } else {
-            throw new IllegalStateException("Memory segment does not represent off heap memory");
+        if (cleaner != null) {
+            cleaner.run();
         }
+        offHeapBuffer = null; // to enable GC of unsafe memory
     }
 
     @Override
     public ByteBuffer wrap(int offset, int length) {
+        if (!allowWrap) {
+            throw new UnsupportedOperationException(
+                    "Wrap is not supported by this segment. This usually indicates that the underlying memory is unsafe, thus transferring of ownership is not allowed.");
+        }
+        return wrapInternal(offset, length);
+    }
+
+    private ByteBuffer wrapInternal(int offset, int length) {
         if (address <= addressLimit) {
             if (heapMemory != null) {
                 return ByteBuffer.wrap(heapMemory, offset, length);
@@ -356,5 +390,15 @@ public final class HybridMemorySegment extends MemorySegment {
                 put(offset++, source.get());
             }
         }
+    }
+
+    @Override
+    public <T> T processAsByteBuffer(Function<ByteBuffer, T> processFunction) {
+        return Preconditions.checkNotNull(processFunction).apply(wrapInternal(0, size));
+    }
+
+    @Override
+    public void processAsByteBuffer(Consumer<ByteBuffer> processConsumer) {
+        Preconditions.checkNotNull(processConsumer).accept(wrapInternal(0, size));
     }
 }

@@ -195,27 +195,39 @@ public interface CheckpointStreamWithResultProvider extends Closeable {
     }
 
     /**
+     * Factory method for a {@link KeyedStateHandle} to be used in {@link
+     * #toKeyedStateHandleSnapshotResult(SnapshotResult, KeyGroupRangeOffsets,
+     * KeyedStateHandleFactory)}.
+     */
+    @FunctionalInterface
+    interface KeyedStateHandleFactory {
+        KeyedStateHandle create(
+                KeyGroupRangeOffsets keyGroupRangeOffsets, StreamStateHandle streamStateHandle);
+    }
+
+    /**
      * Helper method that takes a {@link SnapshotResult<StreamStateHandle>} and a {@link
-     * KeyGroupRangeOffsets} and creates a {@link SnapshotResult<KeyGroupsStateHandle>} by combining
-     * the key groups offsets with all the present stream state handles.
+     * KeyGroupRangeOffsets} and creates a {@link SnapshotResult<KeyedStateHandle>} by combining the
+     * key groups offsets with all the present stream state handles.
      */
     @Nonnull
     static SnapshotResult<KeyedStateHandle> toKeyedStateHandleSnapshotResult(
             @Nonnull SnapshotResult<StreamStateHandle> snapshotResult,
-            @Nonnull KeyGroupRangeOffsets keyGroupRangeOffsets) {
+            @Nonnull KeyGroupRangeOffsets keyGroupRangeOffsets,
+            @Nonnull KeyedStateHandleFactory stateHandleFactory) {
 
         StreamStateHandle jobManagerOwnedSnapshot = snapshotResult.getJobManagerOwnedSnapshot();
 
         if (jobManagerOwnedSnapshot != null) {
 
             KeyedStateHandle jmKeyedState =
-                    new KeyGroupsStateHandle(keyGroupRangeOffsets, jobManagerOwnedSnapshot);
+                    stateHandleFactory.create(keyGroupRangeOffsets, jobManagerOwnedSnapshot);
             StreamStateHandle taskLocalSnapshot = snapshotResult.getTaskLocalSnapshot();
 
             if (taskLocalSnapshot != null) {
 
                 KeyedStateHandle localKeyedState =
-                        new KeyGroupsStateHandle(keyGroupRangeOffsets, taskLocalSnapshot);
+                        stateHandleFactory.create(keyGroupRangeOffsets, taskLocalSnapshot);
                 return SnapshotResult.withLocalState(jmKeyedState, localKeyedState);
             } else {
 

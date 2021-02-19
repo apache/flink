@@ -26,6 +26,7 @@ import org.apache.flink.runtime.state.CheckpointStreamWithResultProvider;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
+import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
@@ -62,7 +63,7 @@ class HeapSnapshotStrategy<K>
         implements SnapshotStrategy<KeyedStateHandle, HeapSnapshotStrategy.HeapSnapshotResources> {
 
     private final Map<String, StateTable<K, ?, ?>> registeredKVStates;
-    private final Map<String, HeapPriorityQueueSnapshotRestoreWrapper> registeredPQStates;
+    private final Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates;
     private final StreamCompressionDecorator keyGroupCompressionDecorator;
     private final LocalRecoveryConfig localRecoveryConfig;
     private final KeyGroupRange keyGroupRange;
@@ -70,7 +71,7 @@ class HeapSnapshotStrategy<K>
 
     HeapSnapshotStrategy(
             Map<String, StateTable<K, ?, ?>> registeredKVStates,
-            Map<String, HeapPriorityQueueSnapshotRestoreWrapper> registeredPQStates,
+            Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates,
             StreamCompressionDecorator keyGroupCompressionDecorator,
             LocalRecoveryConfig localRecoveryConfig,
             KeyGroupRange keyGroupRange,
@@ -206,7 +207,7 @@ class HeapSnapshotStrategy<K>
                         new KeyGroupRangeOffsets(keyGroupRange, keyGroupRangeOffsets);
                 SnapshotResult<StreamStateHandle> result =
                         streamWithResultProvider.closeAndFinalizeCheckpointStreamResult();
-                return toKeyedStateHandleSnapshotResult(result, kgOffs);
+                return toKeyedStateHandleSnapshotResult(result, kgOffs, KeyGroupsStateHandle::new);
             } else {
                 throw new IOException("Stream already unregistered.");
             }

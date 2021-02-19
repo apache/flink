@@ -428,8 +428,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
                         Collections.singletonList(taskResultPartitionDescriptor),
                         Collections.emptyList(),
                         Collections.emptyList(),
-                        Collections.emptyList(),
-                        0);
+                        Collections.emptyList());
 
         final TaskSlotTable<Task> taskSlotTable = createTaskSlotTable();
 

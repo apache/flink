@@ -78,6 +78,11 @@ public class StateValidator<T> {
     }
 
     public final void expectNoStateTransition() {
-        consumer = (T) -> fail("No consumer has been set. Unexpected state transition");
+        consumer =
+                (T) ->
+                        fail(
+                                "No consumer has been set for "
+                                        + stateName
+                                        + ". Unexpected state transition");
     }
 }

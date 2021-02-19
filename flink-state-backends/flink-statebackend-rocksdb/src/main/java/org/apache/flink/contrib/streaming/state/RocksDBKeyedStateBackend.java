@@ -43,6 +43,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.runtime.state.Keyed;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -50,6 +51,7 @@ import org.apache.flink.runtime.state.PriorityComparable;
 import org.apache.flink.runtime.state.PriorityQueueSetFactory;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
+import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.SnapshotStrategyRunner;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
@@ -213,7 +215,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
      * Helper to build the byte arrays of composite keys to address data in RocksDB. Shared across
      * all states.
      */
-    private final RocksDBSerializedCompositeKeyBuilder<K> sharedRocksKeyBuilder;
+    private final SerializedCompositeKeyBuilder<K> sharedRocksKeyBuilder;
 
     /**
      * Our RocksDB database, this is used by the actual subclasses of {@link AbstractRocksDBState}
@@ -247,7 +249,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             RocksDBWriteBatchWrapper writeBatchWrapper,
             ColumnFamilyHandle defaultColumnFamilyHandle,
             RocksDBNativeMetricMonitor nativeMetricMonitor,
-            RocksDBSerializedCompositeKeyBuilder<K> sharedRocksKeyBuilder,
+            SerializedCompositeKeyBuilder<K> sharedRocksKeyBuilder,
             PriorityQueueSetFactory priorityQueueFactory,
             RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
             InternalKeyContext<K> keyContext,
@@ -306,11 +308,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                 registeredKeyValueStateBackendMetaInfo.getNamespaceSerializer();
         final DataOutputSerializer namespaceOutputView = new DataOutputSerializer(8);
         boolean ambiguousKeyPossible =
-                RocksDBKeySerializationUtils.isAmbiguousKeyPossible(
+                CompositeKeySerializationUtils.isAmbiguousKeyPossible(
                         getKeySerializer(), namespaceSerializer);
         final byte[] nameSpaceBytes;
         try {
-            RocksDBKeySerializationUtils.writeNameSpace(
+            CompositeKeySerializationUtils.writeNameSpace(
                     namespace, namespaceSerializer, namespaceOutputView, ambiguousKeyPossible);
             nameSpaceBytes = namespaceOutputView.getCopyOfBuffer();
         } catch (IOException ex) {
@@ -352,7 +354,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         final TypeSerializer<N> namespaceSerializer =
                 registeredKeyValueStateBackendMetaInfo.getNamespaceSerializer();
         boolean ambiguousKeyPossible =
-                RocksDBKeySerializationUtils.isAmbiguousKeyPossible(
+                CompositeKeySerializationUtils.isAmbiguousKeyPossible(
                         getKeySerializer(), namespaceSerializer);
 
         RocksIteratorWrapper iterator =
@@ -493,7 +495,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         return readOptions;
     }
 
-    RocksDBSerializedCompositeKeyBuilder<K> getSharedRocksKeyBuilder() {
+    SerializedCompositeKeyBuilder<K> getSharedRocksKeyBuilder() {
         return sharedRocksKeyBuilder;
     }
 

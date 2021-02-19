@@ -71,7 +71,12 @@ public class KvStateRegistryTest extends TestLogger {
         final KvStateRegistry kvStateRegistry = new KvStateRegistry();
         final KvStateID stateID =
                 kvStateRegistry.registerKvState(
-                        jobID, jobVertexId, keyGroupRange, registrationName, new DummyKvState());
+                        jobID,
+                        jobVertexId,
+                        keyGroupRange,
+                        registrationName,
+                        new DummyKvState(),
+                        getClass().getClassLoader());
 
         final AtomicReference<Throwable> exceptionHolder = new AtomicReference<>();
 
@@ -162,7 +167,12 @@ public class KvStateRegistryTest extends TestLogger {
         final String registrationName = "foobar";
         final KvStateID kvStateID =
                 kvStateRegistry.registerKvState(
-                        jobId1, jobVertexId, keyGroupRange, registrationName, new DummyKvState());
+                        jobId1,
+                        jobVertexId,
+                        keyGroupRange,
+                        registrationName,
+                        new DummyKvState(),
+                        getClass().getClassLoader());
 
         assertThat(registeredNotifications1.poll(), equalTo(jobId1));
         assertThat(registeredNotifications2.isEmpty(), is(true));
@@ -176,7 +186,8 @@ public class KvStateRegistryTest extends TestLogger {
                         jobVertexId2,
                         keyGroupRange2,
                         registrationName2,
-                        new DummyKvState());
+                        new DummyKvState(),
+                        getClass().getClassLoader());
 
         assertThat(registeredNotifications2.poll(), equalTo(jobId2));
         assertThat(registeredNotifications1.isEmpty(), is(true));
@@ -222,7 +233,12 @@ public class KvStateRegistryTest extends TestLogger {
         final String registrationName = "registrationName";
         final KvStateID kvStateID =
                 kvStateRegistry.registerKvState(
-                        jobId, jobVertexId, keyGroupRange, registrationName, new DummyKvState());
+                        jobId,
+                        jobVertexId,
+                        keyGroupRange,
+                        registrationName,
+                        new DummyKvState(),
+                        getClass().getClassLoader());
 
         assertThat(stateRegistrationNotifications.poll(), equalTo(jobId));
         // another listener should not have received any notifications

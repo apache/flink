@@ -389,7 +389,7 @@ public class ConfigOptionsDocGenerator {
      */
     private static String toHtmlTable(final List<OptionWithMetaInfo> options) {
         StringBuilder htmlTable = new StringBuilder();
-        htmlTable.append("<table class=\"table table-bordered\">\n");
+        htmlTable.append("<table class=\"configuration table table-bordered\">\n");
         htmlTable.append("    <thead>\n");
         htmlTable.append("        <tr>\n");
         htmlTable.append("            <th class=\"text-left\" style=\"width: 20%\">Key</th>\n");

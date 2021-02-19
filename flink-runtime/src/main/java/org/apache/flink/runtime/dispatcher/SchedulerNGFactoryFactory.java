@@ -19,29 +19,48 @@
 
 package org.apache.flink.runtime.dispatcher;
 
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerFactory;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
+import org.apache.flink.runtime.scheduler.declarative.DeclarativeSchedulerFactory;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Factory for {@link SchedulerNGFactory}. */
 public final class SchedulerNGFactoryFactory {
 
-    public static final String SCHEDULER_TYPE_NG = "ng";
+    private static final Logger LOG = LoggerFactory.getLogger(SchedulerNGFactoryFactory.class);
 
     private SchedulerNGFactoryFactory() {}
 
-    public static SchedulerNGFactory createSchedulerNGFactory(final Configuration configuration) {
-        final String schedulerName = configuration.getString(JobManagerOptions.SCHEDULER);
-        switch (schedulerName) {
-            case SCHEDULER_TYPE_NG:
+    public static SchedulerNGFactory createSchedulerNGFactory(
+            final Configuration configuration, JobType jobType) {
+        JobManagerOptions.SchedulerType schedulerType =
+                ClusterOptions.getSchedulerType(configuration);
+
+        if (schedulerType == JobManagerOptions.SchedulerType.Declarative
+                && jobType == JobType.BATCH) {
+            LOG.info(
+                    "Declarative Scheduler configured, but Batch job detected. Changing scheduler type to NG / DefaultScheduler.");
+            // overwrite
+            schedulerType = JobManagerOptions.SchedulerType.Ng;
+        }
+
+        switch (schedulerType) {
+            case Ng:
                 return new DefaultSchedulerFactory();
+            case Declarative:
+                return new DeclarativeSchedulerFactory();
 
             default:
                 throw new IllegalArgumentException(
                         String.format(
                                 "Illegal value [%s] for config option [%s]",
-                                schedulerName, JobManagerOptions.SCHEDULER.key()));
+                                schedulerType, JobManagerOptions.SCHEDULER.key()));
         }
     }
 }

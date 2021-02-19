@@ -19,7 +19,6 @@
 package org.apache.flink.contrib.streaming.state.restore;
 
 import org.apache.flink.contrib.streaming.state.RocksDBIncrementalCheckpointUtils;
-import org.apache.flink.contrib.streaming.state.RocksDBKeySerializationUtils;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.RocksDbKvStateInfo;
 import org.apache.flink.contrib.streaming.state.RocksDBNativeMetricOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBOperationUtils;
@@ -32,6 +31,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.BackendBuildingException;
+import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
 import org.apache.flink.runtime.state.DirectoryStateHandle;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
 import org.apache.flink.runtime.state.IncrementalLocalKeyedStateHandle;
@@ -304,11 +304,11 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 
         // Transfer remaining key-groups from temporary instance into base DB
         byte[] startKeyGroupPrefixBytes = new byte[keyGroupPrefixBytes];
-        RocksDBKeySerializationUtils.serializeKeyGroup(
+        CompositeKeySerializationUtils.serializeKeyGroup(
                 keyGroupRange.getStartKeyGroup(), startKeyGroupPrefixBytes);
 
         byte[] stopKeyGroupPrefixBytes = new byte[keyGroupPrefixBytes];
-        RocksDBKeySerializationUtils.serializeKeyGroup(
+        CompositeKeySerializationUtils.serializeKeyGroup(
                 keyGroupRange.getEndKeyGroup() + 1, stopKeyGroupPrefixBytes);
 
         for (KeyedStateHandle rawStateHandle : restoreStateHandles) {

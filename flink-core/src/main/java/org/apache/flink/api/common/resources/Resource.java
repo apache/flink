@@ -119,6 +119,10 @@ public abstract class Resource implements Serializable {
         return value;
     }
 
+    public boolean isZero() {
+        return value.compareTo(BigDecimal.ZERO) == 0;
+    }
+
     /**
      * Create a new instance of the sub resource.
      *
