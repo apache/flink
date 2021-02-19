@@ -31,7 +31,7 @@ import java.nio.ByteBuffer;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
- * A factory for (hybrid) memory segments ({@link HybridMemorySegment}).
+ * A factory for (hybrid) memory segments ({@link OffHeapMemorySegment}).
  *
  * <p>The purpose of this factory is to make sure that all memory segments for heap data are of the
  * same type. That way, the runtime does not mix the various specializations of the {@link
@@ -130,7 +130,7 @@ public final class MemorySegmentFactory {
      */
     public static MemorySegment allocateUnpooledOffHeapMemory(int size, Object owner) {
         ByteBuffer memory = allocateDirectMemory(size);
-        return new HybridMemorySegment(memory, owner);
+        return new OffHeapMemorySegment(memory, owner);
     }
 
     @VisibleForTesting
@@ -177,7 +177,7 @@ public final class MemorySegmentFactory {
         ByteBuffer offHeapBuffer = MemoryUtils.wrapUnsafeMemoryWithByteBuffer(address, size);
         Runnable cleaner =
                 MemoryUtils.createMemoryGcCleaner(offHeapBuffer, address, customCleanupAction);
-        return new HybridMemorySegment(offHeapBuffer, owner, false, cleaner);
+        return new OffHeapMemorySegment(offHeapBuffer, owner, false, cleaner);
     }
 
     /**
@@ -192,6 +192,6 @@ public final class MemorySegmentFactory {
      * @return A new memory segment representing the given off-heap memory.
      */
     public static MemorySegment wrapOffHeapMemory(ByteBuffer memory) {
-        return new HybridMemorySegment(memory, null);
+        return new OffHeapMemorySegment(memory, null);
     }
 }
