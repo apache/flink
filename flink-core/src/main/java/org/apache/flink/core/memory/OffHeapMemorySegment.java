@@ -39,21 +39,12 @@ import static org.apache.flink.core.memory.MemoryUtils.getByteBufferAddress;
  * {@link MemorySegmentFactory}.
  */
 @Internal
-public final class OffHeapMemorySegment extends MemorySegment {
+public abstract class OffHeapMemorySegment extends MemorySegment {
     /**
      * The direct byte buffer that wraps the off-heap memory. This memory segment holds a reference
      * to that buffer, so as long as this memory segment lives, the memory will not be released.
      */
-    @Nullable private ByteBuffer offHeapBuffer;
-
-    @Nullable private final Runnable cleaner;
-
-    /**
-     * Wrapping is not allowed when the underlying memory is unsafe. Unsafe memory can be actively
-     * released, without reference counting. Therefore, access from wrapped buffers, which may not
-     * be aware of the releasing of memory, could be risky.
-     */
-    private final boolean allowWrap;
+    private ByteBuffer offHeapBuffer;
 
     /**
      * Creates a new memory segment that represents the memory backing the given direct byte buffer.
@@ -68,32 +59,8 @@ public final class OffHeapMemorySegment extends MemorySegment {
      * @throws IllegalArgumentException Thrown, if the given ByteBuffer is not direct.
      */
     OffHeapMemorySegment(@Nonnull ByteBuffer buffer, @Nullable Object owner) {
-        this(buffer, owner, true, null);
-    }
-
-    /**
-     * Creates a new memory segment that represents the memory backing the given direct byte buffer.
-     * Note that the given ByteBuffer must be direct {@link
-     * java.nio.ByteBuffer#allocateDirect(int)}, otherwise this method with throw an
-     * IllegalArgumentException.
-     *
-     * <p>The memory segment references the given owner.
-     *
-     * @param buffer The byte buffer whose memory is represented by this memory segment.
-     * @param owner The owner references by this memory segment.
-     * @param allowWrap Whether wrapping {@link ByteBuffer}s from the segment is allowed.
-     * @param cleaner The cleaner to be called on free segment.
-     * @throws IllegalArgumentException Thrown, if the given ByteBuffer is not direct.
-     */
-    OffHeapMemorySegment(
-            @Nonnull ByteBuffer buffer,
-            @Nullable Object owner,
-            boolean allowWrap,
-            @Nullable Runnable cleaner) {
         super(getByteBufferAddress(buffer), buffer.capacity(), owner);
         this.offHeapBuffer = buffer;
-        this.allowWrap = allowWrap;
-        this.cleaner = cleaner;
     }
 
     // -------------------------------------------------------------------------
@@ -103,22 +70,10 @@ public final class OffHeapMemorySegment extends MemorySegment {
     @Override
     public void free() {
         super.free();
-        if (cleaner != null) {
-            cleaner.run();
-        }
         offHeapBuffer = null; // to enable GC of unsafe memory
     }
 
-    @Override
-    public ByteBuffer wrap(int offset, int length) {
-        if (!allowWrap) {
-            throw new UnsupportedOperationException(
-                    "Wrap is not supported by this segment. This usually indicates that the underlying memory is unsafe, thus transferring of ownership is not allowed.");
-        }
-        return wrapInternal(offset, length);
-    }
-
-    private ByteBuffer wrapInternal(int offset, int length) {
+    protected ByteBuffer wrapInternal(int offset, int length) {
         if (!isFreed()) {
             try {
                 ByteBuffer wrapper = offHeapBuffer.duplicate();

@@ -29,8 +29,8 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * Verifies interoperability between {@link HeapMemorySegment} and {@link OffHeapMemorySegment} (in
- * both heap and off-heap modes).
+ * Verifies interoperability between {@link HeapMemorySegment}, {@link DirectMemorySegment} and
+ * {@link UnsafeMemorySegment}.
  */
 public class CrossSegmentTypeTest {
 
