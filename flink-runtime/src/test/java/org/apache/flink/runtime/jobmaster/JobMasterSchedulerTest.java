@@ -27,6 +27,7 @@ import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
+import org.apache.flink.runtime.jobmaster.slotpool.TestingSlotPoolServiceBuilder;
 import org.apache.flink.runtime.jobmaster.utils.JobMasterBuilder;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -65,7 +66,10 @@ public class JobMasterSchedulerTest extends TestLogger {
         final JobMaster jobMaster =
                 new JobMasterBuilder(
                                 new JobGraph(), TESTING_RPC_SERVICE_RESOURCE.getTestingRpcService())
-                        .withSchedulerFactory(schedulerFactory)
+                        .withSlotPoolServiceSchedulerFactory(
+                                DefaultSlotPoolServiceSchedulerFactory.create(
+                                        TestingSlotPoolServiceBuilder.newBuilder(),
+                                        schedulerFactory))
                         .withOnCompletionActions(onCompletionActions)
                         .createJobMaster();
 
