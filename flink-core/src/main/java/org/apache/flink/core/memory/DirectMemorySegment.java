@@ -49,9 +49,4 @@ public final class DirectMemorySegment extends OffHeapMemorySegment {
     DirectMemorySegment(@Nonnull ByteBuffer buffer, @Nullable Object owner) {
         super(buffer, owner);
     }
-
-    @Override
-    public ByteBuffer wrap(int offset, int length) {
-        return wrapInternal(offset, length);
-    }
 }

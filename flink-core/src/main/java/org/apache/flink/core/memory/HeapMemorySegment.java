@@ -25,8 +25,6 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Objects;
-import java.util.function.Consumer;
-import java.util.function.Function;
 
 /**
  * This class represents a piece of heap memory managed by Flink. The segment is backed by a byte
@@ -81,10 +79,10 @@ public final class HeapMemorySegment extends MemorySegment {
     }
 
     @Override
-    public ByteBuffer wrap(int offset, int length) {
-        try {
+    protected ByteBuffer wrapInternal(int offset, int length) {
+        if (!isFreed()) {
             return ByteBuffer.wrap(this.memory, offset, length);
-        } catch (NullPointerException e) {
+        } else {
             throw new IllegalStateException("segment has been freed");
         }
     }
@@ -149,16 +147,6 @@ public final class HeapMemorySegment extends MemorySegment {
     public final void put(int offset, ByteBuffer source, int numBytes) {
         // ByteBuffer performs the boundary checks
         source.get(this.memory, offset, numBytes);
-    }
-
-    @Override
-    public <T> T processAsByteBuffer(Function<ByteBuffer, T> processFunction) {
-        throw new UnsupportedOperationException("Unsupported because not needed atm.");
-    }
-
-    @Override
-    public void processAsByteBuffer(Consumer<ByteBuffer> processConsumer) {
-        throw new UnsupportedOperationException("Unsupported because not needed atm.");
     }
 
     // -------------------------------------------------------------------------
