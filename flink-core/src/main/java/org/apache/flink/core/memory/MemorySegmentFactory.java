@@ -52,7 +52,7 @@ public final class MemorySegmentFactory {
      * @return A new memory segment that targets the given heap memory region.
      */
     public static MemorySegment wrap(byte[] buffer) {
-        return new HybridMemorySegment(buffer, null);
+        return new HeapMemorySegment(buffer);
     }
 
     /**
@@ -106,7 +106,7 @@ public final class MemorySegmentFactory {
      * @return A new memory segment, backed by unpooled heap memory.
      */
     public static MemorySegment allocateUnpooledSegment(int size, Object owner) {
-        return new HybridMemorySegment(new byte[size], owner);
+        return new HeapMemorySegment(new byte[size], owner);
     }
 
     /**
