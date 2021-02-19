@@ -42,20 +42,15 @@ import org.mockito.stubbing.Answer;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.Executor;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -362,71 +357,5 @@ public class ZooKeeperCompletedCheckpointStoreMockitoTest extends TestLogger {
         // Make sure that we also didn't discard any of the broken handles. Only when checkpoints
         // are subsumed should they be discarded.
         verify(failingRetrievableStateHandle, never()).discardState();
-    }
-
-    /**
-     * Tests that the checkpoint does not exist in the store when we fail to add it into the store
-     * (i.e., there exists an exception thrown by the method).
-     */
-    @Test
-    public void testAddCheckpointWithFailedRemove() throws Exception {
-        final CuratorFramework client = mock(CuratorFramework.class, Mockito.RETURNS_DEEP_STUBS);
-        final RetrievableStateStorageHelper<CompletedCheckpoint> storageHelperMock =
-                mock(RetrievableStateStorageHelper.class);
-
-        ZooKeeperStateHandleStore<CompletedCheckpoint> zookeeperStateHandleStoreMock =
-                spy(new ZooKeeperStateHandleStore<>(client, storageHelperMock));
-
-        doAnswer(
-                        new Answer<RetrievableStateHandle<CompletedCheckpoint>>() {
-                            @Override
-                            public RetrievableStateHandle<CompletedCheckpoint> answer(
-                                    InvocationOnMock invocationOnMock) throws Throwable {
-                                CompletedCheckpoint checkpoint =
-                                        (CompletedCheckpoint) invocationOnMock.getArguments()[1];
-
-                                RetrievableStateHandle<CompletedCheckpoint> retrievableStateHandle =
-                                        mock(RetrievableStateHandle.class);
-                                when(retrievableStateHandle.retrieveState()).thenReturn(checkpoint);
-
-                                return retrievableStateHandle;
-                            }
-                        })
-                .when(zookeeperStateHandleStoreMock)
-                .addAndLock(anyString(), any(CompletedCheckpoint.class));
-
-        doThrow(new Exception())
-                .when(zookeeperStateHandleStoreMock)
-                .releaseAndTryRemove(anyString());
-
-        final int numCheckpointsToRetain = 1;
-
-        CompletedCheckpointStore zooKeeperCompletedCheckpointStore =
-                new DefaultCompletedCheckpointStore<>(
-                        numCheckpointsToRetain,
-                        zookeeperStateHandleStoreMock,
-                        zooKeeperCheckpointStoreUtil,
-                        Executors.directExecutor());
-
-        for (long i = 0; i <= numCheckpointsToRetain; ++i) {
-            CompletedCheckpoint checkpointToAdd = mock(CompletedCheckpoint.class);
-            doReturn(i).when(checkpointToAdd).getCheckpointID();
-            doReturn(Collections.emptyMap()).when(checkpointToAdd).getOperatorStates();
-
-            try {
-                zooKeeperCompletedCheckpointStore.addCheckpoint(
-                        checkpointToAdd, new CheckpointsCleaner(), () -> {});
-
-                // The checkpoint should be in the store if we successfully add it into the store.
-                List<CompletedCheckpoint> addedCheckpoints =
-                        zooKeeperCompletedCheckpointStore.getAllCheckpoints();
-                assertTrue(addedCheckpoints.contains(checkpointToAdd));
-            } catch (Exception e) {
-                // The checkpoint should not be in the store if any exception is thrown.
-                List<CompletedCheckpoint> addedCheckpoints =
-                        zooKeeperCompletedCheckpointStore.getAllCheckpoints();
-                assertFalse(addedCheckpoints.contains(checkpointToAdd));
-            }
-        }
     }
 }
