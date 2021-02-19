@@ -50,17 +50,18 @@ public class OperationsOnFreedSegmentTest {
     @Test
     public void testCompare() {
         MemorySegment aliveHeap = new HeapMemorySegment(new byte[PAGE_SIZE]);
-        MemorySegment aliveHybridOffHeap =
-                MemorySegmentFactory.allocateUnpooledOffHeapMemory(PAGE_SIZE);
+        MemorySegment aliveDirect = MemorySegmentFactory.allocateUnpooledOffHeapMemory(PAGE_SIZE);
+        MemorySegment aliveUnsafe = MemorySegmentFactory.allocateOffHeapUnsafeMemory(PAGE_SIZE);
 
         MemorySegment freedHeap = new HeapMemorySegment(new byte[PAGE_SIZE]);
-        MemorySegment freedHybridOffHeap =
-                MemorySegmentFactory.allocateUnpooledOffHeapMemory(PAGE_SIZE);
+        MemorySegment freedDirect = MemorySegmentFactory.allocateUnpooledOffHeapMemory(PAGE_SIZE);
+        MemorySegment freedUnsafe = MemorySegmentFactory.allocateOffHeapUnsafeMemory(PAGE_SIZE);
         freedHeap.free();
-        freedHybridOffHeap.free();
+        freedDirect.free();
+        freedUnsafe.free();
 
-        MemorySegment[] alive = {aliveHeap, aliveHybridOffHeap};
-        MemorySegment[] free = {freedHeap, freedHybridOffHeap};
+        MemorySegment[] alive = {aliveHeap, aliveDirect, aliveUnsafe};
+        MemorySegment[] free = {freedHeap, freedDirect, freedUnsafe};
 
         // alive with free
         for (MemorySegment seg1 : alive) {
@@ -125,11 +126,10 @@ public class OperationsOnFreedSegmentTest {
 
     private static MemorySegment[] createTestSegments() {
         MemorySegment heap = new HeapMemorySegment(new byte[PAGE_SIZE]);
-        MemorySegment hybridOffHeap = MemorySegmentFactory.allocateUnpooledOffHeapMemory(PAGE_SIZE);
-        MemorySegment hybridOffHeapUnsafe =
-                MemorySegmentFactory.allocateOffHeapUnsafeMemory(PAGE_SIZE);
+        MemorySegment direct = MemorySegmentFactory.allocateUnpooledOffHeapMemory(PAGE_SIZE);
+        MemorySegment unsafe = MemorySegmentFactory.allocateOffHeapUnsafeMemory(PAGE_SIZE);
 
-        MemorySegment[] segments = {heap, hybridOffHeap, hybridOffHeapUnsafe};
+        MemorySegment[] segments = {heap, direct, unsafe};
 
         return segments;
     }
