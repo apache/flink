@@ -48,6 +48,11 @@ class Canceling extends StateWithExecutionGraph {
     }
 
     @Override
+    public JobStatus getJobStatus() {
+        return JobStatus.CANCELLING;
+    }
+
+    @Override
     public void cancel() {
         // we are already in the state canceling
     }

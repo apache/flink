@@ -123,6 +123,28 @@ public class FailingTest extends TestLogger {
         }
     }
 
+    @Test
+    public void testStateDoesNotExposeGloballyTerminalExecutionGraph() throws Exception {
+        try (MockFailingContext ctx = new MockFailingContext()) {
+            MockExecutionGraph meg = new MockExecutionGraph();
+            Failing failing = createFailingState(ctx, meg);
+
+            // ideally we'd delay the async call to #onGloballyTerminalState instead, but the
+            // context does not support that
+            ctx.setExpectFinished(eg -> {});
+            failing.onEnter();
+
+            meg.completeCancellation();
+
+            // this is just a sanity check for the test
+            assertThat(meg.getState(), is(JobStatus.FAILED));
+
+            assertThat(failing.getJobStatus(), is(JobStatus.FAILING));
+            assertThat(failing.getJob().getState(), is(JobStatus.FAILING));
+            assertThat(failing.getJob().getStatusTimestamp(JobStatus.FAILED), is(0L));
+        }
+    }
+
     private Failing createFailingState(MockFailingContext ctx, ExecutionGraph executionGraph) {
         final ExecutionGraphHandler executionGraphHandler =
                 new ExecutionGraphHandler(

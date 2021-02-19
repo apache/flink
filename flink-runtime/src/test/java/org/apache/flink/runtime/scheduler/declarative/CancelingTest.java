@@ -116,6 +116,28 @@ public class CancelingTest extends TestLogger {
         }
     }
 
+    @Test
+    public void testStateDoesNotExposeGloballyTerminalExecutionGraph() throws Exception {
+        try (MockStateWithExecutionGraphContext ctx = new MockStateWithExecutionGraphContext()) {
+            MockExecutionGraph meg = new MockExecutionGraph();
+            Canceling canceling = createCancelingState(ctx, meg);
+
+            // ideally we'd delay the async call to #onGloballyTerminalState instead, but the
+            // context does not support that
+            ctx.setExpectFinished(eg -> {});
+            canceling.onEnter();
+
+            meg.completeCancellation();
+
+            // this is just a sanity check for the test
+            assertThat(meg.getState(), is(JobStatus.CANCELED));
+
+            assertThat(canceling.getJobStatus(), is(JobStatus.CANCELLING));
+            assertThat(canceling.getJob().getState(), is(JobStatus.CANCELLING));
+            assertThat(canceling.getJob().getStatusTimestamp(JobStatus.CANCELED), is(0L));
+        }
+    }
+
     private Canceling createCancelingState(
             MockStateWithExecutionGraphContext ctx, ExecutionGraph executionGraph) {
         final ExecutionGraphHandler executionGraphHandler =

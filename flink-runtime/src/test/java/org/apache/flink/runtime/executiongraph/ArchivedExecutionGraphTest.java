@@ -147,6 +147,15 @@ public class ArchivedExecutionGraphTest extends TestLogger {
         assertThat(suspendedExecutionGraph.getFailureInfo(), notNullValue());
     }
 
+    @Test
+    public void testArchiveWithStatusOverride() throws IOException, ClassNotFoundException {
+        ArchivedExecutionGraph archivedGraph =
+                ArchivedExecutionGraph.createFrom(runtimeGraph, JobStatus.RESTARTING);
+
+        assertThat(archivedGraph.getState(), is(JobStatus.RESTARTING));
+        assertThat(archivedGraph.getStatusTimestamp(JobStatus.FAILED), is(0L));
+    }
+
     private static void compareExecutionGraph(
             AccessExecutionGraph runtimeGraph, AccessExecutionGraph archivedGraph)
             throws IOException, ClassNotFoundException {
