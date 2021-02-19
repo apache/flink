@@ -39,7 +39,6 @@ import java.util.function.Function;
  * <p>Note that memory segments should usually not be allocated manually, but rather through the
  * {@link MemorySegmentFactory}.
  */
-@SuppressWarnings("unused")
 @Internal
 public final class HeapMemorySegment extends MemorySegment {
 
