@@ -34,7 +34,7 @@ import static org.junit.Assert.fail;
 
 /**
  * Various tests with freed memory segments for {@link HeapMemorySegment} and {@link
- * HybridMemorySegment} (in both heap and off-heap modes).
+ * OffHeapMemorySegment} (in both heap and off-heap modes).
  */
 public class OperationsOnFreedSegmentTest {
 

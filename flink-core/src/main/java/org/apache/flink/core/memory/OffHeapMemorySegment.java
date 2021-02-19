@@ -24,9 +24,6 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -34,23 +31,15 @@ import java.util.function.Function;
 import static org.apache.flink.core.memory.MemoryUtils.getByteBufferAddress;
 
 /**
- * This class represents a piece of memory managed by Flink.
+ * This class represents a piece of off-heap memory managed by Flink.
  *
- * <p>The memory can be on-heap, off-heap direct or off-heap unsafe, this is transparently handled
- * by this class.
- *
- * <p>This class specializes byte access and byte copy calls for heap memory, while reusing the
- * multi-byte type accesses and cross-segment operations from the MemorySegment.
- *
- * <p>This class subsumes the functionality of the {@link
- * org.apache.flink.core.memory.HeapMemorySegment}, but is a bit less efficient for operations on
- * individual bytes.
+ * <p>The memory can direct or unsafe, this is transparently handled by this class.
  *
  * <p>Note that memory segments should usually not be allocated manually, but rather through the
  * {@link MemorySegmentFactory}.
  */
 @Internal
-public final class HybridMemorySegment extends MemorySegment {
+public final class OffHeapMemorySegment extends MemorySegment {
     /**
      * The direct byte buffer that wraps the off-heap memory. This memory segment holds a reference
      * to that buffer, so as long as this memory segment lives, the memory will not be released.
@@ -78,7 +67,7 @@ public final class HybridMemorySegment extends MemorySegment {
      * @param owner The owner references by this memory segment.
      * @throws IllegalArgumentException Thrown, if the given ByteBuffer is not direct.
      */
-    HybridMemorySegment(@Nonnull ByteBuffer buffer, @Nullable Object owner) {
+    OffHeapMemorySegment(@Nonnull ByteBuffer buffer, @Nullable Object owner) {
         this(buffer, owner, true, null);
     }
 
@@ -96,7 +85,7 @@ public final class HybridMemorySegment extends MemorySegment {
      * @param cleaner The cleaner to be called on free segment.
      * @throws IllegalArgumentException Thrown, if the given ByteBuffer is not direct.
      */
-    HybridMemorySegment(
+    OffHeapMemorySegment(
             @Nonnull ByteBuffer buffer,
             @Nullable Object owner,
             boolean allowWrap,
@@ -105,21 +94,6 @@ public final class HybridMemorySegment extends MemorySegment {
         this.offHeapBuffer = buffer;
         this.allowWrap = allowWrap;
         this.cleaner = cleaner;
-    }
-
-    /**
-     * Creates a new memory segment that represents the memory of the byte array.
-     *
-     * <p>The memory segment references the given owner.
-     *
-     * @param buffer The byte array whose memory is represented by this memory segment.
-     * @param owner The owner references by this memory segment.
-     */
-    HybridMemorySegment(byte[] buffer, Object owner) {
-        super(buffer, owner);
-        this.offHeapBuffer = null;
-        this.allowWrap = true;
-        this.cleaner = null;
     }
 
     // -------------------------------------------------------------------------
@@ -145,61 +119,27 @@ public final class HybridMemorySegment extends MemorySegment {
     }
 
     private ByteBuffer wrapInternal(int offset, int length) {
-        if (address <= addressLimit) {
-            if (heapMemory != null) {
-                return ByteBuffer.wrap(heapMemory, offset, length);
-            } else {
-                try {
-                    ByteBuffer wrapper = offHeapBuffer.duplicate();
-                    wrapper.limit(offset + length);
-                    wrapper.position(offset);
-                    return wrapper;
-                } catch (IllegalArgumentException e) {
-                    throw new IndexOutOfBoundsException();
-                }
+        if (!isFreed()) {
+            try {
+                ByteBuffer wrapper = offHeapBuffer.duplicate();
+                wrapper.limit(offset + length);
+                wrapper.position(offset);
+                return wrapper;
+            } catch (IllegalArgumentException e) {
+                throw new IndexOutOfBoundsException();
             }
         } else {
             throw new IllegalStateException("segment has been freed");
         }
     }
 
-    // -------------------------------------------------------------------------
-    //  Bulk Read and Write Methods
-    // -------------------------------------------------------------------------
-
-    @Override
-    public final void get(DataOutput out, int offset, int length) throws IOException {
-        if (heapMemory != null) {
-            if (address <= addressLimit) {
-                out.write(heapMemory, offset, length);
-            } else {
-                throw new IllegalStateException("segment has been freed");
-            }
-        } else {
-            super.get(out, offset, length);
-        }
-    }
-
-    @Override
-    public final void put(DataInput in, int offset, int length) throws IOException {
-        if (heapMemory != null) {
-            if (address <= addressLimit) {
-                in.readFully(heapMemory, offset, length);
-            } else {
-                throw new IllegalStateException("segment has been freed");
-            }
-        } else {
-            super.put(in, offset, length);
-        }
-    }
-
     @Override
     public <T> T processAsByteBuffer(Function<ByteBuffer, T> processFunction) {
-        return Preconditions.checkNotNull(processFunction).apply(wrapInternal(0, size));
+        return Preconditions.checkNotNull(processFunction).apply(wrapInternal(0, size()));
     }
 
     @Override
     public void processAsByteBuffer(Consumer<ByteBuffer> processConsumer) {
-        Preconditions.checkNotNull(processConsumer).accept(wrapInternal(0, size));
+        Preconditions.checkNotNull(processConsumer).accept(wrapInternal(0, size()));
     }
 }
