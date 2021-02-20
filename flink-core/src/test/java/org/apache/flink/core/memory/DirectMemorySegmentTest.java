@@ -49,7 +49,7 @@ public class DirectMemorySegmentTest extends MemorySegmentTestBase {
     }
 
     @Test
-    public void testHybridHeapSegmentSpecifics() {
+    public void testDirectSegmentSpecifics() {
         final int bufSize = 411;
         OffHeapMemorySegment seg = (OffHeapMemorySegment) createSegment(bufSize);
 

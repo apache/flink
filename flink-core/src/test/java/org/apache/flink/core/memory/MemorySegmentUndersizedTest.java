@@ -32,8 +32,8 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for undersized {@link HeapMemorySegment} and {@link OffHeapMemorySegment} (in both heap and
- * off-heap modes).
+ * Tests for undersized {@link HeapMemorySegment}, {@link DirectMemorySegment} and * {@link
+ * UnsafeMemorySegment}.
  */
 public class MemorySegmentUndersizedTest {
 
@@ -46,7 +46,7 @@ public class MemorySegmentUndersizedTest {
     }
 
     @Test
-    public void testZeroSizeOffHeapHybridSegment() {
+    public void testZeroSizeDirectSegment() {
         MemorySegment segment = MemorySegmentFactory.allocateDirectSegment(0);
 
         testZeroSizeBuffer(segment);
@@ -54,7 +54,7 @@ public class MemorySegmentUndersizedTest {
     }
 
     @Test
-    public void testZeroSizeOffHeapUnsafeHybridSegment() {
+    public void testZeroSizeUnsafeSegment() {
         MemorySegment segment = MemorySegmentFactory.allocateUnsafeSegment(0);
 
         testZeroSizeBuffer(segment);
@@ -67,12 +67,12 @@ public class MemorySegmentUndersizedTest {
     }
 
     @Test
-    public void testSizeOneOffHeapHybridSegment() {
+    public void testSizeOneDirectSegment() {
         testSegmentWithSizeLargerZero(MemorySegmentFactory.allocateDirectSegment(1));
     }
 
     @Test
-    public void testSizeOneOffHeapUnsafeHybridSegment() {
+    public void testSizeOneUnsafeSegment() {
         testSegmentWithSizeLargerZero(MemorySegmentFactory.allocateUnsafeSegment(1));
     }
 

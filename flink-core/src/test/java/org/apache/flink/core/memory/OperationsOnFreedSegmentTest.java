@@ -50,15 +50,18 @@ public class OperationsOnFreedSegmentTest {
     @Test
     public void testCompare() {
         MemorySegment aliveHeap = new HeapMemorySegment(new byte[PAGE_SIZE]);
-        MemorySegment aliveHybridOffHeap = MemorySegmentFactory.allocateDirectSegment(PAGE_SIZE);
+        MemorySegment aliveDirect = MemorySegmentFactory.allocateDirectSegment(PAGE_SIZE);
+        MemorySegment aliveUnsafe = MemorySegmentFactory.allocateUnsafeSegment(PAGE_SIZE);
 
         MemorySegment freedHeap = new HeapMemorySegment(new byte[PAGE_SIZE]);
-        MemorySegment freedHybridOffHeap = MemorySegmentFactory.allocateDirectSegment(PAGE_SIZE);
+        MemorySegment freedDirect = MemorySegmentFactory.allocateDirectSegment(PAGE_SIZE);
+        MemorySegment freedUnsafe = MemorySegmentFactory.allocateUnsafeSegment(PAGE_SIZE);
         freedHeap.free();
-        freedHybridOffHeap.free();
+        freedDirect.free();
+        freedUnsafe.free();
 
-        MemorySegment[] alive = {aliveHeap, aliveHybridOffHeap};
-        MemorySegment[] free = {freedHeap, freedHybridOffHeap};
+        MemorySegment[] alive = {aliveHeap, aliveDirect, aliveUnsafe};
+        MemorySegment[] free = {freedHeap, freedDirect, freedUnsafe};
 
         // alive with free
         for (MemorySegment seg1 : alive) {
@@ -123,10 +126,10 @@ public class OperationsOnFreedSegmentTest {
 
     private static MemorySegment[] createTestSegments() {
         MemorySegment heap = new HeapMemorySegment(new byte[PAGE_SIZE]);
-        MemorySegment hybridOffHeap = MemorySegmentFactory.allocateDirectSegment(PAGE_SIZE);
-        MemorySegment hybridOffHeapUnsafe = MemorySegmentFactory.allocateUnsafeSegment(PAGE_SIZE);
+        MemorySegment direct = MemorySegmentFactory.allocateDirectSegment(PAGE_SIZE);
+        MemorySegment unsafe = MemorySegmentFactory.allocateUnsafeSegment(PAGE_SIZE);
 
-        MemorySegment[] segments = {heap, hybridOffHeap, hybridOffHeapUnsafe};
+        MemorySegment[] segments = {heap, direct, unsafe};
 
         return segments;
     }

@@ -19,6 +19,7 @@
 package org.apache.flink.core.memory;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -33,7 +34,7 @@ import java.nio.ByteBuffer;
  */
 @Internal
 public class UnsafeMemorySegment extends OffHeapMemorySegment {
-    @Nullable private final Runnable cleaner;
+    private final Runnable cleaner;
 
     /**
      * Creates a new memory segment that represents the memory backing the given unsafe byte buffer.
@@ -48,18 +49,15 @@ public class UnsafeMemorySegment extends OffHeapMemorySegment {
      * @param cleaner The cleaner to be called on free segment.
      * @throws IllegalArgumentException Thrown, if the given ByteBuffer is not direct.
      */
-    UnsafeMemorySegment(
-            @Nonnull ByteBuffer buffer, @Nullable Object owner, @Nullable Runnable cleaner) {
+    UnsafeMemorySegment(@Nonnull ByteBuffer buffer, @Nullable Object owner, Runnable cleaner) {
         super(buffer, owner);
-        this.cleaner = cleaner;
+        this.cleaner = Preconditions.checkNotNull(cleaner);
     }
 
     @Override
     public void free() {
         super.free();
-        if (cleaner != null) {
-            cleaner.run();
-        }
+        cleaner.run();
     }
 
     @Override

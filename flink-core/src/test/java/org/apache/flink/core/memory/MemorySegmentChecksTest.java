@@ -49,12 +49,12 @@ public class MemorySegmentChecksTest {
 
     @Test(expected = NullPointerException.class)
     public void testUnsafeNullBuffer() {
-        new UnsafeMemorySegment((ByteBuffer) null, new Object(), null);
+        new UnsafeMemorySegment((ByteBuffer) null, new Object(), () -> {});
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testUnsafeNonDirectBuffer() {
-        new UnsafeMemorySegment(ByteBuffer.allocate(1024), new Object(), null);
+        new UnsafeMemorySegment(ByteBuffer.allocate(1024), new Object(), () -> {});
     }
 
     @Test(expected = IllegalArgumentException.class)
