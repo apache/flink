@@ -20,6 +20,7 @@ package org.apache.flink.kubernetes.kubeclient.factory;
 
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.kubernetes.KubernetesTestUtils;
+import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.KubernetesTaskManagerTestBase;
 import org.apache.flink.kubernetes.utils.Constants;
 
@@ -64,7 +65,7 @@ public class KubernetesTaskManagerFactoryTest extends KubernetesTaskManagerTestB
 
         this.resultPod =
                 KubernetesTaskManagerFactory.buildTaskManagerKubernetesPod(
-                                kubernetesTaskManagerParameters)
+                                new FlinkPod.Builder().build(), kubernetesTaskManagerParameters)
                         .getInternalResource();
     }
 

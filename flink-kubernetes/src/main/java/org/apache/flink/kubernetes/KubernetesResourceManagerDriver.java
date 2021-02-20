@@ -24,12 +24,14 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesResourceManagerDriverConfiguration;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
+import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.KubeClientFactory;
 import org.apache.flink.kubernetes.kubeclient.factory.KubernetesTaskManagerFactory;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesTaskManagerParameters;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesTooOldResourceVersionException;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesWatch;
+import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
@@ -47,6 +49,7 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -80,6 +83,8 @@ public class KubernetesResourceManagerDriver
 
     private volatile boolean running;
 
+    private FlinkPod taskManagerPodTemplate;
+
     public KubernetesResourceManagerDriver(
             Configuration flinkConfig,
             KubeClientFactory kubeClientFactory,
@@ -100,6 +105,14 @@ public class KubernetesResourceManagerDriver
         kubeClientOpt =
                 Optional.of(kubeClientFactory.fromConfiguration(flinkConfig, getIoExecutor()));
         podsWatchOpt = watchTaskManagerPods();
+        final File podTemplateFile = KubernetesUtils.getTaskManagerPodTemplateFileInPod();
+        if (podTemplateFile.exists()) {
+            taskManagerPodTemplate =
+                    KubernetesUtils.loadPodFromTemplateFile(
+                            kubeClientOpt.get(), podTemplateFile, Constants.MAIN_CONTAINER_NAME);
+        } else {
+            taskManagerPodTemplate = new FlinkPod.Builder().build();
+        }
         recoverWorkerNodesFromPreviousAttempts();
         this.running = true;
     }
@@ -149,7 +162,8 @@ public class KubernetesResourceManagerDriver
         final KubernetesTaskManagerParameters parameters =
                 createKubernetesTaskManagerParameters(taskExecutorProcessSpec);
         final KubernetesPod taskManagerPod =
-                KubernetesTaskManagerFactory.buildTaskManagerKubernetesPod(parameters);
+                KubernetesTaskManagerFactory.buildTaskManagerKubernetesPod(
+                        taskManagerPodTemplate, parameters);
         final String podName = taskManagerPod.getName();
         final CompletableFuture<KubernetesWorkerNode> requestResourceFuture =
                 new CompletableFuture<>();

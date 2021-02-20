@@ -31,10 +31,12 @@ import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 
+import java.io.File;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -91,6 +93,12 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
         return flinkConfig
                 .getOptional(KubernetesConfigOptions.JOB_MANAGER_TOLERATIONS)
                 .orElse(Collections.emptyList());
+    }
+
+    public Optional<File> getPodTemplateFilePath() {
+        return flinkConfig
+                .getOptional(KubernetesConfigOptions.JOB_MANAGER_POD_TEMPLATE)
+                .map(File::new);
     }
 
     public List<Map<String, String>> getOwnerReference() {

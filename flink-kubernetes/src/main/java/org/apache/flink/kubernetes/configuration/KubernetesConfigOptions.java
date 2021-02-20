@@ -23,6 +23,7 @@ import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ExternalResourceOptions;
 import org.apache.flink.configuration.description.Description;
+import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
 import java.util.List;
@@ -38,6 +39,7 @@ import static org.apache.flink.configuration.description.TextElement.code;
 public class KubernetesConfigOptions {
 
     private static final String KUBERNETES_SERVICE_ACCOUNT_KEY = "kubernetes.service-account";
+    private static final String KUBERNETES_POD_TEMPLATE_FILE_KEY = "kubernetes.pod-template-file";
 
     public static final ConfigOption<String> CONTEXT =
             key("kubernetes.context")
@@ -366,6 +368,54 @@ public class KubernetesConfigOptions {
                                                     + "client gives up. For example, %s.",
                                             code("FlinkKubeClient#checkAndUpdateConfigMap"))
                                     .build());
+
+    public static final ConfigOption<String> JOB_MANAGER_POD_TEMPLATE =
+            key(KUBERNETES_POD_TEMPLATE_FILE_KEY + ".jobmanager")
+                    .stringType()
+                    .noDefaultValue()
+                    .withFallbackKeys(KUBERNETES_POD_TEMPLATE_FILE_KEY)
+                    .withDescription(
+                            "Specify a local file that contains the jobmanager pod template definition. "
+                                    + "It will be used to initialize the jobmanager pod. "
+                                    + "The main container should be defined with name '"
+                                    + Constants.MAIN_CONTAINER_NAME
+                                    + "'. If not explicitly configured, config option '"
+                                    + KUBERNETES_POD_TEMPLATE_FILE_KEY
+                                    + "' will be used.");
+
+    public static final ConfigOption<String> TASK_MANAGER_POD_TEMPLATE =
+            key(KUBERNETES_POD_TEMPLATE_FILE_KEY + ".taskmanager")
+                    .stringType()
+                    .noDefaultValue()
+                    .withFallbackKeys(KUBERNETES_POD_TEMPLATE_FILE_KEY)
+                    .withDescription(
+                            "Specify a local file that contains the taskmanager pod template definition. "
+                                    + "It will be used to initialize the taskmanager pod. "
+                                    + "The main container should be defined with name '"
+                                    + Constants.MAIN_CONTAINER_NAME
+                                    + "'. If not explicitly configured, config option '"
+                                    + KUBERNETES_POD_TEMPLATE_FILE_KEY
+                                    + "' will be used.");
+
+    /**
+     * This option is here only for documentation generation, it is the fallback key of
+     * JOB_MANAGER_POD_TEMPLATE and TASK_MANAGER_POD_TEMPLATE.
+     */
+    @SuppressWarnings("unused")
+    public static final ConfigOption<String> KUBERNETES_POD_TEMPLATE =
+            key(KUBERNETES_POD_TEMPLATE_FILE_KEY)
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Specify a local file that contains the pod template definition. "
+                                    + "It will be used to initialize the jobmanager and taskmanager pod. "
+                                    + "The main container should be defined with name '"
+                                    + Constants.MAIN_CONTAINER_NAME
+                                    + "'. Notice that this can be overwritten by config options '"
+                                    + JOB_MANAGER_POD_TEMPLATE.key()
+                                    + "' and '"
+                                    + TASK_MANAGER_POD_TEMPLATE.key()
+                                    + "' for jobmanager and taskmanager respectively.");
 
     private static String getDefaultFlinkImage() {
         // The default container image that ties to the exact needed versions of both Flink and
