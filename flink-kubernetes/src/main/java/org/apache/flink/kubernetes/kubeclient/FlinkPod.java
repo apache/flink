@@ -48,6 +48,12 @@ public class FlinkPod {
         return mainContainer;
     }
 
+    public FlinkPod copy() {
+        return new FlinkPod(
+                new PodBuilder(this.getPodWithoutMainContainer()).build(),
+                new ContainerBuilder(this.getMainContainer()).build());
+    }
+
     /** Builder for creating a {@link FlinkPod}. */
     public static class Builder {
 

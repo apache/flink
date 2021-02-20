@@ -29,6 +29,7 @@ import org.apache.flink.util.Preconditions;
 
 import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
 
+import java.io.File;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -195,6 +196,11 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
     @Override
     public void close() {
         closeConsumer.accept(null);
+    }
+
+    @Override
+    public KubernetesPod loadPodFromTemplateFile(File file) {
+        throw new UnsupportedOperationException();
     }
 
     public static Builder builder() {
