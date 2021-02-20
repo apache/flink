@@ -43,11 +43,8 @@ import org.apache.flink.runtime.jobmaster.factories.UnregisteredJobManagerJobMet
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
-
-import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -82,8 +79,6 @@ public class JobMasterBuilder {
     private PartitionTrackerFactory partitionTrackerFactory = NoOpJobMasterPartitionTracker.FACTORY;
 
     private ResourceID jmResourceId = ResourceID.generate();
-
-    @Nullable private SchedulerNGFactory schedulerFactory = null;
 
     private FatalErrorHandler fatalErrorHandler = error -> {};
 
@@ -170,11 +165,6 @@ public class JobMasterBuilder {
     public JobMasterBuilder withExecutionDeploymentReconcilerFactory(
             ExecutionDeploymentReconciler.Factory executionDeploymentReconcilerFactory) {
         this.executionDeploymentReconcilerFactory = executionDeploymentReconcilerFactory;
-        return this;
-    }
-
-    public JobMasterBuilder withSchedulerFactory(SchedulerNGFactory schedulerFactory) {
-        this.schedulerFactory = schedulerFactory;
         return this;
     }
 
