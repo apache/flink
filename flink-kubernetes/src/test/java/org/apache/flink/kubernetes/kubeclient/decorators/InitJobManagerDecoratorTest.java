@@ -92,7 +92,7 @@ public class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
                 new InitJobManagerDecorator(this.kubernetesJobManagerParameters);
         final FlinkPod resultFlinkPod = initJobManagerDecorator.decorateFlinkPod(this.baseFlinkPod);
 
-        this.resultPod = resultFlinkPod.getPod();
+        this.resultPod = resultFlinkPod.getPodWithoutMainContainer();
         this.resultMainContainer = resultFlinkPod.getMainContainer();
     }
 

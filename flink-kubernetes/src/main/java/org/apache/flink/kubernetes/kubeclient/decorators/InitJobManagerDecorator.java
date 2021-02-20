@@ -57,7 +57,7 @@ public class InitJobManagerDecorator extends AbstractKubernetesStepDecorator {
     @Override
     public FlinkPod decorateFlinkPod(FlinkPod flinkPod) {
         final Pod basicPod =
-                new PodBuilder(flinkPod.getPod())
+                new PodBuilder(flinkPod.getPodWithoutMainContainer())
                         .withApiVersion(API_VERSION)
                         .editOrNewMetadata()
                         .withLabels(kubernetesJobManagerParameters.getLabels())

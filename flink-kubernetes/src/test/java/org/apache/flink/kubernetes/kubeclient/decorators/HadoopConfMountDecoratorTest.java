@@ -64,7 +64,8 @@ public class HadoopConfMountDecoratorTest extends KubernetesJobManagerTestBase {
         assertEquals(0, hadoopConfMountDecorator.buildAccompanyingKubernetesResources().size());
 
         final FlinkPod resultFlinkPod = hadoopConfMountDecorator.decorateFlinkPod(baseFlinkPod);
-        final List<Volume> volumes = resultFlinkPod.getPod().getSpec().getVolumes();
+        final List<Volume> volumes =
+                resultFlinkPod.getPodWithoutMainContainer().getSpec().getVolumes();
         assertTrue(
                 volumes.stream()
                         .anyMatch(
@@ -87,7 +88,8 @@ public class HadoopConfMountDecoratorTest extends KubernetesJobManagerTestBase {
         assertEquals(0, hadoopConfMountDecorator.buildAccompanyingKubernetesResources().size());
 
         final FlinkPod resultFlinkPod = hadoopConfMountDecorator.decorateFlinkPod(baseFlinkPod);
-        final List<Volume> volumes = resultFlinkPod.getPod().getSpec().getVolumes();
+        final List<Volume> volumes =
+                resultFlinkPod.getPodWithoutMainContainer().getSpec().getVolumes();
         assertTrue(
                 volumes.stream()
                         .anyMatch(
@@ -112,7 +114,9 @@ public class HadoopConfMountDecoratorTest extends KubernetesJobManagerTestBase {
         assertEquals(0, hadoopConfMountDecorator.buildAccompanyingKubernetesResources().size());
 
         final FlinkPod resultFlinkPod = hadoopConfMountDecorator.decorateFlinkPod(baseFlinkPod);
-        assertEquals(baseFlinkPod.getPod(), resultFlinkPod.getPod());
+        assertEquals(
+                baseFlinkPod.getPodWithoutMainContainer(),
+                resultFlinkPod.getPodWithoutMainContainer());
         assertEquals(baseFlinkPod.getMainContainer(), resultFlinkPod.getMainContainer());
     }
 
@@ -123,7 +127,9 @@ public class HadoopConfMountDecoratorTest extends KubernetesJobManagerTestBase {
         assertEquals(0, hadoopConfMountDecorator.buildAccompanyingKubernetesResources().size());
 
         final FlinkPod resultFlinkPod = hadoopConfMountDecorator.decorateFlinkPod(baseFlinkPod);
-        assertEquals(baseFlinkPod.getPod(), resultFlinkPod.getPod());
+        assertEquals(
+                baseFlinkPod.getPodWithoutMainContainer(),
+                resultFlinkPod.getPodWithoutMainContainer());
         assertEquals(baseFlinkPod.getMainContainer(), resultFlinkPod.getMainContainer());
     }
 
@@ -155,7 +161,8 @@ public class HadoopConfMountDecoratorTest extends KubernetesJobManagerTestBase {
         generateHadoopConfFileItems();
         final FlinkPod resultFlinkPod = hadoopConfMountDecorator.decorateFlinkPod(baseFlinkPod);
 
-        final List<Volume> resultVolumes = resultFlinkPod.getPod().getSpec().getVolumes();
+        final List<Volume> resultVolumes =
+                resultFlinkPod.getPodWithoutMainContainer().getSpec().getVolumes();
         assertEquals(1, resultVolumes.size());
 
         final Volume resultVolume = resultVolumes.get(0);

@@ -31,17 +31,17 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class FlinkPod {
 
-    private final Pod pod;
+    private final Pod podWithoutMainContainer;
 
     private final Container mainContainer;
 
-    public FlinkPod(Pod pod, Container mainContainer) {
-        this.pod = pod;
+    public FlinkPod(Pod podWithoutMainContainer, Container mainContainer) {
+        this.podWithoutMainContainer = podWithoutMainContainer;
         this.mainContainer = mainContainer;
     }
 
-    public Pod getPod() {
-        return pod;
+    public Pod getPodWithoutMainContainer() {
+        return podWithoutMainContainer;
     }
 
     public Container getMainContainer() {
@@ -51,11 +51,11 @@ public class FlinkPod {
     /** Builder for creating a {@link FlinkPod}. */
     public static class Builder {
 
-        private Pod pod;
+        private Pod podWithoutMainContainer;
         private Container mainContainer;
 
         public Builder() {
-            this.pod =
+            this.podWithoutMainContainer =
                     new PodBuilder()
                             .withNewMetadata()
                             .endMetadata()
@@ -68,12 +68,12 @@ public class FlinkPod {
 
         public Builder(FlinkPod flinkPod) {
             checkNotNull(flinkPod);
-            this.pod = checkNotNull(flinkPod.getPod());
+            this.podWithoutMainContainer = checkNotNull(flinkPod.getPodWithoutMainContainer());
             this.mainContainer = checkNotNull(flinkPod.getMainContainer());
         }
 
         public Builder withPod(Pod pod) {
-            this.pod = checkNotNull(pod);
+            this.podWithoutMainContainer = checkNotNull(pod);
             return this;
         }
 
@@ -83,7 +83,7 @@ public class FlinkPod {
         }
 
         public FlinkPod build() {
-            return new FlinkPod(this.pod, this.mainContainer);
+            return new FlinkPod(this.podWithoutMainContainer, this.mainContainer);
         }
     }
 }

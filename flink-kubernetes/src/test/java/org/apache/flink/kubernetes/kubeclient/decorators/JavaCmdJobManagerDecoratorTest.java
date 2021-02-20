@@ -101,7 +101,9 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
     @Test
     public void testWhetherContainerOrPodIsReplaced() {
         final FlinkPod resultFlinkPod = javaCmdJobManagerDecorator.decorateFlinkPod(baseFlinkPod);
-        assertEquals(baseFlinkPod.getPod(), resultFlinkPod.getPod());
+        assertEquals(
+                baseFlinkPod.getPodWithoutMainContainer(),
+                resultFlinkPod.getPodWithoutMainContainer());
         assertNotEquals(baseFlinkPod.getMainContainer(), resultFlinkPod.getMainContainer());
     }
 

@@ -56,7 +56,7 @@ public class KubernetesTaskManagerFactory {
         }
 
         final Pod resolvedPod =
-                new PodBuilder(flinkPod.getPod())
+                new PodBuilder(flinkPod.getPodWithoutMainContainer())
                         .editOrNewSpec()
                         .addToContainers(flinkPod.getMainContainer())
                         .endSpec()

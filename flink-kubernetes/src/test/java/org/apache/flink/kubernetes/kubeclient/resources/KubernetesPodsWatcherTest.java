@@ -69,10 +69,10 @@ public class KubernetesPodsWatcherTest extends TestLogger {
         FlinkPod pod = new FlinkPod.Builder().build();
         final KubernetesPodsWatcher podsWatcher =
                 new KubernetesPodsWatcher(new TestingCallbackHandler(e -> {}));
-        podsWatcher.eventReceived(Watcher.Action.ADDED, pod.getPod());
-        podsWatcher.eventReceived(Watcher.Action.MODIFIED, pod.getPod());
-        podsWatcher.eventReceived(Watcher.Action.DELETED, pod.getPod());
-        podsWatcher.eventReceived(Watcher.Action.ERROR, pod.getPod());
+        podsWatcher.eventReceived(Watcher.Action.ADDED, pod.getPodWithoutMainContainer());
+        podsWatcher.eventReceived(Watcher.Action.MODIFIED, pod.getPodWithoutMainContainer());
+        podsWatcher.eventReceived(Watcher.Action.DELETED, pod.getPodWithoutMainContainer());
+        podsWatcher.eventReceived(Watcher.Action.ERROR, pod.getPodWithoutMainContainer());
 
         assertThat(podAddedList.size(), is(1));
         assertThat(podModifiedList.size(), is(1));
