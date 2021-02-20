@@ -28,7 +28,9 @@ import org.apache.flink.kubernetes.highavailability.KubernetesCheckpointStoreUti
 import org.apache.flink.kubernetes.highavailability.KubernetesJobGraphStoreUtil;
 import org.apache.flink.kubernetes.highavailability.KubernetesStateHandleStore;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
+import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.DefaultCompletedCheckpointStore;
@@ -44,6 +46,8 @@ import org.apache.flink.runtime.persistence.filesystem.FileSystemStateStorageHel
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.function.FunctionUtils;
 
+import io.fabric8.kubernetes.api.model.Container;
+import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
@@ -54,6 +58,7 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -394,6 +399,36 @@ public class KubernetesUtils {
                                                     + " An example of such path is: local:///opt/flink/examples/streaming/WindowJoin.jar");
                                 }))
                 .collect(Collectors.toList());
+    }
+
+    public static FlinkPod loadPodFromTemplateFile(
+            FlinkKubeClient kubeClient, File podTemplateFile, String mainContainerName) {
+        final KubernetesPod pod = kubeClient.loadPodFromTemplateFile(podTemplateFile);
+        final List<Container> otherContainers = new ArrayList<>();
+        Container mainContainer = null;
+
+        for (Container container : pod.getInternalResource().getSpec().getContainers()) {
+            if (mainContainerName.equals(container.getName())) {
+                mainContainer = container;
+            } else {
+                otherContainers.add(container);
+            }
+        }
+
+        if (mainContainer == null) {
+            LOG.info(
+                    "Could not find main container {} in pod template, using empty one to initialize.",
+                    mainContainerName);
+            mainContainer = new ContainerBuilder().build();
+        }
+
+        pod.getInternalResource().getSpec().setContainers(otherContainers);
+        return new FlinkPod(pod.getInternalResource(), mainContainer);
+    }
+
+    public static File getTaskManagerPodTemplateFileInPod() {
+        return new File(
+                Constants.POD_TEMPLATE_DIR_IN_POD, Constants.TASK_MANAGER_POD_TEMPLATE_FILE_NAME);
     }
 
     private static String getJavaOpts(

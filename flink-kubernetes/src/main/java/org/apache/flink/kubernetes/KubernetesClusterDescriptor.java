@@ -40,6 +40,7 @@ import org.apache.flink.kubernetes.entrypoint.KubernetesApplicationClusterEntryp
 import org.apache.flink.kubernetes.entrypoint.KubernetesSessionClusterEntrypoint;
 import org.apache.flink.kubernetes.kubeclient.Endpoint;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
+import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerSpecification;
 import org.apache.flink.kubernetes.kubeclient.factory.KubernetesJobManagerFactory;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
@@ -258,9 +259,17 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
             final KubernetesJobManagerParameters kubernetesJobManagerParameters =
                     new KubernetesJobManagerParameters(flinkConfig, clusterSpecification);
 
+            final FlinkPod podTemplate =
+                    kubernetesJobManagerParameters
+                            .getPodTemplateFilePath()
+                            .map(
+                                    file ->
+                                            KubernetesUtils.loadPodFromTemplateFile(
+                                                    client, file, Constants.MAIN_CONTAINER_NAME))
+                            .orElse(new FlinkPod.Builder().build());
             final KubernetesJobManagerSpecification kubernetesJobManagerSpec =
                     KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(
-                            kubernetesJobManagerParameters);
+                            podTemplate, kubernetesJobManagerParameters);
 
             client.createJobManagerComponent(kubernetesJobManagerSpec);
 

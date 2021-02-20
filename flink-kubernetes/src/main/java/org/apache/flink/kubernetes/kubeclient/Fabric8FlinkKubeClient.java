@@ -34,6 +34,7 @@ import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.HasMetadata;
@@ -49,6 +50,7 @@ import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -337,6 +339,15 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
     @Override
     public void close() {
         this.internalClient.close();
+    }
+
+    @Override
+    public KubernetesPod loadPodFromTemplateFile(File file) {
+        if (!file.exists()) {
+            throw new FlinkRuntimeException(
+                    String.format("Pod template file %s does not exist.", file));
+        }
+        return new KubernetesPod(this.internalClient.pods().load(file).get());
     }
 
     private void setOwnerReference(Deployment deployment, List<HasMetadata> resources) {

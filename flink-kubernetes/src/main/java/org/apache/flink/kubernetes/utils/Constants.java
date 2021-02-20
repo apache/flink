@@ -97,4 +97,12 @@ public class Constants {
     public static final String CHECKPOINT_COUNTER_KEY = "counter";
     public static final String CHECKPOINT_ID_KEY_PREFIX = "checkpointID-";
     public static final String COMPLETED_CHECKPOINT_FILE_SUFFIX = "completedCheckpoint";
+
+    // The file name of the mounted task manager pod template in the JobManager pod if there was any
+    // specified.
+    public static final String TASK_MANAGER_POD_TEMPLATE_FILE_NAME =
+            "taskmanager-pod-template.yaml";
+    public static final String POD_TEMPLATE_DIR_IN_POD = "/opt/flink/pod-template";
+    public static final String POD_TEMPLATE_CONFIG_MAP_PREFIX = "pod-template-";
+    public static final String POD_TEMPLATE_VOLUME = "pod-template-volume";
 }
