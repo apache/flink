@@ -93,7 +93,7 @@ public class InitJobManagerDecorator extends AbstractKubernetesStepDecorator {
                         Collections.emptyMap());
 
         return new ContainerBuilder(container)
-                .withName(kubernetesJobManagerParameters.getJobManagerMainContainerName())
+                .withName(Constants.MAIN_CONTAINER_NAME)
                 .withImage(kubernetesJobManagerParameters.getImage())
                 .withImagePullPolicy(kubernetesJobManagerParameters.getImagePullPolicy().name())
                 .withResources(requirements)
