@@ -30,14 +30,7 @@ import java.nio.ByteBuffer;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/**
- * A factory for (hybrid) memory segments ({@link OffHeapMemorySegment}).
- *
- * <p>The purpose of this factory is to make sure that all memory segments for heap data are of the
- * same type. That way, the runtime does not mix the various specializations of the {@link
- * MemorySegment}. Not mixing them has shown to be beneficial to method specialization by the JIT
- * and to overall performance.
- */
+/** A factory for memory segments ({@link MemorySegment}). */
 @Internal
 public final class MemorySegmentFactory {
     private static final Logger LOG = LoggerFactory.getLogger(MemorySegmentFactory.class);

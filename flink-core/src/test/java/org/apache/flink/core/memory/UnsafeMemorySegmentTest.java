@@ -35,12 +35,12 @@ public class UnsafeMemorySegmentTest extends MemorySegmentTestBase {
     }
 
     @Override
-    MemorySegment createSegment(int size) {
+    UnsafeMemorySegment createSegment(int size) {
         return MemorySegmentFactory.allocateUnsafeSegment(size);
     }
 
     @Override
-    MemorySegment createSegment(int size, Object owner) {
+    UnsafeMemorySegment createSegment(int size, Object owner) {
         return MemorySegmentFactory.allocateUnsafeSegment(size, owner, () -> {});
     }
 

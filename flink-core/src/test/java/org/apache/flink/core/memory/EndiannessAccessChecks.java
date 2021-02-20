@@ -25,29 +25,24 @@ import java.util.Random;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Verifies correct accesses with regards to endianness in {@link HeapMemorySegment} and {@link
- * OffHeapMemorySegment} (in both heap and off-heap modes).
+ * Verifies correct accesses with regards to endianness in {@link HeapMemorySegment}, {@link
+ * DirectMemorySegment} and {@link UnsafeMemorySegment}.
  */
 public class EndiannessAccessChecks {
 
     @Test
     public void testHeapSegment() {
-        testBigAndLittleEndianAccessUnaligned(new HeapMemorySegment(new byte[11111]));
-    }
-
-    @Test
-    public void testHybridOnHeapSegment() {
         testBigAndLittleEndianAccessUnaligned(
                 MemorySegmentFactory.wrapHeapSegment(new byte[11111]));
     }
 
     @Test
-    public void testHybridOffHeapSegment() {
+    public void testDirectSegment() {
         testBigAndLittleEndianAccessUnaligned(MemorySegmentFactory.allocateDirectSegment(11111));
     }
 
     @Test
-    public void testHybridOffHeapUnsafeSegment() {
+    public void testUnsafeSegment() {
         testBigAndLittleEndianAccessUnaligned(MemorySegmentFactory.allocateUnsafeSegment(11111));
     }
 

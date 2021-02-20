@@ -38,12 +38,12 @@ public class HeapMemorySegmentTest extends MemorySegmentTestBase {
     }
 
     @Override
-    MemorySegment createSegment(int size) {
+    HeapMemorySegment createSegment(int size) {
         return new HeapMemorySegment(new byte[size]);
     }
 
     @Override
-    MemorySegment createSegment(int size, Object owner) {
+    HeapMemorySegment createSegment(int size, Object owner) {
         return new HeapMemorySegment(new byte[size], owner);
     }
 
