@@ -50,7 +50,7 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
     @Override
     public FlinkPod decorateFlinkPod(FlinkPod flinkPod) {
         final Pod basicPod =
-                new PodBuilder(flinkPod.getPod())
+                new PodBuilder(flinkPod.getPodWithoutMainContainer())
                         .withApiVersion(Constants.API_VERSION)
                         .editOrNewMetadata()
                         .withName(kubernetesTaskManagerParameters.getPodName())

@@ -88,7 +88,7 @@ public class KubernetesJobManagerFactory {
         final Container resolvedMainContainer = flinkPod.getMainContainer();
 
         final Pod resolvedPod =
-                new PodBuilder(flinkPod.getPod())
+                new PodBuilder(flinkPod.getPodWithoutMainContainer())
                         .editOrNewSpec()
                         .addToContainers(resolvedMainContainer)
                         .endSpec()
