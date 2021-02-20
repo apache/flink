@@ -30,7 +30,7 @@ import static org.apache.flink.core.memory.MemoryUtils.getByteBufferAddress;
 /**
  * This class represents a piece of off-heap memory managed by Flink.
  *
- * <p>The memory can direct or unsafe, this is transparently handled by this class.
+ * <p>The memory can be direct or unsafe, this is transparently handled by this class.
  *
  * <p>Note that memory segments should usually not be allocated manually, but rather through the
  * {@link MemorySegmentFactory}.

@@ -50,18 +50,15 @@ public class OperationsOnFreedSegmentTest {
     @Test
     public void testCompare() {
         MemorySegment aliveHeap = new HeapMemorySegment(new byte[PAGE_SIZE]);
-        MemorySegment aliveHybridHeap = MemorySegmentFactory.wrapHeapSegment(new byte[PAGE_SIZE]);
         MemorySegment aliveHybridOffHeap = MemorySegmentFactory.allocateDirectSegment(PAGE_SIZE);
 
         MemorySegment freedHeap = new HeapMemorySegment(new byte[PAGE_SIZE]);
-        MemorySegment freedHybridHeap = MemorySegmentFactory.wrapHeapSegment(new byte[PAGE_SIZE]);
         MemorySegment freedHybridOffHeap = MemorySegmentFactory.allocateDirectSegment(PAGE_SIZE);
         freedHeap.free();
-        freedHybridHeap.free();
         freedHybridOffHeap.free();
 
-        MemorySegment[] alive = {aliveHeap, aliveHybridHeap, aliveHybridOffHeap};
-        MemorySegment[] free = {freedHeap, freedHybridHeap, freedHybridOffHeap};
+        MemorySegment[] alive = {aliveHeap, aliveHybridOffHeap};
+        MemorySegment[] free = {freedHeap, freedHybridOffHeap};
 
         // alive with free
         for (MemorySegment seg1 : alive) {
@@ -126,11 +123,10 @@ public class OperationsOnFreedSegmentTest {
 
     private static MemorySegment[] createTestSegments() {
         MemorySegment heap = new HeapMemorySegment(new byte[PAGE_SIZE]);
-        MemorySegment hybridHeap = MemorySegmentFactory.wrapHeapSegment(new byte[PAGE_SIZE]);
         MemorySegment hybridOffHeap = MemorySegmentFactory.allocateDirectSegment(PAGE_SIZE);
         MemorySegment hybridOffHeapUnsafe = MemorySegmentFactory.allocateUnsafeSegment(PAGE_SIZE);
 
-        MemorySegment[] segments = {heap, hybridHeap, hybridOffHeap, hybridOffHeapUnsafe};
+        MemorySegment[] segments = {heap, hybridOffHeap, hybridOffHeapUnsafe};
 
         return segments;
     }
