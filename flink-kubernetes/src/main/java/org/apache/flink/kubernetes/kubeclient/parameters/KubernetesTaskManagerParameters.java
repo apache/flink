@@ -117,9 +117,7 @@ public class KubernetesTaskManagerParameters extends AbstractKubernetesParameter
     }
 
     public String getServiceAccount() {
-        return flinkConfig
-                .getOptional(KubernetesConfigOptions.TASK_MANAGER_SERVICE_ACCOUNT)
-                .orElse(flinkConfig.getString(KubernetesConfigOptions.KUBERNETES_SERVICE_ACCOUNT));
+        return flinkConfig.get(KubernetesConfigOptions.TASK_MANAGER_SERVICE_ACCOUNT);
     }
 
     public Map<String, Long> getTaskManagerExternalResources() {

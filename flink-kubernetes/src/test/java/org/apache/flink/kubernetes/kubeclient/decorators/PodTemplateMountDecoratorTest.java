@@ -84,8 +84,8 @@ public class PodTemplateMountDecoratorTest extends KubernetesJobManagerTestBase 
 
         final ConfigMap resultConfigMap = (ConfigMap) additionalResources.get(0);
 
-        Map<String, String> resultDatas = resultConfigMap.getData();
-        assertThat(resultDatas.get(TASK_MANAGER_POD_TEMPLATE_FILE_NAME), is(POD_TEMPLATE_DATA));
+        final Map<String, String> resultData = resultConfigMap.getData();
+        assertThat(resultData.get(TASK_MANAGER_POD_TEMPLATE_FILE_NAME), is(POD_TEMPLATE_DATA));
     }
 
     @Test

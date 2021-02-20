@@ -169,7 +169,18 @@ public class KubernetesJobManagerParametersTest extends KubernetesTestBase {
     @Test
     public void testGetServiceAccount() {
         flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_SERVICE_ACCOUNT, "flink");
-        assertEquals("flink", kubernetesJobManagerParameters.getServiceAccount());
+        assertThat(kubernetesJobManagerParameters.getServiceAccount(), is("flink"));
+    }
+
+    @Test
+    public void testGetServiceAccountFallback() {
+        flinkConfig.set(KubernetesConfigOptions.KUBERNETES_SERVICE_ACCOUNT, "flink-fallback");
+        assertThat(kubernetesJobManagerParameters.getServiceAccount(), is("flink-fallback"));
+    }
+
+    @Test
+    public void testGetServiceAccountShouldReturnDefaultIfNotExplicitlySet() {
+        assertThat(kubernetesJobManagerParameters.getServiceAccount(), is("default"));
     }
 
     @Test

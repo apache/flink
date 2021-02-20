@@ -140,9 +140,7 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
     }
 
     public String getServiceAccount() {
-        return flinkConfig
-                .getOptional(KubernetesConfigOptions.JOB_MANAGER_SERVICE_ACCOUNT)
-                .orElse(flinkConfig.getString(KubernetesConfigOptions.KUBERNETES_SERVICE_ACCOUNT));
+        return flinkConfig.get(KubernetesConfigOptions.JOB_MANAGER_SERVICE_ACCOUNT);
     }
 
     public String getEntrypointClass() {

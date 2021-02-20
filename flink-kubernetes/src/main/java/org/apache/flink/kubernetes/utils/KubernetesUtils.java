@@ -303,18 +303,22 @@ public class KubernetesUtils {
     /**
      * Get resource requirements from memory and cpu.
      *
+     * @param resourceRequirements resource requirements in pod template
      * @param mem Memory in mb.
      * @param cpu cpu.
      * @param externalResources external resources
      * @return KubernetesResource requirements.
      */
     public static ResourceRequirements getResourceRequirements(
-            int mem, double cpu, Map<String, Long> externalResources) {
+            ResourceRequirements resourceRequirements,
+            int mem,
+            double cpu,
+            Map<String, Long> externalResources) {
         final Quantity cpuQuantity = new Quantity(String.valueOf(cpu));
         final Quantity memQuantity = new Quantity(mem + Constants.RESOURCE_UNIT_MB);
 
         ResourceRequirementsBuilder resourceRequirementsBuilder =
-                new ResourceRequirementsBuilder()
+                new ResourceRequirementsBuilder(resourceRequirements)
                         .addToRequests(Constants.RESOURCE_NAME_MEMORY, memQuantity)
                         .addToRequests(Constants.RESOURCE_NAME_CPU, cpuQuantity)
                         .addToLimits(Constants.RESOURCE_NAME_MEMORY, memQuantity)
@@ -429,6 +433,61 @@ public class KubernetesUtils {
     public static File getTaskManagerPodTemplateFileInPod() {
         return new File(
                 Constants.POD_TEMPLATE_DIR_IN_POD, Constants.TASK_MANAGER_POD_TEMPLATE_FILE_NAME);
+    }
+
+    /**
+     * Resolve the user defined value with the precedence. First an explicit config option value is
+     * taken, then the value in pod template and at last the default value of a config option if
+     * nothing is specified.
+     *
+     * @param flinkConfig flink configuration
+     * @param configOption the config option to define the Kubernetes fields
+     * @param valueOfConfigOptionOrDefault the value defined by explicit config option or default
+     * @param valueOfPodTemplate the value defined in the pod template
+     * @param fieldDescription Kubernetes fields description
+     * @param <T> The type of value associated with the configuration option.
+     * @return the resolved value
+     */
+    public static <T> String resolveUserDefinedValue(
+            Configuration flinkConfig,
+            ConfigOption<T> configOption,
+            String valueOfConfigOptionOrDefault,
+            @Nullable String valueOfPodTemplate,
+            String fieldDescription) {
+        final String resolvedValue;
+        if (valueOfPodTemplate != null) {
+            // The config option is explicitly set.
+            if (flinkConfig.contains(configOption)) {
+                resolvedValue = valueOfConfigOptionOrDefault;
+                LOG.info(
+                        "The {} configured in pod template will be overwritten to '{}' "
+                                + "because of explicitly configured options.",
+                        fieldDescription,
+                        resolvedValue);
+            } else {
+                resolvedValue = valueOfPodTemplate;
+            }
+        } else {
+            resolvedValue = valueOfConfigOptionOrDefault;
+        }
+        return resolvedValue;
+    }
+
+    /**
+     * Get the service account from the input pod first, if not specified, the service account name
+     * will be used.
+     *
+     * @param flinkPod the Flink pod to parse the service account
+     * @return the parsed service account
+     */
+    @Nullable
+    public static String getServiceAccount(FlinkPod flinkPod) {
+        final String serviceAccount =
+                flinkPod.getPodWithoutMainContainer().getSpec().getServiceAccount();
+        if (serviceAccount == null) {
+            return flinkPod.getPodWithoutMainContainer().getSpec().getServiceAccountName();
+        }
+        return serviceAccount;
     }
 
     private static String getJavaOpts(

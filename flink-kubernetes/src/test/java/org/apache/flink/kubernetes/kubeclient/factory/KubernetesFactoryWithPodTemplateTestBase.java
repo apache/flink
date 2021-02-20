@@ -31,9 +31,15 @@ import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
 import io.fabric8.kubernetes.api.model.Container;
+import io.fabric8.kubernetes.api.model.EnvVarBuilder;
+import io.fabric8.kubernetes.api.model.LocalObjectReference;
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.Toleration;
 import org.junit.Test;
 
+import java.util.stream.Collectors;
+
+import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
@@ -117,5 +123,70 @@ public abstract class KubernetesFactoryWithPodTemplateTestBase extends Kubernete
                 // The expected volume mount is defined in the
                 // test/resources/testing-pod-template.yaml.
                 hasItems(KubernetesPodTemplateTestUtils.createVolumeMount()));
+    }
+
+    @Test
+    public void testAnnotationsFromPodTemplate() {
+        assertThat(
+                resultPod.getMetadata().getAnnotations(),
+                // The expected annotation is defined in the
+                // test/resources/testing-pod-template.yaml.
+                hasEntry("annotation-key-of-pod-template", "annotation-value-of-pod-template"));
+    }
+
+    @Test
+    public void testLabelsFromPodTemplate() {
+        assertThat(
+                resultPod.getMetadata().getLabels(),
+                // The expected label is defined in the test/resources/testing-pod-template.yaml.
+                hasEntry("label-key-of-pod-template", "label-value-of-pod-template"));
+    }
+
+    @Test
+    public void testImagePullSecretsFromPodTemplate() {
+        assertThat(
+                resultPod.getSpec().getImagePullSecrets().stream()
+                        .map(LocalObjectReference::getName)
+                        .collect(Collectors.toList()),
+                // The expected image pull secret is defined in the
+                // test/resources/testing-pod-template.yaml.
+                hasItems("image-pull-secret-of-pod-template"));
+    }
+
+    @Test
+    public void testNodeSelectorsFromPodTemplate() {
+        assertThat(
+                resultPod.getSpec().getNodeSelector(),
+                // The expected node selector is defined in the
+                // test/resources/testing-pod-template.yaml.
+                hasEntry(
+                        "node-selector-key-of-pod-template",
+                        "node-selector-value-of-pod-template"));
+    }
+
+    @Test
+    public void testTolerationsFromPodTemplate() {
+        assertThat(
+                resultPod.getSpec().getTolerations().stream()
+                        .map(Toleration::getKey)
+                        .collect(Collectors.toList()),
+                // The expected toleration is defined in the
+                // test/resources/testing-pod-template.yaml.
+                hasItems("key2-of-pod-template"));
+    }
+
+    @Test
+    public void testEnvFromPodTemplate() {
+        final Container mainContainer =
+                KubernetesPodTemplateTestUtils.getContainerWithName(
+                        resultPod.getSpec(), Constants.MAIN_CONTAINER_NAME);
+        assertThat(
+                mainContainer.getEnv(),
+                // The expected env is defined in the test/resources/testing-pod-template.yaml.
+                hasItems(
+                        new EnvVarBuilder()
+                                .withName("ENV_OF_POD_TEMPLATE")
+                                .withValue("env-value-of-pod-template")
+                                .build()));
     }
 }
