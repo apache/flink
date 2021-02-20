@@ -39,7 +39,7 @@ Note that the streaming connectors are currently __NOT__ part of the binary dist
 
 The JDBC sink provides at-least-once guarantee.
 Effectively though, exactly-once can be achieved by crafting upsert SQL statements or idempotent SQL updates.
-Configuration goes as follow (see also [JdbcSink javadoc]{{ site.javadocs_baseurl }}/api/java/org/apache/flink/connector/jdbc/JdbcSink.html)):
+Configuration goes as follow (see also [JdbcSink javadoc]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/connector/jdbc/JdbcSink.html)):
 
 ```
 JdbcSink.sink(
@@ -66,11 +66,11 @@ It then repeatedly calls a user-provided function to update that prepared statem
 
 ### JDBC execution options
 
-The SQL DML statements are executed in batches, which can optionally be configured with the following instance (see also [JdbcExecutionOptions javadoc]{{ site.javadocs_baseurl }}(/api/java/org/apache/flink/connector/jdbc/JdbcExecutionOptions.html))
+The SQL DML statements are executed in batches, which can optionally be configured with the following instance (see also [JdbcExecutionOptions javadoc]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/connector/jdbc/JdbcExecutionOptions.html))
 
 ```
 JdbcExecutionOptions.builder()
-        .withBatchIntervalMs(200)             // optional: default = 0, meaning no time-based execution is done)
+        .withBatchIntervalMs(200)             // optional: default = 0, meaning no time-based execution is done
         .withBathSize(1000)                   // optional: default = 5000 values
         .withMaxRetries(5)                    // optional: default = 3 
 .build()
@@ -85,7 +85,7 @@ A JDBC batch is executed as soon as one of the following condition is true:
 ### JDBC connection parameters
 
 The connection to the database is configured with a `JdbcConnectionOptions` instance. 
-Please see [JdbcConnectionOptions javadoc]{{ site.javadocs_baseurl }}(/api/java/org/apache/flink/connector/jdbc/JdbcConnectionOptions.html) for details
+Please see [JdbcConnectionOptions javadoc]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/connector/jdbc/JdbcConnectionOptions.html) for details
 
 ### Full example
 
