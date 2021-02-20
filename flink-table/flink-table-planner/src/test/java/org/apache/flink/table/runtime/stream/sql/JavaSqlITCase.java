@@ -176,4 +176,55 @@ public class JavaSqlITCase extends AbstractTestBase {
 
         StreamITCase.compareWithList(expected);
     }
+
+    @Test
+    public void testImplicitConvertAtEqual() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        EnvironmentSettings settings = EnvironmentSettings.newInstance().useOldPlanner().build();
+        StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env, settings);
+        StreamITCase.clear();
+
+        DataStream<Tuple3<Integer, Long, String>> ds =
+                JavaStreamTestData.getSmall3TupleDataSet(env);
+        Table in = tableEnv.fromDataStream(ds, $("a"), $("b"), $("c"));
+        tableEnv.registerTable("MyTable", in);
+
+        String sqlQuery = "SELECT * FROM MyTable WHERE a = '1'";
+        Table result = tableEnv.sqlQuery(sqlQuery);
+
+        DataStream<Row> resultSet = tableEnv.toAppendStream(result, Row.class);
+        resultSet.addSink(new StreamITCase.StringSink<Row>());
+        env.execute();
+
+        List<String> expected = new ArrayList<>();
+        expected.add("1,1,Hi");
+
+        StreamITCase.compareWithList(expected);
+    }
+
+    @Test
+    public void testImplicitConvertAtNotEqual() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        EnvironmentSettings settings = EnvironmentSettings.newInstance().useOldPlanner().build();
+        StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env, settings);
+        StreamITCase.clear();
+
+        DataStream<Tuple3<Integer, Long, String>> ds =
+                JavaStreamTestData.getSmall3TupleDataSet(env);
+        Table in = tableEnv.fromDataStream(ds, $("a"), $("b"), $("c"));
+        tableEnv.registerTable("MyTable", in);
+
+        String sqlQuery = "SELECT * FROM MyTable WHERE a <> '1'";
+        Table result = tableEnv.sqlQuery(sqlQuery);
+
+        DataStream<Row> resultSet = tableEnv.toAppendStream(result, Row.class);
+        resultSet.addSink(new StreamITCase.StringSink<Row>());
+        env.execute();
+
+        List<String> expected = new ArrayList<>();
+        expected.add("2,2,Hello");
+        expected.add("3,2,Hello world");
+
+        StreamITCase.compareWithList(expected);
+    }
 }

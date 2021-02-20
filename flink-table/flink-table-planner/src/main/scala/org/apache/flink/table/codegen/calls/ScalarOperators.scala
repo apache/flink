@@ -266,10 +266,10 @@ object ScalarOperators {
     else {
       generateOperatorIfNotNull(nullCheck, BOOLEAN_TYPE_INFO, left, right) {
         if (isReference(left)) {
-          (leftTerm, rightTerm) => s"$leftTerm.equals($rightTerm)"
+          (leftTerm, rightTerm) => s"$leftTerm.equals(String.valueOf($rightTerm))"
         }
         else if (isReference(right)) {
-          (leftTerm, rightTerm) => s"$rightTerm.equals($leftTerm)"
+          (leftTerm, rightTerm) => s"$rightTerm.equals(String.valueOf($leftTerm))"
         }
         else {
           throw new CodeGenException(s"Incomparable types: ${left.resultType} and " +
@@ -314,10 +314,10 @@ object ScalarOperators {
     else {
       generateOperatorIfNotNull(nullCheck, BOOLEAN_TYPE_INFO, left, right) {
         if (isReference(left)) {
-          (leftTerm, rightTerm) => s"!($leftTerm.equals($rightTerm))"
+          (leftTerm, rightTerm) => s"!($leftTerm.equals(String.valueOf($rightTerm)))"
         }
         else if (isReference(right)) {
-          (leftTerm, rightTerm) => s"!($rightTerm.equals($leftTerm))"
+          (leftTerm, rightTerm) => s"!($rightTerm.equals(String.valueOf($leftTerm)))"
         }
         else {
           throw new CodeGenException(s"Incomparable types: ${left.resultType} and " +
