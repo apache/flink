@@ -64,8 +64,6 @@ public class KafkaSourceEnumerator
     private final Properties properties;
     private final long partitionDiscoveryIntervalMs;
     private final SplitEnumeratorContext<KafkaPartitionSplit> context;
-    private volatile boolean partitionDiscoveryFinished = false;
-    private final Set<Integer> finishedReaders;
 
     // The internal states of the enumerator.
     /**
@@ -87,6 +85,12 @@ public class KafkaSourceEnumerator
     private KafkaConsumer<byte[], byte[]> consumer;
     private AdminClient adminClient;
     private boolean noMoreNewPartitionSplits = false;
+
+    /**
+     * A set for storing reader IDs that should be signaled with NoMoreSplitsEvent after the first
+     * partition discovery.
+     */
+    private final Set<Integer> finishingReaders = new HashSet<>();
 
     public KafkaSourceEnumerator(
             KafkaSubscriber subscriber,
@@ -129,10 +133,8 @@ public class KafkaSourceEnumerator
                         Long::parseLong);
         if (partitionDiscoveryIntervalMs < 0) {
             LOG.debug("Partition discovery is disabled.");
-            noMoreNewPartitionSplits = true;
         }
         this.consumerGroupId = properties.getProperty(ConsumerConfig.GROUP_ID_CONFIG);
-        this.finishedReaders = new HashSet<>();
     }
 
     @Override
@@ -178,6 +180,7 @@ public class KafkaSourceEnumerator
                 subtaskId,
                 consumerGroupId);
         assignPendingPartitionSplits();
+        signalNoMoreSplitsOrAddToFinishingSet(subtaskId);
     }
 
     @Override
@@ -196,6 +199,21 @@ public class KafkaSourceEnumerator
     }
 
     // ----------------- private methods -------------------
+    private void signalNoMoreSplitsOrAddToFinishingSet(int subtaskId) {
+        if (noMoreNewPartitionSplits) {
+            // If partition discovery is disabled and the first discovery has finished, we can
+            // safely send NoMoreSplitsEvent to the reader.
+            context.signalNoMoreSplits(subtaskId);
+        } else {
+            if (partitionDiscoveryIntervalMs < 0) {
+                // This indicates that partition discovery is enabled but the first discovery has
+                // not been performed. We need to add it to finishing reader set and send
+                // NoMoreSplitsEvent later after first discovery and split assignment.
+                finishingReaders.add(subtaskId);
+            }
+        }
+    }
+
     private PartitionSplitChange discoverAndInitializePartitionSplit() {
         // Make a copy of the partitions to owners
         KafkaSubscriber.PartitionChange partitionChange =
@@ -230,8 +248,16 @@ public class KafkaSourceEnumerator
         }
         // TODO: Handle removed partitions.
         addPartitionSplitChangeToPendingAssignments(partitionSplitChange.newPartitionSplits);
-        partitionDiscoveryFinished = true;
+        if (partitionDiscoveryIntervalMs < 0) {
+            noMoreNewPartitionSplits = true;
+        }
         assignPendingPartitionSplits();
+        signalNoMoreSplitToFinishingReaders();
+    }
+
+    private void signalNoMoreSplitToFinishingReaders() {
+        finishingReaders.forEach(context::signalNoMoreSplits);
+        finishingReaders.clear();
     }
 
     // This method should only be invoked in the coordinator executor thread.
@@ -253,11 +279,6 @@ public class KafkaSourceEnumerator
 
     // This method should only be invoked in the coordinator executor thread.
     private void assignPendingPartitionSplits() {
-        // If partition discovery hasn't finished, we don't need to assign anything to readers.
-        if (!partitionDiscoveryFinished) {
-            return;
-        }
-
         Map<Integer, List<KafkaPartitionSplit>> incrementalAssignment = new HashMap<>();
         pendingPartitionSplitAssignment.forEach(
                 (ownerReader, pendingSplits) -> {
@@ -285,20 +306,6 @@ public class KafkaSourceEnumerator
                     // Clear the pending splits for the reader owner.
                     pendingPartitionSplitAssignment.remove(readerOwner);
                 });
-        if (noMoreNewPartitionSplits) {
-            signalNoMoreSplitsToNotNotifiedReaders();
-        }
-    }
-
-    private void signalNoMoreSplitsToNotNotifiedReaders() {
-        context.registeredReaders()
-                .forEach(
-                        (readerId, ignore) -> {
-                            if (!finishedReaders.contains(readerId)) {
-                                context.signalNoMoreSplits(readerId);
-                                finishedReaders.add(readerId);
-                            }
-                        });
     }
 
     private KafkaConsumer<byte[], byte[]> getKafkaConsumer() {
