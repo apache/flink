@@ -176,7 +176,9 @@ public class JdbcLookupFunction extends TableFunction<Row> {
                             collect(row);
                         }
                         rows.trimToSize();
-                        cache.put(keyRow, rows);
+                        if(rows.size() > 0) {
+                            cache.put(keyRow, rows);
+                        }
                     }
                 }
                 break;
