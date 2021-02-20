@@ -30,7 +30,6 @@ import org.apache.flink.kubernetes.kubeclient.decorators.FlinkConfMountDecorator
 import org.apache.flink.kubernetes.kubeclient.decorators.HadoopConfMountDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.InternalServiceDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.KerberosMountDecorator;
-import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
@@ -172,9 +171,7 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
         assertEquals(3, resultPodSpec.getVolumes().size());
 
         final Container resultedMainContainer = resultPodSpec.getContainers().get(0);
-        assertEquals(
-                KubernetesJobManagerParameters.JOB_MANAGER_MAIN_CONTAINER_NAME,
-                resultedMainContainer.getName());
+        assertEquals(Constants.MAIN_CONTAINER_NAME, resultedMainContainer.getName());
         assertEquals(CONTAINER_IMAGE, resultedMainContainer.getImage());
         assertEquals(
                 CONTAINER_IMAGE_PULL_POLICY.name(), resultedMainContainer.getImagePullPolicy());
