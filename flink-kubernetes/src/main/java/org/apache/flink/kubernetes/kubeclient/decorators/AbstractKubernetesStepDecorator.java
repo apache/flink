@@ -21,6 +21,8 @@ package org.apache.flink.kubernetes.kubeclient.decorators;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -31,6 +33,8 @@ import java.util.List;
  * features.
  */
 public abstract class AbstractKubernetesStepDecorator implements KubernetesStepDecorator {
+
+    protected final Logger logger = LoggerFactory.getLogger(this.getClass());
 
     /**
      * Apply transformations on the given FlinkPod in accordance to this feature. Note that we
