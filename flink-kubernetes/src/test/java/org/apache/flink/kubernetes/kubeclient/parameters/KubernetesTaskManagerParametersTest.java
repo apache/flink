@@ -160,4 +160,21 @@ public class KubernetesTaskManagerParametersTest extends KubernetesTestBase {
         expectedLabels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_TASK_MANAGER);
         assertThat(kubernetesTaskManagerParameters.getLabels(), is(equalTo(expectedLabels)));
     }
+
+    @Test
+    public void testGetServiceAccount() {
+        flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_SERVICE_ACCOUNT, "flink");
+        assertThat(kubernetesTaskManagerParameters.getServiceAccount(), is("flink"));
+    }
+
+    @Test
+    public void testGetServiceAccountFallback() {
+        flinkConfig.set(KubernetesConfigOptions.KUBERNETES_SERVICE_ACCOUNT, "flink-fallback");
+        assertThat(kubernetesTaskManagerParameters.getServiceAccount(), is("flink-fallback"));
+    }
+
+    @Test
+    public void testGetServiceAccountShouldReturnDefaultIfNotExplicitlySet() {
+        assertThat(kubernetesTaskManagerParameters.getServiceAccount(), is("default"));
+    }
 }

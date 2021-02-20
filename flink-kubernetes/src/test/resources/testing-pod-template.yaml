@@ -20,6 +20,12 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: pod-template
+  annotations:
+    a1: v1-pod-template
+    annotation-key-of-pod-template: annotation-value-of-pod-template
+  labels:
+    label1: value1-pod-template
+    label-key-of-pod-template: label-value-of-pod-template
 spec:
   initContainers:
     - name: artifacts-fetcher
@@ -32,6 +38,23 @@ spec:
   containers:
     # Do not change the main container name
     - name: testing-main-container
+      image: testing-main-container-image
+      imagePullPolicy: Always
+      resources:
+        requests:
+          # The cpu and memory resource will always be overwritten by Flink
+          cpu: 0.01
+          memory: 10Mi
+          ephemeral-storage: 256Mi
+        limits:
+          cpu: 0.01
+          memory: 10Mi
+          ephemeral-storage: 256Mi
+      env:
+        - name: ENV_OF_POD_TEMPLATE
+          value: env-value-of-pod-template
+        - name: key1
+          value: value1-of-pod-template
       volumeMounts:
         - mountPath: /opt/flink/volumes/hostpath
           name: flink-volume-hostpath
@@ -39,6 +62,10 @@ spec:
           name: flink-artifact
         - mountPath: /opt/flink/log
           name: flink-logs
+      ports:
+        - containerPort: 9999
+          name: testing-port
+          protocol: TCP
       # Use sidecar container to push logs to remote storage or do some other debugging things
     - name: sidecar-log-collector
       image: test-sidecar-image
@@ -46,6 +73,18 @@ spec:
       volumeMounts:
         - mountPath: /flink-logs
           name: flink-logs
+  restartPolicy: Always
+  serviceAccountName: service-account-of-pod-template
+  imagePullSecrets:
+    - name: image-pull-secret-of-pod-template
+  nodeSelector:
+    env: value-of-pod-template
+    node-selector-key-of-pod-template: node-selector-value-of-pod-template
+  tolerations:
+    - key: key2-of-pod-template
+      operator: Exists
+      effect: NoExecute
+      tolerationSeconds: 6000
   volumes:
     - name: flink-volume-hostpath
       hostPath:

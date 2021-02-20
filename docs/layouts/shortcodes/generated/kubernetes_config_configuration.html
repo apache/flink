@@ -118,7 +118,7 @@
         </tr>
         <tr>
             <td><h5>kubernetes.jobmanager.service-account</h5></td>
-            <td style="word-wrap: break-word;">(none)</td>
+            <td style="word-wrap: break-word;">"default"</td>
             <td>String</td>
             <td>Service account that is used by jobmanager within kubernetes cluster. The job manager uses this service account when requesting taskmanager pods from the API server. If not explicitly configured, config option 'kubernetes.service-account' will be used.</td>
         </tr>
@@ -202,7 +202,7 @@
         </tr>
         <tr>
             <td><h5>kubernetes.taskmanager.service-account</h5></td>
-            <td style="word-wrap: break-word;">(none)</td>
+            <td style="word-wrap: break-word;">"default"</td>
             <td>String</td>
             <td>Service account that is used by taskmanager within kubernetes cluster. The task manager uses this service account when watching config maps on the API server to retrieve leader address of jobmanager and resourcemanager. If not explicitly configured, config option 'kubernetes.service-account' will be used.</td>
         </tr>

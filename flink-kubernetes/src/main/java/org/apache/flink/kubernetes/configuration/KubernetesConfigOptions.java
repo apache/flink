@@ -61,7 +61,8 @@ public class KubernetesConfigOptions {
     public static final ConfigOption<String> JOB_MANAGER_SERVICE_ACCOUNT =
             key("kubernetes.jobmanager.service-account")
                     .stringType()
-                    .noDefaultValue()
+                    .defaultValue("default")
+                    .withFallbackKeys(KUBERNETES_SERVICE_ACCOUNT_KEY)
                     .withDescription(
                             "Service account that is used by jobmanager within kubernetes cluster. "
                                     + "The job manager uses this service account when requesting taskmanager pods from the API server. "
@@ -72,7 +73,8 @@ public class KubernetesConfigOptions {
     public static final ConfigOption<String> TASK_MANAGER_SERVICE_ACCOUNT =
             key("kubernetes.taskmanager.service-account")
                     .stringType()
-                    .noDefaultValue()
+                    .defaultValue("default")
+                    .withFallbackKeys(KUBERNETES_SERVICE_ACCOUNT_KEY)
                     .withDescription(
                             "Service account that is used by taskmanager within kubernetes cluster. "
                                     + "The task manager uses this service account when watching config maps on the API server to retrieve "

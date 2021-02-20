@@ -26,6 +26,7 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.kubernetes.KubernetesPodTemplateTestUtils;
 import org.apache.flink.kubernetes.KubernetesTestBase;
+import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.util.FlinkRuntimeException;
 
@@ -175,6 +176,44 @@ public class KubernetesUtilsTest extends KubernetesTestBase {
         assertThat(
                 flinkPod.getPodWithoutMainContainer().getSpec().getVolumes(),
                 containsInAnyOrder(KubernetesPodTemplateTestUtils.createVolumes()));
+    }
+
+    @Test
+    public void testResolveUserDefinedValueWithNotDefinedInPodTemplate() {
+        final String resolvedImage =
+                KubernetesUtils.resolveUserDefinedValue(
+                        flinkConfig,
+                        KubernetesConfigOptions.CONTAINER_IMAGE,
+                        CONTAINER_IMAGE,
+                        null,
+                        "container image");
+        assertThat(resolvedImage, is(CONTAINER_IMAGE));
+    }
+
+    @Test
+    public void testResolveUserDefinedValueWithDefinedInPodTemplateAndConfigOptionExplicitlySet() {
+        final String imageInPodTemplate = "image-in-pod-template:v1";
+        final String resolvedImage =
+                KubernetesUtils.resolveUserDefinedValue(
+                        flinkConfig,
+                        KubernetesConfigOptions.CONTAINER_IMAGE,
+                        CONTAINER_IMAGE,
+                        imageInPodTemplate,
+                        "container image");
+        assertThat(resolvedImage, is(CONTAINER_IMAGE));
+    }
+
+    @Test
+    public void testResolveUserDefinedValueWithDefinedInPodTemplateAndConfigOptionNotSet() {
+        final String imageInPodTemplate = "image-in-pod-template:v1";
+        final String resolvedImage =
+                KubernetesUtils.resolveUserDefinedValue(
+                        new Configuration(),
+                        KubernetesConfigOptions.CONTAINER_IMAGE,
+                        CONTAINER_IMAGE,
+                        imageInPodTemplate,
+                        "container image");
+        assertThat(resolvedImage, is(imageInPodTemplate));
     }
 
     private void testCheckAndUpdatePortConfigOption(
