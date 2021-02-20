@@ -43,7 +43,7 @@ public class MountSecretsDecorator extends AbstractKubernetesStepDecorator {
 
     @Override
     public FlinkPod decorateFlinkPod(FlinkPod flinkPod) {
-        final Pod podWithMount = decoratePod(flinkPod.getPod());
+        final Pod podWithMount = decoratePod(flinkPod.getPodWithoutMainContainer());
         final Container containerWithMount = decorateMainContainer(flinkPod.getMainContainer());
 
         return new FlinkPod.Builder(flinkPod)

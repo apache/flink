@@ -100,7 +100,9 @@ public class JavaCmdTaskManagerDecoratorTest extends KubernetesTaskManagerTestBa
     public void testWhetherContainerOrPodIsUpdated() {
         final FlinkPod resultFlinkPod =
                 javaCmdTaskManagerDecorator.decorateFlinkPod(this.baseFlinkPod);
-        assertEquals(this.baseFlinkPod.getPod(), resultFlinkPod.getPod());
+        assertEquals(
+                this.baseFlinkPod.getPodWithoutMainContainer(),
+                resultFlinkPod.getPodWithoutMainContainer());
         assertNotEquals(this.baseFlinkPod.getMainContainer(), resultFlinkPod.getMainContainer());
     }
 

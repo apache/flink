@@ -118,7 +118,7 @@ public class HadoopConfMountDecorator extends AbstractKubernetesStepDecorator {
         }
 
         final Pod podWithHadoopConf =
-                new PodBuilder(flinkPod.getPod())
+                new PodBuilder(flinkPod.getPodWithoutMainContainer())
                         .editOrNewSpec()
                         .addNewVolumeLike(hadoopConfVolume)
                         .endVolume()
