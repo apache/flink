@@ -21,7 +21,7 @@ package org.apache.flink.kubernetes.kubeclient.factory;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.kubernetes.KubernetesTestUtils;
 import org.apache.flink.kubernetes.kubeclient.KubernetesTaskManagerTestBase;
-import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesTaskManagerParameters;
+import org.apache.flink.kubernetes.utils.Constants;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -81,9 +81,7 @@ public class KubernetesTaskManagerFactoryTest extends KubernetesTaskManagerTestB
         assertEquals(1, resultContainers.size());
 
         final Container resultMainContainer = resultContainers.get(0);
-        assertEquals(
-                KubernetesTaskManagerParameters.TASK_MANAGER_MAIN_CONTAINER_NAME,
-                resultMainContainer.getName());
+        assertEquals(Constants.MAIN_CONTAINER_NAME, resultMainContainer.getName());
         assertEquals(CONTAINER_IMAGE, resultMainContainer.getImage());
         assertEquals(CONTAINER_IMAGE_PULL_POLICY.name(), resultMainContainer.getImagePullPolicy());
 

@@ -45,8 +45,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class KubernetesJobManagerParameters extends AbstractKubernetesParameters {
 
-    public static final String JOB_MANAGER_MAIN_CONTAINER_NAME = "flink-job-manager";
-
     private final ClusterSpecification clusterSpecification;
 
     public KubernetesJobManagerParameters(
@@ -105,10 +103,6 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
         return flinkConfig
                 .getOptional(KubernetesConfigOptions.REST_SERVICE_ANNOTATIONS)
                 .orElse(Collections.emptyMap());
-    }
-
-    public String getJobManagerMainContainerName() {
-        return JOB_MANAGER_MAIN_CONTAINER_NAME;
     }
 
     public int getJobManagerMemoryMB() {

@@ -88,7 +88,7 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
                         kubernetesTaskManagerParameters.getTaskManagerExternalResources());
 
         return new ContainerBuilder(container)
-                .withName(kubernetesTaskManagerParameters.getTaskManagerMainContainerName())
+                .withName(Constants.MAIN_CONTAINER_NAME)
                 .withImage(kubernetesTaskManagerParameters.getImage())
                 .withImagePullPolicy(kubernetesTaskManagerParameters.getImagePullPolicy().name())
                 .withResources(resourceRequirements)

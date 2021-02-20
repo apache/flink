@@ -28,6 +28,8 @@ public class Constants {
     public static final String CONFIG_FILE_LOGBACK_NAME = "logback-console.xml";
     public static final String CONFIG_FILE_LOG4J_NAME = "log4j-console.properties";
 
+    public static final String MAIN_CONTAINER_NAME = "flink-main-container";
+
     public static final String FLINK_CONF_VOLUME = "flink-config-volume";
     public static final String CONFIG_MAP_PREFIX = "flink-config-";
 
