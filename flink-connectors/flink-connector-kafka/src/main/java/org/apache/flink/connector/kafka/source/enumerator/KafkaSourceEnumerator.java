@@ -248,14 +248,15 @@ public class KafkaSourceEnumerator
         }
         // TODO: Handle removed partitions.
         addPartitionSplitChangeToPendingAssignments(partitionSplitChange.newPartitionSplits);
+        assignPendingPartitionSplits();
         if (partitionDiscoveryIntervalMs < 0) {
             noMoreNewPartitionSplits = true;
+            signalNoMoreSplitToFinishingReaders();
         }
-        assignPendingPartitionSplits();
-        signalNoMoreSplitToFinishingReaders();
     }
 
     private void signalNoMoreSplitToFinishingReaders() {
+        // Send NoMoreSplitsEvent to readers that are added before the first partition discovery
         finishingReaders.forEach(context::signalNoMoreSplits);
         finishingReaders.clear();
     }
