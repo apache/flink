@@ -129,7 +129,7 @@ CREATE TABLE user_created (
 ```
 
 ---
-Example of a table using the upsert connector with the Kafka value registered as an Avro record in the Schema Registry:
+Example of a table using the upsert-kafka connector with the Kafka value registered as an Avro record in the Schema Registry:
 
 ```sql
 CREATE TABLE user_created (

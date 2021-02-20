@@ -135,7 +135,7 @@ CREATE TABLE user_created (
 ```
 
 ---
-使用 upsert 连接器，Kafka 的 value 在 Schema Registry 中注册为 Avro 记录的表的示例：
+使用 upsert-kafka 连接器，Kafka 的 value 在 Schema Registry 中注册为 Avro 记录的表的示例：
 
 ```sql
 CREATE TABLE user_created (
