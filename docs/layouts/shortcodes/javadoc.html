@@ -21,6 +21,6 @@ under the License.
     Parmeters: 
         - name: The rendered link name (required)
 */}}
-<a href="{{ .Site.Params.JavaDoc }}">
+<a href="{{ .Site.Params.JavaDoc }}/{{ .Get "file" }}">
     {{ .Get "name" }}
 </a>
