@@ -19,11 +19,11 @@
 package org.apache.flink.runtime.scheduler.declarative;
 
 /**
- * Factory for creating state instances.
+ * Factory for creating declarative scheduler state instances.
  *
  * @param <T> Type of the state.
  */
-public interface StateFactory<T> {
+public interface StateFactory<T extends State> {
     Class<T> getStateClass();
 
     T getState();

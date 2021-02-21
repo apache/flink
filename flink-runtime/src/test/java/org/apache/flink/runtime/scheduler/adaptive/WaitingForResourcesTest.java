@@ -62,8 +62,9 @@ public class WaitingForResourcesTest extends TestLogger {
             new WaitingForResources(ctx, log, RESOURCE_COUNTER, Duration.ZERO);
             // run delayed actions
             for (ScheduledRunnable scheduledRunnable : ctx.getScheduledRunnables()) {
-                if (!ctx.hasStateTransition()) {
-                    scheduledRunnable.runAction();
+                scheduledRunnable.runAction();
+                if (ctx.hasStateTransition()) {
+                    break;
                 }
             }
         }

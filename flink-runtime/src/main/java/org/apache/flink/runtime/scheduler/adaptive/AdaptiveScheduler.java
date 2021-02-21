@@ -188,6 +188,10 @@ public class AdaptiveScheduler
 
     private final Duration resourceTimeout;
 
+    /**
+     * This field describes the current state of the scheduler. If it is "null", we are in a pending
+     * state transitions. Other state transitions are not allowed.
+     */
     private State state = new Created(this, LOG);
 
     public AdaptiveScheduler(
@@ -915,9 +919,9 @@ public class AdaptiveScheduler
 
     /** Note: Do not call this method from a State constructor. */
     @VisibleForTesting
-    <S extends State> void transitionToState(StateFactory<S> targetState) {
+    void transitionToState(StateFactory<?> targetState) {
         Preconditions.checkState(
-                state != null, "State transitions are now allowed while construcing a state.");
+                state != null, "State transitions are now allowed while constructing a state.");
         Preconditions.checkState(
                 state.getClass() != targetState.getStateClass(),
                 "Attempted to transition into the very state the scheduler is already in.");
@@ -928,20 +932,8 @@ public class AdaptiveScheduler
                 targetState.getStateClass().getSimpleName());
 
         State oldState = state;
+        state = null; // guard against state transitions in onLeave or state constructors.
         oldState.onLeave(targetState.getStateClass());
-
-        // Guard against state transitions while constructing state objects.
-        //
-        // Consider the following scenario:
-        // Scheduler is in state Restarting, once the cancellation is complete, we enter the
-        // transitionToState(WaitingForResources) method.
-        // In the constructor of WaitingForResources, we call `notifyNewResourcesAvailable()`, which
-        // finds resources and enters transitionsToState(Executing). We are in state Executing. Then
-        // we return from the methods and go back in our call stack to the
-        // transitionToState(WaitingForResources) call, where we overwrite Executing with
-        // WaitingForResources. And there we have it, a deployed execution graph, and a scheduler
-        // that is in WaitingForResources.
-        state = null;
         state = targetState.getState();
         LOG.debug("Setting state = {}", state);
     }

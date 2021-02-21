@@ -497,12 +497,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
         // safeguard for this test
         assertThat(state, instanceOf(Created.class));
 
-        transitionToState(scheduler, new Created.Factory(scheduler, log));
-    }
-
-    private static <S extends State> void transitionToState(
-            DeclarativeScheduler scheduler, StateFactory<S> targetState) {
-        scheduler.transitionToState(targetState);
+        scheduler.transitionToState(new Created.Factory(scheduler, log));
     }
 
     // ---------------------------------------------------------------------------------------------
