@@ -28,7 +28,7 @@ under the License.
 
 本节描述了在 Flink 中配置程序的并行执行。一个 Flink 程序由多个任务 task 组成（转换/算子、数据源和数据接收器）。一个 task 包括多个并行执行的实例，且每一个实例都处理 task 输入数据的一个子集。一个 task 的并行实例数被称为该 task 的 *并行度* (parallelism)。
 
-使用 [savepoints]({{< ref "docs/ops/state/savepoints" >}}) 时，应该考虑设置最大并行度。当作业从一个 savepoint 恢复时，你可以改变特定算子或着整个程序的并行度，并且此设置会限定整个程序的并行度的上限。由于在 Flink 内部将状态划分为了 key-groups，且性能所限不能无限制地增加 key-groups，因此设定最大并行度是有必要的。
+使用 [savepoints]({{< ref "docs/ops/state/savepoints" >}}) 时，应该考虑设置最大并行度。当作业从一个 savepoint 恢复时，你可以改变特定算子或者整个程序的并行度，并且此设置会限定整个程序的并行度的上限。由于在 Flink 内部将状态划分为了 key-groups，且性能所限不能无限制地增加 key-groups，因此设定最大并行度是有必要的。
 
 * toc
 
