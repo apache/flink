@@ -36,6 +36,8 @@ class DeduplicateFunctionHelper {
      * @param generateUpdateBefore whether need to send UPDATE_BEFORE message for updates
      * @param state state of function, null if generateUpdateBefore is false
      * @param out underlying collector
+     * @param isStateTtlEnabled whether state ttl is disabled
+     * @param equaliser the record equaliser used to equal RowData.
      */
     static void processLastRowOnProcTime(
             RowData currentRow,

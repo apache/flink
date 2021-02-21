@@ -42,13 +42,12 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunction
     private final boolean generateUpdateBefore;
     private final boolean generateInsert;
     private final boolean inputInsertOnly;
-    // function used to equal RowData
-    private transient RecordEqualiser equaliser;
-
+    private final boolean isStateTtlEnabled;
     // The code generated equaliser used to equal RowData.
     private final GeneratedRecordEqualiser genRecordEqualiser;
 
-    private final boolean isStateTtlEnabled;
+    // The record equaliser used to equal RowData.
+    private transient RecordEqualiser equaliser;
 
     public ProcTimeMiniBatchDeduplicateKeepLastRowFunction(
             InternalTypeInfo<RowData> typeInfo,
@@ -65,6 +64,13 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunction
         this.inputInsertOnly = inputInsertOnly;
         this.genRecordEqualiser = genRecordEqualiser;
         this.isStateTtlEnabled = stateRetentionTime > 0;
+    }
+
+    @Override
+    public void open(ExecutionContext ctx) throws Exception {
+        super.open(ctx);
+        equaliser =
+                genRecordEqualiser.newInstance(ctx.getRuntimeContext().getUserCodeClassLoader());
     }
 
     @Override
@@ -94,12 +100,5 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunction
                         currentRow, generateUpdateBefore, state, out, isStateTtlEnabled, equaliser);
             }
         }
-    }
-
-    @Override
-    public void open(ExecutionContext ctx) throws Exception {
-        super.open(ctx);
-        equaliser =
-                genRecordEqualiser.newInstance(ctx.getRuntimeContext().getUserCodeClassLoader());
     }
 }

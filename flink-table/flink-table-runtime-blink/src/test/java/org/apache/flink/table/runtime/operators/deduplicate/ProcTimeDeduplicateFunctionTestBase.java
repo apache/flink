@@ -52,7 +52,7 @@ abstract class ProcTimeDeduplicateFunctionTestBase {
     static GeneratedRecordEqualiser generatedEqualiser =
             new GeneratedRecordEqualiser("", "", new Object[0]) {
 
-                private static final long serialVersionUID = 8932260133849746733L;
+                private static final long serialVersionUID = 1L;
 
                 @Override
                 public RecordEqualiser newInstance(ClassLoader classLoader) {

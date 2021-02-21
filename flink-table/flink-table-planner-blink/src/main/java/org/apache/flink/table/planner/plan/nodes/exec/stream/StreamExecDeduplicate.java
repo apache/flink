@@ -275,13 +275,12 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
                 boolean keepLastRow,
                 boolean generateUpdateBefore) {
             super(tableConfig, rowTypeInfo, typeSerializer, keepLastRow, generateUpdateBefore);
-            final EqualiserCodeGenerator equaliserCodeGen =
-                    new EqualiserCodeGenerator(
-                            inputRowType.getFields().stream()
-                                    .map(RowType.RowField::getType)
-                                    .toArray(LogicalType[]::new));
             generatedEqualiser =
-                    equaliserCodeGen.generateRecordEqualiser("DeduplicateRowEqualiser");
+                    new EqualiserCodeGenerator(
+                                    inputRowType.getFields().stream()
+                                            .map(RowType.RowField::getType)
+                                            .toArray(LogicalType[]::new))
+                            .generateRecordEqualiser("DeduplicateRowEqualiser");
         }
 
         @Override
