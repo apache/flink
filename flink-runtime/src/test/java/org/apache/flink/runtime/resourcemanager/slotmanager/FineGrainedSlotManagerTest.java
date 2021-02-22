@@ -244,7 +244,7 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                     .addPendingTaskManager(
                                             new PendingTaskManager(
                                                     getDefaultTaskManagerResourceProfile(),
-                                                    getDefaultSlotResourceProfile()));
+                                                    getDefaultNumberSlotsPerWorker()));
                             // task manager with allocated slot cannot deduct pending task manager
                             getSlotManager()
                                     .registerTaskManager(
@@ -387,7 +387,7 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                         .addPendingTaskManagerAllocate(
                                                 new PendingTaskManager(
                                                         getDefaultTaskManagerResourceProfile(),
-                                                        getDefaultSlotResourceProfile()))
+                                                        getDefaultNumberSlotsPerWorker()))
                                         .build()));
                 runTest(
                         () -> {
@@ -405,7 +405,7 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
         final JobID jobId = new JobID();
         final PendingTaskManager pendingTaskManager =
                 new PendingTaskManager(
-                        getDefaultTaskManagerResourceProfile(), getDefaultSlotResourceProfile());
+                        getDefaultTaskManagerResourceProfile(), getDefaultNumberSlotsPerWorker());
         final CompletableFuture<
                         Tuple6<
                                 SlotID,

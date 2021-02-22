@@ -89,8 +89,7 @@ public class DefaultResourceAllocationStrategyTest extends TestLogger {
         final List<ResourceRequirement> requirements = new ArrayList<>();
         final ResourceProfile largeResource = DEFAULT_SLOT_RESOURCE.multiply(3);
         final PendingTaskManager pendingTaskManager =
-                new PendingTaskManager(
-                        DEFAULT_SLOT_RESOURCE.multiply(NUM_OF_SLOTS), DEFAULT_SLOT_RESOURCE);
+                new PendingTaskManager(DEFAULT_SLOT_RESOURCE.multiply(NUM_OF_SLOTS), NUM_OF_SLOTS);
         requirements.add(ResourceRequirement.create(largeResource, 1));
         requirements.add(ResourceRequirement.create(ResourceProfile.UNKNOWN, 7));
         pendingTaskManagers.add(pendingTaskManager);

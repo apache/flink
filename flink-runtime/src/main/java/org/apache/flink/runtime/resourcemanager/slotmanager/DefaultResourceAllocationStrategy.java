@@ -55,11 +55,13 @@ import static org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerUt
 public class DefaultResourceAllocationStrategy implements ResourceAllocationStrategy {
     private final ResourceProfile defaultSlotResourceProfile;
     private final ResourceProfile totalResourceProfile;
+    private final int numSlotsPerWorker;
 
     public DefaultResourceAllocationStrategy(
             ResourceProfile defaultSlotResourceProfile, int numSlotsPerWorker) {
         this.defaultSlotResourceProfile = defaultSlotResourceProfile;
         this.totalResourceProfile = defaultSlotResourceProfile.multiply(numSlotsPerWorker);
+        this.numSlotsPerWorker = numSlotsPerWorker;
     }
 
     @Override
@@ -212,8 +214,7 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
                     if (totalResourceProfile.allFieldsNoLessThan(effectiveProfile)) {
                         // Add new pending task manager
                         final PendingTaskManager pendingTaskManager =
-                                new PendingTaskManager(
-                                        totalResourceProfile, defaultSlotResourceProfile);
+                                new PendingTaskManager(totalResourceProfile, numSlotsPerWorker);
                         resultBuilder.addPendingTaskManagerAllocate(pendingTaskManager);
                         resultBuilder.addAllocationOnPendingResource(
                                 jobId,
