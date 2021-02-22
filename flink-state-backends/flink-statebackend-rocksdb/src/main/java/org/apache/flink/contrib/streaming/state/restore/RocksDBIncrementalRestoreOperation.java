@@ -46,6 +46,7 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.StateMigrationException;
 
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
@@ -88,6 +89,7 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 
     private final String operatorIdentifier;
     private final SortedMap<Long, Set<StateHandleID>> restoredSstFiles;
+    private final PriorityQueueFlag queueRestoreEnabled;
     private long lastCompletedCheckpointId;
     private UUID backendUID;
     private final long writeBatchSize;
@@ -109,7 +111,8 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
             MetricGroup metricGroup,
             @Nonnull Collection<KeyedStateHandle> restoreStateHandles,
             @Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
-            @Nonnegative long writeBatchSize) {
+            @Nonnegative long writeBatchSize,
+            PriorityQueueFlag queueRestoreEnabled) {
         super(
                 keyGroupRange,
                 keyGroupPrefixBytes,
@@ -130,6 +133,7 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
         this.restoredSstFiles = new TreeMap<>();
         this.lastCompletedCheckpointId = -1L;
         this.backendUID = UUID.randomUUID();
+        this.queueRestoreEnabled = queueRestoreEnabled;
         checkArgument(writeBatchSize >= 0, "Write batch size have to be no negative.");
         this.writeBatchSize = writeBatchSize;
     }
@@ -483,12 +487,20 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
      * meta data snapshot.
      */
     private List<ColumnFamilyDescriptor> createAndRegisterColumnFamilyDescriptors(
-            List<StateMetaInfoSnapshot> stateMetaInfoSnapshots, boolean registerTtlCompactFilter) {
+            List<StateMetaInfoSnapshot> stateMetaInfoSnapshots, boolean registerTtlCompactFilter)
+            throws StateMigrationException {
 
         List<ColumnFamilyDescriptor> columnFamilyDescriptors =
                 new ArrayList<>(stateMetaInfoSnapshots.size());
 
         for (StateMetaInfoSnapshot stateMetaInfoSnapshot : stateMetaInfoSnapshots) {
+            if (stateMetaInfoSnapshot.getBackendStateType()
+                            == StateMetaInfoSnapshot.BackendStateType.PRIORITY_QUEUE
+                    && queueRestoreEnabled == PriorityQueueFlag.THROW_ON_PRIORITY_QUEUE) {
+                throw new StateMigrationException(
+                        "Can not restore savepoint taken with RocksDB timers enabled with Heap timers!");
+            }
+
             RegisteredStateMetaInfoBase metaInfoBase =
                     RegisteredStateMetaInfoBase.fromMetaInfoSnapshot(stateMetaInfoSnapshot);
             ColumnFamilyDescriptor columnFamilyDescriptor =
