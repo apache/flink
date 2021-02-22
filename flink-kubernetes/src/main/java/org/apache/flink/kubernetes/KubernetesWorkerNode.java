@@ -19,7 +19,7 @@
 package org.apache.flink.kubernetes;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
+import org.apache.flink.runtime.resourcemanager.active.AbstractWorkerNode;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 
 import java.util.regex.Matcher;
@@ -28,9 +28,7 @@ import java.util.regex.Pattern;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** A stored Kubernetes worker, which contains the kubernetes pod. */
-public class KubernetesWorkerNode implements ResourceIDRetrievable {
-    private final ResourceID resourceID;
-
+public class KubernetesWorkerNode extends AbstractWorkerNode {
     /**
      * This pattern should be updated when {@link
      * KubernetesResourceManagerDriver#TASK_MANAGER_POD_FORMAT} changed.
@@ -39,21 +37,16 @@ public class KubernetesWorkerNode implements ResourceIDRetrievable {
             Pattern.compile("\\S+-taskmanager-([\\d]+)-([\\d]+)");
 
     KubernetesWorkerNode(ResourceID resourceID) {
-        this.resourceID = checkNotNull(resourceID);
-    }
-
-    @Override
-    public ResourceID getResourceID() {
-        return resourceID;
+        super(checkNotNull(resourceID), null);
     }
 
     public long getAttempt() throws ResourceManagerException {
-        Matcher matcher = TASK_MANAGER_POD_PATTERN.matcher(resourceID.toString());
+        Matcher matcher = TASK_MANAGER_POD_PATTERN.matcher(getResourceID().toString());
         if (matcher.find()) {
             return Long.parseLong(matcher.group(1));
         } else {
             throw new ResourceManagerException(
-                    "Error to parse KubernetesWorkerNode from " + resourceID + ".");
+                    "Error to parse KubernetesWorkerNode from " + getResourceID() + ".");
         }
     }
 }

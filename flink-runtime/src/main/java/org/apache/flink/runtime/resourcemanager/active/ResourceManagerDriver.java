@@ -20,7 +20,6 @@ package org.apache.flink.runtime.resourcemanager.active;
 
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
-import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 
@@ -33,7 +32,7 @@ import java.util.concurrent.Executor;
  * A {@link ResourceManagerDriver} is responsible for requesting and releasing resources from/to a
  * particular external resource manager.
  */
-public interface ResourceManagerDriver<WorkerType extends ResourceIDRetrievable> {
+public interface ResourceManagerDriver<WorkerType extends AbstractWorkerNode> {
 
     /**
      * Initialize the deployment specific components.

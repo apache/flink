@@ -84,14 +84,14 @@ public class ActiveResourceManagerTest extends TestLogger {
     public void testStartNewWorker() throws Exception {
         new Context() {
             {
-                final ResourceID tmResourceId = ResourceID.generate();
+                final TestingWorkerNode workerNode = new TestingWorkerNode();
                 final CompletableFuture<TaskExecutorProcessSpec> requestWorkerFromDriverFuture =
                         new CompletableFuture<>();
 
                 driverBuilder.setRequestResourceFunction(
                         taskExecutorProcessSpec -> {
                             requestWorkerFromDriverFuture.complete(taskExecutorProcessSpec);
-                            return CompletableFuture.completedFuture(tmResourceId);
+                            return CompletableFuture.completedFuture(workerNode);
                         });
 
                 runTest(
@@ -118,7 +118,7 @@ public class ActiveResourceManagerTest extends TestLogger {
 
                             // worker registered, verify registration succeeded
                             CompletableFuture<RegistrationResponse> registerTaskExecutorFuture =
-                                    registerTaskExecutor(tmResourceId);
+                                    registerTaskExecutor(workerNode.getResourceID());
                             assertThat(
                                     registerTaskExecutorFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
                                     instanceOf(RegistrationResponse.Success.class));
@@ -132,12 +132,13 @@ public class ActiveResourceManagerTest extends TestLogger {
     public void testStartNewWorkerFailedRequesting() throws Exception {
         new Context() {
             {
-                final ResourceID tmResourceId = ResourceID.generate();
+                final TestingWorkerNode workerNode = new TestingWorkerNode();
                 final AtomicInteger requestCount = new AtomicInteger(0);
 
-                final List<CompletableFuture<ResourceID>> resourceIdFutures = new ArrayList<>();
-                resourceIdFutures.add(new CompletableFuture<>());
-                resourceIdFutures.add(new CompletableFuture<>());
+                final List<CompletableFuture<TestingWorkerNode>> workerNodeFutures =
+                        new ArrayList<>();
+                workerNodeFutures.add(new CompletableFuture<>());
+                workerNodeFutures.add(new CompletableFuture<>());
 
                 final List<CompletableFuture<TaskExecutorProcessSpec>>
                         requestWorkerFromDriverFutures = new ArrayList<>();
@@ -152,7 +153,7 @@ public class ActiveResourceManagerTest extends TestLogger {
                             requestWorkerFromDriverFutures
                                     .get(idx)
                                     .complete(taskExecutorProcessSpec);
-                            return resourceIdFutures.get(idx);
+                            return workerNodeFutures.get(idx);
                         });
 
                 slotManagerBuilder.setGetRequiredResourcesSupplier(
@@ -184,7 +185,7 @@ public class ActiveResourceManagerTest extends TestLogger {
                             // first request failed, verify requesting another worker from driver
                             runInMainThread(
                                     () ->
-                                            resourceIdFutures
+                                            workerNodeFutures
                                                     .get(0)
                                                     .completeExceptionally(
                                                             new Throwable("testing error")));
@@ -196,9 +197,9 @@ public class ActiveResourceManagerTest extends TestLogger {
                             assertThat(taskExecutorProcessSpec2, is(taskExecutorProcessSpec1));
 
                             // second request allocated, verify registration succeed
-                            runInMainThread(() -> resourceIdFutures.get(1).complete(tmResourceId));
+                            runInMainThread(() -> workerNodeFutures.get(1).complete(workerNode));
                             CompletableFuture<RegistrationResponse> registerTaskExecutorFuture =
-                                    registerTaskExecutor(tmResourceId);
+                                    registerTaskExecutor(workerNode.getResourceID());
                             assertThat(
                                     registerTaskExecutorFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
                                     instanceOf(RegistrationResponse.Success.class));
@@ -214,9 +215,9 @@ public class ActiveResourceManagerTest extends TestLogger {
             {
                 final AtomicInteger requestCount = new AtomicInteger(0);
 
-                final List<ResourceID> tmResourceIds = new ArrayList<>();
-                tmResourceIds.add(ResourceID.generate());
-                tmResourceIds.add(ResourceID.generate());
+                final List<TestingWorkerNode> workerNodes = new ArrayList<>();
+                workerNodes.add(new TestingWorkerNode());
+                workerNodes.add(new TestingWorkerNode());
 
                 final List<CompletableFuture<TaskExecutorProcessSpec>>
                         requestWorkerFromDriverFutures = new ArrayList<>();
@@ -231,7 +232,7 @@ public class ActiveResourceManagerTest extends TestLogger {
                             requestWorkerFromDriverFutures
                                     .get(idx)
                                     .complete(taskExecutorProcessSpec);
-                            return CompletableFuture.completedFuture(tmResourceIds.get(idx));
+                            return CompletableFuture.completedFuture(workerNodes.get(idx));
                         });
 
                 slotManagerBuilder.setGetRequiredResourcesSupplier(
@@ -266,7 +267,7 @@ public class ActiveResourceManagerTest extends TestLogger {
                                     () ->
                                             getResourceManager()
                                                     .onWorkerTerminated(
-                                                            tmResourceIds.get(0),
+                                                            workerNodes.get(0).getResourceID(),
                                                             "terminate for testing"));
                             TaskExecutorProcessSpec taskExecutorProcessSpec2 =
                                     requestWorkerFromDriverFutures
@@ -277,7 +278,7 @@ public class ActiveResourceManagerTest extends TestLogger {
 
                             // second worker registered, verify registration succeed
                             CompletableFuture<RegistrationResponse> registerTaskExecutorFuture =
-                                    registerTaskExecutor(tmResourceIds.get(1));
+                                    registerTaskExecutor(workerNodes.get(1).getResourceID());
                             assertThat(
                                     registerTaskExecutorFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
                                     instanceOf(RegistrationResponse.Success.class));
@@ -293,9 +294,9 @@ public class ActiveResourceManagerTest extends TestLogger {
             {
                 final AtomicInteger requestCount = new AtomicInteger(0);
 
-                final List<ResourceID> tmResourceIds = new ArrayList<>();
-                tmResourceIds.add(ResourceID.generate());
-                tmResourceIds.add(ResourceID.generate());
+                final List<TestingWorkerNode> workerNodes = new ArrayList<>();
+                workerNodes.add(new TestingWorkerNode());
+                workerNodes.add(new TestingWorkerNode());
 
                 final List<CompletableFuture<TaskExecutorProcessSpec>>
                         requestWorkerFromDriverFutures = new ArrayList<>();
@@ -310,7 +311,7 @@ public class ActiveResourceManagerTest extends TestLogger {
                             requestWorkerFromDriverFutures
                                     .get(idx)
                                     .complete(taskExecutorProcessSpec);
-                            return CompletableFuture.completedFuture(tmResourceIds.get(idx));
+                            return CompletableFuture.completedFuture(workerNodes.get(idx));
                         });
 
                 slotManagerBuilder.setGetRequiredResourcesSupplier(
@@ -341,7 +342,7 @@ public class ActiveResourceManagerTest extends TestLogger {
 
                             // first worker registered, verify registration succeed
                             CompletableFuture<RegistrationResponse> registerTaskExecutorFuture1 =
-                                    registerTaskExecutor(tmResourceIds.get(0));
+                                    registerTaskExecutor(workerNodes.get(0).getResourceID());
                             assertThat(
                                     registerTaskExecutorFuture1.get(TIMEOUT_SEC, TimeUnit.SECONDS),
                                     instanceOf(RegistrationResponse.Success.class));
@@ -351,7 +352,7 @@ public class ActiveResourceManagerTest extends TestLogger {
                                     () ->
                                             getResourceManager()
                                                     .onWorkerTerminated(
-                                                            tmResourceIds.get(0),
+                                                            workerNodes.get(0).getResourceID(),
                                                             "terminate for testing"));
                             TaskExecutorProcessSpec taskExecutorProcessSpec2 =
                                     requestWorkerFromDriverFutures
@@ -362,7 +363,7 @@ public class ActiveResourceManagerTest extends TestLogger {
 
                             // second worker registered, verify registration succeed
                             CompletableFuture<RegistrationResponse> registerTaskExecutorFuture2 =
-                                    registerTaskExecutor(tmResourceIds.get(1));
+                                    registerTaskExecutor(workerNodes.get(1).getResourceID());
                             assertThat(
                                     registerTaskExecutorFuture2.get(TIMEOUT_SEC, TimeUnit.SECONDS),
                                     instanceOf(RegistrationResponse.Success.class));
@@ -376,7 +377,7 @@ public class ActiveResourceManagerTest extends TestLogger {
     public void testWorkerTerminatedNoLongerRequired() throws Exception {
         new Context() {
             {
-                final ResourceID tmResourceId = ResourceID.generate();
+                final TestingWorkerNode workerNode = new TestingWorkerNode();
                 final AtomicInteger requestCount = new AtomicInteger(0);
 
                 final List<CompletableFuture<TaskExecutorProcessSpec>>
@@ -392,7 +393,7 @@ public class ActiveResourceManagerTest extends TestLogger {
                             requestWorkerFromDriverFutures
                                     .get(idx)
                                     .complete(taskExecutorProcessSpec);
-                            return CompletableFuture.completedFuture(tmResourceId);
+                            return CompletableFuture.completedFuture(workerNode);
                         });
 
                 runTest(
@@ -420,7 +421,7 @@ public class ActiveResourceManagerTest extends TestLogger {
 
                             // worker registered, verify registration succeed
                             CompletableFuture<RegistrationResponse> registerTaskExecutorFuture =
-                                    registerTaskExecutor(tmResourceId);
+                                    registerTaskExecutor(workerNode.getResourceID());
                             assertThat(
                                     registerTaskExecutorFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
                                     instanceOf(RegistrationResponse.Success.class));
@@ -430,7 +431,7 @@ public class ActiveResourceManagerTest extends TestLogger {
                                             () -> {
                                                 getResourceManager()
                                                         .onWorkerTerminated(
-                                                                tmResourceId,
+                                                                workerNode.getResourceID(),
                                                                 "terminate for testing");
                                                 // needs to return something, so that we can use
                                                 // `get()` to make sure the main thread processing
@@ -448,7 +449,7 @@ public class ActiveResourceManagerTest extends TestLogger {
     public void testCloseTaskManagerConnectionOnWorkerTerminated() throws Exception {
         new Context() {
             {
-                final ResourceID tmResourceId = ResourceID.generate();
+                final TestingWorkerNode workerNode = new TestingWorkerNode();
                 final CompletableFuture<TaskExecutorProcessSpec> requestWorkerFromDriverFuture =
                         new CompletableFuture<>();
                 final CompletableFuture<Void> disconnectResourceManagerFuture =
@@ -463,7 +464,7 @@ public class ActiveResourceManagerTest extends TestLogger {
                 driverBuilder.setRequestResourceFunction(
                         taskExecutorProcessSpec -> {
                             requestWorkerFromDriverFuture.complete(taskExecutorProcessSpec);
-                            return CompletableFuture.completedFuture(tmResourceId);
+                            return CompletableFuture.completedFuture(workerNode);
                         });
 
                 runTest(
@@ -476,14 +477,16 @@ public class ActiveResourceManagerTest extends TestLogger {
                                     .thenCompose(
                                             (ignore) ->
                                                     registerTaskExecutor(
-                                                            tmResourceId, taskExecutorGateway))
+                                                            workerNode.getResourceID(),
+                                                            taskExecutorGateway))
                                     .thenRun(
                                             () ->
                                                     runInMainThread(
                                                             () ->
                                                                     getResourceManager()
                                                                             .onWorkerTerminated(
-                                                                                    tmResourceId,
+                                                                                    workerNode
+                                                                                            .getResourceID(),
                                                                                     "terminate for testing")));
                             // verify task manager connection is closed
                             disconnectResourceManagerFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
@@ -503,9 +506,9 @@ public class ActiveResourceManagerTest extends TestLogger {
 
                 final AtomicInteger requestCount = new AtomicInteger(0);
 
-                final List<ResourceID> tmResourceIds = new ArrayList<>();
-                tmResourceIds.add(ResourceID.generate());
-                tmResourceIds.add(ResourceID.generate());
+                final List<TestingWorkerNode> workerNodes = new ArrayList<>();
+                workerNodes.add(new TestingWorkerNode());
+                workerNodes.add(new TestingWorkerNode());
 
                 final List<CompletableFuture<Long>> requestWorkerFromDriverFutures =
                         new ArrayList<>();
@@ -520,7 +523,7 @@ public class ActiveResourceManagerTest extends TestLogger {
                             requestWorkerFromDriverFutures
                                     .get(idx)
                                     .complete(System.currentTimeMillis());
-                            return CompletableFuture.completedFuture(tmResourceIds.get(idx));
+                            return CompletableFuture.completedFuture(workerNodes.get(idx));
                         });
 
                 slotManagerBuilder.setGetRequiredResourcesSupplier(
@@ -548,7 +551,7 @@ public class ActiveResourceManagerTest extends TestLogger {
                                     () ->
                                             getResourceManager()
                                                     .onWorkerTerminated(
-                                                            tmResourceIds.get(0),
+                                                            workerNodes.get(0).getResourceID(),
                                                             "terminate for testing"));
                             long t2 =
                                     requestWorkerFromDriverFutures
@@ -562,7 +565,7 @@ public class ActiveResourceManagerTest extends TestLogger {
                                             TESTING_START_WORKER_INTERVAL.toMilliseconds()));
                             // second worker registered, verify registration succeed
                             CompletableFuture<RegistrationResponse> registerTaskExecutorFuture =
-                                    registerTaskExecutor(tmResourceIds.get(1));
+                                    registerTaskExecutor(workerNodes.get(1).getResourceID());
                             assertThat(
                                     registerTaskExecutorFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
                                     instanceOf(RegistrationResponse.Success.class));
@@ -581,11 +584,12 @@ public class ActiveResourceManagerTest extends TestLogger {
                         Duration.ofMillis(TESTING_START_WORKER_INTERVAL.toMilliseconds()));
 
                 final AtomicInteger requestCount = new AtomicInteger(0);
-                final ResourceID tmResourceId = ResourceID.generate();
+                final TestingWorkerNode workerNode = new TestingWorkerNode();
 
-                final List<CompletableFuture<ResourceID>> resourceIdFutures = new ArrayList<>();
-                resourceIdFutures.add(new CompletableFuture<>());
-                resourceIdFutures.add(new CompletableFuture<>());
+                final List<CompletableFuture<TestingWorkerNode>> workerNodeFutures =
+                        new ArrayList<>();
+                workerNodeFutures.add(new CompletableFuture<>());
+                workerNodeFutures.add(new CompletableFuture<>());
 
                 final List<CompletableFuture<Long>> requestWorkerFromDriverFutures =
                         new ArrayList<>();
@@ -600,7 +604,7 @@ public class ActiveResourceManagerTest extends TestLogger {
                             requestWorkerFromDriverFutures
                                     .get(idx)
                                     .complete(System.currentTimeMillis());
-                            return resourceIdFutures.get(idx);
+                            return workerNodeFutures.get(idx);
                         });
 
                 slotManagerBuilder.setGetRequiredResourcesSupplier(
@@ -625,7 +629,7 @@ public class ActiveResourceManagerTest extends TestLogger {
                             // first request failed, verify requesting another worker from driver
                             runInMainThread(
                                     () ->
-                                            resourceIdFutures
+                                            workerNodeFutures
                                                     .get(0)
                                                     .completeExceptionally(
                                                             new Throwable("testing error")));
@@ -641,9 +645,9 @@ public class ActiveResourceManagerTest extends TestLogger {
                                             TESTING_START_WORKER_INTERVAL.toMilliseconds()));
 
                             // second worker registered, verify registration succeed
-                            resourceIdFutures.get(1).complete(tmResourceId);
+                            workerNodeFutures.get(1).complete(workerNode);
                             CompletableFuture<RegistrationResponse> registerTaskExecutorFuture =
-                                    registerTaskExecutor(tmResourceId);
+                                    registerTaskExecutor(workerNode.getResourceID());
                             assertThat(
                                     registerTaskExecutorFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
                                     instanceOf(RegistrationResponse.Success.class));
@@ -657,7 +661,7 @@ public class ActiveResourceManagerTest extends TestLogger {
     public void testRecoverWorkerFromPreviousAttempt() throws Exception {
         new Context() {
             {
-                final ResourceID tmResourceId = ResourceID.generate();
+                final TestingWorkerNode workerNode = new TestingWorkerNode();
 
                 runTest(
                         () -> {
@@ -665,9 +669,9 @@ public class ActiveResourceManagerTest extends TestLogger {
                                     () ->
                                             getResourceManager()
                                                     .onPreviousAttemptWorkersRecovered(
-                                                            Collections.singleton(tmResourceId)));
+                                                            Collections.singleton(workerNode)));
                             CompletableFuture<RegistrationResponse> registerTaskExecutorFuture =
-                                    registerTaskExecutor(tmResourceId);
+                                    registerTaskExecutor(workerNode.getResourceID());
                             assertThat(
                                     registerTaskExecutorFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
                                     instanceOf(RegistrationResponse.Success.class));
@@ -718,10 +722,10 @@ public class ActiveResourceManagerTest extends TestLogger {
                 new TestingResourceManagerDriver.Builder();
         final TestingSlotManagerBuilder slotManagerBuilder = new TestingSlotManagerBuilder();
 
-        private ActiveResourceManager<ResourceID> resourceManager;
+        private ActiveResourceManager<TestingWorkerNode> resourceManager;
         private TestingFatalErrorHandler fatalErrorHandler;
 
-        ActiveResourceManager<ResourceID> getResourceManager() {
+        ActiveResourceManager<TestingWorkerNode> getResourceManager() {
             return resourceManager;
         }
 
@@ -744,9 +748,9 @@ public class ActiveResourceManagerTest extends TestLogger {
             }
         }
 
-        private ActiveResourceManager<ResourceID> createAndStartResourceManager(
+        private ActiveResourceManager<TestingWorkerNode> createAndStartResourceManager(
                 Configuration configuration,
-                ResourceManagerDriver<ResourceID> driver,
+                ResourceManagerDriver<TestingWorkerNode> driver,
                 SlotManager slotManager)
                 throws Exception {
             final TestingRpcService rpcService = RPC_SERVICE_RESOURCE.getTestingRpcService();
@@ -755,7 +759,7 @@ public class ActiveResourceManagerTest extends TestLogger {
             final Duration retryInterval =
                     configuration.get(ResourceManagerOptions.START_WORKER_RETRY_INTERVAL);
 
-            final ActiveResourceManager<ResourceID> activeResourceManager =
+            final ActiveResourceManager<TestingWorkerNode> activeResourceManager =
                     new ActiveResourceManager<>(
                             driver,
                             configuration,

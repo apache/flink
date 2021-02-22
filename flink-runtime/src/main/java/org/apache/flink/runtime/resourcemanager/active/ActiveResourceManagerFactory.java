@@ -27,7 +27,6 @@ import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -49,7 +48,7 @@ import java.util.concurrent.Executor;
  * Factory class for creating {@link ActiveResourceManager} with various implementations of {@link
  * ResourceManagerDriver}.
  */
-public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceIDRetrievable>
+public abstract class ActiveResourceManagerFactory<WorkerType extends AbstractWorkerNode>
         extends ResourceManagerFactory<WorkerType> {
 
     @Override

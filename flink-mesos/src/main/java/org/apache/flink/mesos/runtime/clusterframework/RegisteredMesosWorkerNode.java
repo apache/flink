@@ -19,8 +19,7 @@
 package org.apache.flink.mesos.runtime.clusterframework;
 
 import org.apache.flink.mesos.runtime.clusterframework.store.MesosWorkerStore;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
+import org.apache.flink.runtime.resourcemanager.active.AbstractWorkerNode;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
@@ -28,25 +27,24 @@ import java.io.Serializable;
 /**
  * A representation of a registered Mesos task managed by the {@link MesosResourceManagerDriver}.
  */
-public class RegisteredMesosWorkerNode implements Serializable, ResourceIDRetrievable {
+public class RegisteredMesosWorkerNode extends AbstractWorkerNode implements Serializable {
 
-    private static final long serialVersionUID = 2;
+    private static final long serialVersionUID = 3;
 
     private final MesosWorkerStore.Worker worker;
 
     public RegisteredMesosWorkerNode(MesosWorkerStore.Worker worker) {
-        this.worker = Preconditions.checkNotNull(worker);
+        super(
+                MesosResourceManagerDriver.extractResourceID(
+                        Preconditions.checkNotNull(worker).taskID()),
+                null);
+        this.worker = worker;
         Preconditions.checkArgument(worker.slaveID().isDefined());
         Preconditions.checkArgument(worker.hostname().isDefined());
     }
 
     public MesosWorkerStore.Worker getWorker() {
         return worker;
-    }
-
-    @Override
-    public ResourceID getResourceID() {
-        return MesosResourceManagerDriver.extractResourceID(worker.taskID());
     }
 
     @Override

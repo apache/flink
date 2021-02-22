@@ -16,25 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.yarn;
+package org.apache.flink.runtime.resourcemanager.active;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.resourcemanager.active.AbstractWorkerNode;
-import org.apache.flink.util.Preconditions;
 
-import org.apache.hadoop.yarn.api.records.Container;
+/** Testing implementation of {@link AbstractWorkerNode}. */
+public class TestingWorkerNode extends AbstractWorkerNode {
 
-/** A stored YARN worker, which contains the YARN container. */
-public class YarnWorkerNode extends AbstractWorkerNode {
-
-    private final Container container;
-
-    public YarnWorkerNode(Container container, ResourceID resourceID) {
-        super(Preconditions.checkNotNull(resourceID), null);
-        this.container = Preconditions.checkNotNull(container);
-    }
-
-    public Container getContainer() {
-        return container;
+    public TestingWorkerNode() {
+        super(ResourceID.generate(), null);
     }
 }

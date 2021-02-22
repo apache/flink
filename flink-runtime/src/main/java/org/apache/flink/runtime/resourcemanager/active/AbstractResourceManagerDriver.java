@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.resourcemanager.active;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.util.Preconditions;
 
@@ -29,7 +28,7 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.Executor;
 
 /** Abstract common base class for implementations of {@link ResourceManagerDriver}. */
-public abstract class AbstractResourceManagerDriver<WorkerType extends ResourceIDRetrievable>
+public abstract class AbstractResourceManagerDriver<WorkerType extends AbstractWorkerNode>
         implements ResourceManagerDriver<WorkerType> {
 
     protected final Logger log = LoggerFactory.getLogger(getClass());

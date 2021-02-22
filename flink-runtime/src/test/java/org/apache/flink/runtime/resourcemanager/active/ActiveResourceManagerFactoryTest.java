@@ -23,7 +23,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServicesConfiguration;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.TestLogger;
@@ -97,8 +96,8 @@ public class ActiveResourceManagerFactoryTest extends TestLogger {
         assertFalse(effectiveConfig.contains(TaskManagerOptions.TOTAL_PROCESS_MEMORY));
     }
 
-    private static ActiveResourceManagerFactory<ResourceID> getFactory() {
-        return new ActiveResourceManagerFactory<ResourceID>() {
+    private static ActiveResourceManagerFactory<TestingWorkerNode> getFactory() {
+        return new ActiveResourceManagerFactory<TestingWorkerNode>() {
             @Override
             protected ResourceManagerRuntimeServicesConfiguration
                     createResourceManagerRuntimeServicesConfiguration(Configuration configuration)
@@ -107,7 +106,7 @@ public class ActiveResourceManagerFactoryTest extends TestLogger {
             }
 
             @Override
-            protected ResourceManagerDriver<ResourceID> createResourceManagerDriver(
+            protected ResourceManagerDriver<TestingWorkerNode> createResourceManagerDriver(
                     Configuration configuration,
                     @Nullable String webInterfaceUrl,
                     String rpcAddress)

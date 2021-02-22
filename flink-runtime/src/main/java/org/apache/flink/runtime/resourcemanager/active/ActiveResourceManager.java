@@ -26,7 +26,6 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
@@ -66,7 +65,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * management frameworks. With different {@link ResourceManagerDriver} provided, this resource
  * manager can work with various frameworks.
  */
-public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
+public class ActiveResourceManager<WorkerType extends AbstractWorkerNode>
         extends ResourceManager<WorkerType> implements ResourceEventHandler<WorkerType> {
 
     protected final Configuration flinkConfig;

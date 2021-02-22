@@ -19,12 +19,11 @@
 package org.apache.flink.runtime.resourcemanager.active;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
 
 import java.util.Collection;
 
 /** Callback interfaces for handling resource events from external resource managers. */
-public interface ResourceEventHandler<WorkerType extends ResourceIDRetrievable> {
+public interface ResourceEventHandler<WorkerType extends AbstractWorkerNode> {
 
     /**
      * Notifies that workers of previous attempt have been recovered from the external resource

@@ -20,7 +20,6 @@ package org.apache.flink.runtime.resourcemanager.active;
 
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.BiConsumerWithException;
@@ -35,21 +34,25 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /** Testing implementation of {@link ResourceManagerDriver}. */
-public class TestingResourceManagerDriver implements ResourceManagerDriver<ResourceID> {
+public class TestingResourceManagerDriver implements ResourceManagerDriver<TestingWorkerNode> {
 
     private final TriFunctionWithException<
-                    ResourceEventHandler<ResourceID>, ScheduledExecutor, Executor, Void, Exception>
+                    ResourceEventHandler<TestingWorkerNode>,
+                    ScheduledExecutor,
+                    Executor,
+                    Void,
+                    Exception>
             initializeFunction;
     private final Supplier<CompletableFuture<Void>> terminateSupplier;
     private final BiConsumerWithException<ApplicationStatus, String, Exception>
             deregisterApplicationConsumer;
-    private final Function<TaskExecutorProcessSpec, CompletableFuture<ResourceID>>
+    private final Function<TaskExecutorProcessSpec, CompletableFuture<TestingWorkerNode>>
             requestResourceFunction;
-    private final Consumer<ResourceID> releaseResourceConsumer;
+    private final Consumer<TestingWorkerNode> releaseResourceConsumer;
 
     private TestingResourceManagerDriver(
             final TriFunctionWithException<
-                            ResourceEventHandler<ResourceID>,
+                            ResourceEventHandler<TestingWorkerNode>,
                             ScheduledExecutor,
                             Executor,
                             Void,
@@ -58,9 +61,9 @@ public class TestingResourceManagerDriver implements ResourceManagerDriver<Resou
             final Supplier<CompletableFuture<Void>> terminateSupplier,
             final BiConsumerWithException<ApplicationStatus, String, Exception>
                     deregisterApplicationConsumer,
-            final Function<TaskExecutorProcessSpec, CompletableFuture<ResourceID>>
+            final Function<TaskExecutorProcessSpec, CompletableFuture<TestingWorkerNode>>
                     requestResourceFunction,
-            final Consumer<ResourceID> releaseResourceConsumer) {
+            final Consumer<TestingWorkerNode> releaseResourceConsumer) {
         this.initializeFunction = Preconditions.checkNotNull(initializeFunction);
         this.terminateSupplier = Preconditions.checkNotNull(terminateSupplier);
         this.deregisterApplicationConsumer =
@@ -71,7 +74,7 @@ public class TestingResourceManagerDriver implements ResourceManagerDriver<Resou
 
     @Override
     public void initialize(
-            ResourceEventHandler<ResourceID> resourceEventHandler,
+            ResourceEventHandler<TestingWorkerNode> resourceEventHandler,
             ScheduledExecutor mainThreadExecutor,
             Executor ioExecutor)
             throws Exception {
@@ -90,19 +93,19 @@ public class TestingResourceManagerDriver implements ResourceManagerDriver<Resou
     }
 
     @Override
-    public CompletableFuture<ResourceID> requestResource(
+    public CompletableFuture<TestingWorkerNode> requestResource(
             TaskExecutorProcessSpec taskExecutorProcessSpec) {
         return requestResourceFunction.apply(taskExecutorProcessSpec);
     }
 
     @Override
-    public void releaseResource(ResourceID worker) {
+    public void releaseResource(TestingWorkerNode worker) {
         releaseResourceConsumer.accept(worker);
     }
 
     public static class Builder {
         private TriFunctionWithException<
-                        ResourceEventHandler<ResourceID>,
+                        ResourceEventHandler<TestingWorkerNode>,
                         ScheduledExecutor,
                         Executor,
                         Void,
@@ -115,15 +118,15 @@ public class TestingResourceManagerDriver implements ResourceManagerDriver<Resou
         private BiConsumerWithException<ApplicationStatus, String, Exception>
                 deregisterApplicationConsumer = (ignore1, ignore2) -> {};
 
-        private Function<TaskExecutorProcessSpec, CompletableFuture<ResourceID>>
+        private Function<TaskExecutorProcessSpec, CompletableFuture<TestingWorkerNode>>
                 requestResourceFunction =
-                        (ignore) -> CompletableFuture.completedFuture(ResourceID.generate());
+                        (ignore) -> CompletableFuture.completedFuture(new TestingWorkerNode());
 
-        private Consumer<ResourceID> releaseResourceConsumer = (ignore) -> {};
+        private Consumer<TestingWorkerNode> releaseResourceConsumer = (ignore) -> {};
 
         public Builder setInitializeFunction(
                 TriFunctionWithException<
-                                ResourceEventHandler<ResourceID>,
+                                ResourceEventHandler<TestingWorkerNode>,
                                 ScheduledExecutor,
                                 Executor,
                                 Void,
@@ -147,13 +150,14 @@ public class TestingResourceManagerDriver implements ResourceManagerDriver<Resou
         }
 
         public Builder setRequestResourceFunction(
-                Function<TaskExecutorProcessSpec, CompletableFuture<ResourceID>>
+                Function<TaskExecutorProcessSpec, CompletableFuture<TestingWorkerNode>>
                         requestResourceFunction) {
             this.requestResourceFunction = Preconditions.checkNotNull(requestResourceFunction);
             return this;
         }
 
-        public Builder setReleaseResourceConsumer(Consumer<ResourceID> releaseResourceConsumer) {
+        public Builder setReleaseResourceConsumer(
+                Consumer<TestingWorkerNode> releaseResourceConsumer) {
             this.releaseResourceConsumer = Preconditions.checkNotNull(releaseResourceConsumer);
             return this;
         }

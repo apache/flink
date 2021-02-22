@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.resourcemanager.active;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
@@ -27,7 +26,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /** Testing implementation of {@link ResourceEventHandler}. */
-public class TestingResourceEventHandler<WorkerType extends ResourceIDRetrievable>
+public class TestingResourceEventHandler<WorkerType extends AbstractWorkerNode>
         implements ResourceEventHandler<WorkerType> {
 
     private final Consumer<Collection<WorkerType>> onPreviousAttemptWorkersRecoveredConsumer;
@@ -58,12 +57,12 @@ public class TestingResourceEventHandler<WorkerType extends ResourceIDRetrievabl
         onErrorConsumer.accept(exception);
     }
 
-    public static <WorkerType extends ResourceIDRetrievable> Builder<WorkerType> builder() {
+    public static <WorkerType extends AbstractWorkerNode> Builder<WorkerType> builder() {
         return new Builder<>();
     }
 
     /** Builder class for {@link TestingResourceEventHandler}. */
-    public static class Builder<WorkerType extends ResourceIDRetrievable> {
+    public static class Builder<WorkerType extends AbstractWorkerNode> {
         private Consumer<Collection<WorkerType>> onPreviousAttemptWorkersRecoveredConsumer =
                 (ignore) -> {};
         private BiConsumer<ResourceID, String> onWorkerTerminatedConsumer =

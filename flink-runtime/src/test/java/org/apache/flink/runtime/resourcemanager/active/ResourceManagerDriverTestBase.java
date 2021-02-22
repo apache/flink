@@ -22,7 +22,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
-import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
@@ -42,7 +41,7 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
 /** Common test cases for implementations of {@link ResourceManagerDriver}. */
-public abstract class ResourceManagerDriverTestBase<WorkerType extends ResourceIDRetrievable>
+public abstract class ResourceManagerDriverTestBase<WorkerType extends AbstractWorkerNode>
         extends TestLogger {
 
     protected static final long TIMEOUT_SEC = 5L;
