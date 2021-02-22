@@ -62,6 +62,13 @@ public class ResourceTest extends TestLogger {
     }
 
     @Test
+    public void testHashCodeIgnoringScale() {
+        final Resource v1 = new TestResource(new BigDecimal("0.1"));
+        final Resource v2 = new TestResource(new BigDecimal("0.10"));
+        assertTrue(v1.hashCode() == v2.hashCode());
+    }
+
+    @Test
     public void testMerge() {
         final Resource v1 = new TestResource(0.1);
         final Resource v2 = new TestResource(0.2);
