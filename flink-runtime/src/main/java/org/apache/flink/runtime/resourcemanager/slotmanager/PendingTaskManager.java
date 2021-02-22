@@ -28,12 +28,10 @@ public class PendingTaskManager {
     private final ResourceProfile defaultSlotResourceProfile;
 
     public PendingTaskManager(
-            PendingTaskManagerId pendingTaskManagerId,
-            ResourceProfile totalResourceProfile,
-            ResourceProfile defaultSlotResourceProfile) {
+            ResourceProfile totalResourceProfile, ResourceProfile defaultSlotResourceProfile) {
         this.defaultSlotResourceProfile = Preconditions.checkNotNull(defaultSlotResourceProfile);
         this.totalResourceProfile = Preconditions.checkNotNull(totalResourceProfile);
-        this.pendingTaskManagerId = Preconditions.checkNotNull(pendingTaskManagerId);
+        this.pendingTaskManagerId = PendingTaskManagerId.generate();
     }
 
     public ResourceProfile getTotalResourceProfile() {

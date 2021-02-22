@@ -88,14 +88,12 @@ public class DefaultResourceAllocationStrategyTest extends TestLogger {
         final JobID jobId = new JobID();
         final List<ResourceRequirement> requirements = new ArrayList<>();
         final ResourceProfile largeResource = DEFAULT_SLOT_RESOURCE.multiply(3);
-        final PendingTaskManagerId pendingTaskManagerId = PendingTaskManagerId.generate();
+        final PendingTaskManager pendingTaskManager =
+                new PendingTaskManager(
+                        DEFAULT_SLOT_RESOURCE.multiply(NUM_OF_SLOTS), DEFAULT_SLOT_RESOURCE);
         requirements.add(ResourceRequirement.create(largeResource, 1));
         requirements.add(ResourceRequirement.create(ResourceProfile.UNKNOWN, 7));
-        pendingTaskManagers.add(
-                new PendingTaskManager(
-                        pendingTaskManagerId,
-                        DEFAULT_SLOT_RESOURCE.multiply(NUM_OF_SLOTS),
-                        DEFAULT_SLOT_RESOURCE));
+        pendingTaskManagers.add(pendingTaskManager);
 
         final ResourceAllocationResult result =
                 STRATEGY.tryFulfillRequirements(
@@ -110,7 +108,7 @@ public class DefaultResourceAllocationStrategyTest extends TestLogger {
         ResourceCounter allFulfilledRequirements = ResourceCounter.empty();
         for (Map.Entry<ResourceProfile, Integer> resourceWithCount :
                 result.getAllocationsOnPendingResources()
-                        .get(pendingTaskManagerId)
+                        .get(pendingTaskManager.getPendingTaskManagerId())
                         .get(jobId)
                         .getResourcesWithCount()) {
             allFulfilledRequirements =
