@@ -45,6 +45,15 @@ public final class RocksDBTestUtils {
     public static <K> RocksDBKeyedStateBackendBuilder<K> builderForTestDefaults(
             File instanceBasePath, TypeSerializer<K> keySerializer) {
 
+        return builderForTestDefaults(
+                instanceBasePath, keySerializer, RocksDBStateBackend.PriorityQueueStateType.HEAP);
+    }
+
+    public static <K> RocksDBKeyedStateBackendBuilder<K> builderForTestDefaults(
+            File instanceBasePath,
+            TypeSerializer<K> keySerializer,
+            RocksDBStateBackend.PriorityQueueStateType queueStateType) {
+
         final RocksDBResourceContainer optionsContainer = new RocksDBResourceContainer();
 
         return new RocksDBKeyedStateBackendBuilder<>(
@@ -59,7 +68,7 @@ public final class RocksDBTestUtils {
                 new KeyGroupRange(0, 1),
                 new ExecutionConfig(),
                 TestLocalRecoveryConfig.disabled(),
-                RocksDBStateBackend.PriorityQueueStateType.HEAP,
+                queueStateType,
                 TtlTimeProvider.DEFAULT,
                 new UnregisteredMetricsGroup(),
                 Collections.emptyList(),
