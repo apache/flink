@@ -17,8 +17,12 @@
 
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
+import org.apache.flink.api.common.resources.CPUResource;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceSpec;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -30,7 +34,7 @@ import static org.junit.Assert.assertThat;
 /** Tests for the {@link SlotManagerUtils}. */
 public class SlotManagerUtilsTest extends TestLogger {
     @Test
-    public void testGenerateDefaultSlotProfile() {
+    public void testGenerateDefaultSlotProfileFromWorkerResourceSpec() {
         final int numSlots = 5;
         final ResourceProfile resourceProfile =
                 ResourceProfile.newBuilder()
@@ -52,6 +56,60 @@ public class SlotManagerUtilsTest extends TestLogger {
         assertThat(
                 SlotManagerUtils.generateDefaultSlotResourceProfile(workerResourceSpec, numSlots),
                 is(resourceProfile));
+    }
+
+    @Test
+    public void testGenerateDefaultSlotProfileFromTotalResourceProfile() {
+        final int numSlots = 5;
+        final ResourceProfile resourceProfile =
+                ResourceProfile.newBuilder()
+                        .setCpuCores(1.0)
+                        .setTaskHeapMemoryMB(1)
+                        .setTaskOffHeapMemoryMB(2)
+                        .setNetworkMemoryMB(3)
+                        .setManagedMemoryMB(4)
+                        .build();
+        final ResourceProfile totalResourceProfile =
+                ResourceProfile.newBuilder()
+                        .setCpuCores(1.0 * numSlots)
+                        .setTaskHeapMemoryMB(1 * numSlots)
+                        .setTaskOffHeapMemoryMB(2 * numSlots)
+                        .setNetworkMemoryMB(3 * numSlots)
+                        .setManagedMemoryMB(4 * numSlots)
+                        .build();
+
+        assertThat(
+                SlotManagerUtils.generateDefaultSlotResourceProfile(totalResourceProfile, numSlots),
+                is(resourceProfile));
+    }
+
+    @Test
+    public void testGenerateDefaultSlotConsistentWithTaskExecutorResourceUtils() {
+        final int numSlots = 5;
+        final TaskExecutorResourceSpec taskExecutorResourceSpec =
+                new TaskExecutorResourceSpec(
+                        new CPUResource(1.0),
+                        MemorySize.parse("1m"),
+                        MemorySize.parse("2m"),
+                        MemorySize.parse("3m"),
+                        MemorySize.parse("4m"));
+
+        final ResourceProfile resourceProfileFromTaskExecutorResourceUtils =
+                TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(
+                        taskExecutorResourceSpec, numSlots);
+
+        final ResourceProfile totalResourceProfile =
+                TaskExecutorResourceUtils.generateTotalAvailableResourceProfile(
+                        taskExecutorResourceSpec);
+        final WorkerResourceSpec workerResourceSpec =
+                WorkerResourceSpec.fromTotalResourceProfile(totalResourceProfile);
+
+        assertThat(
+                SlotManagerUtils.generateDefaultSlotResourceProfile(totalResourceProfile, numSlots),
+                is(resourceProfileFromTaskExecutorResourceUtils));
+        assertThat(
+                SlotManagerUtils.generateDefaultSlotResourceProfile(workerResourceSpec, numSlots),
+                is(resourceProfileFromTaskExecutorResourceUtils));
     }
 
     @Test

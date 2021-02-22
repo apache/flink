@@ -83,7 +83,7 @@ public class FineGrainedTaskManagerTrackerTest extends TestLogger {
     @Test
     public void testAddAndRemovePendingTaskManager() {
         final PendingTaskManager pendingTaskManager =
-                new PendingTaskManager(ResourceProfile.ANY, ResourceProfile.ANY);
+                new PendingTaskManager(ResourceProfile.ANY, 1);
         final FineGrainedTaskManagerTracker taskManagerTracker =
                 new FineGrainedTaskManagerTracker();
         final JobID jobId = new JobID();
@@ -246,9 +246,9 @@ public class FineGrainedTaskManagerTrackerTest extends TestLogger {
         final FineGrainedTaskManagerTracker taskManagerTracker =
                 new FineGrainedTaskManagerTracker();
         final PendingTaskManager pendingTaskManager1 =
-                new PendingTaskManager(ResourceProfile.ANY, ResourceProfile.ANY);
+                new PendingTaskManager(ResourceProfile.ANY, 1);
         final PendingTaskManager pendingTaskManager2 =
-                new PendingTaskManager(ResourceProfile.ANY, ResourceProfile.ANY);
+                new PendingTaskManager(ResourceProfile.ANY, 1);
         final JobID jobId = new JobID();
         final ResourceCounter resourceCounter =
                 ResourceCounter.withResource(ResourceProfile.ANY, 1);

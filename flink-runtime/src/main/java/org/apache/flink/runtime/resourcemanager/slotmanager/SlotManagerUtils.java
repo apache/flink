@@ -22,6 +22,11 @@ import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 
 /** Utilities for {@link SlotManager} implementations. */
 public class SlotManagerUtils {
+
+    /**
+     * This must be consist with {@link
+     * org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils#generateDefaultSlotResourceProfile}.
+     */
     public static ResourceProfile generateDefaultSlotResourceProfile(
             WorkerResourceSpec workerResourceSpec, int numSlotsPerWorker) {
         return ResourceProfile.newBuilder()
@@ -31,6 +36,22 @@ public class SlotManagerUtils {
                         workerResourceSpec.getTaskOffHeapSize().divide(numSlotsPerWorker))
                 .setManagedMemory(workerResourceSpec.getManagedMemSize().divide(numSlotsPerWorker))
                 .setNetworkMemory(workerResourceSpec.getNetworkMemSize().divide(numSlotsPerWorker))
+                .build();
+    }
+
+    /**
+     * This must be consist with {@link
+     * org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils#generateDefaultSlotResourceProfile}.
+     */
+    public static ResourceProfile generateDefaultSlotResourceProfile(
+            ResourceProfile resourceProfile, int numSlotsPerWorker) {
+        return ResourceProfile.newBuilder()
+                .setCpuCores(resourceProfile.getCpuCores().divide(numSlotsPerWorker))
+                .setTaskHeapMemory(resourceProfile.getTaskHeapMemory().divide(numSlotsPerWorker))
+                .setTaskOffHeapMemory(
+                        resourceProfile.getTaskOffHeapMemory().divide(numSlotsPerWorker))
+                .setManagedMemory(resourceProfile.getManagedMemory().divide(numSlotsPerWorker))
+                .setNetworkMemory(resourceProfile.getNetworkMemory().divide(numSlotsPerWorker))
                 .build();
     }
 
