@@ -18,80 +18,43 @@
 
 package org.apache.flink.table.filesystem;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.ExplainDetail;
-import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
-import org.apache.flink.table.catalog.CatalogTableImpl;
-import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.connector.ChangelogMode;
-import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
-import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.factories.FactoryUtil;
-import org.apache.flink.table.planner.utils.TableTestUtil;
-import org.apache.flink.table.planner.utils.TestingTableEnvironment;
-import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
-import org.apache.flink.types.RowKind;
-import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Test;
 
-import scala.Option;
-
+import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
+import static org.apache.flink.table.planner.utils.TableTestUtil.readFromResource;
+import static org.apache.flink.table.planner.utils.TableTestUtil.replaceStageId;
+import static org.apache.flink.table.planner.utils.TableTestUtil.replaceStreamNodeId;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /** Test for {@link FileSystemTableSink}. */
 public class FileSystemTableSinkTest {
 
-    private static final TableSchema TEST_SCHEMA =
-            TableSchema.builder()
-                    .field("f0", DataTypes.STRING())
-                    .field("f1", DataTypes.BIGINT())
-                    .field("f2", DataTypes.BIGINT())
-                    .build();
-
     @Test
-    public void testFileSystemTableSinkWithParallelismInChangeLogMode() {
-        int parallelism = 2;
-        DescriptorProperties descriptor = new DescriptorProperties();
-        descriptor.putString(FactoryUtil.CONNECTOR.key(), "filesystem");
-        descriptor.putString("path", "/tmp");
-        descriptor.putString("format", "testcsv");
-        descriptor.putString(FactoryUtil.SINK_PARALLELISM.key(), String.valueOf(parallelism));
+    public void testExceptionWhenSettingParallelismWithUpdatingQuery() {
+        final EnvironmentSettings settings =
+                EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
+        final TableEnvironment tEnv = TableEnvironment.create(settings);
 
-        final DynamicTableSink tableSink =
-                FactoryUtil.createTableSink(
-                        null,
-                        ObjectIdentifier.of("mycatalog", "mydb", "mytable"),
-                        new CatalogTableImpl(TEST_SCHEMA, descriptor.asMap(), ""),
-                        new Configuration(),
-                        Thread.currentThread().getContextClassLoader(),
-                        false);
-        assertTrue(tableSink instanceof FileSystemTableSink);
+        final String testSourceTableName = "test_source_table";
+        tEnv.executeSql(buildSourceTableSql(testSourceTableName));
 
-        final DynamicTableSink.SinkRuntimeProvider provider =
-                tableSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(false));
-        assertTrue(provider instanceof DataStreamSinkProvider);
+        final String testSinkTableName = "test_sink_table";
+        tEnv.executeSql(buildSinkTableSql(testSinkTableName, 10, false));
+        String sql =
+                String.format(
+                        "INSERT INTO %s SELECT DISTINCT * FROM %s",
+                        testSinkTableName, testSourceTableName);
 
-        try {
-            tableSink.getChangelogMode(
-                    ChangelogMode.newBuilder()
-                            .addContainedKind(RowKind.INSERT)
-                            .addContainedKind(RowKind.DELETE)
-                            .build());
-            fail();
-        } catch (Exception e) {
-            assertTrue(
-                    ExceptionUtils.findThrowableWithMessage(
-                                    e, "when the input stream is not INSERT only")
-                            .isPresent());
-        }
+        assertThrows(
+                "filesystem sink doesn't support setting parallelism (10) by 'sink.parallelism' when the input stream is not INSERT only.",
+                ValidationException.class,
+                () -> tEnv.explainSql(sql));
     }
 
     @Test
@@ -99,135 +62,98 @@ public class FileSystemTableSinkTest {
         final int parallelism = 5;
         final EnvironmentSettings settings =
                 EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
-        final TableConfig tableConfig = new TableConfig();
-        tableConfig
+        final TableEnvironment tEnv = TableEnvironment.create(settings);
+        tEnv.getConfig()
                 .getConfiguration()
                 .set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 8);
-        final TestingTableEnvironment tEnv =
-                TestingTableEnvironment.create(settings, Option.empty(), tableConfig);
 
-        final String testSinkTableName = "test_sink_table";
-        final String testCompactSinkTableName = "test_compact_sink_table";
         final String testSourceTableName = "test_source_table";
-        final String sourceTableSql =
-                "CREATE TABLE "
-                        + testSourceTableName
-                        + "("
-                        + "id BIGINT,"
-                        + "real_col FLOAT,"
-                        + "double_col DOUBLE,"
-                        + "decimal_col DECIMAL(10, 4)"
-                        + ") WITH ("
-                        + "  'connector'='values',"
-                        + "  'bounded'='"
-                        + false
-                        + "'"
-                        + ")";
-        final String sinkTableSql = createSinkTableSql(testSinkTableName, parallelism, false);
-        final String autoCompactSinkTableSql =
-                createSinkTableSql(testCompactSinkTableName, parallelism, true);
+        tEnv.executeSql(buildSourceTableSql(testSourceTableName));
 
-        tEnv.executeSql(sinkTableSql);
-        tEnv.executeSql(sourceTableSql);
-        tEnv.executeSql(autoCompactSinkTableSql);
-
-        final String sql1 =
-                "insert into  "
-                        + testSinkTableName
-                        + " (select * from "
-                        + testSourceTableName
-                        + ")";
-        final String sql2 =
-                "insert into  "
-                        + testCompactSinkTableName
-                        + " (select * from "
-                        + testSourceTableName
-                        + ")";
-        final String actualNormal = tEnv.explainSql(sql1, ExplainDetail.JSON_EXECUTION_PLAN);
-        final String actualCompact = tEnv.explainSql(sql2, ExplainDetail.JSON_EXECUTION_PLAN);
+        // verify operator parallelisms when compaction is not enabled
+        final String testSinkTableName = "test_sink_table";
+        tEnv.executeSql(buildSinkTableSql(testSinkTableName, parallelism, false));
+        final String sql0 = buildInsertIntoSql(testSinkTableName, testSourceTableName);
+        final String actualNormal = tEnv.explainSql(sql0, ExplainDetail.JSON_EXECUTION_PLAN);
         final String expectedNormal =
-                TableTestUtil.readFromResourceAndRemoveLastLinkBreak(
+                readFromResource(
                         "/explain/filesystem/testFileSystemTableSinkWithParallelismInStreamingSql0.out");
-        final String expectedCompact =
-                TableTestUtil.readFromResourceAndRemoveLastLinkBreak(
-                        "/explain/filesystem/testFileSystemTableSinkWithParallelismInStreamingSql1.out");
+        assertEquals(
+                replaceStreamNodeId(replaceStageId(expectedNormal)),
+                replaceStreamNodeId(replaceStageId(actualNormal)));
 
+        // verify operator parallelisms when compaction is enabled
+        final String testCompactSinkTableName = "test_compact_sink_table";
+        tEnv.executeSql(buildSinkTableSql(testCompactSinkTableName, parallelism, true));
+        final String sql1 = buildInsertIntoSql(testCompactSinkTableName, testSourceTableName);
+        final String actualCompact = tEnv.explainSql(sql1, ExplainDetail.JSON_EXECUTION_PLAN);
+        final String expectedCompact =
+                readFromResource(
+                        "/explain/filesystem/testFileSystemTableSinkWithParallelismInStreamingSql1.out");
         assertEquals(
-                TableTestUtil.replaceStreamNodeId(TableTestUtil.replaceStageId(expectedNormal)),
-                TableTestUtil.replaceStreamNodeId(TableTestUtil.replaceStageId(actualNormal)));
-        assertEquals(
-                TableTestUtil.replaceStreamNodeId(TableTestUtil.replaceStageId(expectedCompact)),
-                TableTestUtil.replaceStreamNodeId(TableTestUtil.replaceStageId(actualCompact)));
+                replaceStreamNodeId(replaceStageId(expectedCompact)),
+                replaceStreamNodeId(replaceStageId(actualCompact)));
     }
 
     @Test
     public void testFileSystemTableSinkWithParallelismInBatch() {
         final int parallelism = 5;
         final EnvironmentSettings settings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
-        final TableConfig tableConfig = new TableConfig();
-        tableConfig
+                EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
+        final TableEnvironment tEnv = TableEnvironment.create(settings);
+        tEnv.getConfig()
                 .getConfiguration()
                 .set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 8);
-        final TestingTableEnvironment tEnv =
-                TestingTableEnvironment.create(settings, Option.empty(), tableConfig);
 
-        final String testSinkTableName = "test_sink_table";
         final String testSourceTableName = "test_source_table";
-        final String sourceTableSql =
-                "CREATE TABLE "
-                        + testSourceTableName
-                        + "("
-                        + "id BIGINT,"
-                        + "real_col FLOAT,"
-                        + "double_col DOUBLE,"
-                        + "decimal_col DECIMAL(10, 4)"
-                        + ") WITH ("
-                        + "  'connector'='values',"
-                        + "  'bounded'='"
-                        + true
-                        + "'"
-                        + ")";
-        final String sinkTableSql = createSinkTableSql(testSinkTableName, parallelism, false);
-        tEnv.executeSql(sinkTableSql);
-        tEnv.executeSql(sourceTableSql);
+        final String testSinkTableName = "test_sink_table";
+        tEnv.executeSql(buildSourceTableSql(testSourceTableName));
+        tEnv.executeSql(buildSinkTableSql(testSinkTableName, parallelism, false));
 
-        final String sql =
-                "insert into  "
-                        + testSinkTableName
-                        + " (select * from "
-                        + testSourceTableName
-                        + ")";
+        final String sql = buildInsertIntoSql(testSinkTableName, testSourceTableName);
         final String actual = tEnv.explainSql(sql, ExplainDetail.JSON_EXECUTION_PLAN);
         final String expected =
-                TableTestUtil.readFromResourceAndRemoveLastLinkBreak(
+                readFromResource(
                         "/explain/filesystem/testFileSystemTableSinkWithParallelismInBatch.out");
 
         assertEquals(
-                TableTestUtil.replaceStreamNodeId(TableTestUtil.replaceStageId(expected)),
-                TableTestUtil.replaceStreamNodeId(TableTestUtil.replaceStageId(actual)));
+                replaceStreamNodeId(replaceStageId(expected)),
+                replaceStreamNodeId(replaceStageId(actual)));
     }
 
-    private String createSinkTableSql(String tableName, int parallelism, boolean autoCompaction) {
-        return "CREATE TABLE "
-                + tableName
-                + "("
-                + "id BIGINT,"
-                + "real_col FLOAT,"
-                + "double_col DOUBLE,"
-                + "decimal_col DECIMAL(10, 4)"
-                + ") WITH ("
-                + "  'connector'='filesystem',"
-                + "  'path'='/tmp',"
-                + "  'auto-compaction'='"
-                + autoCompaction
-                + "',"
-                + "  'format'='testcsv',"
-                + "  '"
-                + FactoryUtil.SINK_PARALLELISM.key()
-                + "'='"
-                + parallelism
-                + "'"
-                + ")";
+    private static String buildSourceTableSql(String testSourceTableName) {
+        return String.format(
+                "CREATE TABLE %s ("
+                        + " id BIGINT,"
+                        + " real_col FLOAT,"
+                        + " double_col DOUBLE,"
+                        + " decimal_col DECIMAL(10, 4)"
+                        + ") WITH ("
+                        + " 'connector' = 'values',"
+                        + " 'bounded' = 'false'"
+                        + ")",
+                testSourceTableName);
+    }
+
+    private static String buildSinkTableSql(
+            String tableName, int parallelism, boolean autoCompaction) {
+        return String.format(
+                "CREATE TABLE %s ("
+                        + " id BIGINT,"
+                        + " real_col FLOAT,"
+                        + " double_col DOUBLE,"
+                        + " decimal_col DECIMAL(10, 4)"
+                        + ") WITH ("
+                        + " 'connector' = 'filesystem',"
+                        + " 'path' = '/tmp',"
+                        + " 'auto-compaction' = '%s',"
+                        + " 'format' = 'testcsv',"
+                        + " 'sink.parallelism' = '%s'"
+                        + ")",
+                tableName, autoCompaction, parallelism);
+    }
+
+    private static String buildInsertIntoSql(String sinkTable, String sourceTable) {
+        return String.format("INSERT INTO %s SELECT * FROM %s", sinkTable, sourceTable);
     }
 }

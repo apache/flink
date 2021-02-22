@@ -393,15 +393,15 @@ public class FileSystemTableSink extends AbstractFileSystemTable
         if (parallelism == null) {
             return;
         }
-        final ChangelogMode mode = requestChangelogMode;
-        if (!mode.containsOnly(RowKind.INSERT)) {
+        if (!requestChangelogMode.containsOnly(RowKind.INSERT)) {
             throw new ValidationException(
                     String.format(
-                            "Currently, filesystem sink doesn't support setting parallelism (%d) by given option: %s, when the input stream is not INSERT only. The row kinds are %s",
+                            "Currently, filesystem sink doesn't support setting parallelism (%d) by '%s' "
+                                    + "when the input stream is not INSERT only. The row kinds of input stream are [%s]",
                             parallelism,
                             FileSystemOptions.SINK_PARALLELISM.key(),
-                            mode.getContainedKinds().stream()
-                                    .map(x -> x.shortString())
+                            requestChangelogMode.getContainedKinds().stream()
+                                    .map(RowKind::shortString)
                                     .collect(Collectors.joining(","))));
         }
     }

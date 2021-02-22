@@ -250,7 +250,6 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                         conf.get(SINK_ROLLING_POLICY_ROLLOVER_INTERVAL).toMillis());
 
         boolean autoCompaction = conf.getBoolean(FileSystemOptions.AUTO_COMPACTION);
-        int parallelism = dataStream.getParallelism();
         if (autoCompaction) {
             fileNamingBuilder.withPartPrefix(
                     convertToUncompacted(fileNamingBuilder.build().getPartPrefix()));
@@ -289,6 +288,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
 
         long bucketCheckInterval = conf.get(SINK_ROLLING_POLICY_CHECK_INTERVAL).toMillis();
 
+        int parallelism = dataStream.getParallelism();
         DataStream<PartitionCommitInfo> writerStream;
         if (autoCompaction) {
             long compactionSize =
