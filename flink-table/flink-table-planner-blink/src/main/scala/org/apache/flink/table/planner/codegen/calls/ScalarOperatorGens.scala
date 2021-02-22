@@ -345,10 +345,6 @@ object ScalarOperatorGens {
            |if (!${castedNeedle.nullTerm}) {
            |  $resultTerm = $setTerm.contains(${castedNeedle.resultTerm});
            |  $nullTerm = !$resultTerm && $setTerm.containsNull();
-           |}else{
-           |  // resultTerm return true, but null in set,we give nullItem = true?
-           |  $resultTerm = $setTerm.containsNull();
-           |  $nullTerm = true;
            |}
            |""".stripMargin.trim
       }

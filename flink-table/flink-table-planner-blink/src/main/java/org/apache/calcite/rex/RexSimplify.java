@@ -2670,12 +2670,12 @@ public class RexSimplify {
                             e.getKind(),
                             newTerms);
                 case IS_NULL:
-                    if (negate) {
-                        return false;
-                    }
-                    final RexNode arg = ((RexCall) e).operands.get(0);
-                    return accept1(
-                            arg, e.getKind(), rexBuilder.makeNullLiteral(arg.getType()), newTerms);
+                    /**
+                     *   when is_null in OR operate ,if change to search('',null) there was a major mistake,
+                     *   because search has three return values (true,false,null),but OR Operate only
+                     *   can return true or false,so wo can't change is_null or ... to search('',null);
+                     */
+                    return false;
                 default:
                     return false;
             }

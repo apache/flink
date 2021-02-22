@@ -186,6 +186,6 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
 
   @Test
   def testMyExpressions(): Unit = {
-    testSqlApi("IF(f14 = '0' or f14 IS NULL, 'a', 'b')", expected = "a")
+    testSqlApi("IF(f14 IS NULL or f14 = '0' or f14 = '1', 'a', 'b')", expected = "a")
   }
 }

@@ -376,10 +376,6 @@ object FlinkRexUtil {
     require(sarg.isPoints)
     val sargOperands = sarg.rangeSet.asRanges().map(range =>
       rexBuilder.makeLiteral(range.lowerEndpoint(), sargLiteral.getType, false))
-    if(sarg.containsNull){
-      val rexNode = rexBuilder.makeLiteral(null, sargLiteral.getType, false)
-      sargOperands += rexNode
-    }
     List(call.getOperands.head) ++ sargOperands
   }
 
