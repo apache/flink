@@ -28,7 +28,7 @@ under the License.
 
 # 基于 Table API 实现实时报表
 
-Apache Flink 提供了 Table API 作为统一的关系API，用于批处理和流处理，即：对无边界的实时流或有约束的批处理数据集以相同的语义执行查询，并产生相同的结果。Flink 中的 Table API 通常用于简化数据分析，数据管道和ETL应用程序的定义。
+Apache Flink 提供了 Table API 作为统一的相关 API，用于批处理和流处理，即：对无边界的实时流或有约束的批处理数据集以相同的语义执行查询，并产生相同的结果。Flink 中的 Table API 通常用于简化数据分析，数据管道和ETL应用程序的定义。
 
 ## 您要搭建一个什么系统
 
@@ -46,9 +46,9 @@ Apache Flink 提供了 Table API 作为统一的关系API，用于批处理和�
 如果在Windows上运行docker并且您的数据生成器容器无法启动，那么请确保您使用的 shell 正确。例如，**table-walkthrough_data-generator_1** 容器的 **docker-entrypoint.sh** 需要使用bash shell。如果不可用，它将导致**standard_init_linux.go:211: exec user process caused "no such file or directory"** 错误。一种解决方法是将 **docker-entrypoint.sh** 文件的的第一行切换为 **sh** shell。
 {{< /hint >}}
 
-## How To Follow Along
+## 如何跟着教程练习
 
-If you want to follow along, you will require a computer with: 
+首先，您需要在您的电脑上准备以下环境：
 
 * Java 8 or 11
 * Maven 
@@ -56,16 +56,15 @@ If you want to follow along, you will require a computer with:
 
 {{< unstable >}}
 {{< hint warning >}}
-**Attention:** The Apache Flink Docker images used for this playground are only available for released versions of Apache Flink.
+**注意** 此练习使用的Apache Flink Docker 镜像仅适用于Apache Flink发行版本。
 
-Since you are currently looking at the latest SNAPSHOT
-version of the documentation, all version references below will not work.
-Please switch the documentation to the latest released version via the release picker which you find on the left side below the menu.
+由于您当前正在查看文档的最新 SNAPSHOT 版本，因此以下所有版本参考均不起作用，请通过菜单下方左侧的版本选择器将文档切换到最新发行的版本。
 {{< /hint >}}
 {{< /unstable >}}
 
 The required configuration files are available in the [flink-playgrounds](https://github.com/apache/flink-playgrounds) repository.
 Once downloaded, open the project `flink-playground/table-walkthrough` in your IDE and navigate to the file `SpendReport`. 
+所需的配置文件位于[flink-playgrounds](https://github.com/apache/flink-playgrounds)仓库中。下载后，在您的IDE中打开 flink-playground/table-walkthrough 项目并导航至 SpendReport 文件。
 
 ```java
 EnvironmentSettings settings = EnvironmentSettings.newInstance().build();
