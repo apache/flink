@@ -71,8 +71,7 @@ public class LookupCallResolver extends ApiExpressionDefaultVisitor<Expression> 
     @Override
     public Expression visitNonApiExpression(Expression other) {
         // LookupCallResolver might be called outside of ExpressionResolver, thus we need to
-        // additionally
-        // handle the ApiExpressions here
+        // additionally handle the ApiExpressions here
         if (other instanceof ApiExpression) {
             return ((ApiExpression) other).toExpr().accept(this);
         } else {
