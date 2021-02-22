@@ -56,14 +56,12 @@ Apache Flink 提供了 Table API 作为统一的相关 API，用于批处理和�
 
 {{< unstable >}}
 {{< hint warning >}}
-**注意** 此练习使用的Apache Flink Docker 镜像仅适用于Apache Flink发行版本。
+**注意：** 此练习使用的Apache Flink Docker 镜像仅适用于Apache Flink发行版本。
 
 由于您当前正在查看文档的最新 SNAPSHOT 版本，因此以下所有版本参考均不起作用，请通过菜单下方左侧的版本选择器将文档切换到最新发行的版本。
 {{< /hint >}}
 {{< /unstable >}}
 
-The required configuration files are available in the [flink-playgrounds](https://github.com/apache/flink-playgrounds) repository.
-Once downloaded, open the project `flink-playground/table-walkthrough` in your IDE and navigate to the file `SpendReport`. 
 所需的配置文件位于[flink-playgrounds](https://github.com/apache/flink-playgrounds)仓库中。下载后，在您的IDE中打开 flink-playground/table-walkthrough 项目并导航至 SpendReport 文件。
 
 ```java
