@@ -40,7 +40,7 @@ Apache Flink 提供了 Table API 作为统一的关系API，用于批处理和�
 
 ## 困难求助
 
-如果遇到困难，可以参考[社区支持资源](https://flink.apache.org/community.html。 当然也可以在邮件列表提问，Flink 的[用户邮件列表](https://flink.apache.org/community.html#mailing-lists)一直被评为所有Apache项目中最活跃的一个，这也是快速获得帮助的好方法。
+如果遇到困难，可以参考[社区支持资源](https://flink.apache.org/community.html)。 当然也可以在邮件列表提问，Flink 的[用户邮件列表](https://flink.apache.org/community.html#mailing-lists)一直被评为所有Apache项目中最活跃的一个，这也是快速获得帮助的好方法。
 
 {{< hint info >}}
 If running docker on windows and your data generator container is failing to start, then please ensure that you're using the right shell.
