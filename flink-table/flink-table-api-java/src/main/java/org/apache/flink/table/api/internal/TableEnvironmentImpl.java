@@ -74,6 +74,7 @@ import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.CatalogFactory;
 import org.apache.flink.table.factories.ComponentFactoryService;
+import org.apache.flink.table.factories.ModuleFactory;
 import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
@@ -85,6 +86,7 @@ import org.apache.flink.table.operations.CatalogQueryOperation;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.ExplainOperation;
+import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
@@ -98,6 +100,7 @@ import org.apache.flink.table.operations.ShowPartitionsOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.ShowViewsOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
+import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
@@ -148,6 +151,8 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
+
 /**
  * Implementation of {@link TableEnvironment} that works exclusively with Table API interfaces. Only
  * {@link TableSource} is supported as an input and {@link TableSink} as an output. It also does not
@@ -175,13 +180,13 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             "Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type "
                     + "INSERT, CREATE TABLE, DROP TABLE, ALTER TABLE, USE CATALOG, USE [CATALOG.]DATABASE, "
                     + "CREATE DATABASE, DROP DATABASE, ALTER DATABASE, CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, "
-                    + "CREATE CATALOG, DROP CATALOG, CREATE VIEW, DROP VIEW.";
+                    + "CREATE CATALOG, DROP CATALOG, CREATE VIEW, DROP VIEW, LOAD MODULE, UNLOAD MODULE.";
     private static final String UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG =
             "Unsupported SQL query! executeSql() only accepts a single SQL statement of type "
                     + "CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, "
                     + "CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, CREATE CATALOG, DROP CATALOG, "
                     + "USE CATALOG, USE [CATALOG.]DATABASE, SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW FUNCTIONS, SHOW PARTITIONS"
-                    + "CREATE VIEW, DROP VIEW, SHOW VIEWS, INSERT, DESCRIBE.";
+                    + "CREATE VIEW, DROP VIEW, SHOW VIEWS, INSERT, DESCRIBE, LOAD MODULE, UNLOAD MODULE.";
 
     /** Provides necessary methods for {@link ConnectTableDescriptor}. */
     private final Registration registration =
@@ -780,7 +785,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 || operation instanceof CreateCatalogOperation
                 || operation instanceof DropCatalogOperation
                 || operation instanceof UseCatalogOperation
-                || operation instanceof UseDatabaseOperation) {
+                || operation instanceof UseDatabaseOperation
+                || operation instanceof LoadModuleOperation
+                || operation instanceof UnloadModuleOperation) {
             executeOperation(operation);
         } else {
             throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG);
@@ -1052,6 +1059,10 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             } catch (CatalogException e) {
                 throw new ValidationException(exMsg, e);
             }
+        } else if (operation instanceof LoadModuleOperation) {
+            return loadModule((LoadModuleOperation) operation);
+        } else if (operation instanceof UnloadModuleOperation) {
+            return unloadModule((UnloadModuleOperation) operation);
         } else if (operation instanceof UseCatalogOperation) {
             UseCatalogOperation useCatalogOperation = (UseCatalogOperation) operation;
             catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName());
@@ -1148,6 +1159,40 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             return TableResultImpl.TABLE_RESULT_OK;
         } catch (CatalogException e) {
             throw new ValidationException(exMsg, e);
+        }
+    }
+
+    private TableResult loadModule(LoadModuleOperation operation) {
+        String exMsg = getDDLOpExecuteErrorMsg(operation.asSummaryString());
+        try {
+            // find module by name
+            Map<String, String> properties = new HashMap<>(operation.getProperties());
+            if (properties.containsKey(MODULE_TYPE)) {
+                throw new ValidationException(
+                        String.format(
+                                "Property 'type' = '%s' is not supported since module name "
+                                        + "is used to find module",
+                                properties.get(MODULE_TYPE)));
+            }
+            properties.put(MODULE_TYPE, operation.getModuleName());
+            final ModuleFactory factory =
+                    TableFactoryService.find(ModuleFactory.class, properties, userClassLoader);
+            moduleManager.loadModule(operation.getModuleName(), factory.createModule(properties));
+            return TableResultImpl.TABLE_RESULT_OK;
+        } catch (ValidationException e) {
+            throw new ValidationException(String.format("%s. %s", exMsg, e.getMessage()), e);
+        } catch (Exception e) {
+            throw new TableException(String.format("%s. %s", exMsg, e.getMessage()), e);
+        }
+    }
+
+    private TableResult unloadModule(UnloadModuleOperation operation) {
+        String exMsg = getDDLOpExecuteErrorMsg(operation.asSummaryString());
+        try {
+            moduleManager.unloadModule(operation.getModuleName());
+            return TableResultImpl.TABLE_RESULT_OK;
+        } catch (ValidationException e) {
+            throw new ValidationException(String.format("%s. %s", exMsg, e.getMessage()), e);
         }
     }
 

@@ -1510,3 +1510,44 @@ SqlShowPartitions SqlShowPartitions() :
     [ <PARTITION> { partitionSpec = new SqlNodeList(getPos()); PartitionSpecCommaList(new SqlNodeList(getPos()), partitionSpec); } ]
     { return new SqlShowPartitions(pos, tableIdentifier, partitionSpec); }
 }
+
+/**
+* Parses a load module statement.
+* LOAD MODULE module_name [WITH (property_name=property_value, ...)];
+*/
+SqlLoadModule SqlLoadModule() :
+{
+    SqlParserPos startPos;
+    SqlIdentifier moduleName;
+    SqlNodeList propertyList = SqlNodeList.EMPTY;
+}
+{
+    <LOAD> <MODULE> { startPos = getPos(); }
+    moduleName = SimpleIdentifier()
+    [
+        <WITH>
+        propertyList = TableProperties()
+    ]
+    {
+        return new SqlLoadModule(startPos.plus(getPos()),
+            moduleName,
+            propertyList);
+    }
+}
+
+/**
+* Parses an unload module statement.
+* UNLOAD MODULE module_name;
+*/
+SqlUnloadModule SqlUnloadModule() :
+{
+   SqlParserPos startPos;
+   SqlIdentifier moduleName;
+}
+{
+    <UNLOAD> <MODULE> { startPos = getPos(); }
+    moduleName = SimpleIdentifier()
+    {
+        return new SqlUnloadModule(startPos.plus(getPos()), moduleName);
+    }
+}

@@ -30,15 +30,14 @@ import org.apache.flink.table.planner.runtime.stream.table.FunctionITCase.Simple
 import org.apache.flink.table.planner.utils.TableTestUtil.replaceStageId
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks}
 import org.apache.flink.types.Row
-
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql.SqlExplainLevel
-import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
+import org.apache.flink.core.testutils.FlinkMatchers.containsMessage
+import org.junit.Assert.{assertEquals, assertFalse, assertThat, assertTrue, fail}
 import org.junit.rules.ExpectedException
 import org.junit.{Rule, Test}
 
 import _root_.java.util
-
 import _root_.scala.collection.JavaConverters._
 
 class TableEnvironmentTest {
@@ -503,6 +502,94 @@ class TableEnvironmentTest {
     checkData(
       tableEnv.listFunctions().map(Row.of(_)).toList.asJava.iterator(),
       tableResult.collect())
+  }
+
+  @Test
+  def testExecuteSqlWithLoadModule: Unit = {
+    val result = tableEnv.executeSql("LOAD MODULE dummy")
+    assertEquals(ResultKind.SUCCESS, result.getResultKind)
+    assert(tableEnv.listModules().sameElements(Array[String]("core", "dummy")))
+
+    val statement =
+      """
+        |LOAD MODULE dummy WITH (
+        |'type' = 'dummy'
+        |)
+      """.stripMargin
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage(
+      "Property 'type' = 'dummy' is not supported since module name is used to find module")
+    tableEnv.executeSql(statement)
+  }
+
+  @Test
+  def testExecuteSqlWithLoadParameterizedModule(): Unit = {
+    val statement1 =
+      """
+        |LOAD MODULE dummy WITH (
+        |  'dummy-version' = '1'
+        |)
+      """.stripMargin
+    val result = tableEnv.executeSql(statement1)
+    assertEquals(ResultKind.SUCCESS, result.getResultKind)
+    assert(tableEnv.listModules().sameElements(Array[String]("core", "dummy")))
+
+    val statement2 =
+      """
+        |LOAD MODULE dummy WITH (
+        |'dummy-version' = '2'
+        |)
+      """.stripMargin
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage(
+      "Could not execute LOAD MODULE: (moduleName: [dummy], properties: [{dummy-version=2}])." +
+        " A module with name 'dummy' already exists")
+    tableEnv.executeSql(statement2)
+  }
+
+  @Test
+  def testExecuteSqlWithLoadCaseSensitiveModuleName(): Unit = {
+    val statement1 =
+      """
+        |LOAD MODULE Dummy WITH (
+        |  'dummy-version' = '1'
+        |)
+      """.stripMargin
+
+    try {
+      tableEnv.executeSql(statement1)
+      fail("Expected an exception")
+    } catch {
+      case t: Throwable =>
+        assertThat(t, containsMessage("Could not execute LOAD MODULE: (moduleName: [Dummy], " +
+          "properties: [{dummy-version=1}]). Could not find a suitable table factory for " +
+          "'org.apache.flink.table.factories.ModuleFactory' in\nthe classpath."))
+    }
+
+    val statement2 =
+      """
+        |LOAD MODULE dummy WITH (
+        |'dummy-version' = '2'
+        |)
+      """.stripMargin
+    val result = tableEnv.executeSql(statement2)
+    assertEquals(ResultKind.SUCCESS, result.getResultKind)
+    assert(tableEnv.listModules().sameElements(Array[String]("core", "dummy")))
+  }
+
+  @Test
+  def testExecuteSqlWithUnloadModuleTwice(): Unit = {
+    tableEnv.executeSql("LOAD MODULE dummy")
+    assert(tableEnv.listModules().sameElements(Array[String]("core", "dummy")))
+
+    val result = tableEnv.executeSql("UNLOAD MODULE dummy")
+    assertEquals(ResultKind.SUCCESS, result.getResultKind)
+
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage(
+      "Could not execute UNLOAD MODULE dummy." +
+        " No module with name 'dummy' exists")
+    tableEnv.executeSql("UNLOAD MODULE dummy")
   }
 
   @Test
