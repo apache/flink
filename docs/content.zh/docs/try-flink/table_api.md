@@ -28,23 +28,19 @@ under the License.
 
 # 基于 Table API 实现实时报表
 
-Apache Flink offers a Table API as a unified, relational API for batch and stream processing, i.e., queries are executed with the same semantics on unbounded, real-time streams or bounded, batch data sets and produce the same results.
-The Table API in Flink is commonly used to ease the definition of data analytics, data pipelining, and ETL applications.
+Apache Flink 提供了 Table API 作为统一的关系API，用于批处理和流处理，即：对无边界的实时流或有约束的批处理数据集以相同的语义执行查询，并产生相同的结果。Flink 中的 Table API 通常用于简化数据分析，数据管道和ETL应用程序的定义。
 
-## What Will You Be Building? 
+## 您要搭建一个什么系统
 
-In this tutorial, you will learn how to build a real-time dashboard to track financial transactions by account.
-The pipeline will read data from Kafka and write the results to MySQL visualized via Grafana.
+在本教程中，您将学习如何构建实时仪表板以按帐户跟踪财务交易。流程将从Kafka读取数据，并将结果写入通过 Grafana 可视化的 MySQL。
 
-## Prerequisites
+## 准备条件
 
-This walkthrough assumes that you have some familiarity with Java or Scala, but you should be able to follow along even if you come from a different programming language.
-It also assumes that you are familiar with basic relational concepts such as `SELECT` and `GROUP BY` clauses.
+这个代码练习假定您对 Java 或 Scala 有一定的了解，当然，如果您之前使用的是其他开发语言，您也应该能够跟随本教程进行学习。同时假定您熟悉基本的关系概念，例如 SELECT 和 GROUP BY 语法。
 
-## Help, I’m Stuck! 
+## 困难求助
 
-If you get stuck, check out the [community support resources](https://flink.apache.org/community.html).
-In particular, Apache Flink's [user mailing list](https://flink.apache.org/community.html#mailing-lists) consistently ranks as one of the most active of any Apache project and a great way to get help quickly. 
+如果遇到困难，可以参考[社区支持资源](https://flink.apache.org/community.html。 当然也可以在邮件列表提问，Flink 的[用户邮件列表](https://flink.apache.org/community.html#mailing-lists)一直被评为所有Apache项目中最活跃的一个，这也是快速获得帮助的好方法。
 
 {{< hint info >}}
 If running docker on windows and your data generator container is failing to start, then please ensure that you're using the right shell.
