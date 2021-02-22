@@ -725,7 +725,12 @@ public class CliClient implements AutoCloseable {
                     .println(
                             CliStrings.messageInfo(CliStrings.MESSAGE_STATEMENT_SUBMITTED)
                                     .toAnsi());
-            terminal.writer().println(tableResult.getJobClient().get().getJobID().toString());
+            // keep compatibility with before
+            terminal.writer()
+                    .println(
+                            String.format(
+                                    "Job ID: %s",
+                                    tableResult.getJobClient().get().getJobID().toString()));
             terminal.flush();
         } catch (SqlExecutionException e) {
             printExecutionException(e);
