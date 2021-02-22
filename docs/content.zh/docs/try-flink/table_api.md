@@ -267,7 +267,7 @@ $ docker-compose build
 $ docker-compose up -d
 ```
 
-您可以通过[Flink 控制台](http://localhost:8082/)查看有关正在运行的作业的信息。
+您可以通过 [Flink 控制台](http://localhost:8082/) 查看有关正在运行的作业的信息。
 
 ![Flink 控制台]({% link /fig/spend-report-console.png %}){:height="400px" width="800px"}
 
@@ -287,6 +287,6 @@ mysql> select count(*) from spend_report;
 +----------+
 ```
 
-最后，跳转到[Grafana](http://localhost:3000/d/FOe0PbmGk/walkthrough?viewPanel=2&orgId=1&refresh=5s) 以查看完全可视化的结果！
+最后，跳转到 [Grafana](http://localhost:3000/d/FOe0PbmGk/walkthrough?viewPanel=2&orgId=1&refresh=5s) 以查看完全可视化的结果！
 
 {{< img src="/fig/spend-report-grafana.png" alt="Grafana" >}}
