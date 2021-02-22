@@ -625,7 +625,7 @@ public class CheckpointBarrierTrackerTest {
     private static BufferOrEvent createBuffer(int channel) {
         return new BufferOrEvent(
                 new NetworkBuffer(
-                        MemorySegmentFactory.wrapHeapSegment(new byte[] {1, 2}),
+                        MemorySegmentFactory.wrap(new byte[] {1, 2}),
                         FreeingBufferRecycler.INSTANCE),
                 new InputChannelInfo(0, channel));
     }

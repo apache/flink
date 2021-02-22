@@ -19,29 +19,25 @@
 package org.apache.flink.core.memory;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.util.Preconditions;
 
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.nio.BufferOverflowException;
-import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.ReadOnlyBufferException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import static org.apache.flink.core.memory.MemoryUtils.getByteBufferAddress;
-
 /**
  * This class represents a piece of memory managed by Flink. The segment may be backed by heap
  * memory (byte array) or by off-heap memory.
  *
  * <p>The methods for individual memory access are specialized in the classes {@link
- * org.apache.flink.core.memory.HeapMemorySegment} and {@link OffHeapMemorySegment}. All methods
- * that operate across two memory segments are implemented in this class, to transparently handle
- * the mixing of memory segment types.
+ * org.apache.flink.core.memory.HeapMemorySegment} and {@link
+ * org.apache.flink.core.memory.HybridMemorySegment}. All methods that operate across two memory
+ * segments are implemented in this class, to transparently handle the mixing of memory segment
+ * types.
  *
  * <p>This class fulfills conceptually a similar purpose as Java's {@link java.nio.ByteBuffer}. We
  * add this specialized class for various reasons:
@@ -91,7 +87,8 @@ import static org.apache.flink.core.memory.MemoryUtils.getByteBufferAddress;
  * <p><i>Note on efficiency</i>: For best efficiency, the code that uses this class should make sure
  * that only one subclass is loaded, or that the methods that are abstract in this class are used
  * only from one of the subclasses (either the {@link
- * org.apache.flink.core.memory.HeapMemorySegment}, or the {@link OffHeapMemorySegment}).
+ * org.apache.flink.core.memory.HeapMemorySegment}, or the {@link
+ * org.apache.flink.core.memory.HybridMemorySegment}).
  *
  * <p>That way, all the abstract methods in the MemorySegment base class have only one loaded actual
  * implementation. This is easy for the JIT to recognize through class hierarchy analysis, or by
@@ -103,11 +100,11 @@ public abstract class MemorySegment {
 
     /** The unsafe handle for transparent memory copied (heap / off-heap). */
     @SuppressWarnings("restriction")
-    private static final sun.misc.Unsafe UNSAFE = MemoryUtils.UNSAFE;
+    protected static final sun.misc.Unsafe UNSAFE = MemoryUtils.UNSAFE;
 
     /** The beginning of the byte array contents, relative to the byte array object. */
     @SuppressWarnings("restriction")
-    private static final long BYTE_ARRAY_BASE_OFFSET = UNSAFE.arrayBaseOffset(byte[].class);
+    protected static final long BYTE_ARRAY_BASE_OFFSET = UNSAFE.arrayBaseOffset(byte[].class);
 
     /**
      * Constant that flags the byte order. Because this is a boolean constant, the JIT compiler can
@@ -126,22 +123,22 @@ public abstract class MemorySegment {
      * segment will point to undefined addresses outside the heap and may in out-of-order execution
      * cases cause segmentation faults.
      */
-    private final byte[] heapMemory;
+    protected final byte[] heapMemory;
 
     /**
      * The address to the data, relative to the heap memory byte array. If the heap memory byte
      * array is <tt>null</tt>, this becomes an absolute memory address outside the heap.
      */
-    private long address;
+    protected long address;
 
     /**
      * The address one byte after the last addressable byte, i.e. <tt>address + size</tt> while the
      * segment is not disposed.
      */
-    private final long addressLimit;
+    protected final long addressLimit;
 
     /** The size in bytes of the memory segment. */
-    private final int size;
+    protected final int size;
 
     /** Optional owner of the memory segment. */
     private final Object owner;
@@ -278,18 +275,7 @@ public abstract class MemorySegment {
      * @throws IndexOutOfBoundsException Thrown, if offset is negative or larger than the memory
      *     segment size, or if the offset plus the length is larger than the segment size.
      */
-    public ByteBuffer wrap(int offset, int length) {
-        return wrapInternal(offset, length);
-    }
-
-    /**
-     * This is an internal interface for wrapping the chunk of the underlying memory located between
-     * <tt>offset</tt> and <tt>offset + * length</tt> in a NIO ByteBuffer, without transferring the
-     * ownership of the memory.
-     *
-     * @see #wrap(int, int)
-     */
-    protected abstract ByteBuffer wrapInternal(int offset, int length);
+    public abstract ByteBuffer wrap(int offset, int length);
 
     /**
      * Gets the owner of this memory segment. Returns null, if the owner was not set.
@@ -323,17 +309,7 @@ public abstract class MemorySegment {
      * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger or equal to the
      *     size of the memory segment.
      */
-    public byte get(int index) {
-        final long pos = address + index;
-        if (index >= 0 && pos < addressLimit) {
-            return UNSAFE.getByte(heapMemory, pos);
-        } else if (address > addressLimit) {
-            throw new IllegalStateException("segment has been freed");
-        } else {
-            // index is in fact invalid
-            throw new IndexOutOfBoundsException();
-        }
-    }
+    public abstract byte get(int index);
 
     /**
      * Writes the given byte into this buffer at the given position.
@@ -343,17 +319,7 @@ public abstract class MemorySegment {
      * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger or equal to the
      *     size of the memory segment.
      */
-    public void put(int index, byte b) {
-        final long pos = address + index;
-        if (index >= 0 && pos < addressLimit) {
-            UNSAFE.putByte(heapMemory, pos, b);
-        } else if (address > addressLimit) {
-            throw new IllegalStateException("segment has been freed");
-        } else {
-            // index is in fact invalid
-            throw new IndexOutOfBoundsException();
-        }
-    }
+    public abstract void put(int index, byte b);
 
     /**
      * Bulk get method. Copies dst.length memory from the specified position to the destination
@@ -365,9 +331,7 @@ public abstract class MemorySegment {
      *     data between the index and the memory segment end is not enough to fill the destination
      *     array.
      */
-    public final void get(int index, byte[] dst) {
-        get(index, dst, 0, dst.length);
-    }
+    public abstract void get(int index, byte[] dst);
 
     /**
      * Bulk put method. Copies src.length memory from the source memory into the memory segment
@@ -379,9 +343,7 @@ public abstract class MemorySegment {
      *     the array size exceed the amount of memory between the index and the memory segment's
      *     end.
      */
-    public final void put(int index, byte[] src) {
-        put(index, src, 0, src.length);
-    }
+    public abstract void put(int index, byte[] src);
 
     /**
      * Bulk get method. Copies length memory from the specified position to the destination memory,
@@ -395,25 +357,7 @@ public abstract class MemorySegment {
      *     requested number of bytes exceed the amount of memory between the index and the memory
      *     segment's end.
      */
-    public void get(int index, byte[] dst, int offset, int length) {
-        // check the byte array offset and length and the status
-        if ((offset | length | (offset + length) | (dst.length - (offset + length))) < 0) {
-            throw new IndexOutOfBoundsException();
-        }
-
-        final long pos = address + index;
-        if (index >= 0 && pos <= addressLimit - length) {
-            final long arrayAddress = BYTE_ARRAY_BASE_OFFSET + offset;
-            UNSAFE.copyMemory(heapMemory, pos, dst, arrayAddress, length);
-        } else if (address > addressLimit) {
-            throw new IllegalStateException("segment has been freed");
-        } else {
-            throw new IndexOutOfBoundsException(
-                    String.format(
-                            "pos: %d, length: %d, index: %d, offset: %d",
-                            pos, length, index, offset));
-        }
-    }
+    public abstract void get(int index, byte[] dst, int offset, int length);
 
     /**
      * Bulk put method. Copies length memory starting at position offset from the source memory into
@@ -427,24 +371,7 @@ public abstract class MemorySegment {
      *     the array portion to copy exceed the amount of memory between the index and the memory
      *     segment's end.
      */
-    public void put(int index, byte[] src, int offset, int length) {
-        // check the byte array offset and length
-        if ((offset | length | (offset + length) | (src.length - (offset + length))) < 0) {
-            throw new IndexOutOfBoundsException();
-        }
-
-        final long pos = address + index;
-
-        if (index >= 0 && pos <= addressLimit - length) {
-            final long arrayAddress = BYTE_ARRAY_BASE_OFFSET + offset;
-            UNSAFE.copyMemory(src, arrayAddress, heapMemory, pos, length);
-        } else if (address > addressLimit) {
-            throw new IllegalStateException("segment has been freed");
-        } else {
-            // index is in fact invalid
-            throw new IndexOutOfBoundsException();
-        }
-    }
+    public abstract void put(int index, byte[] src, int offset, int length);
 
     /**
      * Reads one byte at the given position and returns its boolean representation.
@@ -454,9 +381,7 @@ public abstract class MemorySegment {
      * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the
      *     segment size minus 1.
      */
-    public final boolean getBoolean(int index) {
-        return get(index) != 0;
-    }
+    public abstract boolean getBoolean(int index);
 
     /**
      * Writes one byte containing the byte value into this buffer at the given position.
@@ -466,9 +391,7 @@ public abstract class MemorySegment {
      * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the
      *     segment size minus 1.
      */
-    public final void putBoolean(int index, boolean value) {
-        put(index, (byte) (value ? 1 : 0));
-    }
+    public abstract void putBoolean(int index, boolean value);
 
     /**
      * Reads a char value from the given position, in the system's native byte order.
@@ -1198,23 +1121,7 @@ public abstract class MemorySegment {
     //                     Bulk Read and Write Methods
     // -------------------------------------------------------------------------
 
-    public void get(DataOutput out, int offset, int length) throws IOException {
-        if (address <= addressLimit) {
-            while (length >= 8) {
-                out.writeLong(getLongBigEndian(offset));
-                offset += 8;
-                length -= 8;
-            }
-
-            while (length > 0) {
-                out.writeByte(get(offset));
-                offset++;
-                length--;
-            }
-        } else {
-            throw new IllegalStateException("segment has been freed");
-        }
-    }
+    public abstract void get(DataOutput out, int offset, int length) throws IOException;
 
     /**
      * Bulk put method. Copies length memory from the given DataInput to the memory starting at
@@ -1226,22 +1133,7 @@ public abstract class MemorySegment {
      * @throws IOException Thrown, if the DataInput encountered a problem upon reading, such as an
      *     End-Of-File.
      */
-    public void put(DataInput in, int offset, int length) throws IOException {
-        if (address <= addressLimit) {
-            while (length >= 8) {
-                putLongBigEndian(offset, in.readLong());
-                offset += 8;
-                length -= 8;
-            }
-            while (length > 0) {
-                put(offset, in.readByte());
-                offset++;
-                length--;
-            }
-        } else {
-            throw new IllegalStateException("segment has been freed");
-        }
-    }
+    public abstract void put(DataInput in, int offset, int length) throws IOException;
 
     /**
      * Bulk get method. Copies {@code numBytes} bytes from this memory segment, starting at position
@@ -1259,48 +1151,7 @@ public abstract class MemorySegment {
      *     enough space for the bytes.
      * @throws ReadOnlyBufferException If the target buffer is read-only.
      */
-    public void get(int offset, ByteBuffer target, int numBytes) {
-        // check the byte array offset and length
-        if ((offset | numBytes | (offset + numBytes)) < 0) {
-            throw new IndexOutOfBoundsException();
-        }
-        if (target.isReadOnly()) {
-            throw new ReadOnlyBufferException();
-        }
-
-        final int targetOffset = target.position();
-        final int remaining = target.remaining();
-
-        if (remaining < numBytes) {
-            throw new BufferOverflowException();
-        }
-
-        if (target.isDirect()) {
-            // copy to the target memory directly
-            final long targetPointer = getByteBufferAddress(target) + targetOffset;
-            final long sourcePointer = address + offset;
-
-            if (sourcePointer <= addressLimit - numBytes) {
-                UNSAFE.copyMemory(heapMemory, sourcePointer, null, targetPointer, numBytes);
-                target.position(targetOffset + numBytes);
-            } else if (address > addressLimit) {
-                throw new IllegalStateException("segment has been freed");
-            } else {
-                throw new IndexOutOfBoundsException();
-            }
-        } else if (target.hasArray()) {
-            // move directly into the byte array
-            get(offset, target.array(), targetOffset + target.arrayOffset(), numBytes);
-
-            // this must be after the get() call to ensue that the byte buffer is not
-            // modified in case the call fails
-            target.position(targetOffset + numBytes);
-        } else {
-            // other types of byte buffers
-            throw new IllegalArgumentException(
-                    "The target buffer is not direct, and has no array.");
-        }
-    }
+    public abstract void get(int offset, ByteBuffer target, int numBytes);
 
     /**
      * Bulk put method. Copies {@code numBytes} bytes from the given {@code ByteBuffer}, into this
@@ -1318,46 +1169,7 @@ public abstract class MemorySegment {
      *     contain the given number of bytes, or this segment does not have enough space for the
      *     bytes (counting from offset).
      */
-    public void put(int offset, ByteBuffer source, int numBytes) {
-        // check the byte array offset and length
-        if ((offset | numBytes | (offset + numBytes)) < 0) {
-            throw new IndexOutOfBoundsException();
-        }
-
-        final int sourceOffset = source.position();
-        final int remaining = source.remaining();
-
-        if (remaining < numBytes) {
-            throw new BufferUnderflowException();
-        }
-
-        if (source.isDirect()) {
-            // copy to the target memory directly
-            final long sourcePointer = getByteBufferAddress(source) + sourceOffset;
-            final long targetPointer = address + offset;
-
-            if (targetPointer <= addressLimit - numBytes) {
-                UNSAFE.copyMemory(null, sourcePointer, heapMemory, targetPointer, numBytes);
-                source.position(sourceOffset + numBytes);
-            } else if (address > addressLimit) {
-                throw new IllegalStateException("segment has been freed");
-            } else {
-                throw new IndexOutOfBoundsException();
-            }
-        } else if (source.hasArray()) {
-            // move directly into the byte array
-            put(offset, source.array(), sourceOffset + source.arrayOffset(), numBytes);
-
-            // this must be after the get() call to ensue that the byte buffer is not
-            // modified in case the call fails
-            source.position(sourceOffset + numBytes);
-        } else {
-            // other types of byte buffers
-            for (int i = 0; i < numBytes; i++) {
-                put(offset++, source.get());
-            }
-        }
-    }
+    public abstract void put(int offset, ByteBuffer source, int numBytes);
 
     /**
      * Bulk copy method. Copies {@code numBytes} bytes from this memory segment, starting at
@@ -1588,9 +1400,7 @@ public abstract class MemorySegment {
      * @param processFunction to be applied to the segment as {@link ByteBuffer}.
      * @return the value that the process function returns.
      */
-    public final <T> T processAsByteBuffer(Function<ByteBuffer, T> processFunction) {
-        return Preconditions.checkNotNull(processFunction).apply(wrapInternal(0, size()));
-    }
+    public abstract <T> T processAsByteBuffer(Function<ByteBuffer, T> processFunction);
 
     /**
      * Supplies a {@link ByteBuffer} that represents this entire segment to the given process
@@ -1602,7 +1412,5 @@ public abstract class MemorySegment {
      *
      * @param processConsumer to accept the segment as {@link ByteBuffer}.
      */
-    public final void processAsByteBuffer(Consumer<ByteBuffer> processConsumer) {
-        Preconditions.checkNotNull(processConsumer).accept(wrapInternal(0, size()));
-    }
+    public abstract void processAsByteBuffer(Consumer<ByteBuffer> processConsumer);
 }

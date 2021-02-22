@@ -48,8 +48,8 @@ import java.util.Random;
 
 import static java.lang.Math.max;
 import static java.lang.Math.min;
-import static org.apache.flink.core.memory.MemorySegmentFactory.wrapCopyHeapSegment;
-import static org.apache.flink.core.memory.MemorySegmentFactory.wrapIntHeapSegment;
+import static org.apache.flink.core.memory.MemorySegmentFactory.wrapCopy;
+import static org.apache.flink.core.memory.MemorySegmentFactory.wrapInt;
 import static org.apache.flink.runtime.io.network.api.serialization.NonSpanningWrapper.singleBufferIterator;
 import static org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer.LENGTH_BYTES;
 import static org.apache.flink.util.CloseableIterator.empty;
@@ -193,8 +193,7 @@ final class SpanningWrapper {
 
     CloseableIterator<Buffer> getUnconsumedSegment() throws IOException {
         if (isReadingLength()) {
-            return singleBufferIterator(
-                    wrapCopyHeapSegment(lengthBuffer.array(), 0, lengthBuffer.position()));
+            return singleBufferIterator(wrapCopy(lengthBuffer.array(), 0, lengthBuffer.position()));
         } else if (isAboveSpillingThreshold()) {
             return createSpilledDataIterator();
         } else if (recordLength == -1) {
@@ -210,14 +209,13 @@ final class SpanningWrapper {
             spillingChannel.force(false);
         }
         return CloseableIterator.flatten(
-                toSingleBufferIterator(wrapIntHeapSegment(recordLength)),
+                toSingleBufferIterator(wrapInt(recordLength)),
                 new FileBasedBufferIterator(
                         spillFile, min(accumulatedRecordBytes, recordLength), fileBufferSize),
                 leftOverData == null
                         ? empty()
                         : toSingleBufferIterator(
-                                wrapCopyHeapSegment(
-                                        leftOverData.getArray(), leftOverStart, leftOverLimit)));
+                                wrapCopy(leftOverData.getArray(), leftOverStart, leftOverLimit)));
     }
 
     private MemorySegment copyDataBuffer() throws IOException {
@@ -229,7 +227,7 @@ final class SpanningWrapper {
         if (leftOverData != null) {
             serializer.write(leftOverData, leftOverStart, leftOverSize);
         }
-        MemorySegment segment = MemorySegmentFactory.allocateHeapSegment(unconsumedSize);
+        MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(unconsumedSize);
         segment.put(0, serializer.getSharedBuffer(), 0, segment.size());
         return segment;
     }

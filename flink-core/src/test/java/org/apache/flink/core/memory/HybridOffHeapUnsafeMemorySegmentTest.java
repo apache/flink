@@ -26,22 +26,22 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertTrue;
 
-/** Tests for the {@link UnsafeMemorySegment}. */
+/** Tests for the {@link HybridMemorySegment} in off-heap mode using unsafe memory. */
 @RunWith(Parameterized.class)
-public class UnsafeMemorySegmentTest extends MemorySegmentTestBase {
+public class HybridOffHeapUnsafeMemorySegmentTest extends MemorySegmentTestBase {
 
-    public UnsafeMemorySegmentTest(int pageSize) {
+    public HybridOffHeapUnsafeMemorySegmentTest(int pageSize) {
         super(pageSize);
     }
 
     @Override
-    UnsafeMemorySegment createSegment(int size) {
-        return MemorySegmentFactory.allocateUnsafeSegment(size);
+    MemorySegment createSegment(int size) {
+        return MemorySegmentFactory.allocateOffHeapUnsafeMemory(size);
     }
 
     @Override
-    UnsafeMemorySegment createSegment(int size, Object owner) {
-        return MemorySegmentFactory.allocateUnsafeSegment(size, owner, () -> {});
+    MemorySegment createSegment(int size, Object owner) {
+        return MemorySegmentFactory.allocateOffHeapUnsafeMemory(size, owner, () -> {});
     }
 
     @Override
@@ -53,7 +53,8 @@ public class UnsafeMemorySegmentTest extends MemorySegmentTestBase {
     @Test
     public void testCallCleanerOnFree() {
         final CompletableFuture<Void> cleanerFuture = new CompletableFuture<>();
-        MemorySegmentFactory.allocateUnsafeSegment(10, null, () -> cleanerFuture.complete(null))
+        MemorySegmentFactory.allocateOffHeapUnsafeMemory(
+                        10, null, () -> cleanerFuture.complete(null))
                 .free();
         assertTrue(cleanerFuture.isDone());
     }

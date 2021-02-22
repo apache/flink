@@ -78,6 +78,6 @@ public class ChannelStateWriteRequestDispatcherImplTest {
 
     private NetworkBuffer buffer() {
         return new NetworkBuffer(
-                MemorySegmentFactory.allocateHeapSegment(10), FreeingBufferRecycler.INSTANCE);
+                MemorySegmentFactory.allocateUnpooledSegment(10), FreeingBufferRecycler.INSTANCE);
     }
 }

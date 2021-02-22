@@ -255,7 +255,7 @@ public class SingleInputGateTest extends InputGateTestBase {
                 new SingleInputGateBuilder().setBufferDecompressor(decompressor).build()) {
             TestInputChannel inputChannel = new TestInputChannel(inputGate, 0);
 
-            MemorySegment segment = MemorySegmentFactory.allocateHeapSegment(bufferSize);
+            MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
             for (int i = 0; i < bufferSize; i += 8) {
                 segment.putLongLittleEndian(i, i);
             }

@@ -30,7 +30,14 @@ import java.nio.ByteBuffer;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/** A factory for memory segments ({@link MemorySegment}). */
+/**
+ * A factory for (hybrid) memory segments ({@link HybridMemorySegment}).
+ *
+ * <p>The purpose of this factory is to make sure that all memory segments for heap data are of the
+ * same type. That way, the runtime does not mix the various specializations of the {@link
+ * MemorySegment}. Not mixing them has shown to be beneficial to method specialization by the JIT
+ * and to overall performance.
+ */
 @Internal
 public final class MemorySegmentFactory {
     private static final Logger LOG = LoggerFactory.getLogger(MemorySegmentFactory.class);
@@ -44,8 +51,8 @@ public final class MemorySegmentFactory {
      * @param buffer The heap memory region.
      * @return A new memory segment that targets the given heap memory region.
      */
-    public static HeapMemorySegment wrapHeapSegment(byte[] buffer) {
-        return new HeapMemorySegment(buffer);
+    public static MemorySegment wrap(byte[] buffer) {
+        return new HybridMemorySegment(buffer, null);
     }
 
     /**
@@ -57,11 +64,11 @@ public final class MemorySegmentFactory {
      * @return A new memory segment that targets a copy of the given heap memory region.
      * @throws IllegalArgumentException if start > end or end > bytes.length
      */
-    public static HeapMemorySegment wrapCopyHeapSegment(byte[] bytes, int start, int end)
+    public static MemorySegment wrapCopy(byte[] bytes, int start, int end)
             throws IllegalArgumentException {
         checkArgument(end >= start);
         checkArgument(end <= bytes.length);
-        HeapMemorySegment copy = allocateHeapSegment(end - start);
+        MemorySegment copy = allocateUnpooledSegment(end - start);
         copy.put(0, bytes, start, copy.size());
         return copy;
     }
@@ -71,35 +78,35 @@ public final class MemorySegmentFactory {
      *
      * @see ByteBuffer#putInt(int)
      */
-    public static HeapMemorySegment wrapIntHeapSegment(int value) {
-        return wrapHeapSegment(ByteBuffer.allocate(Integer.BYTES).putInt(value).array());
+    public static MemorySegment wrapInt(int value) {
+        return wrap(ByteBuffer.allocate(Integer.BYTES).putInt(value).array());
     }
 
     /**
      * Allocates some unpooled memory and creates a new memory segment that represents that memory.
      *
-     * <p>This method is similar to {@link #allocateHeapSegment(int, Object)}, but the memory
+     * <p>This method is similar to {@link #allocateUnpooledSegment(int, Object)}, but the memory
      * segment will have null as the owner.
      *
      * @param size The size of the memory segment to allocate.
      * @return A new memory segment, backed by unpooled heap memory.
      */
-    public static HeapMemorySegment allocateHeapSegment(int size) {
-        return allocateHeapSegment(size, null);
+    public static MemorySegment allocateUnpooledSegment(int size) {
+        return allocateUnpooledSegment(size, null);
     }
 
     /**
      * Allocates some unpooled memory and creates a new memory segment that represents that memory.
      *
-     * <p>This method is similar to {@link #allocateHeapSegment(int)}, but additionally sets the
+     * <p>This method is similar to {@link #allocateUnpooledSegment(int)}, but additionally sets the
      * owner of the memory segment.
      *
      * @param size The size of the memory segment to allocate.
      * @param owner The owner to associate with the memory segment.
      * @return A new memory segment, backed by unpooled heap memory.
      */
-    public static HeapMemorySegment allocateHeapSegment(int size, Object owner) {
-        return new HeapMemorySegment(new byte[size], owner);
+    public static MemorySegment allocateUnpooledSegment(int size, Object owner) {
+        return new HybridMemorySegment(new byte[size], owner);
     }
 
     /**
@@ -109,8 +116,8 @@ public final class MemorySegmentFactory {
      * @param size The size of the off-heap memory segment to allocate.
      * @return A new memory segment, backed by unpooled off-heap memory.
      */
-    public static DirectMemorySegment allocateDirectSegment(int size) {
-        return allocateDirectSegment(size, null);
+    public static MemorySegment allocateUnpooledOffHeapMemory(int size) {
+        return allocateUnpooledOffHeapMemory(size, null);
     }
 
     /**
@@ -121,14 +128,14 @@ public final class MemorySegmentFactory {
      * @param owner The owner to associate with the off-heap memory segment.
      * @return A new memory segment, backed by unpooled off-heap memory.
      */
-    public static DirectMemorySegment allocateDirectSegment(int size, Object owner) {
+    public static MemorySegment allocateUnpooledOffHeapMemory(int size, Object owner) {
         ByteBuffer memory = allocateDirectMemory(size);
-        return new DirectMemorySegment(memory, owner);
+        return new HybridMemorySegment(memory, owner);
     }
 
     @VisibleForTesting
-    public static UnsafeMemorySegment allocateUnsafeSegment(int size) {
-        return allocateUnsafeSegment(size, null, NO_OP);
+    public static MemorySegment allocateOffHeapUnsafeMemory(int size) {
+        return allocateOffHeapUnsafeMemory(size, null, NO_OP);
     }
 
     private static ByteBuffer allocateDirectMemory(int size) {
@@ -164,13 +171,13 @@ public final class MemorySegmentFactory {
      * @param customCleanupAction A custom action to run upon calling GC cleaner.
      * @return A new memory segment, backed by off-heap unsafe memory.
      */
-    public static UnsafeMemorySegment allocateUnsafeSegment(
+    public static MemorySegment allocateOffHeapUnsafeMemory(
             int size, Object owner, Runnable customCleanupAction) {
         long address = MemoryUtils.allocateUnsafe(size);
         ByteBuffer offHeapBuffer = MemoryUtils.wrapUnsafeMemoryWithByteBuffer(address, size);
         Runnable cleaner =
                 MemoryUtils.createMemoryGcCleaner(offHeapBuffer, address, customCleanupAction);
-        return new UnsafeMemorySegment(offHeapBuffer, owner, cleaner);
+        return new HybridMemorySegment(offHeapBuffer, owner, false, cleaner);
     }
 
     /**
@@ -184,7 +191,7 @@ public final class MemorySegmentFactory {
      *     segment.
      * @return A new memory segment representing the given off-heap memory.
      */
-    public static DirectMemorySegment wrapDirectSegment(ByteBuffer memory) {
-        return new DirectMemorySegment(memory, null);
+    public static MemorySegment wrapOffHeapMemory(ByteBuffer memory) {
+        return new HybridMemorySegment(memory, null);
     }
 }

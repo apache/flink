@@ -79,8 +79,7 @@ public class CompressedBlockChannelReader
         BlockCompressor compressor = codecFactory.getCompressor();
         for (int i = 0; i < 2; i++) {
             MemorySegment segment =
-                    MemorySegmentFactory.wrapHeapSegment(
-                            new byte[compressor.getMaxCompressedSize(blockSize)]);
+                    MemorySegmentFactory.wrap(new byte[compressor.getMaxCompressedSize(blockSize)]);
             reader.readInto(new NetworkBuffer(segment, this));
         }
     }

@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.core.memory.HeapMemorySegment;
-import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.data.RowData;
@@ -297,7 +296,7 @@ public class RawFormatDeserializationSchema implements DeserializationSchema<Row
 
         @Override
         public Object convert(byte[] data) {
-            HeapMemorySegment segment = MemorySegmentFactory.wrapHeapSegment(data);
+            HeapMemorySegment segment = HeapMemorySegment.FACTORY.wrap(data);
             return innerConverter.convert(segment);
         }
     }

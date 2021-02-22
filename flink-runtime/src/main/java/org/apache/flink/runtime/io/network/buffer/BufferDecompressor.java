@@ -45,8 +45,7 @@ public class BufferDecompressor {
         final byte[] heapBuffer = new byte[bufferSize];
         this.internalBuffer =
                 new NetworkBuffer(
-                        MemorySegmentFactory.wrapHeapSegment(heapBuffer),
-                        FreeingBufferRecycler.INSTANCE);
+                        MemorySegmentFactory.wrap(heapBuffer), FreeingBufferRecycler.INSTANCE);
         this.blockDecompressor =
                 BlockCompressionFactory.createBlockCompressionFactory(factoryName)
                         .getDecompressor();

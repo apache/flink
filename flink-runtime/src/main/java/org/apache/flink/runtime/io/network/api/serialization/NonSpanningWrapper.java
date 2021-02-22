@@ -74,7 +74,7 @@ final class NonSpanningWrapper implements DataInputView {
         if (!hasRemaining()) {
             return CloseableIterator.empty();
         }
-        MemorySegment segment = MemorySegmentFactory.allocateHeapSegment(remaining());
+        MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(remaining());
         this.segment.copyTo(position, segment, 0, remaining());
         return singleBufferIterator(segment);
     }

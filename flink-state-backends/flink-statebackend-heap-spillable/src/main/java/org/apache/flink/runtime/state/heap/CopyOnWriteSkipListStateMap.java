@@ -1087,7 +1087,7 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
         int offsetInSegment = node.nodeOffset;
 
         int valueLen = SkipListUtils.getValueLen(segment, offsetInSegment);
-        MemorySegment valueSegment = MemorySegmentFactory.allocateHeapSegment(valueLen);
+        MemorySegment valueSegment = MemorySegmentFactory.allocateUnpooledSegment(valueLen);
         segment.copyTo(
                 offsetInSegment + SkipListUtils.getValueMetaLen(), valueSegment, 0, valueLen);
 
@@ -1465,7 +1465,7 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
             int keyLen = SkipListUtils.getKeyLen(segment, offsetInSegment);
             int keyDataOffset = offsetInSegment + SkipListUtils.getKeyDataOffset(level);
 
-            MemorySegment nextKeySegment = MemorySegmentFactory.allocateHeapSegment(keyLen);
+            MemorySegment nextKeySegment = MemorySegmentFactory.allocateUnpooledSegment(keyLen);
             segment.copyTo(keyDataOffset, nextKeySegment, 0, keyLen);
             this.nextKeySegment = nextKeySegment;
             nextKeyOffset = 0;

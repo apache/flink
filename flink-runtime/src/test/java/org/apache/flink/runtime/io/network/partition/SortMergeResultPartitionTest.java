@@ -138,7 +138,7 @@ public class SortMergeResultPartitionTest {
                 int numBytes = buffer.readableBytes();
                 numBytesRead[subpartition] += numBytes;
 
-                MemorySegment segment = MemorySegmentFactory.allocateHeapSegment(numBytes);
+                MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(numBytes);
                 segment.put(0, buffer.getNioBufferReadable(), numBytes);
                 buffersRead[subpartition].add(
                         new NetworkBuffer(segment, (buf) -> {}, buffer.getDataType(), numBytes));

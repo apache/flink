@@ -46,7 +46,7 @@ public class BytesHashMapSpillMemorySegmentPool implements MemorySegmentPool {
         if (allocated <= segments.size()) {
             return segments.get(allocated - 1);
         } else {
-            return MemorySegmentFactory.wrapHeapSegment(new byte[pageSize()]);
+            return MemorySegmentFactory.wrap(new byte[pageSize()]);
         }
     }
 

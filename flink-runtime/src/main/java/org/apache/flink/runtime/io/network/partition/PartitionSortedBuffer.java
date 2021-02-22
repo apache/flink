@@ -315,7 +315,7 @@ public class PartitionSortedBuffer implements SortBuffer {
 
             // allocate a temp buffer for the event if the target buffer is not big enough
             if (bufferDataType.isEvent() && target.size() < length) {
-                target = MemorySegmentFactory.allocateHeapSegment(length);
+                target = MemorySegmentFactory.allocateUnpooledSegment(length);
             }
 
             numBytesCopied +=

@@ -403,8 +403,8 @@ public class BinaryArrayDataTest {
     private static MemorySegment[] splitBytes(byte[] bytes, int baseOffset) {
         int newSize = (bytes.length + 1) / 2 + baseOffset;
         MemorySegment[] ret = new MemorySegment[2];
-        ret[0] = MemorySegmentFactory.wrapHeapSegment(new byte[newSize]);
-        ret[1] = MemorySegmentFactory.wrapHeapSegment(new byte[newSize]);
+        ret[0] = MemorySegmentFactory.wrap(new byte[newSize]);
+        ret[1] = MemorySegmentFactory.wrap(new byte[newSize]);
 
         ret[0].put(baseOffset, bytes, 0, newSize - baseOffset);
         ret[1].put(0, bytes, newSize - baseOffset, bytes.length - (newSize - baseOffset));

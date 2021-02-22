@@ -65,7 +65,7 @@ public class SkipListSerializerTest extends TestLogger {
         int offset = 10;
         byte[] data = new byte[10 + skipListKey.length];
         System.arraycopy(skipListKey, 0, data, offset, skipListKey.length);
-        MemorySegment skipListKeySegment = MemorySegmentFactory.wrapHeapSegment(data);
+        MemorySegment skipListKeySegment = MemorySegmentFactory.wrap(data);
         assertEquals(
                 key,
                 skipListKeySerializer.deserializeKey(
@@ -106,7 +106,7 @@ public class SkipListSerializerTest extends TestLogger {
         assertEquals(
                 state,
                 skipListValueSerializer.deserializeState(
-                        MemorySegmentFactory.wrapHeapSegment(data), offset, value.length));
+                        MemorySegmentFactory.wrap(data), offset, value.length));
     }
 
     private <T> T deserialize(TypeSerializer<T> serializer, byte[] data) throws IOException {

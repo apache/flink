@@ -125,8 +125,7 @@ public class BinaryStringDataTest {
             string.getSegments()[0].get(segSize - pad, bytes2, 0, numBytes - segSize + pad);
             return BinaryStringData.fromAddress(
                     new MemorySegment[] {
-                        MemorySegmentFactory.wrapHeapSegment(bytes1),
-                        MemorySegmentFactory.wrapHeapSegment(bytes2)
+                        MemorySegmentFactory.wrap(bytes1), MemorySegmentFactory.wrap(bytes2)
                     },
                     pad,
                     numBytes);
@@ -191,8 +190,8 @@ public class BinaryStringDataTest {
         assertTrue(fromString("你好").compareTo(fromString("世界")) > 0);
         assertTrue(fromString("你好123").compareTo(fromString("你好122")) > 0);
 
-        MemorySegment segment1 = MemorySegmentFactory.allocateHeapSegment(1024);
-        MemorySegment segment2 = MemorySegmentFactory.allocateHeapSegment(1024);
+        MemorySegment segment1 = MemorySegmentFactory.allocateUnpooledSegment(1024);
+        MemorySegment segment2 = MemorySegmentFactory.allocateUnpooledSegment(1024);
         SortUtil.putStringNormalizedKey(fromString("abcabcabc"), segment1, 0, 9);
         SortUtil.putStringNormalizedKey(fromString("abcabcabC"), segment2, 0, 9);
         assertTrue(segment1.compare(segment2, 0, 0, 9) > 0);
@@ -205,14 +204,14 @@ public class BinaryStringDataTest {
 
         // prepare
         MemorySegment[] segments1 = new MemorySegment[2];
-        segments1[0] = MemorySegmentFactory.wrapHeapSegment(new byte[10]);
-        segments1[1] = MemorySegmentFactory.wrapHeapSegment(new byte[10]);
+        segments1[0] = MemorySegmentFactory.wrap(new byte[10]);
+        segments1[1] = MemorySegmentFactory.wrap(new byte[10]);
         segments1[0].put(5, "abcde".getBytes(UTF_8), 0, 5);
         segments1[1].put(0, "aaaaa".getBytes(UTF_8), 0, 5);
 
         MemorySegment[] segments2 = new MemorySegment[2];
-        segments2[0] = MemorySegmentFactory.wrapHeapSegment(new byte[5]);
-        segments2[1] = MemorySegmentFactory.wrapHeapSegment(new byte[5]);
+        segments2[0] = MemorySegmentFactory.wrap(new byte[5]);
+        segments2[1] = MemorySegmentFactory.wrap(new byte[5]);
         segments2[0].put(0, "abcde".getBytes(UTF_8), 0, 5);
         segments2[1].put(0, "b".getBytes(UTF_8), 0, 1);
 
@@ -239,7 +238,7 @@ public class BinaryStringDataTest {
         assertEquals(1, binaryString2.compareTo(binaryString1));
 
         // test go ahead single
-        segments2 = new MemorySegment[] {MemorySegmentFactory.wrapHeapSegment(new byte[10])};
+        segments2 = new MemorySegment[] {MemorySegmentFactory.wrap(new byte[10])};
         segments2[0].put(4, "abcdeb".getBytes(UTF_8), 0, 6);
         binaryString1 = BinaryStringData.fromAddress(segments1, 5, 10);
         binaryString2 = BinaryStringData.fromAddress(segments2, 4, 6);
@@ -579,8 +578,8 @@ public class BinaryStringDataTest {
         BinaryStringData str3;
         {
             MemorySegment[] segments = new MemorySegment[2];
-            segments[0] = MemorySegmentFactory.wrapHeapSegment(new byte[10]);
-            segments[1] = MemorySegmentFactory.wrapHeapSegment(new byte[10]);
+            segments[0] = MemorySegmentFactory.wrap(new byte[10]);
+            segments[1] = MemorySegmentFactory.wrap(new byte[10]);
             str3 = BinaryStringData.fromAddress(segments, 15, 0);
         }
 
@@ -758,16 +757,13 @@ public class BinaryStringDataTest {
         String str = new String(bytes, StandardCharsets.UTF_8);
         assertEquals(str, StringUtf8Utils.decodeUTF8(bytes, 0, bytes.length));
         assertEquals(
-                str,
-                StringUtf8Utils.decodeUTF8(
-                        MemorySegmentFactory.wrapHeapSegment(bytes), 0, bytes.length));
+                str, StringUtf8Utils.decodeUTF8(MemorySegmentFactory.wrap(bytes), 0, bytes.length));
 
         byte[] newBytes = new byte[bytes.length + 5];
         System.arraycopy(bytes, 0, newBytes, 5, bytes.length);
         assertEquals(
                 str,
-                StringUtf8Utils.decodeUTF8(
-                        MemorySegmentFactory.wrapHeapSegment(newBytes), 5, bytes.length));
+                StringUtf8Utils.decodeUTF8(MemorySegmentFactory.wrap(newBytes), 5, bytes.length));
     }
 
     @Test

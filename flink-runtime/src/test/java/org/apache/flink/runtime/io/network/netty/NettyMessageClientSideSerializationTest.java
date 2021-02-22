@@ -159,7 +159,7 @@ public class NettyMessageClientSideSerializationTest extends TestLogger {
 
         NetworkBuffer buffer =
                 new NetworkBuffer(
-                        MemorySegmentFactory.allocateHeapSegment(BUFFER_SIZE),
+                        MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE),
                         FreeingBufferRecycler.INSTANCE);
         for (int i = 0; i < BUFFER_SIZE; i += 8) {
             buffer.writeLong(i);
@@ -204,7 +204,7 @@ public class NettyMessageClientSideSerializationTest extends TestLogger {
     }
 
     private Buffer decompress(Buffer buffer) {
-        MemorySegment segment = MemorySegmentFactory.allocateHeapSegment(BUFFER_SIZE);
+        MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE);
         Buffer compressedBuffer = new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE);
         buffer.asByteBuf().readBytes(compressedBuffer.asByteBuf(), buffer.readableBytes());
         compressedBuffer.setCompressed(true);

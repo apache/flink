@@ -30,33 +30,32 @@ public class MemorySegmentFactoryTest {
         byte[] data = {1, 2, 3, 4, 5};
         byte[] changingData = new byte[data.length];
         arraycopy(data, 0, changingData, 0, data.length);
-        MemorySegment segment =
-                MemorySegmentFactory.wrapCopyHeapSegment(changingData, 0, changingData.length);
+        MemorySegment segment = MemorySegmentFactory.wrapCopy(changingData, 0, changingData.length);
         changingData[0]++;
-        assertArrayEquals(data, segment.getArray());
+        assertArrayEquals(data, segment.heapMemory);
     }
 
     @Test
     public void testWrapPartialCopy() {
         byte[] data = {1, 2, 3, 5, 6};
-        MemorySegment segment = MemorySegmentFactory.wrapCopyHeapSegment(data, 0, data.length / 2);
+        MemorySegment segment = MemorySegmentFactory.wrapCopy(data, 0, data.length / 2);
         byte[] exp = new byte[segment.size()];
         arraycopy(data, 0, exp, 0, exp.length);
-        assertArrayEquals(exp, segment.getArray());
+        assertArrayEquals(exp, segment.heapMemory);
     }
 
     @Test
     public void testWrapCopyEmpty() {
-        MemorySegmentFactory.wrapCopyHeapSegment(new byte[0], 0, 0);
+        MemorySegmentFactory.wrapCopy(new byte[0], 0, 0);
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testWrapCopyWrongStart() {
-        MemorySegmentFactory.wrapCopyHeapSegment(new byte[] {1, 2, 3}, 10, 3);
+        MemorySegmentFactory.wrapCopy(new byte[] {1, 2, 3}, 10, 3);
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testWrapCopyWrongEnd() {
-        MemorySegmentFactory.wrapCopyHeapSegment(new byte[] {1, 2, 3}, 0, 10);
+        MemorySegmentFactory.wrapCopy(new byte[] {1, 2, 3}, 0, 10);
     }
 }

@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.HeapMemorySegment;
-import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RawType;
@@ -217,7 +216,7 @@ public class RawFormatSerializationSchema implements SerializationSchema<RowData
 
         @Override
         public byte[] convert(RowData row) {
-            HeapMemorySegment segment = MemorySegmentFactory.wrapHeapSegment(new byte[2]);
+            HeapMemorySegment segment = HeapMemorySegment.FACTORY.wrap(new byte[2]);
             if (isBigEndian) {
                 segment.putShortBigEndian(0, row.getShort(0));
             } else {
@@ -239,7 +238,7 @@ public class RawFormatSerializationSchema implements SerializationSchema<RowData
 
         @Override
         public byte[] convert(RowData row) {
-            HeapMemorySegment segment = MemorySegmentFactory.wrapHeapSegment(new byte[4]);
+            HeapMemorySegment segment = HeapMemorySegment.FACTORY.wrap(new byte[4]);
             if (isBigEndian) {
                 segment.putIntBigEndian(0, row.getInt(0));
             } else {
@@ -260,7 +259,7 @@ public class RawFormatSerializationSchema implements SerializationSchema<RowData
 
         @Override
         public byte[] convert(RowData row) {
-            HeapMemorySegment segment = MemorySegmentFactory.wrapHeapSegment(new byte[8]);
+            HeapMemorySegment segment = HeapMemorySegment.FACTORY.wrap(new byte[8]);
             if (isBigEndian) {
                 segment.putLongBigEndian(0, row.getLong(0));
             } else {
@@ -282,7 +281,7 @@ public class RawFormatSerializationSchema implements SerializationSchema<RowData
 
         @Override
         public byte[] convert(RowData row) {
-            HeapMemorySegment segment = MemorySegmentFactory.wrapHeapSegment(new byte[4]);
+            HeapMemorySegment segment = HeapMemorySegment.FACTORY.wrap(new byte[4]);
             if (isBigEndian) {
                 segment.putFloatBigEndian(0, row.getFloat(0));
             } else {
@@ -304,7 +303,7 @@ public class RawFormatSerializationSchema implements SerializationSchema<RowData
 
         @Override
         public byte[] convert(RowData row) {
-            HeapMemorySegment segment = MemorySegmentFactory.wrapHeapSegment(new byte[8]);
+            HeapMemorySegment segment = HeapMemorySegment.FACTORY.wrap(new byte[8]);
             if (isBigEndian) {
                 segment.putDoubleBigEndian(0, row.getDouble(0));
             } else {

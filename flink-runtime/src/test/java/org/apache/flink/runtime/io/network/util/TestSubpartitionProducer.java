@@ -74,8 +74,7 @@ public class TestSubpartitionProducer implements Callable<Boolean> {
             BufferAndChannel bufferAndChannel;
 
             while ((bufferAndChannel = source.getNextBuffer()) != null) {
-                MemorySegment segment =
-                        MemorySegmentFactory.wrapHeapSegment(bufferAndChannel.getBuffer());
+                MemorySegment segment = MemorySegmentFactory.wrap(bufferAndChannel.getBuffer());
                 subpartition.add(
                         new BufferConsumer(
                                 segment, MemorySegment::free, Buffer.DataType.DATA_BUFFER));

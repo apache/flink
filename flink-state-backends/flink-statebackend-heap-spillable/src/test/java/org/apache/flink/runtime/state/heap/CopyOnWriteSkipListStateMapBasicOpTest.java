@@ -318,7 +318,7 @@ public class CopyOnWriteSkipListStateMapBasicOpTest extends TestLogger {
         byte[] keyBytes = skipListKeySerializer.serialize(key, namespace);
         byte[] constructedKeyBytes = new byte[keyBytes.length + 1];
         System.arraycopy(keyBytes, 0, constructedKeyBytes, 1, keyBytes.length);
-        MemorySegment keySegment = MemorySegmentFactory.wrapHeapSegment(constructedKeyBytes);
+        MemorySegment keySegment = MemorySegmentFactory.wrap(constructedKeyBytes);
         int keyLen = keyBytes.length;
         byte[] value = skipListValueSerializer.serialize(valueString);
         stateMap.putValue(keySegment, 1, keyLen, value, false);
@@ -479,7 +479,7 @@ public class CopyOnWriteSkipListStateMapBasicOpTest extends TestLogger {
         SkipListKeySerializer<Integer, Long> skipListKeySerializer =
                 new SkipListKeySerializer<>(IntSerializer.INSTANCE, LongSerializer.INSTANCE);
         byte[] namespaceBytes = skipListKeySerializer.serializeNamespace(namespace);
-        MemorySegment namespaceSegment = MemorySegmentFactory.wrapHeapSegment(namespaceBytes);
+        MemorySegment namespaceSegment = MemorySegmentFactory.wrap(namespaceBytes);
         Iterator<Long> iterator =
                 stateMap.new NamespaceNodeIterator(namespaceSegment, 0, namespaceBytes.length);
         while (iterator.hasNext()) {
