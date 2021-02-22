@@ -1675,25 +1675,12 @@ val alerts = patternStream.select(createAlert(_))
 {{< /tab >}}
 {{< /tabs >}}
 
-## 从旧版本迁移（1.3之前）
+## 从旧版本迁移（1.5之前）
 
-### 迁移到1.4+
+### Migrating from Flink <= 1.5
 
-在Flink-1.4放弃了和<= Flink 1.2版本的兼容性。很不幸，不能再恢复用1.2.x运行过的CEP作业。
-
-### 迁移到1.3.x
-
-CEP库在Flink-1.3发布的一系列的新特性引入了一些API上的修改。这里我们描述你需要对旧的CEP作业所做的修改，以能够用Flink-1.3来运行它们。
-在做完这些修改并重新编译你的作业之后，可以从旧版本作业的保存点之后继续运行，*也就是说*不需要再重新处理旧的数据。
-
-需要的修改是：
-
-1. 修改你的条件（在`where(...)`语句中的）来继承`SimpleCondition`类而不是实现`FilterFunction`接口。
-
-2. 修改你作为`select(...)`和`flatSelect(...)`方法的参数的函数为期望每个模式关联一个事件列表（`Java`中`List`，`Scala`中`Iterable`）。
-这是因为增加了循环模式后，多个事件可能匹配一个单一的（循环）模式。
-
-3. 在Flink 1.1和1.2中，`followedBy()`隐含了`不确定的松散连续` (参见[这里](#组合模式))。
-在Flink 1.3中，这里发生了变化， `followedBy()`隐含了`松散连续`，如果需要`不确定的松散连续`，应该使用`followedByAny()`。
+In Flink 1.13 we dropped direct savepoint backward compatibility with Flink <= 1.5. If you want to restore
+from a savepoint taken from an older version, migrate it first to a newer version (1.6-1.12), take a savepoint
+and then use that savepoint to restore with Flink >= 1.13.
 
 {{< top >}}
