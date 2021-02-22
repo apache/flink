@@ -19,21 +19,22 @@
 package org.apache.flink.runtime.rest.messages;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
- * Tests that the {@link JobExceptionsInfo} with no root exception can be marshalled and
+ * Tests that the {@link JobExceptionsInfoWithHistory} with no root exception can be marshalled and
  * unmarshalled.
  */
-public class JobExceptionsInfoNoRootTest
-        extends RestResponseMarshallingTestBase<JobExceptionsInfo> {
+public class JobExceptionsInfoWithHistoryNoRootTest
+        extends RestResponseMarshallingTestBase<JobExceptionsInfoWithHistory> {
     @Override
-    protected Class<JobExceptionsInfo> getTestResponseClass() {
-        return JobExceptionsInfo.class;
+    protected Class<JobExceptionsInfoWithHistory> getTestResponseClass() {
+        return JobExceptionsInfoWithHistory.class;
     }
 
     @Override
-    protected JobExceptionsInfo getTestResponseInstance() throws Exception {
+    protected JobExceptionsInfoWithHistory getTestResponseInstance() throws Exception {
         List<JobExceptionsInfo.ExecutionExceptionInfo> executionTaskExceptionInfoList =
                 new ArrayList<>();
         executionTaskExceptionInfoList.add(
@@ -42,6 +43,21 @@ public class JobExceptionsInfoNoRootTest
         executionTaskExceptionInfoList.add(
                 new JobExceptionsInfo.ExecutionExceptionInfo(
                         "exception2", "task2", "location2", System.currentTimeMillis()));
-        return new JobExceptionsInfo(null, null, executionTaskExceptionInfoList, false);
+        return new JobExceptionsInfoWithHistory(
+                null,
+                null,
+                executionTaskExceptionInfoList,
+                false,
+                new JobExceptionsInfoWithHistory.JobExceptionHistory(
+                        Arrays.asList(
+                                new JobExceptionsInfoWithHistory.ExceptionInfo(
+                                        "global failure #0", "stacktrace #0", 0L),
+                                new JobExceptionsInfoWithHistory.ExceptionInfo(
+                                        "local task failure #1",
+                                        "stacktrace #1",
+                                        1L,
+                                        "task name",
+                                        "location")),
+                        false));
     }
 }

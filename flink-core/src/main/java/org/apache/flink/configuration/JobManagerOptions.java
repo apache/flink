@@ -257,6 +257,15 @@ public class JobManagerOptions {
                     .withDescription(
                             "The maximum number of prior execution attempts kept in history.");
 
+    /** The maximum number of failures kept in the exception history. */
+    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
+    public static final ConfigOption<Integer> MAX_EXCEPTION_HISTORY_SIZE =
+            key("jobmanager.exception-history-size")
+                    .intType()
+                    .defaultValue(16)
+                    .withDescription(
+                            "The maximum number of failures collected by the exception history per job.");
+
     /**
      * This option specifies the failover strategy, i.e. how the job computation recovers from task
      * failures.

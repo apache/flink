@@ -20,6 +20,7 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 
 /** Factory for {@link TestExecutionSlotAllocatorFactory}. */
 public class TestExecutionSlotAllocatorFactory implements ExecutionSlotAllocatorFactory {
@@ -32,6 +33,10 @@ public class TestExecutionSlotAllocatorFactory implements ExecutionSlotAllocator
 
     public TestExecutionSlotAllocatorFactory(TaskManagerGateway gateway) {
         this.testExecutionSlotAllocator = new TestExecutionSlotAllocator(gateway);
+    }
+
+    public TestExecutionSlotAllocatorFactory(TestingLogicalSlotBuilder logicalSlotBuilder) {
+        this.testExecutionSlotAllocator = new TestExecutionSlotAllocator(logicalSlotBuilder);
     }
 
     @Override
