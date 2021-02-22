@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.SqlCallExpression;
 import org.apache.flink.table.expressions.TimePointUnit;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -540,7 +541,7 @@ public final class Expressions {
      * table-valued functions are not supported. Sub-queries are also not allowed.
      */
     public static ApiExpression callSql(String sqlExpression) {
-        return apiCall(BuiltInFunctionDefinitions.CALL_SQL, sqlExpression);
+        return apiSqlCall(sqlExpression);
     }
 
     private static ApiExpression apiCall(FunctionDefinition functionDefinition, Object... args) {
@@ -567,5 +568,9 @@ public final class Expressions {
                         .map(ApiExpressionUtils::objectToExpression)
                         .collect(Collectors.toList());
         return new ApiExpression(unresolvedCall(functionDefinition, arguments));
+    }
+
+    private static ApiExpression apiSqlCall(String sqlExpression) {
+        return new ApiExpression(new SqlCallExpression(sqlExpression));
     }
 }
