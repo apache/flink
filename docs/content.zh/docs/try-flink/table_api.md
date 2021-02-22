@@ -254,7 +254,7 @@ public static Table report(Table transactions) {
 
 Running the test with this implementation will also pass. 
 
-## Once More, With Streaming!
+## 回顾
 
 就这样，一个功能齐全、有状态、分布式的流应用程序构建完成！查询持续消耗来自Kafka的交易流数据，计算每小时支出，并在准备好后立即输出结果。由于输入是无界的，因此查询将一直运行，直到手动将其停止为止。并且由于作业使用基于时间窗口的聚合，因此 Flink 可以执行特定的优化，例如当框架知道不再有特定窗口的记录到达时进行状态清除。
 
