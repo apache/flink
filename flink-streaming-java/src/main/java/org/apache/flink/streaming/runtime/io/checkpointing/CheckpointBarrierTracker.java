@@ -37,7 +37,7 @@ import java.util.ArrayDeque;
  * from which input channels. Once it has observed all checkpoint barriers for a checkpoint ID, it
  * notifies its listener of a completed checkpoint.
  *
- * <p>Unlike the {@link CheckpointBarrierAligner}, the BarrierTracker does not block the input
+ * <p>The BarrierTracker does not block the input
  * channels that have sent barriers, so it cannot be used to gain "exactly-once" processing
  * guarantees. It can, however, be used to gain "at least once" processing guarantees.
  *
