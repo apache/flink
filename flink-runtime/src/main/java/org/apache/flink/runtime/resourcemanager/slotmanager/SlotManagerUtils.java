@@ -34,6 +34,18 @@ public class SlotManagerUtils {
                 .build();
     }
 
+    public static ResourceProfile generateDefaultSlotResourceProfile(
+            ResourceProfile resourceProfile, int numSlotsPerWorker) {
+        return ResourceProfile.newBuilder()
+                .setCpuCores(resourceProfile.getCpuCores().divide(numSlotsPerWorker))
+                .setTaskHeapMemory(resourceProfile.getTaskHeapMemory().divide(numSlotsPerWorker))
+                .setTaskOffHeapMemory(
+                        resourceProfile.getTaskOffHeapMemory().divide(numSlotsPerWorker))
+                .setManagedMemory(resourceProfile.getManagedMemory().divide(numSlotsPerWorker))
+                .setNetworkMemory(resourceProfile.getNetworkMemory().divide(numSlotsPerWorker))
+                .build();
+    }
+
     public static int calculateDefaultNumSlots(
             ResourceProfile totalResourceProfile, ResourceProfile defaultSlotResourceProfile) {
         // For ResourceProfile.ANY in test case, return the maximum integer

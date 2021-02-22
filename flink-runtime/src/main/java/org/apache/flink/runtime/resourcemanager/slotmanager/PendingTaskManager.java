@@ -26,11 +26,13 @@ public class PendingTaskManager {
     private final PendingTaskManagerId pendingTaskManagerId;
     private final ResourceProfile totalResourceProfile;
     private final ResourceProfile defaultSlotResourceProfile;
+    private final int numSlots;
 
-    public PendingTaskManager(
-            ResourceProfile totalResourceProfile, ResourceProfile defaultSlotResourceProfile) {
-        this.defaultSlotResourceProfile = Preconditions.checkNotNull(defaultSlotResourceProfile);
+    public PendingTaskManager(ResourceProfile totalResourceProfile, int numSlots) {
+        this.numSlots = numSlots;
         this.totalResourceProfile = Preconditions.checkNotNull(totalResourceProfile);
+        this.defaultSlotResourceProfile =
+                SlotManagerUtils.generateDefaultSlotResourceProfile(totalResourceProfile, numSlots);
         this.pendingTaskManagerId = PendingTaskManagerId.generate();
     }
 
@@ -44,6 +46,10 @@ public class PendingTaskManager {
 
     public PendingTaskManagerId getPendingTaskManagerId() {
         return pendingTaskManagerId;
+    }
+
+    public int getNumSlots() {
+        return numSlots;
     }
 
     @Override
