@@ -38,6 +38,7 @@ import org.apache.flink.runtime.state.StateSerializerProvider;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
+import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot.BackendStateType;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
@@ -87,6 +88,8 @@ public class RocksDBFullRestoreOperation<K> extends AbstractRocksDBRestoreOperat
     /** Write batch size used in {@link RocksDBWriteBatchWrapper}. */
     private final long writeBatchSize;
 
+    private final PriorityQueueFlag queueRestoreEnabled;
+
     public RocksDBFullRestoreOperation(
             KeyGroupRange keyGroupRange,
             int keyGroupPrefixBytes,
@@ -104,7 +107,8 @@ public class RocksDBFullRestoreOperation<K> extends AbstractRocksDBRestoreOperat
             @Nonnull Collection<KeyedStateHandle> restoreStateHandles,
             @Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
             @Nonnegative long writeBatchSize,
-            Long writeBufferManagerCapacity) {
+            Long writeBufferManagerCapacity,
+            PriorityQueueFlag queueRestoreEnabled) {
         super(
                 keyGroupRange,
                 keyGroupPrefixBytes,
@@ -124,6 +128,7 @@ public class RocksDBFullRestoreOperation<K> extends AbstractRocksDBRestoreOperat
                 writeBufferManagerCapacity);
         checkArgument(writeBatchSize >= 0, "Write batch size have to be no negative.");
         this.writeBatchSize = writeBatchSize;
+        this.queueRestoreEnabled = queueRestoreEnabled;
     }
 
     /** Restores all key-groups data that is referenced by the passed state handles. */
@@ -182,6 +187,12 @@ public class RocksDBFullRestoreOperation<K> extends AbstractRocksDBRestoreOperat
         currentStateHandleKVStateColumnFamilies = new ArrayList<>(restoredMetaInfos.size());
 
         for (StateMetaInfoSnapshot restoredMetaInfo : restoredMetaInfos) {
+            if (restoredMetaInfo.getBackendStateType() == BackendStateType.PRIORITY_QUEUE
+                    && queueRestoreEnabled == PriorityQueueFlag.THROW_ON_PRIORITY_QUEUE) {
+                throw new StateMigrationException(
+                        "Can not restore savepoint taken with RocksDB timers enabled with Heap timers!");
+            }
+
             RocksDbKvStateInfo registeredStateCFHandle =
                     getOrRegisterStateColumnFamilyHandle(null, restoredMetaInfo);
             currentStateHandleKVStateColumnFamilies.add(registeredStateCFHandle.columnFamilyHandle);
