@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.contrib.streaming.state.restore.AbstractRocksDBRestoreOperation;
+import org.apache.flink.contrib.streaming.state.restore.PriorityQueueFlag;
 import org.apache.flink.contrib.streaming.state.restore.RocksDBFullRestoreOperation;
 import org.apache.flink.contrib.streaming.state.restore.RocksDBIncrementalRestoreOperation;
 import org.apache.flink.contrib.streaming.state.restore.RocksDBNoneRestoreOperation;
@@ -419,6 +420,10 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                     optionsContainer.getWriteBufferManagerCapacity());
         }
         KeyedStateHandle firstStateHandle = restoreStateHandles.iterator().next();
+        PriorityQueueFlag queueRestoreEnabled =
+                priorityQueueStateType == RocksDBStateBackend.PriorityQueueStateType.HEAP
+                        ? PriorityQueueFlag.THROW_ON_PRIORITY_QUEUE
+                        : PriorityQueueFlag.RESTORE_PRIORITY_QUEUE;
         if (firstStateHandle instanceof IncrementalKeyedStateHandle) {
             return new RocksDBIncrementalRestoreOperation<>(
                     operatorIdentifier,
@@ -438,7 +443,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                     restoreStateHandles,
                     ttlCompactFiltersManager,
                     writeBatchSize,
-                    optionsContainer.getWriteBufferManagerCapacity());
+                    optionsContainer.getWriteBufferManagerCapacity(),
+                    queueRestoreEnabled);
         } else {
             return new RocksDBFullRestoreOperation<>(
                     keyGroupRange,
@@ -457,7 +463,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                     restoreStateHandles,
                     ttlCompactFiltersManager,
                     writeBatchSize,
-                    optionsContainer.getWriteBufferManagerCapacity());
+                    optionsContainer.getWriteBufferManagerCapacity(),
+                    queueRestoreEnabled);
         }
     }
 

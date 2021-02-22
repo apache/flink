@@ -28,6 +28,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.StateSerializerProvider;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
+import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot.BackendStateType;
 import org.apache.flink.runtime.state.restore.FullSnapshotRestoreOperation;
 import org.apache.flink.runtime.state.restore.KeyGroup;
 import org.apache.flink.runtime.state.restore.KeyGroupEntry;
@@ -45,11 +46,11 @@ import javax.annotation.Nonnull;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -58,6 +59,8 @@ public class RocksDBFullRestoreOperation<K> extends AbstractRocksDBRestoreOperat
     private final FullSnapshotRestoreOperation<K> savepointRestoreOperation;
     /** Write batch size used in {@link RocksDBWriteBatchWrapper}. */
     private final long writeBatchSize;
+
+    private final PriorityQueueFlag queueRestoreEnabled;
 
     public RocksDBFullRestoreOperation(
             KeyGroupRange keyGroupRange,
@@ -76,7 +79,8 @@ public class RocksDBFullRestoreOperation<K> extends AbstractRocksDBRestoreOperat
             @Nonnull Collection<KeyedStateHandle> restoreStateHandles,
             @Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
             @Nonnegative long writeBatchSize,
-            Long writeBufferManagerCapacity) {
+            Long writeBufferManagerCapacity,
+            PriorityQueueFlag queueRestoreEnabled) {
         super(
                 keyGroupRange,
                 keyGroupPrefixBytes,
@@ -96,6 +100,7 @@ public class RocksDBFullRestoreOperation<K> extends AbstractRocksDBRestoreOperat
                 writeBufferManagerCapacity);
         checkArgument(writeBatchSize >= 0, "Write batch size have to be no negative.");
         this.writeBatchSize = writeBatchSize;
+        this.queueRestoreEnabled = queueRestoreEnabled;
         this.savepointRestoreOperation =
                 new FullSnapshotRestoreOperation<>(
                         keyGroupRange,
@@ -123,16 +128,18 @@ public class RocksDBFullRestoreOperation<K> extends AbstractRocksDBRestoreOperat
             throws IOException, RocksDBException, StateMigrationException {
         List<StateMetaInfoSnapshot> restoredMetaInfos =
                 savepointRestoreResult.getStateMetaInfoSnapshots();
-        List<ColumnFamilyHandle> columnFamilyHandles =
-                restoredMetaInfos.stream()
-                        .map(
-                                stateMetaInfoSnapshot -> {
-                                    RocksDbKvStateInfo registeredStateCFHandle =
-                                            getOrRegisterStateColumnFamilyHandle(
-                                                    null, stateMetaInfoSnapshot);
-                                    return registeredStateCFHandle.columnFamilyHandle;
-                                })
-                        .collect(Collectors.toList());
+        List<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>(restoredMetaInfos.size());
+        for (StateMetaInfoSnapshot stateMetaInfoSnapshot : restoredMetaInfos) {
+            if (stateMetaInfoSnapshot.getBackendStateType() == BackendStateType.PRIORITY_QUEUE
+                    && queueRestoreEnabled == PriorityQueueFlag.THROW_ON_PRIORITY_QUEUE) {
+                throw new StateMigrationException(
+                        "Can not restore savepoint taken with RocksDB timers enabled with Heap timers!");
+            }
+
+            RocksDbKvStateInfo registeredStateCFHandle =
+                    getOrRegisterStateColumnFamilyHandle(null, stateMetaInfoSnapshot);
+            columnFamilyHandles.add(registeredStateCFHandle.columnFamilyHandle);
+        }
         try (ThrowingIterator<KeyGroup> keyGroups = savepointRestoreResult.getRestoredKeyGroups()) {
             restoreKVStateData(keyGroups, columnFamilyHandles);
         }
