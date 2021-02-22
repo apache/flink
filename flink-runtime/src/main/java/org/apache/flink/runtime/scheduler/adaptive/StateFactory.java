@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.scheduler.declarative;
+package org.apache.flink.runtime.scheduler.adaptive;
 
 /**
- * Factory for creating declarative scheduler state instances.
+ * Factory for creating adaptive scheduler state instances.
  *
  * @param <T> Type of the state.
  */

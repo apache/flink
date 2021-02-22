@@ -112,7 +112,6 @@ public class RestartingTest extends TestLogger {
 
             // ideally we'd just delay the state transitions, but the context does not support that
             ctx.setExpectWaitingForResources();
-            restarting.onEnter();
 
             // this is just a sanity check for the test
             assertThat(restarting.getExecutionGraph().getState(), is(JobStatus.CANCELED));

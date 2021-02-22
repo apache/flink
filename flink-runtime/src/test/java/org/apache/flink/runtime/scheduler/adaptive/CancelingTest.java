@@ -121,7 +121,6 @@ public class CancelingTest extends TestLogger {
             // ideally we'd delay the async call to #onGloballyTerminalState instead, but the
             // context does not support that
             ctx.setExpectFinished(eg -> {});
-            canceling.onEnter();
 
             meg.completeCancellation();
 

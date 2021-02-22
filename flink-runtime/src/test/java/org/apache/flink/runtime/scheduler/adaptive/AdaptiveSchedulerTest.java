@@ -426,18 +426,13 @@ public class AdaptiveSchedulerTest extends TestLogger {
         final AdaptiveScheduler scheduler =
                 new AdaptiveSchedulerBuilder(createJobGraph(), mainThreadExecutor).build();
 
-        final LifecycleMethodCapturingState.Factory firstStateFactory =
-                new LifecycleMethodCapturingState.Factory();
-        final DummyState.Factory secondStateFactory = new DummyState.Factory();
+        final LifecycleMethodCapturingState firstState = new LifecycleMethodCapturingState();
 
-        scheduler.transitionToState(firstStateFactory);
-
-        final LifecycleMethodCapturingState firstState =
-                (LifecycleMethodCapturingState) scheduler.getState();
+        scheduler.transitionToState(new StateInstanceFactory(firstState));
 
         firstState.reset();
 
-        scheduler.transitionToState(secondStateFactory);
+        scheduler.transitionToState(new DummyState.Factory());
         assertThat(firstState.onLeaveCalled, is(true));
         assertThat(firstState.onLeaveNewStateArgument.equals(DummyState.class), is(true));
     }
@@ -489,8 +484,8 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
     @Test(expected = IllegalStateException.class)
     public void testRepeatedTransitionIntoCurrentStateFails() throws Exception {
-        final DeclarativeScheduler scheduler =
-                new DeclarativeSchedulerBuilder(createJobGraph(), mainThreadExecutor).build();
+        final AdaptiveScheduler scheduler =
+                new AdaptiveSchedulerBuilder(createJobGraph(), mainThreadExecutor).build();
 
         final State state = scheduler.getState();
 
@@ -612,6 +607,26 @@ public class AdaptiveSchedulerTest extends TestLogger {
             public LifecycleMethodCapturingState getState() {
                 return new LifecycleMethodCapturingState();
             }
+        }
+    }
+
+    private static class StateInstanceFactory
+            implements StateFactory<LifecycleMethodCapturingState> {
+
+        private final LifecycleMethodCapturingState instance;
+
+        public StateInstanceFactory(LifecycleMethodCapturingState instance) {
+            this.instance = instance;
+        }
+
+        @Override
+        public Class<LifecycleMethodCapturingState> getStateClass() {
+            return LifecycleMethodCapturingState.class;
+        }
+
+        @Override
+        public LifecycleMethodCapturingState getState() {
+            return instance;
         }
     }
 

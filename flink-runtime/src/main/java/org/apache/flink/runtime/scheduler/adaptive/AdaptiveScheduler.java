@@ -188,11 +188,9 @@ public class AdaptiveScheduler
 
     private final Duration resourceTimeout;
 
-    /**
-     * This field describes the current state of the scheduler. If it is "null", we are in a pending
-     * state transitions. Other state transitions are not allowed.
-     */
     private State state = new Created(this, LOG);
+
+    private boolean isTransitioningState = false;
 
     public AdaptiveScheduler(
             JobGraph jobGraph,
@@ -713,8 +711,7 @@ public class AdaptiveScheduler
         declarativeSlotPool.setResourceRequirements(desiredResources);
 
         transitionToState(
-                new WaitingForResources.Factory(
-                        this, LOG, desiredResources, this.resourceTimeout));
+                new WaitingForResources.Factory(this, LOG, desiredResources, this.resourceTimeout));
     }
 
     private ResourceCounter calculateDesiredResources() {
@@ -921,21 +918,23 @@ public class AdaptiveScheduler
     @VisibleForTesting
     void transitionToState(StateFactory<?> targetState) {
         Preconditions.checkState(
-                state != null, "State transitions are now allowed while constructing a state.");
+                !isTransitioningState, "Concurrent state transitions are not allowed");
         Preconditions.checkState(
                 state.getClass() != targetState.getStateClass(),
                 "Attempted to transition into the very state the scheduler is already in.");
 
-        LOG.debug(
-                "Transition from state {} to {}.",
-                state.getClass().getSimpleName(),
-                targetState.getStateClass().getSimpleName());
+        try {
+            isTransitioningState = true;
+            LOG.debug(
+                    "Transition from state {} to {}.",
+                    state.getClass().getSimpleName(),
+                    targetState.getStateClass().getSimpleName());
 
-        State oldState = state;
-        state = null; // guard against state transitions in onLeave or state constructors.
-        oldState.onLeave(targetState.getStateClass());
-        state = targetState.getState();
-        LOG.debug("Setting state = {}", state);
+            state.onLeave(targetState.getStateClass());
+            state = targetState.getState();
+        } finally {
+            isTransitioningState = false;
+        }
     }
 
     @VisibleForTesting
