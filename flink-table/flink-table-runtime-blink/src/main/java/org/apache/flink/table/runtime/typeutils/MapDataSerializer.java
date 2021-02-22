@@ -200,7 +200,7 @@ public class MapDataSerializer extends TypeSerializer<MapData> {
         int length = source.readInt();
         byte[] bytes = new byte[length];
         source.readFully(bytes);
-        reuse.pointTo(MemorySegmentFactory.wrapHeapSegment(bytes), 0, bytes.length);
+        reuse.pointTo(MemorySegmentFactory.wrap(bytes), 0, bytes.length);
         return reuse;
     }
 

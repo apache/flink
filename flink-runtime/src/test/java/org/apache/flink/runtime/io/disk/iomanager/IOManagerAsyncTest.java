@@ -64,7 +64,7 @@ public class IOManagerAsyncTest {
             final BlockChannelWriter<MemorySegment> writer =
                     this.ioManager.createBlockChannelWriter(channelID);
 
-            MemorySegment memSeg = MemorySegmentFactory.allocateHeapSegment(32 * 1024);
+            MemorySegment memSeg = MemorySegmentFactory.allocateUnpooledSegment(32 * 1024);
 
             for (int i = 0; i < NUM_IOS; i++) {
                 for (int pos = 0; pos < memSeg.size(); pos += 4) {
@@ -105,7 +105,7 @@ public class IOManagerAsyncTest {
         try {
             final List<MemorySegment> memSegs = new ArrayList<MemorySegment>();
             for (int i = 0; i < NUM_SEGS; i++) {
-                memSegs.add(MemorySegmentFactory.allocateHeapSegment(32 * 1024));
+                memSegs.add(MemorySegmentFactory.allocateUnpooledSegment(32 * 1024));
             }
 
             final FileIOChannel.ID channelID = this.ioManager.createChannel();

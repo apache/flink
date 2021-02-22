@@ -42,7 +42,7 @@ public final class BinaryArrayWriter extends AbstractBinaryWriter {
         this.cursor = fixedSize;
         this.numElements = numElements;
 
-        this.segment = MemorySegmentFactory.wrapHeapSegment(new byte[fixedSize]);
+        this.segment = MemorySegmentFactory.wrap(new byte[fixedSize]);
         this.segment.putInt(0, numElements);
         this.array = array;
     }

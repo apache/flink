@@ -92,9 +92,7 @@ public final class BinaryStringData extends LazyBinaryFormat<String> implements 
      */
     public static BinaryStringData fromBytes(byte[] bytes, int offset, int numBytes) {
         return new BinaryStringData(
-                new MemorySegment[] {MemorySegmentFactory.wrapHeapSegment(bytes)},
-                offset,
-                numBytes);
+                new MemorySegment[] {MemorySegmentFactory.wrap(bytes)}, offset, numBytes);
     }
 
     /** Creates a {@link BinaryStringData} instance that contains `length` spaces. */
@@ -352,7 +350,7 @@ public final class BinaryStringData extends LazyBinaryFormat<String> implements 
 
         byte[] bytes = StringUtf8Utils.encodeUTF8(javaObject);
         return new BinarySection(
-                new MemorySegment[] {MemorySegmentFactory.wrapHeapSegment(bytes)}, 0, bytes.length);
+                new MemorySegment[] {MemorySegmentFactory.wrap(bytes)}, 0, bytes.length);
     }
 
     /** Copy a new {@code BinaryStringData}. */
@@ -362,7 +360,7 @@ public final class BinaryStringData extends LazyBinaryFormat<String> implements 
                 BinarySegmentUtils.copyToBytes(
                         binarySection.segments, binarySection.offset, binarySection.sizeInBytes);
         return new BinaryStringData(
-                new MemorySegment[] {MemorySegmentFactory.wrapHeapSegment(copy)},
+                new MemorySegment[] {MemorySegmentFactory.wrap(copy)},
                 0,
                 binarySection.sizeInBytes,
                 javaObject);

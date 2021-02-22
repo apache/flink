@@ -70,7 +70,7 @@ class NetworkBufferAllocator {
      */
     Buffer allocateUnPooledNetworkBuffer(int size, Buffer.DataType dataType) {
         byte[] byteArray = new byte[size];
-        MemorySegment memSeg = MemorySegmentFactory.wrapHeapSegment(byteArray);
+        MemorySegment memSeg = MemorySegmentFactory.wrap(byteArray);
 
         return new NetworkBuffer(memSeg, FreeingBufferRecycler.INSTANCE, dataType);
     }

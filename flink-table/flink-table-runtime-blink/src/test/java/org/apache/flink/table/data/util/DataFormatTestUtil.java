@@ -86,7 +86,7 @@ public class DataFormatTestUtil {
         int posInSeg = baseOffset;
         int remainSize = 160;
         for (int i = 0; i < segments.length; i++) {
-            segments[i] = MemorySegmentFactory.wrapHeapSegment(new byte[32]);
+            segments[i] = MemorySegmentFactory.wrap(new byte[32]);
             int copy = Math.min(32 - posInSeg, remainSize);
             row160.getSegments()[0].copyTo(160 - remainSize, segments[i], posInSeg, copy);
             remainSize -= copy;
@@ -104,8 +104,7 @@ public class DataFormatTestUtil {
     public static BinaryRowData getMultiSeg160BytesInOneSegRow(BinaryRowData row160) {
         MemorySegment[] segments = new MemorySegment[2];
         segments[0] = row160.getSegments()[0];
-        segments[1] =
-                MemorySegmentFactory.wrapHeapSegment(new byte[row160.getSegments()[0].size()]);
+        segments[1] = MemorySegmentFactory.wrap(new byte[row160.getSegments()[0].size()]);
         row160.pointTo(segments, 0, row160.getSizeInBytes());
         return row160;
     }
@@ -114,8 +113,8 @@ public class DataFormatTestUtil {
     public static MemorySegment[] splitBytes(byte[] bytes, int baseOffset) {
         int newSize = (bytes.length + 1) / 2 + baseOffset;
         MemorySegment[] ret = new MemorySegment[2];
-        ret[0] = MemorySegmentFactory.wrapHeapSegment(new byte[newSize]);
-        ret[1] = MemorySegmentFactory.wrapHeapSegment(new byte[newSize]);
+        ret[0] = MemorySegmentFactory.wrap(new byte[newSize]);
+        ret[1] = MemorySegmentFactory.wrap(new byte[newSize]);
 
         ret[0].put(baseOffset, bytes, 0, newSize - baseOffset);
         ret[1].put(0, bytes, newSize - baseOffset, bytes.length - (newSize - baseOffset));

@@ -58,7 +58,7 @@ public class TestBufferFactory {
 
         numberOfCreatedBuffers++;
         return new NetworkBuffer(
-                MemorySegmentFactory.allocateHeapSegment(bufferSize), bufferRecycler);
+                MemorySegmentFactory.allocateUnpooledSegment(bufferSize), bufferRecycler);
     }
 
     public synchronized int getNumberOfCreatedBuffers() {
@@ -89,7 +89,7 @@ public class TestBufferFactory {
      */
     public static Buffer createBuffer(int bufferSize, int dataSize) {
         return new NetworkBuffer(
-                MemorySegmentFactory.allocateHeapSegment(bufferSize),
+                MemorySegmentFactory.allocateUnpooledSegment(bufferSize),
                 RECYCLER,
                 Buffer.DataType.DATA_BUFFER,
                 dataSize);

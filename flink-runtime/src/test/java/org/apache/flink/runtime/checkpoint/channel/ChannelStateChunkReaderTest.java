@@ -132,7 +132,7 @@ public class ChannelStateChunkReaderTest {
             serializer.writeData(
                     dataStream,
                     new NetworkBuffer(
-                            MemorySegmentFactory.wrapHeapSegment(new byte[size]),
+                            MemorySegmentFactory.wrap(new byte[size]),
                             FreeingBufferRecycler.INSTANCE,
                             Buffer.DataType.DATA_BUFFER,
                             size));

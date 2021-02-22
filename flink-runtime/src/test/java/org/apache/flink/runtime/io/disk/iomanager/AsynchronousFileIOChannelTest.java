@@ -277,7 +277,7 @@ public class AsynchronousFileIOChannelTest {
         try (final IOManagerAsync ioMan = new IOManagerAsync()) {
 
             final int NUM_BLOCKS = 100;
-            final MemorySegment seg = MemorySegmentFactory.allocateHeapSegment(32 * 1024);
+            final MemorySegment seg = MemorySegmentFactory.allocateUnpooledSegment(32 * 1024);
 
             final AtomicInteger callbackCounter = new AtomicInteger();
             final AtomicBoolean exceptionOccurred = new AtomicBoolean();
@@ -334,7 +334,7 @@ public class AsynchronousFileIOChannelTest {
     private void testExceptionForwardsToClose(
             IOManagerAsync ioMan, final int numBlocks, final int failingBlock) {
         try {
-            MemorySegment seg = MemorySegmentFactory.allocateHeapSegment(32 * 1024);
+            MemorySegment seg = MemorySegmentFactory.allocateUnpooledSegment(32 * 1024);
             FileIOChannel.ID channelId = ioMan.createChannel();
 
             BlockChannelWriterWithCallback<MemorySegment> writer =

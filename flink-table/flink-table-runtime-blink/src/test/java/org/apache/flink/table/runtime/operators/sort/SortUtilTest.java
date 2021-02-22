@@ -41,8 +41,8 @@ public class SortUtilTest {
         MemorySegment[] segments = new MemorySegment[len];
         MemorySegment[] compareSegs = new MemorySegment[len];
         for (int i = 0; i < len; i++) {
-            segments[i] = MemorySegmentFactory.allocateHeapSegment(20);
-            compareSegs[i] = MemorySegmentFactory.allocateHeapSegment(20);
+            segments[i] = MemorySegmentFactory.allocateUnpooledSegment(20);
+            compareSegs[i] = MemorySegmentFactory.allocateUnpooledSegment(20);
         }
 
         {

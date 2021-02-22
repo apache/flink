@@ -30,7 +30,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-import static org.apache.flink.core.memory.MemorySegmentFactory.wrapHeapSegment;
+import static org.apache.flink.core.memory.MemorySegmentFactory.wrap;
 import static org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer.LENGTH_BYTES;
 import static org.junit.Assert.assertArrayEquals;
 
@@ -64,8 +64,8 @@ public class SpanningWrapperTest {
                         recordLen);
         spanningWrapper.transferFrom(wrapNonSpanning(record1, firstChunk), recordLen);
         spanningWrapper.addNextChunkFromMemorySegment(
-                wrapHeapSegment(record1), firstChunk, recordLen - firstChunk + LENGTH_BYTES);
-        spanningWrapper.addNextChunkFromMemorySegment(wrapHeapSegment(record2), 0, record2.length);
+                wrap(record1), firstChunk, recordLen - firstChunk + LENGTH_BYTES);
+        spanningWrapper.addNextChunkFromMemorySegment(wrap(record2), 0, record2.length);
 
         CloseableIterator<Buffer> unconsumedSegment = spanningWrapper.getUnconsumedSegment();
 
@@ -92,7 +92,7 @@ public class SpanningWrapperTest {
 
     private NonSpanningWrapper wrapNonSpanning(byte[] bytes, int len) {
         NonSpanningWrapper nonSpanningWrapper = new NonSpanningWrapper();
-        MemorySegment segment = wrapHeapSegment(bytes);
+        MemorySegment segment = wrap(bytes);
         nonSpanningWrapper.initializeFromMemorySegment(segment, 0, len);
         nonSpanningWrapper
                 .readInt(); // emulate read length performed in getNextRecord to move position

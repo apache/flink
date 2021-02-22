@@ -236,7 +236,8 @@ public class InputChannelTestUtils {
 
         @Override
         public Collection<MemorySegment> requestMemorySegments(int numberOfSegmentsToRequest) {
-            return Collections.singletonList(MemorySegmentFactory.allocateHeapSegment(pageSize));
+            return Collections.singletonList(
+                    MemorySegmentFactory.allocateUnpooledSegment(pageSize));
         }
 
         @Override

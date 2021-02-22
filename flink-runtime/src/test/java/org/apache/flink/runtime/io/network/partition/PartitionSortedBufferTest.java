@@ -98,7 +98,7 @@ public class PartitionSortedBufferTest {
 
         // read all data from the sort buffer
         while (sortBuffer.hasRemaining()) {
-            MemorySegment readBuffer = MemorySegmentFactory.allocateHeapSegment(bufferSize);
+            MemorySegment readBuffer = MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
             SortBuffer.BufferWithChannel bufferAndChannel = sortBuffer.copyIntoSegment(readBuffer);
             int subpartition = bufferAndChannel.getChannelIndex();
             buffersRead[subpartition].add(bufferAndChannel.getBuffer());
@@ -191,7 +191,7 @@ public class PartitionSortedBufferTest {
 
     private void checkReadResult(
             SortBuffer sortBuffer, ByteBuffer expectedBuffer, int expectedChannel, int bufferSize) {
-        MemorySegment segment = MemorySegmentFactory.allocateHeapSegment(bufferSize);
+        MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
         SortBuffer.BufferWithChannel bufferWithChannel = sortBuffer.copyIntoSegment(segment);
         assertEquals(expectedChannel, bufferWithChannel.getChannelIndex());
         assertEquals(expectedBuffer, bufferWithChannel.getBuffer().getNioBufferReadable());
@@ -280,7 +280,7 @@ public class PartitionSortedBufferTest {
         sortBuffer.append(ByteBuffer.allocate(1), 0, Buffer.DataType.DATA_BUFFER);
 
         assertTrue(sortBuffer.hasRemaining());
-        sortBuffer.copyIntoSegment(MemorySegmentFactory.allocateHeapSegment(bufferSize));
+        sortBuffer.copyIntoSegment(MemorySegmentFactory.allocateUnpooledSegment(bufferSize));
     }
 
     @Test(expected = IllegalStateException.class)
@@ -295,7 +295,7 @@ public class PartitionSortedBufferTest {
         sortBuffer.release();
         assertFalse(sortBuffer.hasRemaining());
 
-        sortBuffer.copyIntoSegment(MemorySegmentFactory.allocateHeapSegment(bufferSize));
+        sortBuffer.copyIntoSegment(MemorySegmentFactory.allocateUnpooledSegment(bufferSize));
     }
 
     @Test(expected = IllegalStateException.class)
@@ -306,7 +306,7 @@ public class PartitionSortedBufferTest {
         sortBuffer.finish();
 
         assertFalse(sortBuffer.hasRemaining());
-        sortBuffer.copyIntoSegment(MemorySegmentFactory.allocateHeapSegment(bufferSize));
+        sortBuffer.copyIntoSegment(MemorySegmentFactory.allocateUnpooledSegment(bufferSize));
     }
 
     @Test

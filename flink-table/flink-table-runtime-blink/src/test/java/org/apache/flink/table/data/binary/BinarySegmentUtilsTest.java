@@ -41,8 +41,8 @@ public class BinarySegmentUtilsTest {
     public void testCopy() {
         // test copy the content of the latter Seg
         MemorySegment[] segments = new MemorySegment[2];
-        segments[0] = MemorySegmentFactory.wrapHeapSegment(new byte[] {0, 2, 5});
-        segments[1] = MemorySegmentFactory.wrapHeapSegment(new byte[] {6, 12, 15});
+        segments[0] = MemorySegmentFactory.wrap(new byte[] {0, 2, 5});
+        segments[1] = MemorySegmentFactory.wrap(new byte[] {6, 12, 15});
 
         byte[] bytes = BinarySegmentUtils.copyToBytes(segments, 4, 2);
         Assert.assertArrayEquals(new byte[] {12, 15}, bytes);
@@ -52,13 +52,13 @@ public class BinarySegmentUtilsTest {
     public void testEquals() {
         // test copy the content of the latter Seg
         MemorySegment[] segments1 = new MemorySegment[3];
-        segments1[0] = MemorySegmentFactory.wrapHeapSegment(new byte[] {0, 2, 5});
-        segments1[1] = MemorySegmentFactory.wrapHeapSegment(new byte[] {6, 12, 15});
-        segments1[2] = MemorySegmentFactory.wrapHeapSegment(new byte[] {1, 1, 1});
+        segments1[0] = MemorySegmentFactory.wrap(new byte[] {0, 2, 5});
+        segments1[1] = MemorySegmentFactory.wrap(new byte[] {6, 12, 15});
+        segments1[2] = MemorySegmentFactory.wrap(new byte[] {1, 1, 1});
 
         MemorySegment[] segments2 = new MemorySegment[2];
-        segments2[0] = MemorySegmentFactory.wrapHeapSegment(new byte[] {6, 0, 2, 5});
-        segments2[1] = MemorySegmentFactory.wrapHeapSegment(new byte[] {6, 12, 15, 18});
+        segments2[0] = MemorySegmentFactory.wrap(new byte[] {6, 0, 2, 5});
+        segments2[1] = MemorySegmentFactory.wrap(new byte[] {6, 12, 15, 18});
 
         assertTrue(BinarySegmentUtils.equalsMultiSegments(segments1, 0, segments2, 0, 0));
         assertTrue(BinarySegmentUtils.equals(segments1, 0, segments2, 1, 3));
@@ -101,12 +101,12 @@ public class BinarySegmentUtilsTest {
 
         // test var segs
         MemorySegment[] segments1 = new MemorySegment[2];
-        segments1[0] = MemorySegmentFactory.wrapHeapSegment(new byte[32]);
-        segments1[1] = MemorySegmentFactory.wrapHeapSegment(new byte[32]);
+        segments1[0] = MemorySegmentFactory.wrap(new byte[32]);
+        segments1[1] = MemorySegmentFactory.wrap(new byte[32]);
         MemorySegment[] segments2 = new MemorySegment[3];
-        segments2[0] = MemorySegmentFactory.wrapHeapSegment(new byte[16]);
-        segments2[1] = MemorySegmentFactory.wrapHeapSegment(new byte[16]);
-        segments2[2] = MemorySegmentFactory.wrapHeapSegment(new byte[16]);
+        segments2[0] = MemorySegmentFactory.wrap(new byte[16]);
+        segments2[1] = MemorySegmentFactory.wrap(new byte[16]);
+        segments2[2] = MemorySegmentFactory.wrap(new byte[16]);
 
         segments1[0].put(9, (byte) 1);
         assertFalse(BinarySegmentUtils.equals(segments1, 0, segments2, 14, 14));
@@ -122,15 +122,14 @@ public class BinarySegmentUtilsTest {
     @Test
     public void testBoundaryCopy() {
         MemorySegment[] segments1 = new MemorySegment[2];
-        segments1[0] = MemorySegmentFactory.wrapHeapSegment(new byte[32]);
-        segments1[1] = MemorySegmentFactory.wrapHeapSegment(new byte[32]);
+        segments1[0] = MemorySegmentFactory.wrap(new byte[32]);
+        segments1[1] = MemorySegmentFactory.wrap(new byte[32]);
         segments1[0].put(15, (byte) 5);
         segments1[1].put(15, (byte) 6);
 
         {
             byte[] bytes = new byte[64];
-            MemorySegment[] segments2 =
-                    new MemorySegment[] {MemorySegmentFactory.wrapHeapSegment(bytes)};
+            MemorySegment[] segments2 = new MemorySegment[] {MemorySegmentFactory.wrap(bytes)};
 
             BinarySegmentUtils.copyToBytes(segments1, 0, bytes, 0, 64);
             assertTrue(BinarySegmentUtils.equals(segments1, 0, segments2, 0, 64));
@@ -138,8 +137,7 @@ public class BinarySegmentUtilsTest {
 
         {
             byte[] bytes = new byte[64];
-            MemorySegment[] segments2 =
-                    new MemorySegment[] {MemorySegmentFactory.wrapHeapSegment(bytes)};
+            MemorySegment[] segments2 = new MemorySegment[] {MemorySegmentFactory.wrap(bytes)};
 
             BinarySegmentUtils.copyToBytes(segments1, 32, bytes, 0, 14);
             assertTrue(BinarySegmentUtils.equals(segments1, 32, segments2, 0, 14));
@@ -147,8 +145,7 @@ public class BinarySegmentUtilsTest {
 
         {
             byte[] bytes = new byte[64];
-            MemorySegment[] segments2 =
-                    new MemorySegment[] {MemorySegmentFactory.wrapHeapSegment(bytes)};
+            MemorySegment[] segments2 = new MemorySegment[] {MemorySegmentFactory.wrap(bytes)};
 
             BinarySegmentUtils.copyToBytes(segments1, 34, bytes, 0, 14);
             assertTrue(BinarySegmentUtils.equals(segments1, 34, segments2, 0, 14));
@@ -158,15 +155,14 @@ public class BinarySegmentUtilsTest {
     @Test
     public void testCopyToUnsafe() {
         MemorySegment[] segments1 = new MemorySegment[2];
-        segments1[0] = MemorySegmentFactory.wrapHeapSegment(new byte[32]);
-        segments1[1] = MemorySegmentFactory.wrapHeapSegment(new byte[32]);
+        segments1[0] = MemorySegmentFactory.wrap(new byte[32]);
+        segments1[1] = MemorySegmentFactory.wrap(new byte[32]);
         segments1[0].put(15, (byte) 5);
         segments1[1].put(15, (byte) 6);
 
         {
             byte[] bytes = new byte[64];
-            MemorySegment[] segments2 =
-                    new MemorySegment[] {MemorySegmentFactory.wrapHeapSegment(bytes)};
+            MemorySegment[] segments2 = new MemorySegment[] {MemorySegmentFactory.wrap(bytes)};
 
             BinarySegmentUtils.copyToUnsafe(segments1, 0, bytes, BYTE_ARRAY_BASE_OFFSET, 64);
             assertTrue(BinarySegmentUtils.equals(segments1, 0, segments2, 0, 64));
@@ -174,8 +170,7 @@ public class BinarySegmentUtilsTest {
 
         {
             byte[] bytes = new byte[64];
-            MemorySegment[] segments2 =
-                    new MemorySegment[] {MemorySegmentFactory.wrapHeapSegment(bytes)};
+            MemorySegment[] segments2 = new MemorySegment[] {MemorySegmentFactory.wrap(bytes)};
 
             BinarySegmentUtils.copyToUnsafe(segments1, 32, bytes, BYTE_ARRAY_BASE_OFFSET, 14);
             assertTrue(BinarySegmentUtils.equals(segments1, 32, segments2, 0, 14));
@@ -183,8 +178,7 @@ public class BinarySegmentUtilsTest {
 
         {
             byte[] bytes = new byte[64];
-            MemorySegment[] segments2 =
-                    new MemorySegment[] {MemorySegmentFactory.wrapHeapSegment(bytes)};
+            MemorySegment[] segments2 = new MemorySegment[] {MemorySegmentFactory.wrap(bytes)};
 
             BinarySegmentUtils.copyToUnsafe(segments1, 34, bytes, BYTE_ARRAY_BASE_OFFSET, 14);
             assertTrue(BinarySegmentUtils.equals(segments1, 34, segments2, 0, 14));
@@ -194,12 +188,12 @@ public class BinarySegmentUtilsTest {
     @Test
     public void testFind() {
         MemorySegment[] segments1 = new MemorySegment[2];
-        segments1[0] = MemorySegmentFactory.wrapHeapSegment(new byte[32]);
-        segments1[1] = MemorySegmentFactory.wrapHeapSegment(new byte[32]);
+        segments1[0] = MemorySegmentFactory.wrap(new byte[32]);
+        segments1[1] = MemorySegmentFactory.wrap(new byte[32]);
         MemorySegment[] segments2 = new MemorySegment[3];
-        segments2[0] = MemorySegmentFactory.wrapHeapSegment(new byte[16]);
-        segments2[1] = MemorySegmentFactory.wrapHeapSegment(new byte[16]);
-        segments2[2] = MemorySegmentFactory.wrapHeapSegment(new byte[16]);
+        segments2[0] = MemorySegmentFactory.wrap(new byte[16]);
+        segments2[1] = MemorySegmentFactory.wrap(new byte[16]);
+        segments2[2] = MemorySegmentFactory.wrap(new byte[16]);
 
         assertEquals(34, BinarySegmentUtils.find(segments1, 34, 0, segments2, 0, 0));
         assertEquals(-1, BinarySegmentUtils.find(segments1, 34, 0, segments2, 0, 15));

@@ -529,7 +529,7 @@ public class ResettableExternalBuffer implements ResettableRowBuffer {
             if (freeMemory == null) {
                 freeMemory = new ArrayList<>();
                 for (int i = 0; i < READ_BUFFER; i++) {
-                    freeMemory.add(MemorySegmentFactory.allocateHeapSegment(segmentSize));
+                    freeMemory.add(MemorySegmentFactory.allocateUnpooledSegment(segmentSize));
                 }
             }
             return freeMemory;

@@ -72,7 +72,7 @@ public class CompressedBlockChannelWriter
 
         for (int i = 0; i < 2; i++) {
             compressedBuffers.add(
-                    MemorySegmentFactory.wrapHeapSegment(
+                    MemorySegmentFactory.wrap(
                             new byte[compressor.getMaxCompressedSize(blockSize)]));
         }
     }

@@ -384,7 +384,8 @@ public class BinaryHashBucketArea {
                         // memory from heap.
                         // NOTE: must be careful, the steal memory should not return to table.
                         overflowSeg =
-                                MemorySegmentFactory.allocateHeapSegment(table.segmentSize, this);
+                                MemorySegmentFactory.allocateUnpooledSegment(
+                                        table.segmentSize, this);
                     } else {
                         final int spilledPart = table.spillPartition();
                         if (spilledPart == partition.partitionNumber) {

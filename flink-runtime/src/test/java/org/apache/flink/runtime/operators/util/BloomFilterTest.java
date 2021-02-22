@@ -39,7 +39,7 @@ public class BloomFilterTest {
         int bitsSize = BloomFilter.optimalNumOfBits(INPUT_SIZE, FALSE_POSITIVE_PROBABILITY);
         bitsSize = bitsSize + (Long.SIZE - (bitsSize % Long.SIZE));
         int byteSize = bitsSize >>> 3;
-        MemorySegment memorySegment = MemorySegmentFactory.allocateHeapSegment(byteSize);
+        MemorySegment memorySegment = MemorySegmentFactory.allocateUnpooledSegment(byteSize);
         bloomFilter = new BloomFilter(INPUT_SIZE, byteSize);
         bloomFilter.setBitsLocation(memorySegment, 0);
     }

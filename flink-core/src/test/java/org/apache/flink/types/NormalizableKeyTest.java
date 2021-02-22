@@ -128,7 +128,7 @@ public class NormalizableKeyTest {
             NormalizableKey<T> key1, NormalizableKey<T> key2, int len) {
 
         byte[] normalizedKeys = new byte[32];
-        MemorySegment wrapper = MemorySegmentFactory.wrapHeapSegment(normalizedKeys);
+        MemorySegment wrapper = MemorySegmentFactory.wrap(normalizedKeys);
 
         key1.copyNormalizedKey(wrapper, 0, len);
         key2.copyNormalizedKey(wrapper, len, len);

@@ -553,7 +553,7 @@ public class MemorySegmentSimpleTest {
     @Test
     public void testByteBufferWrapping() {
         try {
-            MemorySegment seg = MemorySegmentFactory.allocateHeapSegment(1024);
+            MemorySegment seg = MemorySegmentFactory.allocateUnpooledSegment(1024);
 
             ByteBuffer buf1 = seg.wrap(13, 47);
             assertEquals(13, buf1.position());

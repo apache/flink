@@ -35,7 +35,7 @@ public class BinaryRowDataUtil {
     static {
         int size = EMPTY_ROW.getFixedLengthPartSize();
         byte[] bytes = new byte[size];
-        EMPTY_ROW.pointTo(MemorySegmentFactory.wrapHeapSegment(bytes), 0, size);
+        EMPTY_ROW.pointTo(MemorySegmentFactory.wrap(bytes), 0, size);
     }
 
     public static boolean byteArrayEquals(byte[] left, byte[] right, int length) {

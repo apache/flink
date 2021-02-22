@@ -159,8 +159,7 @@ public class BufferFileWriterFileSegmentReaderTest {
             fileSegment.getFileChannel().read(buffer, fileSegment.getPosition());
 
             Buffer buffer1 =
-                    new NetworkBuffer(
-                            MemorySegmentFactory.wrapHeapSegment(buffer.array()), BUFFER_RECYCLER);
+                    new NetworkBuffer(MemorySegmentFactory.wrap(buffer.array()), BUFFER_RECYCLER);
             buffer1.setSize(fileSegment.getLength());
             currentNumber = verifyBufferFilledWithAscendingNumbers(buffer1, currentNumber);
         }
@@ -186,6 +185,6 @@ public class BufferFileWriterFileSegmentReaderTest {
 
     private Buffer createBuffer() {
         return new NetworkBuffer(
-                MemorySegmentFactory.allocateHeapSegment(BUFFER_SIZE), BUFFER_RECYCLER);
+                MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE), BUFFER_RECYCLER);
     }
 }

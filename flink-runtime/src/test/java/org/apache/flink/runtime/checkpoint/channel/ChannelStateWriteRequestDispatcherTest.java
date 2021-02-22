@@ -99,7 +99,7 @@ public class ChannelStateWriteRequestDispatcherTest {
                 new InputChannelInfo(1, 1),
                 CloseableIterator.ofElement(
                         new NetworkBuffer(
-                                MemorySegmentFactory.allocateHeapSegment(1),
+                                MemorySegmentFactory.allocateUnpooledSegment(1),
                                 FreeingBufferRecycler.INSTANCE),
                         Buffer::recycleBuffer));
     }
@@ -109,7 +109,7 @@ public class ChannelStateWriteRequestDispatcherTest {
                 CHECKPOINT_ID,
                 new ResultSubpartitionInfo(1, 1),
                 new NetworkBuffer(
-                        MemorySegmentFactory.allocateHeapSegment(1),
+                        MemorySegmentFactory.allocateUnpooledSegment(1),
                         FreeingBufferRecycler.INSTANCE));
     }
 

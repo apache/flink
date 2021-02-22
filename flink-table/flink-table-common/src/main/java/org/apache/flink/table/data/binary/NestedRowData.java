@@ -320,7 +320,7 @@ public final class NestedRowData extends BinarySection implements RowData, Typed
 
     private NestedRowData copyInternal(NestedRowData reuse) {
         byte[] bytes = BinarySegmentUtils.copyToBytes(segments, offset, sizeInBytes);
-        reuse.pointTo(MemorySegmentFactory.wrapHeapSegment(bytes), 0, sizeInBytes);
+        reuse.pointTo(MemorySegmentFactory.wrap(bytes), 0, sizeInBytes);
         return reuse;
     }
 

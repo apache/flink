@@ -237,7 +237,7 @@ public class SingleInputGate extends IndexedInputGate {
 
         this.closeFuture = new CompletableFuture<>();
 
-        this.unpooledSegment = MemorySegmentFactory.allocateHeapSegment(segmentSize);
+        this.unpooledSegment = MemorySegmentFactory.allocateUnpooledSegment(segmentSize);
     }
 
     protected PrioritizedDeque<InputChannel> getInputChannelsWithData() {

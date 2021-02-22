@@ -25,25 +25,31 @@ import java.util.Random;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Verifies correct accesses with regards to endianness in {@link HeapMemorySegment}, {@link
- * DirectMemorySegment} and {@link UnsafeMemorySegment}.
+ * Verifies correct accesses with regards to endianness in {@link HeapMemorySegment} and {@link
+ * HybridMemorySegment} (in both heap and off-heap modes).
  */
 public class EndiannessAccessChecks {
 
     @Test
     public void testHeapSegment() {
+        testBigAndLittleEndianAccessUnaligned(new HeapMemorySegment(new byte[11111]));
+    }
+
+    @Test
+    public void testHybridOnHeapSegment() {
+        testBigAndLittleEndianAccessUnaligned(MemorySegmentFactory.wrap(new byte[11111]));
+    }
+
+    @Test
+    public void testHybridOffHeapSegment() {
         testBigAndLittleEndianAccessUnaligned(
-                MemorySegmentFactory.wrapHeapSegment(new byte[11111]));
+                MemorySegmentFactory.allocateUnpooledOffHeapMemory(11111));
     }
 
     @Test
-    public void testDirectSegment() {
-        testBigAndLittleEndianAccessUnaligned(MemorySegmentFactory.allocateDirectSegment(11111));
-    }
-
-    @Test
-    public void testUnsafeSegment() {
-        testBigAndLittleEndianAccessUnaligned(MemorySegmentFactory.allocateUnsafeSegment(11111));
+    public void testHybridOffHeapUnsafeSegment() {
+        testBigAndLittleEndianAccessUnaligned(
+                MemorySegmentFactory.allocateOffHeapUnsafeMemory(11111));
     }
 
     private void testBigAndLittleEndianAccessUnaligned(MemorySegment segment) {
@@ -56,7 +62,7 @@ public class EndiannessAccessChecks {
             rnd.setSeed(seed);
             for (int i = 0; i < 10000; i++) {
                 long val = rnd.nextLong();
-                int pos = rnd.nextInt(segment.size() - 7);
+                int pos = rnd.nextInt(segment.size - 7);
 
                 segment.putLongLittleEndian(pos, val);
                 long r = segment.getLongBigEndian(pos);
@@ -75,7 +81,7 @@ public class EndiannessAccessChecks {
             rnd.setSeed(seed);
             for (int i = 0; i < 10000; i++) {
                 int val = rnd.nextInt();
-                int pos = rnd.nextInt(segment.size() - 3);
+                int pos = rnd.nextInt(segment.size - 3);
 
                 segment.putIntLittleEndian(pos, val);
                 int r = segment.getIntBigEndian(pos);
@@ -94,7 +100,7 @@ public class EndiannessAccessChecks {
             rnd.setSeed(seed);
             for (int i = 0; i < 10000; i++) {
                 short val = (short) rnd.nextInt();
-                int pos = rnd.nextInt(segment.size() - 1);
+                int pos = rnd.nextInt(segment.size - 1);
 
                 segment.putShortLittleEndian(pos, val);
                 short r = segment.getShortBigEndian(pos);
@@ -113,7 +119,7 @@ public class EndiannessAccessChecks {
             rnd.setSeed(seed);
             for (int i = 0; i < 10000; i++) {
                 char val = (char) rnd.nextInt();
-                int pos = rnd.nextInt(segment.size() - 1);
+                int pos = rnd.nextInt(segment.size - 1);
 
                 segment.putCharLittleEndian(pos, val);
                 char r = segment.getCharBigEndian(pos);
@@ -132,7 +138,7 @@ public class EndiannessAccessChecks {
             rnd.setSeed(seed);
             for (int i = 0; i < 10000; i++) {
                 float val = rnd.nextFloat();
-                int pos = rnd.nextInt(segment.size() - 3);
+                int pos = rnd.nextInt(segment.size - 3);
 
                 segment.putFloatLittleEndian(pos, val);
                 float r = segment.getFloatBigEndian(pos);
@@ -154,7 +160,7 @@ public class EndiannessAccessChecks {
             rnd.setSeed(seed);
             for (int i = 0; i < 10000; i++) {
                 double val = rnd.nextDouble();
-                int pos = rnd.nextInt(segment.size() - 7);
+                int pos = rnd.nextInt(segment.size - 7);
 
                 segment.putDoubleLittleEndian(pos, val);
                 double r = segment.getDoubleBigEndian(pos);

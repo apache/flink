@@ -29,8 +29,8 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * Verifies interoperability between {@link HeapMemorySegment}, {@link DirectMemorySegment} and
- * {@link UnsafeMemorySegment}.
+ * Verifies interoperability between {@link HeapMemorySegment} and {@link HybridMemorySegment} (in
+ * both heap and off-heap modes).
  */
 public class CrossSegmentTypeTest {
 
@@ -160,9 +160,9 @@ public class CrossSegmentTypeTest {
     private static MemorySegment[] createSegments(int size) {
         MemorySegment[] segments = {
             new HeapMemorySegment(new byte[size]),
-            MemorySegmentFactory.allocateHeapSegment(size),
-            MemorySegmentFactory.allocateDirectSegment(size),
-            MemorySegmentFactory.allocateUnsafeSegment(size)
+            MemorySegmentFactory.allocateUnpooledSegment(size),
+            MemorySegmentFactory.allocateUnpooledOffHeapMemory(size),
+            MemorySegmentFactory.allocateOffHeapUnsafeMemory(size)
         };
         return segments;
     }
@@ -174,7 +174,7 @@ public class CrossSegmentTypeTest {
         byte[] expected = new byte[pageSize];
         byte[] actual = new byte[pageSize];
         byte[] unsafeCopy = new byte[pageSize];
-        MemorySegment unsafeCopySeg = MemorySegmentFactory.allocateHeapSegment(pageSize);
+        MemorySegment unsafeCopySeg = MemorySegmentFactory.allocateUnpooledSegment(pageSize);
 
         // zero out the memory
         seg1.put(0, expected);

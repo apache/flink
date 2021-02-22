@@ -100,7 +100,7 @@ public class BinaryRowDataTest {
         assertEquals(536, new BinaryRowData(65).getFixedLengthPartSize());
         assertEquals(1048, new BinaryRowData(128).getFixedLengthPartSize());
 
-        MemorySegment segment = MemorySegmentFactory.wrapHeapSegment(new byte[100]);
+        MemorySegment segment = MemorySegmentFactory.wrap(new byte[100]);
         BinaryRowData row = new BinaryRowData(2);
         row.pointTo(segment, 10, 48);
         assertSame(row.getSegments()[0], segment);
@@ -110,7 +110,7 @@ public class BinaryRowDataTest {
 
     @Test
     public void testSetAndGet() {
-        MemorySegment segment = MemorySegmentFactory.wrapHeapSegment(new byte[80]);
+        MemorySegment segment = MemorySegmentFactory.wrap(new byte[80]);
         BinaryRowData row = new BinaryRowData(9);
         row.pointTo(segment, 0, 80);
         row.setNullAt(0);
@@ -160,8 +160,8 @@ public class BinaryRowDataTest {
 
         // test copy from var segments.
         int subSize = row.getFixedLengthPartSize() + 10;
-        MemorySegment subMs1 = MemorySegmentFactory.wrapHeapSegment(new byte[subSize]);
-        MemorySegment subMs2 = MemorySegmentFactory.wrapHeapSegment(new byte[subSize]);
+        MemorySegment subMs1 = MemorySegmentFactory.wrap(new byte[subSize]);
+        MemorySegment subMs2 = MemorySegmentFactory.wrap(new byte[subSize]);
         row.getSegments()[0].copyTo(0, subMs1, 0, subSize);
         row.getSegments()[0].copyTo(subSize, subMs2, 0, row.getSizeInBytes() - subSize);
 
@@ -208,7 +208,7 @@ public class BinaryRowDataTest {
         MemorySegment[] memorySegments = new MemorySegment[5];
         ArrayList<MemorySegment> memorySegmentList = new ArrayList<>();
         for (int i = 0; i < 5; i++) {
-            memorySegments[i] = MemorySegmentFactory.wrapHeapSegment(new byte[64]);
+            memorySegments[i] = MemorySegmentFactory.wrap(new byte[64]);
             memorySegmentList.add(memorySegments[i]);
         }
 
@@ -675,7 +675,7 @@ public class BinaryRowDataTest {
         MemorySegment[] memorySegments = new MemorySegment[3];
         ArrayList<MemorySegment> memorySegmentList = new ArrayList<>();
         for (int i = 0; i < 3; i++) {
-            memorySegments[i] = MemorySegmentFactory.wrapHeapSegment(new byte[64]);
+            memorySegments[i] = MemorySegmentFactory.wrap(new byte[64]);
             memorySegmentList.add(memorySegments[i]);
         }
         RandomAccessOutputView out = new RandomAccessOutputView(memorySegments, 64);
@@ -766,7 +766,7 @@ public class BinaryRowDataTest {
         MemorySegment[] memorySegments = new MemorySegment[segTotalNumber];
         Map<MemorySegment, Integer> msIndex = new HashMap<>();
         for (int i = 0; i < segTotalNumber; i++) {
-            memorySegments[i] = MemorySegmentFactory.wrapHeapSegment(new byte[segSize]);
+            memorySegments[i] = MemorySegmentFactory.wrap(new byte[segSize]);
             msIndex.put(memorySegments[i], i);
         }
 
@@ -896,7 +896,7 @@ public class BinaryRowDataTest {
     public void testHashAndCopy() throws IOException {
         MemorySegment[] segments = new MemorySegment[3];
         for (int i = 0; i < 3; i++) {
-            segments[i] = MemorySegmentFactory.wrapHeapSegment(new byte[64]);
+            segments[i] = MemorySegmentFactory.wrap(new byte[64]);
         }
         RandomAccessOutputView out = new RandomAccessOutputView(segments, 64);
         BinaryRowDataSerializer serializer = new BinaryRowDataSerializer(2);
@@ -943,8 +943,7 @@ public class BinaryRowDataTest {
         BinaryStringData string = BinaryStringData.fromString("hahahahaha");
         RandomAccessOutputView out =
                 new RandomAccessOutputView(
-                        new MemorySegment[] {MemorySegmentFactory.wrapHeapSegment(new byte[1024])},
-                        64);
+                        new MemorySegment[] {MemorySegmentFactory.wrap(new byte[1024])}, 64);
         serializer.serialize(string, out);
 
         RandomAccessInputView input =
@@ -974,7 +973,7 @@ public class BinaryRowDataTest {
         {
             MemorySegment[] segments = new MemorySegment[4];
             for (int i = 0; i < segments.length; i++) {
-                segments[i] = MemorySegmentFactory.wrapHeapSegment(new byte[64]);
+                segments[i] = MemorySegmentFactory.wrap(new byte[64]);
             }
             RandomAccessOutputView out = new RandomAccessOutputView(segments, segments[0].size());
             serializer.serializeToPages(row24, out);
@@ -1006,7 +1005,7 @@ public class BinaryRowDataTest {
         {
             MemorySegment[] segments = new MemorySegment[7];
             for (int i = 0; i < segments.length; i++) {
-                segments[i] = MemorySegmentFactory.wrapHeapSegment(new byte[64]);
+                segments[i] = MemorySegmentFactory.wrap(new byte[64]);
             }
             RandomAccessOutputView out = new RandomAccessOutputView(segments, segments[0].size());
             serializer.serializeToPages(row24, out);
@@ -1038,7 +1037,7 @@ public class BinaryRowDataTest {
         {
             MemorySegment[] segments = new MemorySegment[3];
             for (int i = 0; i < segments.length; i++) {
-                segments[i] = MemorySegmentFactory.wrapHeapSegment(new byte[64]);
+                segments[i] = MemorySegmentFactory.wrap(new byte[64]);
             }
             RandomAccessOutputView out = new RandomAccessOutputView(segments, segments[0].size());
             serializer.serializeToPages(row24, out);

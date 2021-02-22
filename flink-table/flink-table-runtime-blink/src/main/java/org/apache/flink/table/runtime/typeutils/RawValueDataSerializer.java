@@ -64,7 +64,7 @@ public final class RawValueDataSerializer<T> extends TypeSerializer<RawValueData
         T newJavaObject =
                 rawValue.getJavaObject() == null ? null : serializer.copy(rawValue.getJavaObject());
         return new BinaryRawValueData<>(
-                new MemorySegment[] {MemorySegmentFactory.wrapHeapSegment(bytes)},
+                new MemorySegment[] {MemorySegmentFactory.wrap(bytes)},
                 0,
                 bytes.length,
                 newJavaObject);
@@ -95,7 +95,7 @@ public final class RawValueDataSerializer<T> extends TypeSerializer<RawValueData
         byte[] bytes = new byte[length];
         source.readFully(bytes);
         return new BinaryRawValueData<>(
-                new MemorySegment[] {MemorySegmentFactory.wrapHeapSegment(bytes)}, 0, bytes.length);
+                new MemorySegment[] {MemorySegmentFactory.wrap(bytes)}, 0, bytes.length);
     }
 
     @Override

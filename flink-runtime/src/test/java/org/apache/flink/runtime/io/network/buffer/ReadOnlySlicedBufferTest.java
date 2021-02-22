@@ -48,7 +48,7 @@ public class ReadOnlySlicedBufferTest {
 
     @Before
     public void setUp() throws Exception {
-        final MemorySegment segment = MemorySegmentFactory.allocateHeapSegment(BUFFER_SIZE);
+        final MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE);
         buffer =
                 new NetworkBuffer(
                         segment, FreeingBufferRecycler.INSTANCE, Buffer.DataType.DATA_BUFFER, 0);

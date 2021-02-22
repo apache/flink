@@ -102,7 +102,7 @@ public abstract class AbstractBytesHashMap<K> extends BytesMap<K, BinaryRowData>
         if (valueTypes.length == 0) {
             this.hashSetMode = true;
             this.reusedValue = new BinaryRowData(0);
-            this.reusedValue.pointTo(MemorySegmentFactory.wrapHeapSegment(new byte[8]), 0, 8);
+            this.reusedValue.pointTo(MemorySegmentFactory.wrap(new byte[8]), 0, 8);
             LOG.info("BytesHashMap with hashSetMode = true.");
         } else {
             this.hashSetMode = false;

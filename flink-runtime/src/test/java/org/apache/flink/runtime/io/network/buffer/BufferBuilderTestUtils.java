@@ -43,7 +43,7 @@ public class BufferBuilderTestUtils {
         checkArgument(size >= dataSize);
         BufferBuilder bufferBuilder =
                 new BufferBuilder(
-                        MemorySegmentFactory.allocateHeapSegment(size),
+                        MemorySegmentFactory.allocateUnpooledSegment(size),
                         FreeingBufferRecycler.INSTANCE);
         return fillBufferBuilder(bufferBuilder, dataSize);
     }
@@ -90,13 +90,13 @@ public class BufferBuilderTestUtils {
 
     public static BufferConsumer createEventBufferConsumer(int size, Buffer.DataType dataType) {
         return new BufferConsumer(
-                MemorySegmentFactory.allocateHeapSegment(size),
+                MemorySegmentFactory.allocateUnpooledSegment(size),
                 FreeingBufferRecycler.INSTANCE,
                 dataType);
     }
 
     public static Buffer buildBufferWithAscendingInts(int bufferSize, int numInts, int nextValue) {
-        final MemorySegment seg = MemorySegmentFactory.allocateHeapSegment(bufferSize);
+        final MemorySegment seg = MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
         for (int i = 0; i < numInts; i++) {
             seg.putIntLittleEndian(4 * i, nextValue++);
         }
@@ -118,13 +118,13 @@ public class BufferBuilderTestUtils {
     }
 
     public static Buffer buildSomeBuffer(int size) {
-        final MemorySegment seg = MemorySegmentFactory.allocateHeapSegment(size);
+        final MemorySegment seg = MemorySegmentFactory.allocateUnpooledSegment(size);
         return new NetworkBuffer(seg, MemorySegment::free, Buffer.DataType.DATA_BUFFER, size);
     }
 
     public static BufferBuilder createEmptyBufferBuilder(int bufferSize) {
         return new BufferBuilder(
-                MemorySegmentFactory.allocateHeapSegment(bufferSize),
+                MemorySegmentFactory.allocateUnpooledSegment(bufferSize),
                 FreeingBufferRecycler.INSTANCE);
     }
 }

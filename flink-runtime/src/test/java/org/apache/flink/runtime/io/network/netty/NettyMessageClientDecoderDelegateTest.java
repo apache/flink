@@ -238,7 +238,7 @@ public class NettyMessageClientDecoderDelegateTest extends TestLogger {
     }
 
     private Buffer createDataBuffer(int size, Buffer.DataType dataType) {
-        MemorySegment segment = MemorySegmentFactory.allocateHeapSegment(size);
+        MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(size);
         NetworkBuffer buffer = new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE, dataType);
         for (int i = 0; i < size / 4; ++i) {
             buffer.writeInt(i);

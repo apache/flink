@@ -75,7 +75,7 @@ class CaseClassNormalizedKeySortingTest {
     val numMemSegs = 20
     val memory : util.List[MemorySegment] = new util.ArrayList[MemorySegment](numMemSegs)
     for (i <- 1 to numMemSegs) {
-      memory.add(MemorySegmentFactory.allocateHeapSegment(32*1024))
+      memory.add(MemorySegmentFactory.allocateUnpooledSegment(32*1024))
     }
 
     val sorter : NormalizedKeySorter[CaseTestClass] = new NormalizedKeySorter[CaseTestClass](

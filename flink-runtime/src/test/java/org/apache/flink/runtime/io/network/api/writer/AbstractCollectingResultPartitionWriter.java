@@ -50,7 +50,7 @@ public abstract class AbstractCollectingResultPartitionWriter extends MockResult
     private void deserializeRecord(ByteBuffer serializedRecord) throws IOException {
         checkArgument(serializedRecord.hasArray());
 
-        MemorySegment segment = MemorySegmentFactory.wrapHeapSegment(serializedRecord.array());
+        MemorySegment segment = MemorySegmentFactory.wrap(serializedRecord.array());
         NetworkBuffer buffer = new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE);
         buffer.setSize(serializedRecord.remaining());
         deserializeBuffer(buffer);
