@@ -211,17 +211,16 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
                 } else {
                     if (totalResourceProfile.allFieldsNoLessThan(effectiveProfile)) {
                         // Add new pending task manager
-                        final PendingTaskManagerId pendingTaskManagerId =
-                                PendingTaskManagerId.generate();
-                        resultBuilder.addPendingTaskManagerAllocate(
+                        final PendingTaskManager pendingTaskManager =
                                 new PendingTaskManager(
-                                        pendingTaskManagerId,
-                                        totalResourceProfile,
-                                        defaultSlotResourceProfile));
+                                        totalResourceProfile, defaultSlotResourceProfile);
+                        resultBuilder.addPendingTaskManagerAllocate(pendingTaskManager);
                         resultBuilder.addAllocationOnPendingResource(
-                                jobId, pendingTaskManagerId, effectiveProfile);
+                                jobId,
+                                pendingTaskManager.getPendingTaskManagerId(),
+                                effectiveProfile);
                         availableResources.put(
-                                pendingTaskManagerId,
+                                pendingTaskManager.getPendingTaskManagerId(),
                                 totalResourceProfile.subtract(effectiveProfile));
                     } else {
                         resultBuilder.addUnfulfillableJob(jobId);
