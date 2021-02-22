@@ -147,11 +147,14 @@ public class YarnConfigOptions {
                                             "Time between heartbeats with the ResourceManager in milliseconds if Flink requests containers:")
                                     .list(
                                             text(
-                                                    "The lower this value is, the faster Flink will get notified about container allocations since requests and allocations are transmitted via heartbeats."),
+                                                    "The lower this value is, the faster Flink will get notified about container allocations "
+                                                            + "since requests and allocations are transmitted via heartbeats."),
                                             text(
-                                                    "The lower this value is, the more excessive containers might get allocated which will eventually be released but put pressure on Yarn."))
+                                                    "The lower this value is, the more excessive containers might get allocated "
+                                                            + "which will eventually be released but put pressure on Yarn."))
                                     .text(
-                                            "If you observe too many container allocations on the ResourceManager, then it is recommended to increase this value. See %s for more information.",
+                                            "If you observe too many container allocations on the ResourceManager, "
+                                                    + "then it is recommended to increase this value. See %s for more information.",
                                             link(
                                                     "https://issues.apache.org/jira/browse/YARN-1902",
                                                     "this link"))
@@ -242,7 +245,8 @@ public class YarnConfigOptions {
                     .stringType()
                     .noDefaultValue()
                     .withDescription(
-                            "Staging directory used to store YARN files while submitting applications. Per default, it uses the home directory of the configured file system.");
+                            "Staging directory used to store YARN files while submitting applications. "
+                                    + "Per default, it uses the home directory of the configured file system.");
 
     public static final ConfigOption<List<String>> SHIP_FILES =
             key("yarn.ship-files")
@@ -342,7 +346,9 @@ public class YarnConfigOptions {
                     .asList()
                     .noDefaultValue()
                     .withDescription(
-                            "A comma-separated list of additional Kerberos-secured Hadoop filesystems Flink is going to access. For example, yarn.security.kerberos.additionalFileSystems=hdfs://namenode2:9002,hdfs://namenode3:9003. The client submitting to YARN needs to have access to these file systems to retrieve the security tokens.");
+                            "A comma-separated list of additional Kerberos-secured Hadoop filesystems Flink is going to access. "
+                                    + "For example, yarn.security.kerberos.additionalFileSystems=hdfs://namenode2:9002,hdfs://namenode3:9003. "
+                                    + "The client submitting to YARN needs to have access to these file systems to retrieve the security tokens.");
 
     @SuppressWarnings("unused")
     public static final ConfigOption<String> HADOOP_CONFIG_KEY =
@@ -352,8 +358,11 @@ public class YarnConfigOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "A general option to probe Hadoop configuration through prefix 'flink.hadoop.'. Flink will remove the prefix to get <key> (from %s and %s) then set the <key> and value to Hadoop configuration."
-                                                    + " For example, flink.hadoop.dfs.replication=5 in Flink configuration and convert to dfs.replication=5 in Hadoop configuration.",
+                                            "A general option to probe Hadoop configuration through prefix 'flink.hadoop.'. "
+                                                    + "Flink will remove the prefix to get <key> (from %s and %s) then "
+                                                    + "set the <key> and value to Hadoop configuration. "
+                                                    + "For example, flink.hadoop.dfs.replication=5 in Flink configuration and "
+                                                    + "convert to dfs.replication=5 in Hadoop configuration.",
                                             link(
                                                     "https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-common/core-default.xml",
                                                     "core-default.xml"),
@@ -370,8 +379,12 @@ public class YarnConfigOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "A general option to probe Yarn configuration through prefix 'flink.yarn.'. Flink will remove the prefix 'flink.' to get yarn.<key> (from %s) then set the yarn.<key> and value to Yarn configuration."
-                                                    + " For example, flink.yarn.resourcemanager.container.liveness-monitor.interval-ms=300000 in Flink configuration and convert to yarn.resourcemanager.container.liveness-monitor.interval-ms=300000 in Yarn configuration.",
+                                            "A general option to probe Yarn configuration through prefix 'flink.yarn.'. "
+                                                    + "Flink will remove the prefix 'flink.' to get yarn.<key> (from %s) then "
+                                                    + "set the yarn.<key> and value to Yarn configuration. "
+                                                    + "For example, flink.yarn.resourcemanager.container.liveness-monitor.interval-ms=300000 "
+                                                    + "in Flink configuration and convert to "
+                                                    + "yarn.resourcemanager.container.liveness-monitor.interval-ms=300000 in Yarn configuration.",
                                             link(
                                                     "https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-common/yarn-default.xml",
                                                     "yarn-default.xml"))
