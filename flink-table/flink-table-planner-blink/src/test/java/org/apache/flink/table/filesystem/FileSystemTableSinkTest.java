@@ -24,6 +24,7 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.ChangelogMode;
@@ -98,8 +99,12 @@ public class FileSystemTableSinkTest {
         final int parallelism = 5;
         final EnvironmentSettings settings =
                 EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
+        final TableConfig tableConfig = new TableConfig();
+        tableConfig
+                .getConfiguration()
+                .set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 8);
         final TestingTableEnvironment tEnv =
-                TestingTableEnvironment.create(settings, Option.empty(), new TableConfig());
+                TestingTableEnvironment.create(settings, Option.empty(), tableConfig);
 
         final String testSinkTableName = "test_sink_table";
         final String testCompactSinkTableName = "test_compact_sink_table";
@@ -160,8 +165,12 @@ public class FileSystemTableSinkTest {
         final int parallelism = 5;
         final EnvironmentSettings settings =
                 EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
+        final TableConfig tableConfig = new TableConfig();
+        tableConfig
+                .getConfiguration()
+                .set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 8);
         final TestingTableEnvironment tEnv =
-                TestingTableEnvironment.create(settings, Option.empty(), new TableConfig());
+                TestingTableEnvironment.create(settings, Option.empty(), tableConfig);
 
         final String testSinkTableName = "test_sink_table";
         final String testSourceTableName = "test_source_table";
