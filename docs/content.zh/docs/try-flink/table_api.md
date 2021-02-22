@@ -62,7 +62,7 @@ Apache Flink 提供了 Table API 作为统一的相关 API，用于批处理和�
 {{< /hint >}}
 {{< /unstable >}}
 
-所需的配置文件位于 [flink-playgrounds](https://github.com/apache/flink-playgrounds)仓库中。下载后，在您的IDE中打开 flink-playground/table-walkthrough 项目并导航至 SpendReport 文件。
+所需的配置文件位于 [flink-playgrounds](https://github.com/apache/flink-playgrounds) 仓库中。下载后，在您的IDE中打开 flink-playground/table-walkthrough 项目并导航至 SpendReport 文件。
 
 ```java
 EnvironmentSettings settings = EnvironmentSettings.newInstance().build();
