@@ -1458,13 +1458,6 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(TypeStrategies.MISSING)
                     .build();
 
-    public static final BuiltInFunctionDefinition CALL_SQL =
-            BuiltInFunctionDefinition.newBuilder()
-                    .name("CALLSQL")
-                    .kind(OTHER)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
-                    .build();
-
     public static final Set<FunctionDefinition> WINDOW_PROPERTIES =
             new HashSet<>(Arrays.asList(WINDOW_START, WINDOW_END, PROCTIME, ROWTIME));
 

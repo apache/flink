@@ -34,6 +34,7 @@ import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.Preconditions;
 
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -183,17 +184,17 @@ public abstract class BuiltInFunctionTestBase {
      */
     protected static class TestSpec {
 
-        private final BuiltInFunctionDefinition definition;
+        private final @Nullable BuiltInFunctionDefinition definition;
 
         private final @Nullable String description;
+
+        private final List<Class<? extends UserDefinedFunction>> functions;
+
+        private final List<TestItem> testItems;
 
         private Object[] fieldData;
 
         private @Nullable AbstractDataType<?>[] fieldDataTypes;
-
-        private List<Class<? extends UserDefinedFunction>> functions;
-
-        private List<TestItem> testItems;
 
         private TestSpec(BuiltInFunctionDefinition definition, @Nullable String description) {
             this.definition = definition;
@@ -203,11 +204,15 @@ public abstract class BuiltInFunctionTestBase {
         }
 
         static TestSpec forFunction(BuiltInFunctionDefinition definition) {
-            return new TestSpec(definition, null);
+            return forFunction(definition, null);
         }
 
         static TestSpec forFunction(BuiltInFunctionDefinition definition, String description) {
-            return new TestSpec(definition, description);
+            return new TestSpec(Preconditions.checkNotNull(definition), description);
+        }
+
+        static TestSpec forExpression(String description) {
+            return new TestSpec(null, Preconditions.checkNotNull(description));
         }
 
         TestSpec onFieldsWithData(Object... fieldData) {
@@ -259,7 +264,8 @@ public abstract class BuiltInFunctionTestBase {
 
         @Override
         public String toString() {
-            return definition.getName() + (description != null ? " : " + description : "");
+            return (definition != null ? definition.getName() : "Expression")
+                    + (description != null ? " : " + description : "");
         }
     }
 

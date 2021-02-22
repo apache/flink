@@ -304,6 +304,10 @@ public final class ApiExpressionUtils {
                         .collect(Collectors.toList()));
     }
 
+    public static SqlCallExpression sqlCall(String sqlExpression) {
+        return new SqlCallExpression(sqlExpression);
+    }
+
     public static Expression toMonthInterval(Expression e, int multiplier) {
         return ExpressionUtils.extractValue(e, BigDecimal.class)
                 .map((v) -> intervalOfMonths(v.intValue() * multiplier))

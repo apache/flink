@@ -26,8 +26,8 @@ import org.apache.flink.table.functions._
 import org.apache.flink.table.types.logical.LogicalTypeRoot.SYMBOL
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks._
 import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
-import java.time.{LocalDate, LocalDateTime}
 
+import java.time.{LocalDate, LocalDateTime}
 import org.apache.flink.table.util.Logging
 
 import _root_.scala.collection.JavaConverters._
@@ -845,6 +845,9 @@ class PlannerExpressionConverter private
 
   override def visit(lookupCall: LookupCallExpression): PlannerExpression =
     throw new TableException("Unsupported function call: " + lookupCall)
+
+  override def visit(sqlCall: SqlCallExpression): PlannerExpression =
+    throw new TableException("Unsupported function call: " + sqlCall)
 
   override def visitNonApiExpression(other: Expression): PlannerExpression = {
     other match {
