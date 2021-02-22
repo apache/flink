@@ -43,10 +43,7 @@ Apache Flink 提供了 Table API 作为统一的关系API，用于批处理和�
 如果遇到困难，可以参考[社区支持资源](https://flink.apache.org/community.html)。 当然也可以在邮件列表提问，Flink 的[用户邮件列表](https://flink.apache.org/community.html#mailing-lists)一直被评为所有Apache项目中最活跃的一个，这也是快速获得帮助的好方法。
 
 {{< hint info >}}
-If running docker on windows and your data generator container is failing to start, then please ensure that you're using the right shell.
-For example **docker-entrypoint.sh** for **table-walkthrough_data-generator_1** container requires bash.
-If unavailable, it will throw an error **standard_init_linux.go:211: exec user process caused "no such file or directory"**.
-A workaround is to switch the shell to **sh** on the first line of **docker-entrypoint.sh**.
+如果在Windows上运行docker并且您的数据生成器容器无法启动，那么请确保您使用的 shell 正确。例如，**table-walkthrough_data-generator_1** 容器的 **docker-entrypoint.sh** 需要使用bash shell。如果不可用，它将导致**standard_init_linux.go:211: exec user process caused "no such file or directory"** 错误。一种解决方法是将 **docker-entrypoint.sh** 文件的的第一行切换为 **sh** shell。
 {{< /hint >}}
 
 ## How To Follow Along
