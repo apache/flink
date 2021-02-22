@@ -1065,7 +1065,6 @@ public class JobMasterTest extends TestLogger {
     }
 
     @Test
-    @Category(FailsWithAdaptiveScheduler.class) // FLINK-21399
     public void testRequestNextInputSplitWithGlobalFailover() throws Exception {
         configuration.setInteger(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
         configuration.set(
@@ -1100,7 +1099,7 @@ public class JobMasterTest extends TestLogger {
         source.setInvokableClass(AbstractInvokable.class);
 
         final JobGraph inputSplitJobGraph = new JobGraph(source);
-        jobGraph.setJobType(JobType.STREAMING);
+        inputSplitJobGraph.setJobType(JobType.STREAMING);
 
         final ExecutionConfig executionConfig = new ExecutionConfig();
         executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(100, 0));
@@ -1118,6 +1117,10 @@ public class JobMasterTest extends TestLogger {
         try {
             final JobMasterGateway jobMasterGateway =
                     jobMaster.getSelfGateway(JobMasterGateway.class);
+
+            registerSlotsRequiredForJobExecution(jobMasterGateway, parallelism);
+
+            waitUntilAllExecutionsAreScheduledOrDeployed(jobMasterGateway);
 
             final JobVertexID sourceId = source.getID();
 
@@ -1139,8 +1142,6 @@ public class JobMasterTest extends TestLogger {
                     allRequestedInputSplits,
                     containsInAnyOrder(allInputSplits.toArray(EMPTY_TESTING_INPUT_SPLITS)));
 
-            waitUntilAllExecutionsAreScheduled(jobMasterGateway);
-
             // fail the first execution to trigger a failover
             jobMasterGateway
                     .updateTaskExecutionState(
@@ -1148,7 +1149,7 @@ public class JobMasterTest extends TestLogger {
                     .get();
 
             // wait until the job has been recovered
-            waitUntilAllExecutionsAreScheduled(jobMasterGateway);
+            waitUntilAllExecutionsAreScheduledOrDeployed(jobMasterGateway);
 
             final ExecutionAttemptID restartedAttemptId =
                     getFirstExecution(jobMasterGateway, sourceId).getAttemptId();
@@ -1181,8 +1182,8 @@ public class JobMasterTest extends TestLogger {
         return () -> getInputSplit(jobMasterGateway, jobVertexID, initialAttemptId);
     }
 
-    private void waitUntilAllExecutionsAreScheduled(final JobMasterGateway jobMasterGateway)
-            throws Exception {
+    private void waitUntilAllExecutionsAreScheduledOrDeployed(
+            final JobMasterGateway jobMasterGateway) throws Exception {
         final Duration duration = Duration.ofMillis(testingTimeout.toMilliseconds());
         final Deadline deadline = Deadline.fromNow(duration);
 
@@ -1191,7 +1192,9 @@ public class JobMasterTest extends TestLogger {
                         getExecutions(jobMasterGateway).stream()
                                 .allMatch(
                                         execution ->
-                                                execution.getState() == ExecutionState.SCHEDULED),
+                                                execution.getState() == ExecutionState.SCHEDULED
+                                                        || execution.getState()
+                                                                == ExecutionState.DEPLOYING),
                 deadline);
     }
 
@@ -1976,5 +1979,12 @@ public class JobMasterTest extends TestLogger {
 
         @Override
         public void disposeStorageLocation() throws IOException {}
+    }
+
+    private static void registerSlotsRequiredForJobExecution(
+            JobMasterGateway jobMasterGateway, int numSlots)
+            throws ExecutionException, InterruptedException {
+        JobMasterTestUtils.registerTaskExecutorAndOfferSlots(
+                rpcService, jobMasterGateway, numSlots, testingTimeout);
     }
 }
