@@ -221,6 +221,7 @@ public class ConfigurationUtils {
         checkConfigContains(configs, TaskManagerOptions.JVM_METASPACE.key());
         checkConfigContains(configs, TaskManagerOptions.JVM_OVERHEAD_MIN.key());
         checkConfigContains(configs, TaskManagerOptions.JVM_OVERHEAD_MAX.key());
+        checkConfigContains(configs, TaskManagerOptions.NUM_TASK_SLOTS.key());
 
         return configs;
     }
