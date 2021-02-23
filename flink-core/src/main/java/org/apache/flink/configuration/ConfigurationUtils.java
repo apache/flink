@@ -210,6 +210,7 @@ public class ConfigurationUtils {
             }
         }
 
+        checkConfigContains(configs, TaskManagerOptions.CPU_CORES.key());
         checkConfigContains(configs, TaskManagerOptions.FRAMEWORK_HEAP_MEMORY.key());
         checkConfigContains(configs, TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY.key());
         checkConfigContains(configs, TaskManagerOptions.TASK_HEAP_MEMORY.key());
