@@ -17,13 +17,19 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.TestingCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.TestingCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.TestingCompletedCheckpointStore;
@@ -43,10 +49,12 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
+import org.apache.flink.runtime.jobmaster.TestUtils;
 import org.apache.flink.runtime.jobmaster.slotpool.DefaultAllocatedSlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlotPool;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
@@ -55,16 +63,23 @@ import org.apache.flink.runtime.operators.coordination.TestOperatorEvent;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
+import org.hamcrest.MatcherAssert;
+import org.hamcrest.Matchers;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
@@ -73,10 +88,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.futureFailedWith;
+import static org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory.useSameServicesForAllJobs;
 import static org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlotPoolTest.createSlotOffersForResourceRequirements;
-import static org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlotPoolTest.offerSlots;
+import static org.apache.flink.runtime.jobmaster.slotpool.SlotPoolTestUtils.offerSlots;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
 
@@ -85,6 +102,8 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
     private static final int PARALLELISM = 4;
     private static final JobVertex JOB_VERTEX;
+
+    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
     static {
         JOB_VERTEX = new JobVertex("v1");
@@ -152,12 +171,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                new DefaultDeclarativeSlotPool(
-                        jobGraph.getJobID(),
-                        new DefaultAllocatedSlotPool(),
-                        ignored -> {},
-                        Time.minutes(10),
-                        Time.minutes(10));
+                createDeclarativeSlotPool(jobGraph.getJobID());
 
         final AdaptiveScheduler scheduler =
                 new AdaptiveSchedulerBuilder(jobGraph, mainThreadExecutor)
@@ -180,12 +194,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                new DefaultDeclarativeSlotPool(
-                        jobGraph.getJobID(),
-                        new DefaultAllocatedSlotPool(),
-                        ignored -> {},
-                        Time.minutes(10),
-                        Time.minutes(10));
+                createDeclarativeSlotPool(jobGraph.getJobID());
 
         final AdaptiveScheduler scheduler =
                 new AdaptiveSchedulerBuilder(jobGraph, mainThreadExecutor)
@@ -211,12 +220,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                new DefaultDeclarativeSlotPool(
-                        jobGraph.getJobID(),
-                        new DefaultAllocatedSlotPool(),
-                        ignored -> {},
-                        Time.minutes(10),
-                        Time.minutes(10));
+                createDeclarativeSlotPool(jobGraph.getJobID());
 
         final AdaptiveScheduler scheduler =
                 new AdaptiveSchedulerBuilder(jobGraph, mainThreadExecutor)
@@ -309,12 +313,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                new DefaultDeclarativeSlotPool(
-                        jobGraph.getJobID(),
-                        new DefaultAllocatedSlotPool(),
-                        ignored -> {},
-                        Time.minutes(10),
-                        Time.minutes(10));
+                createDeclarativeSlotPool(jobGraph.getJobID());
 
         final AdaptiveScheduler scheduler =
                 new AdaptiveSchedulerBuilder(jobGraph, mainThreadExecutor)
@@ -334,12 +333,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                new DefaultDeclarativeSlotPool(
-                        jobGraph.getJobID(),
-                        new DefaultAllocatedSlotPool(),
-                        ignored -> {},
-                        Time.minutes(10),
-                        Time.minutes(10));
+                createDeclarativeSlotPool(jobGraph.getJobID());
 
         final AdaptiveScheduler scheduler =
                 new AdaptiveSchedulerBuilder(jobGraph, mainThreadExecutor)
@@ -569,9 +563,117 @@ public class AdaptiveSchedulerTest extends TestLogger {
         scheduler.requestPartitionState(new IntermediateDataSetID(), new ResultPartitionID());
     }
 
+    @Test
+    public void testRestoringModifiedJobFromSavepointFails() throws Exception {
+        // create savepoint data
+        final long savepointId = 42L;
+        final OperatorID operatorID = new OperatorID();
+        final File savepointFile =
+                TestUtils.createSavepointWithOperatorState(
+                        TEMPORARY_FOLDER.newFile(), savepointId, operatorID);
+
+        // set savepoint settings which don't allow non restored state
+        final SavepointRestoreSettings savepointRestoreSettings =
+                SavepointRestoreSettings.forPath(savepointFile.getAbsolutePath(), false);
+
+        // create a new operator
+        final JobVertex jobVertex = new JobVertex("New operator");
+        jobVertex.setInvokableClass(NoOpInvokable.class);
+
+        // this test will fail in the end due to the previously created Savepoint having a state for
+        // a given OperatorID that does not match any operator of the newly created JobGraph
+        final JobGraph jobGraphWithNewOperator =
+                TestUtils.createJobGraphFromJobVerticesWithCheckpointing(
+                        savepointRestoreSettings, jobVertex);
+
+        final DefaultDeclarativeSlotPool declarativeSlotPool =
+                createDeclarativeSlotPool(jobGraphWithNewOperator.getJobID());
+
+        final AdaptiveScheduler adaptiveScheduler =
+                new AdaptiveSchedulerBuilder(jobGraphWithNewOperator, mainThreadExecutor)
+                        .setDeclarativeSlotPool(declarativeSlotPool)
+                        .build();
+
+        adaptiveScheduler.startScheduling();
+
+        offerSlots(
+                declarativeSlotPool,
+                createSlotOffersForResourceRequirements(
+                        ResourceCounter.withResource(ResourceProfile.UNKNOWN, 1)));
+
+        final ArchivedExecutionGraph archivedExecutionGraph =
+                adaptiveScheduler.requestJob().getArchivedExecutionGraph();
+
+        assertThat(archivedExecutionGraph.getState(), is(JobStatus.FAILED));
+        assertThat(
+                archivedExecutionGraph.getFailureInfo().getException(),
+                FlinkMatchers.containsMessage("Failed to rollback to checkpoint/savepoint"));
+    }
+
+    @Test
+    public void testRestoringModifiedJobFromSavepointWithAllowNonRestoredStateSucceeds()
+            throws Exception {
+        // create savepoint data
+        final long savepointId = 42L;
+        final OperatorID operatorID = new OperatorID();
+        final File savepointFile =
+                TestUtils.createSavepointWithOperatorState(
+                        TEMPORARY_FOLDER.newFile(), savepointId, operatorID);
+
+        // allow for non restored state
+        final SavepointRestoreSettings savepointRestoreSettings =
+                SavepointRestoreSettings.forPath(savepointFile.getAbsolutePath(), true);
+
+        // create a new operator
+        final JobVertex jobVertex = new JobVertex("New operator");
+        jobVertex.setInvokableClass(NoOpInvokable.class);
+        final JobGraph jobGraphWithNewOperator =
+                TestUtils.createJobGraphFromJobVerticesWithCheckpointing(
+                        savepointRestoreSettings, jobVertex);
+
+        final StandaloneCompletedCheckpointStore completedCheckpointStore =
+                new StandaloneCompletedCheckpointStore(1);
+        final CheckpointRecoveryFactory testingCheckpointRecoveryFactory =
+                useSameServicesForAllJobs(
+                        completedCheckpointStore, new StandaloneCheckpointIDCounter());
+
+        final DefaultDeclarativeSlotPool declarativeSlotPool =
+                createDeclarativeSlotPool(jobGraphWithNewOperator.getJobID());
+
+        AdaptiveScheduler adaptiveScheduler =
+                new AdaptiveSchedulerBuilder(jobGraphWithNewOperator, mainThreadExecutor)
+                        .setCheckpointRecoveryFactory(testingCheckpointRecoveryFactory)
+                        .setDeclarativeSlotPool(declarativeSlotPool)
+                        .build();
+
+        adaptiveScheduler.startScheduling();
+
+        offerSlots(
+                declarativeSlotPool,
+                createSlotOffersForResourceRequirements(
+                        ResourceCounter.withResource(ResourceProfile.UNKNOWN, 1)));
+
+        // starting and offering the required slots should trigger the ExecutionGraph creation
+        final CompletedCheckpoint savepoint = completedCheckpointStore.getLatestCheckpoint(false);
+
+        MatcherAssert.assertThat(savepoint, notNullValue());
+
+        MatcherAssert.assertThat(savepoint.getCheckpointID(), Matchers.is(savepointId));
+    }
+
     // ---------------------------------------------------------------------------------------------
     // Utils
     // ---------------------------------------------------------------------------------------------
+
+    @Nonnull
+    private static DefaultDeclarativeSlotPool createDeclarativeSlotPool(JobID jobId) {
+        return new DefaultDeclarativeSlotPool(
+                jobId,
+                new DefaultAllocatedSlotPool(),
+                ignored -> {},
+                Time.minutes(10),
+                Time.minutes(10));
+    }
 
     private static JobGraph createJobGraph() {
         final JobGraph jobGraph = new JobGraph(JOB_VERTEX);
