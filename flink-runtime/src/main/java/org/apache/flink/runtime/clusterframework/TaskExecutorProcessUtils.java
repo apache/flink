@@ -120,6 +120,9 @@ public class TaskExecutorProcessUtils {
                 TaskManagerOptions.JVM_OVERHEAD_MAX.key(),
                 taskExecutorProcessSpec.getJvmMetaspaceAndOverhead().getOverhead().getBytes()
                         + "b");
+        configs.put(
+                TaskManagerOptions.NUM_TASK_SLOTS.key(),
+                String.valueOf(taskExecutorProcessSpec.getNumSlots()));
         return assembleDynamicConfigsStr(configs);
     }
 
