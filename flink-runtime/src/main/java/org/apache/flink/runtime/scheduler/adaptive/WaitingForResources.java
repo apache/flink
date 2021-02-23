@@ -106,6 +106,11 @@ class WaitingForResources implements State, ResourceConsumer {
 
             context.goToExecuting(executionGraph);
         } catch (Exception exception) {
+            log.info(
+                    "Failed to go from {} to {} because the ExecutionGraph creation failed.",
+                    WaitingForResources.class.getSimpleName(),
+                    Executing.class.getSimpleName(),
+                    exception);
             context.goToFinished(context.getArchivedExecutionGraph(JobStatus.FAILED, exception));
         }
     }
