@@ -32,13 +32,13 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
-import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -77,7 +77,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.testutils.EntropyInjectingTestFileSystem;
-import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -90,7 +89,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -108,6 +106,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
@@ -120,10 +119,10 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.concurrent.CompletableFuture.allOf;
+import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_COORDINATOR_SHUTDOWN;
 import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
-import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -460,7 +459,6 @@ public class SavepointITCase extends TestLogger {
     }
 
     @Test
-    @Category(FailsWithAdaptiveScheduler.class) // FLINK-21333
     public void testStopSavepointWithBoundedInput() throws Exception {
         final int numTaskManagers = 2;
         final int numSlotsPerTaskManager = 2;
@@ -561,7 +559,6 @@ public class SavepointITCase extends TestLogger {
     }
 
     @Test
-    @Category(FailsWithAdaptiveScheduler.class) // FLINK-21333
     public void testStopWithSavepointFailingInSnapshotCreation() throws Exception {
         testStopWithFailingSourceInOnePipeline(
                 new SnapshotFailingInfiniteTestSource(),
@@ -574,7 +571,6 @@ public class SavepointITCase extends TestLogger {
     }
 
     @Test
-    @Category(FailsWithAdaptiveScheduler.class) // FLINK-21333
     public void testStopWithSavepointFailingAfterSnapshotCreation() throws Exception {
         // the trigger need to be reset in case the test is run multiple times
         CancelFailingInfiniteTestSource.cancelTriggered = false;
@@ -590,26 +586,34 @@ public class SavepointITCase extends TestLogger {
 
     private static BiConsumer<JobID, ExecutionException> assertAfterSnapshotCreationFailure() {
         return (jobId, actualException) -> {
-            Optional<FlinkException> actualFlinkException =
-                    ExceptionUtils.findThrowable(actualException, FlinkException.class);
-            assertTrue(actualFlinkException.isPresent());
-            assertThat(
-                    actualFlinkException.get(),
-                    containsMessage(
-                            String.format(
-                                    "Inconsistent execution state after stopping with savepoint. At least one execution is still in one of the following states: FAILED. A global fail-over is triggered to recover the job %s.",
-                                    jobId)));
+            if (ClusterOptions.isAdaptiveSchedulerEnabled(new Configuration())) {
+                assertThat(
+                        actualException,
+                        containsMessage("Stop with savepoint operation could not be completed"));
+            } else {
+                Optional<FlinkException> actualFlinkException =
+                        ExceptionUtils.findThrowable(actualException, FlinkException.class);
+                assertTrue(actualFlinkException.isPresent());
+
+                assertThat(
+                        actualFlinkException.get(),
+                        containsMessage(
+                                String.format(
+                                        "A global fail-over is triggered to recover the job %s.",
+                                        jobId)));
+            }
         };
     }
 
     private static BiConsumer<JobID, ExecutionException> assertInSnapshotCreationFailure() {
         return (ignored, actualException) -> {
-            Optional<CheckpointException> actualFailureCause =
-                    ExceptionUtils.findThrowable(actualException, CheckpointException.class);
-            assertTrue(actualFailureCause.isPresent());
-            assertThat(
-                    actualFailureCause.get().getCheckpointFailureReason(),
-                    is(CheckpointFailureReason.JOB_FAILOVER_REGION));
+            if (ClusterOptions.isAdaptiveSchedulerEnabled(new Configuration())) {
+                assertThat(actualException, containsCause(FlinkException.class));
+            } else {
+                Optional<CheckpointException> actualFailureCause =
+                        ExceptionUtils.findThrowable(actualException, CheckpointException.class);
+                assertTrue(actualFailureCause.isPresent());
+            }
         };
     }
 
@@ -689,38 +693,52 @@ public class SavepointITCase extends TestLogger {
                 exceptionAssertion.accept(jobGraph.getJobID(), e);
             }
 
-            // access the REST endpoint of the cluster to determine the state of each
-            // ExecutionVertex
-            final RestClient restClient =
-                    new RestClient(
-                            RestClientConfiguration.fromConfiguration(
-                                    new UnmodifiableConfiguration(new Configuration())),
-                            TestingUtils.defaultExecutor());
-
-            final URI restAddress = cluster.getRestAddres();
-            final JobDetailsHeaders detailsHeaders = JobDetailsHeaders.getInstance();
-            final JobMessageParameters params = detailsHeaders.getUnresolvedMessageParameters();
-            params.jobPathParameter.resolve(jobGraph.getJobID());
-
-            CommonTestUtils.waitUntilCondition(
-                    () -> {
-                        JobDetailsInfo detailsInfo =
-                                restClient
-                                        .sendRequest(
-                                                restAddress.getHost(),
-                                                restAddress.getPort(),
-                                                detailsHeaders,
-                                                params,
-                                                EmptyRequestBody.getInstance())
-                                        .get();
-
-                        return detailsInfo.getJobVerticesPerState().get(ExecutionState.RUNNING)
-                                == 2;
-                    },
-                    Deadline.fromNow(Duration.ofSeconds(10)));
+            waitUntilAllTasksAreRunning(cluster.getRestAddres(), jobGraph.getJobID());
         } finally {
             cluster.after();
         }
+    }
+
+    public static void waitUntilAllTasksAreRunning(URI restAddress, JobID jobId) throws Exception {
+        // access the REST endpoint of the cluster to determine the state of each
+        // ExecutionVertex
+        final RestClient restClient =
+                new RestClient(
+                        RestClientConfiguration.fromConfiguration(
+                                new UnmodifiableConfiguration(new Configuration())),
+                        TestingUtils.defaultExecutor());
+
+        final JobDetailsHeaders detailsHeaders = JobDetailsHeaders.getInstance();
+        final JobMessageParameters params = detailsHeaders.getUnresolvedMessageParameters();
+        params.jobPathParameter.resolve(jobId);
+
+        CommonTestUtils.waitUntilCondition(
+                () -> {
+                    JobDetailsInfo detailsInfo =
+                            restClient
+                                    .sendRequest(
+                                            restAddress.getHost(),
+                                            restAddress.getPort(),
+                                            detailsHeaders,
+                                            params,
+                                            EmptyRequestBody.getInstance())
+                                    .get();
+
+                    return allVerticesRunning(detailsInfo.getJobVerticesPerState());
+                },
+                Deadline.fromNow(Duration.ofSeconds(10)));
+    }
+
+    private static boolean allVerticesRunning(Map<ExecutionState, Integer> states) {
+        return states.entrySet().stream()
+                .allMatch(
+                        entry -> {
+                            if (entry.getKey() == ExecutionState.RUNNING) {
+                                return entry.getValue() > 0;
+                            } else {
+                                return entry.getValue() == 0; // no vertices in non-running state.
+                            }
+                        });
     }
 
     /**

@@ -68,10 +68,14 @@ class MockStateWithExecutionGraphContext implements StateWithExecutionGraph.Cont
     @Override
     public void close() throws Exception {
         // trigger executor to make sure there are no outstanding state transitions
-        executor.triggerAll();
+        triggerExecutors();
         executor.shutdown();
         executor.awaitTermination(10, TimeUnit.MINUTES);
         finishedStateValidator.close();
+    }
+
+    protected final void triggerExecutors() {
+        executor.triggerAllNonPeriodicTasks();
     }
 
     protected final void assertNoStateTransition() {
