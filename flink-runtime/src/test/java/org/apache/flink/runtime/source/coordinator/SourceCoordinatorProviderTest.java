@@ -36,7 +36,6 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /** Unit tests for {@link SourceCoordinatorProvider}. */
@@ -96,13 +95,11 @@ public class SourceCoordinatorProviderTest {
                 "The restored source coordinator should be a different instance",
                 restoredSourceCoordinator,
                 sourceCoordinator);
+        // FLINK-21452: do not (re)store registered readers
         assertEquals(
-                "There should only be one registered reader.",
-                1,
+                "There should be no registered reader.",
+                0,
                 restoredSourceCoordinator.getContext().registeredReaders().size());
-        assertNotNull(
-                "The only registered reader should be reader 0",
-                restoredSourceCoordinator.getContext().registeredReaders().get(0));
     }
 
     @Test
