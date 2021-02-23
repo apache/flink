@@ -49,20 +49,6 @@ public class SourceCoordinatorSerdeUtils {
         }
     }
 
-    /**
-     * Get serialized size of the registered readers map.
-     *
-     * <p>The binary format is following: 4 Bytes - num entries. N Bytes - entries 4 Bytes - subtask
-     * id N Bytes - reader info, see {@link #writeReaderInfo(ReaderInfo, DataOutputStream)}.
-     */
-    static void writeRegisteredReaders(
-            Map<Integer, ReaderInfo> registeredReaders, DataOutputStream out) throws IOException {
-        out.writeInt(registeredReaders.size());
-        for (ReaderInfo info : registeredReaders.values()) {
-            writeReaderInfo(info, out);
-        }
-    }
-
     static Map<Integer, ReaderInfo> readRegisteredReaders(DataInputStream in) throws IOException {
         int numReaders = in.readInt();
         Map<Integer, ReaderInfo> registeredReaders = new HashMap<>();
@@ -143,19 +129,6 @@ public class SourceCoordinatorSerdeUtils {
     }
 
     // ----- private helper methods -----
-
-    /**
-     * Serialize {@link ReaderInfo}.
-     *
-     * <p>The binary format is following: 4 Bytes - subtask id N Bytes - location string
-     *
-     * @param readerInfo the given reader information to serialize.
-     */
-    private static void writeReaderInfo(ReaderInfo readerInfo, DataOutputStream out)
-            throws IOException {
-        out.writeInt(readerInfo.getSubtaskId());
-        out.writeUTF(readerInfo.getLocation());
-    }
 
     private static ReaderInfo readReaderInfo(DataInputStream in) throws IOException {
         int subtaskId = in.readInt();

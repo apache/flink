@@ -172,7 +172,8 @@ public class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
                             restoredTracker);
             restoredContext.restoreState(new MockSourceSplitSerializer(), in);
         }
-        assertEquals(context.registeredReaders(), restoredContext.registeredReaders());
+        // FLINK-21452: do not (re)store registered readers
+        assertEquals(0, restoredContext.registeredReaders().size());
         assertEquals(
                 splitSplitAssignmentTracker.uncheckpointedAssignments(),
                 restoredTracker.uncheckpointedAssignments());

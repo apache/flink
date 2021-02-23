@@ -58,7 +58,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
 import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerdeUtils.readRegisteredReaders;
-import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerdeUtils.writeRegisteredReaders;
 
 /**
  * A context class for the {@link OperatorCoordinator}. Compared with {@link SplitEnumeratorContext}
@@ -288,7 +287,8 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
             SimpleVersionedSerializer<SplitT> splitSerializer,
             DataOutputStream out)
             throws Exception {
-        writeRegisteredReaders(registeredReaders, out);
+        // FLINK-21452: backwards compatible change to drop writing registered readers (empty list)
+        out.writeInt(0);
         assignmentTracker.snapshotState(checkpointId, splitSerializer, out);
     }
 
@@ -301,9 +301,8 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
      */
     void restoreState(SimpleVersionedSerializer<SplitT> splitSerializer, DataInputStream in)
             throws Exception {
-        Map<Integer, ReaderInfo> readers = readRegisteredReaders(in);
-        registeredReaders.clear();
-        registeredReaders.putAll(readers);
+        // FLINK-21452: discard readers as they will be re-registering themselves
+        readRegisteredReaders(in);
         assignmentTracker.restoreState(splitSerializer, in);
     }
 
@@ -313,7 +312,12 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
      * @param readerInfo the reader information of the source reader.
      */
     void registerSourceReader(ReaderInfo readerInfo) {
-        registeredReaders.put(readerInfo.getSubtaskId(), readerInfo);
+        final ReaderInfo previousReader =
+                registeredReaders.put(readerInfo.getSubtaskId(), readerInfo);
+        if (previousReader != null) {
+            throw new IllegalStateException(
+                    "Overwriting " + previousReader + " with " + readerInfo);
+        }
     }
 
     /**
