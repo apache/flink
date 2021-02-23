@@ -254,7 +254,7 @@ public class SourceStreamTask<
                 mainOperator.run(lock, getStreamStatusMaintainer(), operatorChain);
                 if (!wasStoppedExternally && !isCanceled()) {
                     synchronized (lock) {
-                        operatorChain.setIsStoppingBySyncSavepoint(false);
+                        operatorChain.setIgnoreEndOfInput(false);
                     }
                 }
                 completionFuture.complete(null);
