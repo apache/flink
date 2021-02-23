@@ -146,7 +146,7 @@ public class RemoteHeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBac
 			throw new BackendBuildingException("Failed when trying to restore heap backend", e);
 		}
 
-		writeBatchWrapper = new RemoteHeapWriteBatchWrapper(restoreOperation.db, writeBatchSize);
+		writeBatchWrapper = new RemoteHeapWriteBatchWrapper(restoreOperation.syncDBClient, writeBatchSize);
 		return new RemoteHeapKeyedStateBackend<K>(
 			kvStateRegistry,
 			keySerializerProvider.currentSchemaSerializer(),
@@ -166,7 +166,8 @@ public class RemoteHeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBac
 			writeBatchSize,
 			kvStateInformation,
 			writeBatchWrapper,
-			restoreOperation.db
+			restoreOperation.syncDBClient,
+			restoreOperation.asyncDBClient
 		);
 	}
 

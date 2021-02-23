@@ -73,6 +73,9 @@ public interface KeyedStateStore {
 	@PublicEvolving
 	<T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties);
 
+	@PublicEvolving
+	<T> AsyncValueState<T> getAsyncState(AsyncValueStateDescriptor<T> stateProperties);
+
 	/**
 	 * Gets a handle to the system's key/value list state. This state is similar to the state
 	 * accessed via {@link #getState(ValueStateDescriptor)}, but is optimized for state that

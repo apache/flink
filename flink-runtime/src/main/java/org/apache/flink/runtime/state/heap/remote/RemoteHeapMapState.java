@@ -35,6 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
@@ -112,7 +113,7 @@ class RemoteHeapMapState<K, N, UK, UV>
 		byte[] rawKeyBytes = serializeCurrentKeyWithGroupAndNamespacePlusUserKey(
 			userKey,
 			userKeySerializer);
-		byte[] rawValueBytes = backend.remoteKVStore.hget(kvStateInfo.nameBytes, rawKeyBytes);
+		byte[] rawValueBytes = backend.syncRemClient.hget(kvStateInfo.nameBytes, rawKeyBytes);
 		UV value = (rawValueBytes == null ? null : deserializeUserValue(
 			dataInputView,
 			rawValueBytes,
@@ -136,7 +137,7 @@ class RemoteHeapMapState<K, N, UK, UV>
 			userValue,
 			userKey,
 			currentNamespace);
-		backend.remoteKVStore.hset(kvStateInfo.nameBytes, rawKeyBytes, rawValueBytes);
+		backend.syncRemClient.hset(kvStateInfo.nameBytes, rawKeyBytes, rawValueBytes);
 	}
 
 	@Override
@@ -146,7 +147,7 @@ class RemoteHeapMapState<K, N, UK, UV>
 		}
 
 		try (RemoteHeapWriteBatchWrapper writeBatchWrapper = new RemoteHeapWriteBatchWrapper(
-			backend.remoteKVStore,
+			backend.syncRemClient,
 			backend.getWriteBatchSize())) {
 			for (Map.Entry<UK, UV> entry : map.entrySet()) {
 				byte[] rawKeyBytes = serializeCurrentKeyWithGroupAndNamespacePlusUserKey(
@@ -165,7 +166,7 @@ class RemoteHeapMapState<K, N, UK, UV>
 		byte[] rawKeyBytes = serializeCurrentKeyWithGroupAndNamespacePlusUserKey(
 			userKey,
 			userKeySerializer);
-		backend.remoteKVStore.hdel(kvStateInfo.nameBytes, rawKeyBytes);
+		backend.syncRemClient.hdel(kvStateInfo.nameBytes, rawKeyBytes);
 	}
 
 	@Override
@@ -173,13 +174,13 @@ class RemoteHeapMapState<K, N, UK, UV>
 		byte[] rawKeyBytes = serializeCurrentKeyWithGroupAndNamespacePlusUserKey(
 			userKey,
 			userKeySerializer);
-		return backend.remoteKVStore.hexists(kvStateInfo.nameBytes, rawKeyBytes);
+		return backend.syncRemClient.hexists(kvStateInfo.nameBytes, rawKeyBytes);
 	}
 
 	@Override
 	public Iterable<Map.Entry<UK, UV>> entries() {
 		byte[] prefixBytes = serializeCurrentKeyWithGroupAndNamespace();
-		Map<byte[], byte[]> userMap = backend.remoteKVStore.hgetAll(kvStateInfo.nameBytes);
+		Map<byte[], byte[]> userMap = backend.syncRemClient.hgetAll(kvStateInfo.nameBytes);
 		return userMap == null ? Collections.emptySet() : userMap.entrySet().stream()
 			.filter(x -> startWithKeyPrefix(prefixBytes, x.getKey()))
 			.collect(
@@ -214,7 +215,7 @@ class RemoteHeapMapState<K, N, UK, UV>
 	@Override
 	public Iterable<UK> keys() {
 		byte[] prefixBytes = serializeCurrentKeyWithGroupAndNamespace();
-		Set<byte[]> keys = backend.remoteKVStore.hkeys(kvStateInfo.nameBytes);
+		Collection<byte[]> keys = backend.syncRemClient.hkeys(kvStateInfo.nameBytes);
 		return keys == null ? Collections.emptySet() : keys.stream()
 			.filter(x -> startWithKeyPrefix(prefixBytes, x))
 			.map(x -> {
@@ -234,7 +235,7 @@ class RemoteHeapMapState<K, N, UK, UV>
 	@Override
 	public Iterable<UV> values() {
 		byte[] prefixBytes = serializeCurrentKeyWithGroupAndNamespace();
-		Map<byte[], byte[]> userMap = backend.remoteKVStore.hgetAll(kvStateInfo.nameBytes);
+		Map<byte[], byte[]> userMap = backend.syncRemClient.hgetAll(kvStateInfo.nameBytes);
 		return userMap == null ? Collections.emptySet() : userMap.entrySet().stream()
 			.filter(x -> startWithKeyPrefix(prefixBytes, x.getKey()))
 			.map(e -> {
@@ -252,7 +253,7 @@ class RemoteHeapMapState<K, N, UK, UV>
 	public Iterator<Map.Entry<UK, UV>> iterator() {
 
 		byte[] prefixBytes = serializeCurrentKeyWithGroupAndNamespace();
-		Map<byte[], byte[]> userMap = backend.remoteKVStore.hgetAll(kvStateInfo.nameBytes);
+		Map<byte[], byte[]> userMap = backend.syncRemClient.hgetAll(kvStateInfo.nameBytes);
 		return userMap == null ? null : userMap.entrySet().stream()
 			.filter(x -> startWithKeyPrefix(prefixBytes, x.getKey()))
 			.collect(
@@ -287,7 +288,7 @@ class RemoteHeapMapState<K, N, UK, UV>
 	@Override
 	public boolean isEmpty() {
 		byte[] prefixBytes = serializeCurrentKeyWithGroupAndNamespace();
-		Map<byte[], byte[]> userMap = backend.remoteKVStore.hgetAll(kvStateInfo.nameBytes);
+		Map<byte[], byte[]> userMap = backend.syncRemClient.hgetAll(kvStateInfo.nameBytes);
 		if (userMap == null) return true;
 		return userMap
 			.entrySet()
@@ -333,7 +334,7 @@ class RemoteHeapMapState<K, N, UK, UV>
 		final TypeSerializer<UV> dupUserValueSerializer = serializer.getValueSerializer();
 		final DataInputDeserializer inputView = new DataInputDeserializer();
 
-		Map<byte[], byte[]> userMap = backend.remoteKVStore.hgetAll(kvStateInfo.nameBytes);
+		Map<byte[], byte[]> userMap = backend.syncRemClient.hgetAll(kvStateInfo.nameBytes);
 		Map<UK, UV> result = userMap.entrySet().stream()
 			.filter(x -> startWithKeyPrefix(prefixBytes, x.getKey()))
 			.collect(

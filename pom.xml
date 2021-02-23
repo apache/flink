@@ -136,7 +136,7 @@ under the License.
 		<beam.version>2.19.0</beam.version>
 		<protoc.version>3.7.1</protoc.version>
 		<arrow.version>0.16.0</arrow.version>
-		<japicmp.skip>false</japicmp.skip>
+		<japicmp.skip>true</japicmp.skip>
 		<flink.convergence.phase>validate</flink.convergence.phase>
 		<!--
 			Keeping the MiniKDC version fixed instead of taking hadoop version dependency

@@ -2,9 +2,6 @@ package org.apache.flink.runtime.state.heap.remote;
 
 import org.apache.flink.util.Preconditions;
 
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.Pipeline;
-
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
@@ -15,9 +12,7 @@ public class RemoteHeapWriteBatchWrapper implements AutoCloseable {
 	// default 0 for disable memory size based flush
 	private static final long DEFAULT_BATCH_SIZE = 0;
 
-	private final Jedis db;
-
-	private final Pipeline pipeline;
+	private final RemoteKVSyncClient db;
 
 	private final int capacity;
 
@@ -28,15 +23,15 @@ public class RemoteHeapWriteBatchWrapper implements AutoCloseable {
 
 	private int valueSize;
 
-	public RemoteHeapWriteBatchWrapper(@Nonnull Jedis db, long batchSize) {
+	public RemoteHeapWriteBatchWrapper(@Nonnull RemoteKVSyncClient db, long batchSize) {
 		this(db, 500, batchSize);
 	}
 
-	public RemoteHeapWriteBatchWrapper(@Nonnull Jedis db) {
+	public RemoteHeapWriteBatchWrapper(@Nonnull RemoteKVSyncClient db) {
 		this(db, 500, DEFAULT_BATCH_SIZE);
 	}
 
-	public RemoteHeapWriteBatchWrapper(@Nonnull Jedis db, int capacity, long batchSize) {
+	public RemoteHeapWriteBatchWrapper(@Nonnull RemoteKVSyncClient db, int capacity, long batchSize) {
 		Preconditions.checkArgument(
 			capacity >= MIN_CAPACITY && capacity <= MAX_CAPACITY,
 			"capacity should be between " + MIN_CAPACITY + " and " + MAX_CAPACITY);
@@ -45,8 +40,6 @@ public class RemoteHeapWriteBatchWrapper implements AutoCloseable {
 		this.db = db;
 		this.capacity = capacity;
 		this.batchSize = batchSize;
-		db.pipelined();
-		this.pipeline = db.pipelined();
 		this.numOperations = 0;
 	}
 
@@ -55,7 +48,7 @@ public class RemoteHeapWriteBatchWrapper implements AutoCloseable {
 		@Nonnull byte[] userKey,
 		@Nonnull byte[] value) throws Exception {
 
-		pipeline.hset(key, userKey, value);
+		db.pipelineHSet(key, userKey, value);
 		this.numOperations++;
 		this.valueSize += value.length;
 		flushIfNeeded();
@@ -64,9 +57,9 @@ public class RemoteHeapWriteBatchWrapper implements AutoCloseable {
 	public void remove(
 		@Nonnull byte[] key,
 		@Nonnull byte[] userKey
-	) throws Exception {
+	) {
 
-		pipeline.hdel(key, userKey);
+		db.pipelineHDel(key, userKey);
 		this.numOperations++;
 		flushIfNeeded();
 	}
@@ -75,15 +68,15 @@ public class RemoteHeapWriteBatchWrapper implements AutoCloseable {
 	@Override
 	public void close() {
 		if (numOperations != 0) {
-			this.pipeline.sync();
+			this.db.pipelineSync();
 			this.numOperations = 0;
 			this.valueSize = 0;
 		}
-		pipeline.close();
+		this.db.pipelineClose();
 	}
 
 	public void flush() throws Exception {
-		this.pipeline.sync();
+		this.db.pipelineSync();
 		this.numOperations = 0;
 		this.valueSize = 0;
 	}
@@ -92,7 +85,7 @@ public class RemoteHeapWriteBatchWrapper implements AutoCloseable {
 		boolean needFlush =
 			this.numOperations == capacity || (batchSize > 0 && valueSize >= batchSize);
 		if (needFlush) {
-			this.pipeline.sync();
+			this.db.pipelineSync();
 		}
 		this.numOperations = 0;
 		this.valueSize = 0;

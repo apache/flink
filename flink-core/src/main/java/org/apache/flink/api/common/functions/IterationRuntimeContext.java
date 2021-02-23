@@ -21,6 +21,8 @@ package org.apache.flink.api.common.functions;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.aggregators.Aggregator;
+import org.apache.flink.api.common.state.AsyncValueState;
+import org.apache.flink.api.common.state.AsyncValueStateDescriptor;
 import org.apache.flink.types.Value;
 
 /**
@@ -41,4 +43,9 @@ public interface IterationRuntimeContext extends RuntimeContext {
 	<T extends Aggregator<?>> T getIterationAggregator(String name);
 
 	<T extends Value> T getPreviousIterationAggregate(String name);
+
+    @Override
+    default <T> AsyncValueState<T> getAsyncState(AsyncValueStateDescriptor<T> stateProperties) {
+		throw new UnsupportedOperationException("State is not supported.");
+    }
 }

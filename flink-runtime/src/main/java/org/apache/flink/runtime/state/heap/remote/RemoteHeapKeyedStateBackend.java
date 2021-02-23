@@ -2,6 +2,7 @@ package org.apache.flink.runtime.state.heap.remote;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
+import org.apache.flink.api.common.state.AsyncValueStateDescriptor;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
@@ -46,15 +47,14 @@ import org.apache.flink.util.StateMigrationException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import redis.clients.jedis.Jedis;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.RunnableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -64,7 +64,9 @@ public class RemoteHeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K>
 
 	private static final Logger LOG = LoggerFactory.getLogger(RemoteHeapKeyedStateBackend.class);
 
-	protected final Jedis remoteKVStore;
+	protected final RemoteKVSyncClient syncRemClient;
+
+	protected final RemoteKVAsyncClient asyncRemClient;
 
 	private final RemoteHeapSerializedCompositeKeyBuilder<K> sharedREMKeyBuilder;
 
@@ -106,6 +108,9 @@ public class RemoteHeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K>
 				ValueStateDescriptor.class,
 				(RemoteHeapKeyedStateBackend.StateFactory) RemoteHeapValueState::create),
 			Tuple2.of(
+				AsyncValueStateDescriptor.class,
+				(RemoteHeapKeyedStateBackend.StateFactory) RemoteHeapAsyncValueState::create),
+			Tuple2.of(
 				ListStateDescriptor.class,
 				(RemoteHeapKeyedStateBackend.StateFactory) RemoteHeapListState::create),
 			Tuple2.of(
@@ -141,7 +146,7 @@ public class RemoteHeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K>
 		@Nonnegative long writeBatchSize,
 		LinkedHashMap<String, RemoteHeapKvStateInfo> kvStateInformation,
 		RemoteHeapWriteBatchWrapper writeBatchWrapper,
-		Jedis remoteKVStore) {
+		RemoteKVSyncClient syncRemClient, RemoteKVAsyncClient asyncRemClient) {
 		super(
 			kvStateRegistry,
 			keySerializer,
@@ -154,7 +159,8 @@ public class RemoteHeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K>
 		this.sharedREMKeyBuilder = sharedREMKeyBuilder;
 		this.keyGroupPrefixBytes = keyGroupPrefixBytes;
 		this.writeBatchSize = writeBatchSize;
-		this.remoteKVStore = remoteKVStore;
+		this.syncRemClient = syncRemClient;
+		this.asyncRemClient = asyncRemClient;
 		this.kvStateInformation = kvStateInformation;
 		this.registeredPQStates = registeredPQStates;
 		this.priorityQueueSetFactory = priorityQueueSetFactory;
@@ -168,7 +174,7 @@ public class RemoteHeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K>
 	 */
 	@Override
 	public int numKeyValueStateEntries() {
-		Long ret = this.remoteKVStore.dbSize();
+		Long ret = this.syncRemClient.dbSize();
 		if (ret > Integer.MAX_VALUE) {
 			String message = String.format("DB size %d exceeds integer max value\n", ret);
 			throw new FlinkRuntimeException(message);
@@ -210,7 +216,7 @@ public class RemoteHeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K>
 		final TypeSerializer<N> namespaceSerializer = registeredKeyValueStateBackendMetaInfo.getNamespaceSerializer();
 
 		String wildcard = "*";
-		Set<String> keys = this.remoteKVStore.keys(wildcard);
+		Collection<String> keys = this.syncRemClient.keys(wildcard);
 		if (keys == null || keys.isEmpty()) {
 			return Stream.empty();
 		}
@@ -409,7 +415,7 @@ public class RemoteHeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K>
 
 		super.dispose();
 		kvStateInformation.clear();
-		if (remoteKVStore != null) {
+		if (syncRemClient != null) {
 			IOUtils.closeQuietly(writeBatchWrapper);
 		}
 	}

@@ -68,7 +68,7 @@ public abstract class AbstractRemoteHeapAppendingState<K, N, IN, SV, OUT>
 
 	SV getInternal(byte[] key) {
 		try {
-			byte[] valueBytes = backend.remoteKVStore.hget(kvStateInfo.nameBytes, key);
+			byte[] valueBytes = backend.syncRemClient.hget(kvStateInfo.nameBytes, key);
 			if (valueBytes == null) {
 				return null;
 			}
@@ -88,7 +88,7 @@ public abstract class AbstractRemoteHeapAppendingState<K, N, IN, SV, OUT>
 	void updateInternal(byte[] key, SV valueToStore) {
 		try {
 			// write the new value to RocksDB
-			backend.remoteKVStore.hset(kvStateInfo.nameBytes, key, getValueBytes(valueToStore));
+			backend.syncRemClient.hset(kvStateInfo.nameBytes, key, getValueBytes(valueToStore));
 		} catch (Exception e) {
 			throw new FlinkRuntimeException("Error while adding value to remote heap", e);
 		}

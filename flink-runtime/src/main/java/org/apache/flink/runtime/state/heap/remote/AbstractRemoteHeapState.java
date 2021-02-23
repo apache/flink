@@ -104,7 +104,7 @@ public abstract class AbstractRemoteHeapState<K, N, SV> implements InternalKvSta
 
 	@Override
 	public final void clear() {
-		backend.remoteKVStore.del(serializeCurrentKeyWithGroupAndNamespace());
+		backend.syncRemClient.del(serializeCurrentKeyWithGroupAndNamespace());
 		// stateTable.remove(currentNamespace);
 	}
 
@@ -140,7 +140,7 @@ public abstract class AbstractRemoteHeapState<K, N, SV> implements InternalKvSta
 		byte[] key = keyBuilder.buildCompositeKeyNamespace(keyAndNamespace.f1, namespaceSerializer);
 		LOG.trace("AbstractHeapState getSerializedValue keyAndNamespace f0 {} f1 {} keyGroup {}",
 			keyAndNamespace.f0, keyAndNamespace.f1, keyGroup);
-		return backend.remoteKVStore.get(key);
+		return backend.syncRemClient.get(key);
 	}
 
 	protected SV getDefaultValue() {

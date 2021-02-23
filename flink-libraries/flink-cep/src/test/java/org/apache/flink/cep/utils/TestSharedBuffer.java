@@ -20,6 +20,8 @@ package org.apache.flink.cep.utils;
 
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
+import org.apache.flink.api.common.state.AsyncValueState;
+import org.apache.flink.api.common.state.AsyncValueStateDescriptor;
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.KeyedStateStore;
@@ -106,6 +108,11 @@ public class TestSharedBuffer<V> extends SharedBuffer<V> {
 					this.value = null;
 				}
 			};
+		}
+
+		@Override
+		public <T> AsyncValueState<T> getAsyncState(AsyncValueStateDescriptor<T> stateProperties) {
+			throw new UnsupportedOperationException("Async State Not Supported.");
 		}
 
 		@Override

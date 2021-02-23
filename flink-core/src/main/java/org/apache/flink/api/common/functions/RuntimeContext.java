@@ -30,6 +30,8 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.externalresource.ExternalResourceInfo;
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
+import org.apache.flink.api.common.state.AsyncValueState;
+import org.apache.flink.api.common.state.AsyncValueStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapState;
@@ -284,6 +286,9 @@ public interface RuntimeContext {
 	 */
 	@PublicEvolving
 	<T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties);
+
+	@PublicEvolving
+	<T> AsyncValueState<T> getAsyncState(AsyncValueStateDescriptor<T> stateProperties);
 
 	/**
 	 * Gets a handle to the system's key/value list state. This state is similar to the state

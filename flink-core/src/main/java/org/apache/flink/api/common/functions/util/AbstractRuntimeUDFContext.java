@@ -33,6 +33,8 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
+import org.apache.flink.api.common.state.AsyncValueState;
+import org.apache.flink.api.common.state.AsyncValueStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapState;
@@ -201,6 +203,13 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 	public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
 		throw new UnsupportedOperationException(
 				"This state is only accessible by functions executed on a KeyedStream");
+	}
+
+	@Override
+	@PublicEvolving
+	public <T> AsyncValueState<T> getAsyncState(AsyncValueStateDescriptor<T> stateProperties) {
+		throw new UnsupportedOperationException(
+			"This state is only accessible by functions executed on a KeyedStream");
 	}
 
 	@Override

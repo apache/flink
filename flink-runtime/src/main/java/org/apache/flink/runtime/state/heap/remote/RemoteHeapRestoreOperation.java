@@ -54,7 +54,6 @@ import org.apache.flink.util.StateMigrationException;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import redis.clients.jedis.Jedis;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
@@ -88,7 +87,8 @@ public class RemoteHeapRestoreOperation<K> implements RestoreOperation<Void> {
 	private final InternalKeyContext<K> keyContext;
 
 	protected final String remoteStorageHost;
-	protected Jedis db;
+	public RemoteKVSyncClient syncDBClient;
+	public RemoteKVAsyncClient asyncDBClient;
 
 
 	RemoteHeapRestoreOperation(
@@ -190,7 +190,10 @@ public class RemoteHeapRestoreOperation<K> implements RestoreOperation<Void> {
 
 		LOG.trace("RemoteHeapRestoreOperation: Start Jedis to server: {}", remoteStorageHost);
 		// open DB
-		db = RedisOperationUtils.openDB(remoteStorageHost);
+		syncDBClient = new JedisSyncClient(); //new LettuceClusterClient();
+		syncDBClient.openDB(remoteStorageHost);
+		asyncDBClient = new LettuceClient(); //LettuceOperationUtils.openDB(remoteStorageHost);
+		asyncDBClient.openDB(remoteStorageHost);
 		return null;
 	}
 

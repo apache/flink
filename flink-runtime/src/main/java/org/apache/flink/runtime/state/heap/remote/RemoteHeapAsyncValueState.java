@@ -23,11 +23,13 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
-import org.apache.flink.runtime.state.internal.InternalValueState;
-import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.runtime.state.internal.InternalAsyncValueState;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Heap-backed partitioned {@link ValueState} that is snapshotted into files.
@@ -36,11 +38,10 @@ import org.slf4j.LoggerFactory;
  * @param <N> The type of the namespace.
  * @param <V> The type of the value.
  */
-class RemoteHeapValueState<K, N, V>
+class RemoteHeapAsyncValueState<K, N, V>
 	extends AbstractRemoteHeapState<K, N, V>
-	implements InternalValueState<K, N, V> {
+	implements InternalAsyncValueState<K, N, V> {
 	private static final Logger LOG = LoggerFactory.getLogger(RemoteHeapValueState.class);
-
 
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
@@ -52,7 +53,7 @@ class RemoteHeapValueState<K, N, V>
 	 * @param defaultValue The default value for the state.
 	 * @param backend KeyBackend
 	 */
-	private RemoteHeapValueState(
+	private RemoteHeapAsyncValueState(
 		TypeSerializer<K> keySerializer,
 		TypeSerializer<V> valueSerializer,
 		TypeSerializer<N> namespaceSerializer,
@@ -84,45 +85,55 @@ class RemoteHeapValueState<K, N, V>
 	}
 
 	@Override
-	public V value() {
+	public CompletableFuture<V> value() {
+		CompletableFuture<V> ret = null;
 		try {
-			byte[] valueBytes = backend.syncRemClient.get(
-				serializeCurrentKeyWithGroupAndNamespaceDesc(kvStateInfo.nameBytes));
-			if (valueBytes == null) {
-				return getDefaultValue();
-			}
-			dataInputView.setBuffer(valueBytes);
-			V value = valueSerializer.deserialize(dataInputView);
-			LOG.debug(
-				"RemoteHeapValueState retrieve value state {} namespace {} key {}",
-				value,
-				currentNamespace,
-				backend.getCurrentKey());
-			return value;
-		} catch (Exception e) {
-			throw new FlinkRuntimeException("Error while retrieving data from remote heap.", e);
+			ret = backend.asyncRemClient.getAsync(serializeCurrentKeyWithGroupAndNamespaceDesc(kvStateInfo.nameBytes)).thenApply(valueBytes->{
+					if (valueBytes == null) {
+						return getDefaultValue();
+					}
+					dataInputView.setBuffer(valueBytes);
+					V value = null;
+					try {
+						value = valueSerializer.deserialize(dataInputView);
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+					LOG.debug(
+						"RemoteHeapAsyncValueState retrieve value state {} namespace {} key {} thread {}",
+						value,
+						currentNamespace,
+						backend.getCurrentKey(), Thread.currentThread().getName());
+					return value;
+					}
+				);
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
+		return ret;
 	}
 
 	@Override
-	public void update(V value) {
+	public CompletableFuture<String> update(V value) {
 		if (value == null) {
 			clear();
-			return;
+			return CompletableFuture.supplyAsync(()->"");
 		}
 
 		try {
-			backend.syncRemClient.set(
-				serializeCurrentKeyWithGroupAndNamespaceDesc(kvStateInfo.nameBytes),
-				serializeValue(value));
 			LOG.debug(
-				"RemoteHeapValueState update to value state {} namespace {} key {}",
+				"RemoteHeapAsyncValueState update to value state {} namespace {} key {} thread {}",
 				value,
 				currentNamespace,
-				backend.getCurrentKey());
-		} catch (Exception e) {
-			throw new FlinkRuntimeException("Error while adding data to RocksDB", e);
+				backend.getCurrentKey(), Thread.currentThread().getName());
+			return backend.asyncRemClient.setAsync(
+				serializeCurrentKeyWithGroupAndNamespaceDesc(kvStateInfo.nameBytes),
+				serializeValue(value));
+
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
+		return CompletableFuture.supplyAsync(()->"");
 	}
 
 	@SuppressWarnings("unchecked")
@@ -133,7 +144,7 @@ class RemoteHeapValueState<K, N, V>
 		RemoteHeapKeyedStateBackend backend) {
 		RemoteHeapKeyedStateBackend.RemoteHeapKvStateInfo kvState = backend.getRemoteHeapKvStateInfo(
 			stateDesc.getName());
-		return (IS) new RemoteHeapValueState<>(
+		return (IS) new RemoteHeapAsyncValueState<>(
 			keySerializer,
 			metaInfo.getStateSerializer(),
 			metaInfo.getNamespaceSerializer(),

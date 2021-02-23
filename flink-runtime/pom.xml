@@ -329,6 +329,12 @@ under the License.
 			<type>jar</type>
 			<scope>compile</scope>
 		</dependency>
+
+		<dependency>
+			<groupId>io.lettuce</groupId>
+			<artifactId>lettuce-core</artifactId>
+			<version>6.0.2.RELEASE</version>
+		</dependency>
 	</dependencies>
 
 	<!-- Dependency Management to converge transitive dependency versions -->

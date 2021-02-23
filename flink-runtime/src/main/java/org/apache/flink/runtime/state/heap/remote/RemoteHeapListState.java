@@ -126,13 +126,12 @@ class RemoteHeapListState<K, N, V>
 	 *
 	 * @return internally stored value.
 	 *
-	 * @throws Exception The method may forward exception thrown internally (by I/O or functions).
 	 */
 	@Override
-	public List<V> getInternal() throws Exception {
+	public List<V> getInternal() {
 		try {
 			byte[] key = serializeCurrentKeyWithGroupAndNamespaceDesc(kvStateInfo.nameBytes);
-			byte[] valueBytes = backend.remoteKVStore.get(key);
+			byte[] valueBytes = backend.syncRemClient.get(key);
 			return deserializeList(valueBytes);
 		} catch (Exception e) {
 			throw new FlinkRuntimeException("Error while retrieving data from remote heap", e);
@@ -177,7 +176,7 @@ class RemoteHeapListState<K, N, V>
 		Preconditions.checkNotNull(value, "You cannot add null to a ListState.");
 
 		try {
-			backend.remoteKVStore.rpush(
+			backend.syncRemClient.rpush(
 				serializeCurrentKeyWithGroupAndNamespaceDesc(kvStateInfo.nameBytes),
 				serializeValue(value, elementSerializer)
 			);
@@ -217,11 +216,11 @@ class RemoteHeapListState<K, N, V>
 					final byte[] sourceKey = serializeCurrentKeyWithGroupAndNamespaceDesc(
 						kvStateInfo.nameBytes);
 
-					byte[] valueBytes = backend.remoteKVStore.get(sourceKey);
+					byte[] valueBytes = backend.syncRemClient.get(sourceKey);
 
 					if (valueBytes != null) {
-						backend.remoteKVStore.del(sourceKey);
-						backend.remoteKVStore.rpush(targetKey, valueBytes);
+						backend.syncRemClient.del(sourceKey);
+						backend.syncRemClient.rpush(targetKey, valueBytes);
 					}
 				}
 			}
@@ -248,7 +247,7 @@ class RemoteHeapListState<K, N, V>
 
 		if (!valueToStore.isEmpty()) {
 			try {
-				backend.remoteKVStore.lpush(
+				backend.syncRemClient.lpush(
 					serializeCurrentKeyWithGroupAndNamespaceDesc(kvStateInfo.nameBytes),
 					serializeValueList(valueToStore, elementSerializer, DELIMITER));
 			} catch (Exception e) {
@@ -265,7 +264,7 @@ class RemoteHeapListState<K, N, V>
 
 		if (!values.isEmpty()) {
 			try {
-				backend.remoteKVStore.rpush(
+				backend.syncRemClient.rpush(
 					serializeCurrentKeyWithGroupAndNamespaceDesc(kvStateInfo.nameBytes),
 					serializeValueList(values, elementSerializer, DELIMITER));
 			} catch (Exception e) {

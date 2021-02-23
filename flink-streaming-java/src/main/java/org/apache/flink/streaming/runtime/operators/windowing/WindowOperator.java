@@ -24,6 +24,8 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.AppendingState;
+import org.apache.flink.api.common.state.AsyncValueState;
+import org.apache.flink.api.common.state.AsyncValueStateDescriptor;
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.KeyedStateStore;
@@ -678,6 +680,11 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 		@Override
 		public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
+			throw new UnsupportedOperationException("Per-window state is not allowed when using merging windows.");
+		}
+
+		@Override
+		public <T> AsyncValueState<T> getAsyncState(AsyncValueStateDescriptor<T> stateProperties){
 			throw new UnsupportedOperationException("Per-window state is not allowed when using merging windows.");
 		}
 

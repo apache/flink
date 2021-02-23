@@ -77,12 +77,12 @@ public abstract class AbstractRemoteHeapMergingState<K, N, IN, SV, OUT>
 			if (source != null) {
 				setCurrentNamespace(source);
 				final byte[] sourceKey = serializeCurrentKeyWithGroupAndNamespace();
-				final byte[] valueBytes = backend.remoteKVStore.hget(
+				final byte[] valueBytes = backend.syncRemClient.hget(
 					kvStateInfo.nameBytes,
 					sourceKey);
 
 				if (valueBytes != null) {
-					backend.remoteKVStore.del(sourceKey);
+					backend.syncRemClient.del(sourceKey);
 					dataInputView.setBuffer(valueBytes);
 					SV value = valueSerializer.deserialize(dataInputView);
 
@@ -99,7 +99,7 @@ public abstract class AbstractRemoteHeapMergingState<K, N, IN, SV, OUT>
 			setCurrentNamespace(target);
 			// create the target full-binary-key
 			final byte[] targetKey = serializeCurrentKeyWithGroupAndNamespace();
-			final byte[] targetValueBytes = backend.remoteKVStore.hget(
+			final byte[] targetValueBytes = backend.syncRemClient.hget(
 				kvStateInfo.nameBytes,
 				targetKey);
 
@@ -116,7 +116,7 @@ public abstract class AbstractRemoteHeapMergingState<K, N, IN, SV, OUT>
 			valueSerializer.serialize(current, dataOutputView);
 
 			// write the resulting value
-			backend.remoteKVStore.hset(
+			backend.syncRemClient.hset(
 				kvStateInfo.nameBytes,
 				targetKey,
 				dataOutputView.getCopyOfBuffer());
