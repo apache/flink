@@ -59,6 +59,10 @@ public enum CheckpointType {
         return getPostCheckpointAction() == PostCheckpointAction.TERMINATE;
     }
 
+    public boolean shouldIgnoreEndOfInput() {
+        return getPostCheckpointAction() == PostCheckpointAction.SUSPEND;
+    }
+
     /** What's the intended action after the checkpoint (relevant for stopping with savepoint). */
     public enum PostCheckpointAction {
         NONE,
