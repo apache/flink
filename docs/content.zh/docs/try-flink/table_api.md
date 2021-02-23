@@ -245,7 +245,7 @@ public static Table report(Table transactions) {
 
 这将你的应用程序定义为使用基于 timestamp 列的一小时滚动窗口。因此，带有时间戳的行 `2019-06-01 01:23:47` 将被放置在 `2019-06-01 01:00:00` 窗口中。
 
-基于时间的聚合是唯一的，因为与其它属性相反，时间通常在连续流应用程序中向前移动。与用户自定义函数 `floor` 不同，窗口函数是[内部函数](https://en.wikipedia.org/wiki/Intrinsic_function)，它允许运行时应用额外的优化。在批处理环境中，窗口函数提供了一种用于按 timestamp 属性对记录进行分组方便的API。
+基于时间的聚合是唯一的，因为与其它属性相反，时间通常在连续流应用程序中向前移动。与用户自定义函数 `floor` 不同，窗口函数是[内部函数](https://en.wikipedia.org/wiki/Intrinsic_function)，它允许运行时应用额外的优化。在批处理环境中，窗口函数提供了一种用于按 timestamp 属性对记录进行分组方便的 API。
 
 使用此实现运行测试用例将通过。
 
