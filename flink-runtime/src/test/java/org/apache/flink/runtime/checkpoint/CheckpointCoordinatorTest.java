@@ -2694,8 +2694,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                             CheckpointProperties.forCheckpoint(
                                     CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
                             null,
-                            true,
-                            false);
+                            true);
             manuallyTriggeredScheduledExecutor.triggerAll();
             try {
                 onCompletionPromise.get();
@@ -2789,8 +2788,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                                 jid,
                                 checkpointId,
                                 timestamp,
-                                checkpointOptions,
-                                advanceToEndOfEventTime) -> {});
+                                checkpointOptions) -> {});
         ExecutionVertex vertex2 =
                 mockExecutionVertex(
                         attemptID2,
@@ -2798,8 +2796,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                                 jid,
                                 checkpointId,
                                 timestamp,
-                                checkpointOptions,
-                                advanceToEndOfEventTime) -> {});
+                                checkpointOptions) -> {});
 
         OperatorID opID1 = OperatorID.fromJobVertexID(vertex1.getJobvertexId());
         OperatorID opID2 = OperatorID.fromJobVertexID(vertex2.getJobvertexId());
@@ -2953,8 +2950,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                                 jid,
                                 checkpointId,
                                 timestamp,
-                                checkpointOptions,
-                                advanceToEndOfEventTime) -> {});
+                                checkpointOptions) -> {});
         ExecutionVertex vertex2 =
                 mockExecutionVertex(
                         attemptID2,
@@ -2962,8 +2958,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                                 jid,
                                 checkpointId,
                                 timestamp,
-                                checkpointOptions,
-                                advanceToEndOfEventTime) -> {});
+                                checkpointOptions) -> {});
 
         OperatorID opID1 = OperatorID.fromJobVertexID(vertex1.getJobvertexId());
         OperatorID opID2 = OperatorID.fromJobVertexID(vertex2.getJobvertexId());

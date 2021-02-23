@@ -239,8 +239,7 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
         @Override
         public Future<Boolean> triggerCheckpointAsync(
                 final CheckpointMetaData checkpointMetaData,
-                final CheckpointOptions checkpointOptions,
-                final boolean advanceToEndOfEventTime) {
+                final CheckpointOptions checkpointOptions) {
             final TaskStateSnapshot checkpointStateHandles = new TaskStateSnapshot();
             checkpointStateHandles.putSubtaskStateByOperatorID(
                     OperatorID.fromJobVertexID(getEnvironment().getJobVertexId()),

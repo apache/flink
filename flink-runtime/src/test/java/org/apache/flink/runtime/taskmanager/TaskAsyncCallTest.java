@@ -83,7 +83,7 @@ public class TaskAsyncCallTest extends TestLogger {
 
     /**
      * Triggered when {@link CheckpointsInOrderInvokable#triggerCheckpointAsync(CheckpointMetaData,
-     * CheckpointOptions, boolean)} was called {@link #numCalls} times.
+     * CheckpointOptions)} was called {@link #numCalls} times.
      */
     private static OneShotLatch triggerLatch;
 
@@ -121,10 +121,7 @@ public class TaskAsyncCallTest extends TestLogger {
 
             for (int i = 1; i <= numCalls; i++) {
                 task.triggerCheckpointBarrier(
-                        i,
-                        156865867234L,
-                        CheckpointOptions.forCheckpointWithDefaultLocation(),
-                        false);
+                        i, 156865867234L, CheckpointOptions.forCheckpointWithDefaultLocation());
             }
 
             triggerLatch.await();
@@ -147,10 +144,7 @@ public class TaskAsyncCallTest extends TestLogger {
 
             for (int i = 1; i <= numCalls; i++) {
                 task.triggerCheckpointBarrier(
-                        i,
-                        156865867234L,
-                        CheckpointOptions.forCheckpointWithDefaultLocation(),
-                        false);
+                        i, 156865867234L, CheckpointOptions.forCheckpointWithDefaultLocation());
                 task.notifyCheckpointComplete(i);
             }
 
@@ -260,9 +254,7 @@ public class TaskAsyncCallTest extends TestLogger {
 
         @Override
         public Future<Boolean> triggerCheckpointAsync(
-                CheckpointMetaData checkpointMetaData,
-                CheckpointOptions checkpointOptions,
-                boolean advanceToEndOfEventTime) {
+                CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
             lastCheckpointId++;
             if (checkpointMetaData.getCheckpointId() == lastCheckpointId) {
                 if (lastCheckpointId == numCalls) {

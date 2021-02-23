@@ -1240,14 +1240,11 @@ public class Task
      * @param checkpointID The ID identifying the checkpoint.
      * @param checkpointTimestamp The timestamp associated with the checkpoint.
      * @param checkpointOptions Options for performing this checkpoint.
-     * @param advanceToEndOfEventTime Flag indicating if the source should inject a {@code
-     *     MAX_WATERMARK} in the pipeline to fire any registered event-time timers.
      */
     public void triggerCheckpointBarrier(
             final long checkpointID,
             final long checkpointTimestamp,
-            final CheckpointOptions checkpointOptions,
-            final boolean advanceToEndOfEventTime) {
+            final CheckpointOptions checkpointOptions) {
 
         final AbstractInvokable invokable = this.invokable;
         final CheckpointMetaData checkpointMetaData =
@@ -1255,8 +1252,7 @@ public class Task
 
         if (executionState == ExecutionState.RUNNING && invokable != null) {
             try {
-                invokable.triggerCheckpointAsync(
-                        checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
+                invokable.triggerCheckpointAsync(checkpointMetaData, checkpointOptions);
             } catch (RejectedExecutionException ex) {
                 // This may happen if the mailbox is closed. It means that the task is shutting
                 // down, so we just ignore it.

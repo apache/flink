@@ -76,7 +76,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
-import static org.apache.flink.runtime.checkpoint.CheckpointType.SYNC_SAVEPOINT;
+import static org.apache.flink.runtime.checkpoint.CheckpointType.SAVEPOINT_SUSPEND;
 import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
@@ -115,8 +115,7 @@ public class SourceStreamTaskTest {
         Future<Boolean> triggerFuture =
                 harness.streamTask.triggerCheckpointAsync(
                         new CheckpointMetaData(1, 1),
-                        new CheckpointOptions(SYNC_SAVEPOINT, getDefault()),
-                        false);
+                        new CheckpointOptions(SAVEPOINT_SUSPEND, getDefault()));
         while (!triggerFuture.isDone()) {
             harness.streamTask.runMailboxStep();
         }
@@ -175,8 +174,7 @@ public class SourceStreamTaskTest {
         Future<Boolean> triggerFuture =
                 harness.streamTask.triggerCheckpointAsync(
                         new CheckpointMetaData(1L, System.currentTimeMillis()),
-                        CheckpointOptions.forCheckpointWithDefaultLocation(),
-                        false);
+                        CheckpointOptions.forCheckpointWithDefaultLocation());
 
         assertFalse(triggerFuture.isDone());
         Thread.sleep(sleepTime);
@@ -590,8 +588,7 @@ public class SourceStreamTaskTest {
             Future<Boolean> triggerFuture =
                     harness.streamTask.triggerCheckpointAsync(
                             new CheckpointMetaData(checkpointId, 1),
-                            new CheckpointOptions(SYNC_SAVEPOINT, getDefault()),
-                            false);
+                            new CheckpointOptions(SAVEPOINT_SUSPEND, getDefault()));
             while (!triggerFuture.isDone()) {
                 harness.streamTask.runMailboxStep();
             }
@@ -711,8 +708,7 @@ public class SourceStreamTaskTest {
                 try {
                     sourceTask.triggerCheckpointAsync(
                             new CheckpointMetaData(currentCheckpointId, 0L),
-                            CheckpointOptions.forCheckpointWithDefaultLocation(),
-                            false);
+                            CheckpointOptions.forCheckpointWithDefaultLocation());
                 } catch (RejectedExecutionException e) {
                     // We are late with a checkpoint, the mailbox is already closed.
                     return false;
