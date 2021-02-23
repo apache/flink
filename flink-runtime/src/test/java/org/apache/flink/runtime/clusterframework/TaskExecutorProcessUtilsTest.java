@@ -123,6 +123,7 @@ public class TaskExecutorProcessUtilsTest
                         .setTaskOffHeapMemoryMB(200)
                         .setNetworkMemoryMB(300)
                         .setManagedMemoryMB(400)
+                        .setNumSlots(5)
                         .build();
         final TaskExecutorProcessSpec taskExecutorProcessSpec =
                 TaskExecutorProcessUtils.processSpecFromWorkerResourceSpec(
@@ -139,6 +140,7 @@ public class TaskExecutorProcessUtilsTest
         assertEquals(
                 workerResourceSpec.getManagedMemSize(),
                 taskExecutorProcessSpec.getManagedMemorySize());
+        assertEquals(workerResourceSpec.getNumSlots(), taskExecutorProcessSpec.getNumSlots());
     }
 
     @Test
@@ -594,6 +596,20 @@ public class TaskExecutorProcessUtilsTest
             assertThat(
                     e.getMessage(), containsString(TaskManagerOptions.TOTAL_PROCESS_MEMORY.key()));
         }
+    }
+
+    @Test
+    public void testConfigNumSlots() {
+        final int numSlots = 5;
+
+        Configuration conf = new Configuration();
+        conf.set(TaskManagerOptions.NUM_TASK_SLOTS, numSlots);
+
+        validateInAllConfigurations(
+                conf,
+                taskExecutorProcessSpec -> {
+                    assertThat(taskExecutorProcessSpec.getNumSlots(), is(numSlots));
+                });
     }
 
     @Override

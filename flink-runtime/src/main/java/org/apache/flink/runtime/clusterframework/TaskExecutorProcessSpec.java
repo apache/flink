@@ -85,6 +85,8 @@ public class TaskExecutorProcessSpec extends CommonProcessMemorySpec<TaskExecuto
 
     private final CPUResource cpuCores;
 
+    private final int numSlots;
+
     @VisibleForTesting
     public TaskExecutorProcessSpec(
             CPUResource cpuCores,
@@ -106,16 +108,19 @@ public class TaskExecutorProcessSpec extends CommonProcessMemorySpec<TaskExecuto
                         taskOffHeapSize,
                         networkMemSize,
                         managedMemorySize),
-                new JvmMetaspaceAndOverhead(jvmMetaspaceSize, jvmOverheadSize));
+                new JvmMetaspaceAndOverhead(jvmMetaspaceSize, jvmOverheadSize),
+                1);
     }
 
     protected TaskExecutorProcessSpec(
             CPUResource cpuCores,
             TaskExecutorFlinkMemory flinkMemory,
-            JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead) {
+            JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead,
+            int numSlots) {
 
         super(flinkMemory, jvmMetaspaceAndOverhead);
         this.cpuCores = cpuCores;
+        this.numSlots = numSlots;
     }
 
     public CPUResource getCpuCores() {
@@ -146,6 +151,10 @@ public class TaskExecutorProcessSpec extends CommonProcessMemorySpec<TaskExecuto
         return getFlinkMemory().getManaged();
     }
 
+    public int getNumSlots() {
+        return numSlots;
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (obj == this) {
@@ -155,14 +164,15 @@ public class TaskExecutorProcessSpec extends CommonProcessMemorySpec<TaskExecuto
             return Objects.equals(this.cpuCores, that.cpuCores)
                     && Objects.equals(
                             this.getJvmMetaspaceAndOverhead(), that.getJvmMetaspaceAndOverhead())
-                    && Objects.equals(this.getFlinkMemory(), that.getFlinkMemory());
+                    && Objects.equals(this.getFlinkMemory(), that.getFlinkMemory())
+                    && Objects.equals(this.numSlots, that.numSlots);
         }
         return false;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(getJvmMetaspaceAndOverhead(), getFlinkMemory(), cpuCores);
+        return Objects.hash(getJvmMetaspaceAndOverhead(), getFlinkMemory(), cpuCores, numSlots);
     }
 
     @Override
@@ -186,6 +196,8 @@ public class TaskExecutorProcessSpec extends CommonProcessMemorySpec<TaskExecuto
                 + getJvmMetaspaceSize().toHumanReadableString()
                 + ", jvmOverheadSize="
                 + getJvmOverheadSize().toHumanReadableString()
+                + ", numSlots="
+                + numSlots
                 + '}';
     }
 }
