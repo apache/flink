@@ -23,21 +23,18 @@ from pyflink.find_flink_home import _find_flink_source_root
 from pyflink.java_gateway import get_gateway
 from pyflink.table import DataTypes, ResultKind
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, PyFlinkBatchTableTestCase, \
-    PyFlinkTestCase
+from pyflink.testing.test_case_utils import PyFlinkBlinkStreamTableTestCase, \
+    PyFlinkOldBatchTableTestCase, PyFlinkTestCase
 
 
-class SqlTests(object):
+class StreamSqlTests(PyFlinkBlinkStreamTableTestCase):
 
     def test_sql_ddl(self):
         self.t_env.execute_sql("create temporary function func1 as "
                                "'pyflink.table.tests.test_udf.add' language python")
         table = self.t_env.from_elements([(1, 2)]).alias("a, b").select("func1(a, b)")
         plan = table.explain()
-        self.assertTrue(plan.find("PythonCalc(select=[add(f0, f1) AS _c0])") >= 0)
-
-
-class StreamSqlTests(SqlTests, PyFlinkStreamTableTestCase):
+        self.assertTrue(plan.find("PythonCalc(select=[func1(f0, f1) AS _c0])") >= 0)
 
     def test_sql_query(self):
         t_env = self.t_env
@@ -113,8 +110,14 @@ class StreamSqlTests(SqlTests, PyFlinkStreamTableTestCase):
         self.assert_equals(actual, expected)
 
 
-class BatchSqlTests(SqlTests, PyFlinkBatchTableTestCase):
-    pass
+class BatchSqlTests(PyFlinkOldBatchTableTestCase):
+
+    def test_sql_ddl(self):
+        self.t_env.execute_sql("create temporary function func1 as "
+                               "'pyflink.table.tests.test_udf.add' language python")
+        table = self.t_env.from_elements([(1, 2)]).alias("a, b").select("func1(a, b)")
+        plan = table.explain()
+        self.assertTrue(plan.find("DataSetPythonCalc(select=[add(f0, f1) AS _c0])") >= 0)
 
 
 class JavaSqlTests(PyFlinkTestCase):

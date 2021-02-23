@@ -38,62 +38,28 @@ under the License.
 
 ```python
 
-from pyflink.table import EnvironmentSettings, StreamTableEnvironment, BatchTableEnvironment
+from pyflink.table import EnvironmentSettings, TableEnvironment
 
-# 创建 blink 流 TableEnvironment
-env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
-table_env = StreamTableEnvironment.create(environment_settings=env_settings)
-
-# 创建 blink 批 TableEnvironment
-env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
-table_env = BatchTableEnvironment.create(environment_settings=env_settings)
-
-# 创建 flink 流 TableEnvironment
-env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_old_planner().build()
-table_env = StreamTableEnvironment.create(environment_settings=env_settings)
-
-# 创建 flink 批 TableEnvironment
-env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_old_planner().build()
-table_env = BatchTableEnvironment.create(environment_settings=env_settings)
+# create a streaming TableEnvironment
+env_settings = EnvironmentSettings.new_instance().in_streaming_mode().build()
+# or a batch TableEnvironment
+# env_settings = EnvironmentSettings.new_instance().in_batch_mode().build()
+table_env = TableEnvironment.create(env_settings)
 
 ```
 
-如果你需要使用 `TableEnvironment` 所依赖的 `ExecutionEnvironment`/`StreamExecutionEnvironment` 对象，
-例如：与 DataStream API 混合编程，使用 `ExecutionEnvironment`/`StreamExecutionEnvironment` APIs 进行配置， 
-你也可以通过一个 `TableConfig` 对象从 `ExecutionEnvironment`/`StreamExecutionEnvironment` 中创建出 `TableEnvironment`，其中 `TableConfig` 是可选的：
+或者，用户可以从现有的StreamExecutionEnvironment创建StreamTableEnvironment，以与DataStream API进行互操作。
 
 ```python
 
-from pyflink.dataset import ExecutionEnvironment
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.table import StreamTableEnvironment, BatchTableEnvironment, TableConfig
 
-# 通过 StreamExecutionEnvironment 创建 blink 流 TableEnvironment
+# create a blink streaming TableEnvironment from a StreamExecutionEnvironment
 env = StreamExecutionEnvironment.get_execution_environment()
 table_env = StreamTableEnvironment.create(env)
 
-# 通过 StreamExecutionEnvironment 和 TableConfig 创建 blink 流 TableEnvironment
-env = StreamExecutionEnvironment.get_execution_environment()
-table_config = TableConfig()  # you can add configuration options in it
-table_env = StreamTableEnvironment.create(env, table_config)
-
-# 通过 ExecutionEnvironment 创建 flink 批 TableEnvironment 
-env = ExecutionEnvironment.get_execution_environment()
-table_env = BatchTableEnvironment.create(env)
-
-# 通过 ExecutionEnvironment 和 TableConfig 创建 flink 批 TableEnvironment
-env = ExecutionEnvironment.get_execution_environment()
-table_config = TableConfig()  # you can add configuration options in it
-table_env = BatchTableEnvironment.create(env, table_config)
-
-# 通过 StreamExecutionEnvironment 创建 flink 流 TableEnvironment
-env = StreamExecutionEnvironment.get_execution_environment()
-env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_old_planner().build()
-table_env = StreamTableEnvironment.create(env, environment_settings=env_settings)
 ```
-
-**注意：** 现在， `ExecutionEnvironment`/`StreamExecutionEnvironment` 中所有的配置项几乎都可以通过 `TableEnvironment.get_config()` 来配置，更多详情，可查阅 [配置]({{< ref "docs/deployment/config" >}})。
-只有少数很少使用的或者被废弃的配置仍然需要直接通过 `ExecutionEnvironment` /`StreamExecutionEnvironment` 来配置，例如输入依赖约束。
 
 TableEnvironment API
 --------------------

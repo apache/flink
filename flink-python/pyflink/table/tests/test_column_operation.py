@@ -16,10 +16,10 @@
 # limitations under the License.
 ################################################################################
 
-from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkBlinkStreamTableTestCase
 
 
-class StreamTableColumnsOperationTests(PyFlinkStreamTableTestCase):
+class StreamTableColumnsOperationTests(PyFlinkBlinkStreamTableTestCase):
 
     def test_add_columns(self):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])

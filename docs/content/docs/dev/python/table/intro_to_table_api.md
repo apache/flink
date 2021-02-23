@@ -36,11 +36,11 @@ All Table API and SQL programs, both batch and streaming, follow the same patter
 
 ```python
 
-from pyflink.table import EnvironmentSettings, StreamTableEnvironment
+from pyflink.table import EnvironmentSettings, TableEnvironment
 
 # 1. create a TableEnvironment
 env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
-table_env = StreamTableEnvironment.create(environment_settings=env_settings)
+table_env = TableEnvironment.create(env_settings)
 
 # 2. create source Table
 table_env.execute_sql("""
@@ -90,23 +90,15 @@ The `TableEnvironment` is a central concept of the Table API and SQL integration
 
 ```python
 
-from pyflink.table import EnvironmentSettings, StreamTableEnvironment, BatchTableEnvironment
+from pyflink.table import EnvironmentSettings, TableEnvironment
 
 # create a blink streaming TableEnvironment
 env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
-table_env = StreamTableEnvironment.create(environment_settings=env_settings)
+table_env = TableEnvironment.create(env_settings)
 
-# create a blink batch TableEnvironment
+# or create a blink batch TableEnvironment
 env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
-table_env = BatchTableEnvironment.create(environment_settings=env_settings)
-
-# create a flink streaming TableEnvironment
-env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_old_planner().build()
-table_env = StreamTableEnvironment.create(environment_settings=env_settings)
-
-# create a flink batch TableEnvironment
-env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_old_planner().build()
-table_env = BatchTableEnvironment.create(environment_settings=env_settings)
+table_env = TableEnvironment.create(env_settings)
 
 ```
 
@@ -143,10 +135,10 @@ You can create a Table from a list object:
 ```python
 
 # create a blink batch TableEnvironment
-from pyflink.table import EnvironmentSettings, BatchTableEnvironment
+from pyflink.table import EnvironmentSettings, TableEnvironment
 
 env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
-table_env = BatchTableEnvironment.create(environment_settings=env_settings)
+table_env = TableEnvironment.create(env_settings)
 
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')])
 table.to_pandas()
@@ -212,10 +204,10 @@ You can create a Table using connector DDL:
 
 ```python
 # create a blink stream TableEnvironment
-from pyflink.table import EnvironmentSettings, StreamTableEnvironment
+from pyflink.table import EnvironmentSettings, TableEnvironment
 
 env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
-table_env = StreamTableEnvironment.create(environment_settings=env_settings)
+table_env = TableEnvironment.create(env_settings)
 
 table_env.execute_sql("""
     CREATE TABLE random_source (
@@ -296,10 +288,10 @@ The following example shows a simple Table API aggregation query:
 ```python
 
 # using batch table environment to execute the queries
-from pyflink.table import EnvironmentSettings, BatchTableEnvironment
+from pyflink.table import EnvironmentSettings, TableEnvironment
 
 env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
-table_env = BatchTableEnvironment.create(environment_settings=env_settings)
+table_env = TableEnvironment.create(env_settings)
 
 orders = table_env.from_elements([('Jack', 'FRANCE', 10), ('Rose', 'ENGLAND', 30), ('Jack', 'FRANCE', 20)],
                                  ['name', 'country', 'revenue'])
@@ -332,11 +324,11 @@ The following example shows a simple SQL aggregation query:
 
 ```python
 
-# use a StreamTableEnvironment to execute the queries
-from pyflink.table import EnvironmentSettings, StreamTableEnvironment
+# use a stream TableEnvironment to execute the queries
+from pyflink.table import EnvironmentSettings, TableEnvironment
 
 env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
-table_env = StreamTableEnvironment.create(environment_settings=env_settings)
+table_env = TableEnvironment.create(env_settings)
 
 
 table_env.execute_sql("""
@@ -605,11 +597,11 @@ The following code shows how to use the `Table.explain()` method:
 
 ```python
 
-# using a StreamTableEnvironment
-from pyflink.table import EnvironmentSettings, StreamTableEnvironment
+# using a stream TableEnvironment
+from pyflink.table import EnvironmentSettings, TableEnvironment
 
 env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
-table_env = StreamTableEnvironment.create(environment_settings=env_settings)
+table_env = TableEnvironment.create(env_settings)
 
 table1 = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
 table2 = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
@@ -660,11 +652,11 @@ The following code shows how to use the `StatementSet.explain()` method:
 
 ```python
 
-# using a StreamTableEnvironment
-from pyflink.table import EnvironmentSettings, StreamTableEnvironment
+# using a stream TableEnvironment
+from pyflink.table import EnvironmentSettings, TableEnvironment
 
 env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
-table_env = StreamTableEnvironment.create(environment_settings=env_settings)
+table_env = TableEnvironment.create(env_settings)
 
 table1 = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
 table2 = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])

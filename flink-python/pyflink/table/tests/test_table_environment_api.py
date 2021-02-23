@@ -22,6 +22,7 @@ import os
 import pathlib
 import sys
 from py4j.protocol import Py4JJavaError
+from pyflink.table.udf import udf
 
 from pyflink.common import RowKind
 from pyflink.common.typeinfo import Types
@@ -39,8 +40,10 @@ from pyflink.table.table_config import TableConfig
 from pyflink.table.table_environment import BatchTableEnvironment
 from pyflink.table.types import RowType, Row
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, PyFlinkBatchTableTestCase, \
-    PyFlinkBlinkBatchTableTestCase, PyFlinkBlinkStreamTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkOldStreamTableTestCase, \
+    PyFlinkOldBatchTableTestCase, PyFlinkBlinkBatchTableTestCase, PyFlinkBlinkStreamTableTestCase, \
+    PyFlinkLegacyBlinkBatchTableTestCase, PyFlinkLegacyFlinkStreamTableTestCase, \
+    PyFlinkLegacyBlinkStreamTableTestCase
 from pyflink.util.utils import get_j_env_configuration
 
 
@@ -78,8 +81,11 @@ class TableEnvironmentTest(object):
 
         assert isinstance(actual, str)
 
-    def test_register_java_function(self):
+    def test_register_functions(self):
         t_env = self.t_env
+
+        t_env.register_function(
+            "python_scalar_func", udf(lambda i: i, result_type=DataTypes.INT()))
 
         t_env.register_java_function("scalar_func",
                                      "org.apache.flink.table.expressions.utils.RichFunc0")
@@ -88,7 +94,7 @@ class TableEnvironmentTest(object):
         t_env.register_java_function("table_func", "org.apache.flink.table.utils.TableFunc1")
 
         actual = t_env.list_user_defined_functions()
-        expected = ['scalar_func', 'agg_func', 'table_func']
+        expected = ['python_scalar_func', 'scalar_func', 'agg_func', 'table_func']
         self.assert_equals(actual, expected)
 
     def test_unload_and_load_module(self):
@@ -117,8 +123,39 @@ class TableEnvironmentTest(object):
         t_env.drop_temporary_function("table_func")
         self.assert_equals(t_env.list_user_defined_functions(), [])
 
+    def test_temporary_tables(self):
+        t_env = self.t_env
+        t_env.connect(FileSystem().path(os.path.join(self.tempdir + '/temp_1.csv'))) \
+            .with_format(OldCsv()
+                         .field_delimiter(',')
+                         .field("a", DataTypes.INT())
+                         .field("b", DataTypes.STRING())) \
+            .with_schema(Schema()
+                         .field("a", DataTypes.INT())
+                         .field("b", DataTypes.STRING())) \
+            .create_temporary_table("temporary_table_1")
 
-class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCase):
+        t_env.connect(FileSystem().path(os.path.join(self.tempdir + '/temp_2.csv'))) \
+            .with_format(OldCsv()
+                         .field_delimiter(',')
+                         .field("a", DataTypes.INT())
+                         .field("b", DataTypes.STRING())) \
+            .with_schema(Schema()
+                         .field("a", DataTypes.INT())
+                         .field("b", DataTypes.STRING())) \
+            .create_temporary_table("temporary_table_2")
+
+        actual = t_env.list_temporary_tables()
+        expected = ['temporary_table_1', 'temporary_table_2']
+        self.assert_equals(actual, expected)
+
+        t_env.drop_temporary_table("temporary_table_1")
+        actual = t_env.list_temporary_tables()
+        expected = ['temporary_table_2']
+        self.assert_equals(actual, expected)
+
+
+class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkOldStreamTableTestCase):
 
     def test_register_table_source_from_path(self):
         t_env = self.t_env
@@ -178,37 +215,6 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
         actual = t_env.list_tables()
 
         expected = ['Orders', 'Results', 'Sinks']
-        self.assert_equals(actual, expected)
-
-    def test_temporary_tables(self):
-        t_env = self.t_env
-        t_env.connect(FileSystem().path(os.path.join(self.tempdir + '/temp_1.csv'))) \
-            .with_format(OldCsv()
-                         .field_delimiter(',')
-                         .field("a", DataTypes.INT())
-                         .field("b", DataTypes.STRING())) \
-            .with_schema(Schema()
-                         .field("a", DataTypes.INT())
-                         .field("b", DataTypes.STRING())) \
-            .create_temporary_table("temporary_table_1")
-
-        t_env.connect(FileSystem().path(os.path.join(self.tempdir + '/temp_2.csv'))) \
-            .with_format(OldCsv()
-                         .field_delimiter(',')
-                         .field("a", DataTypes.INT())
-                         .field("b", DataTypes.STRING())) \
-            .with_schema(Schema()
-                         .field("a", DataTypes.INT())
-                         .field("b", DataTypes.STRING())) \
-            .create_temporary_table("temporary_table_2")
-
-        actual = t_env.list_temporary_tables()
-        expected = ['temporary_table_1', 'temporary_table_2']
-        self.assert_equals(actual, expected)
-
-        t_env.drop_temporary_table("temporary_table_1")
-        actual = t_env.list_temporary_tables()
-        expected = ['temporary_table_2']
         self.assert_equals(actual, expected)
 
     def test_temporary_views(self):
@@ -337,7 +343,7 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
 
     def test_create_table_environment_with_blink_planner(self):
         t_env = StreamTableEnvironment.create(
-            self.env,
+            StreamExecutionEnvironment.get_execution_environment(),
             environment_settings=EnvironmentSettings.new_instance().use_blink_planner().build())
 
         planner = t_env._j_tenv.getPlanner()
@@ -365,9 +371,10 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
             "org.apache.flink.table.planner.StreamPlanner")
 
     def test_table_environment_with_blink_planner(self):
-        self.env.set_parallelism(1)
+        env = StreamExecutionEnvironment.get_execution_environment()
+        env.set_parallelism(1)
         t_env = StreamTableEnvironment.create(
-            self.env,
+            env,
             environment_settings=EnvironmentSettings.new_instance().use_blink_planner().build())
 
         source_path = os.path.join(self.tempdir + '/streaming.csv')
@@ -394,68 +401,6 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
             results.append(f.readline())
 
         self.assert_equals(results, ['2,hi,hello\n', '3,hello,hello\n'])
-
-    def test_from_data_stream(self):
-        self.env.set_parallelism(1)
-
-        ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')],
-                                      type_info=Types.ROW([Types.INT(),
-                                                           Types.STRING(),
-                                                           Types.STRING()]))
-        t_env = self.t_env
-        table = t_env.from_data_stream(ds)
-        field_names = ['a', 'b', 'c']
-        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
-        t_env.register_table_sink("Sink",
-                                  source_sink_utils.TestAppendSink(field_names, field_types))
-        t_env.insert_into("Sink", table)
-        t_env.execute("test_from_data_stream")
-        result = source_sink_utils.results()
-        expected = ['+I[1, Hi, Hello]', '+I[2, Hello, Hi]']
-        self.assert_equals(result, expected)
-
-        ds = ds.map(lambda x: x, Types.ROW([Types.INT(), Types.STRING(), Types.STRING()]))
-        table = t_env.from_data_stream(ds, col('a'), col('b'), col('c'))
-        t_env.register_table_sink("ExprSink",
-                                  source_sink_utils.TestAppendSink(field_names, field_types))
-        t_env.insert_into("ExprSink", table)
-        t_env.execute("test_from_data_stream_with_expr")
-        result = source_sink_utils.results()
-        self.assert_equals(result, expected)
-
-    def test_to_append_stream(self):
-        self.env.set_parallelism(1)
-        t_env = StreamTableEnvironment.create(
-            self.env,
-            environment_settings=EnvironmentSettings.new_instance().use_blink_planner().build())
-        table = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hi")], ["a", "b", "c"])
-        new_table = table.select("a + 1, b + 'flink', c")
-        ds = t_env.to_append_stream(table=new_table, type_info=Types.ROW([Types.LONG(),
-                                                                          Types.STRING(),
-                                                                          Types.STRING()]))
-        test_sink = DataStreamTestSinkFunction()
-        ds.add_sink(test_sink)
-        self.env.execute("test_to_append_stream")
-        result = test_sink.get_results(False)
-        expected = ['+I[2, Hiflink, Hello]', '+I[3, Helloflink, Hi]']
-        self.assertEqual(result, expected)
-
-    def test_to_retract_stream(self):
-        self.env.set_parallelism(1)
-        t_env = StreamTableEnvironment.create(
-            self.env,
-            environment_settings=EnvironmentSettings.new_instance().use_blink_planner().build())
-        table = t_env.from_elements([(1, "Hi", "Hello"), (1, "Hi", "Hello")], ["a", "b", "c"])
-        new_table = table.group_by("c").select("a.sum, c as b")
-        ds = t_env.to_retract_stream(table=new_table, type_info=Types.ROW([Types.LONG(),
-                                                                           Types.STRING()]))
-        test_sink = DataStreamTestSinkFunction()
-        ds.map(lambda x: x).add_sink(test_sink)
-        self.env.execute("test_to_retract_stream")
-        result = test_sink.get_results(True)
-        expected = ["(True, Row(f0=1, f1='Hello'))", "(False, Row(f0=1, f1='Hello'))",
-                    "(True, Row(f0=2, f1='Hello'))"]
-        self.assertEqual(result, expected)
 
     def test_collect_null_value_result(self):
         element_data = [(1, None, 'a'),
@@ -699,6 +644,86 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
             self.assertEqual(expected_result, collected_result)
 
 
+class DataStreamConversionTestCases(object):
+
+    def test_from_data_stream(self):
+        self.env.set_parallelism(1)
+
+        ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')],
+                                      type_info=Types.ROW([Types.INT(),
+                                                           Types.STRING(),
+                                                           Types.STRING()]))
+        t_env = self.t_env
+        table = t_env.from_data_stream(ds)
+        field_names = ['a', 'b', 'c']
+        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
+        t_env.register_table_sink("Sink",
+                                  source_sink_utils.TestAppendSink(field_names, field_types))
+        t_env.insert_into("Sink", table)
+        t_env.execute("test_from_data_stream")
+        result = source_sink_utils.results()
+        expected = ['+I[1, Hi, Hello]', '+I[2, Hello, Hi]']
+        self.assert_equals(result, expected)
+
+        ds = ds.map(lambda x: x, Types.ROW([Types.INT(), Types.STRING(), Types.STRING()]))
+        table = t_env.from_data_stream(ds, col('a'), col('b'), col('c'))
+        t_env.register_table_sink("ExprSink",
+                                  source_sink_utils.TestAppendSink(field_names, field_types))
+        t_env.insert_into("ExprSink", table)
+        t_env.execute("test_from_data_stream_with_expr")
+        result = source_sink_utils.results()
+        self.assert_equals(result, expected)
+
+    def test_to_append_stream(self):
+        self.env.set_parallelism(1)
+        t_env = StreamTableEnvironment.create(
+            self.env,
+            environment_settings=EnvironmentSettings.new_instance().use_blink_planner().build())
+        table = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hi")], ["a", "b", "c"])
+        new_table = table.select("a + 1, b + 'flink', c")
+        ds = t_env.to_append_stream(table=new_table, type_info=Types.ROW([Types.LONG(),
+                                                                          Types.STRING(),
+                                                                          Types.STRING()]))
+        test_sink = DataStreamTestSinkFunction()
+        ds.add_sink(test_sink)
+        self.env.execute("test_to_append_stream")
+        result = test_sink.get_results(False)
+        expected = ['+I[2, Hiflink, Hello]', '+I[3, Helloflink, Hi]']
+        self.assertEqual(result, expected)
+
+    def test_to_retract_stream(self):
+        self.env.set_parallelism(1)
+        t_env = StreamTableEnvironment.create(
+            self.env,
+            environment_settings=EnvironmentSettings.new_instance().use_blink_planner().build())
+        table = t_env.from_elements([(1, "Hi", "Hello"), (1, "Hi", "Hello")], ["a", "b", "c"])
+        new_table = table.group_by("c").select("a.sum, c as b")
+        ds = t_env.to_retract_stream(table=new_table, type_info=Types.ROW([Types.LONG(),
+                                                                           Types.STRING()]))
+        test_sink = DataStreamTestSinkFunction()
+        ds.map(lambda x: x).add_sink(test_sink)
+        self.env.execute("test_to_retract_stream")
+        result = test_sink.get_results(True)
+        expected = ["(True, Row(f0=1, f1='Hello'))", "(False, Row(f0=1, f1='Hello'))",
+                    "(True, Row(f0=2, f1='Hello'))"]
+        self.assertEqual(result, expected)
+
+
+class LegacyBlinkBatchTableEnvironmentTests(TableEnvironmentTest,
+                                            PyFlinkLegacyBlinkBatchTableTestCase):
+    pass
+
+
+class LegacyBlinkStreamTableEnvironmentTests(TableEnvironmentTest, DataStreamConversionTestCases,
+                                             PyFlinkLegacyBlinkStreamTableTestCase):
+    pass
+
+
+class LegacyFlinkStreamTableEnvironmentTests(TableEnvironmentTest, DataStreamConversionTestCases,
+                                             PyFlinkLegacyFlinkStreamTableTestCase):
+    pass
+
+
 class BlinkStreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkBlinkStreamTableTestCase):
 
     def test_collect_with_retract(self):
@@ -770,7 +795,7 @@ class BlinkStreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkBlinkStreamT
             self.assertEqual(expected_result, collected_result)
 
 
-class BatchTableEnvironmentTests(TableEnvironmentTest, PyFlinkBatchTableTestCase):
+class BatchTableEnvironmentTests(TableEnvironmentTest, PyFlinkOldBatchTableTestCase):
 
     def test_explain_with_multi_sinks(self):
         t_env = self.t_env

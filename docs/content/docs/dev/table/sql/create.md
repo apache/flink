@@ -110,7 +110,7 @@ tableEnv.executeSql(
 {{< tab "Python" >}}
 ```python
 settings = EnvironmentSettings.new_instance()...
-table_env = StreamTableEnvironment.create(env, settings)
+table_env = TableEnvironment.create(settings)
 
 # SQL query with a registered table
 # register a table named "Orders"

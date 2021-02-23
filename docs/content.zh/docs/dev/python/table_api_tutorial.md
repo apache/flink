@@ -64,24 +64,18 @@ $ python -m pip install apache-flink
 
 ## 编写一个Flink Python Table API程序
 
-编写Flink Python Table API程序的第一步是创建`BatchTableEnvironment`
-(或者`StreamTableEnvironment`，如果你要创建一个流式作业)。这是Python Table API作业的入口类。
+编写Flink Python Table API程序的第一步是创建`TableEnvironment`。这是Python Table API作业的入口类。
 
 ```python
-exec_env = ExecutionEnvironment.get_execution_environment()
-exec_env.set_parallelism(1)
-t_config = TableConfig()
-t_env = BatchTableEnvironment.create(exec_env, t_config)
+settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+t_env = TableEnvironment.create(settings)
 ```
-
-`ExecutionEnvironment` (或者`StreamExecutionEnvironment`，如果你要创建一个流式作业)
-可以用来设置执行参数，比如重启策略，缺省并发值等。
-
-`TableConfig`可以用来设置缺省的catalog名字，自动生成代码时方法大小的阈值等.
 
 接下来，我们将介绍如何创建源表和结果表。
 
 ```python
+# write all the data to one file
+t_env.get_config().get_configuration().set_string("parallelism.default", "1")
 t_env.connect(FileSystem().path('/tmp/input')) \
     .with_format(OldCsv()
                  .field('word', DataTypes.STRING())) \
@@ -149,16 +143,15 @@ tab.group_by(tab.word) \
 该教程的完整代码如下:
 
 ```python
-from pyflink.dataset import ExecutionEnvironment
-from pyflink.table import TableConfig, DataTypes, BatchTableEnvironment
+from pyflink.table import DataTypes, TableEnvironment, EnvironmentSettings
 from pyflink.table.descriptors import Schema, OldCsv, FileSystem
 from pyflink.table.expressions import lit
 
-exec_env = ExecutionEnvironment.get_execution_environment()
-exec_env.set_parallelism(1)
-t_config = TableConfig()
-t_env = BatchTableEnvironment.create(exec_env, t_config)
+settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+t_env = TableEnvironment.create(settings)
 
+# write all the data to one file
+t_env.get_config().get_configuration().set_string("parallelism.default", "1")
 t_env.connect(FileSystem().path('/tmp/input')) \
     .with_format(OldCsv()
                  .field('word', DataTypes.STRING())) \

@@ -325,8 +325,8 @@ tableEnv.useCatalog("myhive")
 from pyflink.table import *
 from pyflink.table.catalog import HiveCatalog
 
-settings = EnvironmentSettings.new_instance().use_blink_planner().build()
-t_env = BatchTableEnvironment.create(environment_settings=settings)
+settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+t_env = TableEnvironment.create(settings)
 
 catalog_name = "myhive"
 default_database = "mydatabase"
