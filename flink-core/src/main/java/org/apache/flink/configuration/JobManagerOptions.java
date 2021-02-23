@@ -388,7 +388,7 @@ public class JobManagerOptions {
         Documentation.Sections.ALL_JOB_MANAGER
     })
     public static final ConfigOption<Integer> MIN_PARALLELISM_INCREASE =
-            key("jobmanager.declarative-scheduler.min-parallelism-increase")
+            key("jobmanager.adaptive-scheduler.min-parallelism-increase")
                     .intType()
                     .defaultValue(1)
                     .withDescription(
@@ -399,7 +399,7 @@ public class JobManagerOptions {
         Documentation.Sections.ALL_JOB_MANAGER
     })
     public static final ConfigOption<Duration> RESOURCE_WAIT_TIMEOUT =
-            key("jobmanager.declarative-scheduler.resource-wait-timeout")
+            key("jobmanager.adaptive-scheduler.resource-wait-timeout")
                     .durationType()
                     .defaultValue(Duration.ofSeconds(10))
                     .withDescription(
