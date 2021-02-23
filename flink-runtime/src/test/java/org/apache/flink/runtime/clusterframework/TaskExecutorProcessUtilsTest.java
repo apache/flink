@@ -112,6 +112,9 @@ public class TaskExecutorProcessUtilsTest
         assertThat(
                 MemorySize.parse(configs.get(TaskManagerOptions.JVM_OVERHEAD_MAX.key())),
                 is(TM_RESOURCE_SPEC.getJvmMetaspaceAndOverhead().getOverhead()));
+        assertThat(
+                Integer.valueOf(configs.get(TaskManagerOptions.NUM_TASK_SLOTS.key())),
+                is(TM_RESOURCE_SPEC.getNumSlots()));
     }
 
     @Test
