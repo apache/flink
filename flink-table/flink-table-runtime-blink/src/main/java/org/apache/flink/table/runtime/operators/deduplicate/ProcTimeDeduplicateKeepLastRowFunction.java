@@ -18,7 +18,10 @@
 
 package org.apache.flink.table.runtime.operators.deduplicate;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
+import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.Collector;
 
@@ -33,26 +36,49 @@ public class ProcTimeDeduplicateKeepLastRowFunction
     private final boolean generateUpdateBefore;
     private final boolean generateInsert;
     private final boolean inputIsInsertOnly;
+    private final boolean isStateTtlEnabled;
+    /** The code generated equaliser used to equal RowData. */
+    private final GeneratedRecordEqualiser genRecordEqualiser;
+
+    /** The record equaliser used to equal RowData. */
+    private transient RecordEqualiser equaliser;
 
     public ProcTimeDeduplicateKeepLastRowFunction(
             InternalTypeInfo<RowData> typeInfo,
             long stateRetentionTime,
             boolean generateUpdateBefore,
             boolean generateInsert,
-            boolean inputInsertOnly) {
+            boolean inputInsertOnly,
+            GeneratedRecordEqualiser genRecordEqualiser) {
         super(typeInfo, null, stateRetentionTime);
         this.generateUpdateBefore = generateUpdateBefore;
         this.generateInsert = generateInsert;
         this.inputIsInsertOnly = inputInsertOnly;
+        this.genRecordEqualiser = genRecordEqualiser;
+        this.isStateTtlEnabled = stateRetentionTime > 0;
+    }
+
+    @Override
+    public void open(Configuration configure) throws Exception {
+        super.open(configure);
+        equaliser = genRecordEqualiser.newInstance(getRuntimeContext().getUserCodeClassLoader());
     }
 
     @Override
     public void processElement(RowData input, Context ctx, Collector<RowData> out)
             throws Exception {
         if (inputIsInsertOnly) {
-            processLastRowOnProcTime(input, generateUpdateBefore, generateInsert, state, out);
+            processLastRowOnProcTime(
+                    input,
+                    generateUpdateBefore,
+                    generateInsert,
+                    state,
+                    out,
+                    isStateTtlEnabled,
+                    equaliser);
         } else {
-            processLastRowOnChangelog(input, generateUpdateBefore, state, out);
+            processLastRowOnChangelog(
+                    input, generateUpdateBefore, state, out, isStateTtlEnabled, equaliser);
         }
     }
 }

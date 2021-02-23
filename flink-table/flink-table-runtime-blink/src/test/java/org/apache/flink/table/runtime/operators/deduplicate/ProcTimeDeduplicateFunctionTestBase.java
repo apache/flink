@@ -20,10 +20,13 @@ package org.apache.flink.table.runtime.operators.deduplicate;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
+import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.BinaryRowDataKeySelector;
 import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
+import org.apache.flink.table.runtime.util.RowDataRecordEqualiser;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.VarCharType;
@@ -45,4 +48,15 @@ abstract class ProcTimeDeduplicateFunctionTestBase {
                     inputRowType.toRowFieldTypes(),
                     new GenericRowRecordSortComparator(
                             rowKeyIdx, inputRowType.toRowFieldTypes()[rowKeyIdx]));
+
+    static GeneratedRecordEqualiser generatedEqualiser =
+            new GeneratedRecordEqualiser("", "", new Object[0]) {
+
+                private static final long serialVersionUID = 1L;
+
+                @Override
+                public RecordEqualiser newInstance(ClassLoader classLoader) {
+                    return new RowDataRecordEqualiser();
+                }
+            };
 }
