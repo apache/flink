@@ -431,13 +431,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         syncSavepointId = null;
     }
 
-    private void setSynchronousSavepointId(long checkpointId) {
+    private void setSynchronousSavepointId(long checkpointId, boolean ignoreEndOfInput) {
         Preconditions.checkState(
                 syncSavepointId == null,
                 "at most one stop-with-savepoint checkpoint at a time is allowed");
         syncSavepointId = checkpointId;
         activeSyncSavepointId = checkpointId;
-        operatorChain.setIgnoreEndOfInput(true);
+        operatorChain.setIgnoreEndOfInput(ignoreEndOfInput);
     }
 
     @VisibleForTesting
@@ -988,7 +988,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
             actionExecutor.runThrowing(
                     () -> {
                         if (checkpointOptions.getCheckpointType().isSynchronous()) {
-                            setSynchronousSavepointId(checkpointMetaData.getCheckpointId());
+                            setSynchronousSavepointId(
+                                    checkpointMetaData.getCheckpointId(),
+                                    checkpointOptions.getCheckpointType().shouldIgnoreEndOfInput());
 
                             if (checkpointOptions.getCheckpointType().shouldAdvanceToEndOfTime()) {
                                 advanceToEndOfEventTime();
