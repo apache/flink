@@ -607,9 +607,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 
         streamTask
                 .triggerCheckpointAsync(
-                        checkpointMetaData,
-                        CheckpointOptions.forCheckpointWithDefaultLocation(),
-                        false)
+                        checkpointMetaData, CheckpointOptions.forCheckpointWithDefaultLocation())
                 .get();
 
         // since no state was set, there shouldn't be restore calls

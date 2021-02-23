@@ -22,22 +22,25 @@ package org.apache.flink.runtime.checkpoint;
 public enum CheckpointType {
 
     /** A checkpoint, full or incremental. */
-    CHECKPOINT(false, false),
+    CHECKPOINT(false, PostCheckpointAction.NONE),
 
     /** A regular savepoint. */
-    SAVEPOINT(true, false),
+    SAVEPOINT(true, PostCheckpointAction.NONE),
 
-    /** A savepoint taken while suspending/terminating the job. */
-    SYNC_SAVEPOINT(true, true);
+    /** A savepoint taken while suspending the job. */
+    SAVEPOINT_SUSPEND(true, PostCheckpointAction.SUSPEND),
+
+    /** A savepoint taken while terminating the job. */
+    SAVEPOINT_TERMINATE(true, PostCheckpointAction.TERMINATE);
 
     private final boolean isSavepoint;
 
-    private final boolean isSynchronous;
+    private final PostCheckpointAction postCheckpointAction;
 
-    CheckpointType(final boolean isSavepoint, final boolean isSynchronous) {
+    CheckpointType(final boolean isSavepoint, final PostCheckpointAction postCheckpointAction) {
 
         this.isSavepoint = isSavepoint;
-        this.isSynchronous = isSynchronous;
+        this.postCheckpointAction = postCheckpointAction;
     }
 
     public boolean isSavepoint() {
@@ -45,6 +48,21 @@ public enum CheckpointType {
     }
 
     public boolean isSynchronous() {
-        return isSynchronous;
+        return postCheckpointAction != PostCheckpointAction.NONE;
+    }
+
+    public PostCheckpointAction getPostCheckpointAction() {
+        return postCheckpointAction;
+    }
+
+    public boolean shouldAdvanceToEndOfTime() {
+        return getPostCheckpointAction() == PostCheckpointAction.TERMINATE;
+    }
+
+    /** What's the intended action after the checkpoint (relevant for stopping with savepoint). */
+    public enum PostCheckpointAction {
+        NONE,
+        SUSPEND,
+        TERMINATE
     }
 }

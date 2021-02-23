@@ -135,15 +135,14 @@ public interface RestfulGateway extends RpcGateway {
      * @param jobId ID of the job for which the savepoint should be triggered.
      * @param targetDirectory to which to write the savepoint data or null if the default savepoint
      *     directory should be used
-     * @param advanceToEndOfEventTime Flag indicating if the source should inject a {@code
-     *     MAX_WATERMARK} in the pipeline to fire any registered event-time timers
+     * @param terminate flag indicating if the job should terminate or just suspend
      * @param timeout for the rpc call
      * @return Future which is completed with the savepoint path once completed
      */
     default CompletableFuture<String> stopWithSavepoint(
             final JobID jobId,
             final String targetDirectory,
-            final boolean advanceToEndOfEventTime,
+            final boolean terminate,
             @RpcTimeout final Time timeout) {
         throw new UnsupportedOperationException();
     }

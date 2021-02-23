@@ -729,15 +729,14 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     public CompletableFuture<String> stopWithSavepoint(
             final JobID jobId,
             final String targetDirectory,
-            final boolean advanceToEndOfEventTime,
+            final boolean terminate,
             final Time timeout) {
         final CompletableFuture<JobMasterGateway> jobMasterGatewayFuture =
                 getJobMasterGatewayFuture(jobId);
 
         return jobMasterGatewayFuture.thenCompose(
                 (JobMasterGateway jobMasterGateway) ->
-                        jobMasterGateway.stopWithSavepoint(
-                                targetDirectory, advanceToEndOfEventTime, timeout));
+                        jobMasterGateway.stopWithSavepoint(targetDirectory, terminate, timeout));
     }
 
     @Override

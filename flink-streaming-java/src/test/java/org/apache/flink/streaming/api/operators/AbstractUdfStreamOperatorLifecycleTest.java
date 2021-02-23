@@ -283,8 +283,7 @@ public class AbstractUdfStreamOperatorLifecycleTest {
                                                             new CheckpointMetaData(
                                                                     0, System.currentTimeMillis()),
                                                             CheckpointOptions
-                                                                    .forCheckpointWithDefaultLocation(),
-                                                            false)
+                                                                    .forCheckpointWithDefaultLocation())
                                                     .get()) {
                                         LifecycleTrackingStreamSource.runFinish.trigger();
                                     }
