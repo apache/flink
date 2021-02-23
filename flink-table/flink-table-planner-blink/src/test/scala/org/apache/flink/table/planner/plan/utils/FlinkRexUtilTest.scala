@@ -460,6 +460,14 @@ class FlinkRexUtilTest {
       predicate18Search)
     val newPredicate20 = FlinkRexUtil.simplify(rexBuilder, predicate20)
     assertEquals(predicate20.toString, newPredicate20.toString)
+
+    // a is null OR a = '0' OR a = '1'
+    val predicate21 = rexBuilder.makeCall(OR, rexBuilder.makeCall(IS_NULL, a),
+      rexBuilder.makeCall(EQUALS, a, rexBuilder.makeLiteral("1")),
+      rexBuilder.makeCall(EQUALS, a, rexBuilder.makeLiteral("2")));
+    val newPredicate21 = FlinkRexUtil.simplify(rexBuilder, predicate21)
+    // it can't to change to search node
+    assertEquals(predicate21, newPredicate21);
   }
 
   def intLiteral(x: Int): RexLiteral = rexBuilder.makeExactLiteral(BigDecimal.valueOf(x))
