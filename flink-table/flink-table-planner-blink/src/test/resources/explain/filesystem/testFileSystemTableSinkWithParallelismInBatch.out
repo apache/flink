@@ -32,23 +32,12 @@ Sink(table=[default_catalog.default_database.test_sink_table], fields=[id, real_
     } ]
   }, {
     "id" : 3,
-    "type" : "StreamingFileWriter",
-    "pact" : "Operator",
-    "contents" : "StreamingFileWriter",
+    "type" : "Sink: Filesystem",
+    "pact" : "Data Sink",
+    "contents" : "Sink: Filesystem",
     "parallelism" : 5,
     "predecessors" : [ {
       "id" : 2,
-      "ship_strategy" : "REBALANCE",
-      "side" : "second"
-    } ]
-  }, {
-    "id" : 4,
-    "type" : "Sink: end",
-    "pact" : "Data Sink",
-    "contents" : "Sink: end",
-    "parallelism" : 1,
-    "predecessors" : [ {
-      "id" : 3,
       "ship_strategy" : "REBALANCE",
       "side" : "second"
     } ]

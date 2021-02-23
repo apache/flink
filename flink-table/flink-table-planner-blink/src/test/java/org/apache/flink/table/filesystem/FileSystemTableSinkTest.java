@@ -42,7 +42,7 @@ public class FileSystemTableSinkTest {
         final TableEnvironment tEnv = TableEnvironment.create(settings);
 
         final String testSourceTableName = "test_source_table";
-        tEnv.executeSql(buildSourceTableSql(testSourceTableName));
+        tEnv.executeSql(buildSourceTableSql(testSourceTableName, false));
 
         final String testSinkTableName = "test_sink_table";
         tEnv.executeSql(buildSinkTableSql(testSinkTableName, 10, false));
@@ -68,7 +68,7 @@ public class FileSystemTableSinkTest {
                 .set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 8);
 
         final String testSourceTableName = "test_source_table";
-        tEnv.executeSql(buildSourceTableSql(testSourceTableName));
+        tEnv.executeSql(buildSourceTableSql(testSourceTableName, false));
 
         // verify operator parallelisms when compaction is not enabled
         final String testSinkTableName = "test_sink_table";
@@ -107,7 +107,7 @@ public class FileSystemTableSinkTest {
 
         final String testSourceTableName = "test_source_table";
         final String testSinkTableName = "test_sink_table";
-        tEnv.executeSql(buildSourceTableSql(testSourceTableName));
+        tEnv.executeSql(buildSourceTableSql(testSourceTableName, true));
         tEnv.executeSql(buildSinkTableSql(testSinkTableName, parallelism, false));
 
         final String sql = buildInsertIntoSql(testSinkTableName, testSourceTableName);
@@ -121,7 +121,7 @@ public class FileSystemTableSinkTest {
                 replaceStreamNodeId(replaceStageId(actual)));
     }
 
-    private static String buildSourceTableSql(String testSourceTableName) {
+    private static String buildSourceTableSql(String testSourceTableName, boolean bounded) {
         return String.format(
                 "CREATE TABLE %s ("
                         + " id BIGINT,"
@@ -130,9 +130,9 @@ public class FileSystemTableSinkTest {
                         + " decimal_col DECIMAL(10, 4)"
                         + ") WITH ("
                         + " 'connector' = 'values',"
-                        + " 'bounded' = 'false'"
+                        + " 'bounded' = '%s'"
                         + ")",
-                testSourceTableName);
+                testSourceTableName, bounded);
     }
 
     private static String buildSinkTableSql(

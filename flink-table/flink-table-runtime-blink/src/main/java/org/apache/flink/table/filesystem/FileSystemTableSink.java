@@ -177,7 +177,10 @@ public class FileSystemTableSink extends AbstractFileSystemTable
                 OutputFileConfig.builder()
                         .withPartPrefix("part-" + UUID.randomUUID().toString())
                         .build());
-        return inputStream.writeUsingOutputFormat(builder.build()).setParallelism(parallelism);
+        return inputStream
+                .writeUsingOutputFormat(builder.build())
+                .setParallelism(parallelism)
+                .name("Filesystem");
     }
 
     private DataStreamSink<?> createStreamingSink(
