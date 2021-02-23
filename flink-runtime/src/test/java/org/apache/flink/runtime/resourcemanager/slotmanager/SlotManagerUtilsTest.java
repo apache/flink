@@ -102,7 +102,7 @@ public class SlotManagerUtilsTest extends TestLogger {
                 TaskExecutorResourceUtils.generateTotalAvailableResourceProfile(
                         taskExecutorResourceSpec);
         final WorkerResourceSpec workerResourceSpec =
-                WorkerResourceSpec.fromTotalResourceProfile(totalResourceProfile);
+                WorkerResourceSpec.fromTotalResourceProfile(totalResourceProfile, numSlots);
 
         assertThat(
                 SlotManagerUtils.generateDefaultSlotResourceProfile(totalResourceProfile, numSlots),
