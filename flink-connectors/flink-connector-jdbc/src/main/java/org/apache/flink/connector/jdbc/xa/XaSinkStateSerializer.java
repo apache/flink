@@ -135,7 +135,8 @@ public final class XaSinkStateSerializer extends TypeSerializer<JdbcXaSinkFuncti
     }
 
     /** Simple {@link TypeSerializerSnapshot} for {@link XaSinkStateSerializer}. */
-    public static class XaSinkStateSimpleXaTypeSerializerSnapshot extends SimpleTypeSerializerSnapshot<JdbcXaSinkFunctionState> {
+    public static class XaSinkStateSimpleXaTypeSerializerSnapshot
+            extends SimpleTypeSerializerSnapshot<JdbcXaSinkFunctionState> {
         private static final int VERSION = 1;
 
         public XaSinkStateSimpleXaTypeSerializerSnapshot() {
