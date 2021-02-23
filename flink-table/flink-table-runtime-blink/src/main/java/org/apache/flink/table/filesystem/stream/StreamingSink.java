@@ -61,7 +61,8 @@ public class StreamingSink {
             long bucketCheckInterval,
             StreamingFileSink.BucketsBuilder<
                             T, String, ? extends StreamingFileSink.BucketsBuilder<T, String, ?>>
-                    bucketsBuilder) {
+                    bucketsBuilder,
+            int parallelism) {
         StreamingFileWriter<T> fileWriter =
                 new StreamingFileWriter<>(bucketCheckInterval, bucketsBuilder);
         return inputStream
@@ -69,7 +70,7 @@ public class StreamingSink {
                         StreamingFileWriter.class.getSimpleName(),
                         TypeInformation.of(PartitionCommitInfo.class),
                         fileWriter)
-                .setParallelism(inputStream.getParallelism());
+                .setParallelism(parallelism);
     }
 
     /**
@@ -85,7 +86,8 @@ public class StreamingSink {
             FileSystemFactory fsFactory,
             Path path,
             CompactReader.Factory<T> readFactory,
-            long targetFileSize) {
+            long targetFileSize,
+            int parallelism) {
         CompactFileWriter<T> writer = new CompactFileWriter<>(bucketCheckInterval, bucketsBuilder);
 
         SupplierWithException<FileSystem, IOException> fsSupplier =
@@ -100,7 +102,7 @@ public class StreamingSink {
                                 "streaming-writer",
                                 TypeInformation.of(CoordinatorInput.class),
                                 writer)
-                        .setParallelism(inputStream.getParallelism())
+                        .setParallelism(parallelism)
                         .transform(
                                 "compact-coordinator",
                                 TypeInformation.of(CoordinatorOutput.class),
@@ -122,7 +124,7 @@ public class StreamingSink {
                         "compact-operator",
                         TypeInformation.of(PartitionCommitInfo.class),
                         compacter)
-                .setParallelism(inputStream.getParallelism());
+                .setParallelism(parallelism);
     }
 
     /**

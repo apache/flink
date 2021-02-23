@@ -1,0 +1,78 @@
+== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.test_compact_sink_table], fields=[id, real_col, double_col, decimal_col])
++- LogicalProject(id=[$0], real_col=[$1], double_col=[$2], decimal_col=[$3])
+   +- LogicalTableScan(table=[[default_catalog, default_database, test_source_table]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.test_compact_sink_table], fields=[id, real_col, double_col, decimal_col])
++- TableSourceScan(table=[[default_catalog, default_database, test_source_table]], fields=[id, real_col, double_col, decimal_col])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.test_compact_sink_table], fields=[id, real_col, double_col, decimal_col])
++- TableSourceScan(table=[[default_catalog, default_database, test_source_table]], fields=[id, real_col, double_col, decimal_col])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : 5,
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, test_source_table]], fields=[id, real_col, double_col, decimal_col])",
+    "pact" : "Data Source",
+    "contents" : "Source: TableSourceScan(table=[[default_catalog, default_database, test_source_table]], fields=[id, real_col, double_col, decimal_col])",
+    "parallelism" : 1
+  }, {
+    "id" : 6,
+    "type" : "Filter",
+    "pact" : "Operator",
+    "contents" : "Filter",
+    "parallelism" : 8,
+    "predecessors" : [ {
+      "id" : 5,
+      "ship_strategy" : "REBALANCE",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : 7,
+    "type" : "streaming-writer",
+    "pact" : "Operator",
+    "contents" : "streaming-writer",
+    "parallelism" : 5,
+    "predecessors" : [ {
+      "id" : 6,
+      "ship_strategy" : "REBALANCE",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : 8,
+    "type" : "compact-coordinator",
+    "pact" : "Operator",
+    "contents" : "compact-coordinator",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : 7,
+      "ship_strategy" : "REBALANCE",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : 10,
+    "type" : "compact-operator",
+    "pact" : "Operator",
+    "contents" : "compact-operator",
+    "parallelism" : 5,
+    "predecessors" : [ {
+      "id" : 8,
+      "ship_strategy" : "BROADCAST",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : 11,
+    "type" : "Sink: end",
+    "pact" : "Data Sink",
+    "contents" : "Sink: end",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : 10,
+      "ship_strategy" : "REBALANCE",
+      "side" : "second"
+    } ]
+  } ]
+}

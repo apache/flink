@@ -18,9 +18,8 @@
 
 package org.apache.flink.table.filesystem;
 
+import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.api.common.io.RichInputFormat;
-import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.io.RowCsvInputFormat;
@@ -28,7 +27,6 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -45,7 +43,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /** The {@link InputFormat} that output {@link RowData}. */
-public class TestRowDataCsvInputFormat extends RichInputFormat<RowData, FileInputSplit> {
+public class TestRowDataCsvInputFormat extends FileInputFormat<RowData> {
 
     private final List<String> partitionKeys;
     private final String defaultPartValue;
@@ -114,18 +112,8 @@ public class TestRowDataCsvInputFormat extends RichInputFormat<RowData, FileInpu
     }
 
     @Override
-    public BaseStatistics getStatistics(BaseStatistics cachedStatistics) throws IOException {
-        return inputFormat.getStatistics(cachedStatistics);
-    }
-
-    @Override
     public FileInputSplit[] createInputSplits(int minNumSplits) throws IOException {
         return inputFormat.createInputSplits(minNumSplits);
-    }
-
-    @Override
-    public InputSplitAssigner getInputSplitAssigner(FileInputSplit[] inputSplits) {
-        return inputFormat.getInputSplitAssigner(inputSplits);
     }
 
     @Override
