@@ -104,7 +104,12 @@ public class TaskExecutorResourceUtils {
         }
     }
 
-    static ResourceProfile generateDefaultSlotResourceProfile(
+    /**
+     * This must be consist with {@link
+     * org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerUtils#generateDefaultSlotResourceProfile}.
+     */
+    @VisibleForTesting
+    public static ResourceProfile generateDefaultSlotResourceProfile(
             TaskExecutorResourceSpec taskExecutorResourceSpec, int numberOfSlots) {
         return ResourceProfile.newBuilder()
                 .setCpuCores(taskExecutorResourceSpec.getCpuCores().divide(numberOfSlots))
@@ -118,7 +123,8 @@ public class TaskExecutorResourceUtils {
                 .build();
     }
 
-    static ResourceProfile generateTotalAvailableResourceProfile(
+    @VisibleForTesting
+    public static ResourceProfile generateTotalAvailableResourceProfile(
             TaskExecutorResourceSpec taskExecutorResourceSpec) {
         return ResourceProfile.newBuilder()
                 .setCpuCores(taskExecutorResourceSpec.getCpuCores())

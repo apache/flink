@@ -22,6 +22,11 @@ import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 
 /** Utilities for {@link SlotManager} implementations. */
 public class SlotManagerUtils {
+
+    /**
+     * This must be consist with {@link
+     * org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils#generateDefaultSlotResourceProfile}.
+     */
     public static ResourceProfile generateDefaultSlotResourceProfile(
             WorkerResourceSpec workerResourceSpec, int numSlotsPerWorker) {
         return ResourceProfile.newBuilder()
@@ -34,6 +39,10 @@ public class SlotManagerUtils {
                 .build();
     }
 
+    /**
+     * This must be consist with {@link
+     * org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils#generateDefaultSlotResourceProfile}.
+     */
     public static ResourceProfile generateDefaultSlotResourceProfile(
             ResourceProfile resourceProfile, int numSlotsPerWorker) {
         return ResourceProfile.newBuilder()
