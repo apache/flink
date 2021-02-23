@@ -24,7 +24,7 @@ from pyflink.common import Row
 from pyflink.table.types import DataTypes
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkBlinkBatchTableTestCase, \
-    PyFlinkBlinkStreamTableTestCase, PyFlinkStreamTableTestCase
+    PyFlinkBlinkStreamTableTestCase, PyFlinkOldStreamTableTestCase
 
 
 class PandasConversionTestBase(object):
@@ -157,7 +157,7 @@ class PandasConversionITTests(PandasConversionTestBase):
 
 
 class StreamPandasConversionTests(PandasConversionITTests,
-                                  PyFlinkStreamTableTestCase):
+                                  PyFlinkOldStreamTableTestCase):
     pass
 
 
@@ -170,10 +170,9 @@ class BlinkBatchPandasConversionTests(PandasConversionTests,
 class BlinkStreamPandasConversionTests(PandasConversionITTests,
                                        PyFlinkBlinkStreamTableTestCase):
     def test_to_pandas_with_event_time(self):
-        self.env.set_parallelism(1)
+        self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
         # create source file path
         import tempfile
-        from pyflink.datastream.time_characteristic import TimeCharacteristic
         import os
         tmp_dir = tempfile.gettempdir()
         data = [
@@ -189,7 +188,8 @@ class BlinkStreamPandasConversionTests(PandasConversionITTests,
             for ele in data:
                 fd.write(ele + '\n')
 
-        self.env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
+        self.t_env.get_config().get_configuration().set_string(
+            "pipeline.time-characteristic", "EventTime")
 
         source_table = """
             create table source_table(

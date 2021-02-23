@@ -113,7 +113,7 @@ tableEnv.executeSql(
 {{< tab "Python" >}}
 ```python
 settings = EnvironmentSettings.new_instance()...
-table_env = StreamTableEnvironment.create(env, settings)
+table_env = TableEnvironment.create(settings)
 
 # 对已经注册的表进行 SQL 查询
 # 注册名为 “Orders” 的表

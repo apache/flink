@@ -133,7 +133,7 @@ println(tableResult2.getJobClient().get().getJobStatus())
 {{< tab "Python" >}}
 ```python
 settings = EnvironmentSettings.new_instance()...
-table_env = StreamTableEnvironment.create(env, settings)
+table_env = TableEnvironment.create(settings)
 
 # register a source table named "Orders" and a sink table named "RubberOrders"
 table_env.execute_sql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
