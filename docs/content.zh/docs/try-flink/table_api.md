@@ -40,7 +40,7 @@ Apache Flink 提供了 Table API 作为统一的相关 API，用于批处理和�
 
 ## 困难求助
 
-如果遇到困难，可以参考[社区支持资源](https://flink.apache.org/community.html)。当然也可以在邮件列表提问， Flink 的[用户邮件列表](https://flink.apache.org/community.html#mailing-lists)一直被评为所有Apache项目中最活跃的一个，这也是快速获得帮助的好方法。
+如果遇到困难，可以参考[社区支持资源](https://flink.apache.org/community.html)。当然也可以在邮件列表提问，Flink 的[用户邮件列表](https://flink.apache.org/community.html#mailing-lists)一直被评为所有Apache项目中最活跃的一个，这也是快速获得帮助的好方法。
 
 {{< hint info >}}
 如果在 Windows 上运行 docker 并且你的数据生成器容器无法启动，那么请确保你使用的 shell 正确。例如，**table-walkthrough_data-generator_1** 容器的 **docker-entrypoint.sh** 需要使 bash shell。如果不可用，它将导致 **standard_init_linux.go:211: exec user process caused "no such file or directory"** 错误。一种解决方法是将 **docker-entrypoint.sh** 文件的的第一行切换为 **sh** shell。
@@ -103,7 +103,7 @@ report(transactions).executeInsert("spend_report");
 
 #### 执行环境
 
-前两行设置你的TableEnvironment。table environment 可以用来为 Job 设置属性，指定是编写批应用程序还是流应用程序以及创建源。本练习将创建一个使用流执行的标准表环境。
+前两行设置你的 TableEnvironment。table environment 可以用来为 Job 设置属性，指定是编写批应用程序还是流应用程序以及创建源。本练习将创建一个使用流执行的标准表环境。
 
 ```java
 EnvironmentSettings settings = EnvironmentSettings.newInstance().build();
@@ -112,7 +112,7 @@ TableEnvironment tEnv = TableEnvironment.create(settings);
 
 #### 注册表
 
-接下来，将表注册到当前的[catalog]（{{< ref "docs/dev/table/catalogs" >}}）中，你可以使用该表连接到外部系统以读取和写入批处理数据和流数据。源表提供对存储在外部系统（例如数据库、键值存储、消息队列或文件系统）中的数据的访问，目的表将表发送到外部存储系统。根据源和目的的类型，支持不同的数据类型，例如 CSV、JSON、Avro 或 Parquet。
+接下来，将表注册到当前的 [catalog]（{{< ref "docs/dev/table/catalogs" >}}）中，你可以使用该表连接到外部系统以读取和写入批处理数据和流数据。源表提供对存储在外部系统（例如数据库、键值存储、消息队列或文件系统）中的数据的访问，目的表将表发送到外部存储系统。根据源和目的的类型，支持不同的数据类型，例如 CSV、JSON、Avro 或 Parquet。
 
 ```java
 tEnv.executeSql("CREATE TABLE transactions (\n" +
@@ -172,7 +172,7 @@ Flink 的特色之一是，它在批处理和流处理之间提供一致性的�
  
 现在，有了 Job 设置的框架，你就可以添加一些业务逻辑。目的是建立一个报告，显示每个帐户在一天中每个小时的总支出。这意味着时间戳列需要从毫秒舍入到小时粒度。
 
-Flink 支持使用纯[SQL]（{{< ref "docs/dev/table/sql/overview" >}}）或使用[Table API]（{{< ref "docs/dev/table/tableApi" >}}）来开发纯关系型应用。Table API 是受 SQL 启发的流畅 DSL，可以用 Python、Java或 Scala 编写，并支持强大的 IDE 集成。就像 SQL 查询一样，Table 程序可以选择必填字段并按键进行分组。利用这些特性，并结合[内置函数] （{{< ref "docs/dev/table/functions/systemFunctions" >}})），如 floor 和 sum，就可以编写 report 函数了。
+Flink 支持使用纯 [SQL]（{{< ref "docs/dev/table/sql/overview" >}}）或使用 [Table API]（{{< ref "docs/dev/table/tableApi" >}}）来开发纯关系型应用。Table API 是受 SQL 启发的流畅 DSL，可以用 Python、Java或 Scala 编写，并支持强大的 IDE 集成。就像 SQL 查询一样，Table 程序可以选择必填字段并按键进行分组。利用这些特性，并结合[内置函数] （{{< ref "docs/dev/table/functions/systemFunctions" >}})），如 floor 和 sum，就可以编写 report 函数了。
 
 ```java
 public static Table report(Table transactions) {
