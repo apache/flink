@@ -841,6 +841,8 @@ public class AdaptiveScheduler
                             ? archivedExecutionGraph.getFailureInfo().getException()
                             : null);
         }
+
+        terminationFuture.complete(null);
     }
 
     private void stopCheckpointServicesSafely(JobStatus terminalState) {
