@@ -400,10 +400,8 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 
     @Override
     public CompletableFuture<String> stopWithSavepoint(
-            @Nullable final String targetDirectory,
-            final boolean advanceToEndOfEventTime,
-            final Time timeout) {
-        return stopWithSavepointFunction.apply(targetDirectory, advanceToEndOfEventTime);
+            @Nullable final String targetDirectory, final boolean terminate, final Time timeout) {
+        return stopWithSavepointFunction.apply(targetDirectory, terminate);
     }
 
     @Override

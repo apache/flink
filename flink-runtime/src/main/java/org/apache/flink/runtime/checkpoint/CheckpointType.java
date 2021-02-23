@@ -22,24 +22,30 @@ package org.apache.flink.runtime.checkpoint;
 public enum CheckpointType {
 
     /** A checkpoint, full or incremental. */
-    CHECKPOINT(false, false, "Checkpoint"),
+    CHECKPOINT(false, PostCheckpointAction.NONE, "Checkpoint"),
 
     /** A regular savepoint. */
-    SAVEPOINT(true, false, "Savepoint"),
+    SAVEPOINT(true, PostCheckpointAction.NONE, "Savepoint"),
 
-    /** A savepoint taken while suspending/terminating the job. */
-    SYNC_SAVEPOINT(true, true, "Synchronous Savepoint");
+    /** A savepoint taken while suspending the job. */
+    SAVEPOINT_SUSPEND(true, PostCheckpointAction.SUSPEND, "Suspend Savepoint"),
+
+    /** A savepoint taken while terminating the job. */
+    SAVEPOINT_TERMINATE(true, PostCheckpointAction.TERMINATE, "Terminate Savepoint");
 
     private final boolean isSavepoint;
 
-    private final boolean isSynchronous;
+    private final PostCheckpointAction postCheckpointAction;
 
     private final String name;
 
-    CheckpointType(final boolean isSavepoint, final boolean isSynchronous, final String name) {
+    CheckpointType(
+            final boolean isSavepoint,
+            final PostCheckpointAction postCheckpointAction,
+            final String name) {
 
         this.isSavepoint = isSavepoint;
-        this.isSynchronous = isSynchronous;
+        this.postCheckpointAction = postCheckpointAction;
         this.name = name;
     }
 
@@ -48,10 +54,25 @@ public enum CheckpointType {
     }
 
     public boolean isSynchronous() {
-        return isSynchronous;
+        return postCheckpointAction != PostCheckpointAction.NONE;
+    }
+
+    public PostCheckpointAction getPostCheckpointAction() {
+        return postCheckpointAction;
+    }
+
+    public boolean shouldAdvanceToEndOfTime() {
+        return getPostCheckpointAction() == PostCheckpointAction.TERMINATE;
     }
 
     public String getName() {
         return name;
+    }
+
+    /** What's the intended action after the checkpoint (relevant for stopping with savepoint). */
+    public enum PostCheckpointAction {
+        NONE,
+        SUSPEND,
+        TERMINATE
     }
 }

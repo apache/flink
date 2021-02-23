@@ -501,13 +501,12 @@ public class AdaptiveScheduler
     }
 
     @Override
-    public CompletableFuture<String> stopWithSavepoint(
-            String targetDirectory, boolean advanceToEndOfEventTime) {
+    public CompletableFuture<String> stopWithSavepoint(String targetDirectory, boolean terminate) {
         return state.tryCall(
                         StateWithExecutionGraph.class,
                         stateWithExecutionGraph ->
                                 stateWithExecutionGraph.stopWithSavepoint(
-                                        targetDirectory, advanceToEndOfEventTime),
+                                        targetDirectory, terminate),
                         "stopWithSavepoint")
                 .orElse(
                         FutureUtils.completedExceptionally(

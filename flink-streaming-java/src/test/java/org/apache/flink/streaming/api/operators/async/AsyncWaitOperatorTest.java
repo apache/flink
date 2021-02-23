@@ -526,7 +526,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
                 new CheckpointMetaData(checkpointId, checkpointTimestamp);
 
         task.triggerCheckpointAsync(
-                checkpointMetaData, CheckpointOptions.forCheckpointWithDefaultLocation(), false);
+                checkpointMetaData, CheckpointOptions.forCheckpointWithDefaultLocation());
 
         taskStateManagerMock.getWaitForReportLatch().await();
 
@@ -569,8 +569,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
         restoredTask
                 .triggerCheckpointAsync(
                         new CheckpointMetaData(checkpointId, checkpointTimestamp),
-                        CheckpointOptions.forCheckpointWithDefaultLocation(),
-                        false)
+                        CheckpointOptions.forCheckpointWithDefaultLocation())
                 .get();
 
         restoredTaskHarness.processElement(new StreamRecord<>(8, initialTime + 8));

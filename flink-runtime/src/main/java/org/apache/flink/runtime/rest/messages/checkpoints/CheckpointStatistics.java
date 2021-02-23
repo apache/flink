@@ -383,7 +383,8 @@ public class CheckpointStatistics implements ResponseBody {
                     return CHECKPOINT;
                 case SAVEPOINT:
                     return SAVEPOINT;
-                case SYNC_SAVEPOINT:
+                case SAVEPOINT_SUSPEND:
+                case SAVEPOINT_TERMINATE:
                     return SYNC_SAVEPOINT;
                 default:
                     throw new UnsupportedOperationException(checkpointType.toString());

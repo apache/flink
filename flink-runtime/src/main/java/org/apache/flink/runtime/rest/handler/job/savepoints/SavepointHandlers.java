@@ -167,13 +167,13 @@ public class SavepointHandlers
                         HttpResponseStatus.BAD_REQUEST);
             }
 
-            final boolean advanceToEndOfEventTime = request.getRequestBody().shouldDrain();
+            final boolean shouldDrain = request.getRequestBody().shouldDrain();
             final String targetDirectory =
                     requestedTargetDirectory != null
                             ? requestedTargetDirectory
                             : defaultSavepointDir;
             return gateway.stopWithSavepoint(
-                    jobId, targetDirectory, advanceToEndOfEventTime, RpcUtils.INF_TIMEOUT);
+                    jobId, targetDirectory, shouldDrain, RpcUtils.INF_TIMEOUT);
         }
     }
 

@@ -238,14 +238,6 @@ public class CheckpointProperties implements Serializable {
     //  Factories and pre-configured properties
     // ------------------------------------------------------------------------
 
-    private static final CheckpointProperties SYNC_SAVEPOINT =
-            new CheckpointProperties(
-                    true, CheckpointType.SYNC_SAVEPOINT, false, false, false, false, false);
-
-    private static final CheckpointProperties SYNC_SAVEPOINT_NOT_FORCED =
-            new CheckpointProperties(
-                    false, CheckpointType.SYNC_SAVEPOINT, false, false, false, false, false);
-
     private static final CheckpointProperties SAVEPOINT =
             new CheckpointProperties(
                     true, CheckpointType.SAVEPOINT, false, false, false, false, false);
@@ -296,8 +288,15 @@ public class CheckpointProperties implements Serializable {
         return forced ? SAVEPOINT : SAVEPOINT_NO_FORCE;
     }
 
-    public static CheckpointProperties forSyncSavepoint(boolean forced) {
-        return forced ? SYNC_SAVEPOINT : SYNC_SAVEPOINT_NOT_FORCED;
+    public static CheckpointProperties forSyncSavepoint(boolean forced, boolean terminate) {
+        return new CheckpointProperties(
+                forced,
+                terminate ? CheckpointType.SAVEPOINT_TERMINATE : CheckpointType.SAVEPOINT_SUSPEND,
+                false,
+                false,
+                false,
+                false,
+                false);
     }
 
     /**

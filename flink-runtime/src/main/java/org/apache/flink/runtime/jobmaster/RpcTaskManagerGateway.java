@@ -97,14 +97,9 @@ public class RpcTaskManagerGateway implements TaskManagerGateway {
             JobID jobId,
             long checkpointId,
             long timestamp,
-            CheckpointOptions checkpointOptions,
-            boolean advanceToEndOfEventTime) {
+            CheckpointOptions checkpointOptions) {
         taskExecutorGateway.triggerCheckpoint(
-                executionAttemptID,
-                checkpointId,
-                timestamp,
-                checkpointOptions,
-                advanceToEndOfEventTime);
+                executionAttemptID, checkpointId, timestamp, checkpointOptions);
     }
 
     @Override

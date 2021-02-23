@@ -98,7 +98,7 @@ public class SourceOperatorStreamTaskTest {
 
             final CheckpointOptions checkpointOptions =
                     new CheckpointOptions(
-                            CheckpointType.SYNC_SAVEPOINT,
+                            CheckpointType.SAVEPOINT_TERMINATE,
                             CheckpointStorageLocationReference.getDefault());
             triggerCheckpointWaitForFinish(testHarness, checkpointId, checkpointOptions);
 
@@ -202,7 +202,7 @@ public class SourceOperatorStreamTaskTest {
         Future<Boolean> checkpointFuture =
                 testHarness
                         .getStreamTask()
-                        .triggerCheckpointAsync(checkpointMetaData, checkpointOptions, true);
+                        .triggerCheckpointAsync(checkpointMetaData, checkpointOptions);
 
         // Wait until the checkpoint finishes.
         // We have to mark the source reader as available here, otherwise the runMailboxStep() call

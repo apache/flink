@@ -60,12 +60,7 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
             (ignore1, ignore2) -> {};
 
     private CheckpointConsumer checkpointConsumer =
-            (executionAttemptID,
-                    jobId,
-                    checkpointId,
-                    timestamp,
-                    checkpointOptions,
-                    advanceToEndOfEventTime) -> {};
+            (executionAttemptID, jobId, checkpointId, timestamp, checkpointOptions) -> {};
 
     private TriConsumer<ExecutionAttemptID, Iterable<PartitionInfo>, Time>
             updatePartitionsConsumer = (ignore1, ignore2, ignore3) -> {};
@@ -150,16 +145,10 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
             JobID jobId,
             long checkpointId,
             long timestamp,
-            CheckpointOptions checkpointOptions,
-            boolean advanceToEndOfEventTime) {
+            CheckpointOptions checkpointOptions) {
 
         checkpointConsumer.accept(
-                executionAttemptID,
-                jobId,
-                checkpointId,
-                timestamp,
-                checkpointOptions,
-                advanceToEndOfEventTime);
+                executionAttemptID, jobId, checkpointId, timestamp, checkpointOptions);
     }
 
     @Override
@@ -190,7 +179,6 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
                 JobID jobId,
                 long checkpointId,
                 long timestamp,
-                CheckpointOptions checkpointOptions,
-                boolean advanceToEndOfEventTime);
+                CheckpointOptions checkpointOptions);
     }
 }

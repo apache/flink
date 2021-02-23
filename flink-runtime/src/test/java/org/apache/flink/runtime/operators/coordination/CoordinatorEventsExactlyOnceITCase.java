@@ -419,9 +419,7 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
 
         @Override
         public Future<Boolean> triggerCheckpointAsync(
-                CheckpointMetaData checkpointMetaData,
-                CheckpointOptions checkpointOptions,
-                boolean advanceToEndOfEventTime) {
+                CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
             actions.add(checkpointMetaData); // this signals the main thread should do a checkpoint
             return CompletableFuture.completedFuture(true);
         }

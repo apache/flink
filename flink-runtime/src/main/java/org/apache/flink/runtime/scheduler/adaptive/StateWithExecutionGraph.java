@@ -270,8 +270,7 @@ abstract class StateWithExecutionGraph implements State {
                         context.getMainThreadExecutor());
     }
 
-    CompletableFuture<String> stopWithSavepoint(
-            String targetDirectory, boolean advanceToEndOfEventTime) {
+    CompletableFuture<String> stopWithSavepoint(String targetDirectory, boolean terminate) {
         throw new UnsupportedOperationException(
                 "This will be implemented as part of https://issues.apache.org/jira/browse/FLINK-21333");
     }

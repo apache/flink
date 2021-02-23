@@ -89,8 +89,7 @@ public class SourceExternalCheckpointTriggerTest {
                 sourceTask
                         .triggerCheckpointAsync(
                                 new CheckpointMetaData(32, 829),
-                                CheckpointOptions.forCheckpointWithDefaultLocation(),
-                                false)
+                                CheckpointOptions.forCheckpointWithDefaultLocation())
                         .get());
 
         // step by step let the source thread emit elements
@@ -111,8 +110,7 @@ public class SourceExternalCheckpointTriggerTest {
                 sourceTask
                         .triggerCheckpointAsync(
                                 new CheckpointMetaData(34, 900),
-                                CheckpointOptions.forCheckpointWithDefaultLocation(),
-                                false)
+                                CheckpointOptions.forCheckpointWithDefaultLocation())
                         .get());
 
         sync.trigger();

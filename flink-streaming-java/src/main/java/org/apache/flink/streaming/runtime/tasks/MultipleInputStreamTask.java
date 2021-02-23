@@ -169,9 +169,7 @@ public class MultipleInputStreamTask<OUT>
 
     @Override
     public Future<Boolean> triggerCheckpointAsync(
-            CheckpointMetaData metadata,
-            CheckpointOptions options,
-            boolean advanceToEndOfEventTime) {
+            CheckpointMetaData metadata, CheckpointOptions options) {
 
         CompletableFuture<Boolean> resultFuture = new CompletableFuture<>();
         mainMailboxExecutor.execute(

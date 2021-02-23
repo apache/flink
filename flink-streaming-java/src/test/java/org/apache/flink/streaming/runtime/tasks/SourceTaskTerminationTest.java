@@ -74,7 +74,7 @@ public class SourceTaskTerminationTest extends TestLogger {
         stopWithSavepointStreamTaskTestHelper(false);
     }
 
-    private void stopWithSavepointStreamTaskTestHelper(final boolean withMaxWatermark)
+    private void stopWithSavepointStreamTaskTestHelper(final boolean shouldTerminate)
             throws Exception {
         final long syncSavepointId = 34L;
 
@@ -90,8 +90,7 @@ public class SourceTaskTerminationTest extends TestLogger {
 
         srcTask.triggerCheckpointAsync(
                         new CheckpointMetaData(31L, 900),
-                        CheckpointOptions.forCheckpointWithDefaultLocation(),
-                        false)
+                        CheckpointOptions.forCheckpointWithDefaultLocation())
                 .get();
 
         verifyCheckpointBarrier(srcTaskTestHarness.getOutput(), 31L);
@@ -101,12 +100,13 @@ public class SourceTaskTerminationTest extends TestLogger {
         srcTask.triggerCheckpointAsync(
                         new CheckpointMetaData(syncSavepointId, 900),
                         new CheckpointOptions(
-                                CheckpointType.SYNC_SAVEPOINT,
-                                CheckpointStorageLocationReference.getDefault()),
-                        withMaxWatermark)
+                                shouldTerminate
+                                        ? CheckpointType.SAVEPOINT_TERMINATE
+                                        : CheckpointType.SAVEPOINT_SUSPEND,
+                                CheckpointStorageLocationReference.getDefault()))
                 .get();
 
-        if (withMaxWatermark) {
+        if (shouldTerminate) {
             // if we are in TERMINATE mode, we expect the source task
             // to emit MAX_WM before the SYNC_SAVEPOINT barrier.
             verifyWatermark(srcTaskTestHarness.getOutput(), Watermark.MAX_WATERMARK);
