@@ -585,8 +585,7 @@ public class CheckpointCoordinatorTestingUtils {
                                     jobId,
                                     (long) args[0],
                                     (long) args[1],
-                                    (CheckpointOptions) args[2],
-                                    false);
+                                    (CheckpointOptions) args[2]);
                             return null;
                         })
                 .when(mock)

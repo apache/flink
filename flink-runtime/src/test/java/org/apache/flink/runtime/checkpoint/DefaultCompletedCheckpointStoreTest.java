@@ -100,7 +100,8 @@ public class DefaultCompletedCheckpointStoreTest extends TestLogger {
     public void testSubsumeAfterStoppingWithSavepoint() throws Exception {
         CompletedCheckpoint cp1 = getCheckpoint(false, 1L);
         CompletedCheckpoint sp1 = getCheckpoint(true, 2L);
-        CompletedCheckpoint stop = getCheckpoint(CheckpointProperties.forSyncSavepoint(false), 3L);
+        CompletedCheckpoint stop =
+                getCheckpoint(CheckpointProperties.forSyncSavepoint(false, false), 3L);
         testCheckpointRetention(1, asList(cp1, sp1, stop), asList(stop));
     }
 
