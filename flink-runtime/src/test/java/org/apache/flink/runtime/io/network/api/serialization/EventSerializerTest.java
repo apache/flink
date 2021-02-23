@@ -48,7 +48,28 @@ public class EventSerializerTest {
         EndOfPartitionEvent.INSTANCE,
         EndOfSuperstepEvent.INSTANCE,
         new CheckpointBarrier(
-                1678L, 4623784L, CheckpointOptions.forCheckpointWithDefaultLocation()),
+                1678L,
+                4623784L,
+                new CheckpointOptions(
+                        CheckpointType.CHECKPOINT,
+                        CheckpointStorageLocationReference.getDefault())),
+        new CheckpointBarrier(
+                1678L,
+                4623784L,
+                new CheckpointOptions(
+                        CheckpointType.SAVEPOINT, CheckpointStorageLocationReference.getDefault())),
+        new CheckpointBarrier(
+                1678L,
+                4623784L,
+                new CheckpointOptions(
+                        CheckpointType.SAVEPOINT_SUSPEND,
+                        CheckpointStorageLocationReference.getDefault())),
+        new CheckpointBarrier(
+                1678L,
+                4623784L,
+                new CheckpointOptions(
+                        CheckpointType.SAVEPOINT_TERMINATE,
+                        CheckpointStorageLocationReference.getDefault())),
         new TestTaskEvent(Math.random(), 12361231273L),
         new CancelCheckpointMarker(287087987329842L),
         new EventAnnouncement(

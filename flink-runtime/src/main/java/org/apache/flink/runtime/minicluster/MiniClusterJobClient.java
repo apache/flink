@@ -95,8 +95,8 @@ public final class MiniClusterJobClient implements JobClient, CoordinationReques
 
     @Override
     public CompletableFuture<String> stopWithSavepoint(
-            boolean advanceToEndOfEventTime, @Nullable String savepointDirectory) {
-        return miniCluster.stopWithSavepoint(jobID, savepointDirectory, advanceToEndOfEventTime);
+            boolean terminate, @Nullable String savepointDirectory) {
+        return miniCluster.stopWithSavepoint(jobID, savepointDirectory, terminate);
     }
 
     @Override

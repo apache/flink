@@ -61,12 +61,7 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
             (ignore1, ignore2) -> {};
 
     private CheckpointConsumer checkpointConsumer =
-            (executionAttemptID,
-                    jobId,
-                    checkpointId,
-                    timestamp,
-                    checkpointOptions,
-                    advanceToEndOfEventTime) -> {};
+            (executionAttemptID, jobId, checkpointId, timestamp, checkpointOptions) -> {};
 
     public void setSubmitConsumer(Consumer<TaskDeploymentDescriptor> submitConsumer) {
         this.submitConsumer = submitConsumer;
@@ -147,16 +142,10 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
             JobID jobId,
             long checkpointId,
             long timestamp,
-            CheckpointOptions checkpointOptions,
-            boolean advanceToEndOfEventTime) {
+            CheckpointOptions checkpointOptions) {
 
         checkpointConsumer.accept(
-                executionAttemptID,
-                jobId,
-                checkpointId,
-                timestamp,
-                checkpointOptions,
-                advanceToEndOfEventTime);
+                executionAttemptID, jobId, checkpointId, timestamp, checkpointOptions);
     }
 
     @Override
@@ -187,7 +176,6 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
                 JobID jobId,
                 long checkpointId,
                 long timestamp,
-                CheckpointOptions checkpointOptions,
-                boolean advanceToEndOfEventTime);
+                CheckpointOptions checkpointOptions);
     }
 }

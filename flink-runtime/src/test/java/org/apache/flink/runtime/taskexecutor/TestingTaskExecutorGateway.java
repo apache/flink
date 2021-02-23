@@ -212,8 +212,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
             ExecutionAttemptID executionAttemptID,
             long checkpointID,
             long checkpointTimestamp,
-            CheckpointOptions checkpointOptions,
-            boolean advanceToEndOfEventTime) {
+            CheckpointOptions checkpointOptions) {
         return CompletableFuture.completedFuture(Acknowledge.get());
     }
 

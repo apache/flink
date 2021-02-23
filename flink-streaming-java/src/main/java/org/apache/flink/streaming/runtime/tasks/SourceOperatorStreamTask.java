@@ -97,12 +97,9 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
 
     @Override
     public Future<Boolean> triggerCheckpointAsync(
-            CheckpointMetaData checkpointMetaData,
-            CheckpointOptions checkpointOptions,
-            boolean advanceToEndOfEventTime) {
+            CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
         if (!isExternallyInducedSource) {
-            return super.triggerCheckpointAsync(
-                    checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
+            return super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions);
         } else {
             return CompletableFuture.completedFuture(isRunning());
         }
@@ -134,7 +131,7 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
         final CheckpointMetaData checkpointMetaData =
                 new CheckpointMetaData(checkpointId, timestamp);
 
-        super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions, false);
+        super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions);
     }
 
     // ---------------------------

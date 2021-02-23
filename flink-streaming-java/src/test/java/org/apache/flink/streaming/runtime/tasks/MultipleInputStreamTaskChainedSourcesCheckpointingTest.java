@@ -74,8 +74,7 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
             Future<Boolean> checkpointFuture =
                     testHarness
                             .getStreamTask()
-                            .triggerCheckpointAsync(
-                                    metaData, barrier.getCheckpointOptions(), false);
+                            .triggerCheckpointAsync(metaData, barrier.getCheckpointOptions());
             processSingleStepUntil(testHarness, checkpointFuture::isDone);
 
             expectedOutput.add(new StreamRecord<>("44", TimestampAssigner.NO_TIMESTAMP));
@@ -107,8 +106,7 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
             Future<Boolean> checkpointFuture =
                     testHarness
                             .getStreamTask()
-                            .triggerCheckpointAsync(
-                                    metaData, barrier.getCheckpointOptions(), false);
+                            .triggerCheckpointAsync(metaData, barrier.getCheckpointOptions());
             processSingleStepUntil(testHarness, checkpointFuture::isDone);
 
             assertThat(testHarness.getOutput(), contains(barrier));
@@ -145,8 +143,7 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
             Future<Boolean> checkpointFuture =
                     testHarness
                             .getStreamTask()
-                            .triggerCheckpointAsync(
-                                    metaData, barrier.getCheckpointOptions(), false);
+                            .triggerCheckpointAsync(metaData, barrier.getCheckpointOptions());
             processSingleStepUntil(testHarness, checkpointFuture::isDone);
 
             expectedOutput.add(new StreamRecord<>("42", TimestampAssigner.NO_TIMESTAMP));
@@ -222,8 +219,7 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
             Future<Boolean> checkpointFuture =
                     testHarness
                             .getStreamTask()
-                            .triggerCheckpointAsync(
-                                    metaData, barrier.getCheckpointOptions(), false);
+                            .triggerCheckpointAsync(metaData, barrier.getCheckpointOptions());
             processSingleStepUntil(testHarness, checkpointFuture::isDone);
 
             ArrayList<Object> actualOutput = new ArrayList<>(testHarness.getOutput());

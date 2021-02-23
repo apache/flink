@@ -112,7 +112,7 @@ public class SourceStreamTask<
                             try {
                                 SourceStreamTask.super
                                         .triggerCheckpointAsync(
-                                                checkpointMetaData, checkpointOptions, false)
+                                                checkpointMetaData, checkpointOptions)
                                         .get();
                             } catch (RuntimeException e) {
                                 throw e;
@@ -218,12 +218,9 @@ public class SourceStreamTask<
 
     @Override
     public Future<Boolean> triggerCheckpointAsync(
-            CheckpointMetaData checkpointMetaData,
-            CheckpointOptions checkpointOptions,
-            boolean advanceToEndOfEventTime) {
+            CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
         if (!externallyInducedCheckpoints) {
-            return super.triggerCheckpointAsync(
-                    checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
+            return super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions);
         } else {
             // we do not trigger checkpoints here, we simply state whether we can trigger them
             synchronized (lock) {
