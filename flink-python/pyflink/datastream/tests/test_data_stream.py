@@ -21,7 +21,6 @@ import os
 import uuid
 
 from pyflink.common import Row
-from pyflink.common.state import ValueStateDescriptor, ListStateDescriptor, MapStateDescriptor
 from pyflink.common.typeinfo import Types
 from pyflink.common.watermark_strategy import WatermarkStrategy, TimestampAssigner
 from pyflink.datastream import StreamExecutionEnvironment, TimeCharacteristic, RuntimeContext
@@ -30,6 +29,7 @@ from pyflink.datastream.functions import CoMapFunction, CoFlatMapFunction
 from pyflink.datastream.functions import FilterFunction, ProcessFunction, KeyedProcessFunction
 from pyflink.datastream.functions import KeySelector
 from pyflink.datastream.functions import MapFunction, FlatMapFunction
+from pyflink.datastream.state import ValueStateDescriptor, ListStateDescriptor, MapStateDescriptor
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkTestCase, invoke_java_object_method

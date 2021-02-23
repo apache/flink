@@ -23,8 +23,8 @@ from typing import List, Tuple, Any, Dict
 
 from apache_beam.coders import PickleCoder
 
-from pyflink.common.state import ValueStateDescriptor, ValueState, ListStateDescriptor, ListState, \
-    MapStateDescriptor, MapState
+from pyflink.datastream.state import ValueStateDescriptor, ValueState, ListStateDescriptor, \
+    ListState, MapStateDescriptor, MapState
 from pyflink.datastream import TimeDomain
 from pyflink.datastream.functions import RuntimeContext, TimerService, ProcessFunction, \
     KeyedProcessFunction

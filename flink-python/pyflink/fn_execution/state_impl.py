@@ -24,7 +24,7 @@ from apache_beam.runners.worker.bundle_processor import SynchronousBagRuntimeSta
 from apache_beam.transforms import userstate
 from typing import List, Tuple, Any
 
-from pyflink.common.state import ValueState, ListState, MapState
+from pyflink.datastream.state import ValueState, ListState, MapState
 
 
 class LRUCache(object):
