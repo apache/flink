@@ -42,15 +42,11 @@ import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointProperties;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
-import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
-import org.apache.flink.runtime.checkpoint.OperatorState;
-import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
-import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -77,11 +73,8 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
-import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobgraph.utils.JobGraphTestUtils;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
@@ -111,9 +104,7 @@ import org.apache.flink.runtime.scheduler.TestingSchedulerNG;
 import org.apache.flink.runtime.scheduler.TestingSchedulerNGFactory;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
-import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorToJobManagerHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
@@ -150,7 +141,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URLClassLoader;
 import java.time.Duration;
@@ -163,7 +153,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Random;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -180,9 +169,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory.useSameServicesForAllJobs;
-import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewInputChannelStateHandle;
-import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewResultSubpartitionStateHandle;
-import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -790,68 +776,16 @@ public class JobMasterTest extends TestLogger {
                         .createJobMaster();
 
         try {
-            // starting the JobMaster should have read the savepoint
-            final CompletedCheckpoint savepointCheckpoint =
-                    completedCheckpointStore.getLatestCheckpoint(false);
+            // we need to start and register the required slots to let the adaptive scheduler
+            // restore from the savepoint
+            jobMaster.start();
 
-            assertThat(savepointCheckpoint, Matchers.notNullValue());
+            registerSlotsAtJobMaster(
+                    1,
+                    jobMaster.getSelfGateway(JobMasterGateway.class),
+                    new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway(),
+                    new LocalUnresolvedTaskManagerLocation());
 
-            assertThat(savepointCheckpoint.getCheckpointID(), is(savepointId));
-        } finally {
-            RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
-        }
-    }
-
-    /**
-     * Tests that a JobMaster will only restore a modified JobGraph if non restored state is
-     * allowed.
-     */
-    @Test
-    @Category(FailsWithAdaptiveScheduler.class) // FLINK-21398
-    public void testRestoringModifiedJobFromSavepoint() throws Exception {
-
-        // create savepoint data
-        final long savepointId = 42L;
-        final OperatorID operatorID = new OperatorID();
-        final File savepointFile = createSavepointWithOperatorState(savepointId, operatorID);
-
-        // set savepoint settings which don't allow non restored state
-        final SavepointRestoreSettings savepointRestoreSettings =
-                SavepointRestoreSettings.forPath(savepointFile.getAbsolutePath(), false);
-
-        // create a new operator
-        final JobVertex jobVertex = new JobVertex("New operator");
-        jobVertex.setInvokableClass(NoOpInvokable.class);
-        final JobGraph jobGraphWithNewOperator =
-                createJobGraphFromJobVerticesWithCheckpointing(savepointRestoreSettings, jobVertex);
-
-        final StandaloneCompletedCheckpointStore completedCheckpointStore =
-                new StandaloneCompletedCheckpointStore(1);
-        final CheckpointRecoveryFactory testingCheckpointRecoveryFactory =
-                useSameServicesForAllJobs(
-                        completedCheckpointStore, new StandaloneCheckpointIDCounter());
-        haServices.setCheckpointRecoveryFactory(testingCheckpointRecoveryFactory);
-
-        try {
-            new JobMasterBuilder(jobGraphWithNewOperator, rpcService)
-                    .withHighAvailabilityServices(haServices)
-                    .createJobMaster();
-            fail("Should fail because we cannot resume the changed JobGraph from the savepoint.");
-        } catch (IllegalStateException expected) {
-            // that was expected :-)
-        }
-
-        // allow for non restored state
-        jobGraphWithNewOperator.setSavepointRestoreSettings(
-                SavepointRestoreSettings.forPath(savepointFile.getAbsolutePath(), true));
-
-        final JobMaster jobMaster =
-                new JobMasterBuilder(jobGraphWithNewOperator, rpcService)
-                        .withHighAvailabilityServices(haServices)
-                        .createJobMaster();
-
-        try {
-            // starting the JobMaster should have read the savepoint
             final CompletedCheckpoint savepointCheckpoint =
                     completedCheckpointStore.getLatestCheckpoint(false);
 
@@ -1878,77 +1812,17 @@ public class JobMasterTest extends TestLogger {
     }
 
     private File createSavepoint(long savepointId) throws IOException {
-        return createSavepointWithOperatorState(savepointId);
-    }
-
-    private File createSavepointWithOperatorState(long savepointId, OperatorID... operatorIds)
-            throws IOException {
-        final File savepointFile = temporaryFolder.newFile();
-        final Collection<OperatorState> operatorStates = createOperatorState(operatorIds);
-        final CheckpointMetadata savepoint =
-                new CheckpointMetadata(savepointId, operatorStates, Collections.emptyList());
-
-        try (FileOutputStream fileOutputStream = new FileOutputStream(savepointFile)) {
-            Checkpoints.storeCheckpointMetadata(savepoint, fileOutputStream);
-        }
-
-        return savepointFile;
-    }
-
-    private Collection<OperatorState> createOperatorState(OperatorID... operatorIds) {
-        Random random = new Random();
-        Collection<OperatorState> operatorStates = new ArrayList<>(operatorIds.length);
-
-        for (OperatorID operatorId : operatorIds) {
-            final OperatorState operatorState = new OperatorState(operatorId, 1, 42);
-            final OperatorSubtaskState subtaskState =
-                    OperatorSubtaskState.builder()
-                            .setManagedOperatorState(
-                                    new OperatorStreamStateHandle(
-                                            Collections.emptyMap(),
-                                            new ByteStreamStateHandle("foobar", new byte[0])))
-                            .setInputChannelState(
-                                    singleton(createNewInputChannelStateHandle(10, random)))
-                            .setResultSubpartitionState(
-                                    singleton(createNewResultSubpartitionStateHandle(10, random)))
-                            .build();
-            operatorState.putState(0, subtaskState);
-            operatorStates.add(operatorState);
-        }
-
-        return operatorStates;
+        return TestUtils.createSavepointWithOperatorState(temporaryFolder.newFile(), savepointId);
     }
 
     @Nonnull
     private JobGraph createJobGraphWithCheckpointing(
             SavepointRestoreSettings savepointRestoreSettings) {
-        return createJobGraphFromJobVerticesWithCheckpointing(savepointRestoreSettings);
-    }
+        final JobVertex source = new JobVertex("source");
+        source.setInvokableClass(NoOpInvokable.class);
 
-    @Nonnull
-    private JobGraph createJobGraphFromJobVerticesWithCheckpointing(
-            SavepointRestoreSettings savepointRestoreSettings, JobVertex... jobVertices) {
-        final JobGraph jobGraph = new JobGraph(jobVertices);
-        jobGraph.setJobType(JobType.STREAMING);
-
-        // enable checkpointing which is required to resume from a savepoint
-        final CheckpointCoordinatorConfiguration checkpoinCoordinatorConfiguration =
-                new CheckpointCoordinatorConfiguration(
-                        1000L,
-                        1000L,
-                        1000L,
-                        1,
-                        CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
-                        true,
-                        false,
-                        false,
-                        0);
-        final JobCheckpointingSettings checkpointingSettings =
-                new JobCheckpointingSettings(checkpoinCoordinatorConfiguration, null);
-        jobGraph.setSnapshotSettings(checkpointingSettings);
-        jobGraph.setSavepointRestoreSettings(savepointRestoreSettings);
-
-        return jobGraph;
+        return TestUtils.createJobGraphFromJobVerticesWithCheckpointing(
+                savepointRestoreSettings, source);
     }
 
     private JobGraph createSingleVertexJobWithRestartStrategy() throws IOException {
