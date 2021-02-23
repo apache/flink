@@ -146,7 +146,7 @@ tEnv.executeSql("CREATE TABLE spend_report (\n" +
     ")");
 ```
 
-第二张表`spend_report`存储了聚合的最终结果，它的底层存储是 MySql 数据库中的表。
+第二张表`spend_report`存储了聚合的最终结果，它的底层存储是 MySQL 数据库中的表。
 
 #### 查询
 
