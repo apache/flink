@@ -48,7 +48,6 @@ import org.apache.flink.table.runtime.operators.deduplicate.RowTimeDeduplicateFu
 import org.apache.flink.table.runtime.operators.deduplicate.RowTimeMiniBatchDeduplicateFunction;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
@@ -276,10 +275,7 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
                 boolean generateUpdateBefore) {
             super(tableConfig, rowTypeInfo, typeSerializer, keepLastRow, generateUpdateBefore);
             generatedEqualiser =
-                    new EqualiserCodeGenerator(
-                                    inputRowType.getFields().stream()
-                                            .map(RowType.RowField::getType)
-                                            .toArray(LogicalType[]::new))
+                    new EqualiserCodeGenerator(inputRowType)
                             .generateRecordEqualiser("DeduplicateRowEqualiser");
         }
 

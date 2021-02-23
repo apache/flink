@@ -41,7 +41,6 @@ import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigge
 import org.apache.flink.table.runtime.operators.deduplicate.ProcTimeDeduplicateKeepLastRowFunction;
 import org.apache.flink.table.runtime.operators.deduplicate.ProcTimeMiniBatchDeduplicateKeepLastRowFunction;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
 import java.util.Collections;
@@ -86,10 +85,7 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
                         .getBoolean(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED);
 
         GeneratedRecordEqualiser generatedEqualiser =
-                new EqualiserCodeGenerator(
-                                rowTypeInfo.toRowType().getFields().stream()
-                                        .map(RowType.RowField::getType)
-                                        .toArray(LogicalType[]::new))
+                new EqualiserCodeGenerator(rowTypeInfo.toRowType())
                         .generateRecordEqualiser("DeduplicateRowEqualiser");
 
         if (isMiniBatchEnabled) {

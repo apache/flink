@@ -115,7 +115,7 @@ public class ProcTimeDeduplicateKeepLastRowFunctionTest
     }
 
     @Test
-    public void testDeduplicateWithGenerateUpdateBefore() throws Exception {
+    public void testWithStateTtlDisabled() throws Exception {
         ProcTimeDeduplicateKeepLastRowFunction func = createFunctionWithoutStateTtl(true, true);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
         testHarness.open();
