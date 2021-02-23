@@ -1134,10 +1134,7 @@ public class JobMasterTest extends TestLogger {
             // fail the first execution to trigger a failover
             jobMasterGateway
                     .updateTaskExecutionState(
-                            new TaskExecutionState(
-                                    inputSplitJobGraph.getJobID(),
-                                    initialAttemptId,
-                                    ExecutionState.FAILED))
+                            new TaskExecutionState(initialAttemptId, ExecutionState.FAILED))
                     .get();
 
             // wait until the job has been recovered
@@ -1394,10 +1391,7 @@ public class JobMasterTest extends TestLogger {
             // finish the producer task
             jobMasterGateway
                     .updateTaskExecutionState(
-                            new TaskExecutionState(
-                                    producerConsumerJobGraph.getJobID(),
-                                    executionAttemptId,
-                                    ExecutionState.FINISHED))
+                            new TaskExecutionState(executionAttemptId, ExecutionState.FINISHED))
                     .get();
 
             // request the state of the result partition of the producer
@@ -1812,10 +1806,7 @@ public class JobMasterTest extends TestLogger {
 
             jobMasterGateway
                     .updateTaskExecutionState(
-                            new TaskExecutionState(
-                                    jobGraph.getJobID(),
-                                    executionAttemptId,
-                                    ExecutionState.RUNNING))
+                            new TaskExecutionState(executionAttemptId, ExecutionState.RUNNING))
                     .get();
 
             jobReachedRunningState.accept(taskManagerUnresolvedLocation, jobMasterGateway);

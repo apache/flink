@@ -340,7 +340,6 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
         TaskExecutionState state =
                 new TaskExecutionState(
-                        graph.getJobID(),
                         execution1.getAttemptId(),
                         ExecutionState.CANCELED,
                         null,
@@ -364,7 +363,6 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
         TaskExecutionState state2 =
                 new TaskExecutionState(
-                        graph.getJobID(),
                         execution2.getAttemptId(),
                         ExecutionState.FAILED,
                         null,
@@ -491,9 +489,9 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
                         .getCurrentExecutionAttempt()
                         .getAttemptId();
         scheduler.updateTaskExecutionState(
-                new TaskExecutionState(jobId, attemptID, ExecutionState.RUNNING));
+                new TaskExecutionState(attemptID, ExecutionState.RUNNING));
         scheduler.updateTaskExecutionState(
-                new TaskExecutionState(jobId, attemptID, ExecutionState.FINISHED, null));
+                new TaskExecutionState(attemptID, ExecutionState.FINISHED, null));
 
         assertEquals(JobStatus.FAILED, eg.getState());
     }

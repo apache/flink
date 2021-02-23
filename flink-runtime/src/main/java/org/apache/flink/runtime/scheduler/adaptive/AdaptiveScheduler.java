@@ -605,7 +605,7 @@ public class AdaptiveScheduler
         executionGraph.transitionToRunning();
 
         executionGraph.setInternalTaskFailuresListener(
-                new UpdateSchedulerNgOnInternalFailuresListener(this, jobInformation.getJobID()));
+                new UpdateSchedulerNgOnInternalFailuresListener(this));
 
         for (ExecutionVertex executionVertex : executionGraph.getAllExecutionVertices()) {
             final LogicalSlot assignedSlot =

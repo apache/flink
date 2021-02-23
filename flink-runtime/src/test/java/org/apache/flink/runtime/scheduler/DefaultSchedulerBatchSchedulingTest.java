@@ -168,10 +168,10 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
                         () -> {
                             scheduler.updateTaskExecutionState(
                                     new TaskExecutionState(
-                                            jobId, executionAttemptId, ExecutionState.RUNNING));
+                                            executionAttemptId, ExecutionState.RUNNING));
                             scheduler.updateTaskExecutionState(
                                     new TaskExecutionState(
-                                            jobId, executionAttemptId, ExecutionState.FINISHED));
+                                            executionAttemptId, ExecutionState.FINISHED));
                         },
                         mainThreadExecutor)
                 .join();

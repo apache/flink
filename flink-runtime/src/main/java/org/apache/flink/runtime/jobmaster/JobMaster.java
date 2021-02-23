@@ -236,7 +236,6 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                         for (ExecutionAttemptID executionAttemptId : executionAttemptIds) {
                             schedulerNG.updateTaskExecutionState(
                                     new TaskExecutionState(
-                                            jobGraph.getJobID(),
                                             executionAttemptId,
                                             ExecutionState.FAILED,
                                             new FlinkException(

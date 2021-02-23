@@ -64,10 +64,6 @@ public class TaskExecutionStateTransition {
         return taskExecutionState.getExecutionState();
     }
 
-    public JobID getJobID() {
-        return taskExecutionState.getJobID();
-    }
-
     public AccumulatorSnapshot getAccumulators() {
         return taskExecutionState.getAccumulators();
     }

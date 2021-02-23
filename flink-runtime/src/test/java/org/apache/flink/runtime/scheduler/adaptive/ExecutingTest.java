@@ -210,8 +210,7 @@ public class ExecutingTest extends TestLogger {
             ctx.setHowToHandleFailure(Executing.FailureResult::canNotRestart);
             ctx.setExpectFailing(assertNonNull());
 
-            exec.updateTaskExecutionState(
-                    createFailingStateTransition(exec.getExecutionGraph().getJobID()));
+            exec.updateTaskExecutionState(createFailingStateTransition());
         }
     }
 
@@ -226,8 +225,7 @@ public class ExecutingTest extends TestLogger {
             ctx.setHowToHandleFailure((ign) -> Executing.FailureResult.canRestart(Duration.ZERO));
             ctx.setExpectRestarting(assertNonNull());
 
-            exec.updateTaskExecutionState(
-                    createFailingStateTransition(exec.getExecutionGraph().getJobID()));
+            exec.updateTaskExecutionState(createFailingStateTransition());
         }
     }
 
@@ -240,20 +238,16 @@ public class ExecutingTest extends TestLogger {
                             .setExecutionGraph(returnsFailedStateExecutionGraph)
                             .build(ctx);
 
-            exec.updateTaskExecutionState(
-                    createFailingStateTransition(exec.getExecutionGraph().getJobID()));
+            exec.updateTaskExecutionState(createFailingStateTransition());
 
             ctx.assertNoStateTransition();
         }
     }
 
-    private static TaskExecutionStateTransition createFailingStateTransition(JobID jobId) {
+    private static TaskExecutionStateTransition createFailingStateTransition() {
         return new TaskExecutionStateTransition(
                 new TaskExecutionState(
-                        jobId,
-                        new ExecutionAttemptID(),
-                        ExecutionState.FAILED,
-                        new RuntimeException()));
+                        new ExecutionAttemptID(), ExecutionState.FAILED, new RuntimeException()));
     }
 
     @Test

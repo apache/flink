@@ -1749,7 +1749,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             updateTaskExecutionState(
                     jobMasterGateway,
                     new TaskExecutionState(
-                            task.getJobID(),
                             task.getExecutionId(),
                             task.getExecutionState(),
                             task.getFailureCause(),

@@ -118,7 +118,6 @@ public class ArchivedExecutionGraphTest extends TestLogger {
         scheduler.startScheduling();
         scheduler.updateTaskExecutionState(
                 new TaskExecutionState(
-                        jobGraph.getJobID(),
                         runtimeGraph
                                 .getAllExecutionVertices()
                                 .iterator()
