@@ -66,7 +66,7 @@ public class TestFileFactory implements DynamicTableSourceFactory, DynamicTableS
     // Factory
     // --------------------------------------------------------------------------------------------
 
-    private static final String IDENTIFIER = "file";
+    private static final String IDENTIFIER = "test-file";
 
     private static final ConfigOption<String> RUNTIME_SOURCE =
             ConfigOptions.key("runtime-source")

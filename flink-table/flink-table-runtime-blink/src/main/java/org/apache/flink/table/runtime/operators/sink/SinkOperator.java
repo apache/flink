@@ -41,20 +41,15 @@ public class SinkOperator extends AbstractUdfStreamOperator<Object, SinkFunction
     private static final long serialVersionUID = 1L;
 
     private final int rowtimeFieldIndex;
-    private final SinkNotNullEnforcer enforcer;
 
     private transient SimpleContext sinkContext;
 
     /** We listen to this ourselves because we don't have an {@link InternalTimerService}. */
     private long currentWatermark = Long.MIN_VALUE;
 
-    public SinkOperator(
-            SinkFunction<RowData> sinkFunction,
-            int rowtimeFieldIndex,
-            SinkNotNullEnforcer enforcer) {
+    public SinkOperator(SinkFunction<RowData> sinkFunction, int rowtimeFieldIndex) {
         super(sinkFunction);
         this.rowtimeFieldIndex = rowtimeFieldIndex;
-        this.enforcer = enforcer;
         chainingStrategy = ChainingStrategy.ALWAYS;
     }
 
@@ -67,10 +62,7 @@ public class SinkOperator extends AbstractUdfStreamOperator<Object, SinkFunction
     @Override
     public void processElement(StreamRecord<RowData> element) throws Exception {
         sinkContext.element = element;
-        RowData row = element.getValue();
-        if (enforcer.filter(row)) {
-            userFunction.invoke(row, sinkContext);
-        }
+        userFunction.invoke(element.getValue(), sinkContext);
     }
 
     @Override

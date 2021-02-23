@@ -279,7 +279,7 @@ class TableSourceITCase extends BatchTestBase {
          |CREATE TABLE MyFileSourceTable (
          |  `a` STRING
          |) WITH (
-         |  'connector' = 'file',
+         |  'connector' = 'test-file',
          |  'path' = '${file.toURI}'
          |)
          |""".stripMargin

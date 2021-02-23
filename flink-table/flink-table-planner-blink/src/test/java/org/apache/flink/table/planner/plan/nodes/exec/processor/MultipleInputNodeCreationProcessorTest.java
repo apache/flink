@@ -153,7 +153,7 @@ public class MultipleInputNodeCreationProcessorTest extends TableTestBase {
                         + "(\n"
                         + "  a STRING\n"
                         + ") WITH (\n"
-                        + "  'connector' = 'file',\n"
+                        + "  'connector' = 'test-file',\n"
                         + "  'path' = '"
                         + file.toURI()
                         + "',\n"
