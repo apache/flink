@@ -920,7 +920,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 
     @Override
     public CompletableFuture<String> stopWithSavepoint(
-            final String targetDirectory, final boolean advanceToEndOfEventTime) {
+            final String targetDirectory, final boolean terminate) {
         mainThreadExecutor.assertRunningInMainThread();
 
         final CheckpointCoordinator checkpointCoordinator =
@@ -957,7 +957,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 
         final CompletableFuture<String> savepointFuture =
                 checkpointCoordinator
-                        .triggerSynchronousSavepoint(advanceToEndOfEventTime, targetDirectory)
+                        .triggerSynchronousSavepoint(terminate, targetDirectory)
                         .thenApply(CompletedCheckpoint::getExternalPointer);
 
         final CompletableFuture<JobStatus> terminationFuture =

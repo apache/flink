@@ -201,7 +201,7 @@ public class EventSerializer {
             typeInt = CHECKPOINT_TYPE_CHECKPOINT;
         } else if (checkpointType == CheckpointType.SAVEPOINT) {
             typeInt = CHECKPOINT_TYPE_SAVEPOINT;
-        } else if (checkpointType == CheckpointType.SYNC_SAVEPOINT) {
+        } else if (checkpointType == CheckpointType.SAVEPOINT_SUSPEND) {
             typeInt = CHECKPOINT_TYPE_SYNC_SAVEPOINT;
         } else {
             throw new IOException("Unknown checkpoint type: " + checkpointType);
@@ -240,7 +240,7 @@ public class EventSerializer {
         } else if (checkpointTypeCode == CHECKPOINT_TYPE_SAVEPOINT) {
             checkpointType = CheckpointType.SAVEPOINT;
         } else if (checkpointTypeCode == CHECKPOINT_TYPE_SYNC_SAVEPOINT) {
-            checkpointType = CheckpointType.SYNC_SAVEPOINT;
+            checkpointType = CheckpointType.SAVEPOINT_SUSPEND;
         } else {
             throw new IOException("Unknown checkpoint type code: " + checkpointTypeCode);
         }

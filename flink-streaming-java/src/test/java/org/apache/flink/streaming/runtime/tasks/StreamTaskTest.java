@@ -155,7 +155,7 @@ import java.util.function.Consumer;
 import static java.util.Arrays.asList;
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE;
-import static org.apache.flink.runtime.checkpoint.CheckpointType.SYNC_SAVEPOINT;
+import static org.apache.flink.runtime.checkpoint.CheckpointType.SAVEPOINT_SUSPEND;
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
 import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
 import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MAX_PRIORITY;
@@ -241,7 +241,7 @@ public class StreamTaskTest extends TestLogger {
                     try {
                         harness.streamTask.triggerCheckpointOnBarrier(
                                 new CheckpointMetaData(checkpointId, checkpointId),
-                                new CheckpointOptions(SYNC_SAVEPOINT, getDefault()),
+                                new CheckpointOptions(SAVEPOINT_SUSPEND, getDefault()),
                                 new CheckpointMetricsBuilder());
                     } catch (IOException e) {
                         fail(e.getMessage());
@@ -668,8 +668,7 @@ public class StreamTaskTest extends TestLogger {
 
         streamTask.triggerCheckpointAsync(
                 new CheckpointMetaData(42L, 1L),
-                CheckpointOptions.forCheckpointWithDefaultLocation(),
-                false);
+                CheckpointOptions.forCheckpointWithDefaultLocation());
 
         try {
             task.waitForTaskCompletion(false);
@@ -720,8 +719,7 @@ public class StreamTaskTest extends TestLogger {
 
         streamTask.triggerCheckpointAsync(
                 new CheckpointMetaData(42L, 1L),
-                CheckpointOptions.forCheckpointWithDefaultLocation(),
-                false);
+                CheckpointOptions.forCheckpointWithDefaultLocation());
 
         final Throwable uncaughtException = uncaughtExceptionHandler.waitForUncaughtException();
         assertThat(uncaughtException, is(failingCause));
@@ -771,8 +769,7 @@ public class StreamTaskTest extends TestLogger {
             streamTask
                     .triggerCheckpointAsync(
                             new CheckpointMetaData(42L, 1L),
-                            CheckpointOptions.forCheckpointWithDefaultLocation(),
-                            false)
+                            CheckpointOptions.forCheckpointWithDefaultLocation())
                     .get();
 
             // wait for the completion of the async task
@@ -887,8 +884,7 @@ public class StreamTaskTest extends TestLogger {
             final long checkpointId = 42L;
             streamTask.triggerCheckpointAsync(
                     new CheckpointMetaData(checkpointId, 1L),
-                    CheckpointOptions.forCheckpointWithDefaultLocation(),
-                    false);
+                    CheckpointOptions.forCheckpointWithDefaultLocation());
 
             acknowledgeCheckpointLatch.await();
 
@@ -977,8 +973,7 @@ public class StreamTaskTest extends TestLogger {
         final long checkpointId = 42L;
         task.streamTask.triggerCheckpointAsync(
                 new CheckpointMetaData(checkpointId, 1L),
-                CheckpointOptions.forCheckpointWithDefaultLocation(),
-                false);
+                CheckpointOptions.forCheckpointWithDefaultLocation());
 
         rawKeyedStateHandleFuture.awaitRun();
 
@@ -1063,8 +1058,7 @@ public class StreamTaskTest extends TestLogger {
 
             task.streamTask.triggerCheckpointAsync(
                     new CheckpointMetaData(42L, 1L),
-                    CheckpointOptions.forCheckpointWithDefaultLocation(),
-                    false);
+                    CheckpointOptions.forCheckpointWithDefaultLocation());
 
             checkpointCompletedLatch.await(30, TimeUnit.SECONDS);
 

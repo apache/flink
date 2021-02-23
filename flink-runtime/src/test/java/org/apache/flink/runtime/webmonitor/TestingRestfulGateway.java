@@ -244,7 +244,7 @@ public class TestingRestfulGateway implements RestfulGateway {
 
     @Override
     public CompletableFuture<String> stopWithSavepoint(
-            JobID jobId, String targetDirectory, boolean advanceToEndOfTime, Time timeout) {
+            JobID jobId, String targetDirectory, boolean terminate, Time timeout) {
         return stopWithSavepointFunction.apply(jobId, targetDirectory);
     }
 

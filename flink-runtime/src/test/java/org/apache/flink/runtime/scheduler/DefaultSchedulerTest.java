@@ -1100,12 +1100,7 @@ public class DefaultSchedulerTest extends TestLogger {
                 .getLogicalSlotBuilder()
                 .setTaskManagerGateway(taskManagerGateway);
         taskManagerGateway.setCheckpointConsumer(
-                (executionAttemptID,
-                        jobId,
-                        checkpointId,
-                        timestamp,
-                        checkpointOptions,
-                        advanceToEndOfEventTime) -> {
+                (executionAttemptID, jobId, checkpointId, timestamp, checkpointOptions) -> {
                     checkpointTriggeredLatch.countDown();
                 });
         return checkpointTriggeredLatch;

@@ -210,15 +210,11 @@ public abstract class AbstractInvokable {
      *
      * @param checkpointMetaData Meta data for about this checkpoint
      * @param checkpointOptions Options for performing this checkpoint
-     * @param advanceToEndOfEventTime Flag indicating if the source should inject a {@code
-     *     MAX_WATERMARK} in the pipeline to fire any registered event-time timers
      * @return future with value of {@code false} if the checkpoint was not carried out, {@code
      *     true} otherwise
      */
     public Future<Boolean> triggerCheckpointAsync(
-            CheckpointMetaData checkpointMetaData,
-            CheckpointOptions checkpointOptions,
-            boolean advanceToEndOfEventTime) {
+            CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
         throw new UnsupportedOperationException(
                 String.format(
                         "triggerCheckpointAsync not supported by %s", this.getClass().getName()));
