@@ -40,6 +40,7 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -59,6 +60,7 @@ import static org.junit.Assert.assertTrue;
 /** Tests of {@link FineGrainedSlotManager}. */
 public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
 
+    private static final int DEFAULT_NUM_SLOTS_PER_WORKER = 2;
     private static final WorkerResourceSpec DEFAULT_WORKER_RESOURCE_SPEC =
             new WorkerResourceSpec.Builder()
                     .setCpuCores(10.0)
@@ -66,6 +68,7 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                     .setTaskOffHeapMemoryMB(1000)
                     .setNetworkMemoryMB(1000)
                     .setManagedMemoryMB(1000)
+                    .setNumSlots(DEFAULT_NUM_SLOTS_PER_WORKER)
                     .build();
     private static final WorkerResourceSpec LARGE_WORKER_RESOURCE_SPEC =
             new WorkerResourceSpec.Builder()
@@ -74,8 +77,8 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                     .setTaskOffHeapMemoryMB(10000)
                     .setNetworkMemoryMB(10000)
                     .setManagedMemoryMB(10000)
+                    .setNumSlots(DEFAULT_NUM_SLOTS_PER_WORKER)
                     .build();
-    private static final int DEFAULT_NUM_SLOTS_PER_WORKER = 2;
     private static final ResourceProfile DEFAULT_TOTAL_RESOURCE_PROFILE =
             SlotManagerUtils.generateTaskManagerTotalResourceProfile(DEFAULT_WORKER_RESOURCE_SPEC);
     private static final ResourceProfile DEFAULT_SLOT_RESOURCE_PROFILE =
@@ -300,6 +303,32 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                                     unknownInstanceID, unknownSlotReport));
 
                             assertThat(getSlotManager().getNumberRegisteredSlots(), is(0));
+                        });
+            }
+        };
+    }
+
+    @Test
+    public void testAddRecoveredResourceAsPendingTaskManager() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            getSlotManager()
+                                    .notifyPendingWorkers(
+                                            Collections.singletonMap(
+                                                    DEFAULT_WORKER_RESOURCE_SPEC, 1));
+                            assertThat(
+                                    getTaskManagerTracker().getPendingTaskManagers().size(), is(1));
+
+                            getSlotManager()
+                                    .registerTaskManager(
+                                            createTaskExecutorConnection(),
+                                            new SlotReport(),
+                                            getDefaultTaskManagerResourceProfile(),
+                                            getDefaultSlotResourceProfile());
+                            assertThat(
+                                    getTaskManagerTracker().getPendingTaskManagers().size(), is(0));
                         });
             }
         };

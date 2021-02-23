@@ -40,6 +40,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -269,11 +270,7 @@ class TaskExecutorManager implements AutoCloseable {
             return Optional.empty();
         }
 
-        for (int i = 0; i < numSlotsPerWorker; ++i) {
-            PendingTaskManagerSlot pendingTaskManagerSlot =
-                    new PendingTaskManagerSlot(defaultSlotResourceProfile);
-            pendingSlots.put(pendingTaskManagerSlot.getTaskManagerSlotId(), pendingTaskManagerSlot);
-        }
+        addPendingSlots(numSlotsPerWorker);
 
         return Optional.of(
                 ResourceRequirement.create(defaultSlotResourceProfile, numSlotsPerWorker));
@@ -295,6 +292,21 @@ class TaskExecutorManager implements AutoCloseable {
     @VisibleForTesting
     int getNumberPendingTaskManagerSlots() {
         return pendingSlots.size();
+    }
+
+    public void notifyPendingWorkers(int numWorkers) {
+        addPendingSlots(numWorkers * numSlotsPerWorker);
+    }
+
+    private List<PendingTaskManagerSlot> addPendingSlots(int num) {
+        List<PendingTaskManagerSlot> addedPendingSlots = new ArrayList<>(num);
+        for (int i = 0; i < num; ++i) {
+            PendingTaskManagerSlot pendingTaskManagerSlot =
+                    new PendingTaskManagerSlot(defaultSlotResourceProfile);
+            pendingSlots.put(pendingTaskManagerSlot.getTaskManagerSlotId(), pendingTaskManagerSlot);
+            addedPendingSlots.add(pendingTaskManagerSlot);
+        }
+        return addedPendingSlots;
     }
 
     // ---------------------------------------------------------------------------------------------

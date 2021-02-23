@@ -253,11 +253,23 @@ public class DeclarativeSlotManagerTest extends TestLogger {
                         .TASK_EXECUTOR_REGISTRATION_AFTER_REQUIREMENT_DECLARATION);
     }
 
+    /**
+     * Tests that resource requirements can be fulfilled with resources recovered from previous
+     * attempt.
+     */
+    @Test
+    public void testRequirementDeclarationWithRecoveredResource() throws Exception {
+        testRequirementDeclaration(
+                RequirementDeclarationScenario.TASK_EXECUTOR_RECOVERD_FROM_PREVIOUS_ATTEMPT);
+    }
+
     private enum RequirementDeclarationScenario {
         // Tests that a slot request which can be fulfilled will trigger a slot allocation
         TASK_EXECUTOR_REGISTRATION_BEFORE_REQUIREMENT_DECLARATION,
         // Tests that pending slot requests are tried to be fulfilled upon new slot registrations
-        TASK_EXECUTOR_REGISTRATION_AFTER_REQUIREMENT_DECLARATION
+        TASK_EXECUTOR_REGISTRATION_AFTER_REQUIREMENT_DECLARATION,
+        // Tests that a slot request is fulfilled with recovered resources
+        TASK_EXECUTOR_RECOVERD_FROM_PREVIOUS_ATTEMPT,
     }
 
     private void testRequirementDeclaration(RequirementDeclarationScenario scenario)
@@ -268,6 +280,8 @@ public class DeclarativeSlotManagerTest extends TestLogger {
         final SlotID slotId = new SlotID(resourceID, 0);
         final String targetAddress = "localhost";
         final ResourceProfile resourceProfile = ResourceProfile.fromResources(42.0, 1337);
+        final WorkerResourceSpec workerResourceSpec =
+                WorkerResourceSpec.fromTotalResourceProfile(resourceProfile, 1);
 
         final CompletableFuture<
                         Tuple6<
@@ -298,11 +312,18 @@ public class DeclarativeSlotManagerTest extends TestLogger {
         final SlotReport slotReport = new SlotReport(slotStatus);
 
         final DefaultSlotTracker slotTracker = new DefaultSlotTracker();
+
+        final CompletableFuture<Void> allocateResourceFuture = new CompletableFuture<>();
+        final ResourceActions resourceActions =
+                new TestingResourceActionsBuilder()
+                        .setAllocateResourceConsumer(
+                                ignore -> allocateResourceFuture.complete(null))
+                        .build();
+
         try (DeclarativeSlotManager slotManager =
                 createDeclarativeSlotManagerBuilder()
                         .setSlotTracker(slotTracker)
-                        .buildAndStartWithDirectExec(
-                                resourceManagerId, new TestingResourceActionsBuilder().build())) {
+                        .buildAndStartWithDirectExec(resourceManagerId, resourceActions)) {
 
             if (scenario
                     == RequirementDeclarationScenario
@@ -314,6 +335,12 @@ public class DeclarativeSlotManagerTest extends TestLogger {
                         ResourceProfile.ANY);
             }
 
+            if (scenario
+                    == RequirementDeclarationScenario
+                            .TASK_EXECUTOR_RECOVERD_FROM_PREVIOUS_ATTEMPT) {
+                slotManager.notifyPendingWorkers(Collections.singletonMap(workerResourceSpec, 1));
+            }
+
             final ResourceRequirements requirements =
                     ResourceRequirements.create(
                             jobId,
@@ -322,8 +349,11 @@ public class DeclarativeSlotManagerTest extends TestLogger {
             slotManager.processResourceRequirements(requirements);
 
             if (scenario
-                    == RequirementDeclarationScenario
-                            .TASK_EXECUTOR_REGISTRATION_AFTER_REQUIREMENT_DECLARATION) {
+                            == RequirementDeclarationScenario
+                                    .TASK_EXECUTOR_REGISTRATION_AFTER_REQUIREMENT_DECLARATION
+                    || scenario
+                            == RequirementDeclarationScenario
+                                    .TASK_EXECUTOR_RECOVERD_FROM_PREVIOUS_ATTEMPT) {
                 slotManager.registerTaskManager(
                         taskExecutorConnection,
                         slotReport,
@@ -349,6 +379,12 @@ public class DeclarativeSlotManagerTest extends TestLogger {
                     "The slot has not been allocated to the expected allocation id.",
                     jobId,
                     slot.getJobId());
+
+            if (scenario
+                    == RequirementDeclarationScenario
+                            .TASK_EXECUTOR_RECOVERD_FROM_PREVIOUS_ATTEMPT) {
+                assertFalse(allocateResourceFuture.isDone());
+            }
         }
     }
 

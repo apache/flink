@@ -58,6 +58,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -655,6 +656,15 @@ public class SlotManagerImpl implements SlotManager {
         this.failUnfulfillableRequest = failUnfulfillableRequest;
     }
 
+    @Override
+    public void notifyPendingWorkers(Map<WorkerResourceSpec, Integer> pendingWorkerResourceSpecs) {
+        Preconditions.checkNotNull(pendingWorkerResourceSpecs);
+        Preconditions.checkArgument(pendingWorkerResourceSpecs.size() == 1);
+
+        int numWorkers = pendingWorkerResourceSpecs.values().iterator().next();
+        addPendingTaskManagerSlots(numWorkers * numSlotsPerWorker);
+    }
+
     // ---------------------------------------------------------------------------------------------
     // Behaviour methods
     // ---------------------------------------------------------------------------------------------
@@ -1078,15 +1088,11 @@ public class SlotManagerImpl implements SlotManager {
             return Optional.empty();
         }
 
-        PendingTaskManagerSlot pendingTaskManagerSlot = null;
-        for (int i = 0; i < numSlotsPerWorker; ++i) {
-            pendingTaskManagerSlot = new PendingTaskManagerSlot(defaultSlotResourceProfile);
-            pendingSlots.put(pendingTaskManagerSlot.getTaskManagerSlotId(), pendingTaskManagerSlot);
-        }
-
-        return Optional.of(
-                Preconditions.checkNotNull(
-                        pendingTaskManagerSlot, "At least one pending slot should be created."));
+        List<PendingTaskManagerSlot> pendingTaskManagerSlots =
+                addPendingTaskManagerSlots(numSlotsPerWorker);
+        Preconditions.checkState(
+                pendingTaskManagerSlots.size() > 0, "At least one pending slot should be created.");
+        return Optional.of(pendingTaskManagerSlots.get(0));
     }
 
     private void assignPendingTaskManagerSlot(
@@ -1484,6 +1490,17 @@ public class SlotManagerImpl implements SlotManager {
 
     private void checkInit() {
         Preconditions.checkState(started, "The slot manager has not been started.");
+    }
+
+    private List<PendingTaskManagerSlot> addPendingTaskManagerSlots(int num) {
+        List<PendingTaskManagerSlot> addedPendingSlots = new ArrayList<>(num);
+        for (int i = 0; i < num; ++i) {
+            PendingTaskManagerSlot pendingTaskManagerSlot =
+                    new PendingTaskManagerSlot(defaultSlotResourceProfile);
+            pendingSlots.put(pendingTaskManagerSlot.getTaskManagerSlotId(), pendingTaskManagerSlot);
+            addedPendingSlots.add(pendingTaskManagerSlot);
+        }
+        return addedPendingSlots;
     }
 
     // ---------------------------------------------------------------------------------------------

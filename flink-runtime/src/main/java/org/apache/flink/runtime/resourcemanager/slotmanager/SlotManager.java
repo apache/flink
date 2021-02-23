@@ -162,4 +162,13 @@ public interface SlotManager extends AutoCloseable {
     void freeSlot(SlotID slotId, AllocationID allocationId);
 
     void setFailUnfulfillableRequest(boolean failUnfulfillableRequest);
+
+    /**
+     * Notifies slot manager about pending resources recovered from previous attempt.
+     *
+     * @param pendingWorkerResourceSpecs a map whose key set is all the unique resource specs of the
+     *     pending workers, and the corresponding value is number of pending workers of that
+     *     resource spec.
+     */
+    void notifyPendingWorkers(Map<WorkerResourceSpec, Integer> pendingWorkerResourceSpecs);
 }

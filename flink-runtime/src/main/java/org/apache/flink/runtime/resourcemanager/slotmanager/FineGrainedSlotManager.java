@@ -435,6 +435,21 @@ public class FineGrainedSlotManager implements SlotManager {
         }
     }
 
+    @Override
+    public void notifyPendingWorkers(Map<WorkerResourceSpec, Integer> pendingWorkerResourceSpecs) {
+        for (Map.Entry<WorkerResourceSpec, Integer> entry : pendingWorkerResourceSpecs.entrySet()) {
+            final WorkerResourceSpec workerResourceSpec = entry.getKey();
+            final int numWorkers = entry.getValue();
+            for (int i = 0; i < numWorkers; ++i) {
+                taskManagerTracker.addPendingTaskManager(
+                        new PendingTaskManager(
+                                SlotManagerUtils.generateTaskManagerTotalResourceProfile(
+                                        workerResourceSpec),
+                                workerResourceSpec.getNumSlots()));
+            }
+        }
+    }
+
     // ---------------------------------------------------------------------------------------------
     // Requirement matching
     // ---------------------------------------------------------------------------------------------

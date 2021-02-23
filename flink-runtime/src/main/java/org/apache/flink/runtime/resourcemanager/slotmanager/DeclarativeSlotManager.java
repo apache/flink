@@ -383,6 +383,15 @@ public class DeclarativeSlotManager implements SlotManager {
         checkResourceRequirements();
     }
 
+    @Override
+    public void notifyPendingWorkers(Map<WorkerResourceSpec, Integer> pendingWorkerResourceSpecs) {
+        Preconditions.checkNotNull(pendingWorkerResourceSpecs);
+        Preconditions.checkArgument(pendingWorkerResourceSpecs.size() == 1);
+
+        int numWorkers = pendingWorkerResourceSpecs.values().iterator().next();
+        taskExecutorManager.notifyPendingWorkers(numWorkers);
+    }
+
     // ---------------------------------------------------------------------------------------------
     // Requirement matching
     // ---------------------------------------------------------------------------------------------

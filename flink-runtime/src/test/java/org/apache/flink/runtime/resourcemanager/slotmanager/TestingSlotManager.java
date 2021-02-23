@@ -147,5 +147,8 @@ public class TestingSlotManager implements SlotManager {
     }
 
     @Override
+    public void notifyPendingWorkers(Map<WorkerResourceSpec, Integer> pendingWorkerResourceSpecs) {}
+
+    @Override
     public void close() throws Exception {}
 }

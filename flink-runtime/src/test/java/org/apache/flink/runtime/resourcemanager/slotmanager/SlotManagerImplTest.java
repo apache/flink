@@ -324,6 +324,41 @@ public class SlotManagerImplTest extends TestLogger {
         }
     }
 
+    /** Tests pending resource of recovered worker can be used for fulfilling slot request */
+    @Test
+    public void testSlotRequestWithRecoveredPendingResource() throws Exception {
+        final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
+        final JobID jobId = new JobID();
+        final String targetAddress = "localhost";
+        final AllocationID allocationId = new AllocationID();
+        final ResourceProfile resourceProfile = ResourceProfile.UNKNOWN;
+        final SlotRequest slotRequest =
+                new SlotRequest(jobId, allocationId, resourceProfile, targetAddress);
+
+        final CompletableFuture<WorkerResourceSpec> allocateResourceFuture =
+                new CompletableFuture<>();
+        final ResourceActions resourceManagerActions =
+                new TestingResourceActionsBuilder()
+                        .setAllocateResourceConsumer(allocateResourceFuture::complete)
+                        .build();
+
+        try (SlotManagerImpl slotManager =
+                createSlotManager(resourceManagerId, resourceManagerActions)) {
+            // notify recovered resources
+            slotManager.notifyPendingWorkers(Collections.singletonMap(WORKER_RESOURCE_SPEC, 1));
+            assertThat(slotManager.getNumberPendingTaskManagerSlots(), is(1));
+            assertThat(slotManager.getNumberAssignedPendingTaskManagerSlots(), is(0));
+
+            // request slot
+            assertTrue(
+                    "The slot request should be accepted",
+                    slotManager.registerSlotRequest(slotRequest));
+            assertFalse("Should not allocate new worker.", allocateResourceFuture.isDone());
+            assertThat(slotManager.getNumberPendingTaskManagerSlots(), is(1));
+            assertThat(slotManager.getNumberAssignedPendingTaskManagerSlots(), is(1));
+        }
+    }
+
     /**
      * Checks that un-registering a pending slot request will cancel it, removing it from all
      * assigned task manager slots and then remove it from the slot manager.
@@ -1728,6 +1763,41 @@ public class SlotManagerImplTest extends TestLogger {
 
             assertThat(slotManager.getNumberRegisteredSlots(), is(numberSlots - 1));
             assertThat(slotManager.getNumberPendingTaskManagerSlots(), is(1));
+        }
+    }
+
+    /**
+     * Tests the completion of recovered pending task manager slots by registering a TaskExecutor.
+     */
+    @Test
+    public void testRecoveredPendingTaskManagerSlotCompletion() throws Exception {
+        final int numSlots = WORKER_RESOURCE_SPEC.getNumSlots();
+        final TestingResourceActions resourceActions = new TestingResourceActionsBuilder().build();
+        final ResourceProfile resourceProfile =
+                SlotManagerUtils.generateDefaultSlotResourceProfile(WORKER_RESOURCE_SPEC, numSlots);
+
+        try (final SlotManagerImpl slotManager =
+                createSlotManager(ResourceManagerId.generate(), resourceActions, numSlots)) {
+
+            // notify recovered resources
+            slotManager.notifyPendingWorkers(Collections.singletonMap(WORKER_RESOURCE_SPEC, 1));
+
+            assertThat(slotManager.getNumberRegisteredSlots(), is(0));
+            assertThat(slotManager.getNumberPendingTaskManagerSlots(), is(numSlots));
+
+            // register task manager
+            final TaskExecutorConnection taskExecutorConnection = createTaskExecutorConnection();
+            final SlotReport slotReport =
+                    createSlotReport(
+                            taskExecutorConnection.getResourceID(),
+                            numSlots,
+                            resourceProfile,
+                            SlotManagerImplTest::createEmptySlotStatus);
+            slotManager.registerTaskManager(
+                    taskExecutorConnection, slotReport, ResourceProfile.ANY, ResourceProfile.ANY);
+
+            assertThat(slotManager.getNumberRegisteredSlots(), is(numSlots));
+            assertThat(slotManager.getNumberPendingTaskManagerSlots(), is(0));
         }
     }
 
