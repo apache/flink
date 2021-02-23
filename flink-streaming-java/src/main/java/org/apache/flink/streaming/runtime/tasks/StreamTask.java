@@ -404,7 +404,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         if (!succeeded && activeSyncSavepointId != null && activeSyncSavepointId == id) {
             // allow to process further EndOfPartition events
             activeSyncSavepointId = null;
-            operatorChain.setIsStoppingBySyncSavepoint(false);
+            operatorChain.setIgnoreEndOfInput(false);
         }
         syncSavepointId = null;
     }
@@ -415,7 +415,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                 "at most one stop-with-savepoint checkpoint at a time is allowed");
         syncSavepointId = checkpointId;
         activeSyncSavepointId = checkpointId;
-        operatorChain.setIsStoppingBySyncSavepoint(true);
+        operatorChain.setIgnoreEndOfInput(true);
     }
 
     @VisibleForTesting
@@ -999,7 +999,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                         } else if (activeSyncSavepointId != null
                                 && activeSyncSavepointId < checkpointMetaData.getCheckpointId()) {
                             activeSyncSavepointId = null;
-                            operatorChain.setIsStoppingBySyncSavepoint(false);
+                            operatorChain.setIgnoreEndOfInput(false);
                         }
 
                         subtaskCheckpointCoordinator.checkpointState(
