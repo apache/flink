@@ -65,6 +65,10 @@ public enum CheckpointType {
         return getPostCheckpointAction() == PostCheckpointAction.TERMINATE;
     }
 
+    public boolean shouldIgnoreEndOfInput() {
+        return getPostCheckpointAction() == PostCheckpointAction.SUSPEND;
+    }
+
     public String getName() {
         return name;
     }
