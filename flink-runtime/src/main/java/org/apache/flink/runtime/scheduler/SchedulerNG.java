@@ -143,8 +143,7 @@ public interface SchedulerNG {
 
     void declineCheckpoint(DeclineCheckpoint decline);
 
-    CompletableFuture<String> stopWithSavepoint(
-            String targetDirectory, boolean advanceToEndOfEventTime);
+    CompletableFuture<String> stopWithSavepoint(String targetDirectory, boolean terminate);
 
     // ------------------------------------------------------------------------
     //  Operator Coordinator related methods

@@ -291,7 +291,6 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
                         CheckpointProperties.forCheckpoint(
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
                         null,
-                        false,
                         false);
         manuallyTriggeredScheduledExecutor.triggerAll();
         assertFalse(onCompletionPromise2.isCompletedExceptionally());
@@ -326,12 +325,7 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
         final ExecutionAttemptID attemptID = new ExecutionAttemptID();
         final AtomicInteger taskManagerCheckpointTriggeredTimes = new AtomicInteger(0);
         final SimpleAckingTaskManagerGateway.CheckpointConsumer checkpointConsumer =
-                (executionAttemptID,
-                        jobId,
-                        checkpointId,
-                        timestamp,
-                        checkpointOptions,
-                        advanceToEndOfEventTime) ->
+                (executionAttemptID, jobId, checkpointId, timestamp, checkpointOptions) ->
                         taskManagerCheckpointTriggeredTimes.incrementAndGet();
         ExecutionVertex vertex = mockExecutionVertex(attemptID, checkpointConsumer);
 
@@ -365,12 +359,7 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
         final ExecutionAttemptID attemptID = new ExecutionAttemptID();
         final AtomicInteger taskManagerCheckpointTriggeredTimes = new AtomicInteger(0);
         final SimpleAckingTaskManagerGateway.CheckpointConsumer checkpointConsumer =
-                (executionAttemptID,
-                        jobId,
-                        checkpointId,
-                        timestamp,
-                        checkpointOptions,
-                        advanceToEndOfEventTime) ->
+                (executionAttemptID, jobId, checkpointId, timestamp, checkpointOptions) ->
                         taskManagerCheckpointTriggeredTimes.incrementAndGet();
         ExecutionVertex vertex = mockExecutionVertex(attemptID, checkpointConsumer);
 
@@ -415,12 +404,7 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
         final ExecutionAttemptID attemptID = new ExecutionAttemptID();
         final AtomicInteger taskManagerCheckpointTriggeredTimes = new AtomicInteger(0);
         final SimpleAckingTaskManagerGateway.CheckpointConsumer checkpointConsumer =
-                (executionAttemptID,
-                        jobId,
-                        checkpointId,
-                        timestamp,
-                        checkpointOptions,
-                        advanceToEndOfEventTime) ->
+                (executionAttemptID, jobId, checkpointId, timestamp, checkpointOptions) ->
                         taskManagerCheckpointTriggeredTimes.incrementAndGet();
         ExecutionVertex vertex = mockExecutionVertex(attemptID, checkpointConsumer);
 
@@ -513,12 +497,7 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
         final ExecutionAttemptID attemptID = new ExecutionAttemptID();
         final AtomicInteger taskManagerCheckpointTriggeredTimes = new AtomicInteger(0);
         final SimpleAckingTaskManagerGateway.CheckpointConsumer checkpointConsumer =
-                (executionAttemptID,
-                        jobId,
-                        checkpointId,
-                        timestamp,
-                        checkpointOptions,
-                        advanceToEndOfEventTime) ->
+                (executionAttemptID, jobId, checkpointId, timestamp, checkpointOptions) ->
                         taskManagerCheckpointTriggeredTimes.incrementAndGet();
         ExecutionVertex vertex = mockExecutionVertex(attemptID, checkpointConsumer);
 
@@ -625,8 +604,7 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
                 CheckpointProperties.forCheckpoint(
                         CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
                 null,
-                true,
-                false);
+                true);
     }
 
     private CompletableFuture<CompletedCheckpoint> triggerNonPeriodicCheckpoint(
@@ -636,7 +614,6 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
                 CheckpointProperties.forCheckpoint(
                         CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
                 null,
-                false,
                 false);
     }
 
