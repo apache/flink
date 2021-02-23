@@ -35,6 +35,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
@@ -155,7 +156,6 @@ import java.util.function.Consumer;
 import static java.util.Arrays.asList;
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE;
-import static org.apache.flink.runtime.checkpoint.CheckpointType.SAVEPOINT_SUSPEND;
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
 import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
 import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MAX_PRIORITY;
@@ -189,24 +189,53 @@ public class StreamTaskTest extends TestLogger {
     @Rule public final Timeout timeoutPerTest = Timeout.seconds(30);
 
     @Test
-    public void testSyncSavepointCompleted() throws Exception {
-        testSyncSavepointWithEndInput(StreamTask::notifyCheckpointCompleteAsync, false);
+    public void testSavepointSuspendCompleted() throws Exception {
+        testSyncSavepointWithEndInput(
+                StreamTask::notifyCheckpointCompleteAsync, CheckpointType.SAVEPOINT_SUSPEND, false);
     }
 
     @Test
-    public void testSyncSavepointAborted() throws Exception {
+    public void testSavepointTerminateCompleted() throws Exception {
+        testSyncSavepointWithEndInput(
+                StreamTask::notifyCheckpointCompleteAsync,
+                CheckpointType.SAVEPOINT_TERMINATE,
+                true);
+    }
+
+    @Test
+    public void testSavepointSuspendedAborted() throws Exception {
         testSyncSavepointWithEndInput(
                 (task, id) ->
                         task.abortCheckpointOnBarrier(
                                 id,
                                 new CheckpointException(
                                         UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE)),
+                CheckpointType.SAVEPOINT_SUSPEND,
                 true);
     }
 
     @Test
-    public void testSyncSavepointAbortedAsync() throws Exception {
-        testSyncSavepointWithEndInput(StreamTask::notifyCheckpointAbortAsync, true);
+    public void testSavepointTerminateAborted() throws Exception {
+        testSyncSavepointWithEndInput(
+                (task, id) ->
+                        task.abortCheckpointOnBarrier(
+                                id,
+                                new CheckpointException(
+                                        UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE)),
+                CheckpointType.SAVEPOINT_TERMINATE,
+                true);
+    }
+
+    @Test
+    public void testSavepointSuspendAbortedAsync() throws Exception {
+        testSyncSavepointWithEndInput(
+                StreamTask::notifyCheckpointAbortAsync, CheckpointType.SAVEPOINT_SUSPEND, true);
+    }
+
+    @Test
+    public void testSavepointTerminateAbortedAsync() throws Exception {
+        testSyncSavepointWithEndInput(
+                StreamTask::notifyCheckpointAbortAsync, CheckpointType.SAVEPOINT_TERMINATE, true);
     }
 
     /**
@@ -221,6 +250,7 @@ public class StreamTaskTest extends TestLogger {
      */
     private void testSyncSavepointWithEndInput(
             BiConsumerWithException<StreamTask<?, ?>, Long, IOException> savepointResult,
+            CheckpointType checkpointType,
             boolean expectEndInput)
             throws Exception {
         StreamTaskMailboxTestHarness<String> harness =
@@ -241,7 +271,7 @@ public class StreamTaskTest extends TestLogger {
                     try {
                         harness.streamTask.triggerCheckpointOnBarrier(
                                 new CheckpointMetaData(checkpointId, checkpointId),
-                                new CheckpointOptions(SAVEPOINT_SUSPEND, getDefault()),
+                                new CheckpointOptions(checkpointType, getDefault()),
                                 new CheckpointMetricsBuilder());
                     } catch (IOException e) {
                         fail(e.getMessage());
