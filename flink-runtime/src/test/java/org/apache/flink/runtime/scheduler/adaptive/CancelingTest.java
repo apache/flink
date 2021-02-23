@@ -105,7 +105,6 @@ public class CancelingTest extends TestLogger {
             TaskExecutionStateTransition update =
                     new TaskExecutionStateTransition(
                             new TaskExecutionState(
-                                    canceling.getJob().getJobID(),
                                     ejv.getMockExecutionVertex()
                                             .getCurrentExecutionAttempt()
                                             .getAttemptId(),

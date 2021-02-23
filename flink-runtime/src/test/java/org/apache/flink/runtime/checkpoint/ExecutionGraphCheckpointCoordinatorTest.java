@@ -117,9 +117,7 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
             final Execution currentExecutionAttempt = executionVertex.getCurrentExecutionAttempt();
             scheduler.updateTaskExecutionState(
                     new TaskExecutionState(
-                            graph.getJobID(),
-                            currentExecutionAttempt.getAttemptId(),
-                            ExecutionState.FINISHED));
+                            currentExecutionAttempt.getAttemptId(), ExecutionState.FINISHED));
         }
 
         assertThat(graph.getTerminationFuture().get(), is(JobStatus.FINISHED));
