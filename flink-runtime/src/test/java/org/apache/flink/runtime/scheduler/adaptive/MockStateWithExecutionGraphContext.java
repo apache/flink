@@ -74,6 +74,10 @@ class MockStateWithExecutionGraphContext implements StateWithExecutionGraph.Cont
         finishedStateValidator.close();
     }
 
+    protected final void triggerScheduledExecutors() {
+        executor.triggerAll();
+    }
+
     protected final void assertNoStateTransition() {
         assertThat(hadStateTransition, is(false));
     }

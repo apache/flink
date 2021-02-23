@@ -270,11 +270,6 @@ abstract class StateWithExecutionGraph implements State {
                         context.getMainThreadExecutor());
     }
 
-    CompletableFuture<String> stopWithSavepoint(String targetDirectory, boolean terminate) {
-        throw new UnsupportedOperationException(
-                "This will be implemented as part of https://issues.apache.org/jira/browse/FLINK-21333");
-    }
-
     private void startCheckpointScheduler(final CheckpointCoordinator checkpointCoordinator) {
         if (checkpointCoordinator.isPeriodicCheckpointingConfigured()) {
             try {

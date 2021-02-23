@@ -24,6 +24,9 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils;
+import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
@@ -60,9 +63,11 @@ import org.junit.Test;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Consumer;
@@ -247,7 +252,30 @@ public class ExecutingTest extends TestLogger {
         }
     }
 
-    private static TaskExecutionStateTransition createFailingStateTransition() {
+    @Test
+    public void testTransitionToStopWithSavepointState() throws Exception {
+        try (MockExecutingContext ctx = new MockExecutingContext()) {
+            CheckpointCoordinator coordinator =
+                    new CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder().build();
+            StateTrackingMockExecutionGraph mockedExecutionGraphWithCheckpointCoordinator =
+                    new StateTrackingMockExecutionGraph() {
+                        @Nullable
+                        @Override
+                        public CheckpointCoordinator getCheckpointCoordinator() {
+                            return coordinator;
+                        }
+                    };
+            Executing exec =
+                    new ExecutingStateBuilder()
+                            .setExecutionGraph(mockedExecutionGraphWithCheckpointCoordinator)
+                            .build(ctx);
+
+            ctx.setExpectStopWithSavepoint(assertNonNull());
+            exec.stopWithSavepoint("file:///tmp/target", true);
+        }
+    }
+
+    static TaskExecutionStateTransition createFailingStateTransition() {
         return new TaskExecutionStateTransition(
                 new TaskExecutionState(
                         new ExecutionAttemptID(), ExecutionState.FAILED, new RuntimeException()));
@@ -340,11 +368,15 @@ public class ExecutingTest extends TestLogger {
                 new StateValidator<>("failing");
         private final StateValidator<RestartingArguments> restartingStateValidator =
                 new StateValidator<>("restarting");
-        private final StateValidator<CancellingArguments> cancellingStateValidator =
+        private final StateValidator<ExecutingAndCancellingArguments> cancellingStateValidator =
                 new StateValidator<>("cancelling");
 
         private Function<Throwable, Executing.FailureResult> howToHandleFailure;
         private Supplier<Boolean> canScaleUp;
+        private StateValidator<StopWithSavepointArguments> stopWithSavepointValidator =
+                new StateValidator<>("stopWithSavepoint");
+        private CompletableFuture<String> mockedStopWithSavepointOperationFuture =
+                new CompletableFuture<>();
 
         public void setExpectFailing(Consumer<FailingArguments> asserter) {
             failingStateValidator.expectInput(asserter);
@@ -354,8 +386,12 @@ public class ExecutingTest extends TestLogger {
             restartingStateValidator.expectInput(asserter);
         }
 
-        public void setExpectCancelling(Consumer<CancellingArguments> asserter) {
+        public void setExpectCancelling(Consumer<ExecutingAndCancellingArguments> asserter) {
             cancellingStateValidator.expectInput(asserter);
+        }
+
+        public void setExpectStopWithSavepoint(Consumer<StopWithSavepointArguments> asserter) {
+            stopWithSavepointValidator.expectInput(asserter);
         }
 
         public void setHowToHandleFailure(Function<Throwable, Executing.FailureResult> function) {
@@ -374,7 +410,7 @@ public class ExecutingTest extends TestLogger {
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler) {
             cancellingStateValidator.validateInput(
-                    new CancellingArguments(
+                    new ExecutingAndCancellingArguments(
                             executionGraph, executionGraphHandler, operatorCoordinatorHandler));
             hadStateTransition = true;
         }
@@ -420,20 +456,38 @@ public class ExecutingTest extends TestLogger {
         }
 
         @Override
+        public CompletableFuture<String> goToStopWithSavepoint(
+                ExecutionGraph executionGraph,
+                ExecutionGraphHandler executionGraphHandler,
+                OperatorCoordinatorHandler operatorCoordinatorHandler,
+                CompletableFuture<String> savepointFuture) {
+            stopWithSavepointValidator.validateInput(
+                    new StopWithSavepointArguments(
+                            executionGraph,
+                            executionGraphHandler,
+                            operatorCoordinatorHandler,
+                            new CheckpointSchedulingProvider(executionGraph),
+                            savepointFuture));
+            hadStateTransition = true;
+            return mockedStopWithSavepointOperationFuture;
+        }
+
+        @Override
         public void close() throws Exception {
             super.close();
             failingStateValidator.close();
             restartingStateValidator.close();
             cancellingStateValidator.close();
+            stopWithSavepointValidator.close();
         }
     }
 
-    static class CancellingArguments {
+    static class ExecutingAndCancellingArguments {
         private final ExecutionGraph executionGraph;
         private final ExecutionGraphHandler executionGraphHandler;
         private final OperatorCoordinatorHandler operatorCoordinatorHandle;
 
-        public CancellingArguments(
+        public ExecutingAndCancellingArguments(
                 ExecutionGraph executionGraph,
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandle) {
@@ -455,7 +509,23 @@ public class ExecutingTest extends TestLogger {
         }
     }
 
-    static class RestartingArguments extends CancellingArguments {
+    static class StopWithSavepointArguments extends ExecutingAndCancellingArguments {
+        private final CheckpointScheduling checkpointScheduling;
+        private final CompletableFuture<String> savepointFuture;
+
+        public StopWithSavepointArguments(
+                ExecutionGraph executionGraph,
+                ExecutionGraphHandler executionGraphHandler,
+                OperatorCoordinatorHandler operatorCoordinatorHandle,
+                CheckpointScheduling checkpointScheduling,
+                CompletableFuture<String> savepointFuture) {
+            super(executionGraph, executionGraphHandler, operatorCoordinatorHandle);
+            this.checkpointScheduling = checkpointScheduling;
+            this.savepointFuture = savepointFuture;
+        }
+    }
+
+    static class RestartingArguments extends ExecutingAndCancellingArguments {
         private final Duration backoffTime;
 
         public RestartingArguments(
@@ -472,7 +542,7 @@ public class ExecutingTest extends TestLogger {
         }
     }
 
-    static class FailingArguments extends CancellingArguments {
+    static class FailingArguments extends ExecutingAndCancellingArguments {
         private final Throwable failureCause;
 
         public FailingArguments(

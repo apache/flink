@@ -20,6 +20,7 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.JobException;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -28,6 +29,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointTerminationManager;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -35,6 +37,7 @@ import org.slf4j.Logger;
 import javax.annotation.Nullable;
 
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 
 /** State which represents a running job with an {@link ExecutionGraph} and assigned slots. */
 class Executing extends StateWithExecutionGraph implements ResourceConsumer {
@@ -143,6 +146,30 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         }
     }
 
+    CompletableFuture<String> stopWithSavepoint(
+            @Nullable final String targetDirectory, boolean terminate) {
+        final ExecutionGraph executionGraph = getExecutionGraph();
+
+        StopWithSavepointTerminationManager.checkStopWithSavepointPreconditions(
+                executionGraph.getCheckpointCoordinator(),
+                targetDirectory,
+                executionGraph.getJobID(),
+                getLogger());
+
+        getLogger().info("Triggering stop-with-savepoint for job {}.", executionGraph.getJobID());
+
+        final CompletableFuture<String> savepointFuture =
+                executionGraph
+                        .getCheckpointCoordinator()
+                        .triggerSynchronousSavepoint(terminate, targetDirectory)
+                        .thenApply(CompletedCheckpoint::getExternalPointer);
+        return context.goToStopWithSavepoint(
+                executionGraph,
+                getExecutionGraphHandler(),
+                getOperatorCoordinatorHandler(),
+                savepointFuture);
+    }
+
     /** Context of the {@link Executing} state. */
     interface Context extends StateWithExecutionGraph.Context {
 
@@ -206,6 +233,23 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
                 Throwable failureCause);
+
+        /**
+         * Transitions into the {@link StopWithSavepoint} state.
+         *
+         * @param executionGraph executionGraph to pass to the {@link StopWithSavepoint} state
+         * @param executionGraphHandler executionGraphHandler to pass to the {@link
+         *     StopWithSavepoint} state
+         * @param operatorCoordinatorHandler operatorCoordinatorHandler to pass to the {@link
+         *     StopWithSavepoint} state
+         * @param savepointFuture Future for the savepoint to complete.
+         * @return Location of the savepoint.
+         */
+        CompletableFuture<String> goToStopWithSavepoint(
+                ExecutionGraph executionGraph,
+                ExecutionGraphHandler executionGraphHandler,
+                OperatorCoordinatorHandler operatorCoordinatorHandler,
+                CompletableFuture<String> savepointFuture);
     }
 
     /**
@@ -269,7 +313,7 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         private final OperatorCoordinatorHandler operatorCoordinatorHandler;
         private final ClassLoader userCodeClassLoader;
 
-        public Factory(
+        Factory(
                 ExecutionGraph executionGraph,
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler,

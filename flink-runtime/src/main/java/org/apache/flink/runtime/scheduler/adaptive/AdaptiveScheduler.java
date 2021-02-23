@@ -152,7 +152,8 @@ public class AdaptiveScheduler
                 Executing.Context,
                 Restarting.Context,
                 Failing.Context,
-                Finished.Context {
+                Finished.Context,
+                StopWithSavepoint.Context {
 
     private static final Logger LOG = LoggerFactory.getLogger(AdaptiveScheduler.class);
 
@@ -507,12 +508,11 @@ public class AdaptiveScheduler
     }
 
     @Override
-    public CompletableFuture<String> stopWithSavepoint(String targetDirectory, boolean terminate) {
+    public CompletableFuture<String> stopWithSavepoint(
+            @Nullable String targetDirectory, boolean terminate) {
         return state.tryCall(
-                        StateWithExecutionGraph.class,
-                        stateWithExecutionGraph ->
-                                stateWithExecutionGraph.stopWithSavepoint(
-                                        targetDirectory, terminate),
+                        Executing.class,
+                        executing -> executing.stopWithSavepoint(targetDirectory, terminate),
                         "stopWithSavepoint")
                 .orElse(
                         FutureUtils.completedExceptionally(
@@ -749,6 +749,21 @@ public class AdaptiveScheduler
     }
 
     @Override
+    public void goToExecuting(
+            ExecutionGraph executionGraph,
+            ExecutionGraphHandler executionGraphHandler,
+            OperatorCoordinatorHandler operatorCoordinatorHandler) {
+        transitionToState(
+                new Executing.Factory(
+                        executionGraph,
+                        executionGraphHandler,
+                        operatorCoordinatorHandler,
+                        LOG,
+                        this,
+                        userCodeClassLoader));
+    }
+
+    @Override
     public void goToCanceling(
             ExecutionGraph executionGraph,
             ExecutionGraphHandler executionGraphHandler,
@@ -805,6 +820,27 @@ public class AdaptiveScheduler
                         operatorCoordinatorHandler,
                         LOG,
                         failureCause));
+    }
+
+    @Override
+    public CompletableFuture<String> goToStopWithSavepoint(
+            ExecutionGraph executionGraph,
+            ExecutionGraphHandler executionGraphHandler,
+            OperatorCoordinatorHandler operatorCoordinatorHandler,
+            CompletableFuture<String> savepointFuture) {
+
+        StopWithSavepoint stopWithSavepoint =
+                transitionToState(
+                        new StopWithSavepoint.Factory(
+                                this,
+                                executionGraph,
+                                executionGraphHandler,
+                                operatorCoordinatorHandler,
+                                new CheckpointSchedulingProvider(executionGraph),
+                                LOG,
+                                userCodeClassLoader,
+                                savepointFuture));
+        return stopWithSavepoint.getOperationFuture();
     }
 
     @Override
@@ -938,9 +974,17 @@ public class AdaptiveScheduler
 
     // ----------------------------------------------------------------
 
-    /** Note: Do not call this method from a State constructor or State#onLeave. */
+    /**
+     * Transition the scheduler to another state. This method guards against state transitions while
+     * there is already a transition ongoing. This effectively means that you can not call this
+     * method from a State constructor or State#onLeave.
+     *
+     * @param targetState State to transition to
+     * @param <T> Type of the target state
+     * @return A target state instance
+     */
     @VisibleForTesting
-    void transitionToState(StateFactory<?> targetState) {
+    <T extends State> T transitionToState(StateFactory<T> targetState) {
         Preconditions.checkState(
                 !isTransitioningState,
                 "State transitions must not be triggered while another state transition is in progress.");
@@ -956,7 +1000,9 @@ public class AdaptiveScheduler
                     targetState.getStateClass().getSimpleName());
 
             state.onLeave(targetState.getStateClass());
-            state = targetState.getState();
+            T targetStateInstance = targetState.getState();
+            state = targetStateInstance;
+            return targetStateInstance;
         } finally {
             isTransitioningState = false;
         }

@@ -140,13 +140,14 @@ public class RestartingTest extends TestLogger {
     private static class MockRestartingContext extends MockStateWithExecutionGraphContext
             implements Restarting.Context {
 
-        private final StateValidator<ExecutingTest.CancellingArguments> cancellingStateValidator =
-                new StateValidator<>("Cancelling");
+        private final StateValidator<ExecutingTest.ExecutingAndCancellingArguments>
+                cancellingStateValidator = new StateValidator<>("Cancelling");
 
         private final StateValidator<Void> waitingForResourcesStateValidator =
                 new StateValidator<>("WaitingForResources");
 
-        public void setExpectCancelling(Consumer<ExecutingTest.CancellingArguments> asserter) {
+        public void setExpectCancelling(
+                Consumer<ExecutingTest.ExecutingAndCancellingArguments> asserter) {
             cancellingStateValidator.expectInput(asserter);
         }
 
@@ -160,7 +161,7 @@ public class RestartingTest extends TestLogger {
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler) {
             cancellingStateValidator.validateInput(
-                    new ExecutingTest.CancellingArguments(
+                    new ExecutingTest.ExecutingAndCancellingArguments(
                             executionGraph, executionGraphHandler, operatorCoordinatorHandler));
             hadStateTransition = true;
         }
