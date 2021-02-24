@@ -122,7 +122,7 @@ public abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSl
                         jobId,
                         targetAddress,
                         Collections.singleton(
-                                ResourceRequirement.create(getDefaultSlotResourceProfile(), 1)));
+                                ResourceRequirement.create(DEFAULT_SLOT_RESOURCE_PROFILE, 1)));
 
         final CompletableFuture<
                         Tuple6<
@@ -157,8 +157,8 @@ public abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSl
                                         .registerTaskManager(
                                                 taskExecutorConnection,
                                                 new SlotReport(),
-                                                getDefaultTaskManagerResourceProfile(),
-                                                getDefaultSlotResourceProfile());
+                                                DEFAULT_TOTAL_RESOURCE_PROFILE,
+                                                DEFAULT_SLOT_RESOURCE_PROFILE);
                             }
 
                             getSlotManager().processResourceRequirements(requirements);
@@ -170,8 +170,8 @@ public abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSl
                                         .registerTaskManager(
                                                 taskExecutorConnection,
                                                 new SlotReport(),
-                                                getDefaultTaskManagerResourceProfile(),
-                                                getDefaultSlotResourceProfile());
+                                                DEFAULT_TOTAL_RESOURCE_PROFILE,
+                                                DEFAULT_SLOT_RESOURCE_PROFILE);
                             }
 
                             assertThat(
@@ -185,7 +185,7 @@ public abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSl
                                                                             FUTURE_TIMEOUT_SECOND,
                                                                             TimeUnit.SECONDS)
                                                                     .f2,
-                                                            getDefaultSlotResourceProfile(),
+                                                            DEFAULT_SLOT_RESOURCE_PROFILE,
                                                             targetAddress,
                                                             getResourceManagerId()))));
 
@@ -291,8 +291,8 @@ public abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSl
                                     .registerTaskManager(
                                             taskManagerConnection,
                                             slotReport,
-                                            getDefaultTaskManagerResourceProfile(),
-                                            getDefaultSlotResourceProfile());
+                                            DEFAULT_TOTAL_RESOURCE_PROFILE,
+                                            DEFAULT_SLOT_RESOURCE_PROFILE);
 
                             getSlotManager().processResourceRequirements(resourceRequirements1);
 
@@ -372,13 +372,13 @@ public abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSl
                             getSlotManager()
                                     .processResourceRequirements(
                                             createResourceRequirements(
-                                                    jobId, getDefaultNumberSlotsPerWorker()));
+                                                    jobId, DEFAULT_NUM_SLOTS_PER_WORKER));
                             assertThat(resourceRequests.get(), is(1));
 
                             getSlotManager()
                                     .processResourceRequirements(
                                             createResourceRequirements(
-                                                    jobId, getDefaultNumberSlotsPerWorker() + 1));
+                                                    jobId, DEFAULT_NUM_SLOTS_PER_WORKER + 1));
                             assertThat(resourceRequests.get(), is(2));
                         });
             }
@@ -427,8 +427,8 @@ public abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSl
                                     .registerTaskManager(
                                             taskManagerConnection,
                                             slotReport,
-                                            getDefaultTaskManagerResourceProfile(),
-                                            getDefaultSlotResourceProfile());
+                                            DEFAULT_TOTAL_RESOURCE_PROFILE,
+                                            DEFAULT_SLOT_RESOURCE_PROFILE);
 
                             getSlotManager().processResourceRequirements(resourceRequirements);
 
@@ -505,8 +505,8 @@ public abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSl
                                     .registerTaskManager(
                                             taskExecutionConnection,
                                             slotReport,
-                                            getDefaultTaskManagerResourceProfile(),
-                                            getDefaultSlotResourceProfile());
+                                            DEFAULT_TOTAL_RESOURCE_PROFILE,
+                                            DEFAULT_SLOT_RESOURCE_PROFILE);
                             getSlotManager()
                                     .unregisterTaskManager(
                                             taskExecutionConnection.getInstanceID(),
@@ -561,8 +561,8 @@ public abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSl
                                     .registerTaskManager(
                                             taskExecutionConnection,
                                             slotReport,
-                                            getDefaultTaskManagerResourceProfile(),
-                                            getDefaultSlotResourceProfile());
+                                            DEFAULT_TOTAL_RESOURCE_PROFILE,
+                                            DEFAULT_SLOT_RESOURCE_PROFILE);
                             getSlotManager()
                                     .reportSlotStatus(
                                             taskExecutionConnection.getInstanceID(),
@@ -571,7 +571,7 @@ public abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSl
                                                             allocationId.get(
                                                                     FUTURE_TIMEOUT_SECOND,
                                                                     TimeUnit.SECONDS),
-                                                            getDefaultSlotResourceProfile())));
+                                                            DEFAULT_SLOT_RESOURCE_PROFILE)));
 
                             assertThat(
                                     trackingSecurityManager.getSystemExitFuture().isDone(),

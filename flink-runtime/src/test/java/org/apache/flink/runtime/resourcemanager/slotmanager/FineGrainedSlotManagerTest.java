@@ -28,7 +28,6 @@ import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
-import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.slots.ResourceRequirements;
@@ -59,58 +58,10 @@ import static org.junit.Assert.assertTrue;
 /** Tests of {@link FineGrainedSlotManager}. */
 public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
 
-    private static final WorkerResourceSpec DEFAULT_WORKER_RESOURCE_SPEC =
-            new WorkerResourceSpec.Builder()
-                    .setCpuCores(10.0)
-                    .setTaskHeapMemoryMB(1000)
-                    .setTaskOffHeapMemoryMB(1000)
-                    .setNetworkMemoryMB(1000)
-                    .setManagedMemoryMB(1000)
-                    .build();
-    private static final WorkerResourceSpec LARGE_WORKER_RESOURCE_SPEC =
-            new WorkerResourceSpec.Builder()
-                    .setCpuCores(100.0)
-                    .setTaskHeapMemoryMB(10000)
-                    .setTaskOffHeapMemoryMB(10000)
-                    .setNetworkMemoryMB(10000)
-                    .setManagedMemoryMB(10000)
-                    .build();
-    private static final int DEFAULT_NUM_SLOTS_PER_WORKER = 2;
-    private static final ResourceProfile DEFAULT_TOTAL_RESOURCE_PROFILE =
-            SlotManagerUtils.generateTaskManagerTotalResourceProfile(DEFAULT_WORKER_RESOURCE_SPEC);
-    private static final ResourceProfile DEFAULT_SLOT_RESOURCE_PROFILE =
-            SlotManagerUtils.generateDefaultSlotResourceProfile(
-                    DEFAULT_WORKER_RESOURCE_SPEC, DEFAULT_NUM_SLOTS_PER_WORKER);
-    private static final ResourceProfile LARGE_TOTAL_RESOURCE_PROFILE =
-            SlotManagerUtils.generateTaskManagerTotalResourceProfile(LARGE_WORKER_RESOURCE_SPEC);
     private static final ResourceProfile LARGE_SLOT_RESOURCE_PROFILE =
-            SlotManagerUtils.generateDefaultSlotResourceProfile(
-                    LARGE_WORKER_RESOURCE_SPEC, DEFAULT_NUM_SLOTS_PER_WORKER);
-
-    @Override
-    protected ResourceProfile getDefaultTaskManagerResourceProfile() {
-        return DEFAULT_TOTAL_RESOURCE_PROFILE;
-    }
-
-    @Override
-    protected ResourceProfile getDefaultSlotResourceProfile() {
-        return DEFAULT_SLOT_RESOURCE_PROFILE;
-    }
-
-    @Override
-    protected int getDefaultNumberSlotsPerWorker() {
-        return DEFAULT_NUM_SLOTS_PER_WORKER;
-    }
-
-    @Override
-    protected ResourceProfile getLargeTaskManagerResourceProfile() {
-        return LARGE_TOTAL_RESOURCE_PROFILE;
-    }
-
-    @Override
-    protected ResourceProfile getLargeSlotResourceProfile() {
-        return LARGE_SLOT_RESOURCE_PROFILE;
-    }
+            DEFAULT_TOTAL_RESOURCE_PROFILE.multiply(2);
+    private static final ResourceProfile LARGE_TOTAL_RESOURCE_PROFILE =
+            LARGE_SLOT_RESOURCE_PROFILE.multiply(2);
 
     @Override
     protected Optional<ResourceAllocationStrategy> getResourceAllocationStrategy() {
@@ -146,12 +97,12 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                     .registerTaskManager(
                                             taskManagerConnection,
                                             new SlotReport(),
-                                            getDefaultTaskManagerResourceProfile(),
-                                            getDefaultSlotResourceProfile());
+                                            DEFAULT_TOTAL_RESOURCE_PROFILE,
+                                            DEFAULT_SLOT_RESOURCE_PROFILE);
 
                             assertThat(
                                     getSlotManager().getNumberRegisteredSlots(),
-                                    equalTo(getDefaultNumberSlotsPerWorker()));
+                                    equalTo(DEFAULT_NUM_SLOTS_PER_WORKER));
                             assertThat(
                                     getTaskManagerTracker().getRegisteredTaskManagers().size(),
                                     equalTo(1));
@@ -166,14 +117,14 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                                     taskManagerConnection.getInstanceID())
                                             .get()
                                             .getAvailableResource(),
-                                    equalTo(getDefaultTaskManagerResourceProfile()));
+                                    equalTo(DEFAULT_TOTAL_RESOURCE_PROFILE));
                             assertThat(
                                     getTaskManagerTracker()
                                             .getRegisteredTaskManager(
                                                     taskManagerConnection.getInstanceID())
                                             .get()
                                             .getTotalResource(),
-                                    equalTo(getDefaultTaskManagerResourceProfile()));
+                                    equalTo(DEFAULT_TOTAL_RESOURCE_PROFILE));
                         });
             }
         };
@@ -191,7 +142,7 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
         final AllocationID allocationId = new AllocationID();
         final SlotReport slotReport =
                 new SlotReport(
-                        createAllocatedSlotStatus(allocationId, getDefaultSlotResourceProfile()));
+                        createAllocatedSlotStatus(allocationId, DEFAULT_SLOT_RESOURCE_PROFILE));
         new Context() {
             {
                 runTest(
@@ -200,8 +151,8 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                     .registerTaskManager(
                                             taskManagerConnection,
                                             slotReport,
-                                            getDefaultTaskManagerResourceProfile(),
-                                            getDefaultSlotResourceProfile());
+                                            DEFAULT_TOTAL_RESOURCE_PROFILE,
+                                            DEFAULT_SLOT_RESOURCE_PROFILE);
                             assertThat(
                                     getTaskManagerTracker().getRegisteredTaskManagers().size(),
                                     is(1));
@@ -235,7 +186,7 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
         final SlotReport slotReportWithAllocatedSlot =
                 new SlotReport(
                         createAllocatedSlotStatus(
-                                new AllocationID(), getDefaultSlotResourceProfile()));
+                                new AllocationID(), DEFAULT_SLOT_RESOURCE_PROFILE));
         new Context() {
             {
                 runTest(
@@ -243,15 +194,15 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                             getTaskManagerTracker()
                                     .addPendingTaskManager(
                                             new PendingTaskManager(
-                                                    getDefaultTaskManagerResourceProfile(),
-                                                    getDefaultNumberSlotsPerWorker()));
+                                                    DEFAULT_TOTAL_RESOURCE_PROFILE,
+                                                    DEFAULT_NUM_SLOTS_PER_WORKER));
                             // task manager with allocated slot cannot deduct pending task manager
                             getSlotManager()
                                     .registerTaskManager(
                                             taskExecutionConnection1,
                                             slotReportWithAllocatedSlot,
-                                            getDefaultTaskManagerResourceProfile(),
-                                            getDefaultSlotResourceProfile());
+                                            DEFAULT_TOTAL_RESOURCE_PROFILE,
+                                            DEFAULT_SLOT_RESOURCE_PROFILE);
                             assertThat(
                                     getTaskManagerTracker().getPendingTaskManagers().size(), is(1));
                             // task manager with mismatched resource cannot deduct pending task
@@ -260,16 +211,16 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                     .registerTaskManager(
                                             taskExecutionConnection2,
                                             new SlotReport(),
-                                            getLargeTaskManagerResourceProfile(),
-                                            getLargeSlotResourceProfile());
+                                            LARGE_TOTAL_RESOURCE_PROFILE,
+                                            LARGE_SLOT_RESOURCE_PROFILE);
                             assertThat(
                                     getTaskManagerTracker().getPendingTaskManagers().size(), is(1));
                             getSlotManager()
                                     .registerTaskManager(
                                             taskExecutionConnection3,
                                             new SlotReport(),
-                                            getDefaultTaskManagerResourceProfile(),
-                                            getDefaultSlotResourceProfile());
+                                            DEFAULT_TOTAL_RESOURCE_PROFILE,
+                                            DEFAULT_SLOT_RESOURCE_PROFILE);
                             assertThat(
                                     getTaskManagerTracker().getPendingTaskManagers().size(), is(0));
                         });
@@ -340,7 +291,7 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                         .addAllocationOnRegisteredResource(
                                                 jobId,
                                                 taskManagerConnection.getInstanceID(),
-                                                getDefaultSlotResourceProfile())
+                                                DEFAULT_SLOT_RESOURCE_PROFILE)
                                         .build()));
                 runTest(
                         () -> {
@@ -348,8 +299,8 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                     .registerTaskManager(
                                             taskManagerConnection,
                                             slotReport,
-                                            getDefaultTaskManagerResourceProfile(),
-                                            getDefaultSlotResourceProfile());
+                                            DEFAULT_TOTAL_RESOURCE_PROFILE,
+                                            DEFAULT_SLOT_RESOURCE_PROFILE);
                             getSlotManager()
                                     .processResourceRequirements(
                                             createResourceRequirements(jobId, 1));
@@ -364,7 +315,7 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                             requestSlotFuture.get(
                                                     FUTURE_TIMEOUT_SECOND, TimeUnit.SECONDS);
                             assertEquals(jobId, requestSlot.f1);
-                            assertEquals(getDefaultSlotResourceProfile(), requestSlot.f3);
+                            assertEquals(DEFAULT_SLOT_RESOURCE_PROFILE, requestSlot.f3);
                         });
             }
         };
@@ -386,8 +337,8 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                 ResourceAllocationResult.builder()
                                         .addPendingTaskManagerAllocate(
                                                 new PendingTaskManager(
-                                                        getDefaultTaskManagerResourceProfile(),
-                                                        getDefaultNumberSlotsPerWorker()))
+                                                        DEFAULT_TOTAL_RESOURCE_PROFILE,
+                                                        DEFAULT_NUM_SLOTS_PER_WORKER))
                                         .build()));
                 runTest(
                         () -> {
@@ -405,7 +356,7 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
         final JobID jobId = new JobID();
         final PendingTaskManager pendingTaskManager =
                 new PendingTaskManager(
-                        getDefaultTaskManagerResourceProfile(), getDefaultNumberSlotsPerWorker());
+                        DEFAULT_TOTAL_RESOURCE_PROFILE, DEFAULT_NUM_SLOTS_PER_WORKER);
         final CompletableFuture<
                         Tuple6<
                                 SlotID,
@@ -434,7 +385,7 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                         .addAllocationOnPendingResource(
                                                 jobId,
                                                 pendingTaskManager.getPendingTaskManagerId(),
-                                                getDefaultSlotResourceProfile())
+                                                DEFAULT_SLOT_RESOURCE_PROFILE)
                                         .build()));
                 runTest(
                         () -> {
@@ -445,8 +396,8 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                     .registerTaskManager(
                                             taskManagerConnection,
                                             new SlotReport(),
-                                            getDefaultTaskManagerResourceProfile(),
-                                            getDefaultSlotResourceProfile());
+                                            DEFAULT_TOTAL_RESOURCE_PROFILE,
+                                            DEFAULT_SLOT_RESOURCE_PROFILE);
                             final Tuple6<
                                             SlotID,
                                             JobID,
@@ -458,7 +409,7 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                             requestSlotFuture.get(
                                                     FUTURE_TIMEOUT_SECOND, TimeUnit.SECONDS);
                             assertEquals(jobId, requestSlot.f1);
-                            assertEquals(getDefaultSlotResourceProfile(), requestSlot.f3);
+                            assertEquals(DEFAULT_SLOT_RESOURCE_PROFILE, requestSlot.f3);
                         });
             }
         };
@@ -547,9 +498,9 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                             new SlotReport(
                                                     createAllocatedSlotStatus(
                                                             allocationId,
-                                                            getDefaultSlotResourceProfile())),
-                                            getDefaultTaskManagerResourceProfile(),
-                                            getDefaultSlotResourceProfile());
+                                                            DEFAULT_SLOT_RESOURCE_PROFILE)),
+                                            DEFAULT_TOTAL_RESOURCE_PROFILE,
+                                            DEFAULT_SLOT_RESOURCE_PROFILE);
                             assertEquals(
                                     getSlotManager().getTaskManagerIdleSince(instanceId),
                                     Long.MAX_VALUE);
@@ -570,7 +521,7 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                             // SlotManager. The receiver of the callback can then decide what to do
                             // with the TaskManager.
                             assertEquals(
-                                    getDefaultNumberSlotsPerWorker(),
+                                    DEFAULT_NUM_SLOTS_PER_WORKER,
                                     getSlotManager().getNumberRegisteredSlots());
 
                             getSlotManager()
