@@ -83,7 +83,7 @@ class PseudoRandomValueSelector {
     private static String getGlobalSeed() {
         // manual seed or set by maven
         final String seed = System.getProperty("test.randomization.seed");
-        if (seed != null) {
+        if (seed != null && !seed.isEmpty()) {
             return seed;
         }
 
