@@ -291,7 +291,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
                                 final int count =
                                         pendingWorkerCounter.decreaseAndGet(workerResourceSpec);
                                 log.warn(
-                                        "Failed requesting worker with resource spec {}, current pending count: {}, exception: {}",
+                                        "Failed requesting worker with resource spec {}, current pending count: {}",
                                         workerResourceSpec,
                                         count,
                                         exception);
