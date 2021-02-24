@@ -28,6 +28,7 @@ import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
+import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.slots.ResourceRequirements;
@@ -48,27 +49,20 @@ public abstract class FineGrainedSlotManagerTestBase extends TestLogger {
     private static final Executor MAIN_THREAD_EXECUTOR = Executors.directExecutor();
     static final FlinkException TEST_EXCEPTION = new FlinkException("Test exception");
     static final long FUTURE_TIMEOUT_SECOND = 5;
-
-    /** Resource profile for the default task manager. */
-    protected abstract ResourceProfile getDefaultTaskManagerResourceProfile();
-
-    /** Resource profile for the default slot and requirement. */
-    protected abstract ResourceProfile getDefaultSlotResourceProfile();
-
-    /** The number of slot for the default task manager. */
-    protected abstract int getDefaultNumberSlotsPerWorker();
-
-    /**
-     * Resource profile for a larger task manager, which can fulfill both the larger and the default
-     * slots.
-     */
-    protected abstract ResourceProfile getLargeTaskManagerResourceProfile();
-
-    /**
-     * Resource profile for a larger slot or requirement, which can be fulfilled by the task manager
-     * and cannot be fulfilled by the default task manager.
-     */
-    protected abstract ResourceProfile getLargeSlotResourceProfile();
+    static final WorkerResourceSpec DEFAULT_WORKER_RESOURCE_SPEC =
+            new WorkerResourceSpec.Builder()
+                    .setCpuCores(10.0)
+                    .setTaskHeapMemoryMB(1000)
+                    .setTaskOffHeapMemoryMB(1000)
+                    .setNetworkMemoryMB(1000)
+                    .setManagedMemoryMB(1000)
+                    .build();
+    static final int DEFAULT_NUM_SLOTS_PER_WORKER = 2;
+    static final ResourceProfile DEFAULT_TOTAL_RESOURCE_PROFILE =
+            SlotManagerUtils.generateTaskManagerTotalResourceProfile(DEFAULT_WORKER_RESOURCE_SPEC);
+    static final ResourceProfile DEFAULT_SLOT_RESOURCE_PROFILE =
+            SlotManagerUtils.generateDefaultSlotResourceProfile(
+                    DEFAULT_WORKER_RESOURCE_SPEC, DEFAULT_NUM_SLOTS_PER_WORKER);
 
     protected abstract Optional<ResourceAllocationStrategy> getResourceAllocationStrategy();
 
