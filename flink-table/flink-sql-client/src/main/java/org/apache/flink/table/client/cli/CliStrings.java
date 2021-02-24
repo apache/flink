@@ -112,6 +112,10 @@ public final class CliStrings {
                             formatCommand(
                                     SqlCommand.UNLOAD_MODULE,
                                     "Unload a module. Syntax: 'UNLOAD MODULE <name>;'"))
+                    .append(
+                            formatCommand(
+                                    SqlCommand.USE_MODULES,
+                                    "Enable loaded modules. Syntax: 'USE MODULES <name1> [, <name2>, ...];'"))
                     .style(AttributedStyle.DEFAULT.underline())
                     .append("\nHint")
                     .style(AttributedStyle.DEFAULT)
@@ -120,6 +124,7 @@ public final class CliStrings {
                     .toAttributedString();
 
     public static final String MESSAGE_WELCOME;
+
     // make findbugs happy
     static {
         MESSAGE_WELCOME =
@@ -232,9 +237,13 @@ public final class CliStrings {
 
     public static final String MESSAGE_UNLOAD_MODULE_SUCCEEDED = "Unload module succeeded!";
 
+    public static final String MESSAGE_USE_MODULES_SUCCEEDED = "Use modules succeeded!";
+
     public static final String MESSAGE_LOAD_MODULE_FAILED = "Load module failed!";
 
     public static final String MESSAGE_UNLOAD_MODULE_FAILED = "Unload module failed!";
+
+    public static final String MESSAGE_USE_MODULES_FAILED = "Use modules failed!";
 
     // --------------------------------------------------------------------------------------------
 

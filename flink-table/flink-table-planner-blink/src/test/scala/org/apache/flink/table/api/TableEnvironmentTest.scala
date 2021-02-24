@@ -33,6 +33,7 @@ import org.apache.flink.types.Row
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.flink.core.testutils.FlinkMatchers.containsMessage
+import org.apache.flink.table.module.ModuleEntry
 import org.junit.Assert.{assertEquals, assertFalse, assertThat, assertTrue, fail}
 import org.junit.rules.ExpectedException
 import org.junit.{Rule, Test}
@@ -590,6 +591,66 @@ class TableEnvironmentTest {
       "Could not execute UNLOAD MODULE dummy." +
         " No module with name 'dummy' exists")
     tableEnv.executeSql("UNLOAD MODULE dummy")
+  }
+
+  @Test
+  def testExecuteSqlWithUseModules(): Unit = {
+    tableEnv.executeSql("LOAD MODULE dummy")
+    assert(tableEnv.listModules().sameElements(Array[String]("core", "dummy")))
+
+    val result1 = tableEnv.executeSql("USE MODULES dummy")
+    assertEquals(ResultKind.SUCCESS, result1.getResultKind)
+    assert(tableEnv.listModules().sameElements(Array[String]("dummy")))
+    assert(tableEnv.listFullModules().sameElements(
+      Array[ModuleEntry](
+        new ModuleEntry("dummy", Boolean.box(true)),
+        new ModuleEntry("core", Boolean.box(false))
+      )))
+
+    val result2 = tableEnv.executeSql("USE MODULES dummy, core")
+    assertEquals(ResultKind.SUCCESS, result2.getResultKind)
+    assert(tableEnv.listModules().sameElements(Array[String]("dummy", "core")))
+    assert(tableEnv.listFullModules().sameElements(
+      Array[ModuleEntry](
+        new ModuleEntry("dummy", Boolean.box(true)),
+        new ModuleEntry("core", Boolean.box(true))
+      )))
+
+    val result3 = tableEnv.executeSql("USE MODULES core, dummy")
+    assertEquals(ResultKind.SUCCESS, result3.getResultKind)
+    assert(tableEnv.listModules().sameElements(Array[String]("core", "dummy")))
+    assert(tableEnv.listFullModules().sameElements(
+      Array[ModuleEntry](
+        new ModuleEntry("core", Boolean.box(true)),
+        new ModuleEntry("dummy", Boolean.box(true))
+      )))
+
+    val result4 = tableEnv.executeSql("USE MODULES core")
+    assertEquals(ResultKind.SUCCESS, result4.getResultKind)
+    assert(tableEnv.listModules().sameElements(Array[String]("core")))
+    assert(tableEnv.listFullModules().sameElements(
+      Array[ModuleEntry](
+        new ModuleEntry("core", Boolean.box(true)),
+        new ModuleEntry("dummy", Boolean.box(false))
+      )))
+  }
+
+  @Test
+  def testExecuteSqlWithUseUnloadedModules(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage(
+      "Could not execute USE MODULES: [core, dummy]. " +
+        "No module with name 'dummy' exists")
+    tableEnv.executeSql("USE MODULES core, dummy")
+  }
+
+  @Test
+  def testExecuteSqlWithUseDuplicateModuleNames(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage(
+      "Could not execute USE MODULES: [core, core]. " +
+        "Module 'core' appears more than once")
+    tableEnv.executeSql("USE MODULES core, core")
   }
 
   @Test

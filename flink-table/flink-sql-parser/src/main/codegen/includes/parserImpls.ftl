@@ -1462,13 +1462,43 @@ SqlLoadModule SqlLoadModule() :
 */
 SqlUnloadModule SqlUnloadModule() :
 {
-   SqlParserPos startPos;
-   SqlIdentifier moduleName;
+    SqlParserPos startPos;
+    SqlIdentifier moduleName;
 }
 {
     <UNLOAD> <MODULE> { startPos = getPos(); }
     moduleName = SimpleIdentifier()
     {
         return new SqlUnloadModule(startPos.plus(getPos()), moduleName);
+    }
+}
+
+/**
+* Parses an use modules statement.
+* USE MODULES module_name1 [, module_name2, ...];
+*/
+SqlUseModules SqlUseModules() :
+{
+    final Span s;
+    SqlIdentifier moduleName;
+    final List<SqlIdentifier> moduleNames = new ArrayList<SqlIdentifier>();
+}
+{
+    <USE> <MODULES> { s = span(); }
+    moduleName = SimpleIdentifier()
+    {
+        moduleNames.add(moduleName);
+    }
+    [
+        (
+            <COMMA>
+            moduleName = SimpleIdentifier()
+            {
+                moduleNames.add(moduleName);
+            }
+        )+
+    ]
+    {
+        return new SqlUseModules(s.end(this), moduleNames);
     }
 }

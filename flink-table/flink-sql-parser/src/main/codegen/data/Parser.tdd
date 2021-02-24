@@ -52,6 +52,7 @@
     "org.apache.flink.sql.parser.ddl.SqlTableOption"
     "org.apache.flink.sql.parser.ddl.SqlUseCatalog"
     "org.apache.flink.sql.parser.ddl.SqlUseDatabase"
+    "org.apache.flink.sql.parser.ddl.SqlUseModules"
     "org.apache.flink.sql.parser.ddl.SqlWatermark"
     "org.apache.flink.sql.parser.dml.RichSqlInsert"
     "org.apache.flink.sql.parser.dml.RichSqlInsertKeyword"
@@ -95,6 +96,7 @@
     "IF"
     "LOAD"
     "METADATA"
+    "MODULES"
     "OVERWRITE"
     "OVERWRITING"
     "PARTITIONED"
@@ -472,6 +474,7 @@
     "SqlAlterTable()"
     "SqlShowViews()"
     "SqlUnloadModule()"
+    "SqlUseModules()"
   ]
 
   # List of methods for parsing custom literals.

@@ -52,6 +52,7 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
+import org.apache.flink.table.operations.UseModulesOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterTableAddConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
@@ -318,6 +319,32 @@ public class SqlToOperationConverterTest {
         final UnloadModuleOperation unloadModuleOperation = (UnloadModuleOperation) operation;
 
         assertEquals(expectedModuleName, unloadModuleOperation.getModuleName());
+    }
+
+    @Test
+    public void testUseOneModule() {
+        final String sql = "USE MODULES dummy";
+        final List<String> expectedModuleNames = Collections.singletonList("dummy");
+
+        Operation operation = parse(sql, SqlDialect.DEFAULT);
+        assert operation instanceof UseModulesOperation;
+        final UseModulesOperation useModulesOperation = (UseModulesOperation) operation;
+
+        assertEquals(expectedModuleNames, useModulesOperation.getModuleNames());
+        assertEquals("USE MODULES: [dummy]", useModulesOperation.asSummaryString());
+    }
+
+    @Test
+    public void testUseMultipleModules() {
+        final String sql = "USE MODULES x, y, z";
+        final List<String> expectedModuleNames = Arrays.asList("x", "y", "z");
+
+        Operation operation = parse(sql, SqlDialect.DEFAULT);
+        assert operation instanceof UseModulesOperation;
+        final UseModulesOperation useModulesOperation = (UseModulesOperation) operation;
+
+        assertEquals(expectedModuleNames, useModulesOperation.getModuleNames());
+        assertEquals("USE MODULES: [x, y, z]", useModulesOperation.asSummaryString());
     }
 
     @Test
