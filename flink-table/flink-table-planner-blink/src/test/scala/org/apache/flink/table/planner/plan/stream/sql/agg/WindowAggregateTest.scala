@@ -570,7 +570,6 @@ class WindowAggregateTest extends TableTestBase {
     util.verifyRelPlan(sql)
   }
 
-
   @Test
   def testCantTranslateToWindowAgg_PythonAggregateCall(): Unit = {
     util.tableEnv.createTemporaryFunction("python_agg", classOf[TestPythonAggregateFunction])
@@ -683,4 +682,167 @@ class WindowAggregateTest extends TableTestBase {
       "must be an integral multiple of step, but got maxSize 3600000 ms and step 1500000 ms")
     util.verifyExplain(sql)
   }
+
+  @Test
+  def testCantTranslateToWindowAgg_GroupingSetsWithoutWindowStartEnd(): Unit = {
+    // Cannot translate to window aggregate because group keys don't contain both window_start
+    // and window_end
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   count(distinct c) AS uv
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |GROUP BY GROUPING SETS ((a), (window_start), (window_end))
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testCantTranslateToWindowAgg_GroupingSetsOnlyWithWindowStart(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   count(distinct c) AS uv
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |GROUP BY GROUPING SETS ((a, window_start), (window_start))
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testTumble_GroupingSets(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   b,
+        |   count(distinct c) AS uv
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |GROUP BY GROUPING SETS ((a, window_start, window_end), (b, window_start, window_end))
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testTumble_GroupingSets1(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   b,
+        |   count(distinct c) AS uv
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |GROUP BY GROUPING SETS ((a), (b)), window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testTumble_GroupingSetsDistinctSplitEnabled(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   b,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   count(distinct c) AS uv
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |GROUP BY GROUPING SETS ((a), (b)), window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testCantMergeWindowTVF_GroupingSetsDistinctOnWindowColumns(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+    // window_time is used in agg arg, thus we shouldn't merge WindowTVF into WindowAggregate.
+    // actually, after expanded, there's HASH_CODE(window_time),
+    // and thus we shouldn't transpose WindowTVF and Expand too.
+    val sql =
+    """
+      |SELECT
+      |   a,
+      |   b,
+      |   count(*),
+      |   max(d) filter (where b > 1000),
+      |   count(distinct window_time) AS uv
+      |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+      |GROUP BY GROUPING SETS ((a), (b)), window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testHop_GroupingSets(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   b,
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |   HOP(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |GROUP BY GROUPING SETS ((a), (b)), window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testHop_GroupingSets_DistinctSplitEnabled(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   b,
+        |   count(*),
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |  HOP(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |GROUP BY GROUPING SETS ((a), (b)), window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testCumulate_GroupingSets(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   b,
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |   CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '25' MINUTE, INTERVAL '1' HOUR))
+        |GROUP BY GROUPING SETS ((a), (b)), window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testCumulate_GroupingSets_DistinctSplitEnabled(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   b,
+        |   count(*),
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |  CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |GROUP BY GROUPING SETS ((a), (b)), window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
 }

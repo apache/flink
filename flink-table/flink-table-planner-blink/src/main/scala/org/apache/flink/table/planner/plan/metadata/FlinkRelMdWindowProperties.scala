@@ -28,7 +28,6 @@ import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.util.{ImmutableBitSet, Util}
 import org.apache.flink.table.planner.expressions.{PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowEnd, PlannerWindowStart}
 import org.apache.flink.table.planner.plan.`trait`.RelWindowProperties
-import org.apache.flink.table.planner.plan.logical.WindowAttachedWindowingStrategy
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, WatermarkAssigner}
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalAggregate, FlinkLogicalCorrelate}
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
@@ -138,8 +137,27 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
   }
 
   def getWindowProperties(rel: Expand, mq: RelMetadataQuery): RelWindowProperties = {
+
+    def inferWindowPropertyAfterExpand(windowProperty: ImmutableBitSet): ImmutableBitSet = {
+      rel.projects.map { exprs =>
+        val columns = windowProperty.toArray.filter { column =>
+          // Projects in expand could only be RexInputRef or null literal, exclude null literal for
+          // window properties columns
+          exprs.get(column).isInstanceOf[RexInputRef]
+        }
+        ImmutableBitSet.of(columns.toArray: _*)
+      }.reduce((l, r) => l.intersect(r))
+    }
+
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
-    fmq.getRelWindowProperties(rel.getInput)
+    val inputWindowProperties = fmq.getRelWindowProperties(rel.getInput)
+    if (inputWindowProperties == null) {
+      return null
+    }
+    val starts = inferWindowPropertyAfterExpand(inputWindowProperties.getWindowStartColumns)
+    val ends = inferWindowPropertyAfterExpand(inputWindowProperties.getWindowEndColumns)
+    val times = inferWindowPropertyAfterExpand(inputWindowProperties.getWindowTimeColumns)
+    inputWindowProperties.copy(starts, ends, times)
   }
 
   def getWindowProperties(rel: Exchange, mq: RelMetadataQuery): RelWindowProperties = {

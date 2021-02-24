@@ -102,6 +102,45 @@ class WindowAggregateITCase(mode: StateBackendMode)
   }
 
   @Test
+  def testEventTimeTumbleWindow_GroupingSets(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  GROUPING_ID(`name`),
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*),
+        |  SUM(`bigdec`),
+        |  MAX(`double`),
+        |  MIN(`float`),
+        |  COUNT(DISTINCT `string`),
+        |  concat_distinct_agg(`string`)
+        |FROM TABLE(
+        |   TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))
+        |GROUP BY GROUPING SETS((`name`),()), window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "0,a,2020-10-10T00:00,2020-10-10T00:00:05,4,11.10,5.0,1.0,2,Hi|Comment#1",
+      "0,a,2020-10-10T00:00:05,2020-10-10T00:00:10,1,3.33,null,3.0,1,Comment#2",
+      "0,b,2020-10-10T00:00:05,2020-10-10T00:00:10,2,6.66,6.0,3.0,2,Hello|Hi",
+      "0,b,2020-10-10T00:00:15,2020-10-10T00:00:20,1,4.44,4.0,4.0,1,Hi",
+      "0,b,2020-10-10T00:00:30,2020-10-10T00:00:35,1,3.33,3.0,3.0,1,Comment#3",
+      "0,null,2020-10-10T00:00:30,2020-10-10T00:00:35,1,7.77,7.0,7.0,0,null",
+      "1,null,2020-10-10T00:00,2020-10-10T00:00:05,4,11.10,5.0,1.0,2,Hi|Comment#1",
+      "1,null,2020-10-10T00:00:05,2020-10-10T00:00:10,3,9.99,6.0,3.0,3,Hello|Hi|Comment#2",
+      "1,null,2020-10-10T00:00:15,2020-10-10T00:00:20,1,4.44,4.0,4.0,1,Hi",
+      "1,null,2020-10-10T00:00:30,2020-10-10T00:00:35,2,11.10,7.0,3.0,1,Comment#3"
+    )
+    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+  }
+
+  @Test
   def testTumbleWindowOutputWindowTime(): Unit = {
     val sql =
       """
@@ -188,7 +227,6 @@ class WindowAggregateITCase(mode: StateBackendMode)
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 
-
   @Test
   def testEventTimeHopWindow(): Unit = {
     val sql =
@@ -224,6 +262,53 @@ class WindowAggregateITCase(mode: StateBackendMode)
       "b,2020-10-10T00:00:30,2020-10-10T00:00:40,1,3.33,3.0,3.0,1,Comment#3",
       "null,2020-10-10T00:00:25,2020-10-10T00:00:35,1,7.77,7.0,7.0,0,null",
       "null,2020-10-10T00:00:30,2020-10-10T00:00:40,1,7.77,7.0,7.0,0,null")
+    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+  }
+
+  @Test
+  def testEventTimeHopWindow_GroupingSets(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  GROUPING_ID(`name`),
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*),
+        |  SUM(`bigdec`),
+        |  MAX(`double`),
+        |  MIN(`float`),
+        |  COUNT(DISTINCT `string`),
+        |  concat_distinct_agg(`string`)
+        |FROM TABLE(
+        |   HOP(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '10' SECOND))
+        |GROUP BY GROUPING SETS((`name`),()), window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "0,a,2020-10-09T23:59:55,2020-10-10T00:00:05,4,11.10,5.0,1.0,2,Hi|Comment#1",
+      "0,a,2020-10-10T00:00,2020-10-10T00:00:10,5,14.43,5.0,1.0,3,Comment#2|Hi|Comment#1",
+      "0,a,2020-10-10T00:00:05,2020-10-10T00:00:15,1,3.33,null,3.0,1,Comment#2",
+      "0,b,2020-10-10T00:00,2020-10-10T00:00:10,2,6.66,6.0,3.0,2,Hello|Hi",
+      "0,b,2020-10-10T00:00:05,2020-10-10T00:00:15,2,6.66,6.0,3.0,2,Hello|Hi",
+      "0,b,2020-10-10T00:00:10,2020-10-10T00:00:20,1,4.44,4.0,4.0,1,Hi",
+      "0,b,2020-10-10T00:00:15,2020-10-10T00:00:25,1,4.44,4.0,4.0,1,Hi",
+      "0,b,2020-10-10T00:00:25,2020-10-10T00:00:35,1,3.33,3.0,3.0,1,Comment#3",
+      "0,b,2020-10-10T00:00:30,2020-10-10T00:00:40,1,3.33,3.0,3.0,1,Comment#3",
+      "0,null,2020-10-10T00:00:25,2020-10-10T00:00:35,1,7.77,7.0,7.0,0,null",
+      "0,null,2020-10-10T00:00:30,2020-10-10T00:00:40,1,7.77,7.0,7.0,0,null",
+      "1,null,2020-10-09T23:59:55,2020-10-10T00:00:05,4,11.10,5.0,1.0,2,Hi|Comment#1",
+      "1,null,2020-10-10T00:00,2020-10-10T00:00:10,7,21.09,6.0,1.0,4,Hello|Hi|Comment#2|Comment#1",
+      "1,null,2020-10-10T00:00:05,2020-10-10T00:00:15,3,9.99,6.0,3.0,3,Hello|Hi|Comment#2",
+      "1,null,2020-10-10T00:00:10,2020-10-10T00:00:20,1,4.44,4.0,4.0,1,Hi",
+      "1,null,2020-10-10T00:00:15,2020-10-10T00:00:25,1,4.44,4.0,4.0,1,Hi",
+      "1,null,2020-10-10T00:00:25,2020-10-10T00:00:35,2,11.10,7.0,3.0,1,Comment#3",
+      "1,null,2020-10-10T00:00:30,2020-10-10T00:00:40,2,11.10,7.0,3.0,1,Comment#3"
+    )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 
@@ -269,6 +354,62 @@ class WindowAggregateITCase(mode: StateBackendMode)
       "null,2020-10-10T00:00:30,2020-10-10T00:00:35,1,7.77,7.0,7.0,0,null",
       "null,2020-10-10T00:00:30,2020-10-10T00:00:40,1,7.77,7.0,7.0,0,null",
       "null,2020-10-10T00:00:30,2020-10-10T00:00:45,1,7.77,7.0,7.0,0,null")
+    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+  }
+
+  @Test
+  def testEventTimeCumulateWindow_GroupingSets(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  GROUPING_ID(`name`),
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*),
+        |  SUM(`bigdec`),
+        |  MAX(`double`),
+        |  MIN(`float`),
+        |  COUNT(DISTINCT `string`),
+        |  concat_distinct_agg(`string`)
+        |FROM TABLE(
+        |   CUMULATE(
+        |     TABLE T1,
+        |     DESCRIPTOR(rowtime),
+        |     INTERVAL '5' SECOND,
+        |     INTERVAL '15' SECOND))
+        |GROUP BY GROUPING SETS((`name`),()), window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "0,a,2020-10-10T00:00,2020-10-10T00:00:05,4,11.10,5.0,1.0,2,Hi|Comment#1",
+      "0,a,2020-10-10T00:00,2020-10-10T00:00:10,5,14.43,5.0,1.0,3,Hi|Comment#1|Comment#2",
+      "0,a,2020-10-10T00:00,2020-10-10T00:00:15,5,14.43,5.0,1.0,3,Hi|Comment#1|Comment#2",
+      "0,b,2020-10-10T00:00,2020-10-10T00:00:10,2,6.66,6.0,3.0,2,Hello|Hi",
+      "0,b,2020-10-10T00:00,2020-10-10T00:00:15,2,6.66,6.0,3.0,2,Hello|Hi",
+      "0,b,2020-10-10T00:00:15,2020-10-10T00:00:20,1,4.44,4.0,4.0,1,Hi",
+      "0,b,2020-10-10T00:00:15,2020-10-10T00:00:25,1,4.44,4.0,4.0,1,Hi",
+      "0,b,2020-10-10T00:00:15,2020-10-10T00:00:30,1,4.44,4.0,4.0,1,Hi",
+      "0,b,2020-10-10T00:00:30,2020-10-10T00:00:35,1,3.33,3.0,3.0,1,Comment#3",
+      "0,b,2020-10-10T00:00:30,2020-10-10T00:00:40,1,3.33,3.0,3.0,1,Comment#3",
+      "0,b,2020-10-10T00:00:30,2020-10-10T00:00:45,1,3.33,3.0,3.0,1,Comment#3",
+      "0,null,2020-10-10T00:00:30,2020-10-10T00:00:35,1,7.77,7.0,7.0,0,null",
+      "0,null,2020-10-10T00:00:30,2020-10-10T00:00:40,1,7.77,7.0,7.0,0,null",
+      "0,null,2020-10-10T00:00:30,2020-10-10T00:00:45,1,7.77,7.0,7.0,0,null",
+      "1,null,2020-10-10T00:00,2020-10-10T00:00:05,4,11.10,5.0,1.0,2,Hi|Comment#1",
+      "1,null,2020-10-10T00:00,2020-10-10T00:00:10,7,21.09,6.0,1.0,4,Hi|Comment#1|Hello|Comment#2",
+      "1,null,2020-10-10T00:00,2020-10-10T00:00:15,7,21.09,6.0,1.0,4,Hi|Comment#1|Hello|Comment#2",
+      "1,null,2020-10-10T00:00:15,2020-10-10T00:00:20,1,4.44,4.0,4.0,1,Hi",
+      "1,null,2020-10-10T00:00:15,2020-10-10T00:00:25,1,4.44,4.0,4.0,1,Hi",
+      "1,null,2020-10-10T00:00:15,2020-10-10T00:00:30,1,4.44,4.0,4.0,1,Hi",
+      "1,null,2020-10-10T00:00:30,2020-10-10T00:00:35,2,11.10,7.0,3.0,1,Comment#3",
+      "1,null,2020-10-10T00:00:30,2020-10-10T00:00:40,2,11.10,7.0,3.0,1,Comment#3",
+      "1,null,2020-10-10T00:00:30,2020-10-10T00:00:45,2,11.10,7.0,3.0,1,Comment#3"
+    )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 }
