@@ -19,10 +19,12 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.ExecutionEdge;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.InternalExecutionGraphAccessor;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
@@ -49,13 +51,17 @@ public class ExecutionGraphToInputsLocationsRetrieverAdapter implements InputsLo
             ExecutionVertexID executionVertexId) {
         ExecutionVertex ev = getExecutionVertex(executionVertexId);
 
+        InternalExecutionGraphAccessor executionGraphAccessor = ev.getExecutionGraphAccessor();
+
         List<Collection<ExecutionVertexID>> resultPartitionProducers =
                 new ArrayList<>(ev.getNumberOfInputs());
-        for (int i = 0; i < ev.getNumberOfInputs(); i++) {
-            ExecutionEdge[] inputEdges = ev.getInputEdges(i);
-            List<ExecutionVertexID> producers = new ArrayList<>(inputEdges.length);
-            for (ExecutionEdge inputEdge : inputEdges) {
-                ExecutionVertex producer = inputEdge.getSource().getProducer();
+        for (ConsumedPartitionGroup consumedPartitions : ev.getAllConsumedPartitionGroups()) {
+            List<ExecutionVertexID> producers = new ArrayList<>(consumedPartitions.size());
+            for (IntermediateResultPartitionID consumedPartitionId : consumedPartitions) {
+                ExecutionVertex producer =
+                        executionGraphAccessor
+                                .getResultPartitionOrThrow(consumedPartitionId)
+                                .getProducer();
                 producers.add(producer.getID());
             }
             resultPartitionProducers.add(producers);

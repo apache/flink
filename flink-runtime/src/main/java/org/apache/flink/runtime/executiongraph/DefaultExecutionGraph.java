@@ -252,6 +252,12 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     private final ExecutionDeploymentListener executionDeploymentListener;
     private final ExecutionStateUpdateListener executionStateUpdateListener;
 
+    private final EdgeManager edgeManager;
+
+    private final Map<ExecutionVertexID, ExecutionVertex> executionVerticesById;
+    private final Map<IntermediateResultPartitionID, IntermediateResultPartition>
+            resultPartitionsById;
+
     // --------------------------------------------------------------------------------------------
     //   Constructors
     // --------------------------------------------------------------------------------------------
@@ -324,6 +330,10 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
         this.executionDeploymentListener = executionDeploymentListener;
         this.executionStateUpdateListener = executionStateUpdateListener;
+
+        this.edgeManager = new EdgeManager();
+        this.executionVerticesById = new HashMap<>();
+        this.resultPartitionsById = new HashMap<>();
     }
 
     @Override
@@ -629,6 +639,22 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     }
 
     @Override
+    public EdgeManager getEdgeManager() {
+        return edgeManager;
+    }
+
+    @Override
+    public ExecutionVertex getExecutionVertexOrThrow(ExecutionVertexID id) {
+        return checkNotNull(executionVerticesById.get(id));
+    }
+
+    @Override
+    public IntermediateResultPartition getResultPartitionOrThrow(
+            final IntermediateResultPartitionID id) {
+        return checkNotNull(resultPartitionsById.get(id));
+    }
+
+    @Override
     public long getStatusTimestamp(JobStatus status) {
         return this.stateTimestamps[status.ordinal()];
     }
@@ -777,6 +803,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             this.numVerticesTotal += ejv.getParallelism();
             newExecJobVertices.add(ejv);
         }
+
+        registerExecutionVerticesAndResultPartitions(this.verticesInCreationOrder);
 
         // the topology assigning should happen before notifying new vertices to failoverStrategy
         executionTopology = DefaultExecutionTopology.fromExecutionGraph(this);
@@ -1336,6 +1364,16 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                                     + exec
                                     + " failed. Found for same ID execution "
                                     + contained));
+        }
+    }
+
+    private void registerExecutionVerticesAndResultPartitions(
+            List<ExecutionJobVertex> executionJobVertices) {
+        for (ExecutionJobVertex executionJobVertex : executionJobVertices) {
+            for (ExecutionVertex executionVertex : executionJobVertex.getTaskVertices()) {
+                executionVerticesById.put(executionVertex.getID(), executionVertex);
+                resultPartitionsById.putAll(executionVertex.getProducedPartitions());
+            }
         }
     }
 

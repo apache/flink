@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.scheduler.adapter;
 
-import org.apache.flink.runtime.executiongraph.ExecutionEdge;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
@@ -26,6 +25,7 @@ import org.apache.flink.runtime.executiongraph.failover.flip1.PipelinedRegionCom
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ResultPartitionState;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
@@ -211,10 +211,10 @@ public class DefaultExecutionTopology implements SchedulingTopology {
             final DefaultExecutionVertex schedulingVertex = mapEntry.getValue();
             final ExecutionVertex executionVertex = mapEntry.getKey();
 
-            for (int index = 0; index < executionVertex.getNumberOfInputs(); index++) {
-                for (ExecutionEdge edge : executionVertex.getInputEdges(index)) {
-                    DefaultResultPartition partition =
-                            resultPartitions.get(edge.getSource().getPartitionId());
+            for (ConsumedPartitionGroup consumedPartitionGroup :
+                    executionVertex.getAllConsumedPartitionGroups()) {
+                for (IntermediateResultPartitionID consumedPartition : consumedPartitionGroup) {
+                    DefaultResultPartition partition = resultPartitions.get(consumedPartition);
                     schedulingVertex.addConsumedResult(partition);
                     partition.addConsumer(schedulingVertex);
                 }

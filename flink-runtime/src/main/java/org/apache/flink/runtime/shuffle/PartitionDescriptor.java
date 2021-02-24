@@ -19,12 +19,12 @@
 package org.apache.flink.runtime.shuffle;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.runtime.executiongraph.ExecutionEdge;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.scheduler.strategy.ConsumerVertexGroup;
 
 import java.io.Serializable;
 import java.util.List;
@@ -113,7 +113,7 @@ public class PartitionDescriptor implements Serializable {
         // If no consumers are known at this point, we use a single subpartition, otherwise we have
         // one for each consuming sub task.
         int numberOfSubpartitions = 1;
-        List<List<ExecutionEdge>> consumers = partition.getConsumers();
+        List<ConsumerVertexGroup> consumers = partition.getConsumers();
         if (!consumers.isEmpty() && !consumers.get(0).isEmpty()) {
             if (consumers.size() > 1) {
                 throw new IllegalStateException(
