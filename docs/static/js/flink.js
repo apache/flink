@@ -174,5 +174,6 @@ document.addEventListener("DOMContentLoaded", function(event) {
     anchors.options = {
         placement: 'right'
     };
+    // add anchors to h5 headings, hugo already adds them to h1-h4 but we use h5 in generated documentation
     anchors.add('h5');
 });
