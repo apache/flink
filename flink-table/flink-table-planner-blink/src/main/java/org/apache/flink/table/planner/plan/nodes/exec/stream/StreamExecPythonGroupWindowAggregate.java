@@ -41,6 +41,7 @@ import org.apache.flink.table.planner.expressions.PlannerWindowEnd;
 import org.apache.flink.table.planner.expressions.PlannerWindowProperty;
 import org.apache.flink.table.planner.expressions.PlannerWindowStart;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
+import org.apache.flink.table.planner.plan.logical.SessionGroupWindow;
 import org.apache.flink.table.planner.plan.logical.SlidingGroupWindow;
 import org.apache.flink.table.planner.plan.logical.TumblingGroupWindow;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
@@ -57,6 +58,7 @@ import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.window.assigners.CountSlidingWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.assigners.CountTumblingWindowAssigner;
+import org.apache.flink.table.runtime.operators.window.assigners.SessionWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.assigners.SlidingWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.assigners.TumblingWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
@@ -296,6 +298,19 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                 // ProcessingTimeTumblingGroupWindow
                 throw new UnsupportedOperationException(
                         "Event-time grouping windows on row intervals are currently not supported.");
+            }
+        } else if (window instanceof SessionGroupWindow) {
+            SessionGroupWindow sessionWindow = (SessionGroupWindow) window;
+            FieldReferenceExpression timeField = sessionWindow.timeField();
+            ValueLiteralExpression gap = sessionWindow.gap();
+            if (isProctimeAttribute(timeField)) {
+                windowAssiger = SessionWindowAssigner.withGap(toDuration(gap));
+                trigger = ProcessingTimeTriggers.afterEndOfWindow();
+            } else if (isRowtimeAttribute(timeField)) {
+                windowAssiger = SessionWindowAssigner.withGap(toDuration(gap));
+                trigger = EventTimeTriggers.afterEndOfWindow();
+            } else {
+                throw new UnsupportedOperationException("This should not happen.");
             }
         } else {
             throw new TableException("Unsupported window: " + window.toString());
