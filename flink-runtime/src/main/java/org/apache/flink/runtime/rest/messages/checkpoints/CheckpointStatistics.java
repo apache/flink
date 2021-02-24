@@ -132,7 +132,7 @@ public class CheckpointStatistics implements ResponseBody {
     private final int numAckSubtasks;
 
     @JsonProperty(FIELD_NAME_CHECKPOINT_TYPE)
-    private final CheckpointType checkpointType;
+    private final RestAPICheckpointType checkpointType;
 
     @JsonProperty(FIELD_NAME_TASKS)
     @JsonSerialize(keyUsing = JobVertexIDKeySerializer.class)
@@ -152,7 +152,7 @@ public class CheckpointStatistics implements ResponseBody {
             @JsonProperty(FIELD_NAME_PERSISTED_DATA) long persistedData,
             @JsonProperty(FIELD_NAME_NUM_SUBTASKS) int numSubtasks,
             @JsonProperty(FIELD_NAME_NUM_ACK_SUBTASKS) int numAckSubtasks,
-            @JsonProperty(FIELD_NAME_CHECKPOINT_TYPE) CheckpointType checkpointType,
+            @JsonProperty(FIELD_NAME_CHECKPOINT_TYPE) RestAPICheckpointType checkpointType,
             @JsonDeserialize(keyUsing = JobVertexIDKeyDeserializer.class)
                     @JsonProperty(FIELD_NAME_TASKS)
                     Map<JobVertexID, TaskCheckpointStatistics> checkpointStatisticsPerTask) {
@@ -208,7 +208,7 @@ public class CheckpointStatistics implements ResponseBody {
         return numAckSubtasks;
     }
 
-    public CheckpointType getCheckpointType() {
+    public RestAPICheckpointType getCheckpointType() {
         return checkpointType;
     }
 
@@ -313,7 +313,8 @@ public class CheckpointStatistics implements ResponseBody {
                     completedCheckpointStats.getPersistedData(),
                     completedCheckpointStats.getNumberOfSubtasks(),
                     completedCheckpointStats.getNumberOfAcknowledgedSubtasks(),
-                    completedCheckpointStats.getProperties().getCheckpointType(),
+                    RestAPICheckpointType.valueOf(
+                            completedCheckpointStats.getProperties().getCheckpointType()),
                     checkpointStatisticsPerTask,
                     completedCheckpointStats.getExternalPath(),
                     completedCheckpointStats.isDiscarded());
@@ -334,7 +335,8 @@ public class CheckpointStatistics implements ResponseBody {
                     failedCheckpointStats.getPersistedData(),
                     failedCheckpointStats.getNumberOfSubtasks(),
                     failedCheckpointStats.getNumberOfAcknowledgedSubtasks(),
-                    failedCheckpointStats.getProperties().getCheckpointType(),
+                    RestAPICheckpointType.valueOf(
+                            failedCheckpointStats.getProperties().getCheckpointType()),
                     checkpointStatisticsPerTask,
                     failedCheckpointStats.getFailureTimestamp(),
                     failedCheckpointStats.getFailureMessage());
@@ -355,13 +357,37 @@ public class CheckpointStatistics implements ResponseBody {
                     pendingCheckpointStats.getPersistedData(),
                     pendingCheckpointStats.getNumberOfSubtasks(),
                     pendingCheckpointStats.getNumberOfAcknowledgedSubtasks(),
-                    pendingCheckpointStats.getProperties().getCheckpointType(),
+                    RestAPICheckpointType.valueOf(
+                            pendingCheckpointStats.getProperties().getCheckpointType()),
                     checkpointStatisticsPerTask);
         } else {
             throw new IllegalArgumentException(
                     "Given checkpoint stats object of type "
                             + checkpointStats.getClass().getName()
                             + " cannot be converted.");
+        }
+    }
+
+    /**
+     * Backward compatibility layer between internal {@link CheckpointType} and a field used in
+     * {@link CheckpointStatistics}.
+     */
+    enum RestAPICheckpointType {
+        CHECKPOINT,
+        SAVEPOINT,
+        SYNC_SAVEPOINT;
+
+        public static RestAPICheckpointType valueOf(CheckpointType checkpointType) {
+            switch (checkpointType) {
+                case CHECKPOINT:
+                    return CHECKPOINT;
+                case SAVEPOINT:
+                    return SAVEPOINT;
+                case SYNC_SAVEPOINT:
+                    return SYNC_SAVEPOINT;
+                default:
+                    throw new UnsupportedOperationException(checkpointType.toString());
+            }
         }
     }
 
@@ -397,7 +423,7 @@ public class CheckpointStatistics implements ResponseBody {
                 @JsonProperty(FIELD_NAME_PERSISTED_DATA) long persistedData,
                 @JsonProperty(FIELD_NAME_NUM_SUBTASKS) int numSubtasks,
                 @JsonProperty(FIELD_NAME_NUM_ACK_SUBTASKS) int numAckSubtasks,
-                @JsonProperty(FIELD_NAME_CHECKPOINT_TYPE) CheckpointType checkpointType,
+                @JsonProperty(FIELD_NAME_CHECKPOINT_TYPE) RestAPICheckpointType checkpointType,
                 @JsonDeserialize(keyUsing = JobVertexIDKeyDeserializer.class)
                         @JsonProperty(FIELD_NAME_TASKS)
                         Map<JobVertexID, TaskCheckpointStatistics> checkpointingStatisticsPerTask,
@@ -481,7 +507,7 @@ public class CheckpointStatistics implements ResponseBody {
                 @JsonProperty(FIELD_NAME_PERSISTED_DATA) long persistedData,
                 @JsonProperty(FIELD_NAME_NUM_SUBTASKS) int numSubtasks,
                 @JsonProperty(FIELD_NAME_NUM_ACK_SUBTASKS) int numAckSubtasks,
-                @JsonProperty(FIELD_NAME_CHECKPOINT_TYPE) CheckpointType checkpointType,
+                @JsonProperty(FIELD_NAME_CHECKPOINT_TYPE) RestAPICheckpointType checkpointType,
                 @JsonDeserialize(keyUsing = JobVertexIDKeyDeserializer.class)
                         @JsonProperty(FIELD_NAME_TASKS)
                         Map<JobVertexID, TaskCheckpointStatistics> checkpointingStatisticsPerTask,
@@ -555,7 +581,7 @@ public class CheckpointStatistics implements ResponseBody {
                 @JsonProperty(FIELD_NAME_PERSISTED_DATA) long persistedData,
                 @JsonProperty(FIELD_NAME_NUM_SUBTASKS) int numSubtasks,
                 @JsonProperty(FIELD_NAME_NUM_ACK_SUBTASKS) int numAckSubtasks,
-                @JsonProperty(FIELD_NAME_CHECKPOINT_TYPE) CheckpointType checkpointType,
+                @JsonProperty(FIELD_NAME_CHECKPOINT_TYPE) RestAPICheckpointType checkpointType,
                 @JsonDeserialize(keyUsing = JobVertexIDKeyDeserializer.class)
                         @JsonProperty(FIELD_NAME_TASKS)
                         Map<JobVertexID, TaskCheckpointStatistics> checkpointingStatisticsPerTask) {
