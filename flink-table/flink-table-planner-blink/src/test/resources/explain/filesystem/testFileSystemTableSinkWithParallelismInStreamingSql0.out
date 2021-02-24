@@ -14,41 +14,30 @@ Sink(table=[default_catalog.default_database.test_sink_table], fields=[id, real_
 == Physical Execution Plan ==
 {
   "nodes" : [ {
-    "id" : 1,
+    "id" : ,
     "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, test_source_table]], fields=[id, real_col, double_col, decimal_col])",
     "pact" : "Data Source",
     "contents" : "Source: TableSourceScan(table=[[default_catalog, default_database, test_source_table]], fields=[id, real_col, double_col, decimal_col])",
     "parallelism" : 1
   }, {
-    "id" : 2,
-    "type" : "Filter",
-    "pact" : "Operator",
-    "contents" : "Filter",
-    "parallelism" : 8,
-    "predecessors" : [ {
-      "id" : 1,
-      "ship_strategy" : "REBALANCE",
-      "side" : "second"
-    } ]
-  }, {
-    "id" : 3,
+    "id" : ,
     "type" : "StreamingFileWriter",
     "pact" : "Operator",
     "contents" : "StreamingFileWriter",
     "parallelism" : 5,
     "predecessors" : [ {
-      "id" : 2,
+      "id" : ,
       "ship_strategy" : "REBALANCE",
       "side" : "second"
     } ]
   }, {
-    "id" : 4,
+    "id" : ,
     "type" : "Sink: end",
     "pact" : "Data Sink",
     "contents" : "Sink: end",
     "parallelism" : 1,
     "predecessors" : [ {
-      "id" : 3,
+      "id" : ,
       "ship_strategy" : "REBALANCE",
       "side" : "second"
     } ]
