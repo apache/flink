@@ -18,9 +18,13 @@
 
 package org.apache.flink.kubernetes.kubeclient.resources;
 
+import org.apache.flink.util.Preconditions;
+
+import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerStateTerminated;
 import io.fabric8.kubernetes.api.model.Pod;
 
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /** Represent KubernetesPod resource in kubernetes. */
@@ -68,5 +72,19 @@ public class KubernetesPod extends KubernetesResource<Pod> {
         }
         sb.append("]");
         return sb.toString();
+    }
+
+    public String getCommandArgs(String containerName) {
+        final Optional<Container> containerOpt =
+                this.getInternalResource().getSpec().getContainers().stream()
+                        .filter(
+                                container ->
+                                        Preconditions.checkNotNull(containerName)
+                                                .equals(container.getName()))
+                        .findAny();
+        Preconditions.checkState(containerOpt.isPresent());
+        return String.join(" ", containerOpt.get().getCommand())
+                + " "
+                + String.join(" ", containerOpt.get().getArgs());
     }
 }

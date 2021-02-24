@@ -18,6 +18,7 @@
 
 package org.apache.flink.kubernetes;
 
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.resourcemanager.active.AbstractWorkerNode;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
@@ -36,8 +37,8 @@ public class KubernetesWorkerNode extends AbstractWorkerNode {
     private static final Pattern TASK_MANAGER_POD_PATTERN =
             Pattern.compile("\\S+-taskmanager-([\\d]+)-([\\d]+)");
 
-    KubernetesWorkerNode(ResourceID resourceID) {
-        super(checkNotNull(resourceID), null);
+    KubernetesWorkerNode(ResourceID resourceID, TaskExecutorProcessSpec taskExecutorProcessSpec) {
+        super(checkNotNull(resourceID), checkNotNull(taskExecutorProcessSpec));
     }
 
     public long getAttempt() throws ResourceManagerException {

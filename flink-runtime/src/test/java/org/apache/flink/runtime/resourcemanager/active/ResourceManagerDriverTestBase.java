@@ -18,13 +18,13 @@
 
 package org.apache.flink.runtime.resourcemanager.active;
 
+import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
-import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
-import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.RunnableWithException;
 
@@ -47,8 +47,16 @@ public abstract class ResourceManagerDriverTestBase<WorkerType extends AbstractW
     protected static final long TIMEOUT_SEC = 5L;
 
     protected static final TaskExecutorProcessSpec TASK_EXECUTOR_PROCESS_SPEC =
-            TaskExecutorProcessUtils.processSpecFromWorkerResourceSpec(
-                    new Configuration(), WorkerResourceSpec.ZERO);
+            new TaskExecutorProcessSpec(
+                    new CPUResource(1.0),
+                    MemorySize.parse("1m"),
+                    MemorySize.parse("2m"),
+                    MemorySize.parse("3m"),
+                    MemorySize.parse("4m"),
+                    MemorySize.parse("5m"),
+                    MemorySize.parse("6m"),
+                    MemorySize.parse("7m"),
+                    MemorySize.parse("8m"));
 
     private static final String MAIN_THREAD_NAME = "testing-rpc-main-thread";
     private static final ScheduledExecutor MAIN_THREAD_EXECUTOR =

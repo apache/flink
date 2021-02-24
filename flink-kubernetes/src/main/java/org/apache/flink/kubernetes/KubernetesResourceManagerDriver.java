@@ -35,6 +35,7 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
@@ -215,8 +216,7 @@ public class KubernetesResourceManagerDriver
         final List<KubernetesWorkerNode> recoveredWorkers = new ArrayList<>();
 
         for (KubernetesPod pod : podList) {
-            final KubernetesWorkerNode worker =
-                    new KubernetesWorkerNode(new ResourceID(pod.getName()));
+            final KubernetesWorkerNode worker = workerNodeFromPod(pod);
             final long attempt = worker.getAttempt();
             if (attempt > currentMaxAttemptId) {
                 currentMaxAttemptId = attempt;
@@ -237,6 +237,14 @@ public class KubernetesResourceManagerDriver
         // Should not invoke resource event handler on the main thread executor.
         // We are in the initializing thread. The main thread executor is not yet ready.
         getResourceEventHandler().onPreviousAttemptWorkersRecovered(recoveredWorkers);
+    }
+
+    private static final KubernetesWorkerNode workerNodeFromPod(KubernetesPod pod) {
+        final TaskExecutorProcessSpec taskExecutorProcessSpec =
+                TaskExecutorProcessUtils.processSpecFromCmd(
+                        pod.getCommandArgs(
+                                KubernetesTaskManagerParameters.TASK_MANAGER_MAIN_CONTAINER_NAME));
+        return new KubernetesWorkerNode(new ResourceID(pod.getName()), taskExecutorProcessSpec);
     }
 
     private KubernetesTaskManagerParameters createKubernetesTaskManagerParameters(
@@ -350,8 +358,7 @@ public class KubernetesResourceManagerDriver
                                     }
 
                                     log.info("Received new TaskManager pod: {}", podName);
-                                    requestResourceFuture.complete(
-                                            new KubernetesWorkerNode(new ResourceID(podName)));
+                                    requestResourceFuture.complete(workerNodeFromPod(pod));
                                 }
                             });
         }

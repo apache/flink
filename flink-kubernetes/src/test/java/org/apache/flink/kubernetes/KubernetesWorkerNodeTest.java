@@ -18,7 +18,11 @@
 
 package org.apache.flink.kubernetes;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
@@ -28,6 +32,9 @@ import org.junit.rules.ExpectedException;
 
 /** Tests for {@link KubernetesWorkerNode}. */
 public class KubernetesWorkerNodeTest extends TestLogger {
+    private static final TaskExecutorProcessSpec TASK_EXECUTOR_PROCESS_SPEC =
+            TaskExecutorProcessUtils.processSpecFromWorkerResourceSpec(
+                    new Configuration(), WorkerResourceSpec.ZERO);
 
     @Rule public final ExpectedException exception = ExpectedException.none();
 
@@ -35,12 +42,13 @@ public class KubernetesWorkerNodeTest extends TestLogger {
     public void testGetAttemptFromWorkerNode() throws Exception {
         final String correctPodName = "flink-on-kubernetes-taskmanager-11-5";
         final KubernetesWorkerNode workerNode =
-                new KubernetesWorkerNode(new ResourceID(correctPodName));
+                new KubernetesWorkerNode(
+                        new ResourceID(correctPodName), TASK_EXECUTOR_PROCESS_SPEC);
         Assert.assertEquals(11L, workerNode.getAttempt());
 
         final String wrongPodName = "flink-on-kubernetes-xxxtaskmanager-11-5";
         final KubernetesWorkerNode workerNode1 =
-                new KubernetesWorkerNode(new ResourceID(wrongPodName));
+                new KubernetesWorkerNode(new ResourceID(wrongPodName), TASK_EXECUTOR_PROCESS_SPEC);
         exception.expect(Exception.class);
         exception.expectMessage("Error to parse KubernetesWorkerNode from " + wrongPodName + ".");
         workerNode1.getAttempt();
