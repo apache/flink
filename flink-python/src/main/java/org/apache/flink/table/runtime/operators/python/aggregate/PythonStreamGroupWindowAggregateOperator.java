@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.UpdatableRowData;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
@@ -85,22 +86,22 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
     @VisibleForTesting final WindowAssigner<W> windowAssigner;
 
     /** Window Type includes Tumble window, Sliding window and Session Window. */
-    private transient FlinkFnApi.GroupWindow.WindowType windowType;
+    private FlinkFnApi.GroupWindow.WindowType windowType;
 
     /** Whether it is a row time window. */
-    private transient boolean isRowTime;
+    private boolean isRowTime;
 
     /** Whether it is a Time Window. */
-    private transient boolean isTimeWindow;
+    private boolean isTimeWindow;
 
     /** Window size. */
-    private transient long size;
+    private long size;
 
     /** Window slide. */
-    private transient long slide;
+    private long slide;
 
     /** Session Window gap. */
-    private transient long gap;
+    private long gap;
 
     /** For serializing the window in checkpoints. */
     @VisibleForTesting transient TypeSerializer<W> windowSerializer;
@@ -182,7 +183,13 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
         RowData udfResult = udfOutputTypeSerializer.deserialize(baisWrapper);
         byte recordType = udfResult.getByte(0);
         if (recordType == NORMAL_RECORD) {
-            rowDataWrapper.collect(udfResult.getRow(1, outputType.getFieldCount()));
+            GenericRowData aggResult =
+                    (GenericRowData) udfResult.getRow(1, outputType.getFieldCount());
+            int fieldCount = outputType.getFieldCount();
+            for (int i = fieldCount - namedProperties.length; i < fieldCount; i++) {
+                aggResult.setField(i, TimestampData.fromEpochMillis(aggResult.getLong(i)));
+            }
+            rowDataWrapper.collect(aggResult);
         } else {
             RowData timerData = udfResult.getRow(2, timerDataLength);
             byte timerOperandType = timerData.getByte(0);
@@ -244,7 +251,15 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
     public RowType getUserDefinedFunctionOutputType() {
         List<RowType.RowField> outputFields = new ArrayList<>();
         outputFields.add(new RowType.RowField("record_type", new TinyIntType()));
-        outputFields.add(new RowType.RowField("row_data", outputType));
+        List<RowType.RowField> resultFields =
+                new ArrayList<>(
+                        outputType
+                                .getFields()
+                                .subList(0, outputType.getFieldCount() - namedProperties.length));
+        for (int i = 0; i < namedProperties.length; i++) {
+            resultFields.add(new RowType.RowField("w" + i, new BigIntType()));
+        }
+        outputFields.add(new RowType.RowField("row_data", new RowType(resultFields)));
         List<RowType.RowField> timerDataFields = new ArrayList<>();
         timerDataFields.add(new RowType.RowField("timer_operand_type", new TinyIntType()));
         timerDataFields.add(new RowType.RowField("key", getKeyType()));
@@ -265,6 +280,7 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
         FlinkFnApi.UserDefinedAggregateFunctions.Builder builder =
                 super.getUserDefinedFunctionsProto().toBuilder();
         builder.setCountStarInserted(countStarInserted);
+        builder.setHasGroupWindow(true);
         FlinkFnApi.GroupWindow.Builder windowBuilder = FlinkFnApi.GroupWindow.newBuilder();
         windowBuilder.setWindowType(windowType);
         windowBuilder.setIsTimeWindow(isTimeWindow);
@@ -308,7 +324,7 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
             throw new RuntimeException(String.format("Unsupported LogicWindow Type %s", window));
         }
         this.isRowTime = AggregateUtil.isRowtimeAttribute(window.timeAttribute());
-        this.isTimeWindow = AggregateUtil.hasTimeIntervalType(size);
+        this.isTimeWindow = gap != null || AggregateUtil.hasTimeIntervalType(size);
         if (size != null) {
             this.size = AggregateUtil.toDuration(size).toMillis();
         } else {

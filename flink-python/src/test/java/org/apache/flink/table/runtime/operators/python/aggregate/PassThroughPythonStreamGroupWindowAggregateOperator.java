@@ -29,7 +29,6 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
-import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.UpdatableRowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.util.RowDataUtil;
@@ -148,19 +147,16 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
                     for (int i = 0; i < namedProperties.length; i++) {
                         switch (namedProperties[i]) {
                             case 0:
-                                windowProperty.setField(
-                                        i, TimestampData.fromEpochMillis(window.getStart()));
+                                windowProperty.setField(i, window.getStart());
                                 break;
                             case 1:
-                                windowProperty.setField(
-                                        i, TimestampData.fromEpochMillis(window.getEnd()));
+                                windowProperty.setField(i, window.getEnd());
                                 break;
                             case 2:
-                                windowProperty.setField(
-                                        i, TimestampData.fromEpochMillis(window.getEnd() - 1));
+                                windowProperty.setField(i, window.getEnd() - 1);
                                 break;
                             case 3:
-                                windowProperty.setField(i, TimestampData.fromEpochMillis(-1));
+                                windowProperty.setField(i, -1L);
                         }
                     }
                     return windowProperty;

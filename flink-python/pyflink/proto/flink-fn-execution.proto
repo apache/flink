@@ -194,8 +194,11 @@ message UserDefinedAggregateFunctions {
   // True if the count(*) agg is inserted by the planner.
   bool count_star_inserted = 11;
 
+  // Whether has Group Window.
+  bool has_group_window = 12;
+
   // Group Window.
-  GroupWindow group_window = 12;
+  GroupWindow group_window = 13;
 }
 
 // A representation of the data schema.
