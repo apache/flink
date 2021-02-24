@@ -88,7 +88,7 @@ public class FineGrainedSlotManager implements SlotManager {
 
     private boolean sendNotEnoughResourceNotifications = true;
 
-    private Set<JobID> unfulfillableJobs = new HashSet<>();
+    private final Set<JobID> unfulfillableJobs = new HashSet<>();
 
     /** ResourceManager's id. */
     @Nullable private ResourceManagerId resourceManagerId;
