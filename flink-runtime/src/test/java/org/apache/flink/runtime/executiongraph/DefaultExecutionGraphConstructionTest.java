@@ -52,7 +52,8 @@ import static org.mockito.Mockito.when;
 
 /**
  * This class contains test concerning the correct conversion from {@link JobGraph} to {@link
- * ExecutionGraph} objects.
+ * ExecutionGraph} objects. It also tests that {@link EdgeManagerBuildUtil#connectVertexToResult}
+ * builds {@link DistributionPattern#ALL_TO_ALL} connections correctly.
  */
 public class DefaultExecutionGraphConstructionTest {
 

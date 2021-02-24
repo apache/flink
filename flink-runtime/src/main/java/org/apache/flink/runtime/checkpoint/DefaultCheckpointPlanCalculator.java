@@ -22,10 +22,11 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
-import org.apache.flink.runtime.executiongraph.ExecutionEdge;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.InternalExecutionGraphAccessor;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
@@ -290,10 +291,17 @@ public class DefaultCheckpointPlanCalculator implements CheckpointPlanCalculator
             ExecutionVertex vertex,
             List<JobEdge> prevJobEdges,
             Map<JobVertexID, BitSet> taskRunningStatusByVertex) {
+
+        InternalExecutionGraphAccessor executionGraphAccessor = vertex.getExecutionGraphAccessor();
+
         for (int i = 0; i < prevJobEdges.size(); ++i) {
             if (prevJobEdges.get(i).getDistributionPattern() == DistributionPattern.POINTWISE) {
-                for (ExecutionEdge executionEdge : vertex.getInputEdges(i)) {
-                    ExecutionVertex precedentTask = executionEdge.getSource().getProducer();
+                for (IntermediateResultPartitionID consumedPartitionId :
+                        vertex.getConsumedPartitions(i)) {
+                    ExecutionVertex precedentTask =
+                            executionGraphAccessor
+                                    .getResultPartitionOrThrow(consumedPartitionId)
+                                    .getProducer();
                     BitSet precedentVertexRunningStatus =
                             taskRunningStatusByVertex.get(precedentTask.getJobvertexId());
 
