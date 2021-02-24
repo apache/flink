@@ -87,7 +87,7 @@ class JobScopedResourceTracker {
     private Optional<ResourceProfile> findMatchingRequirement(ResourceProfile resourceProfile) {
         return requirementMatcher.match(
                 resourceProfile,
-                resourceRequirements.getResourcesWithCount(),
+                resourceRequirements,
                 resourceToRequirementMapping::getNumFulfillingResources);
     }
 

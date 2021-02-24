@@ -212,7 +212,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         final Optional<ResourceProfile> match =
                 requirementMatcher.match(
                         slotOffer.getResourceProfile(),
-                        totalResourceRequirements.getResourcesWithCount(),
+                        totalResourceRequirements,
                         fulfilledResourceRequirements::getResourceCount);
 
         if (match.isPresent()) {
