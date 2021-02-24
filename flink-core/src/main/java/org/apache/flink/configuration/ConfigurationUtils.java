@@ -28,6 +28,7 @@ import java.io.File;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -189,26 +190,8 @@ public class ConfigurationUtils {
                 .collect(Collectors.joining(" "));
     }
 
-    @VisibleForTesting
     public static Map<String, String> parseTmResourceDynamicConfigs(String dynamicConfigsStr) {
-        Map<String, String> configs = new HashMap<>();
-        String[] configStrs = dynamicConfigsStr.split(" ");
-
-        checkArgument(
-                configStrs.length % 2 == 0,
-                "Dynamic option string contained odd number of arguments: #arguments=%s, (%s)",
-                configStrs.length,
-                dynamicConfigsStr);
-        for (int i = 0; i < configStrs.length; ++i) {
-            String configStr = configStrs[i];
-            if (i % 2 == 0) {
-                checkArgument(configStr.equals("-D"));
-            } else {
-                String[] configKV = configStr.split("=");
-                checkArgument(configKV.length == 2);
-                configs.put(configKV[0], configKV[1]);
-            }
-        }
+        Map<String, String> configs = parseDynamicConfigs(dynamicConfigsStr);
 
         checkConfigContains(configs, TaskManagerOptions.CPU_CORES.key());
         checkConfigContains(configs, TaskManagerOptions.FRAMEWORK_HEAP_MEMORY.key());
@@ -222,6 +205,32 @@ public class ConfigurationUtils {
         checkConfigContains(configs, TaskManagerOptions.JVM_OVERHEAD_MIN.key());
         checkConfigContains(configs, TaskManagerOptions.JVM_OVERHEAD_MAX.key());
         checkConfigContains(configs, TaskManagerOptions.NUM_TASK_SLOTS.key());
+
+        return configs;
+    }
+
+    @VisibleForTesting
+    static Map<String, String> parseDynamicConfigs(String cmd) {
+        Map<String, String> configs = new HashMap<>();
+        Iterator<String> tokens = Arrays.stream(cmd.split(" ")).iterator();
+
+        while (tokens.hasNext()) {
+            String token = tokens.next();
+            String kvStr;
+
+            if (token.equals("-D") && tokens.hasNext()) { // -D key=value
+                kvStr = tokens.next();
+            } else if (token.startsWith("-D")) { // -Dkey=value
+                kvStr = token.substring(2);
+            } else {
+                continue;
+            }
+
+            String[] keyAndValue = kvStr.split("=");
+            if (keyAndValue.length == 2) {
+                configs.put(keyAndValue[0], keyAndValue[1]);
+            }
+        }
 
         return configs;
     }

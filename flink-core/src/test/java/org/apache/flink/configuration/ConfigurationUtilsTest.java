@@ -92,4 +92,23 @@ public class ConfigurationUtilsTest extends TestLogger {
 
         assertThat(resultKeyValuePairs, is(equalTo(expectedKeyValuePairs)));
     }
+
+    @Test
+    public void testParseDynamicConfigs() {
+        final String k1 = "key1";
+        final String v1 = "value1";
+        final String k2 = "key2";
+        final String v2 = "value2";
+
+        final String kv1 = "-D " + k1 + "=" + v1;
+        final String kv2 = "-D" + k2 + "=" + v2;
+
+        final String cmd =
+                "something beginning " + kv1 + " something in middle " + kv2 + " something ending";
+        final Map<String, String> configs = ConfigurationUtils.parseDynamicConfigs(cmd);
+
+        assertThat(configs.size(), is(2));
+        assertThat(configs.get(k1), is(v1));
+        assertThat(configs.get(k2), is(v2));
+    }
 }

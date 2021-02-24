@@ -21,6 +21,7 @@ package org.apache.flink.runtime.clusterframework;
 import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -170,6 +171,11 @@ public class TaskExecutorProcessUtils {
                 flinkMemory,
                 jvmMetaspaceAndOverhead,
                 workerResourceSpec.getNumSlots());
+    }
+
+    public static TaskExecutorProcessSpec processSpecFromCmd(final String cmd) {
+        return processSpecFromConfig(
+                Configuration.fromMap(ConfigurationUtils.parseTmResourceDynamicConfigs(cmd)));
     }
 
     private static TaskExecutorProcessSpec createMemoryProcessSpec(

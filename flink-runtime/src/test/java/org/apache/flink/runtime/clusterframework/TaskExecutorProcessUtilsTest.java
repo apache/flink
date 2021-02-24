@@ -118,6 +118,14 @@ public class TaskExecutorProcessUtilsTest
     }
 
     @Test
+    public void testProcessSpecFromCmd() {
+        final String cmd = TaskExecutorProcessUtils.generateDynamicConfigsStr(TM_RESOURCE_SPEC);
+        final TaskExecutorProcessSpec processSpec =
+                TaskExecutorProcessUtils.processSpecFromCmd(cmd);
+        assertThat(processSpec, is(TM_RESOURCE_SPEC));
+    }
+
+    @Test
     public void testProcessSpecFromWorkerResourceSpec() {
         final WorkerResourceSpec workerResourceSpec =
                 new WorkerResourceSpec.Builder()
