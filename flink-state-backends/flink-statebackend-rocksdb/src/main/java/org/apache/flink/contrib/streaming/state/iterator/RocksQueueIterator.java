@@ -41,7 +41,7 @@ public final class RocksQueueIterator implements SingleStateIterator {
     private final TypeSerializer<Object> elementSerializer;
 
     private Iterator<Object> elementsForKeyGroup;
-    private int afterKeyMark;
+    private int afterKeyMark = 0;
 
     private boolean isValid;
     private byte[] currentKey;
@@ -57,10 +57,13 @@ public final class RocksQueueIterator implements SingleStateIterator {
         this.keyGroupPrefixBytes = keyGroupPrefixBytes;
         this.kvStateId = kvStateId;
         if (keyGroupRangeIterator.hasNext()) {
-            isValid = true;
             try {
-                moveToNextNonEmptyKeyGroup();
-                next();
+                if (moveToNextNonEmptyKeyGroup()) {
+                    isValid = true;
+                    next();
+                } else {
+                    isValid = false;
+                }
             } catch (IOException e) {
                 throw new FlinkRuntimeException(e);
             }

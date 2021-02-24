@@ -128,7 +128,7 @@ class RocksDBFullSnapshotResources<K> implements FullSnapshotResources<K> {
             // RocksStatesPerKeyGroupMergeIterator
             return new RocksStatesPerKeyGroupMergeIterator(
                     closeableRegistry,
-                    new ArrayList<>(kvStateIterators),
+                    kvStateIterators,
                     heapPriorityQueueIterators,
                     keyGroupPrefixBytes);
         } catch (Throwable t) {

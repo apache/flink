@@ -83,7 +83,7 @@ public class RocksStatesPerKeyGroupMergeIterator implements KeyValueStateIterato
         this.closeableRegistry = closeableRegistry;
         this.keyGroupPrefixByteCount = keyGroupPrefixByteCount;
 
-        if (kvStateIterators.size() > 0) {
+        if (kvStateIterators.size() > 0 || heapPriorityQueueIterators.size() > 0) {
             this.heap = buildIteratorHeap(kvStateIterators, heapPriorityQueueIterators);
             this.valid = !heap.isEmpty();
             this.currentSubIterator = heap.poll();
@@ -138,7 +138,9 @@ public class RocksStatesPerKeyGroupMergeIterator implements KeyValueStateIterato
                 COMPARATORS.get(keyGroupPrefixByteCount - 1);
 
         PriorityQueue<SingleStateIterator> iteratorPriorityQueue =
-                new PriorityQueue<>(kvStateIterators.size(), iteratorComparator);
+                new PriorityQueue<>(
+                        kvStateIterators.size() + heapPriorityQueueIterators.size(),
+                        iteratorComparator);
 
         for (Tuple2<RocksIteratorWrapper, Integer> rocksIteratorWithKVStateId : kvStateIterators) {
             final RocksIteratorWrapper rocksIterator = rocksIteratorWithKVStateId.f0;

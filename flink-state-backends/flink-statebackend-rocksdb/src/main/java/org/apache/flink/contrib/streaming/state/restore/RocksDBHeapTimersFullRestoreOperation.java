@@ -152,10 +152,12 @@ public class RocksDBHeapTimersFullRestoreOperation<K> implements RocksDBRestoreO
             if (restoredMetaInfo.getBackendStateType() == BackendStateType.PRIORITY_QUEUE) {
                 String stateName = restoredMetaInfo.getName();
                 HeapPriorityQueueSnapshotRestoreWrapper<?> queueWrapper =
-                        createInternal(
-                                new RegisteredPriorityQueueStateBackendMetaInfo<>(
-                                        restoredMetaInfo));
-                registeredPQStates.put(stateName, queueWrapper);
+                        registeredPQStates.computeIfAbsent(
+                                stateName,
+                                key ->
+                                        createInternal(
+                                                new RegisteredPriorityQueueStateBackendMetaInfo<>(
+                                                        restoredMetaInfo)));
                 restoredPQStates.put(i, queueWrapper);
             } else {
                 RocksDbKvStateInfo registeredStateCFHandle =
