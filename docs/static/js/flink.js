@@ -174,5 +174,5 @@ document.addEventListener("DOMContentLoaded", function(event) {
     anchors.options = {
         placement: 'right'
     };
-    anchors.add();
+    anchors.add('h5');
 });
