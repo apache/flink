@@ -933,6 +933,45 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
         assertEquals(4, vertices.get(0).getOperatorIDs().size());
     }
 
+    @Test
+    public void testDeterministicUnionOrder() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
+
+        JobGraph jobGraph = getUnionJobGraph(env);
+        JobVertex jobSink = Iterables.getLast(jobGraph.getVerticesSortedTopologicallyFromSources());
+        List<String> expectedSourceOrder =
+                jobSink.getInputs().stream()
+                        .map(edge -> edge.getSource().getProducer().getName())
+                        .collect(Collectors.toList());
+
+        for (int i = 0; i < 100; i++) {
+            JobGraph jobGraph2 = getUnionJobGraph(env);
+            JobVertex jobSink2 =
+                    Iterables.getLast(jobGraph2.getVerticesSortedTopologicallyFromSources());
+            assertNotEquals("Different runs should yield different vertexes", jobSink, jobSink2);
+            List<String> actualSourceOrder =
+                    jobSink2.getInputs().stream()
+                            .map(edge -> edge.getSource().getProducer().getName())
+                            .collect(Collectors.toList());
+            assertEquals("Union inputs reordered", expectedSourceOrder, actualSourceOrder);
+        }
+    }
+
+    private JobGraph getUnionJobGraph(StreamExecutionEnvironment env) {
+
+        createSource(env, 1)
+                .union(createSource(env, 2))
+                .union(createSource(env, 3))
+                .union(createSource(env, 4))
+                .addSink(new DiscardingSink<>());
+
+        return StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+    }
+
+    private DataStream<Integer> createSource(StreamExecutionEnvironment env, int index) {
+        return env.fromElements(index).name("source" + index).map(i -> i).name("map" + index);
+    }
+
     @Test(expected = UnsupportedOperationException.class)
     public void testNotSupportInputSelectableOperatorIfCheckpointing() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
