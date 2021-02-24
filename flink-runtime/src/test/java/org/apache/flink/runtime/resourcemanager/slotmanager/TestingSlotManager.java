@@ -39,12 +39,15 @@ public class TestingSlotManager implements SlotManager {
 
     private final Consumer<Boolean> setFailUnfulfillableRequestConsumer;
     private final Supplier<Map<WorkerResourceSpec, Integer>> getRequiredResourcesSupplier;
+    private final Consumer<Map<WorkerResourceSpec, Integer>> notifyPendingWorkersConsumer;
 
     TestingSlotManager(
             Consumer<Boolean> setFailUnfulfillableRequestConsumer,
-            Supplier<Map<WorkerResourceSpec, Integer>> getRequiredResourcesSupplier) {
+            Supplier<Map<WorkerResourceSpec, Integer>> getRequiredResourcesSupplier,
+            Consumer<Map<WorkerResourceSpec, Integer>> notifyPendingWorkersConsumer) {
         this.setFailUnfulfillableRequestConsumer = setFailUnfulfillableRequestConsumer;
         this.getRequiredResourcesSupplier = getRequiredResourcesSupplier;
+        this.notifyPendingWorkersConsumer = notifyPendingWorkersConsumer;
     }
 
     @Override
@@ -147,7 +150,9 @@ public class TestingSlotManager implements SlotManager {
     }
 
     @Override
-    public void notifyPendingWorkers(Map<WorkerResourceSpec, Integer> pendingWorkerResourceSpecs) {}
+    public void notifyPendingWorkers(Map<WorkerResourceSpec, Integer> pendingWorkerResourceSpecs) {
+        notifyPendingWorkersConsumer.accept(pendingWorkerResourceSpecs);
+    }
 
     @Override
     public void close() throws Exception {}

@@ -92,6 +92,9 @@ public class ActiveResourceManager<WorkerType extends AbstractWorkerNode>
      */
     private CompletableFuture<Void> startWorkerCoolDown;
 
+    /** Completes on leadership granted and resets on leadership lost. */
+    private CompletableFuture<Void> leadershipFuture;
+
     public ActiveResourceManager(
             ResourceManagerDriver<WorkerType> resourceManagerDriver,
             Configuration flinkConfig,
@@ -130,6 +133,7 @@ public class ActiveResourceManager<WorkerType extends AbstractWorkerNode>
         this.startWorkerFailureRater = checkNotNull(startWorkerFailureRater);
         this.startWorkerRetryInterval = Time.of(retryInterval.toMillis(), TimeUnit.MILLISECONDS);
         this.startWorkerCoolDown = FutureUtils.completedVoidFuture();
+        this.leadershipFuture = new CompletableFuture<>();
     }
 
     // ------------------------------------------------------------------------
@@ -223,6 +227,16 @@ public class ActiveResourceManager<WorkerType extends AbstractWorkerNode>
                 MetricNames.START_WORKER_FAILURE_RATE, startWorkerFailureRater);
     }
 
+    @Override
+    protected void onLeadership() {
+        leadershipFuture.complete(null);
+    }
+
+    @Override
+    protected void loseLeadership() {
+        leadershipFuture = new CompletableFuture<>();
+    }
+
     // ------------------------------------------------------------------------
     //  ResourceEventListener
     // ------------------------------------------------------------------------
@@ -231,12 +245,24 @@ public class ActiveResourceManager<WorkerType extends AbstractWorkerNode>
     public void onPreviousAttemptWorkersRecovered(Collection<WorkerType> recoveredWorkers) {
         getMainThreadExecutor().assertRunningInMainThread();
         log.info("Recovered {} workers from previous attempt.", recoveredWorkers.size());
+        final Map<WorkerResourceSpec, Integer> workersWithSpec = new HashMap<>();
         for (WorkerType worker : recoveredWorkers) {
             final ResourceID resourceId = worker.getResourceID();
             workerNodeMap.put(resourceId, worker);
             log.info(
                     "Worker {} recovered from previous attempt.",
                     resourceId.getStringWithMetadata());
+
+            worker.getTaskExecutorProcessSpec()
+                    .ifPresent(
+                            teSpec ->
+                                    workersWithSpec.compute(
+                                            WorkerResourceSpec.fromTaskExecutorProcessSpec(teSpec),
+                                            (k, v) -> v == null ? 1 : v + 1));
+        }
+
+        if (!workersWithSpec.isEmpty()) {
+            leadershipFuture.thenRun(() -> notifyPendingWorkers(workersWithSpec));
         }
     }
 

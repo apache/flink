@@ -53,6 +53,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
@@ -658,10 +659,15 @@ public class ActiveResourceManagerTest extends TestLogger {
 
     /** Tests workers from previous attempt successfully recovered and registered. */
     @Test
-    public void testRecoverWorkerFromPreviousAttempt() throws Exception {
+    public void testRecoverWorkerFromPreviousAttemptWithoutResourceSpec() throws Exception {
         new Context() {
             {
                 final TestingWorkerNode workerNode = new TestingWorkerNode();
+                final CompletableFuture<Map<WorkerResourceSpec, Integer>>
+                        notifyPendingWorkersFuture = new CompletableFuture<>();
+
+                slotManagerBuilder.setNotifyPendingWorkersConsumer(
+                        notifyPendingWorkersFuture::complete);
 
                 runTest(
                         () -> {
@@ -675,6 +681,38 @@ public class ActiveResourceManagerTest extends TestLogger {
                             assertThat(
                                     registerTaskExecutorFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
                                     instanceOf(RegistrationResponse.Success.class));
+                            assertFalse(notifyPendingWorkersFuture.isDone());
+                        });
+            }
+        };
+    }
+
+    @Test
+    public void testRecoverWorkerFromPreviousAttemptWithResourceSpec() throws Exception {
+        new Context() {
+            {
+                final TaskExecutorProcessSpec taskExecutorProcessSpec =
+                        TaskExecutorProcessUtils.processSpecFromWorkerResourceSpec(
+                                flinkConfig, WORKER_RESOURCE_SPEC);
+                final TestingWorkerNode workerNode = new TestingWorkerNode(taskExecutorProcessSpec);
+                final CompletableFuture<Map<WorkerResourceSpec, Integer>>
+                        notifyPendingWorkersFuture = new CompletableFuture<>();
+
+                slotManagerBuilder.setNotifyPendingWorkersConsumer(
+                        notifyPendingWorkersFuture::complete);
+
+                runTest(
+                        () -> {
+                            runInMainThread(
+                                    () ->
+                                            getResourceManager()
+                                                    .onPreviousAttemptWorkersRecovered(
+                                                            Collections.singleton(workerNode)));
+
+                            final Map<WorkerResourceSpec, Integer> notifiedPendingWorkers =
+                                    notifyPendingWorkersFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
+                            assertThat(notifiedPendingWorkers.size(), is(1));
+                            assertThat(notifiedPendingWorkers.get(WORKER_RESOURCE_SPEC), is(1));
                         });
             }
         };

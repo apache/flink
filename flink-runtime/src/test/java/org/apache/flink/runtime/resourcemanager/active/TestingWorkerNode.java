@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.resourcemanager.active;
 
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 
 /** Testing implementation of {@link AbstractWorkerNode}. */
@@ -25,5 +26,9 @@ public class TestingWorkerNode extends AbstractWorkerNode {
 
     public TestingWorkerNode() {
         super(ResourceID.generate(), null);
+    }
+
+    public TestingWorkerNode(TaskExecutorProcessSpec taskExecutorProcessSpec) {
+        super(ResourceID.generate(), taskExecutorProcessSpec);
     }
 }

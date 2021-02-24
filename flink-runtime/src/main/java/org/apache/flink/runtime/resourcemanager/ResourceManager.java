@@ -1127,6 +1127,10 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         }
     }
 
+    protected void notifyPendingWorkers(Map<WorkerResourceSpec, Integer> pendingWorkers) {
+        slotManager.notifyPendingWorkers(pendingWorkers);
+    }
+
     // ------------------------------------------------------------------------
     //  Error Handling
     // ------------------------------------------------------------------------
@@ -1234,7 +1238,13 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                     slotManager.suspend();
 
                     stopHeartbeatServices();
+
+                    loseLeadership();
                 });
+    }
+
+    protected void loseLeadership() {
+        // noop by default
     }
 
     private void startHeartbeatServices() {

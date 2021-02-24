@@ -31,6 +31,7 @@ public class TestingSlotManagerBuilder {
     private Consumer<Boolean> setFailUnfulfillableRequestConsumer = ignored -> {};
     private Supplier<Map<WorkerResourceSpec, Integer>> getRequiredResourcesSupplier =
             () -> Collections.emptyMap();
+    private Consumer<Map<WorkerResourceSpec, Integer>> notifyPendingWorkersConsumer = ignored -> {};
 
     public TestingSlotManagerBuilder setSetFailUnfulfillableRequestConsumer(
             Consumer<Boolean> setFailUnfulfillableRequestConsumer) {
@@ -44,8 +45,16 @@ public class TestingSlotManagerBuilder {
         return this;
     }
 
+    public TestingSlotManagerBuilder setNotifyPendingWorkersConsumer(
+            Consumer<Map<WorkerResourceSpec, Integer>> notifyPendingWorkersConsumer) {
+        this.notifyPendingWorkersConsumer = notifyPendingWorkersConsumer;
+        return this;
+    }
+
     public TestingSlotManager createSlotManager() {
         return new TestingSlotManager(
-                setFailUnfulfillableRequestConsumer, getRequiredResourcesSupplier);
+                setFailUnfulfillableRequestConsumer,
+                getRequiredResourcesSupplier,
+                notifyPendingWorkersConsumer);
     }
 }
