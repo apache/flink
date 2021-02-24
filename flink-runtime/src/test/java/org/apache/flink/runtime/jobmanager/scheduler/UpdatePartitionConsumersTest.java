@@ -189,9 +189,6 @@ public class UpdatePartitionConsumersTest extends TestLogger {
     private void updateState(
             SchedulerBase scheduler, ExecutionVertex vertex, ExecutionState state) {
         scheduler.updateTaskExecutionState(
-                new TaskExecutionState(
-                        jobGraph.getJobID(),
-                        vertex.getCurrentExecutionAttempt().getAttemptId(),
-                        state));
+                new TaskExecutionState(vertex.getCurrentExecutionAttempt().getAttemptId(), state));
     }
 }
