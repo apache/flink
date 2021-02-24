@@ -98,7 +98,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static org.apache.flink.contrib.streaming.state.RocksDBSnapshotTransformFactoryAdaptor.wrapStateSnapshotTransformFactory;
-import static org.apache.flink.runtime.state.SnapshotStrategyRunner.ExecutionType.ASYNCHRONOUS;
+import static org.apache.flink.runtime.state.SnapshotExecutionType.ASYNCHRONOUS;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**

@@ -26,8 +26,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.apache.flink.runtime.state.SnapshotStrategyRunner.ExecutionType.ASYNCHRONOUS;
-import static org.apache.flink.runtime.state.SnapshotStrategyRunner.ExecutionType.SYNCHRONOUS;
+import static org.apache.flink.runtime.state.SnapshotExecutionType.ASYNCHRONOUS;
+import static org.apache.flink.runtime.state.SnapshotExecutionType.SYNCHRONOUS;
 
 /**
  * Builder class for {@link DefaultOperatorStateBackend} which handles all necessary initializations
