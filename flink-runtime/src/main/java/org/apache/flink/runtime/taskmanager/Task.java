@@ -745,7 +745,7 @@ public class Task
 
             // notify everyone that we switched to running
             taskManagerActions.updateTaskExecutionState(
-                    new TaskExecutionState(jobId, executionId, ExecutionState.RUNNING));
+                    new TaskExecutionState(executionId, ExecutionState.RUNNING));
 
             // make sure the user code classloader is accessible thread-locally
             executingThread.setContextClassLoader(userCodeClassLoader.asClassLoader());
@@ -1001,7 +1001,7 @@ public class Task
     private void notifyFinalState() {
         checkState(executionState.isTerminal());
         taskManagerActions.updateTaskExecutionState(
-                new TaskExecutionState(jobId, executionId, executionState, failureCause));
+                new TaskExecutionState(executionId, executionState, failureCause));
     }
 
     private void notifyFatalError(String message, Throwable cause) {

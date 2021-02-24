@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
@@ -62,10 +61,6 @@ public class TaskExecutionStateTransition {
 
     public ExecutionState getExecutionState() {
         return taskExecutionState.getExecutionState();
-    }
-
-    public JobID getJobID() {
-        return taskExecutionState.getJobID();
     }
 
     public AccumulatorSnapshot getAccumulators() {

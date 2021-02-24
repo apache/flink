@@ -210,10 +210,7 @@ public class SchedulerTestingUtils {
         final ExecutionAttemptID attemptID = getAttemptId(scheduler, jvid, subtask);
         scheduler.updateTaskExecutionState(
                 new TaskExecutionState(
-                        scheduler.getJobId(),
-                        attemptID,
-                        ExecutionState.FAILED,
-                        new Exception("test task failure")));
+                        attemptID, ExecutionState.FAILED, new Exception("test task failure")));
     }
 
     public static void canceledExecution(
@@ -221,35 +218,29 @@ public class SchedulerTestingUtils {
         final ExecutionAttemptID attemptID = getAttemptId(scheduler, jvid, subtask);
         scheduler.updateTaskExecutionState(
                 new TaskExecutionState(
-                        scheduler.getJobId(),
-                        attemptID,
-                        ExecutionState.CANCELED,
-                        new Exception("test task failure")));
+                        attemptID, ExecutionState.CANCELED, new Exception("test task failure")));
     }
 
     public static void setExecutionToRunning(
             DefaultScheduler scheduler, JobVertexID jvid, int subtask) {
         final ExecutionAttemptID attemptID = getAttemptId(scheduler, jvid, subtask);
         scheduler.updateTaskExecutionState(
-                new TaskExecutionState(scheduler.getJobId(), attemptID, ExecutionState.RUNNING));
+                new TaskExecutionState(attemptID, ExecutionState.RUNNING));
     }
 
     public static void setAllExecutionsToRunning(final DefaultScheduler scheduler) {
-        final JobID jid = scheduler.getJobId();
         getAllCurrentExecutionAttempts(scheduler)
                 .forEach(
                         (attemptId) ->
                                 scheduler.updateTaskExecutionState(
-                                        new TaskExecutionState(
-                                                jid, attemptId, ExecutionState.RUNNING)));
+                                        new TaskExecutionState(attemptId, ExecutionState.RUNNING)));
     }
 
     public static void setAllExecutionsToCancelled(final DefaultScheduler scheduler) {
-        final JobID jid = scheduler.getJobId();
         for (final ExecutionAttemptID attemptId : getAllCurrentExecutionAttempts(scheduler)) {
             final boolean setToRunning =
                     scheduler.updateTaskExecutionState(
-                            new TaskExecutionState(jid, attemptId, ExecutionState.CANCELED));
+                            new TaskExecutionState(attemptId, ExecutionState.CANCELED));
 
             assertTrue("could not switch task to RUNNING", setToRunning);
         }

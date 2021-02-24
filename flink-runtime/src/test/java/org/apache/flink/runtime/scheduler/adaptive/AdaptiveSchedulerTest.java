@@ -549,9 +549,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
                 scheduler.updateTaskExecutionState(
                         new TaskExecutionStateTransition(
                                 new TaskExecutionState(
-                                        jobGraph.getJobID(),
-                                        new ExecutionAttemptID(),
-                                        ExecutionState.FAILED))),
+                                        new ExecutionAttemptID(), ExecutionState.FAILED))),
                 is(false));
     }
 

@@ -107,7 +107,6 @@ public class FailingTest extends TestLogger {
             TaskExecutionStateTransition update =
                     new TaskExecutionStateTransition(
                             new TaskExecutionState(
-                                    failing.getJob().getJobID(),
                                     ejv.getMockExecutionVertex()
                                             .getCurrentExecutionAttempt()
                                             .getAttemptId(),

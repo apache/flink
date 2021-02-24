@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.taskmanager;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -39,8 +38,6 @@ public class TaskExecutionState implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    private final JobID jobID;
-
     private final ExecutionAttemptID executionId;
 
     private final ExecutionState executionState;
@@ -55,53 +52,44 @@ public class TaskExecutionState implements Serializable {
     /**
      * Creates a new task execution state update, with no attached exception and no accumulators.
      *
-     * @param jobID the ID of the job the task belongs to
      * @param executionId the ID of the task execution whose state is to be reported
      * @param executionState the execution state to be reported
      */
-    public TaskExecutionState(
-            JobID jobID, ExecutionAttemptID executionId, ExecutionState executionState) {
-        this(jobID, executionId, executionState, null, null, null);
+    public TaskExecutionState(ExecutionAttemptID executionId, ExecutionState executionState) {
+        this(executionId, executionState, null, null, null);
     }
 
     /**
      * Creates a new task execution state update, with an attached exception but no accumulators.
      *
-     * @param jobID the ID of the job the task belongs to
      * @param executionId the ID of the task execution whose state is to be reported
      * @param executionState the execution state to be reported
      */
     public TaskExecutionState(
-            JobID jobID,
-            ExecutionAttemptID executionId,
-            ExecutionState executionState,
-            Throwable error) {
-        this(jobID, executionId, executionState, error, null, null);
+            ExecutionAttemptID executionId, ExecutionState executionState, Throwable error) {
+        this(executionId, executionState, error, null, null);
     }
 
     /**
      * Creates a new task execution state update, with an attached exception. This constructor may
      * never throw an exception.
      *
-     * @param jobID the ID of the job the task belongs to
      * @param executionId the ID of the task execution whose state is to be reported
      * @param executionState the execution state to be reported
      * @param error an optional error
      * @param accumulators The flink and user-defined accumulators which may be null.
      */
     public TaskExecutionState(
-            JobID jobID,
             ExecutionAttemptID executionId,
             ExecutionState executionState,
             Throwable error,
             AccumulatorSnapshot accumulators,
             IOMetrics ioMetrics) {
 
-        if (jobID == null || executionId == null || executionState == null) {
+        if (executionId == null || executionState == null) {
             throw new NullPointerException();
         }
 
-        this.jobID = jobID;
         this.executionId = executionId;
         this.executionState = executionState;
         if (error != null) {
@@ -148,15 +136,6 @@ public class TaskExecutionState implements Serializable {
         return this.executionState;
     }
 
-    /**
-     * The ID of the job the task belongs to
-     *
-     * @return the ID of the job the task belongs to
-     */
-    public JobID getJobID() {
-        return this.jobID;
-    }
-
     /** Gets flink and user-defined accumulators in serialized form. */
     public AccumulatorSnapshot getAccumulators() {
         return accumulators;
@@ -172,8 +151,7 @@ public class TaskExecutionState implements Serializable {
     public boolean equals(Object obj) {
         if (obj instanceof TaskExecutionState) {
             TaskExecutionState other = (TaskExecutionState) obj;
-            return other.jobID.equals(this.jobID)
-                    && other.executionId.equals(this.executionId)
+            return other.executionId.equals(this.executionId)
                     && other.executionState == this.executionState
                     && (other.throwable == null) == (this.throwable == null);
         } else {
@@ -183,16 +161,13 @@ public class TaskExecutionState implements Serializable {
 
     @Override
     public int hashCode() {
-        return jobID.hashCode() + executionId.hashCode() + executionState.ordinal();
+        return executionId.hashCode() + executionState.ordinal();
     }
 
     @Override
     public String toString() {
         return String.format(
-                "TaskExecutionState jobId=%s, executionId=%s, state=%s, error=%s",
-                jobID,
-                executionId,
-                executionState,
-                throwable == null ? "(null)" : throwable.toString());
+                "TaskExecutionState executionId=%s, state=%s, error=%s",
+                executionId, executionState, throwable == null ? "(null)" : throwable.toString());
     }
 }

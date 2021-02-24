@@ -305,7 +305,7 @@ public abstract class SchedulerBase implements SchedulerNG {
         }
 
         newExecutionGraph.setInternalTaskFailuresListener(
-                new UpdateSchedulerNgOnInternalFailuresListener(this, jobGraph.getJobID()));
+                new UpdateSchedulerNgOnInternalFailuresListener(this));
         newExecutionGraph.registerJobStatusListener(jobStatusListener);
         newExecutionGraph.start(mainThreadExecutor);
 
