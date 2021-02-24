@@ -81,6 +81,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
@@ -347,7 +348,10 @@ public class StreamingJobGraphGenerator {
         final Map<Integer, OperatorChainInfo> chainEntryPoints =
                 buildChainedInputsAndGetHeadInputs(hashes, legacyHashes);
         final Collection<OperatorChainInfo> initialEntryPoints =
-                new ArrayList<>(chainEntryPoints.values());
+                chainEntryPoints.entrySet().stream()
+                        .sorted(Comparator.comparing(Entry::getKey))
+                        .map(Entry::getValue)
+                        .collect(Collectors.toList());
 
         // iterate over a copy of the values, because this map gets concurrently modified
         for (OperatorChainInfo info : initialEntryPoints) {
