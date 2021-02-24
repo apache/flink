@@ -55,8 +55,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.client.config.entries.ExecutionEntry.EXECUTION_TYPE;
-import static org.apache.flink.table.client.config.entries.ExecutionEntry.EXECUTION_TYPE_VALUE_STREAMING;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** SQL CLI client. */
@@ -656,12 +654,7 @@ public class CliClient implements AutoCloseable {
         if (resultDesc.isTableauMode()) {
             try (CliTableauResultView tableauResultView =
                     new CliTableauResultView(terminal, executor, sessionId, resultDesc)) {
-                Map<String, String> properties = executor.getSessionProperties(sessionId);
-                boolean isStreamingMode =
-                        properties
-                                .getOrDefault(EXECUTION_TYPE, EXECUTION_TYPE_VALUE_STREAMING)
-                                .equals(EXECUTION_TYPE_VALUE_STREAMING);
-                tableauResultView.displayResults(isStreamingMode);
+                tableauResultView.displayResults(resultDesc.isStreamingMode());
             } catch (SqlExecutionException e) {
                 printExecutionException(e);
             }

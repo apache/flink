@@ -527,12 +527,12 @@ public class LocalExecutorITCase extends TestLogger {
                     retrieveChangelogResult(executor, sessionId, desc.getResultId());
 
             final List<String> expectedResults = new ArrayList<>();
-            expectedResults.add("+I(+I[47, Hello World, ABC])");
-            expectedResults.add("+I(+I[27, Hello World, ABC])");
-            expectedResults.add("+I(+I[37, Hello World, ABC])");
-            expectedResults.add("+I(+I[37, Hello World, ABC])");
-            expectedResults.add("+I(+I[47, Hello World, ABC])");
-            expectedResults.add("+I(+I[57, Hello World!!!!, ABC])");
+            expectedResults.add("+I[47, Hello World, ABC]");
+            expectedResults.add("+I[27, Hello World, ABC]");
+            expectedResults.add("+I[37, Hello World, ABC]");
+            expectedResults.add("+I[37, Hello World, ABC]");
+            expectedResults.add("+I[47, Hello World, ABC]");
+            expectedResults.add("+I[57, Hello World!!!!, ABC]");
 
             TestBaseUtils.compareResultCollections(
                     expectedResults, actualResults, Comparator.naturalOrder());
@@ -559,12 +559,12 @@ public class LocalExecutorITCase extends TestLogger {
         assertEquals("test-session", sessionId);
 
         final List<String> expectedResults = new ArrayList<>();
-        expectedResults.add("+I(+I[47, Hello World])");
-        expectedResults.add("+I(+I[27, Hello World])");
-        expectedResults.add("+I(+I[37, Hello World])");
-        expectedResults.add("+I(+I[37, Hello World])");
-        expectedResults.add("+I(+I[47, Hello World])");
-        expectedResults.add("+I(+I[57, Hello World!!!!])");
+        expectedResults.add("+I[47, Hello World]");
+        expectedResults.add("+I[27, Hello World]");
+        expectedResults.add("+I[37, Hello World]");
+        expectedResults.add("+I[37, Hello World]");
+        expectedResults.add("+I[47, Hello World]");
+        expectedResults.add("+I[57, Hello World!!!!]");
 
         try {
             for (int i = 0; i < 3; i++) {
@@ -1787,7 +1787,7 @@ public class LocalExecutorITCase extends TestLogger {
                     executor.retrieveResultChanges(sessionId, resultID);
             if (result.getType() == TypedResult.ResultType.PAYLOAD) {
                 for (Row row : result.getPayload()) {
-                    actualResults.add(row.getKind().shortString() + "(" + row.toString() + ")");
+                    actualResults.add(row.toString());
                 }
             } else if (result.getType() == TypedResult.ResultType.EOS) {
                 break;

@@ -507,7 +507,8 @@ public class LocalExecutor implements Executor {
                 jobId,
                 removeTimeAttributes(tableResult.getTableSchema()),
                 result.isMaterialized(),
-                context.getEnvironment().getExecution().isTableauMode());
+                context.getEnvironment().getExecution().isTableauMode(),
+                context.getEnvironment().getExecution().inStreamingMode());
     }
 
     /**

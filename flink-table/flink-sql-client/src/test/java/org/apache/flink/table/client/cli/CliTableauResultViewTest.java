@@ -157,7 +157,7 @@ public class CliTableauResultViewTest {
 
     @Test
     public void testBatchResult() {
-        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, true);
+        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, true, false);
 
         TestingExecutor mockExecutor =
                 new TestingExecutorBuilder()
@@ -207,7 +207,7 @@ public class CliTableauResultViewTest {
 
     @Test
     public void testCancelBatchResult() throws Exception {
-        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, true);
+        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, true, false);
 
         TestingExecutor mockExecutor =
                 new TestingExecutorBuilder()
@@ -262,7 +262,7 @@ public class CliTableauResultViewTest {
 
     @Test
     public void testEmptyBatchResult() {
-        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, true);
+        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, true, false);
         TestingExecutor mockExecutor =
                 new TestingExecutorBuilder()
                         .setResultChangesSupplier(TypedResult::endOfStream)
@@ -293,7 +293,7 @@ public class CliTableauResultViewTest {
 
     @Test
     public void testFailedBatchResult() {
-        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, true);
+        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, true, false);
 
         TestingExecutor mockExecutor =
                 new TestingExecutorBuilder()
@@ -320,7 +320,7 @@ public class CliTableauResultViewTest {
 
     @Test
     public void testStreamingResult() {
-        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, true);
+        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, true, false);
 
         TestingExecutor mockExecutor =
                 new TestingExecutorBuilder()
@@ -379,7 +379,7 @@ public class CliTableauResultViewTest {
 
     @Test
     public void testEmptyStreamingResult() {
-        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, true);
+        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, true, true);
 
         TestingExecutor mockExecutor =
                 new TestingExecutorBuilder()
@@ -407,7 +407,7 @@ public class CliTableauResultViewTest {
 
     @Test
     public void testCancelStreamingResult() throws Exception {
-        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, true);
+        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, true, true);
 
         TestingExecutor mockExecutor =
                 new TestingExecutorBuilder()
@@ -460,7 +460,7 @@ public class CliTableauResultViewTest {
 
     @Test
     public void testFailedStreamingResult() {
-        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, true);
+        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, true, true);
 
         TestingExecutor mockExecutor =
                 new TestingExecutorBuilder()

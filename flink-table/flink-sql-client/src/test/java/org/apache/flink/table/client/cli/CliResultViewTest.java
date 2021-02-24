@@ -90,7 +90,8 @@ public class CliResultViewTest {
                         "result-id",
                         TableSchema.builder().field("Null Field", Types.STRING()).build(),
                         false,
-                        false);
+                        false,
+                        true);
 
         Thread resultViewRunner = null;
         CliClient cli = null;
