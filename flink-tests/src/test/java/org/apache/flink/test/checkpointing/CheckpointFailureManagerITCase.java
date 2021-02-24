@@ -36,6 +36,7 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.SnapshotExecutionType;
 import org.apache.flink.runtime.state.SnapshotResources;
 import org.apache.flink.runtime.state.SnapshotStrategy;
 import org.apache.flink.runtime.state.SnapshotStrategyRunner;
@@ -209,7 +210,7 @@ public class CheckpointFailureManagerITCase extends TestLogger {
                                     "Async Failure State Backend",
                                     ASYNC_DECLINING_SNAPSHOT_STRATEGY,
                                     closeableRegistry,
-                                    SnapshotStrategyRunner.ExecutionType.ASYNCHRONOUS));
+                                    SnapshotExecutionType.ASYNCHRONOUS));
                 }
             }.build();
         }

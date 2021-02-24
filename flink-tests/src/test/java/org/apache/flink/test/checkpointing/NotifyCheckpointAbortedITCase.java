@@ -90,7 +90,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.apache.flink.runtime.state.SnapshotStrategyRunner.ExecutionType.ASYNCHRONOUS;
+import static org.apache.flink.runtime.state.SnapshotExecutionType.ASYNCHRONOUS;
 import static org.junit.Assert.assertEquals;
 
 /** Integrated tests to verify the logic to notify checkpoint aborted via RPC message. */
