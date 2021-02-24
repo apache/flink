@@ -28,8 +28,7 @@ under the License.
 # Zipping Elements in a DataSet
 
 In certain algorithms, one may need to assign unique identifiers to data set elements.
-This document shows how {% gh_link /flink-java/src/main/java/org/apache/flink/api/java/utils/DataSetUtils.java "DataSetUtils" %} can be used for that purpose.
-{{< gh_link file="/flink-java/src/main/java/org/apache/flink/api/java/utils/DataSetUtils.java" name="DataSetUtils" >}}
+This document shows how {{< gh_link file="/flink-java/src/main/java/org/apache/flink/api/java/utils/DataSetUtils.java" name="DataSetUtils" >}} can be used for that purpose.
 
 ### Zip with a Dense Index
 
