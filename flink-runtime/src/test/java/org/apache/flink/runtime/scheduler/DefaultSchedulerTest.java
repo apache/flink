@@ -30,6 +30,7 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.ArchivedExecution;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -77,6 +78,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.acknowledgePendingCheckpoint;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.enableCheckpointing;
@@ -572,6 +575,61 @@ public class DefaultSchedulerTest extends TestLogger {
                 testExecutionVertexOperations.getDeployedVertices();
         final ExecutionVertexID executionVertexId = new ExecutionVertexID(onlyJobVertex.getID(), 0);
         assertThat(deployedExecutionVertices, contains(executionVertexId, executionVertexId));
+    }
+
+    /**
+     * This test covers the use-case where a global fail-over is followed by a local task failure.
+     * It verifies (besides checking the expected deployments) that the assert in the global
+     * recovery handling of {@link SchedulerBase#restoreState} is not triggered due to version
+     * updates.
+     */
+    @Test
+    public void handleGlobalFailureWithLocalFailure() {
+        final JobGraph jobGraph = singleJobVertexJobGraph(2);
+        final JobVertex onlyJobVertex = getOnlyJobVertex(jobGraph);
+        enableCheckpointing(jobGraph);
+
+        final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
+
+        final List<ExecutionAttemptID> attemptIds =
+                StreamSupport.stream(
+                                scheduler
+                                        .requestJob()
+                                        .getArchivedExecutionGraph()
+                                        .getAllExecutionVertices()
+                                        .spliterator(),
+                                false)
+                        .map(ArchivedExecutionVertex::getCurrentExecutionAttempt)
+                        .map(ArchivedExecution::getAttemptId)
+                        .collect(Collectors.toList());
+        final ExecutionAttemptID localFailureAttemptId = attemptIds.get(0);
+        scheduler.handleGlobalFailure(new Exception("global failure"));
+        // the local failure shouldn't affect the global fail-over
+        scheduler.updateTaskExecutionState(
+                new TaskExecutionState(
+                        localFailureAttemptId,
+                        ExecutionState.FAILED,
+                        new Exception("local failure")));
+
+        for (ExecutionAttemptID attemptId : attemptIds) {
+            scheduler.updateTaskExecutionState(
+                    new TaskExecutionState(attemptId, ExecutionState.CANCELED));
+        }
+
+        taskRestartExecutor.triggerScheduledTasks();
+
+        final ExecutionVertexID executionVertexId0 =
+                new ExecutionVertexID(onlyJobVertex.getID(), 0);
+        final ExecutionVertexID executionVertexId1 =
+                new ExecutionVertexID(onlyJobVertex.getID(), 1);
+        assertThat(
+                "The execution vertices should be deployed in a specific order reflecting the scheduling start and the global fail-over afterwards.",
+                testExecutionVertexOperations.getDeployedVertices(),
+                contains(
+                        executionVertexId0,
+                        executionVertexId1,
+                        executionVertexId0,
+                        executionVertexId1));
     }
 
     @Test
