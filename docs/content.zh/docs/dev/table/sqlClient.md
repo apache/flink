@@ -357,11 +357,6 @@ configuration:
   table.optimizer.join-reorder-enabled: true
   table.exec.spill-compression.enabled: true
   table.exec.spill-compression.block-size: 128kb
-
-# 描述表程序提交集群的属性。
-
-deployment:
-  response-timeout: 5000
 ```
 
 上述配置：
@@ -484,7 +479,7 @@ Java/Scala UDF 必须指定：
 
 Python UDF 必须指定：
 
-- 声明全程名称的 `fully-qualified-name`，即函数的 “[module name].[object name]” 
+- 声明全程名称的 `fully-qualified-name`，即函数的 “[module name].[object name]”
 
 ```yaml
 functions:
@@ -498,8 +493,8 @@ functions:
           - type: ...            # optional: type of the literal parameter
             value: ...           # optional: value of the literal parameter
   - name: python_udf             # required: name of the function
-    from: python                 # required: source of the function 
-    fully-qualified-name: ...    # required: fully qualified class name of the function      
+    from: python                 # required: source of the function
+    fully-qualified-name: ...    # required: fully qualified class name of the function
 ```
 
 对于 Java/Scala UDF，要确保函数类指定的构造参数顺序和类型都要严格匹配。

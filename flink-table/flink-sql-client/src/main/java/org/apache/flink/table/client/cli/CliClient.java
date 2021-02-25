@@ -666,11 +666,7 @@ public class CliClient implements AutoCloseable {
         if (resultDesc.isTableauMode()) {
             try (CliTableauResultView tableauResultView =
                     new CliTableauResultView(terminal, executor, sessionId, resultDesc)) {
-                if (resultDesc.isMaterialized()) {
-                    tableauResultView.displayBatchResults();
-                } else {
-                    tableauResultView.displayStreamResults();
-                }
+                tableauResultView.displayResults();
             } catch (SqlExecutionException e) {
                 printExecutionException(e);
             }

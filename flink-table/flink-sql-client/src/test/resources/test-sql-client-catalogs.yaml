@@ -140,9 +140,6 @@ execution:
   current-catalog: inmemorycatalog
   current-database: mydatabase
 
-deployment:
-  response-timeout: 5000
-
 catalogs:
   - name: catalog1
     type: DependencyTest

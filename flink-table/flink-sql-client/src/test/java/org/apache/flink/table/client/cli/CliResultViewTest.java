@@ -17,7 +17,6 @@
 
 package org.apache.flink.table.client.cli;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
@@ -91,7 +90,8 @@ public class CliResultViewTest {
                         "result-id",
                         TableSchema.builder().field("Null Field", Types.STRING()).build(),
                         false,
-                        false);
+                        false,
+                        true);
 
         Thread resultViewRunner = null;
         CliClient cli = null;
@@ -185,9 +185,9 @@ public class CliResultViewTest {
 
         @Override
         @SuppressWarnings("unchecked")
-        public TypedResult<List<Tuple2<Boolean, Row>>> retrieveResultChanges(
-                String sessionId, String resultId) throws SqlExecutionException {
-            return (TypedResult<List<Tuple2<Boolean, Row>>>) typedResult;
+        public TypedResult<List<Row>> retrieveResultChanges(String sessionId, String resultId)
+                throws SqlExecutionException {
+            return (TypedResult<List<Row>>) typedResult;
         }
 
         @Override

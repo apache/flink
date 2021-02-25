@@ -56,9 +56,9 @@ public class ExecutionEntry extends ConfigEntry {
 
     public static final String EXECUTION_PLANNER_VALUE_BLINK = "blink";
 
-    private static final String EXECUTION_TYPE = "type";
+    public static final String EXECUTION_TYPE = "type";
 
-    private static final String EXECUTION_TYPE_VALUE_STREAMING = "streaming";
+    public static final String EXECUTION_TYPE_VALUE_STREAMING = "streaming";
 
     private static final String EXECUTION_TYPE_VALUE_BATCH = "batch";
 

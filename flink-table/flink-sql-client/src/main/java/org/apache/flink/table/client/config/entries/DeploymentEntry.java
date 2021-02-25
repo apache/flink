@@ -50,39 +50,13 @@ public class DeploymentEntry extends ConfigEntry {
     public static final DeploymentEntry DEFAULT_INSTANCE =
             new DeploymentEntry(new DescriptorProperties(true));
 
-    private static final String DEPLOYMENT_RESPONSE_TIMEOUT = "response-timeout";
-
-    private static final String DEPLOYMENT_GATEWAY_ADDRESS = "gateway-address";
-
-    private static final String DEPLOYMENT_GATEWAY_PORT = "gateway-port";
-
     private DeploymentEntry(DescriptorProperties properties) {
         super(properties);
     }
 
     @Override
     protected void validate(DescriptorProperties properties) {
-        properties.validateLong(DEPLOYMENT_RESPONSE_TIMEOUT, true, 0);
-        properties.validateString(DEPLOYMENT_GATEWAY_ADDRESS, true, 0);
-        properties.validateInt(DEPLOYMENT_GATEWAY_PORT, true, 0, 65535);
-    }
-
-    public long getResponseTimeout() {
-        return properties
-                .getOptionalLong(DEPLOYMENT_RESPONSE_TIMEOUT)
-                .orElseGet(() -> useDefaultValue(DEPLOYMENT_RESPONSE_TIMEOUT, 10000L));
-    }
-
-    public String getGatewayAddress() {
-        return properties
-                .getOptionalString(DEPLOYMENT_GATEWAY_ADDRESS)
-                .orElseGet(() -> useDefaultValue(DEPLOYMENT_GATEWAY_ADDRESS, ""));
-    }
-
-    public int getGatewayPort() {
-        return properties
-                .getOptionalInt(DEPLOYMENT_GATEWAY_PORT)
-                .orElseGet(() -> useDefaultValue(DEPLOYMENT_GATEWAY_PORT, 0));
+        // do nothing
     }
 
     /**
