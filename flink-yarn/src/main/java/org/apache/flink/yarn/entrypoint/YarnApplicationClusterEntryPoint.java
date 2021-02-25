@@ -21,7 +21,7 @@ package org.apache.flink.yarn.entrypoint;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.client.deployment.application.ApplicationClusterEntryPoint;
 import org.apache.flink.client.deployment.application.ApplicationConfiguration;
-import org.apache.flink.client.deployment.application.ClassPathPackagedProgramRetriever;
+import org.apache.flink.client.deployment.application.PackagedProgramRetrieverAdapter;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramRetriever;
 import org.apache.flink.configuration.Configuration;
@@ -113,7 +113,6 @@ public final class YarnApplicationClusterEntryPoint extends ApplicationClusterEn
 
     private static PackagedProgram getPackagedProgram(final Configuration configuration)
             throws IOException, FlinkException {
-
         final ApplicationConfiguration applicationConfiguration =
                 ApplicationConfiguration.fromConfiguration(configuration);
 
@@ -130,15 +129,13 @@ public final class YarnApplicationClusterEntryPoint extends ApplicationClusterEn
             final String[] programArguments,
             @Nullable final String jobClassName)
             throws IOException {
-
         final File userLibDir = YarnEntrypointUtils.getUsrLibDir(configuration).orElse(null);
         final File userApplicationJar = getUserApplicationJar(userLibDir, configuration);
-        final ClassPathPackagedProgramRetriever.Builder retrieverBuilder =
-                ClassPathPackagedProgramRetriever.newBuilder(programArguments)
-                        .setUserLibDirectory(userLibDir)
-                        .setJarFile(userApplicationJar)
-                        .setJobClassName(jobClassName);
-        return retrieverBuilder.build();
+        return PackagedProgramRetrieverAdapter.newBuilder(
+                        programArguments, configuration, userApplicationJar)
+                .setJobClassName(jobClassName)
+                .setUserLibDirectory(userLibDir)
+                .build();
     }
 
     private static File getUserApplicationJar(

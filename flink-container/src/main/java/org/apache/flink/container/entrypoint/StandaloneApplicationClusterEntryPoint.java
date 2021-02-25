@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.deployment.application.ApplicationClusterEntryPoint;
-import org.apache.flink.client.deployment.application.ClassPathPackagedProgramRetriever;
+import org.apache.flink.client.deployment.application.PackagedProgramRetrieverAdapter;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramRetriever;
 import org.apache.flink.configuration.Configuration;
@@ -62,16 +62,17 @@ public final class StandaloneApplicationClusterEntryPoint extends ApplicationClu
                         args,
                         new StandaloneApplicationClusterConfigurationParserFactory(),
                         StandaloneApplicationClusterEntryPoint.class);
+        final Configuration configuration =
+                loadConfigurationFromClusterConfig(clusterConfiguration);
 
         PackagedProgram program = null;
         try {
-            program = getPackagedProgram(clusterConfiguration);
+            program = getPackagedProgram(clusterConfiguration, configuration);
         } catch (Exception e) {
             LOG.error("Could not create application program.", e);
             System.exit(1);
         }
 
-        Configuration configuration = loadConfigurationFromClusterConfig(clusterConfiguration);
         try {
             configureExecution(configuration, program);
         } catch (Exception e) {
@@ -101,23 +102,27 @@ public final class StandaloneApplicationClusterEntryPoint extends ApplicationClu
     }
 
     private static PackagedProgram getPackagedProgram(
-            final StandaloneApplicationClusterConfiguration clusterConfiguration)
+            final StandaloneApplicationClusterConfiguration clusterConfiguration,
+            final Configuration configuration)
             throws IOException, FlinkException {
         final PackagedProgramRetriever programRetriever =
                 getPackagedProgramRetriever(
-                        clusterConfiguration.getArgs(), clusterConfiguration.getJobClassName());
+                        configuration,
+                        clusterConfiguration.getArgs(),
+                        clusterConfiguration.getJobClassName());
         return programRetriever.getPackagedProgram();
     }
 
     private static PackagedProgramRetriever getPackagedProgramRetriever(
-            final String[] programArguments, @Nullable final String jobClassName)
+            final Configuration configuration,
+            final String[] programArguments,
+            @Nullable final String jobClassName)
             throws IOException {
         final File userLibDir = ClusterEntrypointUtils.tryFindUserLibDirectory().orElse(null);
-        final ClassPathPackagedProgramRetriever.Builder retrieverBuilder =
-                ClassPathPackagedProgramRetriever.newBuilder(programArguments)
-                        .setUserLibDirectory(userLibDir)
-                        .setJobClassName(jobClassName);
-        return retrieverBuilder.build();
+        return PackagedProgramRetrieverAdapter.newBuilder(programArguments, configuration)
+                .setUserLibDirectory(userLibDir)
+                .setJobClassName(jobClassName)
+                .build();
     }
 
     private static void setStaticJobId(

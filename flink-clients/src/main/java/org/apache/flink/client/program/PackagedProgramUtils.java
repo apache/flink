@@ -54,10 +54,10 @@ import static org.apache.flink.util.Preconditions.checkState;
 public enum PackagedProgramUtils {
     ;
 
-    private static final String PYTHON_GATEWAY_CLASS_NAME =
+    public static final String PYTHON_GATEWAY_CLASS_NAME =
             "org.apache.flink.client.python.PythonGatewayServer";
 
-    private static final String PYTHON_DRIVER_CLASS_NAME =
+    public static final String PYTHON_DRIVER_CLASS_NAME =
             "org.apache.flink.client.python.PythonDriver";
 
     /**

@@ -21,7 +21,7 @@ package org.apache.flink.kubernetes.entrypoint;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.client.deployment.application.ApplicationClusterEntryPoint;
 import org.apache.flink.client.deployment.application.ApplicationConfiguration;
-import org.apache.flink.client.deployment.application.ClassPathPackagedProgramRetriever;
+import org.apache.flink.client.deployment.application.PackagedProgramRetrieverAdapter;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramRetriever;
 import org.apache.flink.client.program.PackagedProgramUtils;
@@ -108,10 +108,6 @@ public final class KubernetesApplicationClusterEntrypoint extends ApplicationClu
             throws IOException {
 
         final File userLibDir = ClusterEntrypointUtils.tryFindUserLibDirectory().orElse(null);
-        final ClassPathPackagedProgramRetriever.Builder retrieverBuilder =
-                ClassPathPackagedProgramRetriever.newBuilder(programArguments)
-                        .setUserLibDirectory(userLibDir)
-                        .setJobClassName(jobClassName);
 
         // No need to do pipelineJars validation if it is a PyFlink job.
         if (!(PackagedProgramUtils.isPython(jobClassName)
@@ -119,8 +115,15 @@ public final class KubernetesApplicationClusterEntrypoint extends ApplicationClu
             final List<File> pipelineJars =
                     KubernetesUtils.checkJarFileForApplicationMode(configuration);
             Preconditions.checkArgument(pipelineJars.size() == 1, "Should only have one jar");
-            retrieverBuilder.setJarFile(pipelineJars.get(0));
+            return PackagedProgramRetrieverAdapter.newBuilder(
+                            programArguments, configuration, pipelineJars.get(0))
+                    .setUserLibDirectory(userLibDir)
+                    .setJobClassName(jobClassName)
+                    .build();
         }
-        return retrieverBuilder.build();
+        return PackagedProgramRetrieverAdapter.newBuilder(programArguments, configuration)
+                .setUserLibDirectory(userLibDir)
+                .setJobClassName(jobClassName)
+                .build();
     }
 }
