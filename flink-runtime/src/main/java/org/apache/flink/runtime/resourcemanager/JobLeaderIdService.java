@@ -267,10 +267,9 @@ public class JobLeaderIdService {
         }
 
         @Override
-        public void notifyLeaderAddress(String leaderAddress, UUID leaderSessionId) {
+        public void notifyLeaderAddress(
+                @Nullable String leaderAddress, @Nullable UUID leaderSessionId) {
             if (running) {
-                LOG.debug("Found a new job leader {}@{}.", leaderSessionId, leaderAddress);
-
                 UUID previousJobLeaderId = null;
 
                 if (leaderIdFuture.isDone()) {
@@ -281,9 +280,29 @@ public class JobLeaderIdService {
                         handleError(e);
                     }
 
-                    leaderIdFuture = CompletableFuture.completedFuture(leaderSessionId);
+                    if (leaderSessionId == null) {
+                        // there was a leader, but we no longer have one
+                        LOG.debug("Job {} no longer has a job leader.", jobId);
+                        leaderIdFuture = new CompletableFuture<>();
+                    } else {
+                        // there was an active leader, but we now have a new leader
+                        LOG.debug(
+                                "Job {} has a new job leader {}@{}.",
+                                jobId,
+                                leaderSessionId,
+                                leaderAddress);
+                        leaderIdFuture = CompletableFuture.completedFuture(leaderSessionId);
+                    }
                 } else {
-                    leaderIdFuture.complete(leaderSessionId);
+                    if (leaderSessionId != null) {
+                        // there was no active leader, but we now have a new leader
+                        LOG.debug(
+                                "Job {} has a new job leader {}@{}.",
+                                jobId,
+                                leaderSessionId,
+                                leaderAddress);
+                        leaderIdFuture.complete(leaderSessionId);
+                    }
                 }
 
                 if (previousJobLeaderId != null && !previousJobLeaderId.equals(leaderSessionId)) {
