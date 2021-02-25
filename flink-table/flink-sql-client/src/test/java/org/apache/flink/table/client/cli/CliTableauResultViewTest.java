@@ -172,7 +172,7 @@ public class CliTableauResultViewTest {
         CliTableauResultView view =
                 new CliTableauResultView(terminal, mockExecutor, "session", resultDescriptor);
 
-        view.displayResults(false);
+        view.displayResults();
         view.close();
         Assert.assertEquals(
                 "+---------+-------------+----------------------+----------------------+----------------+----------------------------+"
@@ -221,7 +221,7 @@ public class CliTableauResultViewTest {
 
         // submit result display in another thread
         ExecutorService executorService = Executors.newSingleThreadExecutor();
-        Future<?> furture = executorService.submit(() -> view.displayResults(false));
+        Future<?> furture = executorService.submit(() -> view.displayResults());
 
         // wait until we trying to get batch result
         CommonTestUtils.waitUntilCondition(
@@ -275,7 +275,7 @@ public class CliTableauResultViewTest {
         CliTableauResultView view =
                 new CliTableauResultView(terminal, mockExecutor, "session", resultDescriptor);
 
-        view.displayResults(false);
+        view.displayResults();
         view.close();
 
         Assert.assertEquals(
@@ -308,7 +308,7 @@ public class CliTableauResultViewTest {
                 new CliTableauResultView(terminal, mockExecutor, "session", resultDescriptor);
 
         try {
-            view.displayResults(false);
+            view.displayResults();
             Assert.fail("Shouldn't get here");
         } catch (SqlExecutionException e) {
             Assert.assertEquals("query failed", e.getMessage());
@@ -320,7 +320,7 @@ public class CliTableauResultViewTest {
 
     @Test
     public void testStreamingResult() {
-        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, true, false);
+        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, true, true);
 
         TestingExecutor mockExecutor =
                 new TestingExecutorBuilder()
@@ -339,7 +339,7 @@ public class CliTableauResultViewTest {
         CliTableauResultView view =
                 new CliTableauResultView(terminal, mockExecutor, "session", resultDescriptor);
 
-        view.displayResults(true);
+        view.displayResults();
         view.close();
         // note: the expected result may look irregular because every CJK(Chinese/Japanese/Korean)
         // character's
@@ -389,7 +389,7 @@ public class CliTableauResultViewTest {
         CliTableauResultView view =
                 new CliTableauResultView(terminal, mockExecutor, "session", resultDescriptor);
 
-        view.displayResults(true);
+        view.displayResults();
         view.close();
 
         Assert.assertEquals(
@@ -423,7 +423,7 @@ public class CliTableauResultViewTest {
 
         // submit result display in another thread
         ExecutorService executorService = Executors.newSingleThreadExecutor();
-        Future<?> furture = executorService.submit(() -> view.displayResults(true));
+        Future<?> furture = executorService.submit(() -> view.displayResults());
 
         // wait until we processed first result
         CommonTestUtils.waitUntilCondition(
@@ -477,7 +477,7 @@ public class CliTableauResultViewTest {
                 new CliTableauResultView(terminal, mockExecutor, "session", resultDescriptor);
 
         try {
-            view.displayResults(true);
+            view.displayResults();
             Assert.fail("Shouldn't get here");
         } catch (SqlExecutionException e) {
             Assert.assertEquals("query failed", e.getMessage());

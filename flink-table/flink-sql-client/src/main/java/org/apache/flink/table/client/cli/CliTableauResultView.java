@@ -63,12 +63,12 @@ public class CliTableauResultView implements AutoCloseable {
                         new ExecutorThreadFactory("CliTableauResultView"));
     }
 
-    public void displayResults(boolean isStreamingMode) throws SqlExecutionException {
+    public void displayResults() throws SqlExecutionException {
         final AtomicInteger receivedRowCount = new AtomicInteger(0);
         Future<?> resultFuture =
                 displayResultExecutorService.submit(
                         () -> {
-                            printResults(receivedRowCount, isStreamingMode);
+                            printResults(receivedRowCount, resultDescriptor.isStreamingMode());
                         });
 
         // capture CTRL-C

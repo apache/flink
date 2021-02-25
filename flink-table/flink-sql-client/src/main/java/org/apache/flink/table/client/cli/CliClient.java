@@ -654,7 +654,7 @@ public class CliClient implements AutoCloseable {
         if (resultDesc.isTableauMode()) {
             try (CliTableauResultView tableauResultView =
                     new CliTableauResultView(terminal, executor, sessionId, resultDesc)) {
-                tableauResultView.displayResults(resultDesc.isStreamingMode());
+                tableauResultView.displayResults();
             } catch (SqlExecutionException e) {
                 printExecutionException(e);
             }
