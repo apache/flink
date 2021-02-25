@@ -40,29 +40,7 @@ public class PointwisePatternTest {
     public void testNToN() throws Exception {
         final int N = 23;
 
-        JobVertex v1 = new JobVertex("vertex1");
-        JobVertex v2 = new JobVertex("vertex2");
-
-        v1.setParallelism(N);
-        v2.setParallelism(N);
-
-        v1.setInvokableClass(AbstractInvokable.class);
-        v2.setInvokableClass(AbstractInvokable.class);
-
-        v2.connectNewDataSetAsInput(
-                v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-
-        List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
-
-        ExecutionGraph eg = getDummyExecutionGraph();
-        try {
-            eg.attachJobGraph(ordered);
-        } catch (JobException e) {
-            e.printStackTrace();
-            fail("Job failed with exception: " + e.getMessage());
-        }
-
-        ExecutionJobVertex target = eg.getAllVertices().get(v2.getID());
+        ExecutionJobVertex target = setUpExecutionGraphAndGetDownstreamVertex(N, N);
 
         for (ExecutionVertex ev : target.getTaskVertices()) {
             assertEquals(1, ev.getNumberOfInputs());
@@ -78,29 +56,7 @@ public class PointwisePatternTest {
     public void test2NToN() throws Exception {
         final int N = 17;
 
-        JobVertex v1 = new JobVertex("vertex1");
-        JobVertex v2 = new JobVertex("vertex2");
-
-        v1.setParallelism(2 * N);
-        v2.setParallelism(N);
-
-        v1.setInvokableClass(AbstractInvokable.class);
-        v2.setInvokableClass(AbstractInvokable.class);
-
-        v2.connectNewDataSetAsInput(
-                v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-
-        List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
-
-        ExecutionGraph eg = getDummyExecutionGraph();
-        try {
-            eg.attachJobGraph(ordered);
-        } catch (JobException e) {
-            e.printStackTrace();
-            fail("Job failed with exception: " + e.getMessage());
-        }
-
-        ExecutionJobVertex target = eg.getAllVertices().get(v2.getID());
+        ExecutionJobVertex target = setUpExecutionGraphAndGetDownstreamVertex(2 * N, N);
 
         for (ExecutionVertex ev : target.getTaskVertices()) {
             assertEquals(1, ev.getNumberOfInputs());
@@ -120,29 +76,7 @@ public class PointwisePatternTest {
     public void test3NToN() throws Exception {
         final int N = 17;
 
-        JobVertex v1 = new JobVertex("vertex1");
-        JobVertex v2 = new JobVertex("vertex2");
-
-        v1.setParallelism(3 * N);
-        v2.setParallelism(N);
-
-        v1.setInvokableClass(AbstractInvokable.class);
-        v2.setInvokableClass(AbstractInvokable.class);
-
-        v2.connectNewDataSetAsInput(
-                v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-
-        List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
-
-        ExecutionGraph eg = getDummyExecutionGraph();
-        try {
-            eg.attachJobGraph(ordered);
-        } catch (JobException e) {
-            e.printStackTrace();
-            fail("Job failed with exception: " + e.getMessage());
-        }
-
-        ExecutionJobVertex target = eg.getAllVertices().get(v2.getID());
+        ExecutionJobVertex target = setUpExecutionGraphAndGetDownstreamVertex(3 * N, N);
 
         for (ExecutionVertex ev : target.getTaskVertices()) {
             assertEquals(1, ev.getNumberOfInputs());
@@ -165,29 +99,7 @@ public class PointwisePatternTest {
     public void testNTo2N() throws Exception {
         final int N = 41;
 
-        JobVertex v1 = new JobVertex("vertex1");
-        JobVertex v2 = new JobVertex("vertex2");
-
-        v1.setParallelism(N);
-        v2.setParallelism(2 * N);
-
-        v1.setInvokableClass(AbstractInvokable.class);
-        v2.setInvokableClass(AbstractInvokable.class);
-
-        v2.connectNewDataSetAsInput(
-                v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-
-        List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
-
-        ExecutionGraph eg = getDummyExecutionGraph();
-        try {
-            eg.attachJobGraph(ordered);
-        } catch (JobException e) {
-            e.printStackTrace();
-            fail("Job failed with exception: " + e.getMessage());
-        }
-
-        ExecutionJobVertex target = eg.getAllVertices().get(v2.getID());
+        ExecutionJobVertex target = setUpExecutionGraphAndGetDownstreamVertex(N, 2 * N);
 
         for (ExecutionVertex ev : target.getTaskVertices()) {
             assertEquals(1, ev.getNumberOfInputs());
@@ -204,29 +116,7 @@ public class PointwisePatternTest {
     public void testNTo7N() throws Exception {
         final int N = 11;
 
-        JobVertex v1 = new JobVertex("vertex1");
-        JobVertex v2 = new JobVertex("vertex2");
-
-        v1.setParallelism(N);
-        v2.setParallelism(7 * N);
-
-        v1.setInvokableClass(AbstractInvokable.class);
-        v2.setInvokableClass(AbstractInvokable.class);
-
-        v2.connectNewDataSetAsInput(
-                v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-
-        List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
-
-        ExecutionGraph eg = getDummyExecutionGraph();
-        try {
-            eg.attachJobGraph(ordered);
-        } catch (JobException e) {
-            e.printStackTrace();
-            fail("Job failed with exception: " + e.getMessage());
-        }
-
-        ExecutionJobVertex target = eg.getAllVertices().get(v2.getID());
+        ExecutionJobVertex target = setUpExecutionGraphAndGetDownstreamVertex(N, 7 * N);
 
         for (ExecutionVertex ev : target.getTaskVertices()) {
             assertEquals(1, ev.getNumberOfInputs());
@@ -255,6 +145,25 @@ public class PointwisePatternTest {
         testHighToLow(31, 11);
     }
 
+    /**
+     * Verify the connection sequences for POINTWISE edges is correct and make sure the descendant
+     * logic of building POINTWISE edges follows the initial logic.
+     */
+    @Test
+    public void testPointwiseConnectionSequence() throws Exception {
+        // upstream parallelism < downstream parallelism
+        testConnections(3, 5, new int[][] {{0}, {0}, {1}, {1}, {2}});
+        testConnections(3, 10, new int[][] {{0}, {0}, {0}, {0}, {1}, {1}, {1}, {2}, {2}, {2}});
+        testConnections(4, 6, new int[][] {{0}, {0}, {1}, {2}, {2}, {3}});
+        testConnections(6, 10, new int[][] {{0}, {0}, {1}, {1}, {2}, {3}, {3}, {4}, {4}, {5}});
+
+        // upstream parallelism > downstream parallelism
+        testConnections(5, 3, new int[][] {{0}, {1, 2}, {3, 4}});
+        testConnections(10, 3, new int[][] {{0, 1, 2}, {3, 4, 5}, {6, 7, 8, 9}});
+        testConnections(6, 4, new int[][] {{0}, {1, 2}, {3}, {4, 5}});
+        testConnections(10, 6, new int[][] {{0}, {1, 2}, {3, 4}, {5}, {6, 7}, {8, 9}});
+    }
+
     private ExecutionGraph getDummyExecutionGraph() throws Exception {
         return TestingDefaultExecutionGraphBuilder.newBuilder().build();
     }
@@ -267,29 +176,7 @@ public class PointwisePatternTest {
         final int factor = highDop / lowDop;
         final int delta = highDop % lowDop == 0 ? 0 : 1;
 
-        JobVertex v1 = new JobVertex("vertex1");
-        JobVertex v2 = new JobVertex("vertex2");
-
-        v1.setParallelism(lowDop);
-        v2.setParallelism(highDop);
-
-        v1.setInvokableClass(AbstractInvokable.class);
-        v2.setInvokableClass(AbstractInvokable.class);
-
-        v2.connectNewDataSetAsInput(
-                v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-
-        List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
-
-        ExecutionGraph eg = getDummyExecutionGraph();
-        try {
-            eg.attachJobGraph(ordered);
-        } catch (JobException e) {
-            e.printStackTrace();
-            fail("Job failed with exception: " + e.getMessage());
-        }
-
-        ExecutionJobVertex target = eg.getAllVertices().get(v2.getID());
+        ExecutionJobVertex target = setUpExecutionGraphAndGetDownstreamVertex(lowDop, highDop);
 
         int[] timesUsed = new int[lowDop];
 
@@ -315,29 +202,7 @@ public class PointwisePatternTest {
         final int factor = highDop / lowDop;
         final int delta = highDop % lowDop == 0 ? 0 : 1;
 
-        JobVertex v1 = new JobVertex("vertex1");
-        JobVertex v2 = new JobVertex("vertex2");
-
-        v1.setParallelism(highDop);
-        v2.setParallelism(lowDop);
-
-        v1.setInvokableClass(AbstractInvokable.class);
-        v2.setInvokableClass(AbstractInvokable.class);
-
-        v2.connectNewDataSetAsInput(
-                v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-
-        List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
-
-        ExecutionGraph eg = getDummyExecutionGraph();
-        try {
-            eg.attachJobGraph(ordered);
-        } catch (JobException e) {
-            e.printStackTrace();
-            fail("Job failed with exception: " + e.getMessage());
-        }
-
-        ExecutionJobVertex target = eg.getAllVertices().get(v2.getID());
+        ExecutionJobVertex target = setUpExecutionGraphAndGetDownstreamVertex(highDop, lowDop);
 
         int[] timesUsed = new int[highDop];
 
@@ -354,6 +219,56 @@ public class PointwisePatternTest {
 
         for (int used : timesUsed) {
             assertEquals(1, used);
+        }
+    }
+
+    private ExecutionJobVertex setUpExecutionGraphAndGetDownstreamVertex(
+            int upstream, int downstream) throws Exception {
+        JobVertex v1 = new JobVertex("vertex1");
+        JobVertex v2 = new JobVertex("vertex2");
+
+        v1.setParallelism(upstream);
+        v2.setParallelism(downstream);
+
+        v1.setInvokableClass(AbstractInvokable.class);
+        v2.setInvokableClass(AbstractInvokable.class);
+
+        v2.connectNewDataSetAsInput(
+                v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+
+        List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2));
+
+        ExecutionGraph eg = getDummyExecutionGraph();
+        try {
+            eg.attachJobGraph(ordered);
+        } catch (JobException e) {
+            e.printStackTrace();
+            fail("Job failed with exception: " + e.getMessage());
+        }
+
+        return eg.getAllVertices().get(v2.getID());
+    }
+
+    /** Verify the connections between upstream result partitions and downstream vertices. */
+    private void testConnections(
+            int sourceParallelism, int targetParallelism, int[][] expectedConsumedPartitionNumber)
+            throws Exception {
+
+        ExecutionJobVertex target =
+                setUpExecutionGraphAndGetDownstreamVertex(sourceParallelism, targetParallelism);
+
+        for (int vertexIndex = 0; vertexIndex < target.getTaskVertices().length; vertexIndex++) {
+
+            ExecutionVertex ev = target.getTaskVertices()[vertexIndex];
+            ExecutionEdge[] edges = ev.getInputEdges(0);
+
+            assertEquals(expectedConsumedPartitionNumber[vertexIndex].length, edges.length);
+
+            for (int partitionIndex = 0; partitionIndex < edges.length; partitionIndex++) {
+                assertEquals(
+                        expectedConsumedPartitionNumber[vertexIndex][partitionIndex],
+                        edges[partitionIndex].getSource().getPartitionNumber());
+            }
         }
     }
 }
