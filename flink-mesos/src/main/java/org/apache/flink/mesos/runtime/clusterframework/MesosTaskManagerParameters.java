@@ -35,6 +35,7 @@ import org.apache.mesos.Protos;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 import scala.Option;
@@ -134,6 +135,14 @@ public class MesosTaskManagerParameters {
                             "A comma separated list of URIs of custom artifacts to be downloaded into the sandbox"
                                     + " of Mesos workers.");
 
+    public static final ConfigOption<Map<String, String>> MESOS_TM_LABELS =
+            key("mesos.resourcemanager.tasks.labels")
+                    .mapType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Labels to set on mesos tasks. It is a comma separated list of key value pairs,"
+                                    + " with each key value pair joined by colon. e.g. key1:value1,key2:value2 ");
+
     public static final ConfigOption<String> MESOS_RM_CONTAINER_VOLUMES =
             key("mesos.resourcemanager.tasks.container.volumes")
                     .noDefaultValue()
@@ -205,6 +214,8 @@ public class MesosTaskManagerParameters {
 
     private final List<String> uris;
 
+    private final Map<String, String> mesosLabels;
+
     public MesosTaskManagerParameters(
             int gpus,
             int disk,
@@ -219,7 +230,8 @@ public class MesosTaskManagerParameters {
             String command,
             Option<String> bootstrapCommand,
             Option<String> taskManagerHostname,
-            List<String> uris) {
+            List<String> uris,
+            Map<String, String> mesosLabels) {
 
         this.gpus = gpus;
         this.disk = disk;
@@ -235,6 +247,7 @@ public class MesosTaskManagerParameters {
         this.bootstrapCommand = Preconditions.checkNotNull(bootstrapCommand);
         this.taskManagerHostname = Preconditions.checkNotNull(taskManagerHostname);
         this.uris = Preconditions.checkNotNull(uris);
+        this.mesosLabels = Preconditions.checkNotNull(mesosLabels);
     }
 
     /** Get the CPU units to use for the TaskManager process. */
@@ -318,6 +331,11 @@ public class MesosTaskManagerParameters {
     /** Get custom artifact URIs. */
     public List<String> uris() {
         return uris;
+    }
+
+    /** Get mesos task labels. */
+    public Map<String, String> mesosLabels() {
+        return mesosLabels;
     }
 
     @Override
@@ -424,6 +442,10 @@ public class MesosTaskManagerParameters {
         Option<String> tmBootstrapCommand =
                 Option.apply(flinkConfig.getString(MESOS_TM_BOOTSTRAP_CMD));
 
+        // obtain mesos task labels from configuration
+        Map<String, String> mesosLabels =
+                flinkConfig.getOptional(MESOS_TM_LABELS).orElse(Collections.emptyMap());
+
         return new MesosTaskManagerParameters(
                 gpus,
                 disk,
@@ -438,7 +460,8 @@ public class MesosTaskManagerParameters {
                 tmCommand,
                 tmBootstrapCommand,
                 taskManagerHostname,
-                uris);
+                uris,
+                mesosLabels);
     }
 
     private static ContaineredTaskManagerParameters createContaineredTaskManagerParameters(
