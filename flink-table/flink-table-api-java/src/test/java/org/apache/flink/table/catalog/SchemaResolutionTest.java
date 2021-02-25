@@ -52,10 +52,10 @@ import static org.junit.Assert.fail;
 /** Tests for {@link Schema}, {@link DefaultSchemaResolver}, and {@link ResolvedSchema}. */
 public class SchemaResolutionTest {
 
-    private static final String COMPUTED_COLUMN_SQL = "orig_ts - INTERVAL '60' MINUTE";
+    private static final String COMPUTED_SQL = "orig_ts - INTERVAL '60' MINUTE";
 
     private static final ResolvedExpression COMPUTED_COLUMN_RESOLVED =
-            new ResolvedExpressionMock(DataTypes.TIMESTAMP(3), () -> COMPUTED_COLUMN_SQL);
+            new ResolvedExpressionMock(DataTypes.TIMESTAMP(3), () -> COMPUTED_SQL);
 
     private static final String WATERMARK_SQL = "ts - INTERVAL '5' SECOND";
 
@@ -76,8 +76,8 @@ public class SchemaResolutionTest {
                     .column("counter", DataTypes.INT().notNull())
                     .column("payload", "ROW<name STRING, age INT, flag BOOLEAN>")
                     .columnByMetadata("topic", DataTypes.STRING(), true)
+                    .columnByExpression("ts", callSql(COMPUTED_SQL)) // out of order API expression
                     .columnByMetadata("orig_ts", DataTypes.TIMESTAMP(3), "timestamp")
-                    .columnByExpression("ts", callSql(COMPUTED_COLUMN_SQL)) // API expression
                     .watermark("ts", WATERMARK_SQL)
                     .columnByExpression("proctime", PROCTIME_SQL)
                     .build();
@@ -96,8 +96,8 @@ public class SchemaResolutionTest {
                                                 DataTypes.FIELD("age", DataTypes.INT()),
                                                 DataTypes.FIELD("flag", DataTypes.BOOLEAN()))),
                                 Column.metadata("topic", DataTypes.STRING(), true),
-                                Column.metadata("orig_ts", DataTypes.TIMESTAMP(3), "timestamp"),
                                 Column.computed("ts", COMPUTED_COLUMN_RESOLVED),
+                                Column.metadata("orig_ts", DataTypes.TIMESTAMP(3), "timestamp"),
                                 Column.computed("proctime", PROCTIME_RESOLVED)),
                         Collections.singletonList(new WatermarkSpec("ts", WATERMARK_RESOLVED)),
                         UniqueConstraint.primaryKey(
@@ -187,10 +187,14 @@ public class SchemaResolutionTest {
         testError(
                 Schema.newBuilder()
                         .column("orig_ts", DataTypes.TIMESTAMP(3))
-                        .columnByExpression("ts", COMPUTED_COLUMN_SQL)
+                        .columnByExpression("ts", COMPUTED_SQL)
                         .primaryKey("ts")
                         .build(),
                 "Column 'ts' is not a physical column.");
+
+        testError(
+                Schema.newBuilder().column("id", DataTypes.INT()).primaryKey("id", "id").build(),
+                "Invalid primary key 'PK_id_id'. A primary key must not contain duplicate columns. Found: [id]");
     }
 
     @Test
@@ -203,8 +207,8 @@ public class SchemaResolutionTest {
                                 + "  `counter` INT NOT NULL, \n"
                                 + "  `payload` [ROW<name STRING, age INT, flag BOOLEAN>], \n"
                                 + "  `topic` METADATA VIRTUAL, \n"
-                                + "  `orig_ts` METADATA FROM 'timestamp', \n"
                                 + "  `ts` AS [orig_ts - INTERVAL '60' MINUTE], \n"
+                                + "  `orig_ts` METADATA FROM 'timestamp', \n"
                                 + "  `proctime` AS [PROCTIME()], \n"
                                 + "  WATERMARK FOR `ts` AS [ts - INTERVAL '5' SECOND], \n"
                                 + "  CONSTRAINT `primary_constraint` PRIMARY KEY (`id`) NOT ENFORCED\n"
@@ -222,12 +226,26 @@ public class SchemaResolutionTest {
                                 + "  `counter` INT NOT NULL, \n"
                                 + "  `payload` ROW<`name` STRING, `age` INT, `flag` BOOLEAN>, \n"
                                 + "  `topic` STRING METADATA VIRTUAL, \n"
-                                + "  `orig_ts` TIMESTAMP(3) METADATA FROM 'timestamp', \n"
                                 + "  `ts` TIMESTAMP(3) *ROWTIME* AS orig_ts - INTERVAL '60' MINUTE, \n"
+                                + "  `orig_ts` TIMESTAMP(3) METADATA FROM 'timestamp', \n"
                                 + "  `proctime` TIMESTAMP(3) NOT NULL *PROCTIME* AS PROCTIME(), \n"
                                 + "  WATERMARK FOR `ts`: TIMESTAMP(3) AS ts - INTERVAL '5' SECOND, \n"
                                 + "  CONSTRAINT `primary_constraint` PRIMARY KEY (`id`) NOT ENFORCED\n"
                                 + ")"));
+    }
+
+    @Test
+    public void testGeneratedConstraintName() {
+        final Schema schema =
+                Schema.newBuilder()
+                        .column("a", DataTypes.INT())
+                        .column("b", DataTypes.STRING())
+                        .column("c", DataTypes.STRING())
+                        .primaryKey("b", "a")
+                        .build();
+        assertThat(
+                schema.getPrimaryKey().orElseThrow(IllegalStateException::new).getConstraintName(),
+                equalTo("PK_b_a"));
     }
 
     @Test
@@ -285,8 +303,8 @@ public class SchemaResolutionTest {
                                                 DataTypes.FIELD("age", DataTypes.INT()),
                                                 DataTypes.FIELD("flag", DataTypes.BOOLEAN()))),
                                 DataTypes.FIELD("topic", DataTypes.STRING()),
-                                DataTypes.FIELD("orig_ts", DataTypes.TIMESTAMP(3)),
                                 DataTypes.FIELD("ts", DataTypes.TIMESTAMP(3)),
+                                DataTypes.FIELD("orig_ts", DataTypes.TIMESTAMP(3)),
                                 DataTypes.FIELD("proctime", DataTypes.TIMESTAMP(3).notNull()))
                         .notNull();
         assertThat(resolvedSchema.toSourceRowDataType(), equalTo(expectedDataType));
@@ -339,7 +357,7 @@ public class SchemaResolutionTest {
     private static ResolvedExpression resolveSqlExpression(
             String sqlExpression, TableSchema inputSchema) {
         switch (sqlExpression) {
-            case COMPUTED_COLUMN_SQL:
+            case COMPUTED_SQL:
                 assertThat(
                         inputSchema.getFieldDataType("orig_ts").orElse(null),
                         equalTo(DataTypes.TIMESTAMP(3)));

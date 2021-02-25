@@ -41,13 +41,16 @@ import org.apache.flink.table.types.logical.TimestampType;
 
 import javax.annotation.Nullable;
 
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.localRef;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPrecision;
@@ -108,31 +111,42 @@ class DefaultSchemaResolver implements SchemaResolver {
     // --------------------------------------------------------------------------------------------
 
     private List<Column> resolveColumns(List<Schema.UnresolvedColumn> unresolvedColumns) {
-        final List<Column> resolvedColumns = new ArrayList<>();
-        for (Schema.UnresolvedColumn unresolvedColumn : unresolvedColumns) {
-            final Column column;
+
+        validateDuplicateColumns(unresolvedColumns);
+
+        final Column[] resolvedColumns = new Column[unresolvedColumns.size()];
+        // process source columns first before computed columns
+        for (int pos = 0; pos < unresolvedColumns.size(); pos++) {
+            final Schema.UnresolvedColumn unresolvedColumn = unresolvedColumns.get(pos);
             if (unresolvedColumn instanceof UnresolvedPhysicalColumn) {
-                column = resolvePhysicalColumn((UnresolvedPhysicalColumn) unresolvedColumn);
+                resolvedColumns[pos] =
+                        resolvePhysicalColumn((UnresolvedPhysicalColumn) unresolvedColumn);
             } else if (unresolvedColumn instanceof UnresolvedMetadataColumn) {
-                column = resolveMetadataColumn((UnresolvedMetadataColumn) unresolvedColumn);
-            } else if (unresolvedColumn instanceof UnresolvedComputedColumn) {
-                column =
-                        resolveComputedColumn(
-                                (UnresolvedComputedColumn) unresolvedColumn, resolvedColumns);
-            } else {
-                throw new IllegalArgumentException("Unknown unresolved column type.");
+                resolvedColumns[pos] =
+                        resolveMetadataColumn((UnresolvedMetadataColumn) unresolvedColumn);
+            } else if (!(unresolvedColumn instanceof UnresolvedComputedColumn)) {
+                throw new IllegalArgumentException(
+                        "Unknown unresolved column type: " + unresolvedColumn.getClass().getName());
             }
-            resolvedColumns.add(column);
+        }
+        // fill in computed columns
+        final List<Column> sourceColumns =
+                Stream.of(resolvedColumns).filter(Objects::nonNull).collect(Collectors.toList());
+        for (int pos = 0; pos < unresolvedColumns.size(); pos++) {
+            final Schema.UnresolvedColumn unresolvedColumn = unresolvedColumns.get(pos);
+            if (unresolvedColumn instanceof UnresolvedComputedColumn) {
+                resolvedColumns[pos] =
+                        resolveComputedColumn(
+                                (UnresolvedComputedColumn) unresolvedColumn, sourceColumns);
+            }
         }
 
-        validateDuplicateColumns(resolvedColumns);
-
-        return resolvedColumns;
+        return Arrays.asList(resolvedColumns);
     }
 
     private PhysicalColumn resolvePhysicalColumn(UnresolvedPhysicalColumn unresolvedColumn) {
         return Column.physical(
-                unresolvedColumn.getColumnName(),
+                unresolvedColumn.getName(),
                 dataTypeFactory.createDataType(unresolvedColumn.getDataType()));
     }
 
@@ -142,7 +156,7 @@ class DefaultSchemaResolver implements SchemaResolver {
                     "Metadata columns are not supported in a schema at the current location.");
         }
         return Column.metadata(
-                unresolvedColumn.getColumnName(),
+                unresolvedColumn.getName(),
                 dataTypeFactory.createDataType(unresolvedColumn.getDataType()),
                 unresolvedColumn.getMetadataKey(),
                 unresolvedColumn.isVirtual());
@@ -157,15 +171,15 @@ class DefaultSchemaResolver implements SchemaResolver {
             throw new ValidationException(
                     String.format(
                             "Invalid expression for computed column '%s'.",
-                            unresolvedColumn.getColumnName()),
+                            unresolvedColumn.getName()),
                     e);
         }
-        return Column.computed(unresolvedColumn.getColumnName(), resolvedExpression);
+        return Column.computed(unresolvedColumn.getName(), resolvedExpression);
     }
 
-    private void validateDuplicateColumns(List<Column> columns) {
+    private void validateDuplicateColumns(List<Schema.UnresolvedColumn> columns) {
         final List<String> names =
-                columns.stream().map(Column::getName).collect(Collectors.toList());
+                columns.stream().map(Schema.UnresolvedColumn::getName).collect(Collectors.toList());
         final List<String> duplicates =
                 names.stream()
                         .filter(name -> Collections.frequency(names, name) > 1)
@@ -246,26 +260,25 @@ class DefaultSchemaResolver implements SchemaResolver {
     private List<Column> adjustRowtimeAttributes(
             List<WatermarkSpec> watermarkSpecs, List<Column> columns) {
         return columns.stream()
-                .map(
-                        column -> {
-                            final String name = column.getName();
-                            final DataType dataType = column.getDataType();
-                            final boolean hasWatermarkSpec =
-                                    watermarkSpecs.stream()
-                                            .anyMatch(s -> s.getRowtimeAttribute().equals(name));
-                            if (hasWatermarkSpec && isStreamingMode) {
-                                final TimestampType originalType =
-                                        (TimestampType) dataType.getLogicalType();
-                                final LogicalType rowtimeType =
-                                        new TimestampType(
-                                                originalType.isNullable(),
-                                                TimestampKind.ROWTIME,
-                                                originalType.getPrecision());
-                                return column.copy(replaceLogicalType(dataType, rowtimeType));
-                            }
-                            return column;
-                        })
+                .map(column -> adjustRowtimeAttribute(watermarkSpecs, column))
                 .collect(Collectors.toList());
+    }
+
+    private Column adjustRowtimeAttribute(List<WatermarkSpec> watermarkSpecs, Column column) {
+        final String name = column.getName();
+        final DataType dataType = column.getDataType();
+        final boolean hasWatermarkSpec =
+                watermarkSpecs.stream().anyMatch(s -> s.getRowtimeAttribute().equals(name));
+        if (hasWatermarkSpec && isStreamingMode) {
+            final TimestampType originalType = (TimestampType) dataType.getLogicalType();
+            final LogicalType rowtimeType =
+                    new TimestampType(
+                            originalType.isNullable(),
+                            TimestampKind.ROWTIME,
+                            originalType.getPrecision());
+            return column.copy(replaceLogicalType(dataType, rowtimeType));
+        }
+        return column;
     }
 
     private @Nullable UniqueConstraint resolvePrimaryKey(
@@ -287,6 +300,18 @@ class DefaultSchemaResolver implements SchemaResolver {
     private void validatePrimaryKey(UniqueConstraint primaryKey, List<Column> columns) {
         final Map<String, Column> columnsByNameLookup =
                 columns.stream().collect(Collectors.toMap(Column::getName, Function.identity()));
+
+        final Set<String> duplicateColumns =
+                primaryKey.getColumns().stream()
+                        .filter(i -> Collections.frequency(primaryKey.getColumns(), i) > 1)
+                        .collect(Collectors.toSet());
+
+        if (!duplicateColumns.isEmpty()) {
+            throw new ValidationException(
+                    String.format(
+                            "Invalid primary key '%s'. A primary key must not contain duplicate columns. Found: %s",
+                            primaryKey.getName(), duplicateColumns));
+        }
 
         for (String columnName : primaryKey.getColumns()) {
             Column column = columnsByNameLookup.get(columnName);
