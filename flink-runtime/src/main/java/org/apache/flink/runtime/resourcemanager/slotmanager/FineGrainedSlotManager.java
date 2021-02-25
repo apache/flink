@@ -21,7 +21,6 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
@@ -452,21 +451,9 @@ public class FineGrainedSlotManager implements SlotManager {
                                 Collectors.toMap(
                                         Map.Entry::getKey, e -> new ArrayList<>(e.getValue())));
 
-        final Map<InstanceID, Tuple2<ResourceProfile, ResourceProfile>> availableResources =
-                taskManagerTracker.getRegisteredTaskManagers().stream()
-                        .collect(
-                                Collectors.toMap(
-                                        TaskManagerInfo::getInstanceId,
-                                        taskManager ->
-                                                Tuple2.of(
-                                                        taskManager.getAvailableResource(),
-                                                        taskManager
-                                                                .getDefaultSlotResourceProfile())));
         final ResourceAllocationResult result =
                 resourceAllocationStrategy.tryFulfillRequirements(
-                        missingResources,
-                        availableResources,
-                        new ArrayList<>(taskManagerTracker.getPendingTaskManagers()));
+                        missingResources, taskManagerTracker);
 
         // Allocate slots according to the result
         allocateSlotsAccordingTo(result.getAllocationsOnRegisteredResources());
