@@ -33,6 +33,7 @@ import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
 import org.apache.flink.table.operations.ShowPartitionsOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
+import org.apache.flink.table.operations.ShowViewsOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
@@ -155,6 +156,9 @@ public final class SqlCommandParser {
         } else if (operation instanceof ShowTablesOperation) {
             cmd = SqlCommand.SHOW_TABLES;
             operands = new String[0];
+        } else if (operation instanceof ShowViewsOperation) {
+            cmd = SqlCommand.SHOW_VIEWS;
+            operands = new String[0];
         } else if (operation instanceof ShowFunctionsOperation) {
             cmd = SqlCommand.SHOW_FUNCTIONS;
             operands = new String[0];
@@ -252,6 +256,8 @@ public final class SqlCommandParser {
         SHOW_CURRENT_DATABASE,
 
         SHOW_TABLES,
+
+        SHOW_VIEWS,
 
         SHOW_FUNCTIONS,
 
