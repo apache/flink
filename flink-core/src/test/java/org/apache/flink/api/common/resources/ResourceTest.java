@@ -82,7 +82,7 @@ public class ResourceTest extends TestLogger {
     @Test(expected = IllegalArgumentException.class)
     public void testMergeErrorOnDifferentTypes() {
         final Resource v1 = new TestResource(0.1);
-        final Resource v2 = new GPUResource(0.1);
+        final Resource v2 = new CPUResource(0.1);
         v1.merge(v2);
     }
 
@@ -103,7 +103,7 @@ public class ResourceTest extends TestLogger {
     @Test(expected = IllegalArgumentException.class)
     public void testSubtractErrorOnDifferentTypes() {
         final Resource v1 = new TestResource(0.1);
-        final Resource v2 = new GPUResource(0.1);
+        final Resource v2 = new CPUResource(0.1);
         v1.subtract(v2);
     }
 

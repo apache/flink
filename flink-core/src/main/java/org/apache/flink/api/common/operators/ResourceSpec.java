@@ -20,17 +20,18 @@ package org.apache.flink.api.common.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.resources.CPUResource;
-import org.apache.flink.api.common.resources.GPUResource;
-import org.apache.flink.api.common.resources.Resource;
+import org.apache.flink.api.common.resources.ExternalResource;
 import org.apache.flink.configuration.MemorySize;
 
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
-import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -86,14 +87,14 @@ public final class ResourceSpec implements Serializable {
     @Nullable // can be null only for UNKNOWN
     private final MemorySize managedMemory;
 
-    private final Map<String, Resource> extendedResources;
+    private final Map<String, ExternalResource> extendedResources;
 
     private ResourceSpec(
             final CPUResource cpuCores,
             final MemorySize taskHeapMemory,
             final MemorySize taskOffHeapMemory,
             final MemorySize managedMemory,
-            final Resource... extendedResources) {
+            final Map<String, ExternalResource> extendedResources) {
 
         checkNotNull(cpuCores);
 
@@ -103,9 +104,9 @@ public final class ResourceSpec implements Serializable {
         this.managedMemory = checkNotNull(managedMemory);
 
         this.extendedResources =
-                Arrays.stream(extendedResources)
-                        .filter(resource -> !checkNotNull(resource).isZero())
-                        .collect(Collectors.toMap(Resource::getName, Function.identity()));
+                checkNotNull(extendedResources).entrySet().stream()
+                        .filter(entry -> !checkNotNull(entry.getValue()).isZero())
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
     /** Creates a new ResourceSpec with all fields unknown. */
@@ -131,17 +132,22 @@ public final class ResourceSpec implements Serializable {
             return UNKNOWN;
         }
 
-        ResourceSpec target =
-                new ResourceSpec(
-                        this.cpuCores.merge(other.cpuCores),
-                        this.taskHeapMemory.add(other.taskHeapMemory),
-                        this.taskOffHeapMemory.add(other.taskOffHeapMemory),
-                        this.managedMemory.add(other.managedMemory));
-        target.extendedResources.putAll(extendedResources);
-        for (Resource resource : other.extendedResources.values()) {
-            target.extendedResources.merge(resource.getName(), resource, (v1, v2) -> v1.merge(v2));
-        }
-        return target;
+        Map<String, ExternalResource> resultExtendedResource = new HashMap<>(extendedResources);
+
+        other.extendedResources.forEach(
+                (String name, ExternalResource resource) -> {
+                    resultExtendedResource.compute(
+                            name,
+                            (ignored, oldResource) ->
+                                    oldResource == null ? resource : oldResource.merge(resource));
+                });
+
+        return new ResourceSpec(
+                this.cpuCores.merge(other.cpuCores),
+                this.taskHeapMemory.add(other.taskHeapMemory),
+                this.taskOffHeapMemory.add(other.taskOffHeapMemory),
+                this.managedMemory.add(other.managedMemory),
+                resultExtendedResource);
     }
 
     /**
@@ -161,8 +167,8 @@ public final class ResourceSpec implements Serializable {
                 other.lessThanOrEqual(this),
                 "Cannot subtract a larger ResourceSpec from this one.");
 
-        Map<String, Resource> resultExtendedResources = new HashMap<>(extendedResources);
-        for (Resource resource : other.extendedResources.values()) {
+        Map<String, ExternalResource> resultExtendedResources = new HashMap<>(extendedResources);
+        for (ExternalResource resource : other.extendedResources.values()) {
             resultExtendedResources.merge(
                     resource.getName(), resource, (v1, v2) -> v1.subtract(v2));
         }
@@ -172,7 +178,7 @@ public final class ResourceSpec implements Serializable {
                 this.taskHeapMemory.subtract(other.taskHeapMemory),
                 this.taskOffHeapMemory.subtract(other.taskOffHeapMemory),
                 this.managedMemory.subtract(other.managedMemory),
-                resultExtendedResources.values().toArray(new Resource[0]));
+                resultExtendedResources);
     }
 
     public CPUResource getCpuCores() {
@@ -195,14 +201,14 @@ public final class ResourceSpec implements Serializable {
         return managedMemory;
     }
 
-    public Resource getGPUResource() {
+    public Optional<ExternalResource> getExtendedResource(String name) {
         throwUnsupportedOperationExceptionIfUnknown();
-        return extendedResources.get(GPUResource.NAME);
+        return Optional.ofNullable(extendedResources.get(name));
     }
 
-    public Map<String, Resource> getExtendedResources() {
+    public Map<String, ExternalResource> getExtendedResources() {
         throwUnsupportedOperationExceptionIfUnknown();
-        return extendedResources;
+        return Collections.unmodifiableMap(extendedResources);
     }
 
     private void throwUnsupportedOperationExceptionIfUnknown() {
@@ -234,7 +240,7 @@ public final class ResourceSpec implements Serializable {
         int cmp3 = this.taskOffHeapMemory.compareTo(other.taskOffHeapMemory);
         int cmp4 = this.managedMemory.compareTo(other.managedMemory);
         if (cmp1 <= 0 && cmp2 <= 0 && cmp3 <= 0 && cmp4 <= 0) {
-            for (Resource resource : extendedResources.values()) {
+            for (ExternalResource resource : extendedResources.values()) {
                 if (!other.extendedResources.containsKey(resource.getName())
                         || other.extendedResources
                                         .get(resource.getName())
@@ -282,7 +288,7 @@ public final class ResourceSpec implements Serializable {
         }
 
         final StringBuilder extResources = new StringBuilder(extendedResources.size() * 10);
-        for (Map.Entry<String, Resource> resource : extendedResources.entrySet()) {
+        for (Map.Entry<String, ExternalResource> resource : extendedResources.entrySet()) {
             extResources
                     .append(", ")
                     .append(resource.getKey())
@@ -326,7 +332,7 @@ public final class ResourceSpec implements Serializable {
         private MemorySize taskHeapMemory;
         private MemorySize taskOffHeapMemory = MemorySize.ZERO;
         private MemorySize managedMemory = MemorySize.ZERO;
-        private GPUResource gpuResource = new GPUResource(0.0);
+        private Map<String, ExternalResource> extendedResources = new HashMap<>();
 
         private Builder(CPUResource cpuCores, MemorySize taskHeapMemory) {
             this.cpuCores = cpuCores;
@@ -368,14 +374,31 @@ public final class ResourceSpec implements Serializable {
             return this;
         }
 
-        public Builder setGPUResource(double gpus) {
-            this.gpuResource = new GPUResource(gpus);
+        /**
+         * Add the given extended resource. The old value with the same resource name will be
+         * replaced if present.
+         */
+        public Builder setExtendedResource(ExternalResource extendedResource) {
+            this.extendedResources.put(extendedResource.getName(), extendedResource);
+            return this;
+        }
+
+        /**
+         * Add the given extended resources. This will discard all the previous added extended
+         * resources.
+         */
+        public Builder setExtendedResources(Collection<ExternalResource> extendedResources) {
+            this.extendedResources =
+                    extendedResources.stream()
+                            .collect(
+                                    Collectors.toMap(
+                                            ExternalResource::getName, Function.identity()));
             return this;
         }
 
         public ResourceSpec build() {
             return new ResourceSpec(
-                    cpuCores, taskHeapMemory, taskOffHeapMemory, managedMemory, gpuResource);
+                    cpuCores, taskHeapMemory, taskOffHeapMemory, managedMemory, extendedResources);
         }
     }
 }
