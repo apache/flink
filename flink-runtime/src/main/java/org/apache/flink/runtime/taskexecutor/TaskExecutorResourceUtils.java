@@ -27,6 +27,7 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,7 +79,8 @@ public class TaskExecutorResourceUtils {
                 config.get(TaskManagerOptions.TASK_HEAP_MEMORY),
                 config.get(TaskManagerOptions.TASK_OFF_HEAP_MEMORY),
                 config.get(TaskManagerOptions.NETWORK_MEMORY_MIN),
-                config.get(TaskManagerOptions.MANAGED_MEMORY_SIZE));
+                config.get(TaskManagerOptions.MANAGED_MEMORY_SIZE),
+                ExternalResourceUtils.getExternalResourcesCollection(config));
     }
 
     private static void checkTaskExecutorResourceConfigSet(Configuration config) {
@@ -111,16 +113,26 @@ public class TaskExecutorResourceUtils {
     @VisibleForTesting
     public static ResourceProfile generateDefaultSlotResourceProfile(
             TaskExecutorResourceSpec taskExecutorResourceSpec, int numberOfSlots) {
-        return ResourceProfile.newBuilder()
-                .setCpuCores(taskExecutorResourceSpec.getCpuCores().divide(numberOfSlots))
-                .setTaskHeapMemory(taskExecutorResourceSpec.getTaskHeapSize().divide(numberOfSlots))
-                .setTaskOffHeapMemory(
-                        taskExecutorResourceSpec.getTaskOffHeapSize().divide(numberOfSlots))
-                .setManagedMemory(
-                        taskExecutorResourceSpec.getManagedMemorySize().divide(numberOfSlots))
-                .setNetworkMemory(
-                        taskExecutorResourceSpec.getNetworkMemSize().divide(numberOfSlots))
-                .build();
+        final ResourceProfile.Builder resourceProfileBuilder =
+                ResourceProfile.newBuilder()
+                        .setCpuCores(taskExecutorResourceSpec.getCpuCores().divide(numberOfSlots))
+                        .setTaskHeapMemory(
+                                taskExecutorResourceSpec.getTaskHeapSize().divide(numberOfSlots))
+                        .setTaskOffHeapMemory(
+                                taskExecutorResourceSpec.getTaskOffHeapSize().divide(numberOfSlots))
+                        .setManagedMemory(
+                                taskExecutorResourceSpec
+                                        .getManagedMemorySize()
+                                        .divide(numberOfSlots))
+                        .setNetworkMemory(
+                                taskExecutorResourceSpec.getNetworkMemSize().divide(numberOfSlots));
+        taskExecutorResourceSpec
+                .getExtendedResources()
+                .forEach(
+                        (name, resource) ->
+                                resourceProfileBuilder.setExtendedResource(
+                                        resource.divide(numberOfSlots)));
+        return resourceProfileBuilder.build();
     }
 
     @VisibleForTesting
@@ -132,6 +144,7 @@ public class TaskExecutorResourceUtils {
                 .setTaskOffHeapMemory(taskExecutorResourceSpec.getTaskOffHeapSize())
                 .setManagedMemory(taskExecutorResourceSpec.getManagedMemorySize())
                 .setNetworkMemory(taskExecutorResourceSpec.getNetworkMemSize())
+                .setExtendedResources(taskExecutorResourceSpec.getExtendedResources().values())
                 .build();
     }
 

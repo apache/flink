@@ -20,6 +20,7 @@ package org.apache.flink.runtime.externalresource;
 
 import org.apache.flink.api.common.externalresource.ExternalResourceDriver;
 import org.apache.flink.api.common.externalresource.ExternalResourceDriverFactory;
+import org.apache.flink.api.common.resources.ExternalResource;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExternalResourceOptions;
 import org.apache.flink.core.plugin.PluginManager;
@@ -30,12 +31,14 @@ import org.apache.commons.collections.IteratorUtils;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
@@ -328,5 +331,39 @@ public class ExternalResourceUtilsTest extends TestLogger {
                 ExternalResourceUtils.getExternalResourceAmountMap(config);
 
         assertThat(externalResourceAmountMap.entrySet(), is(empty()));
+    }
+
+    @Test
+    public void testGetExternalResourcesCollection() {
+        final Configuration config = new Configuration();
+        config.set(
+                ExternalResourceOptions.EXTERNAL_RESOURCE_LIST,
+                Collections.singletonList(RESOURCE_NAME_1));
+        config.setLong(
+                ExternalResourceOptions.getAmountConfigOptionForResource(RESOURCE_NAME_1),
+                RESOURCE_AMOUNT_1);
+
+        final Collection<ExternalResource> externalResources =
+                ExternalResourceUtils.getExternalResourcesCollection(config);
+
+        assertThat(externalResources.size(), is(1));
+        assertThat(
+                externalResources,
+                contains(new ExternalResource(RESOURCE_NAME_1, RESOURCE_AMOUNT_1)));
+    }
+
+    @Test
+    public void testRecognizeEmptyResourceList() {
+        final Configuration config = new Configuration();
+        config.setString(
+                ExternalResourceOptions.EXTERNAL_RESOURCE_LIST.key(), ExternalResourceOptions.NONE);
+        config.setLong(
+                ExternalResourceOptions.getAmountConfigOptionForResource(RESOURCE_NAME_1),
+                RESOURCE_AMOUNT_1);
+
+        final Collection<ExternalResource> externalResources =
+                ExternalResourceUtils.getExternalResourcesCollection(config);
+
+        assertThat(externalResources, is(empty()));
     }
 }

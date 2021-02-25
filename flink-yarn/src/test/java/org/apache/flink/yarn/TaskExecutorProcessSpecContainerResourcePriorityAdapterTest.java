@@ -56,7 +56,8 @@ public class TaskExecutorProcessSpecContainerResourcePriorityAdapterTest extends
                     MemorySize.ofMebiBytes(100),
                     MemorySize.ofMebiBytes(100),
                     MemorySize.ofMebiBytes(100),
-                    MemorySize.ofMebiBytes(100));
+                    MemorySize.ofMebiBytes(100),
+                    Collections.emptyList());
 
     private static final TaskExecutorProcessSpec TASK_EXECUTOR_PROCESS_SPEC_2 =
             new TaskExecutorProcessSpec(
@@ -68,7 +69,8 @@ public class TaskExecutorProcessSpecContainerResourcePriorityAdapterTest extends
                     MemorySize.ofMebiBytes(200),
                     MemorySize.ofMebiBytes(200),
                     MemorySize.ofMebiBytes(200),
-                    MemorySize.ofMebiBytes(200));
+                    MemorySize.ofMebiBytes(200),
+                    Collections.emptyList());
 
     private static final TaskExecutorProcessSpec TASK_EXECUTOR_PROCESS_SPEC_EXCEED_MAX =
             new TaskExecutorProcessSpec(
@@ -80,7 +82,8 @@ public class TaskExecutorProcessSpecContainerResourcePriorityAdapterTest extends
                     MemorySize.ofMebiBytes(102400),
                     MemorySize.ofMebiBytes(102400),
                     MemorySize.ofMebiBytes(102400),
-                    MemorySize.ofMebiBytes(102400));
+                    MemorySize.ofMebiBytes(102400),
+                    Collections.emptyList());
 
     @Test
     public void testGetResourceFromSpec() {

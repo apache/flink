@@ -21,6 +21,7 @@ package org.apache.flink.runtime.externalresource;
 import org.apache.flink.api.common.externalresource.ExternalResourceDriver;
 import org.apache.flink.api.common.externalresource.ExternalResourceDriverFactory;
 import org.apache.flink.api.common.externalresource.ExternalResourceInfo;
+import org.apache.flink.api.common.resources.ExternalResource;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
@@ -31,6 +32,7 @@ import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -38,6 +40,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -52,6 +55,11 @@ public class ExternalResourceUtils {
 
     /** Get the enabled external resource list from configuration. */
     private static Set<String> getExternalResourceSet(Configuration config) {
+        if (config.getValue(ExternalResourceOptions.EXTERNAL_RESOURCE_LIST)
+                .equals(ExternalResourceOptions.NONE)) {
+            return Collections.emptySet();
+        }
+
         return new HashSet<>(config.get(ExternalResourceOptions.EXTERNAL_RESOURCE_LIST));
     }
 
@@ -155,6 +163,22 @@ public class ExternalResourceUtils {
         }
 
         return externalResourceAmountMap;
+    }
+
+    /** Get the collection of all enabled external resources. */
+    public static Collection<ExternalResource> getExternalResourcesCollection(
+            Configuration config) {
+        return getExternalResourceAmountMap(config).entrySet().stream()
+                .map(entry -> new ExternalResource(entry.getKey(), entry.getValue()))
+                .collect(Collectors.toList());
+    }
+
+    /** Generate the string expression of the given external resources. */
+    public static String generateExternalResourcesString(
+            Collection<ExternalResource> extendedResources) {
+        return extendedResources.stream()
+                .map(resource -> resource.getName() + "=" + resource.getValue())
+                .collect(Collectors.joining(", "));
     }
 
     /**
