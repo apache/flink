@@ -18,6 +18,7 @@
 
 package org.apache.flink.kubernetes.utils;
 
+import org.apache.flink.api.common.resources.ExternalResource;
 import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
@@ -41,6 +42,7 @@ import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.persistence.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.persistence.filesystem.FileSystemStateStorageHelper;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.function.FunctionUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
@@ -307,13 +309,15 @@ public class KubernetesUtils {
      * @param mem Memory in mb.
      * @param cpu cpu.
      * @param externalResources external resources
+     * @param externalResourceConfigKeys config keys of external resources
      * @return KubernetesResource requirements.
      */
     public static ResourceRequirements getResourceRequirements(
             ResourceRequirements resourceRequirements,
             int mem,
             double cpu,
-            Map<String, Long> externalResources) {
+            Map<String, ExternalResource> externalResources,
+            Map<String, String> externalResourceConfigKeys) {
         final Quantity cpuQuantity = new Quantity(String.valueOf(cpu));
         final Quantity memQuantity = new Quantity(mem + Constants.RESOURCE_UNIT_MB);
 
@@ -325,16 +329,20 @@ public class KubernetesUtils {
                         .addToLimits(Constants.RESOURCE_NAME_CPU, cpuQuantity);
 
         // Add the external resources to resource requirement.
-        for (Map.Entry<String, Long> externalResource : externalResources.entrySet()) {
-            final Quantity resourceQuantity =
-                    new Quantity(String.valueOf(externalResource.getValue()));
-            resourceRequirementsBuilder
-                    .addToRequests(externalResource.getKey(), resourceQuantity)
-                    .addToLimits(externalResource.getKey(), resourceQuantity);
-            LOG.info(
-                    "Request external resource {} with config key {}.",
-                    resourceQuantity.getAmount(),
-                    externalResource.getKey());
+        for (Map.Entry<String, ExternalResource> externalResource : externalResources.entrySet()) {
+            final String configKey = externalResourceConfigKeys.get(externalResource.getKey());
+            if (!StringUtils.isNullOrWhitespaceOnly(configKey)) {
+                final Quantity resourceQuantity =
+                        new Quantity(
+                                String.valueOf(externalResource.getValue().getValue().longValue()));
+                resourceRequirementsBuilder
+                        .addToRequests(configKey, resourceQuantity)
+                        .addToLimits(configKey, resourceQuantity);
+                LOG.info(
+                        "Request external resource {} with config key {}.",
+                        resourceQuantity.getAmount(),
+                        configKey);
+            }
         }
 
         return resourceRequirementsBuilder.build();

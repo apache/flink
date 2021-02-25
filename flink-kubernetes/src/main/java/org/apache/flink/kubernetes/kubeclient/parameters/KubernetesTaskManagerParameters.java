@@ -18,6 +18,7 @@
 
 package org.apache.flink.kubernetes.kubeclient.parameters;
 
+import org.apache.flink.api.common.resources.ExternalResource;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
@@ -44,19 +45,20 @@ public class KubernetesTaskManagerParameters extends AbstractKubernetesParameter
 
     private final ContaineredTaskManagerParameters containeredTaskManagerParameters;
 
-    private final Map<String, Long> taskManagerExternalResources;
+    private final Map<String, String> taskManagerExternalResourceConfigKeys;
 
     public KubernetesTaskManagerParameters(
             Configuration flinkConfig,
             String podName,
             String dynamicProperties,
             ContaineredTaskManagerParameters containeredTaskManagerParameters,
-            Map<String, Long> taskManagerExternalResources) {
+            Map<String, String> taskManagerExternalResourceConfigKeys) {
         super(flinkConfig);
         this.podName = checkNotNull(podName);
         this.dynamicProperties = checkNotNull(dynamicProperties);
         this.containeredTaskManagerParameters = checkNotNull(containeredTaskManagerParameters);
-        this.taskManagerExternalResources = checkNotNull(taskManagerExternalResources);
+        this.taskManagerExternalResourceConfigKeys =
+                checkNotNull(taskManagerExternalResourceConfigKeys);
     }
 
     @Override
@@ -116,12 +118,16 @@ public class KubernetesTaskManagerParameters extends AbstractKubernetesParameter
                 .doubleValue();
     }
 
+    public Map<String, ExternalResource> getTaskManagerExternalResources() {
+        return containeredTaskManagerParameters.getTaskExecutorProcessSpec().getExtendedResources();
+    }
+
     public String getServiceAccount() {
         return flinkConfig.get(KubernetesConfigOptions.TASK_MANAGER_SERVICE_ACCOUNT);
     }
 
-    public Map<String, Long> getTaskManagerExternalResources() {
-        return taskManagerExternalResources;
+    public Map<String, String> getTaskManagerExternalResourceConfigKeys() {
+        return Collections.unmodifiableMap(taskManagerExternalResourceConfigKeys);
     }
 
     public int getRPCPort() {
