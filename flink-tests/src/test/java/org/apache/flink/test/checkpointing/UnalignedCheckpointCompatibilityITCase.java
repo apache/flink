@@ -45,6 +45,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.File;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
@@ -162,7 +163,9 @@ public class UnalignedCheckpointCompatibilityITCase extends TestLogger {
     private Tuple2<String, Map<String, Object>> runAndTakeExternalCheckpoint() throws Exception {
         JobClient jobClient = submitJobInitially(env(startAligned, 100));
         // structure: root/attempt/checkpoint/_metadata
-        File metadata = waitForChild(waitForChild(waitForChild(temporaryFolder.getRoot())));
+        File attemptDir = waitForChild(temporaryFolder.getRoot(), (dir, name) -> true);
+        File checkpointDir = waitForChild(attemptDir, (dir, name) -> name.startsWith("chk-"));
+        File metadata = waitForChild(checkpointDir, (dir, name) -> name.equals("_metadata"));
         cancelJob(jobClient);
         return new Tuple2<>(metadata.getParentFile().toString(), emptyMap());
     }
@@ -179,12 +182,15 @@ public class UnalignedCheckpointCompatibilityITCase extends TestLogger {
         return env.execute(streamGraph).getJobExecutionResult().getAllAccumulatorResults();
     }
 
-    @SuppressWarnings({"OptionalGetWithoutIsPresent", "ConstantConditions"})
-    private static File waitForChild(File dir) throws InterruptedException {
-        while (dir.listFiles().length == 0) {
+    @SuppressWarnings({"ConstantConditions"})
+    private static File waitForChild(File dir, FilenameFilter filenameFilter)
+            throws InterruptedException {
+        File[] files = dir.listFiles(filenameFilter);
+        while (files.length == 0) {
             Thread.sleep(50);
+            files = dir.listFiles(filenameFilter);
         }
-        return Arrays.stream(dir.listFiles()).max(Comparator.naturalOrder()).get();
+        return Arrays.stream(files).max(Comparator.naturalOrder()).get();
     }
 
     private void cancelJob(JobClient jobClient)
