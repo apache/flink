@@ -39,6 +39,8 @@ class GroupingSetsTest extends TableTestBase {
     'empno, 'name, 'deptno, 'gender, 'city, 'empid, 'age, 'slacker, 'manager, 'joinedat)
   util.addTableSource[(Int, String, String, Int, Date, Double, Double, Int)](
     "scott_emp", 'empno, 'ename, 'job, 'mgr, 'hiredate, 'sal, 'comm, 'deptno)
+  util.addTableSource[(Int, Long, Int)](
+    "MyTable1", 'a, 'b, 'c, 'proctime.proctime(), 'rowtime.rowtime)
 
   @Test
   def testGroupingSets(): Unit = {
@@ -480,6 +482,38 @@ class GroupingSetsTest extends TableTestBase {
 
     verifyPlanIdentical(rollupQuery, groupingSetsQuery)
     util.verifyExecPlan(rollupQuery)
+  }
+
+  @Test
+  def testWindowAggGroupingSets(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT
+        |    a,
+        |    TUMBLE_START(rowtime, INTERVAL '15' MINUTE),
+        |    TUMBLE_END(rowtime, INTERVAL '15' MINUTE),
+        |    COUNT(1)
+        |FROM MyTable1
+        |    GROUP BY GROUPING SETS ((`a`), (`b`)), TUMBLE(rowtime, INTERVAL '15' MINUTE)
+      """.stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
+  def testWindowAggGroupingSets1(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT
+        |    a,
+        |    TUMBLE_START(rowtime, INTERVAL '15' MINUTE),
+        |    TUMBLE_END(rowtime, INTERVAL '15' MINUTE),
+        |    COUNT(1)
+        |FROM MyTable1
+        |    GROUP BY GROUPING SETS (
+        |    (`a`, TUMBLE(rowtime, INTERVAL '15' MINUTE)),
+        |    (TUMBLE(rowtime, INTERVAL '15' MINUTE)))
+      """.stripMargin
+    util.verifyExecPlan(sqlQuery)
   }
 
   def verifyPlanIdentical(sql1: String, sql2: String): Unit = {

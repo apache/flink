@@ -291,7 +291,8 @@ object FlinkBatchRuleSets {
     PruneAggregateCallRule.CALC_ON_AGGREGATE,
 
     // expand grouping sets
-    DecomposeGroupingSetsRule.INSTANCE,
+    DecomposeGroupingSetsRule.AGGREGATE_INSTANCE,
+    DecomposeGroupingSetsRule.WINDOW_AGGREGATE_INSTANCE,
 
     // rank rules
     FlinkLogicalRankRule.CONSTANT_RANGE_INSTANCE,

@@ -284,7 +284,8 @@ object FlinkStreamRuleSets {
     PruneAggregateCallRule.CALC_ON_AGGREGATE,
 
     // expand grouping sets
-    DecomposeGroupingSetsRule.INSTANCE,
+    DecomposeGroupingSetsRule.AGGREGATE_INSTANCE,
+    DecomposeGroupingSetsRule.WINDOW_AGGREGATE_INSTANCE,
 
     // calc rules
     CoreRules.FILTER_CALC_MERGE,

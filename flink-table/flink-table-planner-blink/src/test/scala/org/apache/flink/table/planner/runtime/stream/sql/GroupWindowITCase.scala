@@ -34,6 +34,7 @@ import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
+import org.junit.Assume.assumeTrue
 import org.junit.{Ignore, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -132,7 +133,6 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
 
   @Test
   def testCascadingTumbleWindow(): Unit = {
-
     val sql =
       """
         |SELECT SUM(cnt)
@@ -255,9 +255,7 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
 
   @Test
   def testEventTimeSessionWindow(): Unit = {
-    if (useTimestampLtz) {
-      return
-    }
+    assumeTrue(!useTimestampLtz)
     //To verify the "merge" functionality, we create this test with the following characteristics:
     // 1. set the Parallelism to 1, and have the test data out of order
     // 2. create a waterMark with 10ms offset to delay the window emission by 10ms
@@ -303,9 +301,7 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
 
   @Test
   def testEventTimeTumblingWindowWithAllowLateness(): Unit = {
-    if (useTimestampLtz) {
-      return
-    }
+    assumeTrue(!useTimestampLtz)
     // wait 10 millisecond for late elements
     tEnv.getConfig.setIdleStateRetentionTime(
       Time.milliseconds(10), Time.minutes(6))
@@ -508,9 +504,7 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
 
   @Test
   def testDistinctAggWithMergeOnEventTimeSessionGroupWindow(): Unit = {
-    if (useTimestampLtz) {
-      return
-    }
+    assumeTrue(!useTimestampLtz)
     // create a watermark with 10ms offset to delay the window emission by 10ms to verify merge
     val sessionWindowTestData = List(
       (1L, 2, "Hello"),       // (1, Hello)       - window
@@ -560,6 +554,84 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
     tableConfig.getConfiguration.setBoolean(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED, true)
     tableConfig.getConfiguration.set(
       TABLE_EXEC_EMIT_LATE_FIRE_DELAY, Duration.ofMillis(intervalInMillis))
+  }
+
+  @Test
+  def testWindowAggregateWithGroupingSet(): Unit = {
+    assumeTrue(!useTimestampLtz)
+    val sql =
+      """
+        |SELECT
+        |GROUP_ID(),
+        |GROUPING_ID(`int`),
+        |GROUPING(`int`),
+        |TUMBLE_END(rowtime, INTERVAL '0.003' SECOND), `int`, COUNT(name)
+        |FROM testTable
+        |GROUP BY GROUPING SETS (`int`, ()), TUMBLE(rowtime, INTERVAL '0.003' SECOND)
+      """.stripMargin
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
+    env.execute()
+    val expected = Seq(
+      "0,0,0,1970-01-01T00:00:00.003,1,1",
+      "0,0,0,1970-01-01T00:00:00.003,2,1",
+      "0,1,1,1970-01-01T00:00:00.003,null,2",
+      "0,0,0,1970-01-01T00:00:00.006,2,1",
+      "0,0,0,1970-01-01T00:00:00.006,5,1",
+      "0,1,1,1970-01-01T00:00:00.006,null,2",
+      "0,0,0,1970-01-01T00:00:00.009,3,2",
+      "0,0,0,1970-01-01T00:00:00.009,5,1",
+      "0,1,1,1970-01-01T00:00:00.009,null,3",
+      "0,0,0,1970-01-01T00:00:00.018,4,1",
+      "0,1,1,1970-01-01T00:00:00.018,null,1",
+      "0,0,0,1970-01-01T00:00:00.033,4,0",
+      "0,1,1,1970-01-01T00:00:00.033,null,0")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test(expected = classOf[RuntimeException])
+  def testWindowAggregateWithGroupingSetError(): Unit = {
+    assumeTrue(!useTimestampLtz)
+    // Each grouping by keys must contain same window
+    val sql =
+      """
+        |SELECT TUMBLE_END(rowtime, INTERVAL '0.003' SECOND), `int`, COUNT(name)
+        |FROM testTable
+        |GROUP BY GROUPING SETS ((`int`, TUMBLE(rowtime, INTERVAL '0.003' SECOND)), ())
+      """.stripMargin
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
+    env.execute()
+  }
+
+  @Test(expected = classOf[RuntimeException])
+  def testWindowAggregateWithCubeError(): Unit = {
+    assumeTrue(!useTimestampLtz)
+    // Each grouping by keys must contain same window
+    val sql =
+      """
+        |SELECT TUMBLE_END(rowtime, INTERVAL '0.003' SECOND), `int`, COUNT(name)
+        |FROM testTable
+        |GROUP BY cube(`int`, TUMBLE(rowtime, INTERVAL '0.003' SECOND))
+      """.stripMargin
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
+    env.execute()
+  }
+
+  @Test(expected = classOf[RuntimeException])
+  def testWindowAggregateWithRollupError(): Unit = {
+    assumeTrue(!useTimestampLtz)
+    // Each grouping by keys must contain same window
+    val sql =
+      """
+        |SELECT TUMBLE_END(rowtime, INTERVAL '0.003' SECOND), `int`, COUNT(name)
+        |FROM testTable
+        |GROUP BY rollup(`int`, TUMBLE(rowtime, INTERVAL '0.003' SECOND))
+      """.stripMargin
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
+    env.execute()
   }
 }
 

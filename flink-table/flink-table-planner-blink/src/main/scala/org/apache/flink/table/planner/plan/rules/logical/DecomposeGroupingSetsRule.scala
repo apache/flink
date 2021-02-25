@@ -20,19 +20,22 @@ package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkRelFactories}
+import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWindowAggregate
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, ExpandUtil}
-
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
-import org.apache.calcite.rel.core.AggregateCall
+import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.rel.logical.LogicalAggregate
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
+import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.util.ImmutableBitSet
 
 import scala.collection.JavaConversions._
+import scala.collection.mutable
 
 /**
   * This rule rewrites an aggregation query with grouping sets into
@@ -202,19 +205,22 @@ import scala.collection.JavaConversions._
   * | null|  1  |  c1 |  2  |           |
   * +-----+-----+-----+-----+        ---+---
   */
-class DecomposeGroupingSetsRule extends RelOptRule(
-  operand(classOf[LogicalAggregate], any),
-  FlinkRelFactories.FLINK_REL_BUILDER,
-  "DecomposeGroupingSetsRule") {
+abstract class DecomposeGroupingSetsRule[T<: Aggregate](
+    clazz: Class[T],
+    description: String)
+  extends RelOptRule(
+    operand(clazz, any),
+    FlinkRelFactories.FLINK_REL_BUILDER,
+    description) {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val agg: LogicalAggregate = call.rel(0)
+    val agg: Aggregate = call.rel(0)
     val groupIdExprs = AggregateUtil.getGroupIdExprIndexes(agg.getAggCallList)
     agg.getGroupSets.size() > 1 || groupIdExprs.nonEmpty
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
-    val agg: LogicalAggregate = call.rel(0)
+    val agg: T = call.rel(0)
     // Long data type is used to store groupValue in FlinkAggregateExpandDistinctAggregatesRule,
     // and the result of grouping function is a positive value,
     // so the max groupCount must be less than 64.
@@ -256,10 +262,9 @@ class DecomposeGroupingSetsRule extends RelOptRule(
     }
 
     // create simple aggregate
-    relBuilder.aggregate(
-      relBuilder.groupKey(newGroupSet, ImmutableList.of[ImmutableBitSet](newGroupSet)),
-      newAggCalls)
-    val newAgg = relBuilder.peek()
+    val newGroupKey = relBuilder.groupKey(
+      newGroupSet, ImmutableList.of[ImmutableBitSet](newGroupSet))
+    val newAgg = createNewAggregate(agg, relBuilder, newAggCalls, newGroupKey)
 
     // create a project to mapping original aggregate's output
     // get names of original grouping fields
@@ -269,7 +274,7 @@ class DecomposeGroupingSetsRule extends RelOptRule(
     // create field access for all original grouping fields
     val groupingFields = agg.getGroupSet.toList.zipWithIndex.map {
       case (_, idx) => rexBuilder.makeInputRef(newAgg, idx)
-    }.toArray[RexNode]
+    }
 
     val groupSetsWithIndexes = agg.getGroupSets.zipWithIndex
     // output aggregate calls including `normal` agg call and grouping agg call
@@ -314,15 +319,28 @@ class DecomposeGroupingSetsRule extends RelOptRule(
         aggCnt += 1
         aggResult
     }
-
+    val aggFieldsName = agg.getAggCallList.map(_.name)
     // add a projection to establish the result schema and set the values of the group expressions.
-    relBuilder.project(
-      groupingFields.toSeq ++ aggFields,
-      groupingFieldsName ++ agg.getAggCallList.map(_.name))
-    relBuilder.convert(agg.getRowType, true)
-
-    call.transformTo(relBuilder.build())
+    val topProject = createTopProject(agg, newAgg, relBuilder, rexBuilder, groupingFields,
+      groupingFieldsName, aggFields, aggFieldsName)
+    call.transformTo(topProject)
   }
+
+  protected def createNewAggregate(
+      agg: T,
+      relBuilder: FlinkRelBuilder,
+      newAggCalls: mutable.Buffer[AggregateCall],
+      newGroupKey: RelBuilder.GroupKey): RelNode
+
+  protected def createTopProject(
+      oldAgg: T,
+      newAgg: RelNode,
+      relBuilder: FlinkRelBuilder,
+      rexBuilder: RexBuilder,
+      groupingFields: Seq[_<: RexNode],
+      groupingFieldsName: Seq[String],
+      aggFields: Seq[_<: RexNode],
+      aggFieldsName: Seq[String]): RelNode
 
   /** Returns a literal for a given group expression. */
   private def lowerGroupExpr(
@@ -370,6 +388,80 @@ class DecomposeGroupingSetsRule extends RelOptRule(
   }
 }
 
+class DecomposeGroupingSetsForLogicalAggregateRule
+  extends DecomposeGroupingSetsRule[LogicalAggregate](
+    classOf[LogicalAggregate],
+    "DecomposeGroupingSetsForLogicalAggregateRule") {
+
+  override protected def createNewAggregate(
+      agg: LogicalAggregate,
+      relBuilder: FlinkRelBuilder,
+      newAggCalls: mutable.Buffer[AggregateCall],
+      newGroupKey: RelBuilder.GroupKey): RelNode = {
+    relBuilder.aggregate(newGroupKey, newAggCalls)
+    relBuilder.peek()
+  }
+
+  override protected def createTopProject(
+      oldAgg: LogicalAggregate,
+      newAgg: RelNode,
+      relBuilder: FlinkRelBuilder,
+      rexBuilder: RexBuilder,
+      groupingFields: Seq[_<: RexNode],
+      groupingFieldsName: Seq[String],
+      aggFields: Seq[_<: RexNode],
+      aggFieldsName: Seq[String]): RelNode = {
+    relBuilder.project(
+      groupingFields ++ aggFields,
+      groupingFieldsName ++ aggFieldsName)
+    relBuilder.convert(oldAgg.getRowType, true)
+    relBuilder.build()
+  }
+}
+
+class DecomposeGroupingSetsForWindowAggregateRule
+  extends DecomposeGroupingSetsRule[LogicalWindowAggregate](
+    classOf[LogicalWindowAggregate],
+    "DecomposeGroupingSetsForWindowAggregateRule") {
+
+  override protected def createNewAggregate(
+      windowAgg: LogicalWindowAggregate,
+      relBuilder: FlinkRelBuilder,
+      newAggCalls: mutable.Buffer[AggregateCall],
+      newGroupKey: RelBuilder.GroupKey): RelNode = {
+    relBuilder.windowAggregate(
+      windowAgg.getWindow,
+      newGroupKey,
+      windowAgg.getNamedProperties,
+      newAggCalls)
+    relBuilder.peek()
+  }
+
+  override protected def createTopProject(
+      oldAgg: LogicalWindowAggregate,
+      newAgg: RelNode,
+      relBuilder: FlinkRelBuilder,
+      rexBuilder: RexBuilder,
+      groupingFields: Seq[_<: RexNode],
+      groupingFieldsName: Seq[String],
+      aggFields: Seq[_<: RexNode],
+      aggFieldsName: Seq[String]): RelNode = {
+    val newAggFieldsName = newAgg.getRowType.getFieldNames
+    val namedPropertiesNum = oldAgg.getNamedProperties.size
+    val namedPropertiesFields = newAggFieldsName.indices.takeRight(namedPropertiesNum).map {
+      rexBuilder.makeInputRef(newAgg, _)
+    }
+    val namedPropertiesFieldsName = newAggFieldsName.takeRight(namedPropertiesNum)
+    relBuilder.project(
+      groupingFields ++ aggFields ++ namedPropertiesFields,
+      groupingFieldsName ++ aggFieldsName ++ namedPropertiesFieldsName)
+    relBuilder.convert(oldAgg.getRowType, true)
+    relBuilder.build()
+  }
+}
+
 object DecomposeGroupingSetsRule {
-  val INSTANCE: RelOptRule = new DecomposeGroupingSetsRule
+  val AGGREGATE_INSTANCE: RelOptRule = new DecomposeGroupingSetsForLogicalAggregateRule
+
+  val WINDOW_AGGREGATE_INSTANCE: RelOptRule = new DecomposeGroupingSetsForWindowAggregateRule
 }

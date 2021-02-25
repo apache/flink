@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.plan.utils.AggregateUtil
 import org.apache.flink.table.runtime.operators.rank.{RankRange, RankType}
 
 import com.google.common.collect.ImmutableList
+import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelCollation
 import org.apache.calcite.rel.`type`.RelDataTypeField
@@ -154,6 +155,42 @@ class FlinkRelBuilder(
       new UnaryOperator[RelBuilder.Config] {
         override def apply(t: RelBuilder.Config)
           : RelBuilder.Config = t.withPruneInputOfAggregate(false)
+      })
+      .push(build())
+      .aggregate(groupKey, aggCalls)
+      .build()
+      .asInstanceOf[LogicalAggregate]
+
+    // build logical window aggregate from it
+    aggregate match {
+      case logicalAggregate: LogicalAggregate
+        if AggregateUtil.isTableAggregate(logicalAggregate.getAggCallList) =>
+        push(LogicalWindowTableAggregate.create(window, namedProperties, aggregate))
+      case _ => push(LogicalWindowAggregate.create(window, namedProperties, aggregate))
+    }
+  }
+
+  /**
+   * Build window aggregate for either aggregate or table aggregate.
+   */
+  def windowAggregate(
+      window: LogicalWindow,
+      groupKey: GroupKey,
+      namedProperties: List[PlannerNamedWindowProperty],
+      aggCalls: List[AggregateCall]): RelBuilder = {
+    // build logical aggregate
+
+    // Because of:
+    // [CALCITE-3763] RelBuilder.aggregate should prune unused fields from the input,
+    // if the input is a Project.
+    //
+    // the field can not be pruned if it is referenced by other expressions
+    // of the window aggregation(i.e. the TUMBLE_START/END).
+    // To solve this, we config the RelBuilder to forbidden this feature.
+    val aggregate = super.transform(
+      new UnaryOperator[RelBuilder.Config] {
+        override def apply(t: RelBuilder.Config)
+        : RelBuilder.Config = t.withPruneInputOfAggregate(false)
       })
       .push(build())
       .aggregate(groupKey, aggCalls)
