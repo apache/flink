@@ -286,7 +286,7 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
         new Context() {
             {
                 resourceAllocationStrategyBuilder.setTryFulfillRequirementsFunction(
-                        ((jobIDCollectionMap, instanceIDTuple2Map, pendingTaskManagers) ->
+                        ((jobIDCollectionMap, taskManagerResourceInfoProvider) ->
                                 ResourceAllocationResult.builder()
                                         .addAllocationOnRegisteredResource(
                                                 jobId,
@@ -333,7 +333,7 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                             return true;
                         });
                 resourceAllocationStrategyBuilder.setTryFulfillRequirementsFunction(
-                        ((jobIDCollectionMap, instanceIDTuple2Map, pendingTaskManagers) ->
+                        ((jobIDCollectionMap, taskManagerResourceInfoProvider) ->
                                 ResourceAllocationResult.builder()
                                         .addPendingTaskManagerAllocate(
                                                 new PendingTaskManager(
@@ -379,7 +379,7 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
         new Context() {
             {
                 resourceAllocationStrategyBuilder.setTryFulfillRequirementsFunction(
-                        ((jobIDCollectionMap, instanceIDTuple2Map, pendingTaskManagers) ->
+                        ((jobIDCollectionMap, taskManagerResourceInfoProvider) ->
                                 ResourceAllocationResult.builder()
                                         .addPendingTaskManagerAllocate(pendingTaskManager)
                                         .addAllocationOnPendingResource(
@@ -437,7 +437,7 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                 notEnoughResourceNotifications.add(
                                         Tuple2.of(jobId1, acquiredResources)));
                 resourceAllocationStrategyBuilder.setTryFulfillRequirementsFunction(
-                        ((jobIDCollectionMap, instanceIDTuple2Map, pendingTaskManagers) ->
+                        ((jobIDCollectionMap, taskManagerResourceInfoProvider) ->
                                 ResourceAllocationResult.builder()
                                         .addUnfulfillableJob(jobId)
                                         .build()));
