@@ -268,7 +268,7 @@ public class KubernetesResourceManagerDriver
                 dynamicProperties,
                 jvmMemOpts,
                 taskManagerParameters,
-                ExternalResourceUtils.getExternalResources(
+                ExternalResourceUtils.getExternalResourceConfigurationKeys(
                         flinkConfig,
                         KubernetesConfigOptions.EXTERNAL_RESOURCE_KUBERNETES_CONFIG_KEY_SUFFIX));
     }

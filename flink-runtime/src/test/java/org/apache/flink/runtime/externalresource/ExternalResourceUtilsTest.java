@@ -60,75 +60,27 @@ public class ExternalResourceUtilsTest extends TestLogger {
     private static final String SUFFIX = "flink.config-key";
 
     @Test
-    public void testGetExternalResourcesWithConfigKeyNotSpecifiedOrEmpty() {
+    public void testGetExternalResourceConfigurationKeysWithConfigKeyNotSpecifiedOrEmpty() {
         final Configuration config = new Configuration();
         final String resourceConfigKey = "";
 
         config.set(ExternalResourceOptions.EXTERNAL_RESOURCE_LIST, RESOURCE_LIST);
-        config.setLong(
-                ExternalResourceOptions.getAmountConfigOptionForResource(RESOURCE_NAME_1),
-                RESOURCE_AMOUNT_1);
-        config.setLong(
-                ExternalResourceOptions.getAmountConfigOptionForResource(RESOURCE_NAME_2),
-                RESOURCE_AMOUNT_2);
         config.setString(
                 ExternalResourceOptions.getSystemConfigKeyConfigOptionForResource(
                         RESOURCE_NAME_1, SUFFIX),
                 resourceConfigKey);
 
-        final Map<String, Long> configMap =
-                ExternalResourceUtils.getExternalResources(config, SUFFIX);
+        final Map<String, String> configMap =
+                ExternalResourceUtils.getExternalResourceConfigurationKeys(config, SUFFIX);
 
         assertThat(configMap.entrySet(), is(empty()));
     }
 
     @Test
-    public void testGetExternalResourcesWithIllegalAmount() {
-        final Configuration config = new Configuration();
-        final long resourceAmount = 0L;
-
-        config.set(ExternalResourceOptions.EXTERNAL_RESOURCE_LIST, RESOURCE_LIST);
-        config.setLong(
-                ExternalResourceOptions.getAmountConfigOptionForResource(RESOURCE_NAME_1),
-                resourceAmount);
-        config.setString(
-                ExternalResourceOptions.getSystemConfigKeyConfigOptionForResource(
-                        RESOURCE_NAME_1, SUFFIX),
-                RESOURCE_CONFIG_KEY_1);
-
-        final Map<String, Long> configMap =
-                ExternalResourceUtils.getExternalResources(config, SUFFIX);
-
-        assertThat(configMap.entrySet(), is(empty()));
-    }
-
-    @Test
-    public void testGetExternalResourcesWithoutConfigAmount() {
+    public void testGetExternalResourceConfigurationKeysWithConflictConfigKey() {
         final Configuration config = new Configuration();
 
         config.set(ExternalResourceOptions.EXTERNAL_RESOURCE_LIST, RESOURCE_LIST);
-        config.setString(
-                ExternalResourceOptions.getSystemConfigKeyConfigOptionForResource(
-                        RESOURCE_NAME_1, SUFFIX),
-                RESOURCE_CONFIG_KEY_1);
-
-        final Map<String, Long> configMap =
-                ExternalResourceUtils.getExternalResources(config, SUFFIX);
-
-        assertThat(configMap.entrySet(), is(empty()));
-    }
-
-    @Test
-    public void testGetExternalResourcesWithConflictConfigKey() {
-        final Configuration config = new Configuration();
-
-        config.set(ExternalResourceOptions.EXTERNAL_RESOURCE_LIST, RESOURCE_LIST);
-        config.setLong(
-                ExternalResourceOptions.getAmountConfigOptionForResource(RESOURCE_NAME_1),
-                RESOURCE_AMOUNT_1);
-        config.setLong(
-                ExternalResourceOptions.getAmountConfigOptionForResource(RESOURCE_NAME_2),
-                RESOURCE_AMOUNT_2);
         config.setString(
                 ExternalResourceOptions.getSystemConfigKeyConfigOptionForResource(
                         RESOURCE_NAME_1, SUFFIX),
@@ -138,42 +90,12 @@ public class ExternalResourceUtilsTest extends TestLogger {
                         RESOURCE_NAME_2, SUFFIX),
                 RESOURCE_CONFIG_KEY_1);
 
-        final Map<String, Long> configMap =
-                ExternalResourceUtils.getExternalResources(config, SUFFIX);
+        final Map<String, String> configMap =
+                ExternalResourceUtils.getExternalResourceConfigurationKeys(config, SUFFIX);
 
-        // Only one of the config key would be kept.
+        // Only one of the resource name would be kept.
         assertThat(configMap.size(), is(1));
-        assertTrue(configMap.containsKey(RESOURCE_CONFIG_KEY_1));
-    }
-
-    @Test
-    public void testGetExternalResourcesWithMultipleExternalResource() {
-        final Configuration config = new Configuration();
-
-        config.set(ExternalResourceOptions.EXTERNAL_RESOURCE_LIST, RESOURCE_LIST);
-        config.setLong(
-                ExternalResourceOptions.getAmountConfigOptionForResource(RESOURCE_NAME_1),
-                RESOURCE_AMOUNT_1);
-        config.setLong(
-                ExternalResourceOptions.getAmountConfigOptionForResource(RESOURCE_NAME_2),
-                RESOURCE_AMOUNT_2);
-        config.setString(
-                ExternalResourceOptions.getSystemConfigKeyConfigOptionForResource(
-                        RESOURCE_NAME_1, SUFFIX),
-                RESOURCE_CONFIG_KEY_1);
-        config.setString(
-                ExternalResourceOptions.getSystemConfigKeyConfigOptionForResource(
-                        RESOURCE_NAME_2, SUFFIX),
-                RESOURCE_CONFIG_KEY_2);
-
-        final Map<String, Long> configMap =
-                ExternalResourceUtils.getExternalResources(config, SUFFIX);
-
-        assertThat(configMap.size(), is(2));
-        assertTrue(configMap.containsKey(RESOURCE_CONFIG_KEY_1));
-        assertTrue(configMap.containsKey(RESOURCE_CONFIG_KEY_2));
-        assertThat(configMap.get(RESOURCE_CONFIG_KEY_1), is(RESOURCE_AMOUNT_1));
-        assertThat(configMap.get(RESOURCE_CONFIG_KEY_2), is(RESOURCE_AMOUNT_2));
+        assertThat(configMap.values(), contains(RESOURCE_CONFIG_KEY_1));
     }
 
     @Test

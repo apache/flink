@@ -64,68 +64,52 @@ public class ExternalResourceUtils {
     }
 
     /**
-     * Get the external resources map. The key should be used for deployment specific container
-     * request, and values should be the amount of that resource.
+     * Get the external resource configuration keys map, indexed by the resource name. The
+     * configuration key should be used for deployment specific container request.
      *
      * @param config Configurations
      * @param suffix suffix of config option for deployment specific configuration key
-     * @return external resources map, map the amount to the configuration key for deployment
-     *     specific container request
+     * @return external resource configuration keys map, map the resource name to the configuration
+     *     key for deployment * specific container request
      */
-    public static Map<String, Long> getExternalResources(Configuration config, String suffix) {
+    public static Map<String, String> getExternalResourceConfigurationKeys(
+            Configuration config, String suffix) {
         final Set<String> resourceSet = getExternalResourceSet(config);
+        final Map<String, String> configKeysToResourceNameMap = new HashMap<>();
         LOG.info("Enabled external resources: {}", resourceSet);
 
         if (resourceSet.isEmpty()) {
             return Collections.emptyMap();
         }
 
-        final Map<String, Long> externalResourceConfigs = new HashMap<>();
+        final Map<String, String> externalResourceConfigs = new HashMap<>();
         for (String resourceName : resourceSet) {
-            final ConfigOption<Long> amountOption =
-                    key(ExternalResourceOptions.getAmountConfigOptionForResource(resourceName))
-                            .longType()
-                            .noDefaultValue();
             final ConfigOption<String> configKeyOption =
                     key(ExternalResourceOptions.getSystemConfigKeyConfigOptionForResource(
                                     resourceName, suffix))
                             .stringType()
                             .noDefaultValue();
-            final String configKey = config.getString(configKeyOption);
-            final Optional<Long> amountOpt = config.getOptional(amountOption);
+            final String configKey = config.get(configKeyOption);
 
             if (StringUtils.isNullOrWhitespaceOnly(configKey)) {
                 LOG.warn(
                         "Could not find valid {} for {}. Will ignore that resource.",
                         configKeyOption.key(),
                         resourceName);
-                continue;
-            }
-            if (!amountOpt.isPresent()) {
-                LOG.warn(
-                        "The amount of the {} should be configured. Will ignore that resource.",
-                        resourceName);
-                continue;
-            } else if (amountOpt.get() <= 0) {
-                LOG.warn(
-                        "The amount of the {} should be positive while finding {}. Will ignore that resource.",
-                        amountOpt.get(),
-                        resourceName);
-                continue;
-            }
-
-            if (externalResourceConfigs.put(configKey, amountOpt.get()) != null) {
-                LOG.warn(
-                        "Duplicate config key {} occurred for external resources, the one named {} with amount {} will overwrite the value.",
-                        configKey,
-                        resourceName,
-                        amountOpt);
             } else {
-                LOG.info(
-                        "Add external resource config for {} with key {} value {}.",
-                        resourceName,
+                configKeysToResourceNameMap.compute(
                         configKey,
-                        amountOpt);
+                        (ignored, previousResource) -> {
+                            if (previousResource != null) {
+                                LOG.warn(
+                                        "Duplicate config key {} occurred for external resources, the one named {} will overwrite the value.",
+                                        configKey,
+                                        resourceName);
+                                externalResourceConfigs.remove(previousResource);
+                            }
+                            return resourceName;
+                        });
+                externalResourceConfigs.put(resourceName, configKey);
             }
         }
 
