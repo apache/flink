@@ -30,7 +30,9 @@ import com.netflix.fenzo.plugins.HostAttrValueConstraint;
 import org.apache.mesos.Protos;
 import org.junit.Test;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import scala.Option;
 
@@ -299,6 +301,17 @@ public class MesosTaskManagerParametersTest extends TestLogger {
                         .getTaskExecutorProcessSpec()
                         .getTotalProcessMemorySize(),
                 is(TOTAL_PROCESS_MEMORY_SIZE));
+    }
+
+    @Test
+    public void testMesosLabelsConfiguration() {
+        Map<String, String> expectedLabels = new HashMap<>();
+        expectedLabels.put("key1", "value1");
+        expectedLabels.put("key2", "value2");
+        Configuration conf = getConfiguration();
+        conf.setString("mesos.resourcemanager.tasks.labels", "key1:value1,key2:value2");
+        MesosTaskManagerParameters params = MesosTaskManagerParameters.create(conf);
+        assertEquals(expectedLabels, params.mesosLabels());
     }
 
     private static Configuration getConfiguration() {

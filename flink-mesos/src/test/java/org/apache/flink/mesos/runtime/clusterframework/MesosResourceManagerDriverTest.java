@@ -436,7 +436,8 @@ public class MesosResourceManagerDriverTest
                     "",
                     Option.empty(),
                     Option.empty(),
-                    Collections.emptyList());
+                    Collections.emptyList(),
+                    Collections.emptyMap());
         }
 
         private AcceptOffers generateAcceptOffers(String taskIdStr) {
