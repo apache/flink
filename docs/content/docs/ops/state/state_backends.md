@@ -142,10 +142,11 @@ When deciding between `FsStateBackend` and `RocksDB`, it is a choice between per
 On the other hand, `RocksDB` can scale based on available disk space and is the only state backend to support incremental snapshots.
 However, each state access and update requires (de-)serialization and potentially reading from disk which leads to average performance that is an order of magnitude slower than the memory state backends.
 
+{{< hint info >}}
 In Flink 1.13 we unified the binary format of Flink's savepoints. That means you can take a savepoint and then restore from it using a different state backend.
-All the state backends produce a common format only starting from the version 1.13. Therefore, if you want to switch the state backend you should first upgrade your Flink version than
-take a savepoint with the new version and only after that you can restore it with a different state backend.
-
+All the state backends produce a common format only starting from version 1.13. Therefore, if you want to switch the state backend you should first upgrade your Flink version than
+take a savepoint with the new version, and only after that you can restore it with a different state backend.
+{{< /hint >}}
 # Configuring a State Backend
 
 The default state backend, if you specify nothing, is the jobmanager. If you wish to establish a different default for all jobs on your cluster, you can do so by defining a new default state backend in **flink-conf.yaml**. The default state backend can be overridden on a per-job basis, as shown below.
