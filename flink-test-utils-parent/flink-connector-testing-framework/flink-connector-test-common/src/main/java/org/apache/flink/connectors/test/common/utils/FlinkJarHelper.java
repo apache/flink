@@ -38,7 +38,7 @@ public class FlinkJarHelper {
      * @return JAR file
      * @throws FileNotFoundException if JAR file is not found in target folder
      */
-    public static File searchJar() throws FileNotFoundException {
+    public static File searchConnectorJar() throws FileNotFoundException {
         if (searchedJarFile == null) {
             // Search JAR file in target directory
             String moduleName = new File(System.getProperty("user.dir")).getName();
@@ -47,9 +47,7 @@ public class FlinkJarHelper {
             LOG.debug("Searching JAR in {} with module name {}", targetDir, moduleName);
             for (File file : Objects.requireNonNull(targetDir.listFiles())) {
                 String filename = file.getName();
-                if (filename.startsWith(moduleName)
-                        && !filename.endsWith("-tests.jar")
-                        && filename.endsWith(".jar")) {
+                if (filename.startsWith(moduleName) && filename.endsWith("-connector-jar.jar")) {
                     jobJar = file;
                 }
             }

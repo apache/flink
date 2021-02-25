@@ -18,10 +18,11 @@
 
 package org.apache.flink.connectors.test.common.environment;
 
+import org.apache.flink.connectors.test.common.TestResource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 /** Test environment for running Flink jobs. */
-public interface TestEnvironment {
+public interface TestEnvironment extends TestResource {
 
     /**
      * Create a new {@link StreamExecutionEnvironment} for configuring and executing the Flink job.

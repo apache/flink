@@ -1,11 +1,13 @@
 package org.apache.flink.connectors.test.common.environment;
 
+import org.apache.flink.api.common.JobID;
+
 /** Interface for triggering failover in a Flink cluster. */
 public interface ClusterControllable {
 
-    void triggerJobManagerFailover();
+    void triggerJobManagerFailover(JobID jobID, Runnable afterFailAction) throws Exception;
 
-    void triggerTaskManagerFailover();
+    void triggerTaskManagerFailover(JobID jobID, Runnable afterFailAction) throws Exception;
 
-    void isolateNetwork();
+    void isolateNetwork(Runnable afterFailAction) throws Exception;
 }

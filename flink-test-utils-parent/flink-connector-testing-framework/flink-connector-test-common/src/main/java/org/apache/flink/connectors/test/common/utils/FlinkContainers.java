@@ -24,13 +24,13 @@ import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.connectors.test.common.TestResource;
 import org.apache.flink.connectors.test.common.source.ControllableSource;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobExceptionsHeaders;
 import org.apache.flink.runtime.rest.messages.JobExceptionsInfo;
 import org.apache.flink.runtime.rest.messages.job.JobExceptionsMessageParameters;
 
-import org.junit.rules.ExternalResource;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,7 +67,7 @@ import java.util.regex.Pattern;
  * <li>Checkpoint directory for storing checkpoints
  * <li>Job directory for storing Flink job JAR files
  */
-public class FlinkContainers extends ExternalResource {
+public class FlinkContainers implements TestResource {
 
     private static final Logger LOG = LoggerFactory.getLogger(FlinkContainers.class);
 
@@ -115,7 +115,7 @@ public class FlinkContainers extends ExternalResource {
     }
 
     @Override
-    protected void before() throws Throwable {
+    public void startUp() throws Exception {
         LOG.info("🐳 Launching Flink cluster on Docker...");
 
         // Create temporary workspace and link it to Flink containers
@@ -168,7 +168,7 @@ public class FlinkContainers extends ExternalResource {
     }
 
     @Override
-    protected void after() {
+    public void tearDown() {
         LOG.info("🐳 Tearing down Flink cluster on Docker...");
 
         if (!keepTestScene) {

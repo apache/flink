@@ -18,10 +18,11 @@
   ~ limitations under the License.
   -->
 
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
-    <modelVersion>4.0.0</modelVersion>
+	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
@@ -30,36 +31,36 @@
 		<relativePath>..</relativePath>
 	</parent>
 
-    <artifactId>flink-connector-testing-framework</artifactId>
+	<artifactId>flink-connector-testing-framework</artifactId>
 	<name>Flink : Test utils : Testing Framework</name>
-    <packaging>pom</packaging>
+	<packaging>pom</packaging>
 
-    <modules>
-        <module>flink-connector-test-common</module>
-        <module>flink-connector-test-kafka</module>
-    </modules>
+	<modules>
+		<module>flink-connector-test-common</module>
+		<module>flink-connector-test-kafka</module>
+	</modules>
 
-    <properties>
-        <testcontainers.version>1.15.1</testcontainers.version>
+	<properties>
+		<testcontainers.version>1.15.1</testcontainers.version>
 		<flink.version>${project.version}</flink.version>
-    </properties>
+	</properties>
 
-    <dependencies>
-        <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>testcontainers</artifactId>
-            <version>${testcontainers.version}</version>
-        </dependency>
-    </dependencies>
+	<dependencies>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>testcontainers</artifactId>
+			<version>${testcontainers.version}</version>
+		</dependency>
+	</dependencies>
 
 	<profiles>
 		<profile>
-            <!--
-                This profile is for running test cases in the testing framework.
-                Docker environment should be installed before using this profile because some test
-                cases use Testcontainers as the test environment.
-                To trigger this profile, use "-Prun-connector-test" option when running maven.
-            -->
+			<!--
+				This profile is for running test cases in the testing framework.
+				Docker environment should be installed before using this profile because some test
+				cases use Testcontainers as the test environment.
+				To trigger this profile, use "-Prun-connector-test" option when running maven.
+			-->
 			<id>run-connector-test</id>
 			<build>
 				<plugins>

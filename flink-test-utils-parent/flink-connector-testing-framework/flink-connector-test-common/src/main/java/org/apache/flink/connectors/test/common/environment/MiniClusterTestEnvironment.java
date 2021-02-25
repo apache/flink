@@ -18,22 +18,72 @@
 
 package org.apache.flink.connectors.test.common.environment;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.highavailability.nonha.embedded.HaLeadershipControl;
+import org.apache.flink.runtime.minicluster.RpcServiceSharing;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.ExecutionException;
 
 /** Test environment for running jobs on Flink mini-cluster. */
 public class MiniClusterTestEnvironment implements TestEnvironment, ClusterControllable {
 
-    @Override
-    public StreamExecutionEnvironment createExecutionEnvironment() {
-        return StreamExecutionEnvironment.createLocalEnvironment();
+    MiniClusterWithClientResource miniCluster;
+
+    private static final Logger LOG = LoggerFactory.getLogger(MiniClusterTestEnvironment.class);
+
+    public MiniClusterTestEnvironment() {
+        this.miniCluster =
+                new MiniClusterWithClientResource(
+                        new MiniClusterResourceConfiguration.Builder()
+                                .setNumberTaskManagers(1)
+                                .setNumberSlotsPerTaskManager(6)
+                                .setRpcServiceSharing(RpcServiceSharing.DEDICATED)
+                                .withHaLeadershipControl()
+                                .build());
     }
 
     @Override
-    public void triggerJobManagerFailover() {}
+    public StreamExecutionEnvironment createExecutionEnvironment() {
+        return StreamExecutionEnvironment.getExecutionEnvironment();
+    }
 
     @Override
-    public void triggerTaskManagerFailover() {}
+    public void triggerJobManagerFailover(JobID jobID, Runnable afterFailAction)
+            throws ExecutionException, InterruptedException {
+        final HaLeadershipControl haLeadershipControl =
+                miniCluster.getMiniCluster().getHaLeadershipControl().get();
+        haLeadershipControl.revokeJobMasterLeadership(jobID).get();
+        afterFailAction.run();
+        haLeadershipControl.grantJobMasterLeadership(jobID).get();
+    }
 
     @Override
-    public void isolateNetwork() {}
+    public void triggerTaskManagerFailover(JobID jobID, Runnable afterFailAction) throws Exception {
+        LOG.debug("Terminating TaskManager 0...");
+        miniCluster.getMiniCluster().terminateTaskManager(0).get();
+        afterFailAction.run();
+        LOG.debug("Restarting TaskManager 0...");
+        miniCluster.getMiniCluster().startTaskManager();
+    }
+
+    @Override
+    public void isolateNetwork(Runnable afterFailAction) {
+        throw new UnsupportedOperationException("Cannot isolate network");
+    }
+
+    @Override
+    public void startUp() throws Exception {
+        this.miniCluster.before();
+    }
+
+    @Override
+    public void tearDown() {
+        this.miniCluster.after();
+    }
 }

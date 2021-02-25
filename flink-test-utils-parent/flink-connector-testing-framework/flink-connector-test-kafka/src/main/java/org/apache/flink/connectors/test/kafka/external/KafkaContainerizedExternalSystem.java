@@ -19,6 +19,7 @@
 package org.apache.flink.connectors.test.kafka.external;
 
 import org.apache.flink.connectors.test.common.external.ContainerizedExternalSystem;
+import org.apache.flink.connectors.test.common.external.ExternalContext;
 import org.apache.flink.connectors.test.common.utils.FlinkContainers;
 import org.apache.flink.util.Preconditions;
 
@@ -31,6 +32,7 @@ import org.testcontainers.utility.DockerImageName;
 
 import java.util.Collections;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Kafka external system based on {@link KafkaContainer} from <a
@@ -39,7 +41,9 @@ import java.util.Properties;
  * <p>This external system is also integrated with a Kafka admin client for topic management.
  */
 public class KafkaContainerizedExternalSystem
-        extends ContainerizedExternalSystem<KafkaContainerizedExternalSystem> {
+        implements ContainerizedExternalSystem<String, KafkaContainerizedExternalSystem> {
+
+    private FlinkContainers flink;
 
     private static final Logger LOG =
             LoggerFactory.getLogger(KafkaContainerizedExternalSystem.class);
@@ -56,17 +60,16 @@ public class KafkaContainerizedExternalSystem
     public static final int PORT = 9092;
     public static final String ENTRY = HOSTNAME + ":" + PORT;
 
-    // Topic name for E2E test
-    public static final String TOPIC = "flink-kafka-e2e-test";
+    private static final int DEFAULT_TIMEOUT = 10;
 
     public KafkaContainerizedExternalSystem() {
-        kafka =
+        this.kafka =
                 new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:5.5.2"))
                         .withNetworkAliases(HOSTNAME);
     }
 
     public String getBootstrapServer() {
-        return kafka.getBootstrapServers();
+        return kafka.getBootstrapServers().split("://")[1];
     }
 
     /**
@@ -83,10 +86,24 @@ public class KafkaContainerizedExternalSystem
 
         NewTopic newTopic = new NewTopic(topicName, numPartitions, replicationFactor);
         try {
-            kafkaAdminClient.createTopics(Collections.singletonList(newTopic)).all().get();
+            kafkaAdminClient
+                    .createTopics(Collections.singletonList(newTopic))
+                    .all()
+                    .get(DEFAULT_TIMEOUT, TimeUnit.SECONDS);
         } catch (Exception e) {
-            LOG.error("Cannot create topic '{}'", topicName);
-            throw new RuntimeException("Cannot create topic '" + topicName + "'", e);
+            throw new RuntimeException(String.format("Cannot create topic '%s'", topicName), e);
+        }
+    }
+
+    public void deleteTopic(String topicName) {
+        Preconditions.checkState(kafka.isRunning(), "Kafka container is not running");
+        try {
+            kafkaAdminClient
+                    .deleteTopics(Collections.singletonList(topicName))
+                    .all()
+                    .get(DEFAULT_TIMEOUT, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            throw new RuntimeException(String.format("Cannot delete topic '%s'", topicName), e);
         }
     }
 
@@ -98,7 +115,7 @@ public class KafkaContainerizedExternalSystem
         return this;
     }
 
-    /*--------------------------- JUnit Lifecycle management ------------------------*/
+    /*--------------------------- Lifecycle management ------------------------*/
 
     /**
      * External system initialization.
@@ -107,7 +124,7 @@ public class KafkaContainerizedExternalSystem
      * about the external system.
      */
     @Override
-    protected void before() {
+    public void startUp() {
         LOG.info("🐳 Launching Kafka on Docker...");
 
         // Make sure kafka container is bound with Flink containers
@@ -126,15 +143,17 @@ public class KafkaContainerizedExternalSystem
         kafkaAdminClient = AdminClient.create(adminClientProps);
 
         LOG.info("Kafka container started.");
-
-        // Create a topic
-        createTopic(TOPIC, 1, (short) 1);
     }
 
     @Override
-    protected void after() {
+    public void tearDown() {
         LOG.info("🐳 Tearing down Kafka on Docker...");
         kafkaAdminClient.close();
         kafka.stop();
+    }
+
+    @Override
+    public ExternalContext<String> getExternalContext() {
+        return null;
     }
 }

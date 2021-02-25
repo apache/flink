@@ -18,6 +18,8 @@
 
 package org.apache.flink.connectors.test.common.external;
 
+import org.apache.flink.connectors.test.common.TestResource;
+
 import org.junit.rules.ExternalResource;
 
 /**
@@ -26,4 +28,6 @@ import org.junit.rules.ExternalResource;
  * <p>This external system extends {@link ExternalResource} class so that lifecycle of the external
  * system * can be managed by JUnit.
  */
-public abstract class ExternalSystem extends ExternalResource {}
+public interface ExternalSystem<T> extends TestResource {
+    ExternalContext<T> getExternalContext();
+}

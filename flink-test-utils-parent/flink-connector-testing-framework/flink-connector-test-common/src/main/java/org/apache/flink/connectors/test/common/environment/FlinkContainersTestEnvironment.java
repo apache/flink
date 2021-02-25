@@ -18,35 +18,30 @@
 
 package org.apache.flink.connectors.test.common.environment;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.connectors.test.common.utils.FlinkContainers;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 /** Test environment running job on {@link FlinkContainers}. */
-public class FlinkContainersTestEnvironment extends RemoteClusterTestEnvironment {
+public class FlinkContainersTestEnvironment implements TestEnvironment, ClusterControllable {
 
-    private final FlinkContainers flink;
+    private final FlinkContainers flinkContainers;
 
-    /**
-     * Construct a test environment for Flink containers.
-     *
-     * @param flink Flink cluster on Testcontainers
-     * @param jarPath Path of JARs to be shipped to Flink cluster
-     */
-    public FlinkContainersTestEnvironment(FlinkContainers flink, String... jarPath) {
-        this(flink, new Configuration(), jarPath);
+    private final String[] jarPath;
+
+    @Override
+    public void startUp() throws Exception {
+        flinkContainers.startUp();
     }
 
-    /**
-     * Construct a test environment related to Flink containers with configurations.
-     *
-     * @param flink Flink cluster on Testcontainers
-     * @param config Configurations of the test environment
-     * @param jarPath Path of JARs to be shipped to Flink cluster
-     */
-    public FlinkContainersTestEnvironment(
-            FlinkContainers flink, Configuration config, String... jarPath) {
-        super(flink.getJobManagerHost(), flink.getJobManagerRESTPort(), jarPath);
-        this.flink = flink;
+    @Override
+    public void tearDown() {
+        flinkContainers.tearDown();
+    }
+
+    public FlinkContainersTestEnvironment(int numTaskManagers, String... jarPath) {
+        this.jarPath = jarPath;
+        this.flinkContainers = FlinkContainers.builder("test", numTaskManagers).build();
     }
 
     /**
@@ -55,6 +50,25 @@ public class FlinkContainersTestEnvironment extends RemoteClusterTestEnvironment
      * @return Flink cluster on Testcontainers
      */
     public FlinkContainers getFlinkContainers() {
-        return flink;
+        return flinkContainers;
     }
+
+    @Override
+    public StreamExecutionEnvironment createExecutionEnvironment() {
+        return StreamExecutionEnvironment.createRemoteEnvironment(
+                flinkContainers.getJobManagerHost(),
+                flinkContainers.getJobManagerRESTPort(),
+                jarPath);
+    }
+
+    @Override
+    public void triggerJobManagerFailover(JobID jobID, Runnable afterFailAction) {}
+
+    @Override
+    public void triggerTaskManagerFailover(JobID jobID, Runnable afterFailAction) {
+        flinkContainers.restartTaskManagers(0);
+    }
+
+    @Override
+    public void isolateNetwork(Runnable afterFailAction) {}
 }

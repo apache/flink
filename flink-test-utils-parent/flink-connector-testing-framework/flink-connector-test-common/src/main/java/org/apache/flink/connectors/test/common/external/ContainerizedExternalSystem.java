@@ -21,9 +21,8 @@ package org.apache.flink.connectors.test.common.external;
 import org.apache.flink.connectors.test.common.utils.FlinkContainers;
 
 /** External system using <a href="https://www.testcontainers.org/">Testcontainers</a>. */
-public abstract class ContainerizedExternalSystem<T extends ContainerizedExternalSystem<?>>
-        extends ExternalSystem {
-    protected FlinkContainers flink;
+public interface ContainerizedExternalSystem<T, C extends ContainerizedExternalSystem<T, ?>>
+        extends ExternalSystem<T> {
 
     /**
      * Bind this containerized external system with Flink container.
@@ -34,5 +33,5 @@ public abstract class ContainerizedExternalSystem<T extends ContainerizedExterna
      * @param flink Flink containers
      * @return The containerized external system itself
      */
-    public abstract T withFlinkContainers(FlinkContainers flink);
+    C withFlinkContainers(FlinkContainers flink);
 }
