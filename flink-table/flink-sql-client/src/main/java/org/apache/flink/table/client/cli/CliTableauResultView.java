@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.client.cli;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.client.gateway.Executor;
@@ -30,7 +29,6 @@ import org.apache.flink.types.Row;
 
 import org.jline.terminal.Terminal;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
@@ -44,7 +42,6 @@ import java.util.stream.Stream;
 public class CliTableauResultView implements AutoCloseable {
 
     private static final int DEFAULT_COLUMN_WIDTH = 20;
-    private static final String CHANGEFLAG_COLUMN_NAME = "+/-";
 
     private final Terminal terminal;
     private final Executor sqlExecutor;
@@ -66,12 +63,12 @@ public class CliTableauResultView implements AutoCloseable {
                         new ExecutorThreadFactory("CliTableauResultView"));
     }
 
-    public void displayStreamResults() throws SqlExecutionException {
+    public void displayResults() throws SqlExecutionException {
         final AtomicInteger receivedRowCount = new AtomicInteger(0);
         Future<?> resultFuture =
                 displayResultExecutorService.submit(
                         () -> {
-                            printStreamResults(receivedRowCount);
+                            printResults(receivedRowCount, resultDescriptor.isStreamingMode());
                         });
 
         // capture CTRL-C
@@ -104,43 +101,6 @@ public class CliTableauResultView implements AutoCloseable {
         }
     }
 
-    public void displayBatchResults() throws SqlExecutionException {
-        Future<?> resultFuture =
-                displayResultExecutorService.submit(
-                        () -> {
-                            final List<Row> resultRows = waitBatchResults();
-                            PrintUtils.printAsTableauForm(
-                                    resultDescriptor.getResultSchema(),
-                                    resultRows.iterator(),
-                                    terminal.writer());
-                        });
-
-        // capture CTRL-C
-        terminal.handle(
-                Terminal.Signal.INT,
-                signal -> {
-                    resultFuture.cancel(true);
-                });
-
-        boolean cleanUpQuery = true;
-        try {
-            resultFuture.get();
-            cleanUpQuery = false; // job finished successfully
-        } catch (CancellationException e) {
-            terminal.writer().println("Query terminated");
-            terminal.flush();
-        } catch (ExecutionException e) {
-            if (e.getCause() instanceof SqlExecutionException) {
-                throw (SqlExecutionException) e.getCause();
-            }
-            throw new SqlExecutionException("unknown exception", e.getCause());
-        } catch (InterruptedException e) {
-            throw new SqlExecutionException("Query interrupted", e);
-        } finally {
-            checkAndCleanUpQuery(cleanUpQuery);
-        }
-    }
-
     @Override
     public void close() {
         this.displayResultExecutorService.shutdown();
@@ -156,47 +116,29 @@ public class CliTableauResultView implements AutoCloseable {
         }
     }
 
-    private List<Row> waitBatchResults() {
-        List<Row> resultRows;
-        // take snapshot and make all results in one page
-        do {
-            try {
-                Thread.sleep(50);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-            TypedResult<Integer> result =
-                    sqlExecutor.snapshotResult(
-                            sessionId, resultDescriptor.getResultId(), Integer.MAX_VALUE);
-
-            if (result.getType() == TypedResult.ResultType.EOS) {
-                resultRows = Collections.emptyList();
-                break;
-            } else if (result.getType() == TypedResult.ResultType.PAYLOAD) {
-                resultRows = sqlExecutor.retrieveResultPage(resultDescriptor.getResultId(), 1);
-                break;
-            } else {
-                // result not retrieved yet
-            }
-        } while (true);
-
-        return resultRows;
-    }
-
-    private void printStreamResults(AtomicInteger receivedRowCount) {
+    private void printResults(AtomicInteger receivedRowCount, boolean isStreamingMode) {
         List<TableColumn> columns = resultDescriptor.getResultSchema().getTableColumns();
-        String[] fieldNames =
-                Stream.concat(
-                                Stream.of(CHANGEFLAG_COLUMN_NAME),
-                                columns.stream().map(TableColumn::getName))
-                        .toArray(String[]::new);
+        final String[] fieldNames;
+        final int[] colWidths;
+        if (isStreamingMode) {
+            fieldNames =
+                    Stream.concat(
+                                    Stream.of(PrintUtils.ROW_KIND_COLUMN),
+                                    columns.stream().map(TableColumn::getName))
+                            .toArray(String[]::new);
+            colWidths =
+                    PrintUtils.columnWidthsByType(
+                            columns,
+                            DEFAULT_COLUMN_WIDTH,
+                            PrintUtils.NULL_COLUMN,
+                            PrintUtils.ROW_KIND_COLUMN);
+        } else {
+            fieldNames = columns.stream().map(TableColumn::getName).toArray(String[]::new);
+            colWidths =
+                    PrintUtils.columnWidthsByType(
+                            columns, DEFAULT_COLUMN_WIDTH, PrintUtils.NULL_COLUMN, null);
+        }
 
-        int[] colWidths =
-                PrintUtils.columnWidthsByType(
-                        columns,
-                        DEFAULT_COLUMN_WIDTH,
-                        CliStrings.NULL_COLUMN,
-                        CHANGEFLAG_COLUMN_NAME);
         String borderline = PrintUtils.genBorderLine(colWidths);
 
         // print filed names
@@ -206,7 +148,7 @@ public class CliTableauResultView implements AutoCloseable {
         terminal.flush();
 
         while (true) {
-            final TypedResult<List<Tuple2<Boolean, Row>>> result =
+            final TypedResult<List<Row>> result =
                     sqlExecutor.retrieveResultChanges(sessionId, resultDescriptor.getResultId());
 
             switch (result.getType()) {
@@ -217,17 +159,21 @@ public class CliTableauResultView implements AutoCloseable {
                     if (receivedRowCount.get() > 0) {
                         terminal.writer().println(borderline);
                     }
+                    String rowTerm = receivedRowCount.get() > 1 ? "rows" : "row";
                     terminal.writer()
-                            .println("Received a total of " + receivedRowCount.get() + " rows");
+                            .println(
+                                    "Received a total of "
+                                            + receivedRowCount.get()
+                                            + " "
+                                            + rowTerm);
                     terminal.flush();
                     return;
                 case PAYLOAD:
-                    List<Tuple2<Boolean, Row>> changes = result.getPayload();
-                    for (Tuple2<Boolean, Row> change : changes) {
-                        final String[] cols = PrintUtils.rowToString(change.f1);
-                        String[] row = new String[cols.length + 1];
-                        row[0] = change.f0 ? "+" : "-";
-                        System.arraycopy(cols, 0, row, 1, cols.length);
+                    List<Row> changes = result.getPayload();
+                    for (Row change : changes) {
+                        final String[] row =
+                                PrintUtils.rowToString(
+                                        change, PrintUtils.NULL_COLUMN, isStreamingMode);
                         PrintUtils.printSingleRow(colWidths, row, terminal.writer());
                         receivedRowCount.incrementAndGet();
                     }
