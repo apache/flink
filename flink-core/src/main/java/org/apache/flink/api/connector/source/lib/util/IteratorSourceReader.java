@@ -84,7 +84,7 @@ public class IteratorSourceReader<
     @Override
     public void start() {
         // request a split only if we did not get one during restore
-        if (iterator == null) {
+        if (remainingSplits == null) {
             context.sendSplitRequest();
         }
     }
