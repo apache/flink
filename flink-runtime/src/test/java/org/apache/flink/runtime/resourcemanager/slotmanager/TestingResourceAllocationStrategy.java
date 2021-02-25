@@ -18,31 +18,25 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.function.TriFunction;
 
 import java.util.Collection;
-import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
 
 /** Implementation of {@link ResourceAllocationStrategy} for testing purpose. */
 public class TestingResourceAllocationStrategy implements ResourceAllocationStrategy {
-    private final TriFunction<
+    private final BiFunction<
                     Map<JobID, Collection<ResourceRequirement>>,
-                    Map<InstanceID, Tuple2<ResourceProfile, ResourceProfile>>,
-                    List<PendingTaskManager>,
+                    TaskManagerResourceInfoProvider,
                     ResourceAllocationResult>
             tryFulfillRequirementsFunction;
 
     private TestingResourceAllocationStrategy(
-            TriFunction<
+            BiFunction<
                             Map<JobID, Collection<ResourceRequirement>>,
-                            Map<InstanceID, Tuple2<ResourceProfile, ResourceProfile>>,
-                            List<PendingTaskManager>,
+                            TaskManagerResourceInfoProvider,
                             ResourceAllocationResult>
                     tryFulfillRequirementsFunction) {
         this.tryFulfillRequirementsFunction =
@@ -52,10 +46,9 @@ public class TestingResourceAllocationStrategy implements ResourceAllocationStra
     @Override
     public ResourceAllocationResult tryFulfillRequirements(
             Map<JobID, Collection<ResourceRequirement>> missingResources,
-            Map<InstanceID, Tuple2<ResourceProfile, ResourceProfile>> registeredResources,
-            List<PendingTaskManager> pendingTaskManagers) {
+            TaskManagerResourceInfoProvider taskManagerResourceInfoProvider) {
         return tryFulfillRequirementsFunction.apply(
-                missingResources, registeredResources, pendingTaskManagers);
+                missingResources, taskManagerResourceInfoProvider);
     }
 
     public static Builder newBuilder() {
@@ -63,20 +56,17 @@ public class TestingResourceAllocationStrategy implements ResourceAllocationStra
     }
 
     public static class Builder {
-        private TriFunction<
+        private BiFunction<
                         Map<JobID, Collection<ResourceRequirement>>,
-                        Map<InstanceID, Tuple2<ResourceProfile, ResourceProfile>>,
-                        List<PendingTaskManager>,
+                        TaskManagerResourceInfoProvider,
                         ResourceAllocationResult>
                 tryFulfillRequirementsFunction =
-                        (ignored0, ignored1, ignored2) ->
-                                ResourceAllocationResult.builder().build();
+                        (ignored0, ignored1) -> ResourceAllocationResult.builder().build();
 
         public Builder setTryFulfillRequirementsFunction(
-                TriFunction<
+                BiFunction<
                                 Map<JobID, Collection<ResourceRequirement>>,
-                                Map<InstanceID, Tuple2<ResourceProfile, ResourceProfile>>,
-                                List<PendingTaskManager>,
+                                TaskManagerResourceInfoProvider,
                                 ResourceAllocationResult>
                         tryFulfillRequirementsFunction) {
             this.tryFulfillRequirementsFunction = tryFulfillRequirementsFunction;
