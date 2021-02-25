@@ -81,6 +81,12 @@
             <td>Optional value to define the TaskManager’s hostname. The pattern _TASK_ is replaced by the actual id of the Mesos task. This can be used to configure the TaskManager to use Mesos DNS (e.g. _TASK_.flink-service.mesos) for name lookups.</td>
         </tr>
         <tr>
+            <td><h5>mesos.resourcemanager.tasks.labels</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Map</td>
+            <td>Labels to set on mesos tasks. It is a comma separated list of key value pairs, with each key value pair joined by colon. e.g. key1:value1,key2:value2 </td>
+        </tr>
+        <tr>
             <td><h5>mesos.resourcemanager.tasks.network.bandwidth</h5></td>
             <td style="word-wrap: break-word;">0</td>
             <td>Integer</td>
