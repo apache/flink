@@ -24,6 +24,7 @@ import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.api.common.resources.ExternalResource;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
@@ -485,15 +486,14 @@ public class ResourceProfile implements Serializable {
             return "ResourceProfile{ANY}";
         }
 
-        final StringBuilder extendedResourceStr = new StringBuilder(extendedResources.size() * 10);
-        for (Map.Entry<String, ExternalResource> resource : extendedResources.entrySet()) {
-            extendedResourceStr
-                    .append(", ")
-                    .append(resource.getKey())
-                    .append('=')
-                    .append(resource.getValue().getValue());
-        }
-        return "ResourceProfile{" + getResourceString() + extendedResourceStr + '}';
+        return "ResourceProfile{"
+                + getResourceString()
+                + (extendedResources.isEmpty()
+                        ? ""
+                        : (", "
+                                + ExternalResourceUtils.generateExternalResourcesString(
+                                        extendedResources.values())))
+                + '}';
     }
 
     private String getResourceString() {

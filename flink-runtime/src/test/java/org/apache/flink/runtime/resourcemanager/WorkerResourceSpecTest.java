@@ -18,7 +18,9 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
+import org.apache.flink.api.common.resources.ExternalResource;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExternalResourceOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
@@ -32,6 +34,7 @@ import static org.junit.Assert.assertNotEquals;
 
 /** Tests for {@link WorkerResourceSpec}. */
 public class WorkerResourceSpecTest extends TestLogger {
+    private static final String EXTERNAL_RESOURCE_NAME = "gpu";
 
     @Test
     public void testEquals() {
@@ -43,6 +46,7 @@ public class WorkerResourceSpecTest extends TestLogger {
                         .setNetworkMemoryMB(100)
                         .setManagedMemoryMB(100)
                         .setNumSlots(1)
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1))
                         .build();
         final WorkerResourceSpec spec2 =
                 new WorkerResourceSpec.Builder()
@@ -52,6 +56,7 @@ public class WorkerResourceSpecTest extends TestLogger {
                         .setNetworkMemoryMB(100)
                         .setManagedMemoryMB(100)
                         .setNumSlots(1)
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1))
                         .build();
         final WorkerResourceSpec spec3 =
                 new WorkerResourceSpec.Builder()
@@ -61,6 +66,7 @@ public class WorkerResourceSpecTest extends TestLogger {
                         .setNetworkMemoryMB(100)
                         .setManagedMemoryMB(100)
                         .setNumSlots(1)
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1))
                         .build();
         final WorkerResourceSpec spec4 =
                 new WorkerResourceSpec.Builder()
@@ -70,6 +76,7 @@ public class WorkerResourceSpecTest extends TestLogger {
                         .setNetworkMemoryMB(100)
                         .setManagedMemoryMB(100)
                         .setNumSlots(1)
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1))
                         .build();
         final WorkerResourceSpec spec5 =
                 new WorkerResourceSpec.Builder()
@@ -79,6 +86,7 @@ public class WorkerResourceSpecTest extends TestLogger {
                         .setNetworkMemoryMB(100)
                         .setManagedMemoryMB(100)
                         .setNumSlots(1)
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1))
                         .build();
         final WorkerResourceSpec spec6 =
                 new WorkerResourceSpec.Builder()
@@ -88,6 +96,7 @@ public class WorkerResourceSpecTest extends TestLogger {
                         .setNetworkMemoryMB(110)
                         .setManagedMemoryMB(100)
                         .setNumSlots(1)
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1))
                         .build();
         final WorkerResourceSpec spec7 =
                 new WorkerResourceSpec.Builder()
@@ -97,6 +106,7 @@ public class WorkerResourceSpecTest extends TestLogger {
                         .setNetworkMemoryMB(100)
                         .setManagedMemoryMB(110)
                         .setNumSlots(1)
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1))
                         .build();
         final WorkerResourceSpec spec8 =
                 new WorkerResourceSpec.Builder()
@@ -106,6 +116,26 @@ public class WorkerResourceSpecTest extends TestLogger {
                         .setNetworkMemoryMB(100)
                         .setManagedMemoryMB(100)
                         .setNumSlots(2)
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1))
+                        .build();
+        final WorkerResourceSpec spec9 =
+                new WorkerResourceSpec.Builder()
+                        .setCpuCores(1.0)
+                        .setTaskHeapMemoryMB(100)
+                        .setTaskOffHeapMemoryMB(100)
+                        .setNetworkMemoryMB(100)
+                        .setManagedMemoryMB(100)
+                        .setNumSlots(1)
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 2))
+                        .build();
+        final WorkerResourceSpec spec10 =
+                new WorkerResourceSpec.Builder()
+                        .setCpuCores(1.0)
+                        .setTaskHeapMemoryMB(100)
+                        .setTaskOffHeapMemoryMB(100)
+                        .setNetworkMemoryMB(100)
+                        .setManagedMemoryMB(100)
+                        .setNumSlots(1)
                         .build();
 
         assertEquals(spec1, spec1);
@@ -116,6 +146,8 @@ public class WorkerResourceSpecTest extends TestLogger {
         assertNotEquals(spec1, spec6);
         assertNotEquals(spec1, spec7);
         assertNotEquals(spec1, spec8);
+        assertNotEquals(spec1, spec9);
+        assertNotEquals(spec1, spec10);
     }
 
     @Test
@@ -128,6 +160,7 @@ public class WorkerResourceSpecTest extends TestLogger {
                         .setNetworkMemoryMB(100)
                         .setManagedMemoryMB(100)
                         .setNumSlots(1)
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1))
                         .build();
         final WorkerResourceSpec spec2 =
                 new WorkerResourceSpec.Builder()
@@ -137,6 +170,7 @@ public class WorkerResourceSpecTest extends TestLogger {
                         .setNetworkMemoryMB(100)
                         .setManagedMemoryMB(100)
                         .setNumSlots(1)
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1))
                         .build();
         final WorkerResourceSpec spec3 =
                 new WorkerResourceSpec.Builder()
@@ -146,6 +180,7 @@ public class WorkerResourceSpecTest extends TestLogger {
                         .setNetworkMemoryMB(100)
                         .setManagedMemoryMB(100)
                         .setNumSlots(1)
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1))
                         .build();
         final WorkerResourceSpec spec4 =
                 new WorkerResourceSpec.Builder()
@@ -155,6 +190,7 @@ public class WorkerResourceSpecTest extends TestLogger {
                         .setNetworkMemoryMB(100)
                         .setManagedMemoryMB(100)
                         .setNumSlots(1)
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1))
                         .build();
         final WorkerResourceSpec spec5 =
                 new WorkerResourceSpec.Builder()
@@ -164,6 +200,7 @@ public class WorkerResourceSpecTest extends TestLogger {
                         .setNetworkMemoryMB(100)
                         .setManagedMemoryMB(100)
                         .setNumSlots(1)
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1))
                         .build();
         final WorkerResourceSpec spec6 =
                 new WorkerResourceSpec.Builder()
@@ -173,6 +210,7 @@ public class WorkerResourceSpecTest extends TestLogger {
                         .setNetworkMemoryMB(110)
                         .setManagedMemoryMB(100)
                         .setNumSlots(1)
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1))
                         .build();
         final WorkerResourceSpec spec7 =
                 new WorkerResourceSpec.Builder()
@@ -182,6 +220,7 @@ public class WorkerResourceSpecTest extends TestLogger {
                         .setNetworkMemoryMB(100)
                         .setManagedMemoryMB(110)
                         .setNumSlots(1)
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1))
                         .build();
         final WorkerResourceSpec spec8 =
                 new WorkerResourceSpec.Builder()
@@ -191,6 +230,26 @@ public class WorkerResourceSpecTest extends TestLogger {
                         .setNetworkMemoryMB(100)
                         .setManagedMemoryMB(100)
                         .setNumSlots(2)
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1))
+                        .build();
+        final WorkerResourceSpec spec9 =
+                new WorkerResourceSpec.Builder()
+                        .setCpuCores(1.0)
+                        .setTaskHeapMemoryMB(100)
+                        .setTaskOffHeapMemoryMB(100)
+                        .setNetworkMemoryMB(100)
+                        .setManagedMemoryMB(100)
+                        .setNumSlots(1)
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 2))
+                        .build();
+        final WorkerResourceSpec spec10 =
+                new WorkerResourceSpec.Builder()
+                        .setCpuCores(1.0)
+                        .setTaskHeapMemoryMB(100)
+                        .setTaskOffHeapMemoryMB(100)
+                        .setNetworkMemoryMB(100)
+                        .setManagedMemoryMB(100)
+                        .setNumSlots(1)
                         .build();
 
         assertEquals(spec1.hashCode(), spec1.hashCode());
@@ -201,12 +260,21 @@ public class WorkerResourceSpecTest extends TestLogger {
         assertNotEquals(spec1.hashCode(), spec6.hashCode());
         assertNotEquals(spec1.hashCode(), spec7.hashCode());
         assertNotEquals(spec1.hashCode(), spec8.hashCode());
+        assertNotEquals(spec1.hashCode(), spec9.hashCode());
+        assertNotEquals(spec1.hashCode(), spec10.hashCode());
     }
 
     @Test
     public void testCreateFromTaskExecutorProcessSpec() {
+        final Configuration config = new Configuration();
+        config.setString(
+                ExternalResourceOptions.EXTERNAL_RESOURCE_LIST.key(), EXTERNAL_RESOURCE_NAME);
+        config.setLong(
+                ExternalResourceOptions.getAmountConfigOptionForResource(EXTERNAL_RESOURCE_NAME),
+                1);
+
         final TaskExecutorProcessSpec taskExecutorProcessSpec =
-                TaskExecutorProcessUtils.newProcessSpecBuilder(new Configuration())
+                TaskExecutorProcessUtils.newProcessSpecBuilder(config)
                         .withTotalProcessMemory(MemorySize.ofMebiBytes(1024))
                         .build();
         final WorkerResourceSpec workerResourceSpec =
@@ -224,6 +292,9 @@ public class WorkerResourceSpecTest extends TestLogger {
                 workerResourceSpec.getManagedMemSize(),
                 taskExecutorProcessSpec.getManagedMemorySize());
         assertEquals(workerResourceSpec.getNumSlots(), taskExecutorProcessSpec.getNumSlots());
+        assertEquals(
+                workerResourceSpec.getExtendedResources(),
+                taskExecutorProcessSpec.getExtendedResources());
     }
 
     @Test
@@ -236,6 +307,7 @@ public class WorkerResourceSpecTest extends TestLogger {
                         .setNetworkMemoryMB(100)
                         .setTaskOffHeapMemoryMB(10)
                         .setTaskHeapMemoryMB(10)
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1))
                         .build();
         final WorkerResourceSpec workerResourceSpec =
                 WorkerResourceSpec.fromTotalResourceProfile(resourceProfile, numSlots);
@@ -246,5 +318,7 @@ public class WorkerResourceSpecTest extends TestLogger {
         assertEquals(workerResourceSpec.getNetworkMemSize(), resourceProfile.getNetworkMemory());
         assertEquals(workerResourceSpec.getManagedMemSize(), resourceProfile.getManagedMemory());
         assertEquals(workerResourceSpec.getNumSlots(), numSlots);
+        assertEquals(
+                workerResourceSpec.getExtendedResources(), resourceProfile.getExtendedResources());
     }
 }

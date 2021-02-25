@@ -35,6 +35,9 @@ public class ExternalResourceOptions {
      */
     public static final String EXTERNAL_RESOURCE_AMOUNT_SUFFIX = "amount";
 
+    /** Indicate an empty external resources list. */
+    public static final String NONE = "none";
+
     /**
      * The driver factory class of the external resource to use. This is used as a suffix in an
      * actual config.
@@ -84,7 +87,10 @@ public class ExternalResourceOptions {
                     .withDescription(
                             "List of the <resource_name> of all external resources with delimiter \";\", e.g. \"gpu;fpga\" "
                                     + "for two external resource gpu and fpga. The <resource_name> will be used to splice related config options for "
-                                    + "external resource. Only the <resource_name> defined here will go into effect by external resource framework.");
+                                    + "external resource. Only the <resource_name> defined here will go into effect by external resource framework. "
+                                    + "Do not set the <resource_name> to '"
+                                    + NONE
+                                    + "', which is preserved internally");
 
     /**
      * Defines the factory class name for the external resource identified by &gt;resource_name&lt;.

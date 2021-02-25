@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.resources.CPUResource;
+import org.apache.flink.api.common.resources.ExternalResource;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
@@ -27,12 +28,16 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.util.Collections;
+
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
 /** Tests for the {@link SlotManagerUtils}. */
 public class SlotManagerUtilsTest extends TestLogger {
+    private static final String EXTERNAL_RESOURCE_NAME = "gpu";
+
     @Test
     public void testGenerateDefaultSlotProfileFromWorkerResourceSpec() {
         final int numSlots = 5;
@@ -43,6 +48,7 @@ public class SlotManagerUtilsTest extends TestLogger {
                         .setTaskOffHeapMemoryMB(2)
                         .setNetworkMemoryMB(3)
                         .setManagedMemoryMB(4)
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1))
                         .build();
         final WorkerResourceSpec workerResourceSpec =
                 new WorkerResourceSpec.Builder()
@@ -51,6 +57,7 @@ public class SlotManagerUtilsTest extends TestLogger {
                         .setTaskOffHeapMemoryMB(2 * numSlots)
                         .setNetworkMemoryMB(3 * numSlots)
                         .setManagedMemoryMB(4 * numSlots)
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, numSlots))
                         .build();
 
         assertThat(
@@ -68,6 +75,7 @@ public class SlotManagerUtilsTest extends TestLogger {
                         .setTaskOffHeapMemoryMB(2)
                         .setNetworkMemoryMB(3)
                         .setManagedMemoryMB(4)
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1))
                         .build();
         final ResourceProfile totalResourceProfile =
                 ResourceProfile.newBuilder()
@@ -76,6 +84,7 @@ public class SlotManagerUtilsTest extends TestLogger {
                         .setTaskOffHeapMemoryMB(2 * numSlots)
                         .setNetworkMemoryMB(3 * numSlots)
                         .setManagedMemoryMB(4 * numSlots)
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, numSlots))
                         .build();
 
         assertThat(
@@ -92,7 +101,9 @@ public class SlotManagerUtilsTest extends TestLogger {
                         MemorySize.parse("1m"),
                         MemorySize.parse("2m"),
                         MemorySize.parse("3m"),
-                        MemorySize.parse("4m"));
+                        MemorySize.parse("4m"),
+                        Collections.singleton(
+                                new ExternalResource(EXTERNAL_RESOURCE_NAME, numSlots)));
 
         final ResourceProfile resourceProfileFromTaskExecutorResourceUtils =
                 TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(
@@ -161,6 +172,7 @@ public class SlotManagerUtilsTest extends TestLogger {
                         .setTaskOffHeapMemoryMB(2)
                         .setNetworkMemoryMB(3)
                         .setManagedMemoryMB(4)
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1))
                         .build();
         final WorkerResourceSpec workerResourceSpec =
                 new WorkerResourceSpec.Builder()
@@ -169,6 +181,7 @@ public class SlotManagerUtilsTest extends TestLogger {
                         .setTaskOffHeapMemoryMB(2)
                         .setNetworkMemoryMB(3)
                         .setManagedMemoryMB(4)
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1))
                         .build();
 
         assertThat(

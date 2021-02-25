@@ -19,11 +19,14 @@
 package org.apache.flink.runtime.util.config.memory;
 
 import org.apache.flink.api.common.resources.CPUResource;
+import org.apache.flink.api.common.resources.ExternalResource;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
+
+import java.util.Collections;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
@@ -31,6 +34,8 @@ import static org.junit.Assert.assertThat;
 
 /** Tests for {@link TaskExecutorProcessSpec}. */
 public class TaskExecutorProcessSpecTest extends TestLogger {
+    private static final String EXTERNAL_RESOURCE_NAME = "gpu";
+
     @Test
     public void testEquals() {
         TaskExecutorProcessSpec spec1 =
@@ -43,7 +48,8 @@ public class TaskExecutorProcessSpecTest extends TestLogger {
                         MemorySize.parse("5m"),
                         MemorySize.parse("6m"),
                         MemorySize.parse("7m"),
-                        MemorySize.parse("8m"));
+                        MemorySize.parse("8m"),
+                        Collections.singleton(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1)));
 
         TaskExecutorProcessSpec spec2 =
                 new TaskExecutorProcessSpec(
@@ -55,7 +61,8 @@ public class TaskExecutorProcessSpecTest extends TestLogger {
                         MemorySize.parse("5m"),
                         MemorySize.parse("6m"),
                         MemorySize.parse("7m"),
-                        MemorySize.parse("8m"));
+                        MemorySize.parse("8m"),
+                        Collections.singleton(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1)));
 
         assertThat(spec1, is(spec2));
     }
@@ -72,7 +79,8 @@ public class TaskExecutorProcessSpecTest extends TestLogger {
                         MemorySize.parse("5m"),
                         MemorySize.parse("6m"),
                         MemorySize.parse("7m"),
-                        MemorySize.parse("8m"));
+                        MemorySize.parse("8m"),
+                        Collections.singleton(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1)));
 
         TaskExecutorProcessSpec spec2 =
                 new TaskExecutorProcessSpec(
@@ -84,7 +92,8 @@ public class TaskExecutorProcessSpecTest extends TestLogger {
                         MemorySize.ZERO,
                         MemorySize.ZERO,
                         MemorySize.ZERO,
-                        MemorySize.ZERO);
+                        MemorySize.ZERO,
+                        Collections.emptyList());
 
         assertThat(spec1, not(spec2));
     }
