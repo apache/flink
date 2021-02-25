@@ -23,6 +23,9 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.util.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
@@ -36,6 +39,8 @@ import java.util.Set;
 
 /** Default {@link AllocatedSlotPool} implementation. */
 public class DefaultAllocatedSlotPool implements AllocatedSlotPool {
+
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultAllocatedSlotPool.class);
 
     private final Map<AllocationID, AllocatedSlot> registeredSlots;
 
@@ -136,6 +141,7 @@ public class DefaultAllocatedSlotPool implements AllocatedSlotPool {
 
     @Override
     public AllocatedSlot reserveFreeSlot(AllocationID allocationId) {
+        LOG.debug("Reserve free slot with allocation id {}.", allocationId);
         Preconditions.checkState(
                 freeSlotsSince.remove(allocationId) != null,
                 "The slot with id %s was not free.",
