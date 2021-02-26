@@ -20,9 +20,11 @@ package org.apache.flink.runtime.io.network.api.writer;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
 
@@ -48,7 +50,20 @@ public class RecordOrEventCollectingResultPartitionWriter<T>
 
     @Override
     public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException {
-        output.add(event);
+        // Go through the serialization/deserialization to provide better test coverage in the
+        // unit tests using test harnesses. Otherwise bugs in event serialisation would be only
+        // visible in ITCases or end to end tests.
+        try (BufferConsumer eventBufferConsumer =
+                EventSerializer.toBufferConsumer(event, isPriorityEvent)) {
+            Buffer buffer = eventBufferConsumer.build();
+            try {
+                AbstractEvent deserializedEvent =
+                        EventSerializer.fromBuffer(buffer, getClass().getClassLoader());
+                output.add(deserializedEvent);
+            } finally {
+                buffer.recycleBuffer();
+            }
+        }
     }
 
     @Override
