@@ -258,6 +258,39 @@ public class CliClientTest extends TestLogger {
     }
 
     @Test
+    public void testUseDatabaseAndShowCurrentDatabaseByKeyword() throws Exception {
+        TestingExecutor executor =
+                new TestingExecutorBuilder()
+                        .setExecuteSqlConsumer(
+                                (ignored1, sql) -> {
+                                    if (sql.toLowerCase().equals("use `mod`")) {
+                                        return TestTableResult.TABLE_RESULT_OK;
+                                    } else if (sql.toLowerCase().equals("show current database")) {
+                                        SHOW_ROW.setField(0, "`mod`");
+                                        return new TestTableResult(
+                                                ResultKind.SUCCESS_WITH_CONTENT,
+                                                TableSchema.builder()
+                                                        .field(
+                                                                "current database name",
+                                                                DataTypes.STRING())
+                                                        .build(),
+                                                CloseableIterator.ofElement(SHOW_ROW, ele -> {}));
+                                    } else {
+                                        throw new SqlExecutionException(
+                                                "unexpected database name: db");
+                                    }
+                                })
+                        .build();
+        String output = testExecuteSql(executor, "use `mod`;");
+        assertThat(executor.getNumExecuteSqlCalls(), is(1));
+        assertFalse(output.contains("unexpected database name"));
+
+        output = testExecuteSql(executor, "show current database;");
+        assertThat(executor.getNumExecuteSqlCalls(), is(2));
+        assertTrue(output.contains("`mod`"));
+    }
+
+    @Test
     public void testHistoryFile() throws Exception {
         final SessionContext context = new SessionContext("test-session", new Environment());
         final MockExecutor mockExecutor = new MockExecutor();
