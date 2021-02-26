@@ -280,7 +280,6 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
         FlinkFnApi.UserDefinedAggregateFunctions.Builder builder =
                 super.getUserDefinedFunctionsProto().toBuilder();
         builder.setCountStarInserted(countStarInserted);
-        builder.setHasGroupWindow(true);
         FlinkFnApi.GroupWindow.Builder windowBuilder = FlinkFnApi.GroupWindow.newBuilder();
         windowBuilder.setWindowType(windowType);
         windowBuilder.setIsTimeWindow(isTimeWindow);
