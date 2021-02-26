@@ -25,6 +25,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
@@ -77,6 +78,7 @@ import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
@@ -193,6 +195,8 @@ public class AdaptiveScheduler
 
     private boolean isTransitioningState = false;
 
+    private int numRestarts = 0;
+
     public AdaptiveScheduler(
             JobGraph jobGraph,
             Configuration configuration,
@@ -262,6 +266,8 @@ public class AdaptiveScheduler
         this.scaleUpController = new ReactiveScaleUpController(configuration);
 
         this.resourceTimeout = configuration.get(JobManagerOptions.RESOURCE_WAIT_TIMEOUT);
+
+        registerMetrics();
     }
 
     private static void ensureFullyPipelinedStreamingJob(JobGraph jobGraph)
@@ -290,6 +296,12 @@ public class AdaptiveScheduler
                 ResourceConsumer.class,
                 ResourceConsumer::notifyNewResourcesAvailable,
                 "newResourcesAvailable");
+    }
+
+    private void registerMetrics() {
+        final Gauge<Integer> numRestartsMetric = () -> numRestarts;
+        jobManagerJobMetricGroup.gauge(MetricNames.NUM_RESTARTS, numRestartsMetric);
+        jobManagerJobMetricGroup.gauge(MetricNames.FULL_RESTARTS, numRestartsMetric);
     }
 
     @Override
@@ -768,6 +780,7 @@ public class AdaptiveScheduler
                         operatorCoordinatorHandler,
                         LOG,
                         backoffTime));
+        numRestarts++;
     }
 
     @Override
