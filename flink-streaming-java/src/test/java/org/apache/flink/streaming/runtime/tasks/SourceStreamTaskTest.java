@@ -577,6 +577,7 @@ public class SourceStreamTaskTest {
     public void testStopWithSavepointShouldNotInterruptTheSource() throws Exception {
         long checkpointId = 1;
         WasInterruptedTestingSource interruptedTestingSource = new WasInterruptedTestingSource();
+        WasInterruptedTestingSource.reset();
         try (StreamTaskMailboxTestHarness<String> harness =
                 new StreamTaskMailboxTestHarnessBuilder<>(SourceStreamTask::new, STRING_TYPE_INFO)
                         .setupOutputForSingletonOperatorChain(
@@ -910,9 +911,6 @@ public class SourceStreamTaskTest {
 
         @Override
         public void run(SourceContext<String> ctx) throws Exception {
-            ALLOW_EXIT.reset();
-            WAS_INTERRUPTED.set(false);
-
             try {
                 while (running || !ALLOW_EXIT.isTriggered()) {
                     Thread.sleep(1);
@@ -929,6 +927,11 @@ public class SourceStreamTaskTest {
 
         public static boolean wasInterrupted() {
             return WAS_INTERRUPTED.get();
+        }
+
+        public static void reset() {
+            ALLOW_EXIT.reset();
+            WAS_INTERRUPTED.set(false);
         }
 
         public static void allowExit() {
