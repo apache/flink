@@ -125,6 +125,17 @@ public abstract class YarnTestBase extends TestLogger {
 
     /** These strings are white-listed, overriding the prohibited strings. */
     protected static final Pattern[] WHITELISTED_STRINGS = {
+        // happens if yarn does not support external resources
+        Pattern.compile(
+                "ClassNotFoundException: org.apache.hadoop.yarn.api.records.ResourceInformation"),
+        // occurs if a TM disconnects from a JM because it is no longer hosting any slots
+        Pattern.compile("has no more allocated slots for job"),
+        // can happen if another process hasn't fully started yet
+        Pattern.compile("akka.actor.ActorNotFound: Actor not found for"),
+        // can happen if another process hasn't fully started yet
+        Pattern.compile("RpcConnectionException: Could not connect to rpc endpoint under address"),
+        // rest handler whose registration is logged on DEBUG level
+        Pattern.compile("JobExceptionsHandler"),
         Pattern.compile("akka\\.remote\\.RemoteTransportExceptionNoStackTrace"),
         // workaround for annoying InterruptedException logging:
         // https://issues.apache.org/jira/browse/YARN-1022
