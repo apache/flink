@@ -166,6 +166,19 @@ public class ManuallyTriggeredScheduledExecutorService implements ScheduledExecu
     // Execution triggering and access to the queued tasks
     // ------------------------------------------------------------------------
 
+    /**
+     * Executes all runnable and scheduled non-periodic tasks until none are left to run. This is
+     * essentially a combination of {@link #triggerAll()} and {@link
+     * #triggerNonPeriodicScheduledTasks()} that allows making a test agnostic of how exactly a
+     * runnable is passed to the executor.
+     */
+    public void triggerAllNonPeriodicTasks() {
+        while (numQueuedRunnables() > 0 || !nonPeriodicScheduledTasks.isEmpty()) {
+            triggerAll();
+            triggerNonPeriodicScheduledTasks();
+        }
+    }
+
     /** Triggers all {@code queuedRunnables}. */
     public void triggerAll() {
         while (numQueuedRunnables() > 0) {
