@@ -276,6 +276,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
         // will use a different thread to allow checkpoint triggering before exiting from
         // receiveAcknowledgeMessage
         ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
+        CheckpointCoordinator coordinator = null;
         try {
             int pause = 1000;
             JobVertexID jobVertexId = new JobVertexID();
@@ -291,7 +292,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
             ExecutionVertex vertex = graph.getJobVertex(jobVertexId).getTaskVertices()[0];
             ExecutionAttemptID attemptId = vertex.getCurrentExecutionAttempt().getAttemptId();
 
-            CheckpointCoordinator coordinator =
+            coordinator =
                     new CheckpointCoordinatorBuilder()
                             .setTimer(new ScheduledExecutorServiceAdapter(executorService))
                             .setCheckpointCoordinatorConfiguration(
@@ -319,9 +320,14 @@ public class CheckpointCoordinatorTest extends TestLogger {
                     TASK_MANAGER_LOCATION_INFO);
             Thread.sleep(pause / 2);
             assertEquals(0, coordinator.getNumberOfPendingCheckpoints());
-            Thread.sleep(pause);
-            assertEquals(1, coordinator.getNumberOfPendingCheckpoints());
+            // make sure that the 2nd request is eventually processed
+            while (coordinator.getNumberOfPendingCheckpoints() == 0) {
+                Thread.sleep(1);
+            }
         } finally {
+            if (coordinator != null) {
+                coordinator.shutdown();
+            }
             executorService.shutdownNow();
         }
     }
