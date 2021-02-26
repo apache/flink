@@ -30,15 +30,15 @@ public class TestingMetricRegistry implements MetricRegistry {
 
     private final char delimiter;
     private final int numberReporters;
-    private final TriConsumer<Metric, String, AbstractMetricGroup> registerConsumer;
-    private final TriConsumer<Metric, String, AbstractMetricGroup> unregisterConsumer;
+    private final TriConsumer<Metric, String, AbstractMetricGroup<?>> registerConsumer;
+    private final TriConsumer<Metric, String, AbstractMetricGroup<?>> unregisterConsumer;
     private final ScopeFormats scopeFormats;
 
     private TestingMetricRegistry(
             char delimiter,
             int numberReporters,
-            TriConsumer<Metric, String, AbstractMetricGroup> registerConsumer,
-            TriConsumer<Metric, String, AbstractMetricGroup> unregisterConsumer,
+            TriConsumer<Metric, String, AbstractMetricGroup<?>> registerConsumer,
+            TriConsumer<Metric, String, AbstractMetricGroup<?>> unregisterConsumer,
             ScopeFormats scopeFormats) {
         this.delimiter = delimiter;
         this.numberReporters = numberReporters;
@@ -81,9 +81,9 @@ public class TestingMetricRegistry implements MetricRegistry {
 
         private char delimiter = '.';
         private int numberReporters = 0;
-        private TriConsumer<Metric, String, AbstractMetricGroup> registerConsumer =
+        private TriConsumer<Metric, String, AbstractMetricGroup<?>> registerConsumer =
                 (ignoreMetric, ignoreMetricName, ignoreGroup) -> {};
-        private TriConsumer<Metric, String, AbstractMetricGroup> unregisterConsumer =
+        private TriConsumer<Metric, String, AbstractMetricGroup<?>> unregisterConsumer =
                 (ignoreMetric, ignoreMetricName, ignoreGroup) -> {};
         private ScopeFormats scopeFormats = ScopeFormats.fromConfig(new Configuration());
 
@@ -100,13 +100,13 @@ public class TestingMetricRegistry implements MetricRegistry {
         }
 
         public TestingMetricRegistryBuilder setRegisterConsumer(
-                TriConsumer<Metric, String, AbstractMetricGroup> registerConsumer) {
+                TriConsumer<Metric, String, AbstractMetricGroup<?>> registerConsumer) {
             this.registerConsumer = registerConsumer;
             return this;
         }
 
         public TestingMetricRegistryBuilder setUnregisterConsumer(
-                TriConsumer<Metric, String, AbstractMetricGroup> unregisterConsumer) {
+                TriConsumer<Metric, String, AbstractMetricGroup<?>> unregisterConsumer) {
             this.unregisterConsumer = unregisterConsumer;
             return this;
         }
