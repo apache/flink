@@ -19,11 +19,11 @@
 package org.apache.flink.kubernetes.kubeclient.factory;
 
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
+import org.apache.flink.kubernetes.kubeclient.decorators.CmdTaskManagerDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.EnvSecretsDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.FlinkConfMountDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.HadoopConfMountDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.InitTaskManagerDecorator;
-import org.apache.flink.kubernetes.kubeclient.decorators.JavaCmdTaskManagerDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.KerberosMountDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.KubernetesStepDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.MountSecretsDecorator;
@@ -46,7 +46,7 @@ public class KubernetesTaskManagerFactory {
                     new InitTaskManagerDecorator(kubernetesTaskManagerParameters),
                     new EnvSecretsDecorator(kubernetesTaskManagerParameters),
                     new MountSecretsDecorator(kubernetesTaskManagerParameters),
-                    new JavaCmdTaskManagerDecorator(kubernetesTaskManagerParameters),
+                    new CmdTaskManagerDecorator(kubernetesTaskManagerParameters),
                     new HadoopConfMountDecorator(kubernetesTaskManagerParameters),
                     new KerberosMountDecorator(kubernetesTaskManagerParameters),
                     new FlinkConfMountDecorator(kubernetesTaskManagerParameters)

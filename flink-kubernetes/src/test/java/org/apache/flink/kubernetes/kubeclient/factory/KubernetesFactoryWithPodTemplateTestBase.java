@@ -19,12 +19,14 @@
 package org.apache.flink.kubernetes.kubeclient.factory;
 
 import org.apache.flink.configuration.BlobServerOptions;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.KubernetesPodTemplateTestUtils;
 import org.apache.flink.kubernetes.KubernetesTestBase;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptionsInternal;
+import org.apache.flink.kubernetes.configuration.KubernetesDeploymentTarget;
 import org.apache.flink.kubernetes.entrypoint.KubernetesSessionClusterEntrypoint;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.utils.Constants;
@@ -61,6 +63,7 @@ public abstract class KubernetesFactoryWithPodTemplateTestBase extends Kubernete
     @Override
     protected void setupFlinkConfig() {
         super.setupFlinkConfig();
+        flinkConfig.set(DeploymentOptions.TARGET, KubernetesDeploymentTarget.SESSION.getName());
         flinkConfig.set(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS, ENTRY_POINT_CLASS);
 
         // Set fixed ports

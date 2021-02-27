@@ -78,6 +78,7 @@ public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
 
     @Test
     public void testDeploySessionCluster() throws Exception {
+        flinkConfig.set(DeploymentOptions.TARGET, KubernetesDeploymentTarget.SESSION.getName());
         final ClusterClient<String> clusterClient = deploySessionCluster().getClusterClient();
         checkClusterClient(clusterClient);
         checkUpdatedConfigAndResourceSetting();
@@ -86,6 +87,7 @@ public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
 
     @Test
     public void testDeployHighAvailabilitySessionCluster() throws ClusterDeploymentException {
+        flinkConfig.set(DeploymentOptions.TARGET, KubernetesDeploymentTarget.SESSION.getName());
         flinkConfig.setString(
                 HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.toString());
         final ClusterClient<String> clusterClient = deploySessionCluster().getClusterClient();
@@ -115,6 +117,7 @@ public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
 
     @Test
     public void testKillCluster() throws Exception {
+        flinkConfig.set(DeploymentOptions.TARGET, KubernetesDeploymentTarget.SESSION.getName());
         deploySessionCluster();
 
         assertEquals(2, kubeClient.services().list().getItems().size());

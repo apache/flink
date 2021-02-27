@@ -18,10 +18,12 @@
 
 package org.apache.flink.kubernetes.kubeclient.factory;
 
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.kubernetes.KubernetesTestUtils;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptionsInternal;
+import org.apache.flink.kubernetes.configuration.KubernetesDeploymentTarget;
 import org.apache.flink.kubernetes.entrypoint.KubernetesSessionClusterEntrypoint;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerSpecification;
@@ -95,6 +97,7 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
     protected void setupFlinkConfig() {
         super.setupFlinkConfig();
 
+        flinkConfig.set(DeploymentOptions.TARGET, KubernetesDeploymentTarget.SESSION.getName());
         flinkConfig.set(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS, ENTRY_POINT_CLASS);
         flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_SERVICE_ACCOUNT, SERVICE_ACCOUNT_NAME);
         flinkConfig.set(

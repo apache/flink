@@ -34,7 +34,7 @@ public class KubernetesTaskManagerTestBase extends KubernetesPodTestBase {
     protected static final int RPC_PORT = 12345;
 
     protected static final String POD_NAME = "taskmanager-pod-1";
-    private static final String DYNAMIC_PROPERTIES = "";
+    protected static final String DYNAMIC_PROPERTIES = "";
 
     protected static final int TOTAL_PROCESS_MEMORY = 1184;
     protected static final double TASK_MANAGER_CPU = 2.0;
