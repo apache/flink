@@ -76,8 +76,6 @@ public class Constants {
 
     public static final String RESOURCE_UNIT_MB = "Mi";
 
-    public static final String ENV_FLINK_CLASSPATH = "FLINK_CLASSPATH";
-
     public static final String ENV_FLINK_POD_IP_ADDRESS = "_POD_IP_ADDRESS";
 
     public static final String POD_IP_FIELD_PATH = "status.podIP";
@@ -105,4 +103,8 @@ public class Constants {
     public static final String POD_TEMPLATE_DIR_IN_POD = "/opt/flink/pod-template";
     public static final String POD_TEMPLATE_CONFIG_MAP_PREFIX = "pod-template-";
     public static final String POD_TEMPLATE_VOLUME = "pod-template-volume";
+
+    // Kubernetes start scripts
+    public static final String KUBERNETES_JOB_MANAGER_SCRIPT_PATH = "kubernetes-jobmanager.sh";
+    public static final String KUBERNETES_TASK_MANAGER_SCRIPT_PATH = "kubernetes-taskmanager.sh";
 }

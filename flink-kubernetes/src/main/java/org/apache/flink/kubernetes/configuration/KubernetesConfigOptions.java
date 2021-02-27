@@ -160,13 +160,6 @@ public class KubernetesConfigOptions {
                     .withDescription(
                             "The namespace that will be used for running the jobmanager and taskmanager pods.");
 
-    public static final ConfigOption<String> CONTAINER_START_COMMAND_TEMPLATE =
-            key("kubernetes.container-start-command-template")
-                    .stringType()
-                    .defaultValue("%java% %classpath% %jvmmem% %jvmopts% %logging% %class% %args%")
-                    .withDescription(
-                            "Template for the kubernetes jobmanager and taskmanager container start invocation.");
-
     public static final ConfigOption<Map<String, String>> JOB_MANAGER_LABELS =
             key("kubernetes.jobmanager.labels")
                     .mapType()

@@ -21,9 +21,7 @@ package org.apache.flink.kubernetes.utils;
 import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.PipelineOptions;
-import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.highavailability.KubernetesCheckpointStoreUtil;
 import org.apache.flink.kubernetes.highavailability.KubernetesJobGraphStoreUtil;
 import org.apache.flink.kubernetes.highavailability.KubernetesStateHandleStore;
@@ -34,7 +32,6 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.DefaultCompletedCheckpointStore;
-import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.DefaultJobGraphStore;
@@ -73,8 +70,6 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.kubernetes.utils.Constants.CHECKPOINT_ID_KEY_PREFIX;
 import static org.apache.flink.kubernetes.utils.Constants.COMPLETED_CHECKPOINT_FILE_SUFFIX;
-import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOG4J_NAME;
-import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOGBACK_NAME;
 import static org.apache.flink.kubernetes.utils.Constants.JOB_GRAPH_STORE_KEY_PREFIX;
 import static org.apache.flink.kubernetes.utils.Constants.LEADER_ADDRESS_KEY;
 import static org.apache.flink.kubernetes.utils.Constants.LEADER_SESSION_ID_KEY;
@@ -345,52 +340,8 @@ public class KubernetesUtils {
         return resourceRequirementsBuilder.build();
     }
 
-    public static String getCommonStartCommand(
-            Configuration flinkConfig,
-            ClusterComponent mode,
-            String jvmMemOpts,
-            String configDirectory,
-            String logDirectory,
-            boolean hasLogback,
-            boolean hasLog4j,
-            String mainClass,
-            @Nullable String mainArgs) {
-        final Map<String, String> startCommandValues = new HashMap<>();
-        startCommandValues.put("java", "$JAVA_HOME/bin/java");
-        startCommandValues.put("classpath", "-classpath " + "$" + Constants.ENV_FLINK_CLASSPATH);
-
-        startCommandValues.put("jvmmem", jvmMemOpts);
-
-        final String opts;
-        final String logFileName;
-        if (mode == ClusterComponent.JOB_MANAGER) {
-            opts = getJavaOpts(flinkConfig, CoreOptions.FLINK_JM_JVM_OPTIONS);
-            logFileName = "jobmanager";
-        } else {
-            opts = getJavaOpts(flinkConfig, CoreOptions.FLINK_TM_JVM_OPTIONS);
-            logFileName = "taskmanager";
-        }
-        startCommandValues.put("jvmopts", opts);
-
-        startCommandValues.put(
-                "logging",
-                getLogging(
-                        logDirectory + "/" + logFileName + ".log",
-                        configDirectory,
-                        hasLogback,
-                        hasLog4j));
-
-        startCommandValues.put("class", mainClass);
-
-        startCommandValues.put("args", mainArgs != null ? mainArgs : "");
-
-        final String commandTemplate =
-                flinkConfig.getString(KubernetesConfigOptions.CONTAINER_START_COMMAND_TEMPLATE);
-        return BootstrapTools.getStartCommand(commandTemplate, startCommandValues);
-    }
-
-    public static List<String> getStartCommandWithBashWrapper(String javaCommand) {
-        return Arrays.asList("bash", "-c", javaCommand);
+    public static List<String> getStartCommandWithBashWrapper(String command) {
+        return Arrays.asList("bash", "-c", command);
     }
 
     public static List<File> checkJarFileForApplicationMode(Configuration configuration) {
@@ -511,42 +462,6 @@ public class KubernetesUtils {
                     "Failed to get the pretty print yaml, fallback to {}", kubernetesResource, ex);
             return kubernetesResource.toString();
         }
-    }
-
-    private static String getJavaOpts(
-            Configuration flinkConfig, ConfigOption<String> configOption) {
-        String baseJavaOpts = flinkConfig.getString(CoreOptions.FLINK_JVM_OPTIONS);
-
-        if (flinkConfig.getString(configOption).length() > 0) {
-            return baseJavaOpts + " " + flinkConfig.getString(configOption);
-        } else {
-            return baseJavaOpts;
-        }
-    }
-
-    private static String getLogging(
-            String logFile, String confDir, boolean hasLogback, boolean hasLog4j) {
-        StringBuilder logging = new StringBuilder();
-        if (hasLogback || hasLog4j) {
-            logging.append("-Dlog.file=").append(logFile);
-            if (hasLogback) {
-                logging.append(" -Dlogback.configurationFile=file:")
-                        .append(confDir)
-                        .append("/")
-                        .append(CONFIG_FILE_LOGBACK_NAME);
-            }
-            if (hasLog4j) {
-                logging.append(" -Dlog4j.configuration=file:")
-                        .append(confDir)
-                        .append("/")
-                        .append(CONFIG_FILE_LOG4J_NAME)
-                        .append(" -Dlog4j.configurationFile=file:")
-                        .append(confDir)
-                        .append("/")
-                        .append(CONFIG_FILE_LOG4J_NAME);
-            }
-        }
-        return logging.toString();
     }
 
     /** Cluster components. */
