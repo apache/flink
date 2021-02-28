@@ -593,6 +593,7 @@ public class StreamGraph implements Pipeline {
 
             // If no partitioner was specified and the parallelism of upstream and downstream
             // operator matches use forward partitioning, use rebalance otherwise.
+            //TODO 判断是Rebalance还是Forward
             if (partitioner == null
                     && upstreamNode.getParallelism() == downstreamNode.getParallelism()) {
                 partitioner = new ForwardPartitioner<Object>();
@@ -620,6 +621,7 @@ public class StreamGraph implements Pipeline {
                 shuffleMode = ShuffleMode.UNDEFINED;
             }
 
+            //TODO 创建StreamEdge
             StreamEdge edge =
                     new StreamEdge(
                             upstreamNode,
@@ -628,7 +630,7 @@ public class StreamGraph implements Pipeline {
                             partitioner,
                             outputTag,
                             shuffleMode);
-
+            //TODO  将该StreamEdge 添加到上游的输出，下游的输入
             getStreamNode(edge.getSourceId()).addOutEdge(edge);
             getStreamNode(edge.getTargetId()).addInEdge(edge);
         }
@@ -908,6 +910,7 @@ public class StreamGraph implements Pipeline {
     }
 
     /** Gets the assembled {@link JobGraph} with a specified {@link JobID}. */
+    //TODO
     public JobGraph getJobGraph(@Nullable JobID jobID) {
         return StreamingJobGraphGenerator.createJobGraph(this, jobID);
     }

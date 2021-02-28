@@ -35,7 +35,7 @@ public final class FlinkPipelineTranslationUtil {
             Pipeline pipeline, Configuration optimizerConfiguration, int defaultParallelism) {
 
         FlinkPipelineTranslator pipelineTranslator = getPipelineTranslator(pipeline);
-
+        //TODO
         return pipelineTranslator.translateToJobGraph(
                 pipeline, optimizerConfiguration, defaultParallelism);
     }

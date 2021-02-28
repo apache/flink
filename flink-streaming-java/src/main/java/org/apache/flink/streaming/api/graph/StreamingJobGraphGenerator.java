@@ -156,6 +156,7 @@ public class StreamingJobGraphGenerator {
         jobGraph = new JobGraph(jobID, streamGraph.getJobName());
     }
 
+    //TODO JobGraph核心生成方法
     private JobGraph createJobGraph() {
         preValidate();
 
@@ -174,7 +175,7 @@ public class StreamingJobGraphGenerator {
         for (StreamGraphHasher hasher : legacyStreamGraphHashers) {
             legacyHashes.add(hasher.traverseStreamGraphAndGenerateHashes(streamGraph));
         }
-
+        //生成JobVertex,JobEdge等，尽可能将多个节点chain到一起；
         setChaining(hashes, legacyHashes);
 
         setPhysicalEdges();
@@ -356,7 +357,7 @@ public class StreamingJobGraphGenerator {
                     chainEntryPoints);
         }
     }
-
+    //TODO
     private List<StreamEdge> createChain(
             final Integer currentNodeId,
             final int chainIndex,
@@ -372,7 +373,7 @@ public class StreamingJobGraphGenerator {
             List<StreamEdge> nonChainableOutputs = new ArrayList<StreamEdge>();
 
             StreamNode currentNode = streamGraph.getStreamNode(currentNodeId);
-
+            //TODO
             for (StreamEdge outEdge : currentNode.getOutEdges()) {
                 if (isChainable(outEdge, streamGraph)) {
                     chainableOutputs.add(outEdge);
@@ -389,7 +390,7 @@ public class StreamingJobGraphGenerator {
                                 chainInfo,
                                 chainEntryPoints));
             }
-
+            //TODO 递归调用
             for (StreamEdge nonChainable : nonChainableOutputs) {
                 transitiveOutEdges.add(nonChainable);
                 createChain(

@@ -1778,7 +1778,7 @@ public class StreamExecutionEnvironment {
      */
     public JobExecutionResult execute(String jobName) throws Exception {
         Preconditions.checkNotNull(jobName, "Streaming Job name should not be null.");
-
+         //TODO 生成StreamGraph并继续执行
         return execute(getStreamGraph(jobName));
     }
 
@@ -1793,6 +1793,7 @@ public class StreamExecutionEnvironment {
      */
     @Internal
     public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
+        //TODO  核心执行逻辑，包括StreamGraph转换成JobGraph
         final JobClient jobClient = executeAsync(streamGraph);
 
         try {
@@ -1898,7 +1899,7 @@ public class StreamExecutionEnvironment {
                 executorFactory,
                 "Cannot find compatible factory for specified execution.target (=%s)",
                 configuration.get(DeploymentOptions.TARGET));
-
+        //TODO JobGraph的生成 execute AbstractSessionClusterExecutor  不同的运行环境对应不同的实现类；例如：Per-job模式、Session模式（on K8S，Yarn，Standalone）
         CompletableFuture<JobClient> jobClientFuture =
                 executorFactory
                         .getExecutor(configuration)
@@ -1955,6 +1956,7 @@ public class StreamExecutionEnvironment {
      */
     @Internal
     public StreamGraph getStreamGraph(String jobName, boolean clearTransformations) {
+        //TODO  StreamGraph核心生成方法
         StreamGraph streamGraph = getStreamGraphGenerator().setJobName(jobName).generate();
         if (clearTransformations) {
             this.transformations.clear();

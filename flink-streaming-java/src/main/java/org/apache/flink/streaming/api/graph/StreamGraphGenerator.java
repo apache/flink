@@ -259,7 +259,7 @@ public class StreamGraphGenerator {
         configureStreamGraph(streamGraph);
 
         alreadyTransformed = new HashMap<>();
-
+        //TODO  transformations 存放了代码中所有的算子; 例如map filter sink 等
         for (Transformation<?> transformation : transformations) {
             transform(transformation);
         }
@@ -395,6 +395,7 @@ public class StreamGraphGenerator {
 
         Collection<Integer> transformedIds;
         if (translator != null) {
+            //TODO
             transformedIds = translate(translator, transform);
         } else {
             transformedIds = legacyTransform(transform);
@@ -660,7 +661,7 @@ public class StreamGraphGenerator {
 
         final TransformationTranslator.Context context =
                 new ContextImpl(this, streamGraph, slotSharingGroup, configuration);
-
+        //TODO
         return shouldExecuteInBatchMode
                 ? translator.translateForBatch(transform, context)
                 : translator.translateForStreaming(transform, context);

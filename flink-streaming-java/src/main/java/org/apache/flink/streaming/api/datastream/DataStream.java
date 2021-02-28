@@ -1160,7 +1160,7 @@ public class DataStream<T> {
             String operatorName,
             TypeInformation<R> outTypeInfo,
             OneInputStreamOperator<T, R> operator) {
-
+        //TODO 生成transformation
         return doTransform(operatorName, outTypeInfo, SimpleOperatorFactory.of(operator));
     }
 
@@ -1193,7 +1193,7 @@ public class DataStream<T> {
 
         // read the output type of the input Transform to coax out errors about MissingTypeInfo
         transformation.getOutputType();
-
+        //TODO 新的transformation会连接到当前DataStream的transformation上，从而构成树形结构
         OneInputTransformation<T, R> resultTransform =
                 new OneInputTransformation<>(
                         this.transformation,
