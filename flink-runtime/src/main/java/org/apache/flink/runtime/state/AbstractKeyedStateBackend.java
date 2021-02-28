@@ -349,7 +349,11 @@ public abstract class AbstractKeyedStateBackend<K>
     }
 
     // TODO remove this once heap-based timers are working with RocksDB incremental snapshots!
-    public boolean requiresLegacySynchronousTimerSnapshots(CheckpointType checkpointOptions) {
+    public boolean requiresLegacySynchronousTimerSnapshots(CheckpointType checkpointType) {
+        return false;
+    }
+
+    public boolean isStateImmutableInStateBackend(CheckpointType checkpointType) {
         return false;
     }
 }
