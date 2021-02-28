@@ -25,10 +25,10 @@ import java.io.IOException;
 import java.util.Collection;
 
 /**
- * Interface for all classes that want to participate in the archiving of job-related json
- * responses.
+ * Interface for all classes that want to participate in the archiving of job-related json responses
+ * but only provide {@link AccessExecutionGraph}-related information.
  */
-public interface JsonArchivist {
+public interface OnlyExecutionGraphJsonArchivist extends JsonArchivist {
 
     /**
      * Returns a {@link Collection} of {@link ArchivedJson}s containing JSON responses and their
@@ -38,12 +38,16 @@ public interface JsonArchivist {
      * given job, for example one entry for each task. The REST URLs should be unique and must not
      * contain placeholders.
      *
-     * @param executionGraphInfo {@link AccessExecutionGraph}-related information for which the
-     *     responses should be generated
+     * @param graph AccessExecutionGraph for which the responses should be generated
      * @return Collection containing an ArchivedJson for every response that could be generated for
      *     the given job
      * @throws IOException thrown if the JSON generation fails
      */
-    Collection<ArchivedJson> archiveJsonWithPath(ExecutionGraphInfo executionGraphInfo)
-            throws IOException;
+    Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException;
+
+    @Override
+    default Collection<ArchivedJson> archiveJsonWithPath(ExecutionGraphInfo executionGraphInfo)
+            throws IOException {
+        return archiveJsonWithPath(executionGraphInfo.getArchivedExecutionGraph());
+    }
 }
