@@ -35,7 +35,7 @@ import org.apache.flink.runtime.rest.messages.job.UpperLimitExceptionParameter;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
-import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
+import org.apache.flink.runtime.webmonitor.history.OnlyExecutionGraphJsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import java.io.IOException;
@@ -51,7 +51,7 @@ import java.util.concurrent.Executor;
 public class JobExceptionsHandler
         extends AbstractAccessExecutionGraphHandler<
                 JobExceptionsInfo, JobExceptionsMessageParameters>
-        implements JsonArchivist {
+        implements OnlyExecutionGraphJsonArchivist {
 
     static final int MAX_NUMBER_EXCEPTION_TO_REPORT = 20;
 
