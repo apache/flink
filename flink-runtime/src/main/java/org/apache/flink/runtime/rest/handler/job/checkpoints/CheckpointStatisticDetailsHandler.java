@@ -34,7 +34,7 @@ import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointMessageParam
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointStatistics;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
-import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
+import org.apache.flink.runtime.webmonitor.history.OnlyExecutionGraphJsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import java.io.IOException;
@@ -48,7 +48,7 @@ import java.util.concurrent.Executor;
 /** REST handler which returns the details for a checkpoint. */
 public class CheckpointStatisticDetailsHandler
         extends AbstractCheckpointHandler<CheckpointStatistics, CheckpointMessageParameters>
-        implements JsonArchivist {
+        implements OnlyExecutionGraphJsonArchivist {
 
     public CheckpointStatisticDetailsHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,

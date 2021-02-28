@@ -33,7 +33,7 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
-import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
+import org.apache.flink.runtime.webmonitor.history.OnlyExecutionGraphJsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
@@ -50,7 +50,7 @@ import java.util.concurrent.Executor;
 public class JobAccumulatorsHandler
         extends AbstractAccessExecutionGraphHandler<
                 JobAccumulatorsInfo, JobAccumulatorsMessageParameters>
-        implements JsonArchivist {
+        implements OnlyExecutionGraphJsonArchivist {
 
     public JobAccumulatorsHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
