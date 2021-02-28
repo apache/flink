@@ -341,7 +341,7 @@ connected stream 也可以被用来实现流的关联。
 
 ### 示例
 
-在这个例子中，一个控制流是用来指定哪些词需要从 `datastreamOfWords` 里过滤掉的。 一个称为 `ControlFunction` 的 `RichCoFlatMapFunction` 作用于连接的流来实现这个功能。
+在这个例子中，一个控制流是用来指定哪些词需要从 `streamOfWords` 里过滤掉的。 一个称为 `ControlFunction` 的 `RichCoFlatMapFunction` 作用于连接的流来实现这个功能。
 
 ```java
 public static void main(String[] args) throws Exception {
@@ -356,7 +356,7 @@ public static void main(String[] args) throws Exception {
         .keyBy(x -> x);
   
     control
-        .connect(datastreamOfWords)
+        .connect(streamOfWords)
         .flatMap(new ControlFunction())
         .print();
 
@@ -397,7 +397,7 @@ public static class ControlFunction extends RichCoFlatMapFunction<String, String
 
 布尔变量 `blocked` 被用于记录在数据流 `control` 中出现过的键（在这个例子中是单词），并且这些单词从 `streamOfWords` 过滤掉。这是 _keyed_ state，并且它是被两个流共享的，这也是为什么两个流必须有相同的键值空间。
 
-在 Flink 运行时中，`flatMap1` 和 `flatMap2` 在连接流有新元素到来时被调用 —— 在我们的例子中，`control` 流中的元素会进入 `flatMap1`，`streamOfWords` 中的元素会进入 `flatMap2`。这是由两个流连接的顺序决定的，本例中为 `control.connect(datastreamOfWords)`。
+在 Flink 运行时中，`flatMap1` 和 `flatMap2` 在连接流有新元素到来时被调用 —— 在我们的例子中，`control` 流中的元素会进入 `flatMap1`，`streamOfWords` 中的元素会进入 `flatMap2`。这是由两个流连接的顺序决定的，本例中为 `control.connect(streamOfWords)`。
 
 认识到你没法控制 `flatMap1` 和 `flatMap2` 的调用顺序是很重要的。这两个输入流是相互竞争的关系，Flink 运行时将根据从一个流或另一个流中消费的事件做它要做的。对于需要保证时间和/或顺序的场景，你会发现在 Flink 的管理状态中缓存事件一直到它们能够被处理是必须的。（注意：如果你真的感到绝望，可以使用自定义的算子实现 `InputSelectable` 接口，在两输入算子消费它的输入流时增加一些顺序上的限制。）
 
