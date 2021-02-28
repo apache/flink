@@ -859,6 +859,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                 && checkpointType == CheckpointType.CHECKPOINT;
     }
 
+    @Override
+    public boolean isStateImmutableInStateBackend(CheckpointType checkpointType) {
+        return !requiresLegacySynchronousTimerSnapshots(checkpointType);
+    }
+
     /** Rocks DB specific information about the k/v states. */
     public static class RocksDbKvStateInfo implements AutoCloseable {
         public final ColumnFamilyHandle columnFamilyHandle;

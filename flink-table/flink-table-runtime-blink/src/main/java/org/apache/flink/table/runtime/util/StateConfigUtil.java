@@ -48,17 +48,8 @@ public class StateConfigUtil {
 
     public static boolean isStateImmutableInStateBackend(KeyedStateBackend<?> stateBackend) {
         // TODO: remove the hard code check once FLINK-21027 is supported
-        // state key and value is immutable only when using rocksdb state backend and timer
-        boolean isRocksDbState =
-                ROCKSDB_KEYED_STATE_BACKEND.equals(stateBackend.getClass().getCanonicalName());
-        boolean isHeapTimer = false;
-        if (stateBackend instanceof AbstractKeyedStateBackend) {
-            // currently, requiresLegacySynchronousTimerSnapshots()
-            // indicates the underlying uses heap-bsased timer
-            isHeapTimer =
-                    ((AbstractKeyedStateBackend<?>) stateBackend)
-                            .requiresLegacySynchronousTimerSnapshots(CheckpointType.CHECKPOINT);
-        }
-        return isRocksDbState && !isHeapTimer;
+        return (stateBackend instanceof AbstractKeyedStateBackend)
+                && ((AbstractKeyedStateBackend<?>) stateBackend)
+                        .isStateImmutableInStateBackend(CheckpointType.CHECKPOINT);
     }
 }
