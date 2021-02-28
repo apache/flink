@@ -1131,7 +1131,7 @@ tableEnv.registerFunction("rates", rates);
 // join with "Orders" based on the time attribute and key
 Table orders = tableEnv.from("Orders");
 Table result = orders
-    .joinLateral(call("rates", $("o_proctime")), $("o_currency").isEqual($("r_currency")))
+    .joinLateral(call("rates", $("o_proctime")), $("o_currency").isEqual($("r_currency")));
 {{< /tab >}}
 {{< tabs "Scala" >}}
 ```scala
@@ -2065,16 +2065,16 @@ Note: Currently, all aggregation functions in the same select() call must be com
 {{< tab "Scala" >}}
 ```scala
 // Unbounded Event-time over window (assuming an event-time attribute "rowtime")
-.window(Over partitionBy $"a" orderBy $"rowtime" preceding UNBOUNDED_RANGE as "w")
+.window(Over partitionBy $"a" orderBy $"rowtime" preceding UNBOUNDED_RANGE as "w");
 
 // Unbounded Processing-time over window (assuming a processing-time attribute "proctime")
-.window(Over partitionBy $"a" orderBy $"proctime" preceding UNBOUNDED_RANGE as "w")
+.window(Over partitionBy $"a" orderBy $"proctime" preceding UNBOUNDED_RANGE as "w");
 
 // Unbounded Event-time Row-count over window (assuming an event-time attribute "rowtime")
-.window(Over partitionBy $"a" orderBy $"rowtime" preceding UNBOUNDED_ROW as "w")
+.window(Over partitionBy $"a" orderBy $"rowtime" preceding UNBOUNDED_ROW as "w");
  
 // Unbounded Processing-time Row-count over window (assuming a processing-time attribute "proctime")
-.window(Over partitionBy $"a" orderBy $"proctime" preceding UNBOUNDED_ROW as "w")
+.window(Over partitionBy $"a" orderBy $"proctime" preceding UNBOUNDED_ROW as "w");
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -2173,7 +2173,7 @@ ScalarFunction func = new MyMapFunction();
 tableEnv.registerFunction("func", func);
 
 Table table = input
-  .map(call("func", $("c")).as("a", "b"))
+  .map(call("func", $("c")).as("a", "b"));
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -2227,7 +2227,7 @@ TableFunction func = new MyFlatMapFunction();
 tableEnv.registerFunction("func", func);
 
 Table table = input
-  .flatMap(call("func", $("c")).as("a", "b"))
+  .flatMap(call("func", $("c")).as("a", "b"));
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -2310,7 +2310,7 @@ tableEnv.registerFunction("myAggFunc", myAggFunc);
 Table table = input
   .groupBy($("key"))
   .aggregate(call("myAggFunc", $("a")).as("x", "y"))
-  .select($("key"), $("x"), $("y"))
+  .select($("key"), $("x"), $("y"));
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
