@@ -49,9 +49,9 @@ The Java Table API is enabled by importing `org.apache.flink.table.api.java.*`. 
 For the Expression DSL it is also necessary to import static `org.apache.flink.table.api.Expressions.*`
 
 ```java
-import org.apache.flink.table.api.*
+import org.apache.flink.table.api.*;
 
-import static org.apache.flink.table.api.Expressions.*
+import static org.apache.flink.table.api.Expressions.*;
 
 EnvironmentSettings settings = EnvironmentSettings
     .newInstance()
