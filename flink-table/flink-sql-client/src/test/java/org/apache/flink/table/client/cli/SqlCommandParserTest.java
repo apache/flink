@@ -282,6 +282,9 @@ public class SqlCommandParserTest {
                         // show current database
                         TestItem.validSql(
                                 "show current database", SqlCommand.SHOW_CURRENT_DATABASE),
+                        // show views
+                        TestItem.validSql("SHOW VIEWS;", SqlCommand.SHOW_VIEWS),
+                        TestItem.validSql("  SHOW   VIEWS   ;", SqlCommand.SHOW_VIEWS),
                         // load module with module name as identifier
                         TestItem.validSql(
                                 "LOAD MODULE dummy", SqlCommand.LOAD_MODULE, "LOAD MODULE dummy"),

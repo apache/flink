@@ -325,6 +325,31 @@ public class CliClientTest extends TestLogger {
         assertThat(executor.getNumExecuteSqlCalls(), is(1));
     }
 
+    @Test
+    public void testShowViews() throws Exception {
+        TestingExecutor executor =
+                new TestingExecutorBuilder()
+                        .setExecuteSqlConsumer(
+                                (ignored1, sql) -> {
+                                    if (sql.equalsIgnoreCase("show views")) {
+                                        SHOW_ROW.setField(0, "v1");
+                                        return new TestTableResult(
+                                                ResultKind.SUCCESS_WITH_CONTENT,
+                                                TableSchema.builder()
+                                                        .field("view", DataTypes.STRING())
+                                                        .build(),
+                                                CloseableIterator.ofElement(SHOW_ROW, ele -> {}));
+                                    } else {
+                                        throw new SqlExecutionException(
+                                                "unexpected sql statement: " + sql);
+                                    }
+                                })
+                        .build();
+        String output = testExecuteSql(executor, "show views;");
+        assertThat(executor.getNumExecuteSqlCalls(), is(1));
+        assertTrue(output.contains("v1"));
+    }
+
     // --------------------------------------------------------------------------------------------
 
     /** execute a sql statement and return the terminal output as string. */
