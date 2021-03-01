@@ -1054,6 +1054,43 @@ class TableSinkITCase extends StreamingTestBase {
   }
 
   @Test
+  def testPartialInsertWithReorder(): Unit = {
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE testSink (
+         |  `a` INT,
+         |  `b` AS `a` + 1,
+         |  `c` STRING,
+         |  `d` INT,
+         |  `e` DOUBLE
+         |)
+         |PARTITIONED BY (`c`, `d`)
+         |WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'false'
+         |)
+         |""".stripMargin)
+
+    val t = env.fromCollection(tupleData2).toTable(tEnv, 'x, 'y)
+    tEnv.createTemporaryView("MyTable", t)
+
+    tEnv.executeSql(
+      s"""
+         |-- the target columns is reordered (compare with the columns of sink)
+         |INSERT INTO testSink (e, d, c)
+         |SELECT sum(y), 1, '2021' FROM MyTable GROUP BY x
+         |""".stripMargin).await()
+    val expected = List(
+      "null,2021,1,0.1",
+      "null,2021,1,0.4",
+      "null,2021,1,1.0",
+      "null,2021,1,2.2",
+      "null,2021,1,3.9")
+    val result = TestValuesTableFactory.getResults("testSink")
+    assertEquals(expected.sorted, result.sorted)
+  }
+
+  @Test
   def testPartialInsertWithDynamicAndStaticPartition1(): Unit = {
     tEnv.executeSql(
       s"""

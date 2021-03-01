@@ -136,6 +136,10 @@ object PreValidateReWriter {
     }
 
     // validate partial insert columns.
+
+    // the columnList may reorder fields (compare with fields of sink)
+    val targetPosition = new util.ArrayList[Int]()
+
     if (sqlInsert.getTargetColumnList != null) {
       val targetFields = new util.HashSet[Integer]
       val targetColumns =
@@ -159,27 +163,33 @@ object PreValidateReWriter {
               calciteCatalogReader, relOptTable))
 
       for (targetField <- targetRowType.getFieldList) {
-        if (!partitionColumns.contains(targetField) && !targetColumns.contains(targetField)) {
-          val id = new SqlIdentifier(targetField.getName, SqlParserPos.ZERO)
-          if (!targetField.getType.isNullable) {
-            throw newValidationError(id, RESOURCE.columnNotNullable(targetField.getName))
+        if (!partitionColumns.contains(targetField)) {
+          if (!targetColumns.contains(targetField)) {
+            // padding null
+            val id = new SqlIdentifier(targetField.getName, SqlParserPos.ZERO)
+            if (!targetField.getType.isNullable) {
+              throw newValidationError(id, RESOURCE.columnNotNullable(targetField.getName))
+            }
+            validateField(idx => !assignedFields.contains(idx), id, targetField)
+            assignedFields.put(targetField.getIndex,
+              maybeCast(
+                SqlLiteral.createNull(SqlParserPos.ZERO),
+                typeFactory.createUnknownType(),
+                targetField.getType,
+                typeFactory))
+          } else {
+            // handle reorder
+            targetPosition.add(targetColumns.indexOf(targetField))
           }
-          validateField(idx => !assignedFields.contains(idx), id, targetField)
-          assignedFields.put(targetField.getIndex,
-            maybeCast(
-              SqlLiteral.createNull(SqlParserPos.ZERO),
-              typeFactory.createUnknownType(),
-              targetField.getType,
-              typeFactory))
         }
       }
     }
 
     source match {
       case select: SqlSelect =>
-        rewriteSelect(validator, select, targetRowType, assignedFields)
+        rewriteSelect(validator, select, targetRowType, assignedFields, targetPosition)
       case values: SqlCall if values.getKind == SqlKind.VALUES =>
-        rewriteValues(values, targetRowType, assignedFields)
+        rewriteValues(values, targetRowType, assignedFields, targetPosition)
     }
   }
 
@@ -187,14 +197,20 @@ object PreValidateReWriter {
       validator: FlinkCalciteSqlValidator,
       select: SqlSelect,
       targetRowType: RelDataType,
-      assignedFields: util.LinkedHashMap[Integer, SqlNode]): SqlCall = {
+      assignedFields: util.LinkedHashMap[Integer, SqlNode],
+      targetPosition: util.List[Int]): SqlCall = {
     // Expands the select list first in case there is a star(*).
     // Validates the select first to register the where scope.
     validator.validate(select)
     val sourceList = validator.expandStar(select.getSelectList, select, false).getList
 
     val fixedNodes = new util.ArrayList[SqlNode]
-    val currentNodes = new util.ArrayList[SqlNode](sourceList)
+    val currentNodes =
+      if (targetPosition.isEmpty) {
+        new util.ArrayList[SqlNode](sourceList)
+      } else {
+        reorder(new util.ArrayList[SqlNode](sourceList), targetPosition)
+      }
     0 until targetRowType.getFieldList.length foreach {
       idx =>
         if (assignedFields.containsKey(idx)) {
@@ -215,7 +231,8 @@ object PreValidateReWriter {
   private def rewriteValues(
       values: SqlCall,
       targetRowType: RelDataType,
-      assignedFields: util.LinkedHashMap[Integer, SqlNode]): SqlCall = {
+      assignedFields: util.LinkedHashMap[Integer, SqlNode],
+      targetPosition: util.List[Int]): SqlCall = {
     val fixedNodes = new util.ArrayList[SqlNode]
     0 until values.getOperandList.size() foreach {
       valueIdx =>
@@ -225,7 +242,12 @@ object PreValidateReWriter {
         } else {
           Collections.singletonList(value)
         }
-        val currentNodes = new util.ArrayList[SqlNode](valueAsList)
+        val currentNodes =
+          if (targetPosition.isEmpty) {
+            new util.ArrayList[SqlNode](valueAsList)
+          } else {
+            reorder(new util.ArrayList[SqlNode](valueAsList), targetPosition)
+          }
         val fieldNodes = new util.ArrayList[SqlNode]
         0 until targetRowType.getFieldList.length foreach {
           fieldIdx =>
@@ -245,6 +267,15 @@ object PreValidateReWriter {
     SqlStdOperatorTable.VALUES.createCall(values.getParserPosition, fixedNodes)
   }
 
+  private def reorder(
+      sourceList: util.ArrayList[SqlNode],
+      targetPosition: util.List[Int]): util.ArrayList[SqlNode] = {
+    val targetList = new Array[SqlNode](sourceList.size())
+    0 until sourceList.size() foreach {
+      idx => targetList(targetPosition.get(idx)) = sourceList.get(idx)
+    }
+    new util.ArrayList[SqlNode](targetList.toList)
+  }
   /**
     * Derives a physical row-type for INSERT and UPDATE operations.
     *
