@@ -408,9 +408,6 @@ object TemporalJoinUtil {
       case tableScan: TableScan => Some(tableScan)
       // computed column on lookup table
       case project: LogicalProject => getTableScan(trimHep(project.getInput))
-      case calc: Calc => getTableScan(trimHep(calc.getInput))
-      // watermark assigner on lookup table
-      case watermark: WatermarkAssigner => getTableScan(trimHep(watermark.getInput))
       case _ => None
     }
   }
