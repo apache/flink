@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.externalresource.ExternalResourceInfo;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
@@ -51,6 +52,7 @@ import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -156,6 +158,11 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
      */
     public TaskManagerRuntimeInfo getTaskManagerRuntimeInfo() {
         return taskEnvironment.getTaskManagerInfo();
+    }
+
+    @Override
+    public Optional<JobID> getJobId() {
+        return Optional.of(taskEnvironment.getJobID());
     }
 
     @Override

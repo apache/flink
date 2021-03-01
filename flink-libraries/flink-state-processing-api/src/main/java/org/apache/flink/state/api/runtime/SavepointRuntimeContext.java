@@ -20,6 +20,7 @@ package org.apache.flink.state.api.runtime;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
 import org.apache.flink.api.common.accumulators.Histogram;
@@ -48,6 +49,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -76,6 +78,11 @@ public final class SavepointRuntimeContext implements RuntimeContext {
         this.stateRegistrationAllowed = true;
 
         this.registeredDescriptors = new ArrayList<>();
+    }
+
+    @Override
+    public Optional<JobID> getJobId() {
+        return ctx.getJobId();
     }
 
     @Override

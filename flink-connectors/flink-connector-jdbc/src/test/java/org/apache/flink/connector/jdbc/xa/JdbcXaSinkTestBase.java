@@ -18,6 +18,7 @@
 package org.apache.flink.connector.jdbc.xa;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
 import org.apache.flink.api.common.accumulators.Histogram;
@@ -62,6 +63,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -165,6 +167,11 @@ public abstract class JdbcXaSinkTestBase extends JdbcTestBase {
 
     static final RuntimeContext TEST_RUNTIME_CONTEXT =
             new RuntimeContext() {
+                @Override
+                public Optional<JobID> getJobId() {
+                    return Optional.of(new JobID());
+                }
+
                 @Override
                 public String getTaskName() {
                     return "test";

@@ -1144,7 +1144,8 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable
                 env.getDistributedCacheEntries(),
                 this.accumulatorMap,
                 metrics,
-                env.getExternalResourceInfoProvider());
+                env.getExternalResourceInfoProvider(),
+                env.getJobID());
     }
 
     // --------------------------------------------------------------------------------------------
