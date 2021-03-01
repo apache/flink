@@ -524,8 +524,9 @@ extractLoggingOutputs() {
     echo "${output}" | grep -v ${EXECUTION_PREFIX}
 }
 
-parseJmArgsAndExportLogs() {
-  java_utils_output=$(runBashJavaUtilsCmd GET_JM_RESOURCE_PARAMS "${FLINK_CONF_DIR}" "${FLINK_BIN_DIR}/bash-java-utils.jar:$(findFlinkDistJar)" "$@")
+parseResourceParamsAndExportLogs() {
+  local cmd=$1
+  java_utils_output=$(runBashJavaUtilsCmd ${cmd} "${FLINK_CONF_DIR}" "${FLINK_BIN_DIR}/bash-java-utils.jar:$(findFlinkDistJar)" "$@")
   logging_output=$(extractLoggingOutputs "${java_utils_output}")
   params_output=$(extractExecutionResults "${java_utils_output}" 2)
 
@@ -543,8 +544,17 @@ parseJmArgsAndExportLogs() {
   export FLINK_INHERITED_LOGS="
 $FLINK_INHERITED_LOGS
 
-JM_RESOURCE_PARAMS extraction logs:
+RESOURCE_PARAMS extraction logs:
 jvm_params: $jvm_params
+dynamic_configs: $DYNAMIC_PARAMETERS
 logs: $logging_output
 "
+}
+
+parseJmArgsAndExportLogs() {
+  parseResourceParamsAndExportLogs GET_JM_RESOURCE_PARAMS
+}
+
+parseTmArgsAndExportLogs() {
+  parseResourceParamsAndExportLogs GET_TM_RESOURCE_PARAMS
 }
