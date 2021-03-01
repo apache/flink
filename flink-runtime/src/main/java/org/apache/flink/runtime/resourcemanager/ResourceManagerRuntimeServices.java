@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
@@ -36,6 +37,9 @@ import org.apache.flink.util.Preconditions;
 
 /** Container class for the {@link ResourceManager} services. */
 public class ResourceManagerRuntimeServices {
+    // We currently make the delay of requirements check a constant time. This delay might be
+    // configurable by user in the future.
+    private static final long REQUIREMENTS_CHECK_DELAY_MS = 50L;
 
     private final SlotManager slotManager;
     private final JobLeaderIdService jobLeaderIdService;
@@ -91,7 +95,8 @@ public class ResourceManagerRuntimeServices {
                             SlotManagerUtils.generateDefaultSlotResourceProfile(
                                     slotManagerConfiguration.getDefaultWorkerResourceSpec(),
                                     slotManagerConfiguration.getNumSlotsPerWorker()),
-                            slotManagerConfiguration.getNumSlotsPerWorker()));
+                            slotManagerConfiguration.getNumSlotsPerWorker()),
+                    Time.milliseconds(REQUIREMENTS_CHECK_DELAY_MS));
         } else if (configuration.isDeclarativeResourceManagementEnabled()) {
             return new DeclarativeSlotManager(
                     scheduledExecutor,
