@@ -773,7 +773,6 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                     new ExecutionJobVertex(
                             this,
                             jobVertex,
-                            1,
                             maxPriorAttemptsHistoryLength,
                             rpcTimeout,
                             createTimestamp);
