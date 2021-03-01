@@ -129,7 +129,6 @@ public class ExecutionJobVertex
     public ExecutionJobVertex(
             InternalExecutionGraphAccessor graph,
             JobVertex jobVertex,
-            int defaultParallelism,
             int maxPriorAttemptsHistoryLength,
             Time timeout,
             long createTimestamp)
@@ -142,8 +141,7 @@ public class ExecutionJobVertex
         this.graph = graph;
         this.jobVertex = jobVertex;
 
-        int vertexParallelism = jobVertex.getParallelism();
-        int numTaskVertices = vertexParallelism > 0 ? vertexParallelism : defaultParallelism;
+        this.parallelism = jobVertex.getParallelism() > 0 ? jobVertex.getParallelism() : 1;
 
         final int configuredMaxParallelism = jobVertex.getMaxParallelism();
 
@@ -153,21 +151,20 @@ public class ExecutionJobVertex
         setMaxParallelismInternal(
                 maxParallelismConfigured
                         ? configuredMaxParallelism
-                        : KeyGroupRangeAssignment.computeDefaultMaxParallelism(numTaskVertices));
+                        : KeyGroupRangeAssignment.computeDefaultMaxParallelism(this.parallelism));
 
         // verify that our parallelism is not higher than the maximum parallelism
-        if (numTaskVertices > maxParallelism) {
+        if (this.parallelism > maxParallelism) {
             throw new JobException(
                     String.format(
                             "Vertex %s's parallelism (%s) is higher than the max parallelism (%s). Please lower the parallelism or increase the max parallelism.",
-                            jobVertex.getName(), numTaskVertices, maxParallelism));
+                            jobVertex.getName(), this.parallelism, maxParallelism));
         }
 
-        this.parallelism = numTaskVertices;
         this.resourceProfile =
                 ResourceProfile.fromResourceSpec(jobVertex.getMinResources(), MemorySize.ZERO);
 
-        this.taskVertices = new ExecutionVertex[numTaskVertices];
+        this.taskVertices = new ExecutionVertex[this.parallelism];
 
         this.inputs = new ArrayList<>(jobVertex.getInputs().size());
 
@@ -184,11 +181,11 @@ public class ExecutionJobVertex
 
             this.producedDataSets[i] =
                     new IntermediateResult(
-                            result.getId(), this, numTaskVertices, result.getResultType());
+                            result.getId(), this, this.parallelism, result.getResultType());
         }
 
         // create all task vertices
-        for (int i = 0; i < numTaskVertices; i++) {
+        for (int i = 0; i < this.parallelism; i++) {
             ExecutionVertex vertex =
                     new ExecutionVertex(
                             this,
@@ -243,7 +240,7 @@ public class ExecutionJobVertex
                 ClassLoader oldContextClassLoader = currentThread.getContextClassLoader();
                 currentThread.setContextClassLoader(graph.getUserClassLoader());
                 try {
-                    inputSplits = splitSource.createInputSplits(numTaskVertices);
+                    inputSplits = splitSource.createInputSplits(this.parallelism);
 
                     if (inputSplits != null) {
                         splitAssigner = splitSource.getInputSplitAssigner(inputSplits);

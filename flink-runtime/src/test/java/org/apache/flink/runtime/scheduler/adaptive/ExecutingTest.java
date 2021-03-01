@@ -592,7 +592,6 @@ public class ExecutingTest extends TestLogger {
                     new MockInternalExecutionGraphAccessor(),
                     new JobVertex("test"),
                     1,
-                    1,
                     Time.milliseconds(1L),
                     1L);
             mockExecutionVertex = new MockExecutionVertex(this);
