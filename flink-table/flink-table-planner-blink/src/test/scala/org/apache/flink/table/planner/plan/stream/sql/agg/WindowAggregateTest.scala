@@ -759,6 +759,48 @@ class WindowAggregateTest extends TableTestBase {
   }
 
   @Test
+  def testCantTranslateToWindowAgg_CubeWithoutWindowStartEnd(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   b,
+        |   count(distinct c) AS uv
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |GROUP BY CUBE (a, b, window_start, window_end)
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testCantTranslateToWindowAgg_RollupWithoutWindowStartEnd(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   b,
+        |   count(distinct c) AS uv
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |GROUP BY ROLLUP (a, b, window_start, window_end)
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testTumble_Rollup(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   b,
+        |   count(distinct c) AS uv
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |GROUP BY ROLLUP (a, b), window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
   def testCantMergeWindowTVF_GroupingSetsDistinctOnWindowColumns(): Unit = {
     util.tableEnv.getConfig.getConfiguration.setBoolean(
       OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
@@ -813,6 +855,36 @@ class WindowAggregateTest extends TableTestBase {
   }
 
   @Test
+  def testHop_Cube(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   b,
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |  HOP(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |GROUP BY CUBE (a, b), window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testHop_Rollup(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   b,
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |  HOP(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |GROUP BY ROLLUP (a, b), window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
   def testCumulate_GroupingSets(): Unit = {
     val sql =
       """
@@ -845,4 +917,33 @@ class WindowAggregateTest extends TableTestBase {
     util.verifyRelPlan(sql)
   }
 
+  @Test
+  def testCumulate_Cube(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   b,
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |  CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |GROUP BY CUBE (a, b), window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testCumulate_Rollup(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   b,
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |  CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |GROUP BY ROLLUP (a, b), window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
 }
