@@ -671,23 +671,76 @@ LegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, total
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSingleSink1">
+  <TestCase name="testSingleSinkWithUDTF">
     <Resource name="ast">
       <![CDATA[
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[c, cnt])
-+- LogicalAggregate(group=[{0}], cnt=[COUNT($1)])
-   +- LogicalProject(c=[$2], a=[$0])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c, d, e, f, i, j, k, l, m, s])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], i=[$6], j=[$7], k=[$8], l=[$9], m=[$10], s=[$11])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], i=[$6], j=[$7], k=[$8], l=[$9], m=[$10])
+      :  +- LogicalFilter(condition=[AND(=($1, $4), =($0, $6))])
+      :     +- LogicalJoin(condition=[true], joinType=[inner])
+      :        :- LogicalJoin(condition=[true], joinType=[inner])
+      :        :  :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+      :        :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(i, j, k, l, m)]]])
+      +- LogicalTableFunctionScan(invocation=[split($cor0.c)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[c, cnt])
-+- HashAggregate(isMerge=[true], groupBy=[c], select=[c, Final_COUNT(count$0) AS cnt])
-   +- Exchange(distribution=[hash[c]])
-      +- LocalHashAggregate(groupBy=[c], select=[c, Partial_COUNT(a) AS count$0])
-         +- Calc(select=[c, a])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c, d, e, f, i, j, k, l, m, s])
++- Correlate(invocation=[split($cor0.c)], correlate=[table(split($cor0.c))], select=[a,b,c,d,e,f,i,j,k,l,m,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, BIGINT e, VARCHAR(2147483647) f, INTEGER i, BIGINT j, INTEGER k, VARCHAR(2147483647) l, BIGINT m, VARCHAR(2147483647) f0)], joinType=[INNER])
+   +- HashJoin(joinType=[InnerJoin], where=[(a = i)], select=[a, b, c, d, e, f, i, j, k, l, m], build=[left])
+      :- Exchange(distribution=[hash[a]])
+      :  +- HashJoin(joinType=[InnerJoin], where=[(b = e)], select=[a, b, c, d, e, f], build=[right])
+      :     :- Exchange(distribution=[hash[b]])
+      :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      :     +- Exchange(distribution=[hash[e]])
+      :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+      +- Exchange(distribution=[hash[i]])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(i, j, k, l, m)]]], fields=[i, j, k, l, m])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSameLookupTableWithMultipleLookupJoins">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink1], fields=[id, val])
++- LogicalProject(id=[$0], val=[$3])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1}])
+      :- LogicalProject(id=[$0], proctime=[PROCTIME()])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, scanTable]])
+      +- LogicalFilter(condition=[=($cor0.id, $0)])
+         +- LogicalSnapshot(period=[$cor0.proctime])
+            +- LogicalTableScan(table=[[default_catalog, default_database, lookupTable]])
+
+LogicalSink(table=[default_catalog.default_database.sink2], fields=[id, val])
++- LogicalProject(id=[$0], val=[$3])
+   +- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{0, 1}])
+      :- LogicalProject(id=[$0], proctime=[PROCTIME()])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, scanTable]])
+      +- LogicalFilter(condition=[=(+($cor1.id, 1), $0)])
+         +- LogicalSnapshot(period=[$cor1.proctime])
+            +- LogicalTableScan(table=[[default_catalog, default_database, lookupTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[id, PROCTIME_MATERIALIZE(PROCTIME()) AS proctime])(reuse_id=[1])
++- TableSourceScan(table=[[default_catalog, default_database, scanTable]], fields=[id])
+
+Sink(table=[default_catalog.default_database.sink1], fields=[id, val])
++- Calc(select=[id, val])
+   +- LookupJoin(table=[default_catalog.default_database.lookupTable], joinType=[InnerJoin], async=[false], lookup=[id=id], select=[id, id0, val])
+      +- Calc(select=[id])
+         +- Reused(reference_id=[1])
+
+Sink(table=[default_catalog.default_database.sink2], fields=[id, val])
++- Calc(select=[id, val])
+   +- LookupJoin(table=[default_catalog.default_database.lookupTable], joinType=[InnerJoin], async=[false], lookup=[id=$f2], select=[id, $f2, id0, val])
+      +- Calc(select=[id, (id + 1) AS $f2])
+         +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -817,38 +870,6 @@ LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSingleSinkWithUDTF">
-    <Resource name="ast">
-      <![CDATA[
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c, d, e, f, i, j, k, l, m, s])
-+- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], i=[$6], j=[$7], k=[$8], l=[$9], m=[$10], s=[$11])
-   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], i=[$6], j=[$7], k=[$8], l=[$9], m=[$10])
-      :  +- LogicalFilter(condition=[AND(=($1, $4), =($0, $6))])
-      :     +- LogicalJoin(condition=[true], joinType=[inner])
-      :        :- LogicalJoin(condition=[true], joinType=[inner])
-      :        :  :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
-      :        :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]])
-      :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(i, j, k, l, m)]]])
-      +- LogicalTableFunctionScan(invocation=[split($cor0.c)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c, d, e, f, i, j, k, l, m, s])
-+- Correlate(invocation=[split($cor0.c)], correlate=[table(split($cor0.c))], select=[a,b,c,d,e,f,i,j,k,l,m,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, BIGINT e, VARCHAR(2147483647) f, INTEGER i, BIGINT j, INTEGER k, VARCHAR(2147483647) l, BIGINT m, VARCHAR(2147483647) f0)], joinType=[INNER])
-   +- HashJoin(joinType=[InnerJoin], where=[(a = i)], select=[a, b, c, d, e, f, i, j, k, l, m], build=[left])
-      :- Exchange(distribution=[hash[a]])
-      :  +- HashJoin(joinType=[InnerJoin], where=[(b = e)], select=[a, b, c, d, e, f], build=[right])
-      :     :- Exchange(distribution=[hash[b]])
-      :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-      :     +- Exchange(distribution=[hash[e]])
-      :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
-      +- Exchange(distribution=[hash[i]])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(i, j, k, l, m)]]], fields=[i, j, k, l, m])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testSingleSinkSplitOnUnion">
     <Resource name="ast">
       <![CDATA[
@@ -873,6 +894,26 @@ LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[total_sum
             :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
             +- Calc(select=[d AS a])
                +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSingleSink1">
+    <Resource name="ast">
+      <![CDATA[
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[c, cnt])
++- LogicalAggregate(group=[{0}], cnt=[COUNT($1)])
+   +- LogicalProject(c=[$2], a=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[c, cnt])
++- HashAggregate(isMerge=[true], groupBy=[c], select=[c, Final_COUNT(count$0) AS cnt])
+   +- Exchange(distribution=[hash[c]])
+      +- LocalHashAggregate(groupBy=[c], select=[c, Partial_COUNT(a) AS count$0])
+         +- Calc(select=[c, a])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

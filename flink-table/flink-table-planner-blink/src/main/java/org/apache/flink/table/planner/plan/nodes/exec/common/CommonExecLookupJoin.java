@@ -50,6 +50,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.schema.IntermediateRelTable;
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
@@ -135,9 +136,11 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
     /** the reference of temporal table to look up. */
     private final RelOptTable temporalTable;
     /** calc performed on rows of temporal table before join. */
-    private final @Nullable RexProgram calcOnTemporalTable;
+    private final @Nullable
+    RexProgram calcOnTemporalTable;
     /** join condition except equi-conditions extracted as lookup keys. */
-    private final @Nullable RexNode joinCondition;
+    private final @Nullable
+    RexNode joinCondition;
 
     protected CommonExecLookupJoin(
             FlinkJoinType joinType,
@@ -279,16 +282,16 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
 
         LookupJoinCodeGenerator.GeneratedTableFunctionWithDataType<AsyncFunction<RowData, Object>>
                 generatedFuncWithType =
-                        LookupJoinCodeGenerator.generateAsyncLookupFunction(
-                                config,
-                                dataTypeFactory,
-                                inputRowType,
-                                tableSourceRowType,
-                                resultRowType,
-                                allLookupKeys,
-                                LookupJoinUtil.getOrderedLookupKeys(allLookupKeys.keySet()),
-                                asyncLookupFunction,
-                                StringUtils.join(temporalTable.getQualifiedName(), "."));
+                LookupJoinCodeGenerator.generateAsyncLookupFunction(
+                        config,
+                        dataTypeFactory,
+                        inputRowType,
+                        tableSourceRowType,
+                        resultRowType,
+                        allLookupKeys,
+                        LookupJoinUtil.getOrderedLookupKeys(allLookupKeys.keySet()),
+                        asyncLookupFunction,
+                        StringUtils.join(temporalTable.getQualifiedName(), "."));
 
         RowType rightRowType =
                 Optional.ofNullable(calcOnTemporalTable)
@@ -420,7 +423,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
     private void validate() {
 
         // validate table source and function implementation first
-        validateTableSource();
+        validateTableSource(temporalTable);
 
         // check join on all fields of PRIMARY KEY or (UNIQUE) INDEX
         if (lookupKeys.isEmpty()) {
@@ -456,7 +459,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
         return "";
     }
 
-    private void validateTableSource() {
+    private void validateTableSource(RelOptTable temporalTable) {
         if (temporalTable instanceof TableSourceTable) {
             if (!(((TableSourceTable) temporalTable).tableSource() instanceof LookupTableSource)) {
                 throw new TableException(
@@ -464,9 +467,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
                                 "%s must implement LookupTableSource interface if it is used in temporal table join.",
                                 getTableSourceDescription()));
             }
-
         } else if (temporalTable instanceof LegacyTableSourceTable) {
-
             TableSource<?> tableSource = ((LegacyTableSourceTable<?>) temporalTable).tableSource();
             if (!(tableSource instanceof LookupableTableSource)) {
 
@@ -479,15 +480,17 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
                     TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(
                             tableSource.getProducedDataType());
             if (!(tableSourceProducedType instanceof InternalTypeInfo
-                            && tableSourceProducedType
-                                    .getTypeClass()
-                                    .isAssignableFrom(RowData.class))
+                    && tableSourceProducedType
+                    .getTypeClass()
+                    .isAssignableFrom(RowData.class))
                     && !(tableSourceProducedType instanceof RowTypeInfo)) {
                 throw new TableException(
                         String.format(
                                 "Temporal table join only support Row or RowData type as return type of temporal table. But was %s.",
                                 tableSourceProducedType));
             }
+        } else if (temporalTable instanceof IntermediateRelTable) {
+            validateTableSource(((IntermediateRelTable) temporalTable).relNode().getTable());
         } else {
             throw new TableException(
                     String.format(
