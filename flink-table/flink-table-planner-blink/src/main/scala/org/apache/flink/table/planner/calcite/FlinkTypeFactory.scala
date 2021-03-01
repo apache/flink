@@ -39,6 +39,7 @@ import org.apache.flink.table.planner.plan.schema.{GenericRelDataType, _}
 import org.apache.flink.table.runtime.types.{LogicalTypeDataTypeConverter, PlannerTypeUtils}
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
+import org.apache.flink.table.utils.TableSchemaUtils
 import org.apache.flink.types.Nothing
 import org.apache.flink.util.Preconditions.checkArgument
 
@@ -232,6 +233,16 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
   def buildRelNodeRowType(rowType: RowType): RelDataType = {
     val fields = rowType.getFields
     buildStructType(fields.map(_.getName), fields.map(_.getType), StructKind.FULLY_QUALIFIED)
+  }
+
+  /**
+    * Creates a struct type with the physical columns using FlinkTypeFactory
+    *
+    * @param tableSchema schema to convert to Calcite's specific one
+    * @return a struct type with the input fieldNames, input fieldTypes.
+    */
+  def buildPhysicalRelNodeRowType(tableSchema: TableSchema): RelDataType = {
+    buildRelNodeRowType(TableSchemaUtils.getPhysicalSchema(tableSchema))
   }
 
   /**
