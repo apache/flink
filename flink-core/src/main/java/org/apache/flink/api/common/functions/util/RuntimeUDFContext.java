@@ -20,6 +20,7 @@ package org.apache.flink.api.common.functions.util;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.externalresource.ExternalResourceInfo;
@@ -32,6 +33,7 @@ import org.apache.flink.util.SimpleUserCodeClassLoader;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Future;
 
@@ -112,6 +114,11 @@ public class RuntimeUDFContext extends AbstractRuntimeUDFContext {
                         "The broadcast variable with name '" + name + "' has not been set.");
             }
         }
+    }
+
+    @Override
+    public Optional<JobID> getJobId() {
+        return Optional.empty();
     }
 
     @Override
