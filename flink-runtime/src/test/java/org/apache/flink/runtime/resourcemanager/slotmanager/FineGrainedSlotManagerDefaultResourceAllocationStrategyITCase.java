@@ -60,10 +60,14 @@ public class FineGrainedSlotManagerDefaultResourceAllocationStrategyITCase
                         });
                 runTest(
                         () -> {
-                            getSlotManager()
-                                    .processResourceRequirements(
-                                            createResourceRequirements(
-                                                    new JobID(), 1, OTHER_SLOT_RESOURCE_PROFILE));
+                            runInMainThread(
+                                    () ->
+                                            getSlotManager()
+                                                    .processResourceRequirements(
+                                                            createResourceRequirements(
+                                                                    new JobID(),
+                                                                    1,
+                                                                    OTHER_SLOT_RESOURCE_PROFILE)));
                             assertThat(resourceRequests.get(), is(0));
                         });
             }
