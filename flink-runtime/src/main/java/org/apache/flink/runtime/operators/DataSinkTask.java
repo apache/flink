@@ -445,6 +445,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
                 getEnvironment()
                         .getMetricGroup()
                         .getOrAddOperator(getEnvironment().getTaskInfo().getTaskName()),
-                env.getExternalResourceInfoProvider());
+                env.getExternalResourceInfoProvider(),
+                env.getJobID());
     }
 }
