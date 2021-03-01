@@ -136,11 +136,9 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
     /** the reference of temporal table to look up. */
     private final RelOptTable temporalTable;
     /** calc performed on rows of temporal table before join. */
-    private final @Nullable
-    RexProgram calcOnTemporalTable;
+    private final @Nullable RexProgram calcOnTemporalTable;
     /** join condition except equi-conditions extracted as lookup keys. */
-    private final @Nullable
-    RexNode joinCondition;
+    private final @Nullable RexNode joinCondition;
 
     protected CommonExecLookupJoin(
             FlinkJoinType joinType,
@@ -282,16 +280,16 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
 
         LookupJoinCodeGenerator.GeneratedTableFunctionWithDataType<AsyncFunction<RowData, Object>>
                 generatedFuncWithType =
-                LookupJoinCodeGenerator.generateAsyncLookupFunction(
-                        config,
-                        dataTypeFactory,
-                        inputRowType,
-                        tableSourceRowType,
-                        resultRowType,
-                        allLookupKeys,
-                        LookupJoinUtil.getOrderedLookupKeys(allLookupKeys.keySet()),
-                        asyncLookupFunction,
-                        StringUtils.join(temporalTable.getQualifiedName(), "."));
+                        LookupJoinCodeGenerator.generateAsyncLookupFunction(
+                                config,
+                                dataTypeFactory,
+                                inputRowType,
+                                tableSourceRowType,
+                                resultRowType,
+                                allLookupKeys,
+                                LookupJoinUtil.getOrderedLookupKeys(allLookupKeys.keySet()),
+                                asyncLookupFunction,
+                                StringUtils.join(temporalTable.getQualifiedName(), "."));
 
         RowType rightRowType =
                 Optional.ofNullable(calcOnTemporalTable)
@@ -480,9 +478,9 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
                     TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(
                             tableSource.getProducedDataType());
             if (!(tableSourceProducedType instanceof InternalTypeInfo
-                    && tableSourceProducedType
-                    .getTypeClass()
-                    .isAssignableFrom(RowData.class))
+                            && tableSourceProducedType
+                                    .getTypeClass()
+                                    .isAssignableFrom(RowData.class))
                     && !(tableSourceProducedType instanceof RowTypeInfo)) {
                 throw new TableException(
                         String.format(

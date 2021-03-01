@@ -125,8 +125,7 @@ public final class LookupJoinUtil {
 
         if (temporalTable instanceof IntermediateRelTable) {
             return getLookupFunction(
-                    ((IntermediateRelTable) temporalTable).relNode().getTable(),
-                    lookupKeys);
+                    ((IntermediateRelTable) temporalTable).relNode().getTable(), lookupKeys);
         }
 
         throw new TableException(
