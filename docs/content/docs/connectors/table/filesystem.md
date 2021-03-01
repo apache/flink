@@ -397,10 +397,6 @@ The parallelism of writing files into external file system can be configured by 
   </tbody>
 </table>
 
-
-</div>
-</div>
-
 **NOTE:** Currently, Configuring sink parallelism is supported if and only if the changelog mode of upstream is **INSERT-ONLY**. Otherwise, exception will be thrown.
 
 ## Full Example
