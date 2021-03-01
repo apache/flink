@@ -154,6 +154,13 @@ message GroupWindow {
     SESSION_GROUP_WINDOW = 2;
   }
 
+  enum WindowProperty {
+    WINDOW_START = 0;
+    WINDOW_END = 1;
+    ROW_TIME_ATTRIBUTE = 2;
+    PROC_TIME_ATTRIBUTE = 3;
+  }
+
   WindowType window_type = 1;
 
   bool is_time_window = 2;
@@ -168,7 +175,9 @@ message GroupWindow {
 
   int32 time_field_index = 7;
 
-  repeated int32 namedProperties = 8;
+  int64 allowedLateness = 8;
+
+  repeated WindowProperty namedProperties = 9;
 }
 
 // A list of the user-defined aggregate functions to be executed in a group aggregate operation.

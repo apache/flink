@@ -34,6 +34,12 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.UpdatableRowData;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
+import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
+import org.apache.flink.table.planner.expressions.PlannerProctimeAttribute;
+import org.apache.flink.table.planner.expressions.PlannerRowtimeAttribute;
+import org.apache.flink.table.planner.expressions.PlannerWindowEnd;
+import org.apache.flink.table.planner.expressions.PlannerWindowProperty;
+import org.apache.flink.table.planner.expressions.PlannerWindowStart;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.logical.SessionGroupWindow;
 import org.apache.flink.table.planner.plan.logical.SlidingGroupWindow;
@@ -77,10 +83,18 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
     @VisibleForTesting final int inputTimeFieldIndex;
 
     /**
-     * The Infos of the Window. 0 -> start of the Window. 1 -> end of the Window. 2 -> row time of
-     * the Window. 3 -> proc time of the Window.
+     * The allowed lateness for elements. This is used for:
+     *
+     * <ul>
+     *   <li>Deciding if an element should be dropped from a window due to lateness.
+     *   <li>Clearing the state of a window if the system time passes the {@code window.maxTimestamp
+     *       + allowedLateness} landmark.
+     * </ul>
      */
-    private final int[] namedProperties;
+    @VisibleForTesting final long allowedLateness;
+
+    /** The Infos of the Window. */
+    private FlinkFnApi.GroupWindow.WindowProperty[] namedProperties;
 
     /** A {@link WindowAssigner} assigns zero or more {@link Window Windows} to an element. */
     @VisibleForTesting final WindowAssigner<W> windowAssigner;
@@ -128,7 +142,8 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
             int inputTimeFieldIndex,
             WindowAssigner<W> windowAssigner,
             LogicalWindow window,
-            int[] namedProperties) {
+            long allowedLateness,
+            FlinkRelBuilder.PlannerNamedWindowProperty[] namedProperties) {
         super(
                 config,
                 inputType,
@@ -141,8 +156,8 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
         this.countStarInserted = countStarInserted;
         this.inputTimeFieldIndex = inputTimeFieldIndex;
         this.windowAssigner = windowAssigner;
-        this.namedProperties = namedProperties;
-        buildWindow(window);
+        this.allowedLateness = allowedLateness;
+        buildWindow(window, namedProperties);
     }
 
     @Override
@@ -288,7 +303,8 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
         windowBuilder.setWindowSize(size);
         windowBuilder.setWindowSlide(slide);
         windowBuilder.setWindowGap(gap);
-        for (int namedProperty : namedProperties) {
+        windowBuilder.setAllowedLateness(allowedLateness);
+        for (FlinkFnApi.GroupWindow.WindowProperty namedProperty : namedProperties) {
             windowBuilder.addNamedProperties(namedProperty);
         }
         builder.setGroupWindow(windowBuilder);
@@ -305,7 +321,8 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
         emitTriggerTimerData(timer, REGISTER_PROCESSING_TIMER);
     }
 
-    private void buildWindow(LogicalWindow window) {
+    private void buildWindow(
+            LogicalWindow window, FlinkRelBuilder.PlannerNamedWindowProperty[] namedProperties) {
         ValueLiteralExpression size = null;
         ValueLiteralExpression slide = null;
         ValueLiteralExpression gap = null;
@@ -338,6 +355,23 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
             this.gap = AggregateUtil.toDuration(gap).toMillis();
         } else {
             this.gap = 0L;
+        }
+
+        this.namedProperties = new FlinkFnApi.GroupWindow.WindowProperty[namedProperties.length];
+        for (int i = 0; i < namedProperties.length; i++) {
+            PlannerWindowProperty namedProperty = namedProperties[i].property();
+            if (namedProperty instanceof PlannerWindowStart) {
+                this.namedProperties[i] = FlinkFnApi.GroupWindow.WindowProperty.WINDOW_START;
+            } else if (namedProperty instanceof PlannerWindowEnd) {
+                this.namedProperties[i] = FlinkFnApi.GroupWindow.WindowProperty.WINDOW_END;
+            } else if (namedProperty instanceof PlannerRowtimeAttribute) {
+                this.namedProperties[i] = FlinkFnApi.GroupWindow.WindowProperty.ROW_TIME_ATTRIBUTE;
+            } else if (namedProperty instanceof PlannerProctimeAttribute) {
+                this.namedProperties[i] = FlinkFnApi.GroupWindow.WindowProperty.PROC_TIME_ATTRIBUTE;
+
+            } else {
+                throw new RuntimeException("Unexpected property " + namedProperty);
+            }
         }
     }
 

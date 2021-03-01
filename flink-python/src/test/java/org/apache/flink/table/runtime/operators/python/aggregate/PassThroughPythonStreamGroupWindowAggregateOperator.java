@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.operators.python.aggregate;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerServiceImpl;
@@ -34,8 +35,14 @@ import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.util.RowDataUtil;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
+import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
+import org.apache.flink.table.planner.expressions.PlannerProctimeAttribute;
+import org.apache.flink.table.planner.expressions.PlannerRowtimeAttribute;
+import org.apache.flink.table.planner.expressions.PlannerWindowEnd;
+import org.apache.flink.table.planner.expressions.PlannerWindowProperty;
+import org.apache.flink.table.planner.expressions.PlannerWindowStart;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.typeutils.DataViewUtils;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
@@ -66,7 +73,7 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
     private final MockPythonWindowOperator<K> mockPythonWindowOperator;
     private final int[] grouping;
     private final PythonAggregateFunctionInfo aggregateFunction;
-    private final int[] namedProperties;
+    private FlinkFnApi.GroupWindow.WindowProperty[] namedProperties;
     private InternalTimerServiceImpl<K, TimeWindow> mockPythonInternalService;
     private Map<String, Map<TimeWindow, List<RowData>>> windowAccumulateData;
     private Map<String, Map<TimeWindow, List<RowData>>> windowRetractData;
@@ -93,7 +100,8 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
             int inputTimeFieldIndex,
             WindowAssigner<TimeWindow> windowAssigner,
             LogicalWindow window,
-            int[] namedProperties) {
+            long allowedLateness,
+            FlinkRelBuilder.PlannerNamedWindowProperty[] namedProperties) {
         super(
                 config,
                 inputType,
@@ -107,11 +115,12 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
                 inputTimeFieldIndex,
                 windowAssigner,
                 window,
+                allowedLateness,
                 namedProperties);
         this.mockPythonWindowOperator = new MockPythonWindowOperator<>();
         this.aggregateFunction = aggregateFunctions[0];
-        this.namedProperties = namedProperties;
         this.grouping = grouping;
+        buildWindow(namedProperties);
     }
 
     @Override
@@ -146,16 +155,16 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
                     GenericRowData windowProperty = new GenericRowData(namedProperties.length);
                     for (int i = 0; i < namedProperties.length; i++) {
                         switch (namedProperties[i]) {
-                            case 0:
+                            case WINDOW_START:
                                 windowProperty.setField(i, window.getStart());
                                 break;
-                            case 1:
+                            case WINDOW_END:
                                 windowProperty.setField(i, window.getEnd());
                                 break;
-                            case 2:
+                            case ROW_TIME_ATTRIBUTE:
                                 windowProperty.setField(i, window.getEnd() - 1);
                                 break;
-                            case 3:
+                            case PROC_TIME_ATTRIBUTE:
                                 windowProperty.setField(i, -1L);
                         }
                     }
@@ -178,6 +187,25 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
                 getKeyedStateBackend(),
                 getKeySerializer(),
                 this);
+    }
+
+    private void buildWindow(FlinkRelBuilder.PlannerNamedWindowProperty[] namedProperties) {
+        this.namedProperties = new FlinkFnApi.GroupWindow.WindowProperty[namedProperties.length];
+        for (int i = 0; i < namedProperties.length; i++) {
+            PlannerWindowProperty namedProperty = namedProperties[i].property();
+            if (namedProperty instanceof PlannerWindowStart) {
+                this.namedProperties[i] = FlinkFnApi.GroupWindow.WindowProperty.WINDOW_START;
+            } else if (namedProperty instanceof PlannerWindowEnd) {
+                this.namedProperties[i] = FlinkFnApi.GroupWindow.WindowProperty.WINDOW_END;
+            } else if (namedProperty instanceof PlannerRowtimeAttribute) {
+                this.namedProperties[i] = FlinkFnApi.GroupWindow.WindowProperty.ROW_TIME_ATTRIBUTE;
+            } else if (namedProperty instanceof PlannerProctimeAttribute) {
+                this.namedProperties[i] = FlinkFnApi.GroupWindow.WindowProperty.PROC_TIME_ATTRIBUTE;
+
+            } else {
+                throw new RuntimeException("Unexpected property " + namedProperty);
+            }
+        }
     }
 
     public void processPythonElement(byte[] inputBytes) {
@@ -258,10 +286,10 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
 
     private long cleanupTime(TimeWindow window) {
         if (windowAssigner.isEventTime()) {
-            long cleanupTime = window.maxTimestamp();
+            long cleanupTime = Math.max(0, window.maxTimestamp() + allowedLateness);
             return cleanupTime >= window.maxTimestamp() ? cleanupTime : Long.MAX_VALUE;
         } else {
-            return window.maxTimestamp();
+            return Math.max(0, window.maxTimestamp());
         }
     }
 

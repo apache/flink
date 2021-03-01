@@ -29,7 +29,10 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
+import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
+import org.apache.flink.table.planner.expressions.PlannerWindowEnd;
 import org.apache.flink.table.planner.expressions.PlannerWindowReference;
+import org.apache.flink.table.planner.expressions.PlannerWindowStart;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.logical.SlidingGroupWindow;
 import org.apache.flink.table.runtime.operators.python.scalar.PythonScalarFunctionOperatorTestBase;
@@ -324,6 +327,12 @@ public class PythonStreamGroupWindowAggregateOperatorTest
                 3,
                 windowAssigner,
                 window,
-                new int[] {0, 1});
+                0L,
+                new FlinkRelBuilder.PlannerNamedWindowProperty[] {
+                    new FlinkRelBuilder.PlannerNamedWindowProperty(
+                            "start", new PlannerWindowStart(null)),
+                    new FlinkRelBuilder.PlannerNamedWindowProperty(
+                            "end", new PlannerWindowEnd(null))
+                });
     }
 }
