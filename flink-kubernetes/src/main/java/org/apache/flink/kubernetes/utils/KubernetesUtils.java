@@ -46,8 +46,11 @@ import org.apache.flink.runtime.persistence.filesystem.FileSystemStateStorageHel
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.function.FunctionUtils;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
+
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
+import io.fabric8.kubernetes.api.model.KubernetesResource;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
@@ -82,6 +85,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class KubernetesUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(KubernetesUtils.class);
+
+    private static final YAMLMapper yamlMapper = new YAMLMapper();
 
     /**
      * Check whether the port config option is a fixed port. If not, the fallback port will be set
@@ -488,6 +493,24 @@ public class KubernetesUtils {
             return flinkPod.getPodWithoutMainContainer().getSpec().getServiceAccountName();
         }
         return serviceAccount;
+    }
+
+    /**
+     * Try to get the pretty print yaml for Kubernetes resource.
+     *
+     * @param kubernetesResource kubernetes resource
+     * @return the pretty print yaml, or the {@link KubernetesResource#toString()} if parse failed.
+     */
+    public static String tryToGetPrettyPrintYaml(KubernetesResource kubernetesResource) {
+        try {
+            return yamlMapper
+                    .writerWithDefaultPrettyPrinter()
+                    .writeValueAsString(kubernetesResource);
+        } catch (Exception ex) {
+            LOG.debug(
+                    "Failed to get the pretty print yaml, fallback to {}", kubernetesResource, ex);
+            return kubernetesResource.toString();
+        }
     }
 
     private static String getJavaOpts(
