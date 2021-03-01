@@ -1096,12 +1096,7 @@ public class StreamExecutionEnvironment {
         // must not have null elements and mixed elements
         FromElementsFunction.checkCollection(data, typeInfo.getTypeClass());
 
-        SourceFunction<OUT> function;
-        try {
-            function = new FromElementsFunction<>(typeInfo.createSerializer(getConfig()), data);
-        } catch (IOException e) {
-            throw new RuntimeException(e.getMessage(), e);
-        }
+        SourceFunction<OUT> function = new FromElementsFunction<>(data);
         return addSource(function, "Collection Source", typeInfo, Boundedness.BOUNDED)
                 .setParallelism(1);
     }
