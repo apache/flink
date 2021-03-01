@@ -83,10 +83,12 @@ public class JobVertexDetailsInfoTest
                         jobVertexMetrics,
                         "taskmanagerId3"));
 
+        int parallelism = 1 + (random.nextInt() / 3);
         return new JobVertexDetailsInfo(
                 new JobVertexID(),
                 "jobVertex" + random.nextLong(),
-                random.nextInt(),
+                parallelism,
+                2 * parallelism,
                 System.currentTimeMillis(),
                 vertexTaskDetailList);
     }
