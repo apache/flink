@@ -22,13 +22,22 @@ import org.apache.flink.connector.jdbc.fakedb.FakeDBUtils;
 import org.apache.flink.connector.jdbc.fakedb.driver.FakeConnection;
 import org.apache.flink.connector.jdbc.fakedb.driver.FakeConnection1;
 import org.apache.flink.connector.jdbc.fakedb.driver.FakeConnection2;
+import org.apache.flink.connector.jdbc.fakedb.driver.FakeConnection3;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.sql.Connection;
+import java.sql.Driver;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.util.Collections;
+import java.util.Set;
+import java.util.stream.Collectors;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
@@ -36,15 +45,20 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /** Test for {@link SimpleJdbcConnectionProvider}. */
 public class SimpleJdbcConnectionProviderTest {
 
     private static JdbcConnectionProvider newFakeConnectionProviderWithDriverName(
             String driverName) {
+        return newProvider(driverName, FakeDBUtils.TEST_DB_URL);
+    }
+
+    private static JdbcConnectionProvider newProvider(String driverName, String url) {
         JdbcConnectionOptions options =
                 new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
-                        .withUrl(FakeDBUtils.TEST_DB_URL)
+                        .withUrl(url)
                         .withDriverName(driverName)
                         .build();
         return new SimpleJdbcConnectionProvider(options);
@@ -72,7 +86,6 @@ public class SimpleJdbcConnectionProviderTest {
     }
 
     @Test
-    @Ignore("FLINK-20658")
     public void testEstablishDriverConnection() throws Exception {
         JdbcConnectionProvider provider1 =
                 newFakeConnectionProviderWithDriverName(FakeDBUtils.DRIVER1_CLASS_NAME);
@@ -83,6 +96,37 @@ public class SimpleJdbcConnectionProviderTest {
                 newFakeConnectionProviderWithDriverName(FakeDBUtils.DRIVER2_CLASS_NAME);
         Connection connection2 = provider2.getOrEstablishConnection();
         assertThat(connection2, instanceOf(FakeConnection2.class));
+    }
+
+    @Test
+    public void testEstablishUnregisteredDriverConnection() throws Exception {
+        String unregisteredDriverName = FakeDBUtils.DRIVER3_CLASS_NAME;
+        Set<String> registeredDriverNames =
+                Collections.list(DriverManager.getDrivers()).stream()
+                        .map(Driver::getClass)
+                        .map(Class::getName)
+                        .collect(Collectors.toSet());
+        assertThat(registeredDriverNames, not(hasItem(unregisteredDriverName)));
+
+        JdbcConnectionProvider provider =
+                newFakeConnectionProviderWithDriverName(unregisteredDriverName);
+        Connection connection = provider.getOrEstablishConnection();
+        assertThat(connection, instanceOf(FakeConnection3.class));
+    }
+
+    @Test
+    public void testInvalidDriverUrl() throws Exception {
+        JdbcConnectionProvider provider =
+                newProvider(FakeDBUtils.DRIVER1_CLASS_NAME, FakeDBUtils.TEST_DB_INVALID_URL);
+        try {
+            provider.getOrEstablishConnection();
+            fail("expect exception");
+        } catch (SQLException ex) {
+            assertThat(
+                    ex.getMessage(),
+                    containsString(
+                            "No suitable driver found for " + FakeDBUtils.TEST_DB_INVALID_URL));
+        }
     }
 
     @Test

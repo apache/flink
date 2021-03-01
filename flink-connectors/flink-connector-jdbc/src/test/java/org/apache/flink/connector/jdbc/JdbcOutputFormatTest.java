@@ -49,6 +49,7 @@ import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /** Tests for the {@link JdbcOutputFormat}. */
 public class JdbcOutputFormatTest extends JdbcDataTestBase {
@@ -91,6 +92,7 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
                             .setQuery(String.format(INSERT_TEMPLATE, INPUT_TABLE))
                             .finish();
             jdbcOutputFormat.open(0, 1);
+            fail("expect exception");
         } catch (Exception e) {
             assertTrue(findThrowable(e, IOException.class).isPresent());
             assertTrue(findThrowableWithMessage(e, expectedMsg).isPresent());
