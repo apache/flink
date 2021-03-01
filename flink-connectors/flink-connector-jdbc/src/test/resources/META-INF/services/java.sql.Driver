@@ -15,3 +15,5 @@
 
 org.apache.flink.connector.jdbc.fakedb.driver.FakeDriver1
 org.apache.flink.connector.jdbc.fakedb.driver.FakeDriver2
+# Comment intentionally for unregistered driver
+# org.apache.flink.connector.jdbc.fakedb.driver.FakeDriver3
