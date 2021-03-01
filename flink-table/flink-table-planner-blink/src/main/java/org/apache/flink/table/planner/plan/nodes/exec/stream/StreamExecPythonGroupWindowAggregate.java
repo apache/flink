@@ -35,11 +35,6 @@ import org.apache.flink.table.functions.python.PythonFunctionKind;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.expressions.PlannerProctimeAttribute;
-import org.apache.flink.table.planner.expressions.PlannerRowtimeAttribute;
-import org.apache.flink.table.planner.expressions.PlannerWindowEnd;
-import org.apache.flink.table.planner.expressions.PlannerWindowProperty;
-import org.apache.flink.table.planner.expressions.PlannerWindowStart;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.logical.SessionGroupWindow;
 import org.apache.flink.table.planner.plan.logical.SlidingGroupWindow;
@@ -184,26 +179,6 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
         boolean isGeneralPythonUDAF =
                 Arrays.stream(aggCalls)
                         .anyMatch(x -> PythonUtil.isPythonAggregate(x, PythonFunctionKind.GENERAL));
-        int[] namePropertyTypeArray =
-                Arrays.stream(namedWindowProperties)
-                        .mapToInt(
-                                p -> {
-                                    PlannerWindowProperty property = p.property();
-                                    if (property instanceof PlannerWindowStart) {
-                                        return 0;
-                                    }
-                                    if (property instanceof PlannerWindowEnd) {
-                                        return 1;
-                                    }
-                                    if (property instanceof PlannerRowtimeAttribute) {
-                                        return 2;
-                                    }
-                                    if (property instanceof PlannerProctimeAttribute) {
-                                        return 3;
-                                    }
-                                    throw new TableException("Unexpected property " + property);
-                                })
-                        .toArray();
         OneInputTransformation<RowData, RowData> transform;
         if (isGeneralPythonUDAF) {
             final boolean[] aggCallNeedRetractions = new boolean[aggCalls.length];
@@ -223,8 +198,8 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                             outputRowType,
                             inputTimeFieldIndex,
                             windowAssigner,
-                            namePropertyTypeArray,
                             aggInfoList,
+                            emitStrategy.getAllowLateness(),
                             config);
         } else {
             transform =
@@ -236,7 +211,6 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                             windowAssigner,
                             trigger,
                             emitStrategy.getAllowLateness(),
-                            namePropertyTypeArray,
                             config);
         }
         if (inputsContainSingleton()) {
@@ -327,7 +301,6 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                     WindowAssigner<?> windowAssigner,
                     Trigger<?> trigger,
                     long allowance,
-                    int[] namePropertyTypeArray,
                     Configuration config) {
 
         Tuple2<int[], PythonFunctionInfo[]> aggInfos =
@@ -343,7 +316,6 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                         trigger,
                         allowance,
                         inputTimeFieldIndex,
-                        namePropertyTypeArray,
                         pythonUdafInputOffsets,
                         pythonFunctionInfos);
         return new OneInputTransformation<>(
@@ -361,8 +333,8 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                     RowType outputRowType,
                     int inputTimeFieldIndex,
                     WindowAssigner<?> windowAssigner,
-                    int[] namePropertyTypeArray,
                     AggregateInfoList aggInfoList,
+                    long allowance,
                     Configuration config) {
         final int inputCountIndex = aggInfoList.getIndexOfCountStar();
         final boolean countStarInserted = aggInfoList.countStarInserted();
@@ -380,10 +352,10 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                         pythonFunctionInfos,
                         dataViewSpecs,
                         inputTimeFieldIndex,
-                        namePropertyTypeArray,
                         inputCountIndex,
                         generateUpdateBefore,
-                        countStarInserted);
+                        countStarInserted,
+                        allowance);
 
         return new OneInputTransformation<>(
                 inputTransform,
@@ -403,7 +375,6 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                     Trigger<?> trigger,
                     long allowance,
                     int inputTimeFieldIndex,
-                    int[] namedProperties,
                     int[] udafInputOffsets,
                     PythonFunctionInfo[] pythonFunctionInfos) {
         Class clazz =
@@ -420,7 +391,7 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                             WindowAssigner.class,
                             Trigger.class,
                             long.class,
-                            int[].class,
+                            FlinkRelBuilder.PlannerNamedWindowProperty[].class,
                             int[].class,
                             int[].class);
             return ctor.newInstance(
@@ -432,7 +403,7 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                     windowAssigner,
                     trigger,
                     allowance,
-                    namedProperties,
+                    namedWindowProperties,
                     grouping,
                     udafInputOffsets);
         } catch (NoSuchMethodException
@@ -455,10 +426,10 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                     PythonAggregateFunctionInfo[] aggregateFunctions,
                     DataViewUtils.DataViewSpec[][] dataViewSpecs,
                     int inputTimeFieldIndex,
-                    int[] namedProperties,
                     int indexOfCountStar,
                     boolean generateUpdateBefore,
-                    boolean countStarInserted) {
+                    boolean countStarInserted,
+                    long allowance) {
         Class clazz =
                 CommonPythonUtil.loadClass(
                         GENERAL_STREAM_PYTHON_GROUP_WINDOW_AGGREGATE_FUNCTION_OPERATOR_NAME);
@@ -477,7 +448,8 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                             int.class,
                             WindowAssigner.class,
                             LogicalWindow.class,
-                            int[].class);
+                            long.class,
+                            FlinkRelBuilder.PlannerNamedWindowProperty[].class);
             return ctor.newInstance(
                     config,
                     inputType,
@@ -491,7 +463,8 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                     inputTimeFieldIndex,
                     windowAssigner,
                     window,
-                    namedProperties);
+                    allowance,
+                    namedWindowProperties);
         } catch (NoSuchMethodException
                 | IllegalAccessException
                 | InstantiationException
