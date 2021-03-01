@@ -2065,16 +2065,16 @@ Note: Currently, all aggregation functions in the same select() call must be com
 {{< tab "Scala" >}}
 ```scala
 // Unbounded Event-time over window (assuming an event-time attribute "rowtime")
-.window(Over partitionBy $"a" orderBy $"rowtime" preceding UNBOUNDED_RANGE as "w");
+.window(Over partitionBy $"a" orderBy $"rowtime" preceding UNBOUNDED_RANGE as "w")
 
 // Unbounded Processing-time over window (assuming a processing-time attribute "proctime")
-.window(Over partitionBy $"a" orderBy $"proctime" preceding UNBOUNDED_RANGE as "w");
+.window(Over partitionBy $"a" orderBy $"proctime" preceding UNBOUNDED_RANGE as "w")
 
 // Unbounded Event-time Row-count over window (assuming an event-time attribute "rowtime")
-.window(Over partitionBy $"a" orderBy $"rowtime" preceding UNBOUNDED_ROW as "w");
+.window(Over partitionBy $"a" orderBy $"rowtime" preceding UNBOUNDED_ROW as "w")
  
 // Unbounded Processing-time Row-count over window (assuming a processing-time attribute "proctime")
-.window(Over partitionBy $"a" orderBy $"proctime" preceding UNBOUNDED_ROW as "w");
+.window(Over partitionBy $"a" orderBy $"proctime" preceding UNBOUNDED_ROW as "w")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -2099,16 +2099,16 @@ Note: Currently, all aggregation functions in the same select() call must be com
 {{< tab "Java" >}}
 ```java
 // Bounded Event-time over window (assuming an event-time attribute "rowtime")
-.window(Over.partitionBy($("a")).orderBy($("rowtime")).preceding(lit(1).minutes()).as("w"))
+.window(Over.partitionBy($("a")).orderBy($("rowtime")).preceding(lit(1).minutes()).as("w"));
 
 // Bounded Processing-time over window (assuming a processing-time attribute "proctime")
-.window(Over.partitionBy($("a")).orderBy($("proctime")).preceding(lit(1).minutes()).as("w"))
+.window(Over.partitionBy($("a")).orderBy($("proctime")).preceding(lit(1).minutes()).as("w"));
 
 // Bounded Event-time Row-count over window (assuming an event-time attribute "rowtime")
-.window(Over.partitionBy($("a")).orderBy($("rowtime")).preceding(rowInterval(10)).as("w"))
+.window(Over.partitionBy($("a")).orderBy($("rowtime")).preceding(rowInterval(10)).as("w"));
  
 // Bounded Processing-time Row-count over window (assuming a processing-time attribute "proctime")
-.window(Over.partitionBy($("a")).orderBy($("proctime")).preceding(rowInterval(10)).as("w"))
+.window(Over.partitionBy($("a")).orderBy($("proctime")).preceding(rowInterval(10)).as("w"));
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
