@@ -97,7 +97,10 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
         final List<HasMetadata> accompanyingResources = kubernetesJMSpec.getAccompanyingResources();
 
         // create Deployment
-        LOG.debug("Start to create deployment with spec {}", deployment.getSpec().toString());
+        LOG.debug(
+                "Start to create deployment with spec {}{}",
+                System.lineSeparator(),
+                KubernetesUtils.tryToGetPrettyPrintYaml(deployment));
         final Deployment createdDeployment =
                 this.internalClient.apps().deployments().create(deployment);
 
@@ -133,9 +136,10 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
                             Collections.singletonList(kubernetesPod.getInternalResource()));
 
                     LOG.debug(
-                            "Start to create pod with metadata {}, spec {}",
-                            kubernetesPod.getInternalResource().getMetadata(),
-                            kubernetesPod.getInternalResource().getSpec());
+                            "Start to create pod with spec {}{}",
+                            System.lineSeparator(),
+                            KubernetesUtils.tryToGetPrettyPrintYaml(
+                                    kubernetesPod.getInternalResource()));
 
                     this.internalClient.pods().create(kubernetesPod.getInternalResource());
                 },
