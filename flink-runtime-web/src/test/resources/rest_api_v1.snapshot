@@ -708,6 +708,9 @@
         "duration" : {
           "type" : "integer"
         },
+        "maxParallelism" : {
+          "type" : "integer"
+        },
         "now" : {
           "type" : "integer"
         },
@@ -728,6 +731,9 @@
               },
               "name" : {
                 "type" : "string"
+              },
+              "maxParallelism" : {
+                "type" : "integer"
               },
               "parallelism" : {
                 "type" : "integer"
@@ -1885,6 +1891,9 @@
           "type" : "string"
         },
         "parallelism" : {
+          "type" : "integer"
+        },
+        "maxParallelism" : {
           "type" : "integer"
         },
         "now" : {

@@ -50,6 +50,7 @@ export interface JobDetailInterface {
   'start-time': number;
   'end-time': number;
   duration: number;
+  maxParallelism: number;
   now: number;
   timestamps: TimestampsStatus;
   vertices: VerticesItemInterface[];
@@ -80,6 +81,7 @@ export interface VerticesItemInterface {
   id: string;
   name: string;
   parallelism: number;
+  maxParallelism: number;
   status: string;
   'start-time': number;
   'end-time': number;

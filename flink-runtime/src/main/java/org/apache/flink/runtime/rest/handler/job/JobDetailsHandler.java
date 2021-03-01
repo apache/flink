@@ -148,6 +148,7 @@ public class JobDetailsHandler
                 startTime,
                 endTime,
                 duration,
+                executionGraph.getArchivedExecutionConfig().getMaxParallelism(),
                 now,
                 timestamps,
                 jobVertexInfos,
@@ -223,6 +224,7 @@ public class JobDetailsHandler
         return new JobDetailsInfo.JobVertexDetailsInfo(
                 ejv.getJobVertexId(),
                 ejv.getName(),
+                ejv.getMaxParallelism(),
                 ejv.getParallelism(),
                 jobVertexState,
                 startTime,

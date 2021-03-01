@@ -1468,6 +1468,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     "jid" : {
       "type" : "any"
     },
+    "maxParallelism" : {
+      "type" : "integer"
+    },
     "name" : {
       "type" : "string"
     },
@@ -1510,6 +1513,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           },
           "id" : {
             "type" : "any"
+          },
+          "maxParallelism" : {
+            "type" : "integer"
           },
           "metrics" : {
             "type" : "object",
@@ -3428,6 +3434,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
   "properties" : {
     "id" : {
       "type" : "any"
+    },
+    "maxParallelism" : {
+      "type" : "integer"
     },
     "name" : {
       "type" : "string"

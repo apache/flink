@@ -130,6 +130,7 @@ public class JobVertexDetailsHandler
                 jobVertex.getJobVertexId(),
                 jobVertex.getName(),
                 jobVertex.getParallelism(),
+                jobVertex.getMaxParallelism(),
                 now,
                 subtasks);
     }
