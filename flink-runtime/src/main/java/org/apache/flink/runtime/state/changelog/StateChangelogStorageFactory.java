@@ -21,6 +21,8 @@ package org.apache.flink.runtime.state.changelog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 
+import java.io.IOException;
+
 /**
  * A factory for {@link StateChangelogStorage}. Please use {@link StateChangelogStorageLoader} to
  * create {@link StateChangelogStorage}.
@@ -31,5 +33,5 @@ public interface StateChangelogStorageFactory {
     String getIdentifier();
 
     /** Create the storage based on a configuration. */
-    StateChangelogStorage<?> createStorage(Configuration configuration);
+    StateChangelogStorage<?> createStorage(Configuration configuration) throws IOException;
 }

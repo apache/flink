@@ -30,6 +30,7 @@ import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.Iterator;
 
 import static java.util.Collections.emptyIterator;
@@ -43,13 +44,13 @@ import static org.junit.Assert.assertTrue;
 public class StateChangelogStorageLoaderTest {
 
     @Test
-    public void testLoadSpiImplementation() {
+    public void testLoadSpiImplementation() throws IOException {
         StateChangelogStorageLoader.initialize(getPluginManager(emptyIterator()));
         assertNotNull(StateChangelogStorageLoader.load(new Configuration()));
     }
 
     @Test
-    public void testLoadNotExist() {
+    public void testLoadNotExist() throws IOException {
         StateChangelogStorageLoader.initialize(getPluginManager(emptyIterator()));
         assertNull(
                 StateChangelogStorageLoader.load(
@@ -59,7 +60,7 @@ public class StateChangelogStorageLoaderTest {
 
     @Test
     @SuppressWarnings("rawtypes")
-    public void testLoadPluginImplementation() {
+    public void testLoadPluginImplementation() throws IOException {
         StateChangelogStorageFactory factory = new TestStateChangelogStorageFactory();
         PluginManager pluginManager = getPluginManager(singletonList(factory).iterator());
         StateChangelogStorageLoader.initialize(pluginManager);
