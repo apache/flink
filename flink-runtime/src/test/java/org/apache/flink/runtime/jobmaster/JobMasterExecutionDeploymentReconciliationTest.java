@@ -26,7 +26,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
-import org.apache.flink.runtime.jobgraph.utils.JobGraphTestUtils;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.utils.JobMasterBuilder;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
@@ -201,7 +201,7 @@ public class JobMasterExecutionDeploymentReconciliationTest extends TestLogger {
 
         JobMaster jobMaster =
                 new JobMasterBuilder(
-                                JobGraphTestUtils.createSingleVertexJobGraph(),
+                                JobGraphTestUtils.singleNoOpJobGraph(),
                                 RPC_SERVICE_RESOURCE.getTestingRpcService())
                         .withFatalErrorHandler(
                                 testingFatalErrorHandlerResource.getFatalErrorHandler())

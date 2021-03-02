@@ -31,7 +31,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.io.network.partition.TestingJobMasterPartitionTracker;
-import org.apache.flink.runtime.jobgraph.utils.JobGraphTestUtils;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobmaster.utils.JobMasterBuilder;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -220,7 +220,7 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
             HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 5_000_000L);
 
             jobMaster =
-                    new JobMasterBuilder(JobGraphTestUtils.createSingleVertexJobGraph(), rpcService)
+                    new JobMasterBuilder(JobGraphTestUtils.singleNoOpJobGraph(), rpcService)
                             .withConfiguration(configuration)
                             .withHighAvailabilityServices(haServices)
                             .withJobManagerSharedServices(
