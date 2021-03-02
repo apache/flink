@@ -1873,7 +1873,7 @@ public class LocalExecutorITCase extends TestLogger {
         final TableResult tableResult = executor.executeSql(sessionId, statement);
         checkState(tableResult.getJobClient().isPresent());
         // wait for job completion
-        tableResult.getJobClient().get().getJobExecutionResult().get();
+        tableResult.await();
         // verify result
         verifySinkResult(resultPath);
     }

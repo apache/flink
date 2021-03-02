@@ -729,7 +729,7 @@ public class CliClient implements AutoCloseable {
             terminal.writer()
                     .println(
                             String.format(
-                                    "Job ID: %s",
+                                    "Job ID: %s\n",
                                     tableResult.getJobClient().get().getJobID().toString()));
             terminal.flush();
         } catch (SqlExecutionException e) {
