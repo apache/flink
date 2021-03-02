@@ -100,8 +100,7 @@ public class HiveTableSinkITCase {
                         "insert into " + tableName + " select 1, 1",
                         ExplainDetail.JSON_EXECUTION_PLAN);
         final String expected =
-                readFromResource(
-                        "/explain/testHiveTableSinkWithParallelismInBatch.out");
+                readFromResource("/explain/testHiveTableSinkWithParallelismInBatch.out");
 
         assertEquals(
                 replaceStreamNodeId(replaceStageId(expected)),
@@ -129,10 +128,12 @@ public class HiveTableSinkITCase {
                                 + " 'sink.parallelism' = '%s'"
                                 + ")",
                         tableName, parallelism));
-        final String actual = tEnv.explainSql("insert into " + tableName + " select 1, 1", ExplainDetail.JSON_EXECUTION_PLAN);
+        final String actual =
+                tEnv.explainSql(
+                        "insert into " + tableName + " select 1, 1",
+                        ExplainDetail.JSON_EXECUTION_PLAN);
         final String expected =
-                readFromResource(
-                        "/explain/testHiveTableSinkWithParallelismInStreaming.out");
+                readFromResource("/explain/testHiveTableSinkWithParallelismInStreaming.out");
 
         assertEquals(
                 replaceStreamNodeId(replaceStageId(expected)),
