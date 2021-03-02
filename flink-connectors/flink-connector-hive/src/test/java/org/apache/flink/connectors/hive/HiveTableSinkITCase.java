@@ -23,6 +23,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.FiniteTestSource;
+import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
@@ -51,6 +52,10 @@ import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_DELAY;
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_POLICY_KIND;
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME;
+import static org.apache.flink.table.planner.utils.TableTestUtil.readFromResource;
+import static org.apache.flink.table.planner.utils.TableTestUtil.replaceStageId;
+import static org.apache.flink.table.planner.utils.TableTestUtil.replaceStreamNodeId;
+import static org.junit.Assert.assertEquals;
 
 /** Tests {@link HiveTableSink}. */
 public class HiveTableSinkITCase {
@@ -68,6 +73,50 @@ public class HiveTableSinkITCase {
         if (hiveCatalog != null) {
             hiveCatalog.close();
         }
+    }
+
+    @Test
+    public void testHiveTableSinkWithParallelismInBatch() {
+        final TableEnvironment tEnv =
+                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        testHiveTableSinkWithParallelismBase(
+                tEnv, "/explain/testHiveTableSinkWithParallelismInBatch.out");
+    }
+
+    @Test
+    public void testHiveTableSinkWithParallelismInStreaming() {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        final TableEnvironment tEnv =
+                HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env, SqlDialect.HIVE);
+        testHiveTableSinkWithParallelismBase(
+                tEnv, "/explain/testHiveTableSinkWithParallelismInStreaming.out");
+    }
+
+    private void testHiveTableSinkWithParallelismBase(
+            final TableEnvironment tEnv, final String expectedResourceFileName) {
+        tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+        tEnv.useCatalog(hiveCatalog.getName());
+        tEnv.executeSql("create database db1");
+        tEnv.useDatabase("db1");
+
+        tEnv.executeSql(
+                String.format(
+                        "CREATE TABLE test_table ("
+                                + " id int,"
+                                + " real_col int"
+                                + ") TBLPROPERTIES ("
+                                + " 'sink.parallelism' = '8'" // set sink parallelism = 8
+                                + ")"));
+        final String actual =
+                tEnv.explainSql(
+                        "insert into test_table select 1, 1", ExplainDetail.JSON_EXECUTION_PLAN);
+        final String expected = readFromResource(expectedResourceFileName);
+
+        assertEquals(
+                replaceStreamNodeId(replaceStageId(expected)),
+                replaceStreamNodeId(replaceStageId(actual)));
+
+        tEnv.executeSql("drop database db1 cascade");
     }
 
     @Test
