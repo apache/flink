@@ -76,6 +76,7 @@ class TimeWindow(Window):
     def get_window_start_with_offset(timestamp: int, offset: int, window_size: int):
         """
         Method to get the window start for a timestamp.
+
         :param timestamp: epoch millisecond to get the window start.
         :param offset: The offset which window start would be shifted by.
         :param window_size: The size of the generated windows.
@@ -91,12 +92,13 @@ class TimeWindow(Window):
             and self.start == other.start
 
     def __lt__(self, other: 'TimeWindow'):
+        if not isinstance(other, TimeWindow):
+            raise Exception("Does not support comparison with non-TimeWindow %s" % other)
+
         return self.start == other.start and self.end < other.end or self.start < other.start
 
     def __le__(self, other: 'TimeWindow'):
-        if self.start == other.start:
-            return self.end <= other.end
-        return self.start < other.start
+        return self.__eq__(other) and self.__lt__(other)
 
     def __repr__(self):
         return "TimeWindow(start={}, end={})".format(self.start, self.end)

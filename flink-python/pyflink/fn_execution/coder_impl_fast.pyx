@@ -837,7 +837,6 @@ cdef class WindowCoderImpl(BaseCoderImpl):
             free(self._tmp_output_data)
 
 cdef class TimeWindowCoderImpl(WindowCoderImpl):
-
     cpdef bytes encode_nested(self, value: TimeWindow):
         self._encode_bigint(value.start)
         self._encode_bigint(value.end)
