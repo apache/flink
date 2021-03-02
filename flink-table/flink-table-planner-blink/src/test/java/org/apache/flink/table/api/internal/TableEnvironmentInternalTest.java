@@ -31,7 +31,6 @@ import org.junit.Test;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -40,7 +39,7 @@ import static org.junit.Assert.assertEquals;
 public class TableEnvironmentInternalTest extends JsonPlanTestBase {
 
     @Before
-    public void setup() {
+    public void setup() throws Exception {
         super.setup();
 
         String srcTableDdl =
@@ -67,12 +66,14 @@ public class TableEnvironmentInternalTest extends JsonPlanTestBase {
     @Test
     public void testGetJsonPlan() throws IOException {
         String jsonPlan = tableEnv.getJsonPlan("insert into MySink select * from MyTable");
-        String actual = TableTestUtil.readFromResource("/jsonplan/testGetJsonPlan.out");
+        String expected = TableTestUtil.readFromResource("/jsonplan/testGetJsonPlan.out");
         assertEquals(
                 TableTestUtil.replaceExecNodeId(
                         TableTestUtil.replaceFlinkVersion(
-                                TableTestUtil.getFormattedJson(jsonPlan))),
-                TableTestUtil.replaceExecNodeId(TableTestUtil.getFormattedJson(actual)));
+                                TableTestUtil.getFormattedJson(expected))),
+                TableTestUtil.replaceExecNodeId(
+                        TableTestUtil.replaceFlinkVersion(
+                                TableTestUtil.getFormattedJson(jsonPlan))));
     }
 
     @Test
@@ -93,99 +94,6 @@ public class TableEnvironmentInternalTest extends JsonPlanTestBase {
         String actual = tableEnv.explainJsonPlan(jsonPlan, ExplainDetail.JSON_EXECUTION_PLAN);
         String expected = TableTestUtil.readFromResource("/explain/testExplainJsonPlan.out");
         assertEquals(expected, TableTestUtil.replaceStreamNodeId(actual));
-    }
-
-    @Test
-    public void testProjectPushDown() throws Exception {
-        List<String> data = Arrays.asList("1,1,hi", "2,1,hello", "3,2,hello world");
-        createTestCsvSourceTable("src", data, "a bigint", "b int", "c varchar");
-        File sinkPath = createTestCsvSinkTable("sink", "a bigint", "c varchar");
-
-        String jsonPlan = tableEnv.getJsonPlan("insert into sink select a, c from src");
-        tableEnv.executeJsonPlan(jsonPlan).await();
-
-        // read result data
-        List<String> result = readLines(sinkPath);
-        List<String> expected = Arrays.asList("1,hi", "2,hello", "3,hello world");
-        Collections.sort(expected);
-        Collections.sort(result);
-        assertEquals(expected, result);
-    }
-
-    @Test
-    public void testFilterPushDown() {
-        String srcTableDdl =
-                "CREATE TABLE src (\n"
-                        + "  a bigint,\n"
-                        + "  b int,\n"
-                        + "  c varchar\n"
-                        + ") with (\n"
-                        + "  'connector' = 'values',\n"
-                        + "  'bounded' = 'false',"
-                        + "  'filterable-fields' = 'a')";
-        tableEnv.executeSql(srcTableDdl);
-        exception.expect(TableException.class);
-        exception.expectMessage(
-                "DynamicTableSource with filter push-down is not supported for JSON serialization now");
-        tableEnv.getJsonPlan("insert into MySink select * from src where a > 0");
-    }
-
-    @Test
-    public void testLimitPushDown() {
-        exception.expect(TableException.class);
-        // currently, there is a StreamExecLimit in the plan, once StreamExecLimit does support
-        // json serialization/deserialization, the following exception message should be updated.
-        exception.expectMessage(
-                "StreamExecLimit does not implement @JsonCreator annotation on constructor");
-        tableEnv.getJsonPlan("insert into MySink select * from MyTable limit 3");
-    }
-
-    @Test
-    public void testPartitionPushDown() {
-        String srcTableDdl =
-                "CREATE TABLE PartitionTable (\n"
-                        + "  a bigint,\n"
-                        + "  b int,\n"
-                        + "  p varchar)\n"
-                        + "partitioned by (p)\n"
-                        + "with (\n"
-                        + "  'connector' = 'values',\n"
-                        + "  'bounded' = 'false',"
-                        + "  'partition-list' = 'p:A')";
-        tableEnv.executeSql(srcTableDdl);
-        exception.expect(TableException.class);
-        exception.expectMessage(
-                "DynamicTableSource with partition push-down is not supported for JSON serialization now.");
-        tableEnv.getJsonPlan("insert into MySink select * from PartitionTable where p = 'A'");
-    }
-
-    @Test
-    public void testWatermarkPushDown() {
-        String srcTableDdl =
-                "CREATE TABLE WatermarkTable (\n"
-                        + "  a bigint,\n"
-                        + "  b int,\n"
-                        + "  c timestamp(3),\n"
-                        + "  watermark for c as c - interval '5' second\n"
-                        + ") with (\n"
-                        + "  'connector' = 'values',\n"
-                        + "  'bounded' = 'false',"
-                        + "  'enable-watermark-push-down' = 'true',"
-                        + "  'disable-lookup' = 'true')";
-        tableEnv.executeSql(srcTableDdl);
-        String sinkTableDdl =
-                "CREATE TABLE sink (\n"
-                        + "  a bigint,\n"
-                        + "  b int,\n"
-                        + "  c timestamp(3)\n"
-                        + ") with (\n"
-                        + "  'connector' = 'values',\n"
-                        + "  'table-sink-class' = 'DEFAULT')";
-        tableEnv.executeSql(sinkTableDdl);
-        exception.expect(TableException.class);
-        exception.expectMessage(
-                "DynamicTableSource with watermark push-down is not supported for JSON serialization now");
-        tableEnv.getJsonPlan("insert into sink select * from WatermarkTable");
     }
 
     @Test
