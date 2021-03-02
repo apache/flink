@@ -28,6 +28,7 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 
@@ -71,7 +72,7 @@ public class ClientUtilsTest extends TestLogger {
     @Test
     public void uploadAndSetUserJars() throws Exception {
         java.nio.file.Path tmpDir = temporaryFolder.newFolder().toPath();
-        JobGraph jobGraph = new JobGraph();
+        JobGraph jobGraph = JobGraphTestUtils.emptyJobGraph();
 
         Collection<Path> jars =
                 Arrays.asList(
@@ -102,7 +103,7 @@ public class ClientUtilsTest extends TestLogger {
     @Test
     public void uploadAndSetUserArtifacts() throws Exception {
         java.nio.file.Path tmpDir = temporaryFolder.newFolder().toPath();
-        JobGraph jobGraph = new JobGraph();
+        JobGraph jobGraph = JobGraphTestUtils.emptyJobGraph();
 
         Collection<DistributedCache.DistributedCacheEntry> localArtifacts =
                 Arrays.asList(
