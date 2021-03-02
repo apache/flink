@@ -130,18 +130,18 @@ RocksDBStateBackend 是目前唯一支持增量 CheckPoint 的 State Backend (�
 
 The total memory amount of RocksDB instance(s) per slot can also be bounded, please refer to documentation [here]({{< ref "docs/ops/state/large_state_tuning" >}}#bounding-rocksdb-memory-usage) for details.
 
-# Choose The Right State Backend
+# 选择正确的 State Backend
 
-In general, we recommend avoiding `MemoryStateBackend` in production because it stores its snapshots inside the JobManager as opposed to persistent disk.
-When deciding between `FsStateBackend` and `RocksDB`, it is a choice between performance and scalability.
-`FsStateBackend` is very fast as each state access and update operates on objects on the Java heap; however, state size is limited by available memory within the cluster.
-On the other hand, `RocksDB` can scale based on available disk space and is the only state backend to support incremental snapshots.
-However, each state access and update requires (de-)serialization and potentially reading from disk which leads to average performance that is an order of magnitude slower than the memory state backends.
+通常，我们不建议在生产中使用 `MemoryStateBackend`，因为 `MemoryStateBackend` 会将状态快照保存在 JobManager 中，而不是持久化的磁盘中。
+当决定使用 `FsStateBackend` 或 `RocksDB` 时，其实质上，是在性能和扩展性之间做选择。
+`FsStateBackend` 速度很快，因为每次状态访问和更新都直接操作 Java 堆中的对象，但是，`FsStateBackend` 可管理的状态大小受集群可用内存资源的限制。
+另一方面，`RocksDB` 能够基于可用磁盘空间进行扩展，并且 `RocksDB` 是唯一支持增量快照的 State Backend。
+但是，使用 `RocksDB` 时，每个状态访问和更新都需要（反）序列化，并且可能需要从磁盘读取数据，这就导致其平均性能比内存 State Backend 慢一个数量级。
 
 {{< hint info >}}
-In Flink 1.13 we unified the binary format of Flink's savepoints. That means you can take a savepoint and then restore from it using a different state backend.
-All the state backends produce a common format only starting from version 1.13. Therefore, if you want to switch the state backend you should first upgrade your Flink version then
-take a savepoint with the new version, and only after that you can restore it with a different state backend.
+在 Flink 1.13 中，我们统一了 Savepoint 的二进制格式。这意味着你可以获取一个 Savepoint，然后使用其他 State Backend 从该 Savepoint 进行恢复。
+所有 State Backend 生成一个通用的 Savepoint 格式是从 Flink 1.13 版本才开始的。因此，如果想切换 State Backend，应当首先升级你的 Flink 版本，然后
+在新版本下获取一个 Savepoint，只有这样你才能够使用其他 State Backend 将其还原。
 {{< /hint >}}
 
 ## 设置 State Backend
