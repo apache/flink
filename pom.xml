@@ -72,6 +72,7 @@ under the License.
 		<module>flink-end-to-end-tests</module>
 		<module>flink-test-utils-parent</module>
 		<module>flink-state-backends</module>
+		<module>flink-dstl</module>
 		<module>flink-libraries</module>
 		<module>flink-table</module>
 		<module>flink-quickstart</module>

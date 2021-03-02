@@ -33,7 +33,14 @@ import java.io.IOException;
 public interface StateChangelogWriterFactory<Handle extends StateChangelogHandle<?>>
         extends AutoCloseable {
 
-    StateChangelogWriter<Handle> createWriter(OperatorID operatorID, KeyGroupRange keyGroupRange);
+    @Internal
+    @FunctionalInterface
+    interface ChangelogCallbackExecutor {
+        void execute(Runnable callback);
+    }
+
+    StateChangelogWriter<Handle> createWriter(
+            OperatorID operatorID, KeyGroupRange keyGroupRange, ChangelogCallbackExecutor executor);
 
     @Override
     default void close() throws Exception {}
