@@ -35,7 +35,7 @@ public interface StateChangelogWriter<Handle extends ChangelogStateHandle> exten
     SequenceNumber lastAppendedSequenceNumber();
 
     /** Appends the provided data to this log. No persistency guarantees. */
-    void append(int keyGroup, byte[] value);
+    void append(int keyGroup, byte[] value) throws IOException;
 
     /**
      * Durably persist previously {@link #append(int, byte[]) appended} data starting from the
