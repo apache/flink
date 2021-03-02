@@ -24,9 +24,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.minicluster.MiniCluster;
-import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CancelableInvokable;
 import org.apache.flink.util.TestLogger;
 
@@ -118,7 +118,8 @@ public class PerJobMiniClusterFactoryTest extends TestLogger {
         PerJobMiniClusterFactory perJobMiniClusterFactory = initializeMiniCluster();
 
         // JobGraph is not a valid job
-        JobGraph jobGraph = new JobGraph();
+
+        JobGraph jobGraph = JobGraphTestUtils.emptyJobGraph();
 
         assertThrows(
                 "Could not instantiate JobManager",
@@ -180,19 +181,13 @@ public class PerJobMiniClusterFactoryTest extends TestLogger {
     }
 
     private static JobGraph getNoopJobGraph() {
-        JobGraph jobGraph = new JobGraph();
-        JobVertex jobVertex = new JobVertex("jobVertex");
-        jobVertex.setInvokableClass(NoOpInvokable.class);
-        jobGraph.addVertex(jobVertex);
-        return jobGraph;
+        return JobGraphTestUtils.singleNoOpJobGraph();
     }
 
     private static JobGraph getCancellableJobGraph() {
-        JobGraph jobGraph = new JobGraph();
         JobVertex jobVertex = new JobVertex("jobVertex");
         jobVertex.setInvokableClass(MyCancellableInvokable.class);
-        jobGraph.addVertex(jobVertex);
-        return jobGraph;
+        return JobGraphTestUtils.singleVertexJobGraph(jobVertex);
     }
 
     /** Invokable which waits until it is cancelled. */
