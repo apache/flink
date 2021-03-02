@@ -19,7 +19,6 @@
 package org.apache.flink.core.memory;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.util.JavaGcCleanerWrapper;
 import org.apache.flink.util.Preconditions;
 
 import java.lang.reflect.Field;
@@ -114,21 +113,15 @@ public class MemoryUtils {
     /**
      * Creates a cleaner to release the unsafe memory by VM GC.
      *
-     * <p>When memory owner becomes <a href="package-summary.html#reachability">phantom
-     * reachable</a>, GC will release the underlying unsafe memory if not released yet.
-     *
-     * @param owner memory owner which phantom reaching is to monitor by GC and release the unsafe
-     *     memory
      * @param address address of the unsafe memory to release
+     * @param customCleanup A custom action to clean up GC
      * @return action to run to release the unsafe memory manually
      */
-    static Runnable createMemoryGcCleaner(Object owner, long address, Runnable customCleanup) {
-        return JavaGcCleanerWrapper.createCleaner(
-                owner,
-                () -> {
-                    releaseUnsafe(address);
-                    customCleanup.run();
-                });
+    static Runnable createMemoryGcCleaner(long address, Runnable customCleanup) {
+        return () -> {
+            releaseUnsafe(address);
+            customCleanup.run();
+        };
     }
 
     private static void releaseUnsafe(long address) {
