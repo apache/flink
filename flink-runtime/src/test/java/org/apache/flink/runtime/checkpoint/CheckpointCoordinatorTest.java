@@ -3254,10 +3254,11 @@ public class CheckpointCoordinatorTest extends TestLogger {
         final JobID jobId = new JobID();
 
         // set up the coordinator
-        CheckpointCoordinator checkpointCoordinator = new CheckpointCoordinatorBuilder()
-                .setJobId(jobId)
-                .setTimer(manuallyTriggeredScheduledExecutor)
-                .build();
+        CheckpointCoordinator checkpointCoordinator =
+                new CheckpointCoordinatorBuilder()
+                        .setJobId(jobId)
+                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .build();
 
         TestResetHook hook = new TestResetHook("id");
 
