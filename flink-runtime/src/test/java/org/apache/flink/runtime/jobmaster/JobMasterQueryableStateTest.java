@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -85,7 +86,7 @@ public class JobMasterQueryableStateTest extends TestLogger {
         JOB_VERTEX_1.setSlotSharingGroup(slotSharingGroup);
         JOB_VERTEX_2.setSlotSharingGroup(slotSharingGroup);
 
-        JOB_GRAPH = new JobGraph(JOB_VERTEX_1, JOB_VERTEX_2);
+        JOB_GRAPH = JobGraphTestUtils.streamingJobGraph(JOB_VERTEX_1, JOB_VERTEX_2);
         JOB_GRAPH.setJobType(JobType.STREAMING);
     }
 

@@ -43,6 +43,7 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
@@ -372,7 +373,7 @@ public class SavepointITCase extends TestLogger {
         vertex.setInvokableClass(BlockingNoOpInvokable.class);
         vertex.setParallelism(1);
 
-        final JobGraph graph = new JobGraph(vertex);
+        final JobGraph graph = JobGraphTestUtils.streamingJobGraph(vertex);
 
         try {
             client.submitJob(graph).get();

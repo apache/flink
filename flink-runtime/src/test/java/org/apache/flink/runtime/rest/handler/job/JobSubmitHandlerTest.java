@@ -27,6 +27,7 @@ import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.net.SSLUtilsTest;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -250,7 +251,7 @@ public class JobSubmitHandlerTest extends TestLogger {
         final Path jarFile = TEMPORARY_FOLDER.newFile().toPath();
         final Path artifactFile = TEMPORARY_FOLDER.newFile().toPath();
 
-        final JobGraph jobGraph = new JobGraph();
+        final JobGraph jobGraph = JobGraphTestUtils.emptyJobGraph();
         // the entry that should be updated
         jobGraph.addUserArtifact(
                 dcEntryName, new DistributedCache.DistributedCacheEntry("random", false));

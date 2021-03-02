@@ -24,7 +24,7 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAda
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -241,7 +241,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
     public void testSendCancelAndReceiveFail() throws Exception {
         final SchedulerBase scheduler =
                 SchedulerTestingUtils.createScheduler(
-                        new JobGraph(createNoOpVertex(10)),
+                        JobGraphTestUtils.streamingJobGraph(createNoOpVertex(10)),
                         ComponentMainThreadExecutorServiceAdapter.forMainThread());
         final ExecutionGraph graph = scheduler.getExecutionGraph();
 

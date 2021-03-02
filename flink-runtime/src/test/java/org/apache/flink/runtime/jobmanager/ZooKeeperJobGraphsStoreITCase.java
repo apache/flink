@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmanager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.dispatcher.NoOpJobGraphListener;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.JobGraphStore.JobGraphListener;
 import org.apache.flink.runtime.persistence.RetrievableStateStorageHelper;
@@ -302,7 +303,7 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
         submittedJobGraphStore.start(listener);
         otherSubmittedJobGraphStore.start(listener);
 
-        final JobGraph jobGraph = new JobGraph();
+        final JobGraph jobGraph = JobGraphTestUtils.emptyJobGraph();
         submittedJobGraphStore.putJobGraph(jobGraph);
 
         final JobGraph recoveredJobGraph =

@@ -48,7 +48,7 @@ import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGate
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobType;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -761,9 +761,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
     }
 
     private static JobGraph createJobGraph() {
-        final JobGraph jobGraph = new JobGraph(JOB_VERTEX);
-        jobGraph.setJobType(JobType.STREAMING);
-        return jobGraph;
+        return JobGraphTestUtils.streamingJobGraph(JOB_VERTEX);
     }
 
     private static class LifecycleMethodCapturingState extends DummyState {

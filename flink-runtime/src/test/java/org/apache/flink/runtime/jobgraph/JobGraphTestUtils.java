@@ -40,9 +40,8 @@ public class JobGraphTestUtils {
         return jobGraph;
     }
 
-    public static JobGraph singleVertexJobGraph(JobVertex jobVertex) {
-        JobGraph jobGraph = new JobGraph();
-        jobGraph.addVertex(jobVertex);
+    public static JobGraph streamingJobGraph(JobVertex... jobVertices) {
+        JobGraph jobGraph = new JobGraph(jobVertices);
         jobGraph.setJobType(JobType.STREAMING);
 
         return jobGraph;
