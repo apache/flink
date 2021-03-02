@@ -32,6 +32,12 @@ if [ -z "$FLINK_DIR" ] ; then
     exit 1
 fi
 
+# Start artifact cache proxy
+CACHE_PROXY="http://localhost:7644/"
+export CACHE_PROXY
+python3 ${END_TO_END_DIR}/../tools/ci/e2e_artifact_cache.py -p 7654 -d $E2E_ARTIFACT_CACHE_FOLDER &
+CACHE_PID=$!
+
 source "${END_TO_END_DIR}/../tools/ci/maven-utils.sh"
 source "${END_TO_END_DIR}/test-scripts/test-runner-common.sh"
 
@@ -275,5 +281,6 @@ run_mvn ${MVN_COMMON_OPTIONS} ${MVN_LOGGING_OPTIONS} ${PROFILE} verify -pl ${e2e
 
 EXIT_CODE=$?
 
+kill $CACHE_PID
 
 exit $EXIT_CODE

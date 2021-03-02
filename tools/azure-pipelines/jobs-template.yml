@@ -226,6 +226,13 @@ jobs:
     - script: ${{parameters.environment}} ./tools/ci/compile.sh
       displayName: Build Flink
       condition: not(eq(variables['SKIP'], '1'))
+    - task: Cache@2
+      inputs:
+        key: e2e-artifact-cache | tools/ci/.cache/*.cache
+        path: $(E2E_ARTIFACT_CACHE_FOLDER)
+      displayName: Cache E2E artifact files
+      continueOnError: true
+      condition: not(eq(variables['SKIP'], '1'))
     - script: ${{parameters.environment}} FLINK_DIR=`pwd`/build-target ./tools/azure-pipelines/e2e_uploading_watchdog.sh flink-end-to-end-tests/run-nightly-tests.sh
       timeoutInMinutes: 250
       displayName: Run e2e tests
