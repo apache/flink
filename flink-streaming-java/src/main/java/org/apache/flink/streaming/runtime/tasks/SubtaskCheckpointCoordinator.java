@@ -43,6 +43,12 @@ import java.util.function.Supplier;
 @Internal
 public interface SubtaskCheckpointCoordinator extends Closeable {
 
+    /**
+     * TODO Whether enables checkpoints after tasks finished. This is a temporary flag and will be
+     * removed in the last PR.
+     */
+    void setEnableCheckpointAfterTasksFinished(boolean enableCheckpointAfterTasksFinished);
+
     /** Initialize new checkpoint. */
     void initInputsCheckpoint(long id, CheckpointOptions checkpointOptions)
             throws CheckpointException;
