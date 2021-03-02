@@ -25,6 +25,7 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.StringUtils;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.rules.ExpectedException;
@@ -61,6 +62,11 @@ public abstract class JsonPlanTestBase {
         EnvironmentSettings settings =
                 EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
         tableEnv = (TableEnvironmentInternal) TableEnvironment.create(settings);
+    }
+
+    @After
+    public void after() {
+        TestValuesTableFactory.clearAllData();
     }
 
     protected void createTestValuesSourceTable(
@@ -106,6 +112,40 @@ public abstract class JsonPlanTestBase {
         tableEnv.executeSql(ddl);
     }
 
+    protected void createTestValuesSinkTable(String tableName, String... fieldNameAndTypes) {
+        createTestValuesSinkTable(tableName, fieldNameAndTypes, new HashMap<>());
+    }
+
+    protected void createTestValuesSinkTable(
+            String tableName, String[] fieldNameAndTypes, Map<String, String> extraProperties) {
+        createTestValuesSinkTable(tableName, fieldNameAndTypes, null, extraProperties);
+    }
+
+    protected void createTestValuesSinkTable(
+            String tableName,
+            String[] fieldNameAndTypes,
+            @Nullable String partitionFields,
+            Map<String, String> extraProperties) {
+        checkArgument(fieldNameAndTypes.length > 0);
+        String partitionedBy =
+                StringUtils.isNullOrWhitespaceOnly(partitionFields)
+                        ? ""
+                        : "\n partitioned by (" + partitionFields + ") \n";
+        Map<String, String> properties = new HashMap<>();
+        properties.put("connector", "values");
+        properties.putAll(extraProperties);
+        String ddl =
+                String.format(
+                        "CREATE TABLE %s (\n" + "%s\n" + ") %s with (\n%s)",
+                        tableName,
+                        String.join(",\n", fieldNameAndTypes),
+                        partitionedBy,
+                        properties.entrySet().stream()
+                                .map(e -> String.format("'%s'='%s'", e.getKey(), e.getValue()))
+                                .collect(Collectors.joining(",\n")));
+        tableEnv.executeSql(ddl);
+    }
+
     protected void createTestCsvSourceTable(
             String tableName, List<String> data, String... fieldNameAndTypes) throws IOException {
         checkArgument(fieldNameAndTypes.length > 0);
@@ -128,18 +168,29 @@ public abstract class JsonPlanTestBase {
 
     protected File createTestCsvSinkTable(String tableName, String... fieldNameAndTypes)
             throws IOException {
+        return createTestCsvSinkTable(tableName, fieldNameAndTypes, null);
+    }
+
+    protected File createTestCsvSinkTable(
+            String tableName, String[] fieldNameAndTypes, @Nullable String partitionFields)
+            throws IOException {
         checkArgument(fieldNameAndTypes.length > 0);
+        String partitionedBy =
+                StringUtils.isNullOrWhitespaceOnly(partitionFields)
+                        ? ""
+                        : "\n partitioned by (" + partitionFields + ") \n";
         File sinkPath = tmpFolder.newFolder();
         String ddl =
                 String.format(
                         "CREATE TABLE %s (\n"
                                 + "%s\n"
-                                + ") with (\n"
+                                + ") %s with (\n"
                                 + "  'connector' = 'filesystem',\n"
                                 + "  'path' = '%s',\n"
                                 + "  'format' = 'testcsv')",
                         tableName,
                         String.join(",\n", fieldNameAndTypes),
+                        partitionedBy,
                         sinkPath.getAbsolutePath());
         tableEnv.executeSql(ddl);
         return sinkPath;
@@ -147,6 +198,10 @@ public abstract class JsonPlanTestBase {
 
     protected void assertResult(List<String> expected, File resultFile) throws IOException {
         List<String> actual = readLines(resultFile);
+        assertResult(expected, actual);
+    }
+
+    protected void assertResult(List<String> expected, List<String> actual) throws IOException {
         Collections.sort(expected);
         Collections.sort(actual);
         assertEquals(expected, actual);
@@ -155,9 +210,14 @@ public abstract class JsonPlanTestBase {
     protected List<String> readLines(File path) throws IOException {
         List<String> result = new ArrayList<>();
         for (File file : checkNotNull(path.listFiles())) {
+            if (file.isHidden()) {
+                continue;
+            }
             if (file.isFile()) {
                 String value = new String(Files.readAllBytes(file.toPath()));
                 result.addAll(Arrays.asList(value.split("\n")));
+            } else {
+                result.addAll(readLines(file));
             }
         }
         return result;
