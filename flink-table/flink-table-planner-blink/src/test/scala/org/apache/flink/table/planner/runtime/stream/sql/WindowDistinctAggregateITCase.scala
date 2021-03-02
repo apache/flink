@@ -47,6 +47,102 @@ class WindowDistinctAggregateITCase(
     backend: StateBackendMode)
   extends StreamingWithStateTestBase(backend) {
 
+  // -------------------------------------------------------------------------------
+  // Expected output data for TUMBLE WINDOW tests
+  // Result of CUBE(name), ROLLUP(name), GROUPING SETS((`name`),()) should be same
+  // -------------------------------------------------------------------------------
+  val TumbleWindowGroupSetExpectedData = Seq(
+    "0,a,2020-10-10T00:00,2020-10-10T00:00:05,4,11.10,5.0,1.0,2",
+    "0,a,2020-10-10T00:00:05,2020-10-10T00:00:10,1,3.33,null,3.0,1",
+    "0,b,2020-10-10T00:00:05,2020-10-10T00:00:10,2,6.66,6.0,3.0,2",
+    "0,b,2020-10-10T00:00:15,2020-10-10T00:00:20,1,4.44,4.0,4.0,1",
+    "0,b,2020-10-10T00:00:30,2020-10-10T00:00:35,1,3.33,3.0,3.0,1",
+    "0,null,2020-10-10T00:00:30,2020-10-10T00:00:35,1,7.77,7.0,7.0,0",
+    "1,null,2020-10-10T00:00,2020-10-10T00:00:05,4,11.10,5.0,1.0,2",
+    "1,null,2020-10-10T00:00:05,2020-10-10T00:00:10,3,9.99,6.0,3.0,3",
+    "1,null,2020-10-10T00:00:15,2020-10-10T00:00:20,1,4.44,4.0,4.0,1",
+    "1,null,2020-10-10T00:00:30,2020-10-10T00:00:35,2,11.10,7.0,3.0,1")
+
+  val TumbleWindowCubeExpectedData = TumbleWindowGroupSetExpectedData
+
+  val TumbleWindowRollupExpectedData = TumbleWindowGroupSetExpectedData
+
+  val CascadingTumbleWindowGroupSetExpectedData = Seq(
+    "0,a,2020-10-10T00:00,2020-10-10T00:00:10,5,14.43,5.0,1.0,3",
+    "0,b,2020-10-10T00:00,2020-10-10T00:00:10,2,6.66,6.0,3.0,2",
+    "0,b,2020-10-10T00:00:10,2020-10-10T00:00:20,1,4.44,4.0,4.0,1",
+    "0,b,2020-10-10T00:00:30,2020-10-10T00:00:40,1,3.33,3.0,3.0,1",
+    "0,null,2020-10-10T00:00:30,2020-10-10T00:00:40,1,7.77,7.0,7.0,0",
+    "1,null,2020-10-10T00:00,2020-10-10T00:00:10,7,21.09,6.0,1.0,5",
+    "1,null,2020-10-10T00:00:10,2020-10-10T00:00:20,1,4.44,4.0,4.0,1",
+    "1,null,2020-10-10T00:00:30,2020-10-10T00:00:40,2,11.10,7.0,3.0,1")
+
+  val CascadingTumbleWindowCubeExpectedData = CascadingTumbleWindowGroupSetExpectedData
+
+  val CascadingTumbleWindowRollupExpectedData = CascadingTumbleWindowGroupSetExpectedData
+
+  // -------------------------------------------------------------------------------
+  // Expected output data for HOP WINDOW tests
+  // Result of CUBE(name), ROLLUP(name), GROUPING SETS((`name`),()) should be same
+  // -------------------------------------------------------------------------------
+  val HopWindowGroupSetExpectedData = Seq(
+    "0,a,2020-10-09T23:59:55,2020-10-10T00:00:05,4,11.10,5.0,1.0,2",
+    "0,a,2020-10-10T00:00,2020-10-10T00:00:10,5,14.43,5.0,1.0,3",
+    "0,a,2020-10-10T00:00:05,2020-10-10T00:00:15,1,3.33,null,3.0,1",
+    "0,b,2020-10-10T00:00,2020-10-10T00:00:10,2,6.66,6.0,3.0,2",
+    "0,b,2020-10-10T00:00:05,2020-10-10T00:00:15,2,6.66,6.0,3.0,2",
+    "0,b,2020-10-10T00:00:10,2020-10-10T00:00:20,1,4.44,4.0,4.0,1",
+    "0,b,2020-10-10T00:00:15,2020-10-10T00:00:25,1,4.44,4.0,4.0,1",
+    "0,b,2020-10-10T00:00:25,2020-10-10T00:00:35,1,3.33,3.0,3.0,1",
+    "0,b,2020-10-10T00:00:30,2020-10-10T00:00:40,1,3.33,3.0,3.0,1",
+    "0,null,2020-10-10T00:00:25,2020-10-10T00:00:35,1,7.77,7.0,7.0,0",
+    "0,null,2020-10-10T00:00:30,2020-10-10T00:00:40,1,7.77,7.0,7.0,0",
+    "1,null,2020-10-09T23:59:55,2020-10-10T00:00:05,4,11.10,5.0,1.0,2",
+    "1,null,2020-10-10T00:00,2020-10-10T00:00:10,7,21.09,6.0,1.0,4",
+    "1,null,2020-10-10T00:00:05,2020-10-10T00:00:15,3,9.99,6.0,3.0,3",
+    "1,null,2020-10-10T00:00:10,2020-10-10T00:00:20,1,4.44,4.0,4.0,1",
+    "1,null,2020-10-10T00:00:15,2020-10-10T00:00:25,1,4.44,4.0,4.0,1",
+    "1,null,2020-10-10T00:00:25,2020-10-10T00:00:35,2,11.10,7.0,3.0,1",
+    "1,null,2020-10-10T00:00:30,2020-10-10T00:00:40,2,11.10,7.0,3.0,1"
+  )
+  val HopWindowCubeExpectedData = HopWindowGroupSetExpectedData
+
+  val HopWindowRollupExpectedData = HopWindowGroupSetExpectedData
+
+  // -------------------------------------------------------------------------------
+  // Expected output data for CUMULATE WINDOW tests
+  // Result of CUBE(name), ROLLUP(name), GROUPING SETS((`name`),()) should be same
+  // -------------------------------------------------------------------------------
+  val CumulateWindowGroupSetExpectedData = Seq(
+    "0,a,2020-10-10T00:00,2020-10-10T00:00:05,4,11.10,5.0,1.0,2",
+    "0,a,2020-10-10T00:00,2020-10-10T00:00:10,5,14.43,5.0,1.0,3",
+    "0,a,2020-10-10T00:00,2020-10-10T00:00:15,5,14.43,5.0,1.0,3",
+    "0,b,2020-10-10T00:00,2020-10-10T00:00:10,2,6.66,6.0,3.0,2",
+    "0,b,2020-10-10T00:00,2020-10-10T00:00:15,2,6.66,6.0,3.0,2",
+    "0,b,2020-10-10T00:00:15,2020-10-10T00:00:20,1,4.44,4.0,4.0,1",
+    "0,b,2020-10-10T00:00:15,2020-10-10T00:00:25,1,4.44,4.0,4.0,1",
+    "0,b,2020-10-10T00:00:15,2020-10-10T00:00:30,1,4.44,4.0,4.0,1",
+    "0,b,2020-10-10T00:00:30,2020-10-10T00:00:35,1,3.33,3.0,3.0,1",
+    "0,b,2020-10-10T00:00:30,2020-10-10T00:00:40,1,3.33,3.0,3.0,1",
+    "0,b,2020-10-10T00:00:30,2020-10-10T00:00:45,1,3.33,3.0,3.0,1",
+    "0,null,2020-10-10T00:00:30,2020-10-10T00:00:35,1,7.77,7.0,7.0,0",
+    "0,null,2020-10-10T00:00:30,2020-10-10T00:00:40,1,7.77,7.0,7.0,0",
+    "0,null,2020-10-10T00:00:30,2020-10-10T00:00:45,1,7.77,7.0,7.0,0",
+    "1,null,2020-10-10T00:00,2020-10-10T00:00:05,4,11.10,5.0,1.0,2",
+    "1,null,2020-10-10T00:00,2020-10-10T00:00:10,7,21.09,6.0,1.0,4",
+    "1,null,2020-10-10T00:00,2020-10-10T00:00:15,7,21.09,6.0,1.0,4",
+    "1,null,2020-10-10T00:00:15,2020-10-10T00:00:20,1,4.44,4.0,4.0,1",
+    "1,null,2020-10-10T00:00:15,2020-10-10T00:00:25,1,4.44,4.0,4.0,1",
+    "1,null,2020-10-10T00:00:15,2020-10-10T00:00:30,1,4.44,4.0,4.0,1",
+    "1,null,2020-10-10T00:00:30,2020-10-10T00:00:35,2,11.10,7.0,3.0,1",
+    "1,null,2020-10-10T00:00:30,2020-10-10T00:00:40,2,11.10,7.0,3.0,1",
+    "1,null,2020-10-10T00:00:30,2020-10-10T00:00:45,2,11.10,7.0,3.0,1"
+  )
+
+  val CumulateWindowCubeExpectedData = CumulateWindowGroupSetExpectedData
+
+  val CumulateWindowRollupExpectedData = CumulateWindowGroupSetExpectedData
+
   @Before
   override def before(): Unit = {
     super.before()
@@ -110,6 +206,90 @@ class WindowDistinctAggregateITCase(
   }
 
   @Test
+  def testTumbleWindow_GroupingSets(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  GROUPING_ID(`name`),
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*),
+        |  SUM(`bigdec`),
+        |  MAX(`double`),
+        |  MIN(`float`),
+        |  COUNT(DISTINCT `string`)
+        |FROM TABLE(
+        |   TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))
+        |GROUP BY GROUPING SETS((`name`),()), window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    assertEquals(
+      TumbleWindowGroupSetExpectedData.sorted.mkString("\n"),
+      sink.getAppendResults.sorted.mkString("\n"))
+  }
+
+  @Test
+  def testTumbleWindow_Cube(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  GROUPING_ID(`name`),
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*),
+        |  SUM(`bigdec`),
+        |  MAX(`double`),
+        |  MIN(`float`),
+        |  COUNT(DISTINCT `string`)
+        |FROM TABLE(
+        |   TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))
+        |GROUP BY CUBE(`name`), window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    assertEquals(
+      TumbleWindowCubeExpectedData.sorted.mkString("\n"),
+      sink.getAppendResults.sorted.mkString("\n"))
+  }
+
+  @Test
+  def testTumbleWindow_Rollup(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  GROUPING_ID(`name`),
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*),
+        |  SUM(`bigdec`),
+        |  MAX(`double`),
+        |  MIN(`float`),
+        |  COUNT(DISTINCT `string`)
+        |FROM TABLE(
+        |   TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))
+        |GROUP BY ROLLUP(`name`), window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    assertEquals(
+      TumbleWindowRollupExpectedData.sorted.mkString("\n"),
+      sink.getAppendResults.sorted.mkString("\n"))
+  }
+
+  @Test
   def testCascadingTumbleWindow(): Unit = {
     tEnv.executeSql(
       """
@@ -154,6 +334,138 @@ class WindowDistinctAggregateITCase(
   }
 
   @Test
+  def testCascadingTumbleWindow_GroupingSets(): Unit = {
+    tEnv.executeSql(
+      """
+        |CREATE VIEW V1 AS
+        |SELECT
+        |  GROUPING_ID(`name`) as group_id,
+        |  `name`,
+        |  window_time as rowtime,
+        |  COUNT(*) as cnt,
+        |  SUM(`bigdec`) as sum_bigdec,
+        |  MAX(`double`) as max_double,
+        |  MIN(`float`) as min_float,
+        |  COUNT(DISTINCT `string`) as uv
+        |FROM TABLE(
+        |   TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))
+        |GROUP BY GROUPING SETS((`name`),()), window_start, window_end, window_time
+        |""".stripMargin)
+    val sql =
+      """
+        |SELECT
+        |  group_id,
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  SUM(cnt),
+        |  SUM(sum_bigdec),
+        |  MAX(max_double),
+        |  MIN(min_float),
+        |  SUM(uv)
+        |FROM TABLE(
+        |   TUMBLE(TABLE V1, DESCRIPTOR(rowtime), INTERVAL '10' SECOND))
+        |GROUP BY group_id, `name`, window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    assertEquals(
+      CascadingTumbleWindowGroupSetExpectedData.sorted.mkString("\n"),
+      sink.getAppendResults.sorted.mkString("\n"))
+  }
+
+  @Test
+  def testCascadingTumbleWindow_Cube(): Unit = {
+    tEnv.executeSql(
+      """
+        |CREATE VIEW V1 AS
+        |SELECT
+        |  GROUPING_ID(`name`) as group_id,
+        |  `name`,
+        |  window_time as rowtime,
+        |  COUNT(*) as cnt,
+        |  SUM(`bigdec`) as sum_bigdec,
+        |  MAX(`double`) as max_double,
+        |  MIN(`float`) as min_float,
+        |  COUNT(DISTINCT `string`) as uv
+        |FROM TABLE(
+        |   TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))
+        |GROUP BY CUBE(`name`), window_start, window_end, window_time
+        |""".stripMargin)
+    val sql =
+      """
+        |SELECT
+        |  group_id,
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  SUM(cnt),
+        |  SUM(sum_bigdec),
+        |  MAX(max_double),
+        |  MIN(min_float),
+        |  SUM(uv)
+        |FROM TABLE(
+        |   TUMBLE(TABLE V1, DESCRIPTOR(rowtime), INTERVAL '10' SECOND))
+        |GROUP BY group_id, `name`, window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    assertEquals(
+      CascadingTumbleWindowCubeExpectedData.sorted.mkString("\n"),
+      sink.getAppendResults.sorted.mkString("\n"))
+  }
+
+  @Test
+  def testCascadingTumbleWindow_Rollup(): Unit = {
+    tEnv.executeSql(
+      """
+        |CREATE VIEW V1 AS
+        |SELECT
+        |  GROUPING_ID(`name`) as group_id,
+        |  `name`,
+        |  window_time as rowtime,
+        |  COUNT(*) as cnt,
+        |  SUM(`bigdec`) as sum_bigdec,
+        |  MAX(`double`) as max_double,
+        |  MIN(`float`) as min_float,
+        |  COUNT(DISTINCT `string`) as uv
+        |FROM TABLE(
+        |   TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))
+        |GROUP BY ROLLUP(`name`), window_start, window_end, window_time
+        |""".stripMargin)
+    val sql =
+      """
+        |SELECT
+        |  group_id,
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  SUM(cnt),
+        |  SUM(sum_bigdec),
+        |  MAX(max_double),
+        |  MIN(min_float),
+        |  SUM(uv)
+        |FROM TABLE(
+        |   TUMBLE(TABLE V1, DESCRIPTOR(rowtime), INTERVAL '10' SECOND))
+        |GROUP BY group_id, `name`, window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    assertEquals(
+      CascadingTumbleWindowRollupExpectedData.sorted.mkString("\n"),
+      sink.getAppendResults.sorted.mkString("\n"))
+  }
+
+  @Test
   def testHopWindow(): Unit = {
     val sql =
       """
@@ -188,6 +500,90 @@ class WindowDistinctAggregateITCase(
       "null,2020-10-10T00:00:25,2020-10-10T00:00:35,1,7.77,7.0,7.0,0",
       "null,2020-10-10T00:00:30,2020-10-10T00:00:40,1,7.77,7.0,7.0,0")
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+  }
+
+  @Test
+  def testHopWindow_GroupingSets(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  GROUPING_ID(`name`),
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*),
+        |  SUM(`bigdec`),
+        |  MAX(`double`),
+        |  MIN(`float`),
+        |  COUNT(DISTINCT `string`)
+        |FROM TABLE(
+        |   HOP(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '10' SECOND))
+        |GROUP BY GROUPING SETS((`name`),()), window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    assertEquals(
+      HopWindowGroupSetExpectedData.sorted.mkString("\n"),
+      sink.getAppendResults.sorted.mkString("\n"))
+  }
+
+  @Test
+  def testHopWindow_Cube(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  GROUPING_ID(`name`),
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*),
+        |  SUM(`bigdec`),
+        |  MAX(`double`),
+        |  MIN(`float`),
+        |  COUNT(DISTINCT `string`)
+        |FROM TABLE(
+        |   HOP(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '10' SECOND))
+        |GROUP BY CUBE(`name`), window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    assertEquals(
+      HopWindowCubeExpectedData.sorted.mkString("\n"),
+      sink.getAppendResults.sorted.mkString("\n"))
+  }
+
+  @Test
+  def testHopWindow_Rollup(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  GROUPING_ID(`name`),
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*),
+        |  SUM(`bigdec`),
+        |  MAX(`double`),
+        |  MIN(`float`),
+        |  COUNT(DISTINCT `string`)
+        |FROM TABLE(
+        |   HOP(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '10' SECOND))
+        |GROUP BY ROLLUP(`name`), window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    assertEquals(
+      HopWindowRollupExpectedData.sorted.mkString("\n"),
+      sink.getAppendResults.sorted.mkString("\n"))
   }
 
   @Test
@@ -232,6 +628,102 @@ class WindowDistinctAggregateITCase(
       "null,2020-10-10T00:00:30,2020-10-10T00:00:40,1,7.77,7.0,7.0,0",
       "null,2020-10-10T00:00:30,2020-10-10T00:00:45,1,7.77,7.0,7.0,0")
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+  }
+
+  @Test
+  def testCumulateWindow_GroupingSets(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  GROUPING_ID(`name`),
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*),
+        |  SUM(`bigdec`),
+        |  MAX(`double`),
+        |  MIN(`float`),
+        |  COUNT(DISTINCT `string`)
+        |FROM TABLE(
+        |   CUMULATE(
+        |     TABLE T1,
+        |     DESCRIPTOR(rowtime),
+        |     INTERVAL '5' SECOND,
+        |     INTERVAL '15' SECOND))
+        |GROUP BY GROUPING SETS((`name`),()), window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    assertEquals(
+      CumulateWindowGroupSetExpectedData.sorted.mkString("\n"),
+      sink.getAppendResults.sorted.mkString("\n"))
+  }
+
+  @Test
+  def testCumulateWindow_Cube(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  GROUPING_ID(`name`),
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*),
+        |  SUM(`bigdec`),
+        |  MAX(`double`),
+        |  MIN(`float`),
+        |  COUNT(DISTINCT `string`)
+        |FROM TABLE(
+        |   CUMULATE(
+        |     TABLE T1,
+        |     DESCRIPTOR(rowtime),
+        |     INTERVAL '5' SECOND,
+        |     INTERVAL '15' SECOND))
+        |GROUP BY Cube(`name`), window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    assertEquals(
+      CumulateWindowCubeExpectedData.sorted.mkString("\n"),
+      sink.getAppendResults.sorted.mkString("\n"))
+  }
+
+  @Test
+  def testCumulateWindow_Rollup(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  GROUPING_ID(`name`),
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*),
+        |  SUM(`bigdec`),
+        |  MAX(`double`),
+        |  MIN(`float`),
+        |  COUNT(DISTINCT `string`)
+        |FROM TABLE(
+        |   CUMULATE(
+        |     TABLE T1,
+        |     DESCRIPTOR(rowtime),
+        |     INTERVAL '5' SECOND,
+        |     INTERVAL '15' SECOND))
+        |GROUP BY ROLLUP(`name`), window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    assertEquals(
+      CumulateWindowRollupExpectedData.sorted.mkString("\n"),
+      sink.getAppendResults.sorted.mkString("\n"))
   }
 }
 
