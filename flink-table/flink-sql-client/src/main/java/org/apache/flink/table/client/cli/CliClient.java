@@ -42,6 +42,8 @@ import org.jline.utils.InfoCmp;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOError;
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -72,6 +74,8 @@ public class CliClient implements AutoCloseable {
 
     private final String prompt;
 
+    private final @Nullable MaskingCallback inputTransformer;
+
     private boolean isRunning;
 
     private static final int PLAIN_TERMINAL_WIDTH = 80;
@@ -85,10 +89,16 @@ public class CliClient implements AutoCloseable {
      * using {@link #close()}.
      */
     @VisibleForTesting
-    public CliClient(Terminal terminal, String sessionId, Executor executor, Path historyFilePath) {
+    public CliClient(
+            Terminal terminal,
+            String sessionId,
+            Executor executor,
+            Path historyFilePath,
+            @Nullable MaskingCallback inputTransformer) {
         this.terminal = terminal;
         this.sessionId = sessionId;
         this.executor = executor;
+        this.inputTransformer = inputTransformer;
 
         // make space from previous output and test the writer
         terminal.writer().println();
@@ -137,7 +147,7 @@ public class CliClient implements AutoCloseable {
      * afterwards using {@link #close()}.
      */
     public CliClient(String sessionId, Executor executor, Path historyFilePath) {
-        this(createDefaultTerminal(), sessionId, executor, historyFilePath);
+        this(createDefaultTerminal(), sessionId, executor, historyFilePath, null);
     }
 
     public Terminal getTerminal() {
@@ -197,7 +207,7 @@ public class CliClient implements AutoCloseable {
 
             final String line;
             try {
-                line = lineReader.readLine(prompt, null, (MaskingCallback) null, null);
+                line = lineReader.readLine(prompt, null, inputTransformer, null);
             } catch (UserInterruptException e) {
                 // user cancelled line with Ctrl+C
                 continue;
