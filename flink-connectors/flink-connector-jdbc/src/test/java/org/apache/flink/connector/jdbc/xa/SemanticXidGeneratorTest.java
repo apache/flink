@@ -30,7 +30,7 @@ import static org.apache.flink.connector.jdbc.xa.JdbcXaSinkTestBase.TEST_RUNTIME
 
 /** Simple uniqueness tests for the {@link SemanticXidGenerator}. */
 public class SemanticXidGeneratorTest {
-    private static final int COUNT = 10_000;
+    private static final int COUNT = 100_000;
 
     @Test
     public void testXidsUniqueAmongCheckpoints() {
@@ -40,11 +40,11 @@ public class SemanticXidGeneratorTest {
     }
 
     @Test
-    public void testXidsUniqueAmongGenerators() {
+    public void testXidsUniqueAmongJobs() {
         long checkpointId = 1L;
+        SemanticXidGenerator generator = new SemanticXidGenerator();
         checkUniqueness(
                 unused -> {
-                    SemanticXidGenerator generator = new SemanticXidGenerator();
                     generator.open();
                     return generator.generateXid(TEST_RUNTIME_CONTEXT, checkpointId);
                 });
@@ -52,9 +52,13 @@ public class SemanticXidGeneratorTest {
 
     private void checkUniqueness(Function<Integer, Xid> generate) {
         Set<Xid> generated = new HashSet<>();
+        Set<byte[]> gtrids = new HashSet<>();
         for (int i = 0; i < COUNT; i++) {
-            generated.add(generate.apply(i));
+            Xid xid = generate.apply(i);
+            generated.add(xid);
+            gtrids.add(xid.getGlobalTransactionId());
         }
         assertEquals(COUNT, generated.size());
+        assertEquals(COUNT, gtrids.size());
     }
 }
