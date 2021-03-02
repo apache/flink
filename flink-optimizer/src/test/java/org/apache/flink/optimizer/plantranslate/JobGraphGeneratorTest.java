@@ -40,6 +40,7 @@ import org.apache.flink.optimizer.testfunctions.IdentityMapper;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobGraphUtils;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -247,7 +248,7 @@ public class JobGraphGeneratorTest {
         Path directory2 = tmp.newFolder("directory2").toPath();
         Files.createDirectory(directory2.resolve("containedFile2"));
 
-        JobGraph jb = new JobGraph();
+        JobGraph jb = JobGraphTestUtils.emptyJobGraph();
 
         final String executableFileName = "executableFile";
         final String nonExecutableFileName = "nonExecutableFile";
