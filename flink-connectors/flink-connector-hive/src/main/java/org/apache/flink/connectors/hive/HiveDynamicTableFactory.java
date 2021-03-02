@@ -19,6 +19,7 @@
 package org.apache.flink.connectors.hive;
 
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.config.CatalogConfig;
@@ -27,6 +28,7 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.filesystem.FileSystemOptions;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -83,11 +85,15 @@ public class HiveDynamicTableFactory implements DynamicTableSourceFactory, Dynam
 
         // temporary table doesn't have the IS_GENERIC flag but we still consider it generic
         if (!isGeneric && !context.isTemporary()) {
+            Integer configuredParallelism =
+                    Configuration.fromMap(context.getCatalogTable().getOptions())
+                            .get(FileSystemOptions.SINK_PARALLELISM);
             return new HiveTableSink(
                     context.getConfiguration(),
                     new JobConf(hiveConf),
                     context.getObjectIdentifier(),
-                    context.getCatalogTable());
+                    context.getCatalogTable(),
+                    configuredParallelism);
         } else {
             return FactoryUtil.createTableSink(
                     null, // we already in the factory of catalog
