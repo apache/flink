@@ -145,6 +145,8 @@ abstract class PlannerBase(
 
   def getTableConfig: TableConfig = config
 
+  def getFlinkContext: FlinkContext = plannerContext.getFlinkContext
+
   private[flink] def getExecEnv: StreamExecutionEnvironment = {
     executor.asInstanceOf[ExecutorBase].getExecutionEnvironment
   }

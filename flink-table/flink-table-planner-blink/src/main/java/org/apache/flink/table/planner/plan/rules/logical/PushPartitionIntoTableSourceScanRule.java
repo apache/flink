@@ -37,6 +37,9 @@ import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.plan.abilities.source.PartitionPushDownSpec;
+import org.apache.flink.table.planner.plan.abilities.source.SourceAbilityContext;
+import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
@@ -44,6 +47,7 @@ import org.apache.flink.table.planner.plan.utils.PartitionPruner;
 import org.apache.flink.table.planner.plan.utils.RexNodeExtractor;
 import org.apache.flink.table.planner.plan.utils.RexNodeToExpressionConverter;
 import org.apache.flink.table.planner.utils.CatalogTableStatisticsConverter;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.calcite.plan.RelOptRule;
@@ -104,8 +108,8 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
         if (!catalogTable.isPartitioned() || catalogTable.getPartitionKeys().isEmpty()) {
             return false;
         }
-        return Arrays.stream(tableSourceTable.extraDigests())
-                .noneMatch(digest -> digest.startsWith("partitions=["));
+        return Arrays.stream(tableSourceTable.abilitySpecs())
+                .noneMatch(spec -> spec instanceof PartitionPushDownSpec);
     }
 
     @Override
@@ -153,7 +157,7 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
                         .toArray(LogicalType[]::new);
         RexNode finalPartitionPredicate =
                 adjustPartitionPredicate(inputFieldNames, partitionFieldNames, partitionPredicate);
-        FlinkContext context = call.getPlanner().getContext().unwrap(FlinkContext.class);
+        FlinkContext context = ShortcutUtils.unwrapContext(scan);
         Function<List<Map<String, String>>, List<Map<String, String>>> defaultPruner =
                 partitions ->
                         PartitionPruner.prunePartitions(
@@ -173,7 +177,9 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
                         inputFieldNames);
         // apply push down
         DynamicTableSource dynamicTableSource = tableSourceTable.tableSource().copy();
-        ((SupportsPartitionPushDown) dynamicTableSource).applyPartitions(remainingPartitions);
+        PartitionPushDownSpec partitionPushDownSpec =
+                new PartitionPushDownSpec(remainingPartitions);
+        partitionPushDownSpec.apply(dynamicTableSource, SourceAbilityContext.from(scan));
 
         // build new statistic
         TableStats newTableStat = null;
@@ -212,7 +218,11 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
                                         .toArray(String[]::new))
                         + "]";
         TableSourceTable newTableSourceTable =
-                tableSourceTable.copy(dynamicTableSource, newStatistic, new String[] {extraDigest});
+                tableSourceTable.copy(
+                        dynamicTableSource,
+                        newStatistic,
+                        new String[] {extraDigest},
+                        new SourceAbilitySpec[] {partitionPushDownSpec});
         LogicalTableScan newScan =
                 LogicalTableScan.create(scan.getCluster(), newTableSourceTable, scan.getHints());
 
