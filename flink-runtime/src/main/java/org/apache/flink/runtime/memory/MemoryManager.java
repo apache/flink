@@ -540,7 +540,12 @@ public class MemoryManager {
                                 e);
                     }
 
-                    return initializer.apply(size);
+                    try {
+                        return initializer.apply(size);
+                    } catch (Throwable t) {
+                        releaseMemory(type, size);
+                        throw t;
+                    }
                 };
 
         final Consumer<Long> releaser = (size) -> releaseMemory(type, size);
