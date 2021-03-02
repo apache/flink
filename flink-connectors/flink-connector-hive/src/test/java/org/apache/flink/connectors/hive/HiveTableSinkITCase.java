@@ -23,6 +23,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.FiniteTestSource;
+import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
@@ -51,6 +52,10 @@ import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_DELAY;
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_POLICY_KIND;
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME;
+import static org.apache.flink.table.planner.utils.TableTestUtil.readFromResource;
+import static org.apache.flink.table.planner.utils.TableTestUtil.replaceStageId;
+import static org.apache.flink.table.planner.utils.TableTestUtil.replaceStreamNodeId;
+import static org.junit.Assert.assertEquals;
 
 /** Tests {@link HiveTableSink}. */
 public class HiveTableSinkITCase {
@@ -68,6 +73,70 @@ public class HiveTableSinkITCase {
         if (hiveCatalog != null) {
             hiveCatalog.close();
         }
+    }
+
+    @Test
+    public void testHiveTableSinkWithParallelismInBatch() {
+        TableEnvironment tEnv =
+                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+        tEnv.useCatalog(hiveCatalog.getName());
+        tEnv.executeSql("create database db1");
+        tEnv.useDatabase("db1");
+
+        String tableName = "test_table";
+        int parallelism = 8;
+        tEnv.executeSql(
+                String.format(
+                        "CREATE TABLE %s ("
+                                + " id int,"
+                                + " real_col int"
+                                + ") TBLPROPERTIES ("
+                                + " 'sink.parallelism' = '%s'"
+                                + ")",
+                        tableName, parallelism));
+        final String actual =
+                tEnv.explainSql(
+                        "insert into " + tableName + " select 1, 1",
+                        ExplainDetail.JSON_EXECUTION_PLAN);
+        final String expected =
+                readFromResource(
+                        "/explain/testHiveTableSinkWithParallelismInBatch.out");
+
+        assertEquals(
+                replaceStreamNodeId(replaceStageId(expected)),
+                replaceStreamNodeId(replaceStageId(actual)));
+    }
+
+    @Test
+    public void testSetSinkParallelismInStreaming() {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        TableEnvironment tEnv =
+                HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env, SqlDialect.HIVE);
+        tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+        tEnv.useCatalog(hiveCatalog.getName());
+        tEnv.executeSql("create database db1");
+        tEnv.useDatabase("db1");
+
+        String tableName = "test_table";
+        int parallelism = 8;
+        tEnv.executeSql(
+                String.format(
+                        "CREATE TABLE %s ("
+                                + " id int,"
+                                + " real_col int"
+                                + ") TBLPROPERTIES ("
+                                + " 'sink.parallelism' = '%s'"
+                                + ")",
+                        tableName, parallelism));
+        final String actual = tEnv.explainSql("insert into " + tableName + " select 1, 1", ExplainDetail.JSON_EXECUTION_PLAN);
+        final String expected =
+                readFromResource(
+                        "/explain/testHiveTableSinkWithParallelismInStreaming.out");
+
+        assertEquals(
+                replaceStreamNodeId(replaceStageId(expected)),
+                replaceStreamNodeId(replaceStageId(actual)));
     }
 
     @Test

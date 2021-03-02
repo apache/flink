@@ -80,7 +80,6 @@ public class HiveDynamicTableFactory implements DynamicTableSourceFactory, Dynam
         boolean isGeneric =
                 Boolean.parseBoolean(
                         context.getCatalogTable().getOptions().get(CatalogConfig.IS_GENERIC));
-
         // temporary table doesn't have the IS_GENERIC flag but we still consider it generic
         if (!isGeneric && !context.isTemporary()) {
             return new HiveTableSink(
