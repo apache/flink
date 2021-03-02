@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.connector.source.LookupTableSource
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.{isProctimeIndicatorType, isRowtimeIndicatorType}
-import org.apache.flink.table.planner.plan.nodes.calcite.WatermarkAssigner
 import org.apache.flink.table.planner.plan.nodes.common.CommonIntermediateTableScan
 import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalLegacyTableSourceScan, FlinkLogicalTableSourceScan}
@@ -32,7 +31,7 @@ import org.apache.flink.util.Preconditions.checkState
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.core.{Calc, JoinInfo, Snapshot, TableScan}
+import org.apache.calcite.rel.core.{JoinInfo, Snapshot, TableScan}
 import org.apache.calcite.rel.logical.{LogicalProject, LogicalTableScan}
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.{OperandTypes, ReturnTypes}
