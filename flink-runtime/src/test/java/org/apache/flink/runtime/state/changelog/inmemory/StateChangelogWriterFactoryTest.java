@@ -30,6 +30,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -54,7 +55,7 @@ public class StateChangelogWriterFactoryTest {
     @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     @Test(expected = IllegalStateException.class)
-    public void testNoAppendAfterClose() {
+    public void testNoAppendAfterClose() throws IOException {
         StateChangelogWriter<?> writer =
                 getFactory().createWriter(new OperatorID(), KeyGroupRange.of(0, 0));
         writer.close();
@@ -125,11 +126,11 @@ public class StateChangelogWriterFactoryTest {
         return bytes;
     }
 
-    private InMemoryStateChangelogWriterFactory getFactory() {
+    protected StateChangelogWriterFactory<?> getFactory() throws IOException {
         return new InMemoryStateChangelogWriterFactory();
     }
 
-    private Object getContext() {
+    protected Object getContext() {
         return null;
     }
 }

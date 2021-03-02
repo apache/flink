@@ -19,8 +19,11 @@
 package org.apache.flink.runtime.state.changelog;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.KeyGroupRange;
+
+import java.io.IOException;
 
 /**
  * {@link StateChangelogWriter} factory. Scoped to a single entity (e.g. a SubTask or
@@ -34,4 +37,7 @@ public interface StateChangelogWriterFactory<Handle extends StateChangelogHandle
 
     @Override
     default void close() throws Exception {}
+
+    /** Configure this factory. Should be called at most once. */
+    void configure(ReadableConfig config) throws IOException;
 }
