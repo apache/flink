@@ -60,8 +60,8 @@ public interface RuntimeContext {
 
     /**
      * The ID of the current job. Empty if the execution happens outside of any job context (e.g.
-     * standalone collection executor). The returned ID should NOT be used for any job management
-     * tasks.
+     * standalone collection executor). Note that Job ID can change in particular upon manual
+     * restart. The returned ID should NOT be used for any job management tasks.
      */
     Optional<JobID> getJobId();
 
