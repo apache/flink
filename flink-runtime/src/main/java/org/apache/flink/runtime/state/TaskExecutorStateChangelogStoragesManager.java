@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -67,7 +68,7 @@ public class TaskExecutorStateChangelogStoragesManager {
 
     @Nullable
     public StateChangelogStorage<?> stateChangelogStorageForJob(
-            @Nonnull JobID jobId, Configuration configuration) {
+            @Nonnull JobID jobId, Configuration configuration) throws IOException {
         if (closed) {
             throw new IllegalStateException(
                     "TaskExecutorStateChangelogStoragesManager is already closed and cannot "

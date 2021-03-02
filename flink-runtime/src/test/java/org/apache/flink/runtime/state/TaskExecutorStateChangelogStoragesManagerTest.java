@@ -32,6 +32,7 @@ import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.Iterator;
 
 import static java.util.Collections.singletonList;
@@ -41,7 +42,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public class TaskExecutorStateChangelogStoragesManagerTest {
 
     @Test
-    public void testDuplicatedAllocation() {
+    public void testDuplicatedAllocation() throws IOException {
         TaskExecutorStateChangelogStoragesManager manager =
                 new TaskExecutorStateChangelogStoragesManager();
         Configuration configuration = new Configuration();
@@ -60,7 +61,7 @@ public class TaskExecutorStateChangelogStoragesManagerTest {
     }
 
     @Test
-    public void testReleaseForJob() {
+    public void testReleaseForJob() throws IOException {
         StateChangelogStorageLoader.initialize(TestStateChangelogStorageFactory.pluginManager);
         TaskExecutorStateChangelogStoragesManager manager =
                 new TaskExecutorStateChangelogStoragesManager();
@@ -85,7 +86,7 @@ public class TaskExecutorStateChangelogStoragesManagerTest {
     }
 
     @Test
-    public void testConsistencyAmongTask() {
+    public void testConsistencyAmongTask() throws IOException {
         TaskExecutorStateChangelogStoragesManager manager =
                 new TaskExecutorStateChangelogStoragesManager();
         Configuration configuration = new Configuration();
@@ -119,7 +120,7 @@ public class TaskExecutorStateChangelogStoragesManagerTest {
     }
 
     @Test
-    public void testShutdown() {
+    public void testShutdown() throws IOException {
         StateChangelogStorageLoader.initialize(TestStateChangelogStorageFactory.pluginManager);
         TaskExecutorStateChangelogStoragesManager manager =
                 new TaskExecutorStateChangelogStoragesManager();
