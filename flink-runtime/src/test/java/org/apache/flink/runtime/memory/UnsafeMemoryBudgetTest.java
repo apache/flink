@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.memory;
 
-import org.apache.flink.util.JavaGcCleanerWrapper;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -28,8 +27,6 @@ import static org.junit.Assert.assertThat;
 
 /** Test suite for {@link UnsafeMemoryBudget}. */
 public class UnsafeMemoryBudgetTest extends TestLogger {
-    static final int MAX_SLEEPS_VERIFY_EMPTY_FOR_TESTS =
-            10; // 2^10 - 1 = (1 x 1024) - 1 ms ~ 1 s total sleep duration
 
     @Test
     public void testGetTotalMemory() {
@@ -77,27 +74,7 @@ public class UnsafeMemoryBudgetTest extends TestLogger {
         budget.releaseMemory(70L);
     }
 
-    @Test(expected = MemoryReservationException.class)
-    public void testReservationFailsIfOwnerNotGced() throws MemoryReservationException {
-        UnsafeMemoryBudget budget = createUnsafeMemoryBudget();
-        Object memoryOwner = new Object();
-        budget.reserveMemory(50L);
-        JavaGcCleanerWrapper.createCleaner(memoryOwner, () -> budget.releaseMemory(50L));
-        budget.reserveMemory(60L);
-        // this should not be reached but keeps the reference to the memoryOwner and prevents its GC
-        log.info(memoryOwner.toString());
-    }
-
-    @Test
-    public void testReservationSuccessIfOwnerGced() throws MemoryReservationException {
-        UnsafeMemoryBudget budget = createUnsafeMemoryBudget();
-        budget.reserveMemory(50L);
-        JavaGcCleanerWrapper.createCleaner(new Object(), () -> budget.releaseMemory(50L));
-        budget.reserveMemory(60L);
-        assertThat(budget.getAvailableMemorySize(), is(40L));
-    }
-
     private static UnsafeMemoryBudget createUnsafeMemoryBudget() {
-        return new UnsafeMemoryBudget(100L, MAX_SLEEPS_VERIFY_EMPTY_FOR_TESTS);
+        return new UnsafeMemoryBudget(100L);
     }
 }

@@ -60,7 +60,7 @@ public final class HybridMemorySegment extends MemorySegment {
      */
     @Nullable private ByteBuffer offHeapBuffer;
 
-    @Nullable private final Runnable cleaner;
+    @Nullable private Runnable cleaner;
 
     /**
      * Wrapping is not allowed when the underlying memory is unsafe. Unsafe memory can be actively
@@ -136,6 +136,7 @@ public final class HybridMemorySegment extends MemorySegment {
             cleaner.run();
         }
         offHeapBuffer = null; // to enable GC of unsafe memory
+        cleaner = null;
     }
 
     @Override
