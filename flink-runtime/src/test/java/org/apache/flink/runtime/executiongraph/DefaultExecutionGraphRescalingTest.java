@@ -23,6 +23,7 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.util.TestLogger;
@@ -49,7 +50,7 @@ public class DefaultExecutionGraphRescalingTest extends TestLogger {
         final int maxParallelism = 10;
         final JobVertex[] jobVertices =
                 createVerticesForSimpleBipartiteJobGraph(initialParallelism, maxParallelism);
-        final JobGraph jobGraph = new JobGraph(jobVertices);
+        final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(jobVertices);
 
         ExecutionGraph eg =
                 TestingDefaultExecutionGraphBuilder.newBuilder().setJobGraph(jobGraph).build();
@@ -104,7 +105,7 @@ public class DefaultExecutionGraphRescalingTest extends TestLogger {
         final int maxParallelism = 10;
         final JobVertex[] jobVertices =
                 createVerticesForSimpleBipartiteJobGraph(initialParallelism, maxParallelism);
-        final JobGraph jobGraph = new JobGraph(jobVertices);
+        final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(jobVertices);
 
         for (JobVertex jv : jobVertices) {
             jv.setParallelism(maxParallelism + 1);

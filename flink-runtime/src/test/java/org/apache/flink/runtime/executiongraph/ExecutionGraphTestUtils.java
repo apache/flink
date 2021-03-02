@@ -25,6 +25,7 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAda
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -330,7 +331,7 @@ public class ExecutionGraphTestUtils {
 
         ExecutionGraph executionGraph =
                 TestingDefaultExecutionGraphBuilder.newBuilder()
-                        .setJobGraph(new JobGraph(vertices))
+                        .setJobGraph(JobGraphTestUtils.streamingJobGraph(vertices))
                         .setFutureExecutor(executor)
                         .setIoExecutor(executor)
                         .setAllocationTimeout(timeout)

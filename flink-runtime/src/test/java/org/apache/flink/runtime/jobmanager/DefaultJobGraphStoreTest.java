@@ -23,6 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.checkpoint.TestingRetrievableStateStorageHelper;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.persistence.IntegerResourceVersion;
 import org.apache.flink.runtime.persistence.StateHandleStore;
 import org.apache.flink.runtime.persistence.TestingStateHandleStore;
@@ -57,7 +58,7 @@ import static org.junit.Assert.fail;
  */
 public class DefaultJobGraphStoreTest extends TestLogger {
 
-    private final JobGraph testingJobGraph = new JobGraph();
+    private final JobGraph testingJobGraph = JobGraphTestUtils.emptyJobGraph();
     private final long timeout = 100L;
 
     private TestingStateHandleStore.Builder<JobGraph> builder;

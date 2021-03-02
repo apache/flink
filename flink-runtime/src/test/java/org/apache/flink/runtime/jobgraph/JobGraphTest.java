@@ -329,7 +329,7 @@ public class JobGraphTest extends TestLogger {
 
     @Test
     public void testSetUserArtifactBlobKey() throws IOException, ClassNotFoundException {
-        JobGraph jb = new JobGraph();
+        JobGraph jb = JobGraphTestUtils.emptyJobGraph();
 
         final DistributedCache.DistributedCacheEntry[] entries = {
             new DistributedCache.DistributedCacheEntry("p1", true, true),

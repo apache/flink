@@ -187,7 +187,7 @@ public class PerJobMiniClusterFactoryTest extends TestLogger {
     private static JobGraph getCancellableJobGraph() {
         JobVertex jobVertex = new JobVertex("jobVertex");
         jobVertex.setInvokableClass(MyCancellableInvokable.class);
-        return JobGraphTestUtils.singleVertexJobGraph(jobVertex);
+        return JobGraphTestUtils.streamingJobGraph(jobVertex);
     }
 
     /** Invokable which waits until it is cancelled. */

@@ -38,6 +38,7 @@ import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGate
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -526,7 +527,7 @@ public class DefaultExecutionGraphDeploymentTest extends TestLogger {
         // execution graph that executes actions synchronously
         final SchedulerBase scheduler =
                 SchedulerTestingUtils.newSchedulerBuilder(
-                                new JobGraph(v1, v2),
+                                JobGraphTestUtils.streamingJobGraph(v1, v2),
                                 ComponentMainThreadExecutorServiceAdapter.forMainThread())
                         .setExecutionSlotAllocatorFactory(
                                 SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory())

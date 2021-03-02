@@ -197,7 +197,7 @@ public class JobMasterTest extends TestLogger {
     private static final long heartbeatInterval = 1000L;
     private static final long heartbeatTimeout = 5_000_000L;
 
-    private static final JobGraph jobGraph = new JobGraph();
+    private static final JobGraph jobGraph = JobGraphTestUtils.singleNoOpJobGraph();
 
     private static TestingRpcService rpcService;
 
@@ -1808,7 +1808,7 @@ public class JobMasterTest extends TestLogger {
         consumer.connectNewDataSetAsInput(
                 producer, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
 
-        return new JobGraph(producer, consumer);
+        return JobGraphTestUtils.batchJobGraph(producer, consumer);
     }
 
     private File createSavepoint(long savepointId) throws IOException {
