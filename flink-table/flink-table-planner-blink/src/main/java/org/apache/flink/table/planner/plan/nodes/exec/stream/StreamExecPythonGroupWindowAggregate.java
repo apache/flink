@@ -216,7 +216,9 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
             ValueLiteralExpression size = slidingWindow.size();
             ValueLiteralExpression slide = slidingWindow.slide();
             if (isProctimeAttribute(timeField) && hasTimeIntervalType(size)) {
-                windowAssiger = SlidingWindowAssigner.of(toDuration(size), toDuration(slide));
+                windowAssiger =
+                        SlidingWindowAssigner.of(toDuration(size), toDuration(slide))
+                                .withProcessingTime();
                 trigger = ProcessingTimeTriggers.afterEndOfWindow();
             } else if (isRowtimeAttribute(timeField) && hasTimeIntervalType(size)) {
                 windowAssiger = SlidingWindowAssigner.of(toDuration(size), toDuration(slide));

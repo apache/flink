@@ -348,6 +348,36 @@ class StreamPandasUDAFITTests(PyFlinkBlinkStreamTableTestCase):
                             "+I[3, 2018-03-11 02:30:00.0, 2018-03-11 03:30:00.0, 2.0]"])
         os.remove(source_path)
 
+    def test_sliding_group_window_over_proctime(self):
+        self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
+        from pyflink.table.window import Slide
+        self.t_env.register_function("mean_udaf", mean_udaf)
+
+        source_table = """
+            create table source_table(
+                a INT,
+                proctime as PROCTIME()
+            ) with(
+                'connector' = 'datagen',
+                'rows-per-second' = '1',
+                'fields.a.kind' = 'sequence',
+                'fields.a.start' = '1',
+                'fields.a.end' = '10'
+            )
+        """
+        self.t_env.execute_sql(source_table)
+        t = self.t_env.from_path("source_table")
+        iterator = t.select("a, proctime") \
+            .window(Slide.over("1.seconds").every("1.seconds").on("proctime").alias("w")) \
+            .group_by("a, w") \
+            .select("mean_udaf(a) as b, w.start").execute().collect()
+        result = [i for i in iterator]
+        # if the WindowAssigner.isEventTime() does not return false,
+        # the w.start would be 1970-01-01
+        # TODO: After fixing the TimeZone problem of window with processing time (will be fixed in
+        # FLIP-162), we should replace it with a more accurate assertion.
+        self.assertTrue(result[0][1].year > 1970)
+
     def test_sliding_group_window_over_count(self):
         self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
         # create source file path
