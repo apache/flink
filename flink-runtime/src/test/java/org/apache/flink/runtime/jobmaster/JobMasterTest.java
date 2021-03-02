@@ -70,12 +70,12 @@ import org.apache.flink.runtime.io.network.partition.TestingJobMasterPartitionTr
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobgraph.utils.JobGraphTestUtils;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.factories.UnregisteredJobManagerJobMetricGroupFactory;
@@ -454,7 +454,7 @@ public class JobMasterTest extends TestLogger {
                 new TestingJobManagerSharedServicesBuilder().build();
 
         final JobMaster jobMaster =
-                new JobMasterBuilder(JobGraphTestUtils.createSingleVertexJobGraph(), rpcService)
+                new JobMasterBuilder(JobGraphTestUtils.singleNoOpJobGraph(), rpcService)
                         .withHeartbeatServices(new HeartbeatServices(5L, 1000L))
                         .withSlotPoolServiceSchedulerFactory(
                                 DefaultSlotPoolServiceSchedulerFactory.create(
@@ -1513,7 +1513,7 @@ public class JobMasterTest extends TestLogger {
         final JobManagerSharedServices jobManagerSharedServices =
                 new TestingJobManagerSharedServicesBuilder().build();
 
-        final JobGraph jobGraph = JobGraphTestUtils.createSingleVertexJobGraph();
+        final JobGraph jobGraph = JobGraphTestUtils.singleNoOpJobGraph();
 
         final LocalUnresolvedTaskManagerLocation taskManagerUnresolvedLocation =
                 new LocalUnresolvedTaskManagerLocation();
@@ -1705,7 +1705,7 @@ public class JobMasterTest extends TestLogger {
             BiFunction<JobMasterGateway, ResourceID, BiConsumer<ResourceID, AllocatedSlotReport>>
                     heartbeatConsumerFunction)
             throws Exception {
-        final JobGraph jobGraph = JobGraphTestUtils.createSingleVertexJobGraph();
+        final JobGraph jobGraph = JobGraphTestUtils.singleNoOpJobGraph();
         final JobMasterBuilder.TestingOnCompletionActions onCompletionActions =
                 new JobMasterBuilder.TestingOnCompletionActions();
 
@@ -1826,7 +1826,7 @@ public class JobMasterTest extends TestLogger {
     }
 
     private JobGraph createSingleVertexJobWithRestartStrategy() throws IOException {
-        final JobGraph jobGraph = JobGraphTestUtils.createSingleVertexJobGraph();
+        final JobGraph jobGraph = JobGraphTestUtils.singleNoOpJobGraph();
 
         final ExecutionConfig executionConfig = new ExecutionConfig();
         executionConfig.setRestartStrategy(
