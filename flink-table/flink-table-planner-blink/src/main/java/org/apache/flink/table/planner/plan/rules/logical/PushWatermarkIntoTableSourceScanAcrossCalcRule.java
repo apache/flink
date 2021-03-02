@@ -19,11 +19,11 @@
 package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWatermarkAssigner;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rex.RexBuilder;
@@ -94,11 +94,10 @@ public class PushWatermarkIntoTableSourceScanAcrossCalcRule
                         watermarkAssigner,
                         newWatermarkExpr,
                         call.rel(2),
-                        ((FlinkContext) call.getPlanner().getContext()).getTableConfig(),
-                        false);
+                        ShortcutUtils.unwrapContext(calc).getTableConfig(),
+                        false); // useWatermarkAssignerRowType
 
-        FlinkTypeFactory typeFactory =
-                (FlinkTypeFactory) watermarkAssigner.getCluster().getTypeFactory();
+        FlinkTypeFactory typeFactory = ShortcutUtils.unwrapTypeFactory(calc);
         RexBuilder builder = call.builder().getRexBuilder();
         // cast timestamp type to rowtime type.
         RexNode newRowTimeColumn =

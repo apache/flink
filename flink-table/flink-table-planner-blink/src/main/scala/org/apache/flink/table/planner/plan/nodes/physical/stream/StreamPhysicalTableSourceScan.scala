@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
-import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec
@@ -30,6 +29,8 @@ import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.metadata.RelMetadataQuery
+
+import java.util
 
 /**
  * Stream physical RelNode to read data from an external source defined by a
@@ -57,7 +58,8 @@ class StreamPhysicalTableSourceScan(
   override def translateToExecNode(): ExecNode[_] = {
     val tableSourceSpec = new DynamicTableSourceSpec(
       tableSourceTable.tableIdentifier,
-      tableSourceTable.catalogTable)
+      tableSourceTable.catalogTable,
+      util.Arrays.asList(tableSourceTable.abilitySpecs: _*))
     tableSourceSpec.setTableSource(tableSource)
     val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
     tableSourceSpec.setReadableConfig(tableConfig.getConfiguration)

@@ -21,13 +21,12 @@ package org.apache.flink.table.planner.plan.nodes.exec.serde;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.connector.source.ScanTableSource;
-import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecSink;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSinkSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecTableSourceScan;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.AbstractExecNodeExactlyOnceVisitor;
@@ -35,7 +34,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitor;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitorImpl;
 import org.apache.flink.table.planner.plan.utils.ReflectionsUtil;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -54,7 +52,6 @@ import org.apache.calcite.rex.RexNode;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -136,31 +133,6 @@ public class ExecNodeGraphJsonPlanGenerator {
                                     String.format(
                                             "%s does not implement @JsonCreator annotation on constructor.",
                                             node.getClass().getCanonicalName()));
-                        }
-
-                        // check whether the xx push-down has been applied to the DynamicTableSource
-                        // TODO this is a temporary solution, we will introduce new interface later
-                        //  to support serializing/deserializing the push-downs.
-                        if (node instanceof StreamExecTableSourceScan) {
-                            String description = node.getDescription();
-                            if (description.contains("filter=[")
-                                    // filter=[] means push-down nothing
-                                    && !description.contains("filter=[]")) {
-                                throw new TableException(
-                                        "DynamicTableSource with filter push-down is not supported for JSON serialization now.");
-                            }
-                            if (description.contains("limit=[")) {
-                                throw new TableException(
-                                        "DynamicTableSource with limit push-down is not supported for JSON serialization now.");
-                            }
-                            if (description.contains("partitions=[")) {
-                                throw new TableException(
-                                        "DynamicTableSource with partition push-down is not supported for JSON serialization now.");
-                            }
-                            if (description.contains("watermark=[")) {
-                                throw new TableException(
-                                        "DynamicTableSource with watermark push-down is not supported for JSON serialization now.");
-                            }
                         }
                         super.visitInputs(node);
                     }
@@ -249,12 +221,11 @@ public class ExecNodeGraphJsonPlanGenerator {
                                     "The id: %s is not unique for ExecNode: %s.\nplease check it.",
                                     id, execNode.getDescription()));
                 }
-                if (execNode instanceof StreamExecTableSourceScan) {
+                if (execNode instanceof CommonExecTableSourceScan) {
                     DynamicTableSourceSpec tableSourceSpec =
-                            ((StreamExecTableSourceScan) execNode).getTableSourceSpec();
+                            ((CommonExecTableSourceScan) execNode).getTableSourceSpec();
                     tableSourceSpec.setReadableConfig(serdeCtx.getConfiguration());
                     tableSourceSpec.setClassLoader(serdeCtx.getClassLoader());
-                    applyProjectionPushDown((StreamExecTableSourceScan) execNode);
                 } else if (execNode instanceof CommonExecSink) {
                     DynamicTableSinkSpec tableSinkSpec =
                             ((CommonExecSink) execNode).getTableSinkSpec();
@@ -262,6 +233,14 @@ public class ExecNodeGraphJsonPlanGenerator {
                     tableSinkSpec.setClassLoader(serdeCtx.getClassLoader());
                 }
                 idToExecNodes.put(id, execNode);
+                if (execNode instanceof StreamExecTableSourceScan) {
+                    ((StreamExecTableSourceScan) execNode)
+                            .getTableSourceSpec()
+                            .setReadableConfig(serdeCtx.getConfiguration());
+                    ((StreamExecTableSourceScan) execNode)
+                            .getTableSourceSpec()
+                            .setClassLoader(serdeCtx.getClassLoader());
+                }
             }
             Map<Integer, List<ExecEdge>> idToInputEdges = new HashMap<>();
             Map<Integer, List<ExecEdge>> idToOutputEdges = new HashMap<>();
@@ -379,37 +358,5 @@ public class ExecNodeGraphJsonPlanGenerator {
                     execEdge.getShuffle(),
                     execEdge.getShuffleMode());
         }
-    }
-
-    // TODO this is a temporary solution, we will introduce new interface later
-    //  to support serializing/deserializing the push-downs.
-    private static void applyProjectionPushDown(StreamExecTableSourceScan scan) {
-        if (!scan.getDescription().contains("project=[")) {
-            return;
-        }
-        DynamicTableSourceSpec spec = scan.getTableSourceSpec();
-        ScanTableSource tableSource = spec.getScanTableSource();
-        if (!(tableSource instanceof SupportsProjectionPushDown)) {
-            // sanity check
-            return;
-        }
-        SupportsProjectionPushDown projectionPushDown = (SupportsProjectionPushDown) tableSource;
-        if (projectionPushDown.supportsNestedProjection()) {
-            throw new TableException(
-                    "DynamicTableSource with nested project push-down is not supported for JSON serialization now.");
-        }
-
-        RowType outputType = (RowType) scan.getOutputType();
-        List<String> originFieldNames =
-                Arrays.asList(spec.getCatalogTable().getSchema().getFieldNames());
-        if (outputType.getFieldCount() == originFieldNames.size()) {
-            // sanity check
-            return;
-        }
-        int[][] projection = new int[outputType.getFieldCount()][1];
-        for (int i = 0; i < outputType.getFieldCount(); ++i) {
-            projection[i] = new int[] {originFieldNames.indexOf(outputType.getFieldNames().get(i))};
-        }
-        projectionPushDown.applyProjection(projection);
     }
 }

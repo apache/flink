@@ -25,11 +25,20 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.abilities.source.SourceAbilityContext;
+import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
+import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
+import javax.annotation.Nullable;
+
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -38,19 +47,28 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * and create {@link DynamicTableSource} from the deserialization result.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
+@JsonInclude(JsonInclude.Include.NON_EMPTY)
 public class DynamicTableSourceSpec extends CatalogTableSpecBase {
 
+    public static final String FIELD_NAME_SOURCE_ABILITY_SPECS = "sourceAbilitySpecs";
+
     @JsonIgnore private DynamicTableSource tableSource;
+
+    @JsonProperty(FIELD_NAME_SOURCE_ABILITY_SPECS)
+    private final @Nullable List<SourceAbilitySpec> sourceAbilitySpecs;
 
     @JsonCreator
     public DynamicTableSourceSpec(
             @JsonProperty(FIELD_NAME_IDENTIFIER) ObjectIdentifier objectIdentifier,
-            @JsonProperty(FIELD_NAME_CATALOG_TABLE) CatalogTable catalogTable) {
+            @JsonProperty(FIELD_NAME_CATALOG_TABLE) CatalogTable catalogTable,
+            @Nullable @JsonProperty(FIELD_NAME_SOURCE_ABILITY_SPECS)
+                    List<SourceAbilitySpec> sourceAbilitySpecs) {
         super(objectIdentifier, catalogTable);
+        this.sourceAbilitySpecs = sourceAbilitySpecs;
     }
 
     @JsonIgnore
-    private DynamicTableSource getTableSource() {
+    private DynamicTableSource getTableSource(PlannerBase planner) {
         checkNotNull(configuration);
         if (tableSource == null) {
             tableSource =
@@ -62,13 +80,26 @@ public class DynamicTableSourceSpec extends CatalogTableSpecBase {
                             classLoader,
                             // isTemporary, it's always true since the catalog is always null now.
                             true);
+
+            if (sourceAbilitySpecs != null) {
+                RowType newProducedType =
+                        (RowType) catalogTable.getSchema().toRowDataType().getLogicalType();
+                for (SourceAbilitySpec spec : sourceAbilitySpecs) {
+                    SourceAbilityContext context =
+                            new SourceAbilityContext(planner.getFlinkContext(), newProducedType);
+                    spec.apply(tableSource, context);
+                    if (spec.getProducedType().isPresent()) {
+                        newProducedType = spec.getProducedType().get();
+                    }
+                }
+            }
         }
         return tableSource;
     }
 
     @JsonIgnore
-    public ScanTableSource getScanTableSource() {
-        DynamicTableSource tableSource = getTableSource();
+    public ScanTableSource getScanTableSource(PlannerBase planner) {
+        DynamicTableSource tableSource = getTableSource(planner);
         if (tableSource instanceof ScanTableSource) {
             return (ScanTableSource) tableSource;
         } else {
@@ -80,8 +111,8 @@ public class DynamicTableSourceSpec extends CatalogTableSpecBase {
     }
 
     @JsonIgnore
-    public LookupTableSource getLookupTableSource() {
-        DynamicTableSource tableSource = getTableSource();
+    public LookupTableSource getLookupTableSource(PlannerBase planner) {
+        DynamicTableSource tableSource = getTableSource(planner);
         if (tableSource instanceof LookupTableSource) {
             return (LookupTableSource) tableSource;
         } else {

@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.schema
 
 import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier}
 import org.apache.flink.table.connector.source.DynamicTableSource
+import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 
 import com.google.common.collect.ImmutableList
@@ -51,7 +52,8 @@ class TableSourceTable(
     val tableSource: DynamicTableSource,
     val isStreamingMode: Boolean,
     val catalogTable: CatalogTable,
-    val extraDigests: Array[String] = Array.empty)
+    val extraDigests: Array[String] = Array.empty,
+    val abilitySpecs: Array[SourceAbilitySpec] = Array.empty)
   extends FlinkPreparingTableBase(
     relOptSchema,
     rowType,
@@ -78,7 +80,8 @@ class TableSourceTable(
   def copy(
       newTableSource: DynamicTableSource,
       newRowType: RelDataType,
-      newExtraDigests: Array[String]): TableSourceTable = {
+      newExtraDigests: Array[String],
+      newAbilitySpecs: Array[SourceAbilitySpec]): TableSourceTable = {
     new TableSourceTable(
       relOptSchema,
       tableIdentifier,
@@ -87,7 +90,9 @@ class TableSourceTable(
       newTableSource,
       isStreamingMode,
       catalogTable,
-      extraDigests ++ newExtraDigests)
+      extraDigests ++ newExtraDigests,
+      abilitySpecs ++ newAbilitySpecs
+    )
   }
 
   /**
@@ -100,7 +105,8 @@ class TableSourceTable(
   def copy(
       newTableSource: DynamicTableSource,
       newStatistic: FlinkStatistic,
-      newExtraDigests: Array[String]): TableSourceTable = {
+      newExtraDigests: Array[String],
+      newAbilitySpecs: Array[SourceAbilitySpec]): TableSourceTable = {
     new TableSourceTable(
       relOptSchema,
       tableIdentifier,
@@ -109,6 +115,7 @@ class TableSourceTable(
       newTableSource,
       isStreamingMode,
       catalogTable,
-      extraDigests ++ newExtraDigests)
+      extraDigests ++ newExtraDigests,
+      abilitySpecs ++ newAbilitySpecs)
   }
 }

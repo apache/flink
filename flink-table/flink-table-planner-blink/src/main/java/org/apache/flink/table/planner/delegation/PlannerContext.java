@@ -154,6 +154,11 @@ public class PlannerContext {
         return typeFactory;
     }
 
+    /** Returns the {@link FlinkContext}. */
+    public FlinkContext getFlinkContext() {
+        return context;
+    }
+
     /**
      * Creates a configured {@link FlinkRelBuilder} for a planning session.
      *

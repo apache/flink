@@ -61,7 +61,8 @@ class BatchPhysicalTableSourceScan(
   override def translateToExecNode(): ExecNode[_] = {
     val tableSourceSpec = new DynamicTableSourceSpec(
       tableSourceTable.tableIdentifier,
-      tableSourceTable.catalogTable)
+      tableSourceTable.catalogTable,
+      util.Arrays.asList(tableSourceTable.abilitySpecs: _*))
     tableSourceSpec.setTableSource(tableSourceTable.tableSource)
     val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
     tableSourceSpec.setReadableConfig(tableConfig.getConfiguration)
