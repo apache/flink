@@ -33,6 +33,9 @@ import org.apache.flink.table.connector.sink.abilities.SupportsWritingMetadata;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.plan.abilities.sink.OverwriteSpec;
+import org.apache.flink.table.planner.plan.abilities.sink.SinkAbilitySpec;
+import org.apache.flink.table.planner.plan.abilities.sink.WritingMetadataSpec;
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalSink;
 import org.apache.flink.table.planner.plan.schema.CatalogSourceTable;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
@@ -42,7 +45,6 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.RowType.RowField;
 import org.apache.flink.table.types.utils.DataTypeUtils;
-import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptUtil;
@@ -53,6 +55,7 @@ import org.apache.calcite.rex.RexNode;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -83,8 +86,11 @@ public final class DynamicSinkUtils {
         final FlinkTypeFactory typeFactory = ShortcutUtils.unwrapTypeFactory(relBuilder);
         final TableSchema schema = table.getSchema();
 
+        List<SinkAbilitySpec> sinkAbilitySpecs = new ArrayList<>();
+
         // 1. prepare table sink
-        prepareDynamicSink(sinkOperation, sink, table);
+        prepareDynamicSink(sinkOperation, sink, table, sinkAbilitySpecs);
+        sinkAbilitySpecs.forEach(spec -> spec.apply(sink));
 
         // 2. validate the query schema to the sink's table schema and apply cast if possible
         final RelNode query =
@@ -105,7 +111,8 @@ public final class DynamicSinkUtils {
                 sinkOperation.getTableIdentifier(),
                 table,
                 sink,
-                sinkOperation.getStaticPartitions());
+                sinkOperation.getStaticPartitions(),
+                sinkAbilitySpecs.toArray(new SinkAbilitySpec[0]));
     }
 
     /**
@@ -254,14 +261,17 @@ public final class DynamicSinkUtils {
      * INSERT INTO clause and applies initial parameters.
      */
     private static void prepareDynamicSink(
-            CatalogSinkModifyOperation sinkOperation, DynamicTableSink sink, CatalogTable table) {
+            CatalogSinkModifyOperation sinkOperation,
+            DynamicTableSink sink,
+            CatalogTable table,
+            List<SinkAbilitySpec> sinkAbilitySpecs) {
         final ObjectIdentifier sinkIdentifier = sinkOperation.getTableIdentifier();
 
         validatePartitioning(sinkOperation, sinkIdentifier, sink, table.getPartitionKeys());
 
-        validateAndApplyOverwrite(sinkOperation, sinkIdentifier, sink);
+        validateAndApplyOverwrite(sinkOperation, sinkIdentifier, sink, sinkAbilitySpecs);
 
-        validateAndApplyMetadata(sinkIdentifier, sink, table.getSchema());
+        validateAndApplyMetadata(sinkIdentifier, sink, table.getSchema(), sinkAbilitySpecs);
     }
 
     /**
@@ -370,7 +380,8 @@ public final class DynamicSinkUtils {
     private static void validateAndApplyOverwrite(
             CatalogSinkModifyOperation sinkOperation,
             ObjectIdentifier sinkIdentifier,
-            DynamicTableSink sink) {
+            DynamicTableSink sink,
+            List<SinkAbilitySpec> sinkAbilitySpecs) {
         if (!sinkOperation.isOverwrite()) {
             return;
         }
@@ -383,8 +394,7 @@ public final class DynamicSinkUtils {
                             sinkIdentifier.asSummaryString(),
                             SupportsOverwrite.class.getSimpleName()));
         }
-        final SupportsOverwrite overwriteSink = (SupportsOverwrite) sink;
-        overwriteSink.applyOverwrite(sinkOperation.isOverwrite());
+        sinkAbilitySpecs.add(new OverwriteSpec(sinkOperation.isOverwrite()));
     }
 
     private static List<Integer> extractPhysicalColumns(TableSchema schema) {
@@ -424,7 +434,10 @@ public final class DynamicSinkUtils {
     }
 
     private static void validateAndApplyMetadata(
-            ObjectIdentifier sinkIdentifier, DynamicTableSink sink, TableSchema schema) {
+            ObjectIdentifier sinkIdentifier,
+            DynamicTableSink sink,
+            TableSchema schema,
+            List<SinkAbilitySpec> sinkAbilitySpecs) {
         final List<TableColumn> tableColumns = schema.getTableColumns();
         final List<Integer> metadataColumns = extractPersistedMetadataColumns(schema);
 
@@ -442,8 +455,6 @@ public final class DynamicSinkUtils {
                             DynamicTableSink.class.getSimpleName(),
                             SupportsWritingMetadata.class.getSimpleName()));
         }
-
-        final SupportsWritingMetadata metadataSink = (SupportsWritingMetadata) sink;
 
         final Map<String, DataType> metadataMap =
                 ((SupportsWritingMetadata) sink).listWritableMetadata();
@@ -495,9 +506,10 @@ public final class DynamicSinkUtils {
                     }
                 });
 
-        metadataSink.applyWritableMetadata(
-                createRequiredMetadataKeys(schema, sink),
-                TypeConversions.fromLogicalToDataType(createConsumedType(schema, sink)));
+        sinkAbilitySpecs.add(
+                new WritingMetadataSpec(
+                        createRequiredMetadataKeys(schema, sink),
+                        createConsumedType(schema, sink)));
     }
 
     /**
