@@ -838,8 +838,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
         final List<URI> jarUrls =
                 ConfigUtils.decodeListFromConfig(configuration, PipelineOptions.JARS, URI::create);
-        if (jarUrls != null
-                && YarnApplicationClusterEntryPoint.class.getName().equals(yarnClusterEntrypoint)) {
+        if (YarnApplicationClusterEntryPoint.class.getName().equals(yarnClusterEntrypoint)) {
             userJarFiles.addAll(jarUrls.stream().map(Path::new).collect(Collectors.toSet()));
         }
 
@@ -860,7 +859,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
             jobGraph.writeUserArtifactEntriesToConfiguration();
         }
 
-        if (providedLibDirs == null || providedLibDirs.isEmpty()) {
+        if (providedLibDirs.isEmpty()) {
             addLibFoldersToShipFiles(systemShipFiles);
         }
 
@@ -878,7 +877,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
         // upload and register ship-only files
         // Plugin files only need to be shipped and should not be added to classpath.
-        if (providedLibDirs == null || providedLibDirs.isEmpty()) {
+        if (providedLibDirs.isEmpty()) {
             Set<File> shipOnlyFiles = new HashSet<>();
             addPluginsFoldersToShipFiles(shipOnlyFiles);
             fileUploader.registerMultipleLocalResources(
