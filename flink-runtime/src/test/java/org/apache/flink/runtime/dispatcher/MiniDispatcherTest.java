@@ -30,6 +30,7 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServicesBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerRunner;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -96,7 +97,7 @@ public class MiniDispatcherTest extends TestLogger {
 
     @BeforeClass
     public static void setupClass() throws IOException {
-        jobGraph = new JobGraph();
+        jobGraph = JobGraphTestUtils.singleNoOpJobGraph();
 
         executionGraphInfo =
                 new ExecutionGraphInfo(
