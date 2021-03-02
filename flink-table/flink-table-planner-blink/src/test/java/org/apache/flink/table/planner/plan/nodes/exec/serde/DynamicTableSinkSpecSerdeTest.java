@@ -25,11 +25,16 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.planner.calcite.FlinkContextImpl;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
+import org.apache.flink.table.planner.plan.abilities.sink.OverwriteSpec;
+import org.apache.flink.table.planner.plan.abilities.sink.PartitioningSpec;
+import org.apache.flink.table.planner.plan.abilities.sink.WritingMetadataSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSinkSpec;
+import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.SimpleModule;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -37,6 +42,7 @@ import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -62,8 +68,6 @@ public class DynamicTableSinkSpecSerdeTest {
                         FlinkTypeFactory.INSTANCE(),
                         FlinkSqlOperatorTable.instance());
         ObjectMapper mapper = JsonSerdeUtil.createObjectMapper(serdeCtx);
-        SimpleModule module = new SimpleModule();
-        mapper.registerModule(module);
         StringWriter writer = new StringWriter(100);
         try (JsonGenerator gen = mapper.getFactory().createGenerator(writer)) {
             gen.writeObject(spec);
@@ -71,28 +75,74 @@ public class DynamicTableSinkSpecSerdeTest {
         String json = writer.toString();
         DynamicTableSinkSpec actual = mapper.readValue(json, DynamicTableSinkSpec.class);
         assertEquals(spec, actual);
+        assertNull(actual.getClassLoader());
+        actual.setClassLoader(classLoader);
         assertNull(actual.getReadableConfig());
         actual.setReadableConfig(serdeCtx.getConfiguration());
-        assertNull(actual.getClassLoader());
-        actual.setClassLoader(serdeCtx.getClassLoader());
         assertNotNull(actual.getTableSink());
     }
 
     @Parameterized.Parameters(name = "{0}")
     public static List<DynamicTableSinkSpec> testData() {
-        Map<String, String> properties = new HashMap<>();
-        properties.put("connector", "filesystem");
-        properties.put("format", "testcsv");
-        properties.put("path", "/tmp");
-        properties.put("schema.0.name", "a");
-        properties.put("schema.0.data-type", "BIGINT");
+        Map<String, String> properties1 = new HashMap<>();
+        properties1.put("connector", "filesystem");
+        properties1.put("format", "testcsv");
+        properties1.put("path", "/tmp");
+        properties1.put("schema.0.name", "a");
+        properties1.put("schema.0.data-type", "BIGINT");
 
-        DynamicTableSinkSpec spec =
+        DynamicTableSinkSpec spec1 =
                 new DynamicTableSinkSpec(
                         ObjectIdentifier.of("default_catalog", "default_db", "MyTable"),
-                        CatalogTableImpl.fromProperties(properties));
-        spec.setReadableConfig(new Configuration());
+                        CatalogTableImpl.fromProperties(properties1),
+                        Collections.emptyList());
+        spec1.setReadableConfig(new Configuration());
 
-        return Collections.singletonList(spec);
+        Map<String, String> properties2 = new HashMap<>();
+        properties2.put("connector", "filesystem");
+        properties2.put("format", "testcsv");
+        properties2.put("path", "/tmp");
+        properties2.put("schema.0.name", "a");
+        properties2.put("schema.0.data-type", "BIGINT");
+        properties2.put("schema.1.name", "b");
+        properties2.put("schema.1.data-type", "INT");
+        properties2.put("schema.2.name", "p");
+        properties2.put("schema.2.data-type", "VARCHAR");
+
+        DynamicTableSinkSpec spec2 =
+                new DynamicTableSinkSpec(
+                        ObjectIdentifier.of("default_catalog", "default_db", "MyTable"),
+                        CatalogTableImpl.fromProperties(properties2),
+                        Arrays.asList(
+                                new OverwriteSpec(true),
+                                new PartitioningSpec(
+                                        new HashMap<String, String>() {
+                                            {
+                                                put("p", "A");
+                                            }
+                                        })));
+        spec2.setReadableConfig(new Configuration());
+
+        Map<String, String> properties3 = new HashMap<>();
+        properties3.put("connector", "values");
+        properties3.put("schema.0.name", "a");
+        properties3.put("schema.0.data-type", "BIGINT");
+        properties3.put("schema.1.name", "b");
+        properties3.put("schema.1.data-type", "INT");
+        properties3.put("schema.2.name", "m");
+        properties3.put("schema.2.data-type", "VARCHAR");
+        properties3.put("writable-metadata", "m:VARCHAR");
+
+        DynamicTableSinkSpec spec3 =
+                new DynamicTableSinkSpec(
+                        ObjectIdentifier.of("default_catalog", "default_db", "MyTable"),
+                        CatalogTableImpl.fromProperties(properties3),
+                        Collections.singletonList(
+                                new WritingMetadataSpec(
+                                        Collections.singletonList("m"),
+                                        RowType.of(new BigIntType(), new IntType()))));
+        spec3.setReadableConfig(new Configuration());
+
+        return Arrays.asList(spec1, spec2, spec3);
     }
 }

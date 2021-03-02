@@ -22,6 +22,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning
 import org.apache.flink.table.filesystem.FileSystemOptions
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
+import org.apache.flink.table.planner.plan.abilities.sink.{PartitioningSpec, SinkAbilitySpec}
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSink
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalSink
@@ -33,6 +34,7 @@ import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.{RelCollationTraitDef, RelCollations, RelNode}
 
 import scala.collection.JavaConversions._
+import scala.collection.mutable
 
 class BatchPhysicalSinkRule extends ConverterRule(
     classOf[FlinkLogicalSink],
@@ -44,10 +46,17 @@ class BatchPhysicalSinkRule extends ConverterRule(
     val sinkNode = rel.asInstanceOf[FlinkLogicalSink]
     val newTrait = rel.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
     var requiredTraitSet = sinkNode.getInput.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
+    val abilitySpecs: mutable.ArrayBuffer[SinkAbilitySpec] =
+      mutable.ArrayBuffer(sinkNode.abilitySpecs: _*)
     if (sinkNode.catalogTable != null && sinkNode.catalogTable.isPartitioned) {
       sinkNode.tableSink match {
         case partitionSink: SupportsPartitioning =>
-          partitionSink.applyStaticPartition(sinkNode.staticPartitions)
+          if (sinkNode.staticPartitions.nonEmpty) {
+            val partitioningSpec = new PartitioningSpec(sinkNode.staticPartitions)
+            partitioningSpec.apply(partitionSink)
+            abilitySpecs += partitioningSpec
+          }
+
           val dynamicPartFields = sinkNode.catalogTable.getPartitionKeys
               .filter(!sinkNode.staticPartitions.contains(_))
           val fieldNames = sinkNode.catalogTable
@@ -99,7 +108,8 @@ class BatchPhysicalSinkRule extends ConverterRule(
       newInput,
       sinkNode.tableIdentifier,
       sinkNode.catalogTable,
-      sinkNode.tableSink)
+      sinkNode.tableSink,
+      abilitySpecs.toArray)
   }
 }
 

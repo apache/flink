@@ -20,9 +20,9 @@ package org.apache.flink.table.planner.plan.nodes.logical
 
 import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier}
 import org.apache.flink.table.connector.sink.DynamicTableSink
+import org.apache.flink.table.planner.plan.abilities.sink.SinkAbilitySpec
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalSink, Sink}
-import org.apache.flink.table.sinks.TableSink
 
 import org.apache.calcite.plan.{Convention, RelOptCluster, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -43,13 +43,21 @@ class FlinkLogicalSink(
     tableIdentifier: ObjectIdentifier,
     catalogTable: CatalogTable,
     tableSink: DynamicTableSink,
-    val staticPartitions: Map[String, String])
+    val staticPartitions: Map[String, String],
+    val abilitySpecs: Array[SinkAbilitySpec])
   extends Sink(cluster, traitSet, input, tableIdentifier, catalogTable, tableSink)
   with FlinkLogicalRel {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new FlinkLogicalSink(
-      cluster, traitSet, inputs.head, tableIdentifier, catalogTable, tableSink, staticPartitions)
+      cluster,
+      traitSet,
+      inputs.head,
+      tableIdentifier,
+      catalogTable,
+      tableSink,
+      staticPartitions,
+      abilitySpecs)
   }
 
 }
@@ -69,7 +77,8 @@ private class FlinkLogicalSinkConverter
       sink.tableIdentifier,
       sink.catalogTable,
       sink.tableSink,
-      sink.staticPartitions)
+      sink.staticPartitions,
+      sink.abilitySpecs)
   }
 }
 
@@ -81,10 +90,18 @@ object FlinkLogicalSink {
       tableIdentifier: ObjectIdentifier,
       catalogTable: CatalogTable,
       tableSink: DynamicTableSink,
-      staticPartitions: Map[String, String] = Map()): FlinkLogicalSink = {
+      staticPartitions: Map[String, String] = Map(),
+      abilitySpecs: Array[SinkAbilitySpec] = Array.empty): FlinkLogicalSink = {
     val cluster = input.getCluster
     val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).simplify()
     new FlinkLogicalSink(
-      cluster, traitSet, input, tableIdentifier, catalogTable, tableSink, staticPartitions)
+      cluster,
+      traitSet,
+      input,
+      tableIdentifier,
+      catalogTable,
+      tableSink,
+      staticPartitions,
+      abilitySpecs)
   }
 }

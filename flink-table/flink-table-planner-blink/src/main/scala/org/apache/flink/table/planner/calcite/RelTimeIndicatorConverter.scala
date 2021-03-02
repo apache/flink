@@ -186,7 +186,8 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
         sink.tableIdentifier,
         sink.catalogTable,
         sink.tableSink,
-        sink.staticPartitions)
+        sink.staticPartitions,
+        sink.abilitySpecs)
 
     case sink: LogicalLegacySink =>
       val newInput = convertSinkInput(sink.getInput)

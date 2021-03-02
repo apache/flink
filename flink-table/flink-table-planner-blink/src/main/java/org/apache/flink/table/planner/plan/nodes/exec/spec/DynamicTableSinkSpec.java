@@ -22,26 +22,41 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.planner.plan.abilities.sink.SinkAbilitySpec;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
+import javax.annotation.Nullable;
+
+import java.util.List;
 
 /**
  * {@link DynamicTableSourceSpec} describes how to serialize/deserialize dynamic table sink table
  * and create {@link DynamicTableSink} from the deserialization result.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
+@JsonInclude(JsonInclude.Include.NON_EMPTY)
 public class DynamicTableSinkSpec extends CatalogTableSpecBase {
 
+    public static final String FIELD_NAME_SINK_ABILITY_SPECS = "sinkAbilitySpecs";
+
     @JsonIgnore private DynamicTableSink tableSink;
+
+    @JsonProperty(FIELD_NAME_SINK_ABILITY_SPECS)
+    private final @Nullable List<SinkAbilitySpec> sinkAbilitySpecs;
 
     @JsonCreator
     public DynamicTableSinkSpec(
             @JsonProperty(FIELD_NAME_IDENTIFIER) ObjectIdentifier objectIdentifier,
-            @JsonProperty(FIELD_NAME_CATALOG_TABLE) CatalogTable catalogTable) {
+            @JsonProperty(FIELD_NAME_CATALOG_TABLE) CatalogTable catalogTable,
+            @Nullable @JsonProperty(FIELD_NAME_SINK_ABILITY_SPECS)
+                    List<SinkAbilitySpec> sinkAbilitySpecs) {
         super(objectIdentifier, catalogTable);
+        this.sinkAbilitySpecs = sinkAbilitySpecs;
     }
 
     public DynamicTableSink getTableSink() {
@@ -55,6 +70,9 @@ public class DynamicTableSinkSpec extends CatalogTableSpecBase {
                             classLoader,
                             // isTemporary, it's always true since the catalog is always null now.
                             true);
+            if (sinkAbilitySpecs != null) {
+                sinkAbilitySpecs.forEach(spec -> spec.apply(tableSink));
+            }
         }
         return tableSink;
     }
