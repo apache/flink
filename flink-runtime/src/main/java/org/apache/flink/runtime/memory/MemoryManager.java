@@ -91,14 +91,12 @@ public class MemoryManager {
      *
      * @param memorySize The total size of the off-heap memory to be managed by this memory manager.
      * @param pageSize The size of the pages handed out by the memory manager.
-     * @param verifyEmptyWaitGcMaxSleeps defines how long to wait for GC of all allocated memory to
-     *     check for memory leaks, see {@link UnsafeMemoryBudget} for details.
      */
-    MemoryManager(long memorySize, int pageSize, int verifyEmptyWaitGcMaxSleeps) {
+    MemoryManager(long memorySize, int pageSize) {
         sanityCheck(memorySize, pageSize);
 
         this.pageSize = pageSize;
-        this.memoryBudget = new UnsafeMemoryBudget(memorySize, verifyEmptyWaitGcMaxSleeps);
+        this.memoryBudget = new UnsafeMemoryBudget(memorySize);
         this.totalNumberOfPages = memorySize / pageSize;
         this.allocatedSegments = new ConcurrentHashMap<>();
         this.reservedMemory = new ConcurrentHashMap<>();
@@ -663,15 +661,14 @@ public class MemoryManager {
     /**
      * Creates a memory manager with the given capacity and given page size.
      *
-     * <p>This is a production version of MemoryManager which waits for longest time to check for
-     * memory leaks ({@link #verifyEmpty()}) once the owner of the MemoryManager is ready to
-     * dispose.
+     * <p>This is a production version of MemoryManager which checks for memory leaks ({@link
+     * #verifyEmpty()}) once the owner of the MemoryManager is ready to dispose.
      *
      * @param memorySize The total size of the off-heap memory to be managed by this memory manager.
      * @param pageSize The size of the pages handed out by the memory manager.
      */
     public static MemoryManager create(long memorySize, int pageSize) {
-        return new MemoryManager(memorySize, pageSize, UnsafeMemoryBudget.MAX_SLEEPS_VERIFY_EMPTY);
+        return new MemoryManager(memorySize, pageSize);
     }
 
     private static void validateFraction(double fraction) {
