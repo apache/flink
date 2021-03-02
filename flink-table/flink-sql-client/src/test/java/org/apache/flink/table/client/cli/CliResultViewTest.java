@@ -100,7 +100,8 @@ public class CliResultViewTest {
                             TerminalUtils.createDummyTerminal(),
                             sessionId,
                             executor,
-                            File.createTempFile("history", "tmp").toPath());
+                            File.createTempFile("history", "tmp").toPath(),
+                            null);
             resultViewRunner = new Thread(new TestingCliResultView(cli, descriptor, isTableMode));
             resultViewRunner.start();
         } finally {
