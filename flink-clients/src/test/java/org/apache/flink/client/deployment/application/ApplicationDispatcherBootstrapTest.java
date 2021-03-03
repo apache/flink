@@ -44,6 +44,7 @@ import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.SerializedThrowable;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.Test;
@@ -67,7 +68,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /** Tests for the {@link ApplicationDispatcherBootstrap}. */
-public class ApplicationDispatcherBootstrapTest {
+public class ApplicationDispatcherBootstrapTest extends TestLogger {
 
     private static final String MULTI_EXECUTE_JOB_CLASS_NAME =
             "org.apache.flink.client.testjar.MultiExecuteJob";
