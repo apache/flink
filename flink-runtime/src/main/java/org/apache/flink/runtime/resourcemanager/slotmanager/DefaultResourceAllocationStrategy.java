@@ -57,10 +57,12 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
     private final int numSlotsPerWorker;
 
     public DefaultResourceAllocationStrategy(
-            ResourceProfile defaultSlotResourceProfile, int numSlotsPerWorker) {
-        this.defaultSlotResourceProfile = defaultSlotResourceProfile;
-        this.totalResourceProfile = defaultSlotResourceProfile.multiply(numSlotsPerWorker);
+            ResourceProfile totalResourceProfile, int numSlotsPerWorker) {
+        this.totalResourceProfile = totalResourceProfile;
         this.numSlotsPerWorker = numSlotsPerWorker;
+        this.defaultSlotResourceProfile =
+                SlotManagerUtils.generateDefaultSlotResourceProfile(
+                        totalResourceProfile, numSlotsPerWorker);
     }
 
     @Override

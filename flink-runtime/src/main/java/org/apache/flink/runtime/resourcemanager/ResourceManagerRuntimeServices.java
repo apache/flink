@@ -92,9 +92,8 @@ public class ResourceManagerRuntimeServices {
                     new DefaultSlotStatusSyncer(
                             slotManagerConfiguration.getTaskManagerRequestTimeout()),
                     new DefaultResourceAllocationStrategy(
-                            SlotManagerUtils.generateDefaultSlotResourceProfile(
-                                    slotManagerConfiguration.getDefaultWorkerResourceSpec(),
-                                    slotManagerConfiguration.getNumSlotsPerWorker()),
+                            SlotManagerUtils.generateTaskManagerTotalResourceProfile(
+                                    slotManagerConfiguration.getDefaultWorkerResourceSpec()),
                             slotManagerConfiguration.getNumSlotsPerWorker()),
                     Time.milliseconds(REQUIREMENTS_CHECK_DELAY_MS));
         } else if (configuration.isDeclarativeResourceManagementEnabled()) {
