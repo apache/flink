@@ -134,6 +134,26 @@ class ReducingState(MergingState[T, T]):
     pass
 
 
+class AggregatingState(MergingState[IN, OUT]):
+    """
+    :class:`State` interface for aggregating state, based on an
+    :class:`~pyflink.datastream.functions.AggregateFunction`. Elements that are added to this type
+    of state will be eagerly pre-aggregated using a given AggregateFunction.
+
+    The state holds internally always the accumulator type of the AggregateFunction. When
+    accessing the result of the state, the function's
+    :func:`~pyflink.datastream.functions.AggregateFunction.get_result` method.
+
+    The state is accessed and modified by user functions, and checkpointed consistently by the
+    system as part of the distributed snapshots.
+
+    The state is only accessible by functions applied on a KeyedStream. The key is automatically
+    supplied by the system, so the function always sees the value mapped to the key of the current
+    element. That way, the system can handle stream and state partitioning consistently together.
+    """
+    pass
+
+
 class ListState(MergingState[T, Iterable[T]]):
     """
     :class:`State` interface for partitioned list state in Operations.
@@ -358,3 +378,25 @@ class ReducingStateDescriptor(StateDescriptor):
 
     def get_reduce_function(self):
         return self._reduce_function
+
+
+class AggregatingStateDescriptor(StateDescriptor):
+    """
+    A StateDescriptor for AggregatingState.
+
+    The type internally stored in the state is the type of the Accumulator of the
+    :func:`~pyflink.datastream.functions.AggregateFunction`.
+    """
+
+    def __init__(self,
+                 name: str,
+                 agg_function,
+                 state_type_info):
+        super(AggregatingStateDescriptor, self).__init__(name, state_type_info)
+        from pyflink.datastream.functions import AggregateFunction
+        if not isinstance(agg_function, AggregateFunction):
+            raise TypeError("The input must be a AggregateFunction!")
+        self._agg_function = agg_function
+
+    def get_agg_function(self):
+        return self._agg_function
