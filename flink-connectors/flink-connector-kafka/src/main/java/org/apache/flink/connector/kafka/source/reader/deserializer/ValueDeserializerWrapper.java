@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Map;
 
 /** A package private class to wrap {@link Deserializer}. */
-class ValueDeserializerWrapper<T> implements KafkaRecordDeserializer<T> {
+class ValueDeserializerWrapper<T> implements KafkaRecordDeserializationSchema<T> {
     private static final long serialVersionUID = 5409547407386004054L;
     private static final Logger LOG = LoggerFactory.getLogger(ValueDeserializerWrapper.class);
     private final String deserializerClass;

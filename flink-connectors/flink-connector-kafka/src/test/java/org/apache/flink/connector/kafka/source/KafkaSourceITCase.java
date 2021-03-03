@@ -23,7 +23,7 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
-import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializer;
+import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
@@ -70,7 +70,7 @@ public class KafkaSourceITCase {
                         .setBootstrapServers(KafkaSourceTestEnv.brokerConnectionStrings)
                         .setGroupId("testBasicRead")
                         .setTopics(Arrays.asList(TOPIC1, TOPIC2))
-                        .setDeserializer(new TestingKafkaRecordDeserializer())
+                        .setDeserializer(new TestingKafkaRecordDeserializationSchema())
                         .setStartingOffsets(OffsetsInitializer.earliest())
                         .setBounded(OffsetsInitializer.latest())
                         .build();
@@ -95,8 +95,8 @@ public class KafkaSourceITCase {
         }
     }
 
-    private static class TestingKafkaRecordDeserializer
-            implements KafkaRecordDeserializer<PartitionAndValue> {
+    private static class TestingKafkaRecordDeserializationSchema
+            implements KafkaRecordDeserializationSchema<PartitionAndValue> {
         private static final long serialVersionUID = -3765473065594331694L;
         private transient Deserializer<Integer> deserializer;
 
