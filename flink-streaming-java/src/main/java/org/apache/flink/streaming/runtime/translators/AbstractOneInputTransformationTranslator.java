@@ -87,7 +87,7 @@ abstract class AbstractOneInputTransformationTranslator<IN, OUT, OP extends Tran
                 "Expected exactly one input transformation but found "
                         + parentTransformations.size());
 
-        //TODO 添加streamEdge
+        //TODO 添加streamEdge 会根据下游节点特性决定partitioner是rebalance还是forward
         for (Integer inputId : context.getStreamNodeIds(parentTransformations.get(0))) {
             streamGraph.addEdge(inputId, transformationId, 0);
         }

@@ -1778,7 +1778,7 @@ public class StreamExecutionEnvironment {
      */
     public JobExecutionResult execute(String jobName) throws Exception {
         Preconditions.checkNotNull(jobName, "Streaming Job name should not be null.");
-         //TODO 生成StreamGraph并继续执行
+         //TODO 生成StreamGraph并继续执行;包含streamNode，StreamEdge的生成，StreamEdge生成时涉及Forward或reblance Partitionor的选择
         return execute(getStreamGraph(jobName));
     }
 

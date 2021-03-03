@@ -97,6 +97,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
         this.restEndpointFactory = restEndpointFactory;
     }
 
+    //TODO
     @Override
     public DispatcherResourceManagerComponent create(
             Configuration configuration,
@@ -208,6 +209,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
                             ioExecutor);
 
             log.debug("Starting Dispatcher.");
+            //TODO start Dispatcher
             dispatcherRunner =
                     dispatcherRunnerFactory.createDispatcherRunner(
                             highAvailabilityServices.getDispatcherLeaderElectionService(),

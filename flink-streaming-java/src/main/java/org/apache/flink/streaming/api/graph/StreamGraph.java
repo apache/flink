@@ -446,7 +446,7 @@ public class StreamGraph implements Pipeline {
         if (streamNodes.containsKey(vertexID)) {
             throw new RuntimeException("Duplicate vertexID " + vertexID);
         }
-
+            //TODO  创建一个streamNode
         StreamNode vertex =
                 new StreamNode(
                         vertexID,

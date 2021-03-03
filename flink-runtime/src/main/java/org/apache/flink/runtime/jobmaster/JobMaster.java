@@ -327,6 +327,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
         this.shuffleMaster = checkNotNull(shuffleMaster);
 
         this.jobManagerJobMetricGroup = jobMetricGroupFactory.create(jobGraph);
+        //TODO
         this.schedulerNG = createScheduler(executionDeploymentTracker, jobManagerJobMetricGroup);
         this.jobStatusListener = null;
 
@@ -870,7 +871,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                 jobGraph.getName(),
                 jobGraph.getJobID(),
                 newJobMasterId);
-
+        //TODO  Task调度核心逻辑
         resetAndStartScheduler();
 
         return Acknowledge.get();
@@ -1021,7 +1022,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                                         return null;
                                     });
         }
-
+        //TODO TASK调度
         FutureUtils.assertNoException(schedulerAssignedFuture.thenRun(this::startScheduling));
     }
 
@@ -1030,7 +1031,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
         // register self as job status change listener
         jobStatusListener = new JobManagerJobStatusListener();
         schedulerNG.registerJobStatusListener(jobStatusListener);
-
+         //TODO TASK调度
         schedulerNG.startScheduling();
     }
 

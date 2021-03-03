@@ -240,7 +240,7 @@ public abstract class SchedulerBase implements SchedulerNG {
         this.slotRequestTimeout = checkNotNull(slotRequestTimeout);
         this.executionVertexVersioner = checkNotNull(executionVertexVersioner);
         this.legacyScheduling = legacyScheduling;
-
+            //TODO
         this.executionGraph =
                 createAndRestoreExecutionGraph(
                         jobManagerJobMetricGroup,
@@ -314,7 +314,7 @@ public abstract class SchedulerBase implements SchedulerNG {
                 legacyScheduling
                         ? FailoverStrategyLoader.loadFailoverStrategy(jobMasterConfiguration, log)
                         : new NoOpFailoverStrategy.Factory();
-
+        //TODO
         return ExecutionGraphBuilder.buildGraph(
                 null,
                 jobGraph,

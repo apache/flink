@@ -102,12 +102,13 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
 
     @Override
     public void grantLeadership(UUID leaderSessionID) {
+        //TODO
         runActionIfRunning(() -> startNewDispatcherLeaderProcess(leaderSessionID));
     }
 
     private void startNewDispatcherLeaderProcess(UUID leaderSessionID) {
         stopDispatcherLeaderProcess();
-
+            //TODO
         dispatcherLeaderProcess = createNewDispatcherLeaderProcess(leaderSessionID);
 
         final DispatcherLeaderProcess newDispatcherLeaderProcess = dispatcherLeaderProcess;
@@ -210,6 +211,7 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
         final DefaultDispatcherRunner dispatcherRunner =
                 new DefaultDispatcherRunner(
                         leaderElectionService, fatalErrorHandler, dispatcherLeaderProcessFactory);
+        //TODO
         return DispatcherRunnerLeaderElectionLifecycleManager.createFor(
                 dispatcherRunner, leaderElectionService);
     }

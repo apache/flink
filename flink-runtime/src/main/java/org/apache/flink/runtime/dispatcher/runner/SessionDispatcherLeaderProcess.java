@@ -63,6 +63,7 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
             JobGraphStore jobGraphStore,
             Executor ioExecutor,
             FatalErrorHandler fatalErrorHandler) {
+        //TODO
         super(leaderSessionId, fatalErrorHandler);
 
         this.dispatcherGatewayServiceFactory = dispatcherGatewayServiceFactory;
@@ -74,6 +75,7 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
     protected void onStart() {
         startServices();
 
+        //TODO
         onGoingRecoveryOperation =
                 recoverJobsAsync()
                         .thenAccept(this::createDispatcherIfRunning)

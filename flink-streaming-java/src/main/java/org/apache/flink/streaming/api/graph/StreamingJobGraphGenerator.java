@@ -175,7 +175,7 @@ public class StreamingJobGraphGenerator {
         for (StreamGraphHasher hasher : legacyStreamGraphHashers) {
             legacyHashes.add(hasher.traverseStreamGraphAndGenerateHashes(streamGraph));
         }
-        //生成JobVertex,JobEdge等，尽可能将多个节点chain到一起；
+        //TODO 生成JobVertex,JobEdge等，尽可能将多个节点chain到一起；
         setChaining(hashes, legacyHashes);
 
         setPhysicalEdges();
@@ -446,6 +446,7 @@ public class StreamingJobGraphGenerator {
                 config.setOperatorName(streamGraph.getStreamNode(currentNodeId).getOperatorName());
 
                 for (StreamEdge edge : transitiveOutEdges) {
+                    //TODO 创建IntermediateDataSet 连接jobVertex和jobEdge
                     connect(startNodeId, edge);
                 }
 

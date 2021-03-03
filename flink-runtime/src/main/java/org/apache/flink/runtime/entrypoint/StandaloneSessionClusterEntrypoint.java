@@ -55,7 +55,7 @@ public class StandaloneSessionClusterEntrypoint extends SessionClusterEntrypoint
 
         StandaloneSessionClusterEntrypoint entrypoint =
                 new StandaloneSessionClusterEntrypoint(configuration);
-
+            //TODO  runCluster
         ClusterEntrypoint.runClusterEntrypoint(entrypoint);
     }
 }

@@ -202,6 +202,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                 "Starting scheduling with scheduling strategy [{}]",
                 schedulingStrategy.getClass().getName());
         prepareExecutionGraphForNgScheduling();
+        //TODO 
         schedulingStrategy.startScheduling();
     }
 

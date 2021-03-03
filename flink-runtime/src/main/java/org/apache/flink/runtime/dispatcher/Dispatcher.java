@@ -207,6 +207,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     @Override
     public void onStart() throws Exception {
         try {
+            //TODO 启动Dispatcher
             startDispatcherServices();
         } catch (Throwable t) {
             final DispatcherException exception =
@@ -215,7 +216,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
             onFatalError(exception);
             throw exception;
         }
-
+            //TODO 启动JobMaster
         startRecoveredJobs();
         this.dispatcherBootstrap =
                 this.dispatcherBootstrapFactory.create(
@@ -233,6 +234,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     }
 
     private void startRecoveredJobs() {
+        //TODO 对每个job启动一个JobMaster
         for (JobGraph recoveredJob : recoveredJobs) {
             runRecoveredJob(recoveredJob);
         }
@@ -397,6 +399,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     private void runJob(JobGraph jobGraph, ExecutionType executionType) {
         Preconditions.checkState(!runningJobs.containsKey(jobGraph.getJobID()));
         long initializationTimestamp = System.currentTimeMillis();
+        //TODO 创建并启动JobMaster
         CompletableFuture<JobManagerRunner> jobManagerRunnerFuture =
                 createJobManagerRunner(jobGraph, initializationTimestamp);
 
@@ -474,6 +477,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         return CompletableFuture.supplyAsync(
                 () -> {
                     try {
+                        //TODO 创建JobManagerRunner
                         JobManagerRunner runner =
                                 jobManagerRunnerFactory.createJobManagerRunner(
                                         jobGraph,
@@ -486,6 +490,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                                                 jobManagerMetricGroup),
                                         fatalErrorHandler,
                                         initializationTimestamp);
+                        //TODO 启动JobMaster
                         runner.start();
                         return runner;
                     } catch (Exception e) {

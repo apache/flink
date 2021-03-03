@@ -158,6 +158,7 @@ public class JobManagerRunnerImpl
                 throw new Exception("Could not start the leader election service.", e);
             }
             // now start the JobManager
+            //TODO
             this.jobMasterService =
                     jobMasterFactory.createJobMasterService(
                             jobGraph, this, userCodeLoader, initializationTimestamp);
