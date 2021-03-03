@@ -211,16 +211,16 @@ class CodersTest(PyFlinkTestCase):
 
     def test_cython_row_coder(self):
         from pyflink.common import Row, RowKind
-        field_count = 2
+        field_count = 15
         field_names = ['f{}'.format(i) for i in range(field_count)]
         row = Row(**{field_names[i]: None if i % 2 == 0 else i for i in range(field_count)})
         data = [row]
         python_field_coders = [coder_impl.RowCoderImpl([coder_impl.BigIntCoderImpl()
                                                         for _ in range(field_count)],
-                                                       field_names)]
+                                                       row._fields)]
         cython_field_coders = [coder_impl_fast.RowCoderImpl([coder_impl_fast.BigIntCoderImpl()
                                                              for _ in range(field_count)],
-                                                            field_names)]
+                                                            row._fields)]
         row.set_row_kind(RowKind.INSERT)
         self.check_cython_coder(python_field_coders, cython_field_coders, data)
         row.set_row_kind(RowKind.UPDATE_BEFORE)

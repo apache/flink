@@ -626,8 +626,8 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
             # Row
             row_field_coders = (<RowCoderImpl> field_coder).field_coders
             row_field_count = len(row_field_coders)
-            leading_complete_bytes_num = row_field_count // 8
-            remaining_bits_num = row_field_count % 8
+            leading_complete_bytes_num = (row_field_count + ROW_KIND_BIT_SIZE) // 8
+            remaining_bits_num = (row_field_count + ROW_KIND_BIT_SIZE) % 8
             row_value = list(item)
             row_kind_value = item._row_kind.value
             self._write_mask(row_value, leading_complete_bytes_num, remaining_bits_num, row_kind_value, row_field_count)
