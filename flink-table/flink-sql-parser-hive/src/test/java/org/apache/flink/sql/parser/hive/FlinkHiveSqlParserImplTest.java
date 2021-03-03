@@ -454,4 +454,16 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
     public void testUnloadModule() {
         sql("unload module hive").ok("UNLOAD MODULE `HIVE`");
     }
+
+    @Test
+    public void testUseModules() {
+        sql("use modules hive").ok("USE MODULES `HIVE`");
+
+        sql("use modules x, y, z").ok("USE MODULES `X`, `Y`, `Z`");
+
+        sql("use modules x^,^").fails("(?s).*Encountered \"<EOF>\" at line 1, column 14.\n.*");
+
+        sql("use modules ^'hive'^")
+                .fails("(?s).*Encountered \"\\\\'hive\\\\'\" at line 1, column 13.\n.*");
+    }
 }

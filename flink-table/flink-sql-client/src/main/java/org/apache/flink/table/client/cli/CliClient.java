@@ -398,6 +398,12 @@ public class CliClient implements AutoCloseable {
                         CliStrings.MESSAGE_UNLOAD_MODULE_SUCCEEDED,
                         CliStrings.MESSAGE_UNLOAD_MODULE_FAILED);
                 break;
+            case USE_MODULES:
+                callDdl(
+                        cmdCall.operands[0],
+                        CliStrings.MESSAGE_USE_MODULES_SUCCEEDED,
+                        CliStrings.MESSAGE_USE_MODULES_FAILED);
+                break;
             default:
                 throw new SqlClientException("Unsupported command: " + cmdCall.command);
         }
