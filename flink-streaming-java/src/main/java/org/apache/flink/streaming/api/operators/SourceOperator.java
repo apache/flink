@@ -48,6 +48,7 @@ import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.UserCodeClassLoader;
 import org.apache.flink.util.function.FunctionWithException;
 
 import java.io.IOException;
@@ -203,6 +204,24 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                     @Override
                     public void sendSourceEventToCoordinator(SourceEvent event) {
                         operatorEventGateway.sendEventToCoordinator(new SourceEventWrapper(event));
+                    }
+
+                    @Override
+                    public UserCodeClassLoader getUserCodeClassLoader() {
+                        return new UserCodeClassLoader() {
+                            @Override
+                            public ClassLoader asClassLoader() {
+                                return getRuntimeContext().getUserCodeClassLoader();
+                            }
+
+                            @Override
+                            public void registerReleaseHookIfAbsent(
+                                    String releaseHookName, Runnable releaseHook) {
+                                getRuntimeContext()
+                                        .registerUserCodeClassLoaderReleaseHookIfAbsent(
+                                                releaseHookName, releaseHook);
+                            }
+                        };
                     }
                 };
 
