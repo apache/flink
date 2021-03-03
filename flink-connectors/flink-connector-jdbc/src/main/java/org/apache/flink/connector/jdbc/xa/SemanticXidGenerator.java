@@ -55,7 +55,7 @@ class SemanticXidGenerator implements XidGenerator {
 
     @Override
     public void open() {
-        gtridBuffer = new byte[3*Long.BYTES];
+        gtridBuffer = new byte[3 * Long.BYTES];
         bqualBuffer = getRandomBytes(Integer.BYTES);
     }
 
@@ -68,7 +68,7 @@ class SemanticXidGenerator implements XidGenerator {
             // fall back to RNG if jobId is unavailable for some reason
             System.arraycopy(getRandomBytes(16), 0, gtridBuffer, 0, 16);
         }
-        
+
         writeNumber(runtimeContext.getIndexOfThisSubtask(), gtridBuffer, 16);
         // deliberately write only 4 bytes of checkpoint id
         writeNumber((int) checkpointId, gtridBuffer, 20);
