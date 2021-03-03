@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.kafka.source;
 
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.NoStoppingOffsetsInitializer;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
@@ -54,7 +55,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *     .setBootstrapServers(MY_BOOTSTRAP_SERVERS)
  *     .setGroupId("myGroup")
  *     .setTopics(Arrays.asList(TOPIC1, TOPIC2))
- *     .setDeserializer(KafkaRecordDeserializer.valueOnly(StringDeserializer.class))
+ *     .setDeserializer(KafkaRecordDeserializationSchema.valueOnly(StringDeserializer.class))
  *     .build();
  * }</pre>
  *
@@ -76,7 +77,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *     .setBootstrapServers(MY_BOOTSTRAP_SERVERS)
  *     .setGroupId("myGroup")
  *     .setTopics(Arrays.asList(TOPIC1, TOPIC2))
- *     .setDeserializer(KafkaRecordDeserializer.valueOnly(StringDeserializer.class))
+ *     .setDeserializer(KafkaRecordDeserializationSchema.valueOnly(StringDeserializer.class))
  *     .setUnbounded(OffsetsInitializer.latest())
  *     .build();
  * }</pre>
@@ -313,6 +314,22 @@ public class KafkaSourceBuilder<OUT> {
     public KafkaSourceBuilder<OUT> setDeserializer(
             KafkaRecordDeserializationSchema<OUT> recordDeserializer) {
         this.deserializationSchema = recordDeserializer;
+        return this;
+    }
+
+    /**
+     * Sets the {@link KafkaRecordDeserializationSchema deserializer} of the {@link
+     * org.apache.kafka.clients.consumer.ConsumerRecord ConsumerRecord} for KafkaSource. The given
+     * {@link DeserializationSchema} will be used to deserialize the value of ConsumerRecord. The
+     * other information (e.g. key) in a ConsumerRecord will be ignored.
+     *
+     * @param deserializationSchema the {@link DeserializationSchema} to use for deserialization.
+     * @return this KafkaSourceBuilder.
+     */
+    public KafkaSourceBuilder<OUT> setValueOnlyDeserializer(
+            DeserializationSchema<OUT> deserializationSchema) {
+        this.deserializationSchema =
+                KafkaRecordDeserializationSchema.valueOnly(deserializationSchema);
         return this;
     }
 
