@@ -27,7 +27,6 @@ import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
-import org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -45,10 +44,7 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
-
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -60,7 +56,6 @@ import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * This class encapsulates the operation of assigning restored state when restoring from a
@@ -106,7 +101,7 @@ public class StateAssignmentOperation {
 
         // find the states of all operators belonging to this task and compute additional
         // information in first pass
-        for (ExecutionJobVertex executionJobVertex : this.tasks) {
+        for (ExecutionJobVertex executionJobVertex : tasks) {
             List<OperatorIDPair> operatorIDPairs = executionJobVertex.getOperatorIDs();
             Map<OperatorID, OperatorState> operatorStates = new HashMap<>(operatorIDPairs.size());
             for (OperatorIDPair operatorIDPair : operatorIDPairs) {
@@ -127,7 +122,11 @@ public class StateAssignmentOperation {
             }
 
             final TaskStateAssignment stateAssignment =
-                    new TaskStateAssignment(executionJobVertex, operatorStates);
+                    new TaskStateAssignment(
+                            executionJobVertex,
+                            operatorStates,
+                            consumerAssignment,
+                            vertexAssignments);
             vertexAssignments.put(executionJobVertex, stateAssignment);
             for (final IntermediateResult producedDataSet : executionJobVertex.getInputs()) {
                 consumerAssignment.put(producedDataSet.getId(), stateAssignment);
@@ -225,8 +224,7 @@ public class StateAssignmentOperation {
                 OperatorInstanceID instanceID =
                         OperatorInstanceID.of(subTaskIndex, operatorID.getGeneratedOperatorID());
 
-                OperatorSubtaskState operatorSubtaskState =
-                        operatorSubtaskStateFrom(instanceID, assignment);
+                OperatorSubtaskState operatorSubtaskState = assignment.getSubtaskState(instanceID);
 
                 if (operatorSubtaskState.hasState()) {
                     statelessTask = false;
@@ -241,12 +239,6 @@ public class StateAssignmentOperation {
                 currentExecutionAttempt.setInitialState(taskRestore);
             }
         }
-    }
-
-    public static OperatorSubtaskState operatorSubtaskStateFrom(
-            OperatorInstanceID instanceID, TaskStateAssignment assignment) {
-
-        return assignment.getSubtaskState(instanceID);
     }
 
     public void checkParallelismPreconditions(TaskStateAssignment taskStateAssignment) {
@@ -336,163 +328,101 @@ public class StateAssignmentOperation {
 
     public <I, T extends AbstractChannelStateHandle<I>> void reDistributeResultSubpartitionStates(
             TaskStateAssignment assignment) {
-        final ExecutionJobVertex executionJobVertex = assignment.executionJobVertex;
-        final OperatorID outputOperatorID =
-                executionJobVertex.getOperatorIDs().get(0).getGeneratedOperatorID();
-        final List<List<ResultSubpartitionStateHandle>> outputOperatorState =
-                getChannelState(
-                        assignment.oldState,
-                        OperatorSubtaskState::getResultSubpartitionState,
-                        outputOperatorID);
-        if (outputOperatorState == null) {
+        if (!assignment.hasOutputState) {
             return;
         }
 
+        checkForUnsupportedToplogyChanges(
+                assignment.oldState,
+                OperatorSubtaskState::getResultSubpartitionState,
+                assignment.outputOperatorID);
+
+        final OperatorState outputState = assignment.oldState.get(assignment.outputOperatorID);
+        final List<List<ResultSubpartitionStateHandle>> outputOperatorState =
+                splitBySubtasks(outputState, OperatorSubtaskState::getResultSubpartitionState);
+
+        final ExecutionJobVertex executionJobVertex = assignment.executionJobVertex;
         final List<IntermediateDataSet> outputs =
                 executionJobVertex.getJobVertex().getProducedDataSets();
-        if (outputOperatorState.size() == executionJobVertex.getParallelism()) {
+
+        if (outputState.getParallelism() == executionJobVertex.getParallelism()) {
             assignment.resultSubpartitionStates.putAll(
-                    toInstanceMap(outputOperatorID, outputOperatorState));
-        } else {
-            // Parallelism of this vertex changed, distribute ResultSubpartitionStateHandle
-            // according to SubtaskStateMapper.
-            for (int partitionIndex = 0; partitionIndex < outputs.size(); partitionIndex++) {
-                final TaskStateAssignment downstreamAssignment =
-                        consumerAssignment.get(
-                                executionJobVertex.getProducedDataSets()[partitionIndex].getId());
-                final IntermediateResult output =
-                        executionJobVertex.getProducedDataSets()[partitionIndex];
-                final int gateIndex =
-                        downstreamAssignment.executionJobVertex.getInputs().indexOf(output);
-                checkState(gateIndex >= 0, "Gate index not found for IntermediateResult");
-                downstreamAssignment.upstreamAssignments.put(gateIndex, assignment);
-
-                final SubtaskStateMapper mapper =
-                        checkNotNull(
-                                downstreamAssignment
-                                        .executionJobVertex
-                                        .getJobVertex()
-                                        .getInputs()
-                                        .get(gateIndex)
-                                        .getUpstreamSubtaskStateMapper(),
-                                "No channel rescaler found during rescaling of channel state");
-                final Map<Integer, Set<Integer>> mapping =
-                        mapper.getNewToOldSubtasksMapping(
-                                outputOperatorState.size(), executionJobVertex.getParallelism());
-                assignment.outputSubtaskMappings =
-                        checkSubtaskMapping(assignment.outputSubtaskMappings, mapping);
-
-                final List<List<ResultSubpartitionStateHandle>> partitionState =
-                        outputs.size() == 1
-                                ? outputOperatorState
-                                : getPartitionState(
-                                        outputOperatorState,
-                                        ResultSubpartitionInfo::getPartitionIdx,
-                                        partitionIndex);
-                final MappingBasedRepartitioner<ResultSubpartitionStateHandle> repartitioner =
-                        new MappingBasedRepartitioner(mapping);
-                final Map<OperatorInstanceID, List<ResultSubpartitionStateHandle>> repartitioned =
-                        applyRepartitioner(
-                                outputOperatorID,
-                                repartitioner,
-                                partitionState,
-                                outputOperatorState.size(),
-                                executionJobVertex.getParallelism());
-                addToSubtasks(assignment.resultSubpartitionStates, repartitioned);
-            }
+                    toInstanceMap(assignment.outputOperatorID, outputOperatorState));
+            return;
         }
-    }
-
-    private Map<Integer, Set<Integer>> checkSubtaskMapping(
-            Map<Integer, Set<Integer>> oldMapping, Map<Integer, Set<Integer>> mapping) {
-        if (oldMapping.isEmpty()) {
-            return mapping;
+        // Parallelism of this vertex changed, distribute ResultSubpartitionStateHandle
+        // according to output mapping.
+        for (int partitionIndex = 0; partitionIndex < outputs.size(); partitionIndex++) {
+            final List<List<ResultSubpartitionStateHandle>> partitionState =
+                    outputs.size() == 1
+                            ? outputOperatorState
+                            : getPartitionState(
+                                    outputOperatorState,
+                                    ResultSubpartitionInfo::getPartitionIdx,
+                                    partitionIndex);
+            final MappingBasedRepartitioner<ResultSubpartitionStateHandle> repartitioner =
+                    new MappingBasedRepartitioner<>(assignment.getOutputMapping(partitionIndex));
+            final Map<OperatorInstanceID, List<ResultSubpartitionStateHandle>> repartitioned =
+                    applyRepartitioner(
+                            assignment.outputOperatorID,
+                            repartitioner,
+                            partitionState,
+                            outputOperatorState.size(),
+                            executionJobVertex.getParallelism());
+            addToSubtasks(assignment.resultSubpartitionStates, repartitioned);
         }
-        if (!oldMapping.equals(mapping)) {
-            throw new IllegalStateException(
-                    "Incompatible subtask mappings: are multiple operators "
-                            + "ingesting/producing intermediate results with varying degrees of parallelism?"
-                            + "Found "
-                            + oldMapping
-                            + " and "
-                            + mapping
-                            + ".");
-        }
-        return oldMapping;
     }
 
     public void reDistributeInputChannelStates(TaskStateAssignment stateAssignment) {
-        @Nullable
-        final List<List<InputChannelStateHandle>> inputOperatorState =
-                getChannelState(
-                        stateAssignment.oldState,
-                        OperatorSubtaskState::getInputChannelState,
-                        stateAssignment.inputOperatorID);
-        if (inputOperatorState == null) {
+        if (!stateAssignment.hasInputState) {
             return;
         }
 
+        checkForUnsupportedToplogyChanges(
+                stateAssignment.oldState,
+                OperatorSubtaskState::getInputChannelState,
+                stateAssignment.inputOperatorID);
+
         final ExecutionJobVertex executionJobVertex = stateAssignment.executionJobVertex;
         final List<IntermediateResult> inputs = executionJobVertex.getInputs();
-        if (inputOperatorState.size() == executionJobVertex.getParallelism()) {
+
+        // check for rescaling: no rescaling = simple reassignment
+        final OperatorState inputState =
+                stateAssignment.oldState.get(stateAssignment.inputOperatorID);
+        final List<List<InputChannelStateHandle>> inputOperatorState =
+                splitBySubtasks(inputState, OperatorSubtaskState::getInputChannelState);
+        if (inputState.getParallelism() == executionJobVertex.getParallelism()) {
             stateAssignment.inputChannelStates.putAll(
                     toInstanceMap(stateAssignment.inputOperatorID, inputOperatorState));
-        } else {
-            // if this subtask has a different degree of parallelism, use the partitioner to figure
-            // out to which
-            // which subtasks the state should be reassigned. In some cases, state is replicated to
-            // multiple subtasks
-            // and filtered during recovery.
-            // example: if this task is downscaled from 3 to 2 and it uses a range partitioner over
-            // [0;128)
-            // old assignment: 0 -> [0;43); 1 -> [43;87); 2 -> [87;128)
-            // new assignment: 0 -> [0;64]; 1 -> [64;128)
-            // subtask 0 recovers data from old subtask 0 + 1 and subtask 1 recovers data from old
-            // subtask 0 + 2
-            for (int gateIndex = 0; gateIndex < inputs.size(); gateIndex++) {
-                final SubtaskStateMapper mapper =
-                        checkNotNull(
-                                executionJobVertex
-                                        .getJobVertex()
-                                        .getInputs()
-                                        .get(gateIndex)
-                                        .getDownstreamSubtaskStateMapper(),
-                                "No channel rescaler found during rescaling of channel state");
-                final Map<Integer, Set<Integer>> mapping =
-                        mapper.getNewToOldSubtasksMapping(
-                                inputOperatorState.size(), stateAssignment.newParallelism);
-                stateAssignment.inputSubtaskMappings =
-                        checkSubtaskMapping(stateAssignment.inputSubtaskMappings, mapping);
+            return;
+        }
+        // if this subtask has a different degree of parallelism, use the partitioner to figure
+        // out to which subtasks the state should be reassigned. In some cases, state is
+        // replicated to multiple subtasks and filtered during recovery.
+        // example: if this task is downscaled from 3 to 2 and it uses a range partitioner over
+        // [0;128)
+        // old assignment: 0 -> [0;43); 1 -> [43;87); 2 -> [87;128)
+        // new assignment: 0 -> [0;64]; 1 -> [64;128)
+        // subtask 0 recovers data from old subtask 0 + 1 and subtask 1 recovers data from old
+        // subtask 0 + 2
+        for (int gateIndex = 0; gateIndex < inputs.size(); gateIndex++) {
+            final RescaleMappings mapping = stateAssignment.getInputMapping(gateIndex);
 
-                final List<List<InputChannelStateHandle>> gateState =
-                        inputs.size() == 1
-                                ? inputOperatorState
-                                : getPartitionState(
-                                        inputOperatorState,
-                                        InputChannelInfo::getGateIdx,
-                                        gateIndex);
-                final MappingBasedRepartitioner<InputChannelStateHandle> repartitioner =
-                        new MappingBasedRepartitioner(mapping);
-                final Map<OperatorInstanceID, List<InputChannelStateHandle>> repartitioned =
-                        applyRepartitioner(
-                                stateAssignment.inputOperatorID,
-                                repartitioner,
-                                gateState,
-                                inputOperatorState.size(),
-                                stateAssignment.newParallelism);
-                addToSubtasks(stateAssignment.inputChannelStates, repartitioned);
-
-                // Setup virtual channels on upstream side to use the same mapping
-                final IntermediateResult input = executionJobVertex.getInputs().get(gateIndex);
-                final TaskStateAssignment upstreamAssignment =
-                        vertexAssignments.get(
-                                executionJobVertex.getInputs().get(gateIndex).getProducer());
-                final int partitionIndex =
-                        Arrays.asList(upstreamAssignment.executionJobVertex.getProducedDataSets())
-                                .indexOf(input);
-                checkState(partitionIndex >= 0, "Partition index not found for IntermediateResult");
-                upstreamAssignment.downstreamAssignments.put(partitionIndex, stateAssignment);
-            }
+            final List<List<InputChannelStateHandle>> gateState =
+                    inputs.size() == 1
+                            ? inputOperatorState
+                            : getPartitionState(
+                                    inputOperatorState, InputChannelInfo::getGateIdx, gateIndex);
+            final MappingBasedRepartitioner<InputChannelStateHandle> repartitioner =
+                    new MappingBasedRepartitioner(mapping);
+            final Map<OperatorInstanceID, List<InputChannelStateHandle>> repartitioned =
+                    applyRepartitioner(
+                            stateAssignment.inputOperatorID,
+                            repartitioner,
+                            gateState,
+                            inputOperatorState.size(),
+                            stateAssignment.newParallelism);
+            addToSubtasks(stateAssignment.inputChannelStates, repartitioned);
         }
     }
 
@@ -503,29 +433,14 @@ public class StateAssignmentOperation {
                                 .addAll(values));
     }
 
-    @Nullable
-    private <T extends AbstractChannelStateHandle<?>> List<List<T>> getChannelState(
+    private <T extends AbstractChannelStateHandle<?>> void checkForUnsupportedToplogyChanges(
             Map<OperatorID, OperatorState> oldOperatorStates,
             Function<OperatorSubtaskState, StateObjectCollection<T>> extractHandle,
-            OperatorID statefulOperatorID) {
+            OperatorID expectedOperatorID) {
         final List<OperatorID> unexpectedState =
                 oldOperatorStates.entrySet().stream()
-                        .filter(
-                                operatorIDAndState ->
-                                        !operatorIDAndState.getKey().equals(statefulOperatorID))
-                        .filter(
-                                operatorState ->
-                                        operatorState.getValue().getSubtaskStates().values()
-                                                .stream()
-                                                .anyMatch(
-                                                        operatorSubtaskState ->
-                                                                extractHandle
-                                                                        .apply(operatorSubtaskState)
-                                                                        .stream()
-                                                                        .anyMatch(
-                                                                                state ->
-                                                                                        !state.getOffsets()
-                                                                                                .isEmpty())))
+                        .filter(idAndState -> !idAndState.getKey().equals(expectedOperatorID))
+                        .filter(idAndState -> hasChannelState(idAndState.getValue(), extractHandle))
                         .map(Map.Entry::getKey)
                         .collect(Collectors.toList());
         if (!unexpectedState.isEmpty()) {
@@ -535,18 +450,17 @@ public class StateAssignmentOperation {
                             + "The following operators contain channel state: "
                             + unexpectedState);
         }
+    }
 
-        final OperatorState operatorState = oldOperatorStates.get(statefulOperatorID);
-        // no channel state, nothing to recover
-        if (operatorState.getSubtaskStates().values().stream()
-                .allMatch(
-                        operatorSubtaskState ->
-                                extractHandle.apply(operatorSubtaskState).stream()
-                                        .allMatch(state -> state.getOffsets().isEmpty()))) {
-            return null;
-        }
+    private <T extends AbstractChannelStateHandle<?>> boolean hasChannelState(
+            OperatorState operatorState,
+            Function<OperatorSubtaskState, StateObjectCollection<T>> extractHandle) {
+        return operatorState.getSubtaskStates().values().stream()
+                .anyMatch(subState -> !isEmpty(extractHandle.apply(subState)));
+    }
 
-        return splitBySubtasks(operatorState, extractHandle);
+    private <T extends AbstractChannelStateHandle<?>> boolean isEmpty(StateObjectCollection<T> s) {
+        return s.stream().allMatch(state -> state.getOffsets().isEmpty());
     }
 
     private static <T extends AbstractChannelStateHandle<I>, I> List<List<T>> getPartitionState(
