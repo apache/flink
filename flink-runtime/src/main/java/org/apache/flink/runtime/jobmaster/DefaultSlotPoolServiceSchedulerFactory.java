@@ -79,6 +79,11 @@ public final class DefaultSlotPoolServiceSchedulerFactory
     }
 
     @Override
+    public JobManagerOptions.SchedulerType getSchedulerType() {
+        return schedulerNGFactory.getSchedulerType();
+    }
+
+    @Override
     public SchedulerNG createScheduler(
             Logger log,
             JobGraph jobGraph,
@@ -143,7 +148,6 @@ public final class DefaultSlotPoolServiceSchedulerFactory
         if (ClusterOptions.isDeclarativeResourceManagementEnabled(configuration)) {
             JobManagerOptions.SchedulerType schedulerType =
                     ClusterOptions.getSchedulerType(configuration);
-
             if (schedulerType == JobManagerOptions.SchedulerType.Adaptive
                     && jobType == JobType.BATCH) {
                 LOG.info(
