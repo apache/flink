@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -47,6 +48,13 @@ public interface SlotPoolServiceSchedulerFactory {
      * @return created SlotPoolService
      */
     SlotPoolService createSlotPoolService(JobID jid);
+
+    /**
+     * Returns the scheduler type this factory is creating.
+     *
+     * @return the scheduler type this factory is creating.
+     */
+    JobManagerOptions.SchedulerType getSchedulerType();
 
     /**
      * Creates a {@link SchedulerNG}.

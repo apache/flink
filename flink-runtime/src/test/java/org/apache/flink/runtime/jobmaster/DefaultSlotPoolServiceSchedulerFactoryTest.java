@@ -47,5 +47,26 @@ public class DefaultSlotPoolServiceSchedulerFactoryTest extends TestLogger {
         assertThat(
                 defaultSlotPoolServiceSchedulerFactory.getSchedulerNGFactory(),
                 is(instanceOf(DefaultSchedulerFactory.class)));
+        assertThat(
+                defaultSlotPoolServiceSchedulerFactory.getSchedulerType(),
+                is(JobManagerOptions.SchedulerType.Ng));
+    }
+
+    @Test
+    public void testAdaptiveSchedulerForReactiveMode() {
+        final Configuration configuration = new Configuration();
+        configuration.set(JobManagerOptions.SCHEDULER_MODE, SchedulerExecutionMode.REACTIVE);
+        configuration.set(ClusterOptions.ENABLE_DECLARATIVE_RESOURCE_MANAGEMENT, true);
+
+        final DefaultSlotPoolServiceSchedulerFactory defaultSlotPoolServiceSchedulerFactory =
+                DefaultSlotPoolServiceSchedulerFactory.fromConfiguration(
+                        configuration, JobType.STREAMING);
+
+        assertThat(
+                defaultSlotPoolServiceSchedulerFactory.getSchedulerNGFactory(),
+                is(instanceOf(AdaptiveSchedulerFactory.class)));
+        assertThat(
+            defaultSlotPoolServiceSchedulerFactory.getSchedulerType(),
+            is(JobManagerOptions.SchedulerType.Adaptive));
     }
 }
