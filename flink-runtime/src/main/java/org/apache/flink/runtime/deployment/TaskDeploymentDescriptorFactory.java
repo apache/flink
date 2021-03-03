@@ -60,7 +60,7 @@ public class TaskDeploymentDescriptorFactory {
     private final MaybeOffloaded<JobInformation> serializedJobInformation;
     private final MaybeOffloaded<TaskInformation> taskInfo;
     private final JobID jobID;
-    private final boolean allowUnknownPartitions;
+    private final PartitionLocationConstraint partitionDeploymentConstraint;
     private final int subtaskIndex;
     private final ExecutionEdge[][] inputEdges;
 
@@ -70,7 +70,7 @@ public class TaskDeploymentDescriptorFactory {
             MaybeOffloaded<JobInformation> serializedJobInformation,
             MaybeOffloaded<TaskInformation> taskInfo,
             JobID jobID,
-            boolean allowUnknownPartitions,
+            PartitionLocationConstraint partitionDeploymentConstraint,
             int subtaskIndex,
             ExecutionEdge[][] inputEdges) {
         this.executionId = executionId;
@@ -78,7 +78,7 @@ public class TaskDeploymentDescriptorFactory {
         this.serializedJobInformation = serializedJobInformation;
         this.taskInfo = taskInfo;
         this.jobID = jobID;
-        this.allowUnknownPartitions = allowUnknownPartitions;
+        this.partitionDeploymentConstraint = partitionDeploymentConstraint;
         this.subtaskIndex = subtaskIndex;
         this.inputEdges = inputEdges;
     }
@@ -132,7 +132,7 @@ public class TaskDeploymentDescriptorFactory {
         // Each edge is connected to a different result partition
         for (int i = 0; i < edges.length; i++) {
             shuffleDescriptors[i] =
-                    getConsumedPartitionShuffleDescriptor(edges[i], allowUnknownPartitions);
+                    getConsumedPartitionShuffleDescriptor(edges[i], partitionDeploymentConstraint);
         }
         return shuffleDescriptors;
     }
@@ -147,7 +147,9 @@ public class TaskDeploymentDescriptorFactory {
                 getSerializedTaskInformation(
                         executionVertex.getJobVertex().getTaskInformationOrBlobKey()),
                 executionGraph.getJobID(),
-                executionGraph.getScheduleMode().allowLazyDeployment(),
+                executionGraph.getScheduleMode().allowLazyDeployment()
+                        ? PartitionLocationConstraint.CAN_BE_UNKNOWN
+                        : PartitionLocationConstraint.MUST_BE_KNOWN,
                 executionVertex.getParallelSubtaskIndex(),
                 executionVertex.getAllInputEdges());
     }
@@ -171,7 +173,7 @@ public class TaskDeploymentDescriptorFactory {
     }
 
     public static ShuffleDescriptor getConsumedPartitionShuffleDescriptor(
-            ExecutionEdge edge, boolean allowUnknownPartitions) {
+            ExecutionEdge edge, PartitionLocationConstraint partitionDeploymentConstraint) {
         IntermediateResultPartition consumedPartition = edge.getSource();
         Execution producer = consumedPartition.getProducer().getCurrentExecutionAttempt();
 
@@ -187,7 +189,7 @@ public class TaskDeploymentDescriptorFactory {
                 consumedPartition.getResultType(),
                 consumedPartition.isConsumable(),
                 producerState,
-                allowUnknownPartitions,
+                partitionDeploymentConstraint,
                 consumedPartitionDescriptor.orElse(null));
     }
 
@@ -197,7 +199,7 @@ public class TaskDeploymentDescriptorFactory {
             ResultPartitionType resultPartitionType,
             boolean isConsumable,
             ExecutionState producerState,
-            boolean allowUnknownPartitions,
+            PartitionLocationConstraint partitionDeploymentConstraint,
             @Nullable ResultPartitionDeploymentDescriptor consumedPartitionDescriptor) {
         // The producing task needs to be RUNNING or already FINISHED
         if ((resultPartitionType.isPipelined() || isConsumable)
@@ -205,7 +207,7 @@ public class TaskDeploymentDescriptorFactory {
                 && isProducerAvailable(producerState)) {
             // partition is already registered
             return consumedPartitionDescriptor.getShuffleDescriptor();
-        } else if (allowUnknownPartitions) {
+        } else if (partitionDeploymentConstraint == PartitionLocationConstraint.CAN_BE_UNKNOWN) {
             // The producing task might not have registered the partition yet
             return new UnknownShuffleDescriptor(consumedPartitionId);
         } else {
@@ -248,5 +250,14 @@ public class TaskDeploymentDescriptorFactory {
         return producerState == ExecutionState.CANCELING
                 || producerState == ExecutionState.CANCELED
                 || producerState == ExecutionState.FAILED;
+    }
+
+    /**
+     * Defines whether the partition's location must be known at deployment time or can be unknown
+     * and, therefore, updated later.
+     */
+    public enum PartitionLocationConstraint {
+        MUST_BE_KNOWN,
+        CAN_BE_UNKNOWN,
     }
 }
