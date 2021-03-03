@@ -74,8 +74,7 @@ Next, we set up a port forward to access the Flink UI and submit jobs:
 2. Navigate to [http://localhost:8081](http://localhost:8081) in your browser.
 3. Moreover, you could use the following command below to submit jobs to the cluster:
 ```bash
-$ ./bin/flink run -m localhost:8081 
-$ ./examples/streaming/TopSpeedWindowing.jar
+$ ./bin/flink run -m localhost:8081 ./examples/streaming/TopSpeedWindowing.jar
 ```
 
 
