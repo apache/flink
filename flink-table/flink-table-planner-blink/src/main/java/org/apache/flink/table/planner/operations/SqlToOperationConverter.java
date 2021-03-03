@@ -46,6 +46,7 @@ import org.apache.flink.sql.parser.ddl.SqlDropView;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.sql.parser.ddl.SqlUseCatalog;
 import org.apache.flink.sql.parser.ddl.SqlUseDatabase;
+import org.apache.flink.sql.parser.ddl.SqlUseModules;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.dml.RichSqlInsert;
 import org.apache.flink.sql.parser.dql.SqlLoadModule;
@@ -95,6 +96,7 @@ import org.apache.flink.table.operations.ShowViewsOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
+import org.apache.flink.table.operations.UseModulesOperation;
 import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
@@ -208,6 +210,8 @@ public class SqlToOperationConverter {
             return Optional.of(converter.convertUnloadModule((SqlUnloadModule) validated));
         } else if (validated instanceof SqlUseCatalog) {
             return Optional.of(converter.convertUseCatalog((SqlUseCatalog) validated));
+        } else if (validated instanceof SqlUseModules) {
+            return Optional.of(converter.convertUseModules((SqlUseModules) validated));
         } else if (validated instanceof SqlCreateDatabase) {
             return Optional.of(converter.convertCreateDatabase((SqlCreateDatabase) validated));
         } else if (validated instanceof SqlDropDatabase) {
@@ -887,6 +891,11 @@ public class SqlToOperationConverter {
     private Operation convertUnloadModule(SqlUnloadModule sqlUnloadModule) {
         String moduleName = sqlUnloadModule.moduleName();
         return new UnloadModuleOperation(moduleName);
+    }
+
+    /** Convert USE MODULES statement. */
+    private Operation convertUseModules(SqlUseModules sqlUseModules) {
+        return new UseModulesOperation(sqlUseModules.moduleNames());
     }
 
     /** Fallback method for sql query. */

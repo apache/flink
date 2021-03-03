@@ -103,6 +103,7 @@ import org.apache.flink.table.operations.TableSourceQueryOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
+import org.apache.flink.table.operations.UseModulesOperation;
 import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
@@ -180,13 +181,13 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             "Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type "
                     + "INSERT, CREATE TABLE, DROP TABLE, ALTER TABLE, USE CATALOG, USE [CATALOG.]DATABASE, "
                     + "CREATE DATABASE, DROP DATABASE, ALTER DATABASE, CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, "
-                    + "CREATE CATALOG, DROP CATALOG, CREATE VIEW, DROP VIEW, LOAD MODULE, UNLOAD MODULE.";
+                    + "CREATE CATALOG, DROP CATALOG, CREATE VIEW, DROP VIEW, LOAD MODULE, UNLOAD MODULE, USE MODULES.";
     private static final String UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG =
             "Unsupported SQL query! executeSql() only accepts a single SQL statement of type "
                     + "CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, "
                     + "CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, CREATE CATALOG, DROP CATALOG, "
                     + "USE CATALOG, USE [CATALOG.]DATABASE, SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW FUNCTIONS, SHOW PARTITIONS"
-                    + "CREATE VIEW, DROP VIEW, SHOW VIEWS, INSERT, DESCRIBE, LOAD MODULE, UNLOAD MODULE.";
+                    + "CREATE VIEW, DROP VIEW, SHOW VIEWS, INSERT, DESCRIBE, LOAD MODULE, UNLOAD MODULE, USE MODULES.";
 
     /** Provides necessary methods for {@link ConnectTableDescriptor}. */
     private final Registration registration =
@@ -1063,6 +1064,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             return loadModule((LoadModuleOperation) operation);
         } else if (operation instanceof UnloadModuleOperation) {
             return unloadModule((UnloadModuleOperation) operation);
+        } else if (operation instanceof UseModulesOperation) {
+            return useModules((UseModulesOperation) operation);
         } else if (operation instanceof UseCatalogOperation) {
             UseCatalogOperation useCatalogOperation = (UseCatalogOperation) operation;
             catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName());
@@ -1190,6 +1193,16 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         String exMsg = getDDLOpExecuteErrorMsg(operation.asSummaryString());
         try {
             moduleManager.unloadModule(operation.getModuleName());
+            return TableResultImpl.TABLE_RESULT_OK;
+        } catch (ValidationException e) {
+            throw new ValidationException(String.format("%s. %s", exMsg, e.getMessage()), e);
+        }
+    }
+
+    private TableResult useModules(UseModulesOperation operation) {
+        String exMsg = getDDLOpExecuteErrorMsg(operation.asSummaryString());
+        try {
+            moduleManager.useModules(operation.getModuleNames().toArray(new String[0]));
             return TableResultImpl.TABLE_RESULT_OK;
         } catch (ValidationException e) {
             throw new ValidationException(String.format("%s. %s", exMsg, e.getMessage()), e);

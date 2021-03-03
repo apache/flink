@@ -1177,6 +1177,18 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
                 .fails("(?s).*Encountered \"\\\\'core\\\\'\" at line 1, column 15.\n.*");
     }
 
+    @Test
+    public void testUseModules() {
+        sql("use modules core").ok("USE MODULES `CORE`");
+
+        sql("use modules x, y, z").ok("USE MODULES `X`, `Y`, `Z`");
+
+        sql("use modules x^,^").fails("(?s).*Encountered \"<EOF>\" at line 1, column 14.\n.*");
+
+        sql("use modules ^'core'^")
+                .fails("(?s).*Encountered \"\\\\'core\\\\'\" at line 1, column 13.\n.*");
+    }
+
     public static BaseMatcher<SqlNode> validated(String validatedSql) {
         return new TypeSafeDiagnosingMatcher<SqlNode>() {
             @Override

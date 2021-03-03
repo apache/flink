@@ -307,6 +307,28 @@ public class SqlCommandParserTest {
                                 "UNLOAD MODULE dummy",
                                 SqlCommand.UNLOAD_MODULE,
                                 "UNLOAD MODULE dummy"),
+                        // use one module
+                        TestItem.validSql(
+                                "USE MODULES dummy", SqlCommand.USE_MODULES, "USE MODULES dummy"),
+                        // use multiple modules
+                        TestItem.validSql(
+                                "USE MODULES x, y, z",
+                                SqlCommand.USE_MODULES,
+                                "USE MODULES x, y, z"),
+                        // use modules with module names as reserved keywords
+                        TestItem.validSql(
+                                "USE MODULES `MODULE`, `MODULES`",
+                                SqlCommand.USE_MODULES,
+                                "USE MODULES `MODULE`, `MODULES`"),
+                        // use modules with module names as literals
+                        TestItem.invalidSql(
+                                "USE MODULES 'dummy'",
+                                SqlExecutionException.class,
+                                "Encountered \"\\'dummy\\'\""),
+                        TestItem.invalidSql(
+                                "USE MODULES",
+                                SqlExecutionException.class,
+                                "Encountered \"<EOF>\""),
                         // Test create function.
                         TestItem.invalidSql(
                                 "CREATE FUNCTION ",

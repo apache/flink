@@ -37,6 +37,7 @@ import org.apache.flink.table.operations.ShowViewsOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
+import org.apache.flink.table.operations.UseModulesOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterTableOperation;
@@ -178,6 +179,8 @@ public final class SqlCommandParser {
             cmd = SqlCommand.LOAD_MODULE;
         } else if (operation instanceof UnloadModuleOperation) {
             cmd = SqlCommand.UNLOAD_MODULE;
+        } else if (operation instanceof UseModulesOperation) {
+            cmd = SqlCommand.USE_MODULES;
         } else if (operation instanceof DescribeTableOperation) {
             cmd = SqlCommand.DESCRIBE;
             operands =
@@ -267,6 +270,8 @@ public final class SqlCommandParser {
         LOAD_MODULE,
 
         UNLOAD_MODULE,
+
+        USE_MODULES,
 
         SHOW_PARTITIONS,
 
