@@ -28,7 +28,9 @@ import org.apache.flink.kubernetes.highavailability.KubernetesCheckpointStoreUti
 import org.apache.flink.kubernetes.highavailability.KubernetesJobGraphStoreUtil;
 import org.apache.flink.kubernetes.highavailability.KubernetesStateHandleStore;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
+import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.DefaultCompletedCheckpointStore;
@@ -44,6 +46,11 @@ import org.apache.flink.runtime.persistence.filesystem.FileSystemStateStorageHel
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.function.FunctionUtils;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
+
+import io.fabric8.kubernetes.api.model.Container;
+import io.fabric8.kubernetes.api.model.ContainerBuilder;
+import io.fabric8.kubernetes.api.model.KubernetesResource;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
@@ -54,6 +61,7 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -77,6 +85,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class KubernetesUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(KubernetesUtils.class);
+
+    private static final YAMLMapper yamlMapper = new YAMLMapper();
 
     /**
      * Check whether the port config option is a fixed port. If not, the fallback port will be set
@@ -298,18 +308,22 @@ public class KubernetesUtils {
     /**
      * Get resource requirements from memory and cpu.
      *
+     * @param resourceRequirements resource requirements in pod template
      * @param mem Memory in mb.
      * @param cpu cpu.
      * @param externalResources external resources
      * @return KubernetesResource requirements.
      */
     public static ResourceRequirements getResourceRequirements(
-            int mem, double cpu, Map<String, Long> externalResources) {
+            ResourceRequirements resourceRequirements,
+            int mem,
+            double cpu,
+            Map<String, Long> externalResources) {
         final Quantity cpuQuantity = new Quantity(String.valueOf(cpu));
         final Quantity memQuantity = new Quantity(mem + Constants.RESOURCE_UNIT_MB);
 
         ResourceRequirementsBuilder resourceRequirementsBuilder =
-                new ResourceRequirementsBuilder()
+                new ResourceRequirementsBuilder(resourceRequirements)
                         .addToRequests(Constants.RESOURCE_NAME_MEMORY, memQuantity)
                         .addToRequests(Constants.RESOURCE_NAME_CPU, cpuQuantity)
                         .addToLimits(Constants.RESOURCE_NAME_MEMORY, memQuantity)
@@ -394,6 +408,109 @@ public class KubernetesUtils {
                                                     + " An example of such path is: local:///opt/flink/examples/streaming/WindowJoin.jar");
                                 }))
                 .collect(Collectors.toList());
+    }
+
+    public static FlinkPod loadPodFromTemplateFile(
+            FlinkKubeClient kubeClient, File podTemplateFile, String mainContainerName) {
+        final KubernetesPod pod = kubeClient.loadPodFromTemplateFile(podTemplateFile);
+        final List<Container> otherContainers = new ArrayList<>();
+        Container mainContainer = null;
+
+        for (Container container : pod.getInternalResource().getSpec().getContainers()) {
+            if (mainContainerName.equals(container.getName())) {
+                mainContainer = container;
+            } else {
+                otherContainers.add(container);
+            }
+        }
+
+        if (mainContainer == null) {
+            LOG.info(
+                    "Could not find main container {} in pod template, using empty one to initialize.",
+                    mainContainerName);
+            mainContainer = new ContainerBuilder().build();
+        }
+
+        pod.getInternalResource().getSpec().setContainers(otherContainers);
+        return new FlinkPod(pod.getInternalResource(), mainContainer);
+    }
+
+    public static File getTaskManagerPodTemplateFileInPod() {
+        return new File(
+                Constants.POD_TEMPLATE_DIR_IN_POD, Constants.TASK_MANAGER_POD_TEMPLATE_FILE_NAME);
+    }
+
+    /**
+     * Resolve the user defined value with the precedence. First an explicit config option value is
+     * taken, then the value in pod template and at last the default value of a config option if
+     * nothing is specified.
+     *
+     * @param flinkConfig flink configuration
+     * @param configOption the config option to define the Kubernetes fields
+     * @param valueOfConfigOptionOrDefault the value defined by explicit config option or default
+     * @param valueOfPodTemplate the value defined in the pod template
+     * @param fieldDescription Kubernetes fields description
+     * @param <T> The type of value associated with the configuration option.
+     * @return the resolved value
+     */
+    public static <T> String resolveUserDefinedValue(
+            Configuration flinkConfig,
+            ConfigOption<T> configOption,
+            String valueOfConfigOptionOrDefault,
+            @Nullable String valueOfPodTemplate,
+            String fieldDescription) {
+        final String resolvedValue;
+        if (valueOfPodTemplate != null) {
+            // The config option is explicitly set.
+            if (flinkConfig.contains(configOption)) {
+                resolvedValue = valueOfConfigOptionOrDefault;
+                LOG.info(
+                        "The {} configured in pod template will be overwritten to '{}' "
+                                + "because of explicitly configured options.",
+                        fieldDescription,
+                        resolvedValue);
+            } else {
+                resolvedValue = valueOfPodTemplate;
+            }
+        } else {
+            resolvedValue = valueOfConfigOptionOrDefault;
+        }
+        return resolvedValue;
+    }
+
+    /**
+     * Get the service account from the input pod first, if not specified, the service account name
+     * will be used.
+     *
+     * @param flinkPod the Flink pod to parse the service account
+     * @return the parsed service account
+     */
+    @Nullable
+    public static String getServiceAccount(FlinkPod flinkPod) {
+        final String serviceAccount =
+                flinkPod.getPodWithoutMainContainer().getSpec().getServiceAccount();
+        if (serviceAccount == null) {
+            return flinkPod.getPodWithoutMainContainer().getSpec().getServiceAccountName();
+        }
+        return serviceAccount;
+    }
+
+    /**
+     * Try to get the pretty print yaml for Kubernetes resource.
+     *
+     * @param kubernetesResource kubernetes resource
+     * @return the pretty print yaml, or the {@link KubernetesResource#toString()} if parse failed.
+     */
+    public static String tryToGetPrettyPrintYaml(KubernetesResource kubernetesResource) {
+        try {
+            return yamlMapper
+                    .writerWithDefaultPrettyPrinter()
+                    .writeValueAsString(kubernetesResource);
+        } catch (Exception ex) {
+            LOG.debug(
+                    "Failed to get the pretty print yaml, fallback to {}", kubernetesResource, ex);
+            return kubernetesResource.toString();
+        }
     }
 
     private static String getJavaOpts(

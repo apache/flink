@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
@@ -432,18 +433,18 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         if (!succeeded && activeSyncSavepointId != null && activeSyncSavepointId == id) {
             // allow to process further EndOfPartition events
             activeSyncSavepointId = null;
-            operatorChain.setIsStoppingBySyncSavepoint(false);
+            operatorChain.setIgnoreEndOfInput(false);
         }
         syncSavepointId = null;
     }
 
-    private void setSynchronousSavepointId(long checkpointId) {
+    private void setSynchronousSavepointId(long checkpointId, boolean ignoreEndOfInput) {
         Preconditions.checkState(
                 syncSavepointId == null,
                 "at most one stop-with-savepoint checkpoint at a time is allowed");
         syncSavepointId = checkpointId;
         activeSyncSavepointId = checkpointId;
-        operatorChain.setIsStoppingBySyncSavepoint(true);
+        operatorChain.setIgnoreEndOfInput(ignoreEndOfInput);
     }
 
     @VisibleForTesting
@@ -878,9 +879,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
     @Override
     public Future<Boolean> triggerCheckpointAsync(
-            CheckpointMetaData checkpointMetaData,
-            CheckpointOptions checkpointOptions,
-            boolean advanceToEndOfEventTime) {
+            CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
 
         CompletableFuture<Boolean> result = new CompletableFuture<>();
         mainMailboxExecutor.execute(
@@ -892,11 +891,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                                             System.currentTimeMillis()
                                                     - checkpointMetaData.getTimestamp());
                     try {
-                        result.complete(
-                                triggerCheckpoint(
-                                        checkpointMetaData,
-                                        checkpointOptions,
-                                        advanceToEndOfEventTime));
+                        result.complete(triggerCheckpoint(checkpointMetaData, checkpointOptions));
                     } catch (Exception ex) {
                         // Report the failure both via the Future result but also to the mailbox
                         result.completeExceptionally(ex);
@@ -910,9 +905,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     }
 
     private boolean triggerCheckpoint(
-            CheckpointMetaData checkpointMetaData,
-            CheckpointOptions checkpointOptions,
-            boolean advanceToEndOfEventTime)
+            CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions)
             throws Exception {
         FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
         try {
@@ -926,11 +919,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                     checkpointMetaData.getCheckpointId(), checkpointOptions);
 
             boolean success =
-                    performCheckpoint(
-                            checkpointMetaData,
-                            checkpointOptions,
-                            checkpointMetrics,
-                            advanceToEndOfEventTime);
+                    performCheckpoint(checkpointMetaData, checkpointOptions, checkpointMetrics);
             if (!success) {
                 declineCheckpoint(checkpointMetaData.getCheckpointId());
             }
@@ -968,8 +957,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
         FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
         try {
-            if (performCheckpoint(
-                    checkpointMetaData, checkpointOptions, checkpointMetrics, false)) {
+            if (performCheckpoint(checkpointMetaData, checkpointOptions, checkpointMetrics)) {
                 if (isSynchronousSavepointId(checkpointMetaData.getCheckpointId())) {
                     runSynchronousSavepointMailboxLoop();
                 }
@@ -1003,8 +991,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     private boolean performCheckpoint(
             CheckpointMetaData checkpointMetaData,
             CheckpointOptions checkpointOptions,
-            CheckpointMetricsBuilder checkpointMetrics,
-            boolean advanceToEndOfTime)
+            CheckpointMetricsBuilder checkpointMetrics)
             throws Exception {
 
         LOG.debug(
@@ -1017,15 +1004,17 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
             actionExecutor.runThrowing(
                     () -> {
                         if (checkpointOptions.getCheckpointType().isSynchronous()) {
-                            setSynchronousSavepointId(checkpointMetaData.getCheckpointId());
+                            setSynchronousSavepointId(
+                                    checkpointMetaData.getCheckpointId(),
+                                    checkpointOptions.getCheckpointType().shouldIgnoreEndOfInput());
 
-                            if (advanceToEndOfTime) {
+                            if (checkpointOptions.getCheckpointType().shouldAdvanceToEndOfTime()) {
                                 advanceToEndOfEventTime();
                             }
                         } else if (activeSyncSavepointId != null
                                 && activeSyncSavepointId < checkpointMetaData.getCheckpointId()) {
                             activeSyncSavepointId = null;
-                            operatorChain.setIsStoppingBySyncSavepoint(false);
+                            operatorChain.setIgnoreEndOfInput(false);
                         }
 
                         subtaskCheckpointCoordinator.checkpointState(
@@ -1166,9 +1155,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     private CheckpointStorage createCheckpointStorage(StateBackend backend) throws Exception {
         final CheckpointStorage fromApplication =
                 configuration.getCheckpointStorage(getUserCodeClassLoader());
+        final Path savepointDir = configuration.getSavepointDir(getUserCodeClassLoader());
 
         return CheckpointStorageLoader.load(
                 fromApplication,
+                savepointDir,
                 backend,
                 getEnvironment().getTaskManagerInfo().getConfiguration(),
                 getUserCodeClassLoader(),

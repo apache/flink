@@ -26,7 +26,6 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
@@ -43,6 +42,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.DefaultCheckpointPlanCalculator;
 import org.apache.flink.runtime.checkpoint.ExecutionAttemptMappingProvider;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.checkpoint.OperatorCoordinatorCheckpointContext;
@@ -223,7 +223,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
     // ------ Execution status and progress. These values are volatile, and accessed under the lock
     // -------
 
-    private int verticesFinished;
+    private int numFinishedVertices;
 
     /** Current status of the job execution. */
     private volatile JobStatus state = JobStatus.CREATED;
@@ -443,9 +443,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
                         new DispatcherThreadFactory(
                                 Thread.currentThread().getThreadGroup(), "Checkpoint Timer"));
 
-        Tuple2<List<ExecutionVertex>, List<ExecutionVertex>> sourceAndAllVertices =
-                getSourceAndAllVertices();
-
         // create the coordinator that triggers and commits checkpoints and holds the state
         checkpointCoordinator =
                 new CheckpointCoordinator(
@@ -460,12 +457,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
                         new ScheduledExecutorServiceAdapter(checkpointCoordinatorTimer),
                         SharedStateRegistry.DEFAULT_FACTORY,
                         failureManager,
-                        new CheckpointPlanCalculator(
-                                getJobID(),
-                                sourceAndAllVertices.f0,
-                                sourceAndAllVertices.f1,
-                                sourceAndAllVertices.f1),
-                        new ExecutionAttemptMappingProvider(sourceAndAllVertices.f1));
+                        createCheckpointPlanCalculator(),
+                        new ExecutionAttemptMappingProvider(getAllExecutionVertices()));
 
         // register the master hooks on the checkpoint coordinator
         for (MasterTriggerRestoreHook<?> hook : masterHooks) {
@@ -491,18 +484,11 @@ public class ExecutionGraph implements AccessExecutionGraph {
         this.checkpointStorageName = checkpointStorage.getClass().getSimpleName();
     }
 
-    private Tuple2<List<ExecutionVertex>, List<ExecutionVertex>> getSourceAndAllVertices() {
-        List<ExecutionVertex> sourceVertices = new ArrayList<>();
-        List<ExecutionVertex> allVertices = new ArrayList<>();
-        for (ExecutionVertex executionVertex : getAllExecutionVertices()) {
-            if (executionVertex.getJobVertex().getJobVertex().isInputVertex()) {
-                sourceVertices.add(executionVertex);
-            }
-
-            allVertices.add(executionVertex);
-        }
-
-        return new Tuple2<>(sourceVertices, allVertices);
+    private CheckpointPlanCalculator createCheckpointPlanCalculator() {
+        return new DefaultCheckpointPlanCalculator(
+                getJobID(),
+                new ExecutionGraphCheckpointPlanCalculatorContext(this),
+                getVerticesTopologically());
     }
 
     @Nullable
@@ -603,6 +589,10 @@ public class ExecutionGraph implements AccessExecutionGraph {
      */
     public long getNumberOfRestarts() {
         return numberOfRestartsCounter.getCount();
+    }
+
+    public int getNumFinishedVertices() {
+        return numFinishedVertices;
     }
 
     @Override
@@ -1096,7 +1086,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
      */
     void vertexFinished() {
         assertRunningInJobMasterMainThread();
-        final int numFinished = ++verticesFinished;
+        final int numFinished = ++numFinishedVertices;
         if (numFinished == numVerticesTotal) {
             // done :-)
 
@@ -1127,7 +1117,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
     void vertexUnFinished() {
         assertRunningInJobMasterMainThread();
-        verticesFinished--;
+        numFinishedVertices--;
     }
 
     /**

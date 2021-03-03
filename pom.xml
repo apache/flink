@@ -154,12 +154,12 @@ under the License.
 			For Hadoop 2.7, the minor Hadoop version supported for flink-shaded-hadoop-2-uber is 2.7.5
 		-->
 		<hivemetastore.hadoop.version>2.7.5</hivemetastore.hadoop.version>
-		<japicmp.referenceVersion>1.12.0</japicmp.referenceVersion>
+		<japicmp.referenceVersion>1.13.0</japicmp.referenceVersion>
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
 		<spotless.version>2.4.2</spotless.version>
 
 		<!-- Can be set to any value to reproduce a specific build. -->
-		<test.randomization.seed>${git.commit.id}</test.randomization.seed>
+		<test.randomization.seed/>
 		<test.unit.pattern>**/*Test.*</test.unit.pattern>
 	</properties>
 
@@ -938,6 +938,24 @@ under the License.
 		</profile>
 
 		<profile>
+			<id>enable-adaptive-scheduler</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-surefire-plugin</artifactId>
+						<configuration>
+							<systemProperties>
+								<flink.tests.enable-adaptive-scheduler>true</flink.tests.enable-adaptive-scheduler>
+							</systemProperties>
+							<excludedGroups>org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler</excludedGroups>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
+		<profile>
 			<id>java11</id>
 			<activation>
 				<jdk>[11,)</jdk>
@@ -1358,33 +1376,6 @@ under the License.
 			</plugin>
 
 			<plugin>
-				<!-- Description: https://github.com/git-commit-id/git-commit-id-maven-plugin
-					Used to show the git ref when starting the jobManager. -->
-				<groupId>pl.project13.maven</groupId>
-				<artifactId>git-commit-id-plugin</artifactId>
-				<version>4.0.2</version>
-				<executions>
-					<execution>
-						<id>get-the-git-infos</id>
-						<phase>validate</phase>
-						<goals>
-							<goal>revision</goal>
-						</goals>
-					</execution>
-				</executions>
-				<configuration>
-					<skipPoms>false</skipPoms>
-					<failOnNoGitDirectory>false</failOnNoGitDirectory>
-					<failOnUnableToExtractRepoInfo>false</failOnUnableToExtractRepoInfo>
-					<gitDescribe>
-						<!-- Don't generate the describe property -->
-						<!-- It is useless due to the way Flink does branches and tags -->
-						<skip>true</skip>
-					</gitDescribe>
-				</configuration>
-			</plugin>
-
-			<plugin>
 				<groupId>org.apache.rat</groupId>
 				<artifactId>apache-rat-plugin</artifactId>
 				<version>0.12</version><!--$NO-MVN-MAN-VER$-->
@@ -1491,7 +1482,7 @@ under the License.
 						<exclude>out/test/flink-avro/avro/user.avsc</exclude>
 						<exclude>flink-table/flink-table-planner/src/test/scala/resources/*.out</exclude>
 						<exclude>flink-table/flink-table-planner-blink/src/test/resources/digest/*.out</exclude>
-						<exclude>flink-table/flink-table-planner-blink/src/test/resources/explain/*.out</exclude>
+						<exclude>flink-table/flink-table-planner-blink/src/test/resources/explain/**</exclude>
 						<exclude>flink-table/flink-table-planner-blink/src/test/resources/jsonplan/*</exclude>
 						<exclude>flink-yarn/src/test/resources/krb5.keytab</exclude>
 						<exclude>flink-end-to-end-tests/test-scripts/test-data/**</exclude>

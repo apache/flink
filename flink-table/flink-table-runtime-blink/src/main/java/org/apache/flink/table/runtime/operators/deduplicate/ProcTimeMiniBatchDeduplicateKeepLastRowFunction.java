@@ -20,6 +20,9 @@ package org.apache.flink.table.runtime.operators.deduplicate;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.context.ExecutionContext;
+import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
+import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.Collector;
 
@@ -39,6 +42,12 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunction
     private final boolean generateUpdateBefore;
     private final boolean generateInsert;
     private final boolean inputInsertOnly;
+    private final boolean isStateTtlEnabled;
+    // The code generated equaliser used to equal RowData.
+    private final GeneratedRecordEqualiser genRecordEqualiser;
+
+    // The record equaliser used to equal RowData.
+    private transient RecordEqualiser equaliser;
 
     public ProcTimeMiniBatchDeduplicateKeepLastRowFunction(
             InternalTypeInfo<RowData> typeInfo,
@@ -46,12 +55,22 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunction
             long stateRetentionTime,
             boolean generateUpdateBefore,
             boolean generateInsert,
-            boolean inputInsertOnly) {
+            boolean inputInsertOnly,
+            GeneratedRecordEqualiser genRecordEqualiser) {
         super(typeInfo, stateRetentionTime);
         this.serializer = serializer;
         this.generateUpdateBefore = generateUpdateBefore;
         this.generateInsert = generateInsert;
         this.inputInsertOnly = inputInsertOnly;
+        this.genRecordEqualiser = genRecordEqualiser;
+        this.isStateTtlEnabled = stateRetentionTime > 0;
+    }
+
+    @Override
+    public void open(ExecutionContext ctx) throws Exception {
+        super.open(ctx);
+        equaliser =
+                genRecordEqualiser.newInstance(ctx.getRuntimeContext().getUserCodeClassLoader());
     }
 
     @Override
@@ -69,9 +88,16 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunction
             ctx.setCurrentKey(currentKey);
             if (inputInsertOnly) {
                 processLastRowOnProcTime(
-                        currentRow, generateUpdateBefore, generateInsert, state, out);
+                        currentRow,
+                        generateUpdateBefore,
+                        generateInsert,
+                        state,
+                        out,
+                        isStateTtlEnabled,
+                        equaliser);
             } else {
-                processLastRowOnChangelog(currentRow, generateUpdateBefore, state, out);
+                processLastRowOnChangelog(
+                        currentRow, generateUpdateBefore, state, out, isStateTtlEnabled, equaliser);
             }
         }
     }

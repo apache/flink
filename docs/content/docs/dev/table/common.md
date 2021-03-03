@@ -158,15 +158,15 @@ val tEnv = TableEnvironment.create(setting)
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-from pyflink.table import EnvironmentSettings, StreamTableEnvironment, BatchTableEnvironment
+from pyflink.table import EnvironmentSettings, TableEnvironment
 
 # create a blink streaming TableEnvironment
 env_settings = EnvironmentSettings.new_instance().use_blink_planner().build()
-table_env = StreamTableEnvironment.create(environment_settings=env_settings)
+table_env = TableEnvironment.create(env_settings)
 
 # create a blink batch TableEnvironment
 env_settings = EnvironmentSettings.new_instance().in_batch_mode().build()
-table_env = BatchTableEnvironment.create(environment_settings=env_settings)
+table_env = TableEnvironment.create(env_settings)
 
 ```
 {{< /tab >}}
@@ -200,11 +200,10 @@ val tEnv = StreamTableEnvironment.create(env)
 {{< tab "Python" >}}
 ```python
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.table import StreamTableEnvironment, EnvironmentSettings
+from pyflink.table import StreamTableEnvironment
 
 s_env = StreamExecutionEnvironment.get_execution_environment()
-settings = EnvironmentSettings.new_instance().use_blink_planner().in_streaming_mode().build()
-t_env = StreamTableEnvironment.create(s_env, environment_settings=settings)
+t_env = StreamTableEnvironment.create(s_env)
 ```
 {{< /tab >}}
 {{< /tabs >}}

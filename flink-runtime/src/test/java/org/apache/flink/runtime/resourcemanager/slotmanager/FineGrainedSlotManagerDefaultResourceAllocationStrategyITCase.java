@@ -19,7 +19,6 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 
 import org.junit.Test;
 
@@ -34,58 +33,8 @@ import static org.junit.Assert.assertThat;
  */
 public class FineGrainedSlotManagerDefaultResourceAllocationStrategyITCase
         extends AbstractFineGrainedSlotManagerITCase {
-    private static final WorkerResourceSpec DEFAULT_WORKER_RESOURCE_SPEC =
-            new WorkerResourceSpec.Builder()
-                    .setCpuCores(10.0)
-                    .setTaskHeapMemoryMB(1000)
-                    .setTaskOffHeapMemoryMB(1000)
-                    .setNetworkMemoryMB(1000)
-                    .setManagedMemoryMB(1000)
-                    .build();
-    private static final WorkerResourceSpec LARGE_WORKER_RESOURCE_SPEC =
-            new WorkerResourceSpec.Builder()
-                    .setCpuCores(100.0)
-                    .setTaskHeapMemoryMB(10000)
-                    .setTaskOffHeapMemoryMB(10000)
-                    .setNetworkMemoryMB(10000)
-                    .setManagedMemoryMB(10000)
-                    .build();
-    private static final int DEFAULT_NUM_SLOTS_PER_WORKER = 2;
-    private static final ResourceProfile DEFAULT_TOTAL_RESOURCE_PROFILE =
-            SlotManagerUtils.generateTaskManagerTotalResourceProfile(DEFAULT_WORKER_RESOURCE_SPEC);
-    private static final ResourceProfile DEFAULT_SLOT_RESOURCE_PROFILE =
-            SlotManagerUtils.generateDefaultSlotResourceProfile(
-                    DEFAULT_WORKER_RESOURCE_SPEC, DEFAULT_NUM_SLOTS_PER_WORKER);
-    private static final ResourceProfile LARGE_TOTAL_RESOURCE_PROFILE =
-            SlotManagerUtils.generateTaskManagerTotalResourceProfile(LARGE_WORKER_RESOURCE_SPEC);
-    private static final ResourceProfile LARGE_SLOT_RESOURCE_PROFILE =
-            SlotManagerUtils.generateDefaultSlotResourceProfile(
-                    LARGE_WORKER_RESOURCE_SPEC, DEFAULT_NUM_SLOTS_PER_WORKER);
-
-    @Override
-    protected ResourceProfile getDefaultTaskManagerResourceProfile() {
-        return DEFAULT_TOTAL_RESOURCE_PROFILE;
-    }
-
-    @Override
-    protected ResourceProfile getDefaultSlotResourceProfile() {
-        return DEFAULT_SLOT_RESOURCE_PROFILE;
-    }
-
-    @Override
-    protected int getDefaultNumberSlotsPerWorker() {
-        return DEFAULT_NUM_SLOTS_PER_WORKER;
-    }
-
-    @Override
-    protected ResourceProfile getLargeTaskManagerResourceProfile() {
-        return LARGE_TOTAL_RESOURCE_PROFILE;
-    }
-
-    @Override
-    protected ResourceProfile getLargeSlotResourceProfile() {
-        return LARGE_SLOT_RESOURCE_PROFILE;
-    }
+    private static final ResourceProfile OTHER_SLOT_RESOURCE_PROFILE =
+            DEFAULT_TOTAL_RESOURCE_PROFILE.multiply(2);
 
     @Override
     protected Optional<ResourceAllocationStrategy> getResourceAllocationStrategy() {
@@ -111,10 +60,14 @@ public class FineGrainedSlotManagerDefaultResourceAllocationStrategyITCase
                         });
                 runTest(
                         () -> {
-                            getSlotManager()
-                                    .processResourceRequirements(
-                                            createResourceRequirements(
-                                                    new JobID(), 1, getLargeSlotResourceProfile()));
+                            runInMainThread(
+                                    () ->
+                                            getSlotManager()
+                                                    .processResourceRequirements(
+                                                            createResourceRequirements(
+                                                                    new JobID(),
+                                                                    1,
+                                                                    OTHER_SLOT_RESOURCE_PROFILE)));
                             assertThat(resourceRequests.get(), is(0));
                         });
             }

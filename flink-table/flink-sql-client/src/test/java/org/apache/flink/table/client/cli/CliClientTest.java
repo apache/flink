@@ -19,7 +19,6 @@
 package org.apache.flink.table.client.cli;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.TableResult;
@@ -326,6 +325,31 @@ public class CliClientTest extends TestLogger {
         assertThat(executor.getNumExecuteSqlCalls(), is(1));
     }
 
+    @Test
+    public void testShowViews() throws Exception {
+        TestingExecutor executor =
+                new TestingExecutorBuilder()
+                        .setExecuteSqlConsumer(
+                                (ignored1, sql) -> {
+                                    if (sql.equalsIgnoreCase("show views")) {
+                                        SHOW_ROW.setField(0, "v1");
+                                        return new TestTableResult(
+                                                ResultKind.SUCCESS_WITH_CONTENT,
+                                                TableSchema.builder()
+                                                        .field("view", DataTypes.STRING())
+                                                        .build(),
+                                                CloseableIterator.ofElement(SHOW_ROW, ele -> {}));
+                                    } else {
+                                        throw new SqlExecutionException(
+                                                "unexpected sql statement: " + sql);
+                                    }
+                                })
+                        .build();
+        String output = testExecuteSql(executor, "show views;");
+        assertThat(executor.getNumExecuteSqlCalls(), is(1));
+        assertTrue(output.contains("v1"));
+    }
+
     // --------------------------------------------------------------------------------------------
 
     /** execute a sql statement and return the terminal output as string. */
@@ -477,8 +501,8 @@ public class CliClientTest extends TestLogger {
         }
 
         @Override
-        public TypedResult<List<Tuple2<Boolean, Row>>> retrieveResultChanges(
-                String sessionId, String resultId) throws SqlExecutionException {
+        public TypedResult<List<Row>> retrieveResultChanges(String sessionId, String resultId)
+                throws SqlExecutionException {
             return null;
         }
 

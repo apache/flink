@@ -23,8 +23,8 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
-import org.apache.flink.runtime.slots.ResourceCounter;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
+import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -82,29 +82,31 @@ public class FineGrainedTaskManagerTrackerTest extends TestLogger {
 
     @Test
     public void testAddAndRemovePendingTaskManager() {
-        final PendingTaskManagerId pendingTaskManagerId = PendingTaskManagerId.generate();
+        final PendingTaskManager pendingTaskManager =
+                new PendingTaskManager(ResourceProfile.ANY, 1);
         final FineGrainedTaskManagerTracker taskManagerTracker =
                 new FineGrainedTaskManagerTracker();
         final JobID jobId = new JobID();
-        final ResourceCounter resourceCounter = new ResourceCounter();
-        resourceCounter.incrementCount(ResourceProfile.ANY, 1);
+        final ResourceCounter resourceCounter =
+                ResourceCounter.withResource(ResourceProfile.ANY, 1);
 
         // Add pending task manager
-        taskManagerTracker.addPendingTaskManager(
-                new PendingTaskManager(
-                        pendingTaskManagerId, ResourceProfile.ANY, ResourceProfile.ANY));
+        taskManagerTracker.addPendingTaskManager(pendingTaskManager);
         taskManagerTracker.replaceAllPendingAllocations(
                 Collections.singletonMap(
-                        pendingTaskManagerId, Collections.singletonMap(jobId, resourceCounter)));
+                        pendingTaskManager.getPendingTaskManagerId(),
+                        Collections.singletonMap(jobId, resourceCounter)));
         assertThat(taskManagerTracker.getPendingTaskManagers().size(), is(1));
 
         // Remove pending task manager
         final Map<JobID, ResourceCounter> records =
-                taskManagerTracker.removePendingTaskManager(pendingTaskManagerId);
+                taskManagerTracker.removePendingTaskManager(
+                        pendingTaskManager.getPendingTaskManagerId());
         assertThat(taskManagerTracker.getPendingTaskManagers(), is(empty()));
         assertThat(
                 taskManagerTracker
-                        .getPendingAllocationsOfPendingTaskManager(pendingTaskManagerId)
+                        .getPendingAllocationsOfPendingTaskManager(
+                                pendingTaskManager.getPendingTaskManagerId())
                         .size(),
                 is(0));
         assertTrue(records.containsKey(jobId));
@@ -243,37 +245,40 @@ public class FineGrainedTaskManagerTrackerTest extends TestLogger {
     public void testRecordPendingAllocations() {
         final FineGrainedTaskManagerTracker taskManagerTracker =
                 new FineGrainedTaskManagerTracker();
-        final PendingTaskManagerId pendingTaskManagerId1 = PendingTaskManagerId.generate();
-        final PendingTaskManagerId pendingTaskManagerId2 = PendingTaskManagerId.generate();
+        final PendingTaskManager pendingTaskManager1 =
+                new PendingTaskManager(ResourceProfile.ANY, 1);
+        final PendingTaskManager pendingTaskManager2 =
+                new PendingTaskManager(ResourceProfile.ANY, 1);
         final JobID jobId = new JobID();
         final ResourceCounter resourceCounter =
-                new ResourceCounter(Collections.singletonMap(ResourceProfile.ANY, 1));
-        taskManagerTracker.addPendingTaskManager(
-                new PendingTaskManager(
-                        pendingTaskManagerId1, ResourceProfile.ANY, ResourceProfile.ANY));
-        taskManagerTracker.addPendingTaskManager(
-                new PendingTaskManager(
-                        pendingTaskManagerId2, ResourceProfile.ANY, ResourceProfile.ANY));
+                ResourceCounter.withResource(ResourceProfile.ANY, 1);
+        taskManagerTracker.addPendingTaskManager(pendingTaskManager1);
+        taskManagerTracker.addPendingTaskManager(pendingTaskManager2);
 
         taskManagerTracker.replaceAllPendingAllocations(
                 Collections.singletonMap(
-                        pendingTaskManagerId1, Collections.singletonMap(jobId, resourceCounter)));
+                        pendingTaskManager1.getPendingTaskManagerId(),
+                        Collections.singletonMap(jobId, resourceCounter)));
         // Only the last time is recorded
         taskManagerTracker.replaceAllPendingAllocations(
                 Collections.singletonMap(
-                        pendingTaskManagerId2, Collections.singletonMap(jobId, resourceCounter)));
+                        pendingTaskManager2.getPendingTaskManagerId(),
+                        Collections.singletonMap(jobId, resourceCounter)));
         assertThat(
                 taskManagerTracker
-                        .getPendingAllocationsOfPendingTaskManager(pendingTaskManagerId1)
+                        .getPendingAllocationsOfPendingTaskManager(
+                                pendingTaskManager1.getPendingTaskManagerId())
                         .size(),
                 is(0));
         assertTrue(
                 taskManagerTracker
-                        .getPendingAllocationsOfPendingTaskManager(pendingTaskManagerId2)
+                        .getPendingAllocationsOfPendingTaskManager(
+                                pendingTaskManager2.getPendingTaskManagerId())
                         .containsKey(jobId));
         assertThat(
                 taskManagerTracker
-                        .getPendingAllocationsOfPendingTaskManager(pendingTaskManagerId2)
+                        .getPendingAllocationsOfPendingTaskManager(
+                                pendingTaskManager2.getPendingTaskManagerId())
                         .get(jobId)
                         .getResourceCount(ResourceProfile.ANY),
                 is(1));

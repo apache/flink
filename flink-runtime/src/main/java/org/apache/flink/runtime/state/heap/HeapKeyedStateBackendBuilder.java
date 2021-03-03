@@ -29,7 +29,6 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.RestoreOperation;
 import org.apache.flink.runtime.state.SavepointKeyedStateHandle;
-import org.apache.flink.runtime.state.SnapshotStrategyRunner;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
@@ -39,8 +38,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.apache.flink.runtime.state.SnapshotStrategyRunner.ExecutionType.ASYNCHRONOUS;
-import static org.apache.flink.runtime.state.SnapshotStrategyRunner.ExecutionType.SYNCHRONOUS;
+import static org.apache.flink.runtime.state.SnapshotExecutionType.ASYNCHRONOUS;
+import static org.apache.flink.runtime.state.SnapshotExecutionType.SYNCHRONOUS;
 
 /**
  * Builder class for {@link HeapKeyedStateBackend} which handles all necessary initializations and
@@ -119,11 +118,8 @@ public class HeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
                 registeredPQStates,
                 localRecoveryConfig,
                 priorityQueueSetFactory,
-                new SnapshotStrategyRunner<>(
-                        "Heap backend snapshot",
-                        snapshotStrategy,
-                        cancelStreamRegistryForBackend,
-                        asynchronousSnapshots ? ASYNCHRONOUS : SYNCHRONOUS),
+                snapshotStrategy,
+                asynchronousSnapshots ? ASYNCHRONOUS : SYNCHRONOUS,
                 stateTableFactory,
                 keyContext);
     }
@@ -187,6 +183,7 @@ public class HeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
                 keyGroupCompressionDecorator,
                 localRecoveryConfig,
                 keyGroupRange,
-                keySerializerProvider);
+                keySerializerProvider,
+                numberOfKeyGroups);
     }
 }

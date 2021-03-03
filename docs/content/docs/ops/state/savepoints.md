@@ -46,9 +46,12 @@ In contrast to all this, Savepoints are created, owned, and deleted by the user.
 changing parallelism, forking a second job like for a red/blue deployment, and so on. Of course, Savepoints must survive job termination. Conceptually, Savepoints can be a bit more expensive to produce and restore and focus
 more on portability and support for the previously mentioned changes to the job.
 
-Those conceptual differences aside, the current implementations of Checkpoints and Savepoints are basically using the same code and produce the same format. However, there is currently one exception from this, and we might
-introduce more differences in the future. The exception is incremental checkpoints with the RocksDB state backend. They are using some RocksDB internal format instead of Flink’s native savepoint format. This makes them the
-first instance of a more lightweight checkpointing mechanism, compared to Savepoints.
+Flink's savepoint binary format is unified across all state backends. That means you can take a savepoint with one state backend and then restore it using another.
+
+{{< hint info >}}
+State backends did not start producing a common format until version 1.13. Therefore, if you want to switch the state backend you should first upgrade your Flink version then
+take a savepoint with the new version, and only after that, you can restore it with a different state backend.
+{{< /hint >}}
 
 ## Assigning Operator IDs
 
@@ -125,7 +128,7 @@ because the injected path entropy spreads the files over many directories. Lacki
 
 Unlike savepoints, checkpoints cannot generally be moved to a different location, because checkpoints may include some absolute path references.
 
-If you use the `MemoryStateBackend`, metadata *and* savepoint state will be stored in the `_metadata` file, so don't be confused by the absence of additional data files.
+If you use `JobManagerCheckpointStorage`, metadata *and* savepoint state will be stored in the `_metadata` file, so don't be confused by the absence of additional data files.
 
 {{< hint warning  >}}
 It is discouraged to move or delete the last savepoint of a running job, because this might interfere with failure-recovery. Savepoints have side-effects on exactly-once sinks, therefore 
@@ -184,18 +187,32 @@ Note that it is possible to also manually delete a savepoint via regular file sy
 
 ### Configuration
 
-You can configure a default savepoint target directory via the `state.savepoints.dir` key. When triggering savepoints, this directory will be used to store the savepoint. You can overwrite the default by specifying a custom target directory with the trigger commands (see the [`:targetDirectory` argument](#trigger-a-savepoint)).
+You can configure a default savepoint target directory via the `state.savepoints.dir` key or `StreamExecutionEnvironment`. When triggering savepoints, this directory will be used to store the savepoint. You can overwrite the default by specifying a custom target directory with the trigger commands (see the [`:targetDirectory` argument](#trigger-a-savepoint)).
 
+{{< tabs "config" >}}
+{{< tab "flink-conf.yaml" >}}
 ```yaml
 # Default savepoint target directory
 state.savepoints.dir: hdfs:///flink/savepoints
 ```
+{{< /tab >}}
+{{< tab "Java" >}}
+```java
+env.setDefaultSavepointDir("hdfs:///flink/savepoints");
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+env.setDefaultSavepointDir("hdfs:///flink/savepoints")
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 If you neither configure a default nor specify a custom target directory, triggering the savepoint will fail.
 
-<div class="alert alert-warning">
-<strong>Attention:</strong> The target directory has to be a location accessible by both the JobManager(s) and TaskManager(s) e.g. a location on a distributed file-system.
-</div>
+{{< hint warning >}}
+The target directory has to be a location accessible by both the JobManager(s) and TaskManager(s) e.g. a location on a distributed file-system.
+{{< /hint >}}
 
 ## F.A.Q
 

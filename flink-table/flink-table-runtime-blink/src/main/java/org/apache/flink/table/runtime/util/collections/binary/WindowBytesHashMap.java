@@ -23,8 +23,6 @@ import org.apache.flink.table.runtime.typeutils.WindowKeySerializer;
 import org.apache.flink.table.runtime.util.WindowKey;
 import org.apache.flink.table.types.logical.LogicalType;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
-
 /**
  * A binary map in the structure like {@code Map<WindowKey, BinaryRowData>}.
  *
@@ -44,6 +42,5 @@ public final class WindowBytesHashMap extends AbstractBytesHashMap<WindowKey> {
                 memorySize,
                 new WindowKeySerializer(keyTypes.length),
                 valueTypes);
-        checkArgument(keyTypes.length > 0);
     }
 }

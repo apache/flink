@@ -97,7 +97,7 @@ public class BlockingShuffleITCase {
         streamGraph.setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES);
         // a scheduler supporting batch jobs is required for this job graph, because it contains
         // blocking data exchanges, and the "lazy from sources" schedule mode is not supported by
-        // the declarative scheduler.
+        // the adaptive scheduler.
         // The scheduler is selected based on the JobType.
         streamGraph.setJobType(JobType.BATCH);
         return StreamingJobGraphGenerator.createJobGraph(streamGraph);

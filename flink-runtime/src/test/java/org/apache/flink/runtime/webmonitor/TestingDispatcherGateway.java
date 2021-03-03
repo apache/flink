@@ -36,6 +36,7 @@ import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.rpc.RpcTimeout;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.function.TriFunction;
 
@@ -86,6 +87,8 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
             String hostname,
             Function<JobID, CompletableFuture<Acknowledge>> cancelJobFunction,
             Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestJobFunction,
+            Function<JobID, CompletableFuture<ExecutionGraphInfo>>
+                    requestExecutionGraphInfoFunction,
             Function<JobID, CompletableFuture<JobResult>> requestJobResultFunction,
             Function<JobID, CompletableFuture<JobStatus>> requestJobStatusFunction,
             Supplier<CompletableFuture<MultipleJobsDetails>> requestMultipleJobDetailsSupplier,
@@ -115,6 +118,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
                 hostname,
                 cancelJobFunction,
                 requestJobFunction,
+                requestExecutionGraphInfoFunction,
                 requestJobResultFunction,
                 requestJobStatusFunction,
                 requestMultipleJobDetailsSupplier,
@@ -228,6 +232,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
                     hostname,
                     cancelJobFunction,
                     requestJobFunction,
+                    requestExecutionGraphInfoFunction,
                     requestJobResultFunction,
                     requestJobStatusFunction,
                     requestMultipleJobDetailsSupplier,

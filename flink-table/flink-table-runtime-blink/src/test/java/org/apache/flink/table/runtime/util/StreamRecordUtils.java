@@ -157,6 +157,9 @@ public class StreamRecordUtils {
             } else if (value instanceof DecimalData) {
                 DecimalData decimal = (DecimalData) value;
                 writer.writeDecimal(j, decimal, decimal.precision());
+            } else if (value instanceof TimestampData) {
+                TimestampData timestamp = (TimestampData) value;
+                writer.writeTimestamp(j, timestamp, 3);
             } else if (value instanceof Tuple2 && ((Tuple2) value).f0 instanceof TimestampData) {
                 TimestampData timestamp = (TimestampData) ((Tuple2) value).f0;
                 writer.writeTimestamp(j, timestamp, (int) ((Tuple2) value).f1);

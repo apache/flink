@@ -35,7 +35,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
-import org.apache.flink.runtime.state.KeyExtractorFunction;
+import org.apache.flink.runtime.state.HeapPriorityQueuesManager;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.runtime.state.Keyed;
 import org.apache.flink.runtime.state.KeyedStateFunction;
@@ -43,8 +43,10 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.PriorityComparable;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
-import org.apache.flink.runtime.state.RegisteredPriorityQueueStateBackendMetaInfo;
+import org.apache.flink.runtime.state.SavepointResources;
+import org.apache.flink.runtime.state.SnapshotExecutionType;
 import org.apache.flink.runtime.state.SnapshotResult;
+import org.apache.flink.runtime.state.SnapshotStrategy;
 import org.apache.flink.runtime.state.SnapshotStrategyRunner;
 import org.apache.flink.runtime.state.StateSnapshotRestore;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
@@ -96,22 +98,18 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
     /** Map of registered Key/Value states. */
     private final Map<String, StateTable<K, ?, ?>> registeredKVStates;
 
-    /** Map of registered priority queue set states. */
-    private final Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates;
-
     /** The configuration for local recovery. */
     private final LocalRecoveryConfig localRecoveryConfig;
 
-    /**
-     * The snapshot strategy for this backend. This determines, e.g., if snapshots are synchronous
-     * or asynchronous.
-     */
-    private final SnapshotStrategyRunner<KeyedStateHandle, ?> snapshotStrategyRunner;
+    /** The snapshot strategy for this backend. */
+    private final SnapshotStrategy<KeyedStateHandle, ?> checkpointStrategy;
+
+    private final SnapshotExecutionType snapshotExecutionType;
 
     private final StateTableFactory<K> stateTableFactory;
 
     /** Factory for state that is organized as priority queue. */
-    private final HeapPriorityQueueSetFactory priorityQueueSetFactory;
+    private final HeapPriorityQueuesManager priorityQueuesManager;
 
     public HeapKeyedStateBackend(
             TaskKvStateRegistry kvStateRegistry,
@@ -125,7 +123,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates,
             LocalRecoveryConfig localRecoveryConfig,
             HeapPriorityQueueSetFactory priorityQueueSetFactory,
-            SnapshotStrategyRunner<KeyedStateHandle, ?> snapshotStrategyRunner,
+            HeapSnapshotStrategy<K> checkpointStrategy,
+            SnapshotExecutionType snapshotExecutionType,
             StateTableFactory<K> stateTableFactory,
             InternalKeyContext<K> keyContext) {
         super(
@@ -138,11 +137,16 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                 keyGroupCompressionDecorator,
                 keyContext);
         this.registeredKVStates = registeredKVStates;
-        this.registeredPQStates = registeredPQStates;
         this.localRecoveryConfig = localRecoveryConfig;
-        this.priorityQueueSetFactory = priorityQueueSetFactory;
-        this.snapshotStrategyRunner = snapshotStrategyRunner;
+        this.checkpointStrategy = checkpointStrategy;
+        this.snapshotExecutionType = snapshotExecutionType;
         this.stateTableFactory = stateTableFactory;
+        this.priorityQueuesManager =
+                new HeapPriorityQueuesManager(
+                        registeredPQStates,
+                        priorityQueueSetFactory,
+                        keyContext.getKeyGroupRange(),
+                        keyContext.getNumberOfKeyGroups());
         LOG.info("Initializing heap keyed state backend with stream factory.");
     }
 
@@ -150,67 +154,13 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
     //  state backend operations
     // ------------------------------------------------------------------------
 
-    @SuppressWarnings("unchecked")
     @Nonnull
     @Override
-    public <T extends HeapPriorityQueueElement & PriorityComparable & Keyed>
+    public <T extends HeapPriorityQueueElement & PriorityComparable<? super T> & Keyed<?>>
             KeyGroupedInternalPriorityQueue<T> create(
                     @Nonnull String stateName,
                     @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
-
-        final HeapPriorityQueueSnapshotRestoreWrapper existingState =
-                registeredPQStates.get(stateName);
-
-        if (existingState != null) {
-            // TODO we implement the simple way of supporting the current functionality, mimicking
-            // keyed state
-            // because this should be reworked in FLINK-9376 and then we should have a common
-            // algorithm over
-            // StateMetaInfoSnapshot that avoids this code duplication.
-
-            TypeSerializerSchemaCompatibility<T> compatibilityResult =
-                    existingState
-                            .getMetaInfo()
-                            .updateElementSerializer(byteOrderedElementSerializer);
-
-            if (compatibilityResult.isIncompatible()) {
-                throw new FlinkRuntimeException(
-                        new StateMigrationException(
-                                "For heap backends, the new priority queue serializer must not be incompatible."));
-            } else {
-                registeredPQStates.put(
-                        stateName,
-                        existingState.forUpdatedSerializer(byteOrderedElementSerializer));
-            }
-
-            return existingState.getPriorityQueue();
-        } else {
-            final RegisteredPriorityQueueStateBackendMetaInfo<T> metaInfo =
-                    new RegisteredPriorityQueueStateBackendMetaInfo<>(
-                            stateName, byteOrderedElementSerializer);
-            return createInternal(metaInfo);
-        }
-    }
-
-    @Nonnull
-    private <T extends HeapPriorityQueueElement & PriorityComparable & Keyed>
-            KeyGroupedInternalPriorityQueue<T> createInternal(
-                    RegisteredPriorityQueueStateBackendMetaInfo<T> metaInfo) {
-
-        final String stateName = metaInfo.getName();
-        final HeapPriorityQueueSet<T> priorityQueue =
-                priorityQueueSetFactory.create(stateName, metaInfo.getElementSerializer());
-
-        HeapPriorityQueueSnapshotRestoreWrapper<T> wrapper =
-                new HeapPriorityQueueSnapshotRestoreWrapper<>(
-                        priorityQueue,
-                        metaInfo,
-                        KeyExtractorFunction.forKeyedObjects(),
-                        keyGroupRange,
-                        numberOfKeyGroups);
-
-        registeredPQStates.put(stateName, wrapper);
-        return priorityQueue;
+        return priorityQueuesManager.createOrUpdate(stateName, byteOrderedElementSerializer);
     }
 
     private <N, V> StateTable<K, N, V> tryRegisterStateTable(
@@ -356,8 +306,30 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             @Nonnull CheckpointOptions checkpointOptions)
             throws Exception {
 
+        SnapshotStrategyRunner<KeyedStateHandle, ?> snapshotStrategyRunner =
+                new SnapshotStrategyRunner<>(
+                        "Heap backend snapshot",
+                        checkpointStrategy,
+                        cancelStreamRegistry,
+                        snapshotExecutionType);
         return snapshotStrategyRunner.snapshot(
                 checkpointId, timestamp, streamFactory, checkpointOptions);
+    }
+
+    @Nonnull
+    @Override
+    public SavepointResources<K> savepoint() {
+
+        HeapSnapshotResources<K> snapshotResources =
+                HeapSnapshotResources.create(
+                        registeredKVStates,
+                        priorityQueuesManager.getRegisteredPQStates(),
+                        keyGroupCompressionDecorator,
+                        keyGroupRange,
+                        keySerializer,
+                        numberOfKeyGroups);
+
+        return new SavepointResources<>(snapshotResources, snapshotExecutionType);
     }
 
     @Override
@@ -400,7 +372,6 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
     /** Returns the total number of state entries across all keys/namespaces. */
     @VisibleForTesting
-    @SuppressWarnings("unchecked")
     @Override
     public int numKeyValueStateEntries() {
         int sum = 0;

@@ -203,7 +203,9 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
             // Check that restored key groups all belong to the backend.
             Preconditions.checkState(
                     keyGroupRange.contains(keyGroupIndex),
-                    "The key group must belong to the backend.");
+                    "Key group %s doesn't belong to this backend with key group range: %s",
+                    keyGroupIndex,
+                    keyGroupRange);
 
             fsDataInputStream.seek(offset);
 

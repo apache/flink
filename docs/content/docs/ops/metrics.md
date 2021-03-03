@@ -352,7 +352,7 @@ class MyMapper extends RichMapFunction[Long,Long] {
 {{< /tab >}}
 {{< /tabs >}}
 
-Flink offers a {% gh_link flink-metrics/flink-metrics-dropwizard/src/main/java/org/apache/flink/dropwizard/metrics/DropwizardMeterWrapper.java "Wrapper" %} that allows usage of Codahale/DropWizard meters.
+Flink offers a {{< gh_link file="flink-metrics/flink-metrics-dropwizard/src/main/java/org/apache/flink/dropwizard/metrics/DropwizardMeterWrapper.java" name="Wrapper" >}} that allows usage of Codahale/DropWizard meters.
 To use this wrapper add the following dependency in your `pom.xml`:
 ```xml
 <dependency>

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.testutils.FlinkMatchers;
@@ -25,6 +26,7 @@ import org.apache.flink.runtime.persistence.TestingRetrievableStateStorageHelper
 import org.apache.flink.runtime.persistence.TestingStateHandleStore;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
@@ -35,6 +37,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -44,8 +47,11 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static java.util.Arrays.asList;
+import static org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
@@ -70,6 +76,57 @@ public class DefaultCompletedCheckpointStoreTest extends TestLogger {
     @After
     public void after() {
         executorService.shutdownNow();
+    }
+
+    @Test
+    public void testAtLeastOneCheckpointRetained() throws Exception {
+        CompletedCheckpoint cp1 = getCheckpoint(false, 1L);
+        CompletedCheckpoint cp2 = getCheckpoint(false, 2L);
+        CompletedCheckpoint sp1 = getCheckpoint(true, 3L);
+        CompletedCheckpoint sp2 = getCheckpoint(true, 4L);
+        CompletedCheckpoint sp3 = getCheckpoint(true, 5L);
+        testCheckpointRetention(1, asList(cp1, cp2, sp1, sp2, sp3), asList(cp2, sp3));
+    }
+
+    @Test
+    public void testOlderSavepointSubsumed() throws Exception {
+        CompletedCheckpoint cp1 = getCheckpoint(false, 1L);
+        CompletedCheckpoint sp1 = getCheckpoint(true, 2L);
+        CompletedCheckpoint cp2 = getCheckpoint(false, 3L);
+        testCheckpointRetention(1, asList(cp1, sp1, cp2), asList(cp2));
+    }
+
+    @Test
+    public void testSubsumeAfterStoppingWithSavepoint() throws Exception {
+        CompletedCheckpoint cp1 = getCheckpoint(false, 1L);
+        CompletedCheckpoint sp1 = getCheckpoint(true, 2L);
+        CompletedCheckpoint stop =
+                getCheckpoint(CheckpointProperties.forSyncSavepoint(false, false), 3L);
+        testCheckpointRetention(1, asList(cp1, sp1, stop), asList(stop));
+    }
+
+    @Test
+    public void testNotSubsumedIfNotNeeded() throws Exception {
+        CompletedCheckpoint cp1 = getCheckpoint(false, 1L);
+        CompletedCheckpoint cp2 = getCheckpoint(false, 2L);
+        CompletedCheckpoint cp3 = getCheckpoint(false, 3L);
+        testCheckpointRetention(3, asList(cp1, cp2, cp3), asList(cp1, cp2, cp3));
+    }
+
+    private void testCheckpointRetention(
+            int numRetain,
+            List<CompletedCheckpoint> completed,
+            List<CompletedCheckpoint> expectedRetained)
+            throws Exception {
+        final TestingStateHandleStore<CompletedCheckpoint> stateHandleStore =
+                builder.setGetAllSupplier(() -> createStateHandles(3)).build();
+        final CompletedCheckpointStore completedCheckpointStore =
+                createCompletedCheckpointStore(stateHandleStore, numRetain);
+
+        for (CompletedCheckpoint c : completed) {
+            completedCheckpointStore.addCheckpoint(c, new CheckpointsCleaner(), () -> {});
+        }
+        assertEquals(expectedRetained, completedCheckpointStore.getAllCheckpoints());
     }
 
     /**
@@ -298,8 +355,13 @@ public class DefaultCompletedCheckpointStoreTest extends TestLogger {
 
     private CompletedCheckpointStore createCompletedCheckpointStore(
             TestingStateHandleStore<CompletedCheckpoint> stateHandleStore) {
+        return createCompletedCheckpointStore(stateHandleStore, 1);
+    }
+
+    private CompletedCheckpointStore createCompletedCheckpointStore(
+            TestingStateHandleStore<CompletedCheckpoint> stateHandleStore, int toRetain) {
         return new DefaultCompletedCheckpointStore<>(
-                1,
+                toRetain,
                 stateHandleStore,
                 new CheckpointStoreUtil() {
                     @Override
@@ -313,5 +375,25 @@ public class DefaultCompletedCheckpointStoreTest extends TestLogger {
                     }
                 },
                 executorService);
+    }
+
+    private CompletedCheckpoint getCheckpoint(boolean isSavepoint, long id) {
+        return getCheckpoint(
+                isSavepoint
+                        ? CheckpointProperties.forSavepoint(false)
+                        : CheckpointProperties.forCheckpoint(NEVER_RETAIN_AFTER_TERMINATION),
+                id);
+    }
+
+    private CompletedCheckpoint getCheckpoint(CheckpointProperties props, long id) {
+        return new CompletedCheckpoint(
+                new JobID(),
+                id,
+                0L,
+                0L,
+                Collections.emptyMap(),
+                Collections.emptyList(),
+                props,
+                new TestCompletedCheckpointStorageLocation());
     }
 }

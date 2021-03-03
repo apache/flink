@@ -47,9 +47,12 @@ import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
+import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
+import org.apache.flink.table.operations.UseModulesOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterTableAddConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
@@ -288,6 +291,60 @@ public class SqlToOperationConverterTest {
         assertEquals(
                 properties,
                 ((AlterDatabaseOperation) operation).getCatalogDatabase().getProperties());
+    }
+
+    @Test
+    public void testLoadModule() {
+        final String sql = "LOAD MODULE dummy WITH ('k1' = 'v1', 'k2' = 'v2')";
+        final String expectedModuleName = "dummy";
+        final Map<String, String> expectedProperties = new HashMap<>();
+        expectedProperties.put("k1", "v1");
+        expectedProperties.put("k2", "v2");
+
+        Operation operation = parse(sql, SqlDialect.DEFAULT);
+        assert operation instanceof LoadModuleOperation;
+        final LoadModuleOperation loadModuleOperation = (LoadModuleOperation) operation;
+
+        assertEquals(expectedModuleName, loadModuleOperation.getModuleName());
+        assertEquals(expectedProperties, loadModuleOperation.getProperties());
+    }
+
+    @Test
+    public void testUnloadModule() {
+        final String sql = "UNLOAD MODULE dummy";
+        final String expectedModuleName = "dummy";
+
+        Operation operation = parse(sql, SqlDialect.DEFAULT);
+        assert operation instanceof UnloadModuleOperation;
+        final UnloadModuleOperation unloadModuleOperation = (UnloadModuleOperation) operation;
+
+        assertEquals(expectedModuleName, unloadModuleOperation.getModuleName());
+    }
+
+    @Test
+    public void testUseOneModule() {
+        final String sql = "USE MODULES dummy";
+        final List<String> expectedModuleNames = Collections.singletonList("dummy");
+
+        Operation operation = parse(sql, SqlDialect.DEFAULT);
+        assert operation instanceof UseModulesOperation;
+        final UseModulesOperation useModulesOperation = (UseModulesOperation) operation;
+
+        assertEquals(expectedModuleNames, useModulesOperation.getModuleNames());
+        assertEquals("USE MODULES: [dummy]", useModulesOperation.asSummaryString());
+    }
+
+    @Test
+    public void testUseMultipleModules() {
+        final String sql = "USE MODULES x, y, z";
+        final List<String> expectedModuleNames = Arrays.asList("x", "y", "z");
+
+        Operation operation = parse(sql, SqlDialect.DEFAULT);
+        assert operation instanceof UseModulesOperation;
+        final UseModulesOperation useModulesOperation = (UseModulesOperation) operation;
+
+        assertEquals(expectedModuleNames, useModulesOperation.getModuleNames());
+        assertEquals("USE MODULES: [x, y, z]", useModulesOperation.asSummaryString());
     }
 
     @Test

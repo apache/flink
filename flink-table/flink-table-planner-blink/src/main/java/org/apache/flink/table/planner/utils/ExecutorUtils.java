@@ -45,6 +45,7 @@ public class ExecutorUtils {
                 new StreamGraphGenerator(
                                 transformations, execEnv.getConfig(), execEnv.getCheckpointConfig())
                         .setStateBackend(execEnv.getStateBackend())
+                        .setSavepointDir(execEnv.getDefaultSavepointDirectory())
                         .setChaining(execEnv.isChainingEnabled())
                         .setUserArtifacts(execEnv.getCachedFiles())
                         .setTimeCharacteristic(execEnv.getStreamTimeCharacteristic())

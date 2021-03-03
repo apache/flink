@@ -28,8 +28,8 @@ from pyflink.table.udf import udf
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import (PyFlinkBlinkStreamTableTestCase,
                                              PyFlinkBlinkBatchTableTestCase,
-                                             PyFlinkStreamTableTestCase,
-                                             PyFlinkBatchTableTestCase)
+                                             PyFlinkOldStreamTableTestCase,
+                                             PyFlinkOldBatchTableTestCase)
 
 
 class DependencyTests(object):
@@ -67,12 +67,12 @@ class DependencyTests(object):
         self.assert_equals(actual, ["+I[3, 1]", "+I[4, 2]", "+I[5, 3]"])
 
 
-class FlinkStreamDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
+class FlinkStreamDependencyTests(DependencyTests, PyFlinkOldStreamTableTestCase):
 
     pass
 
 
-class FlinkBatchDependencyTests(PyFlinkBatchTableTestCase):
+class FlinkBatchDependencyTests(PyFlinkOldBatchTableTestCase):
 
     def test_add_python_file(self):
         python_file_dir = os.path.join(self.tempdir, "python_file_dir_" + str(uuid.uuid4()))

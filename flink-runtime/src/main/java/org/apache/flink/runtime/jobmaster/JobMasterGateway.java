@@ -25,7 +25,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorGateway;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -42,6 +41,7 @@ import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorToJobManagerHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
@@ -209,12 +209,12 @@ public interface JobMasterGateway
     CompletableFuture<JobStatus> requestJobStatus(@RpcTimeout Time timeout);
 
     /**
-     * Requests the {@link ArchivedExecutionGraph} of the executed job.
+     * Requests the {@link ExecutionGraphInfo} of the executed job.
      *
      * @param timeout for the rpc call
-     * @return Future which is completed with the {@link ArchivedExecutionGraph} of the executed job
+     * @return Future which is completed with the {@link ExecutionGraphInfo} of the executed job
      */
-    CompletableFuture<ArchivedExecutionGraph> requestJob(@RpcTimeout Time timeout);
+    CompletableFuture<ExecutionGraphInfo> requestJob(@RpcTimeout Time timeout);
 
     /**
      * Triggers taking a savepoint of the executed job.
@@ -234,14 +234,13 @@ public interface JobMasterGateway
      *
      * @param targetDirectory to which to write the savepoint data or null if the default savepoint
      *     directory should be used
-     * @param advanceToEndOfEventTime Flag indicating if the source should inject a {@code
-     *     MAX_WATERMARK} in the pipeline to fire any registered event-time timers
+     * @param terminate flag indicating if the job should terminate or just suspend
      * @param timeout for the rpc call
      * @return Future which is completed with the savepoint path once completed
      */
     CompletableFuture<String> stopWithSavepoint(
             @Nullable final String targetDirectory,
-            final boolean advanceToEndOfEventTime,
+            final boolean terminate,
             @RpcTimeout final Time timeout);
 
     /**

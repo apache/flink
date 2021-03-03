@@ -164,8 +164,8 @@ public class HeapSavepointRestoreOperation<K> implements RestoreOperation<Void> 
     @SuppressWarnings("unchecked")
     private void readPriorityQueue(KeyGroupEntry groupEntry, StateMetaInfoSnapshot infoSnapshot)
             throws IOException {
-        DataInputDeserializer keyDeserializer = new DataInputDeserializer(groupEntry.getKey());
-        keyDeserializer.skipBytesToRead(keyGroupPrefixBytes);
+        entryKeyDeserializer.setBuffer(groupEntry.getKey());
+        entryKeyDeserializer.skipBytesToRead(keyGroupPrefixBytes);
         HeapPriorityQueueSnapshotRestoreWrapper<HeapPriorityQueueElement>
                 priorityQueueSnapshotRestoreWrapper =
                         (HeapPriorityQueueSnapshotRestoreWrapper<HeapPriorityQueueElement>)
@@ -174,7 +174,7 @@ public class HeapSavepointRestoreOperation<K> implements RestoreOperation<Void> 
                 priorityQueueSnapshotRestoreWrapper
                         .getMetaInfo()
                         .getElementSerializer()
-                        .deserialize(keyDeserializer);
+                        .deserialize(entryKeyDeserializer);
         HeapPriorityQueueSet<HeapPriorityQueueElement> priorityQueue =
                 priorityQueueSnapshotRestoreWrapper.getPriorityQueue();
         priorityQueue.add(timer);

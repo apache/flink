@@ -53,7 +53,8 @@ and use it in a query:
 def add(i, j):
   return i + j
 
-table_env = BatchTableEnvironment.create(env)
+settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+table_env = TableEnvironment.create(settings)
 
 # use the vectorized Python scalar function in Python Table API
 my_table.select(add(my_table.bigint, my_table.bigint))
@@ -85,9 +86,8 @@ and use it in `GroupBy Aggregation`, `GroupBy Window Aggregation` and `Over Wind
 def mean_udaf(v):
     return v.mean()
 
-table_env = BatchTableEnvironment.create(
-            environment_settings=EnvironmentSettings.new_instance()
-            .in_batch_mode().use_blink_planner().build())
+settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+table_env = TableEnvironment.create(settings)
 
 my_table = ...  # type: Table, table schema: [a: String, b: BigInt, c: BigInt]
 

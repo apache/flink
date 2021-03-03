@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster;
 
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -28,37 +28,37 @@ import java.util.Objects;
 /** The result of the {@link JobManagerRunner}. */
 public final class JobManagerRunnerResult {
 
-    @Nullable private final ArchivedExecutionGraph archivedExecutionGraph;
+    @Nullable private final ExecutionGraphInfo executionGraphInfo;
 
     @Nullable private final Throwable failure;
 
     private JobManagerRunnerResult(
-            @Nullable ArchivedExecutionGraph archivedExecutionGraph, @Nullable Throwable failure) {
-        this.archivedExecutionGraph = archivedExecutionGraph;
+            @Nullable ExecutionGraphInfo executionGraphInfo, @Nullable Throwable failure) {
+        this.executionGraphInfo = executionGraphInfo;
         this.failure = failure;
     }
 
     public boolean isSuccess() {
-        return archivedExecutionGraph != null && failure == null;
+        return executionGraphInfo != null && failure == null;
     }
 
     public boolean isJobNotFinished() {
-        return archivedExecutionGraph == null && failure == null;
+        return executionGraphInfo == null && failure == null;
     }
 
     public boolean isInitializationFailure() {
-        return archivedExecutionGraph == null && failure != null;
+        return executionGraphInfo == null && failure != null;
     }
 
     /**
      * This method returns the payload of the successful JobManagerRunnerResult.
      *
-     * @return the successful completed {@link ArchivedExecutionGraph}
+     * @return the @link ExecutionGraphInfo} of a successfully finished job
      * @throws IllegalStateException if the result is not a success
      */
-    public ArchivedExecutionGraph getArchivedExecutionGraph() {
+    public ExecutionGraphInfo getExecutionGraphInfo() {
         Preconditions.checkState(isSuccess());
-        return archivedExecutionGraph;
+        return executionGraphInfo;
     }
 
     /**
@@ -81,21 +81,21 @@ public final class JobManagerRunnerResult {
             return false;
         }
         JobManagerRunnerResult that = (JobManagerRunnerResult) o;
-        return Objects.equals(archivedExecutionGraph, that.archivedExecutionGraph)
+        return Objects.equals(executionGraphInfo, that.executionGraphInfo)
                 && Objects.equals(failure, that.failure);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(archivedExecutionGraph, failure);
+        return Objects.hash(executionGraphInfo, failure);
     }
 
     public static JobManagerRunnerResult forJobNotFinished() {
         return new JobManagerRunnerResult(null, null);
     }
 
-    public static JobManagerRunnerResult forSuccess(ArchivedExecutionGraph archivedExecutionGraph) {
-        return new JobManagerRunnerResult(archivedExecutionGraph, null);
+    public static JobManagerRunnerResult forSuccess(ExecutionGraphInfo executionGraphInfo) {
+        return new JobManagerRunnerResult(executionGraphInfo, null);
     }
 
     public static JobManagerRunnerResult forInitializationFailure(Throwable failure) {

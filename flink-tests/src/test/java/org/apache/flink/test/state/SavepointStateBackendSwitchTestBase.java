@@ -23,19 +23,23 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
+import org.apache.flink.runtime.state.FullSnapshotResources;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
+import org.apache.flink.runtime.state.SnapshotStrategyRunner;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
+import org.apache.flink.streaming.api.operators.StreamOperatorStateHandler;
 import org.apache.flink.streaming.api.operators.TimerHeapInternalTimer;
 import org.apache.flink.streaming.api.operators.TimerSerializer;
 import org.apache.flink.test.state.BackendSwitchSpecs.BackendSwitchSpec;
@@ -56,6 +60,7 @@ import java.util.Map;
 import java.util.concurrent.RunnableFuture;
 
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -101,6 +106,7 @@ public abstract class SavepointStateBackendSwitchTestBase {
         final Integer namespace1 = 1;
         final Integer namespace2 = 2;
         final Integer namespace3 = 3;
+        final Integer namespace4 = 4;
 
         try (final CheckpointableKeyedStateBackend<String> keyedBackend =
                 fromBackend.createBackend(
@@ -113,7 +119,8 @@ public abstract class SavepointStateBackendSwitchTestBase {
                     listStateDescriptor,
                     namespace1,
                     namespace2,
-                    namespace3);
+                    namespace3,
+                    namespace4);
         }
 
         final SnapshotResult<KeyedStateHandle> stateHandles;
@@ -136,6 +143,7 @@ public abstract class SavepointStateBackendSwitchTestBase {
                     namespace1,
                     namespace2,
                     namespace3,
+                    namespace4,
                     keyedBackend);
         }
     }
@@ -159,7 +167,8 @@ public abstract class SavepointStateBackendSwitchTestBase {
             ListStateDescriptor<Long> listStateDescriptor,
             Integer namespace1,
             Integer namespace2,
-            Integer namespace3)
+            Integer namespace3,
+            Integer namespace4)
             throws Exception {
 
         InternalMapState<String, Integer, Long, Long> mapState =
@@ -179,6 +188,7 @@ public abstract class SavepointStateBackendSwitchTestBase {
         mapState.setCurrentNamespace(namespace2);
         mapState.put(22L, 22L);
         mapState.put(11L, 11L);
+
         listState.setCurrentNamespace(namespace2);
         listState.add(4L);
         listState.add(5L);
@@ -194,12 +204,23 @@ public abstract class SavepointStateBackendSwitchTestBase {
         mapState.put(33L, 33L);
         mapState.put(44L, 44L);
         mapState.put(55L, 55L);
+
         valueState.setCurrentNamespace(namespace3);
         valueState.update(1239L);
         listState.setCurrentNamespace(namespace3);
         listState.add(1L);
         listState.add(2L);
         listState.add(3L);
+
+        mapState.setCurrentNamespace(namespace4);
+        mapState.put(1L, 1L);
+        // HEAP state backend will keep an empty map as an entry in the underlying State Table
+        // we should skip such entries when serializing
+        Iterator<Map.Entry<Long, Long>> iterator = mapState.iterator();
+        while (iterator.hasNext()) {
+            iterator.next();
+            iterator.remove();
+        }
 
         KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<String, Integer>> priorityQueue =
                 keyedBackend.create(
@@ -210,8 +231,13 @@ public abstract class SavepointStateBackendSwitchTestBase {
         priorityQueue.add(new TimerHeapInternalTimer<>(2345L, "mno", namespace2));
         priorityQueue.add(new TimerHeapInternalTimer<>(3456L, "mno", namespace3));
 
+        SnapshotStrategyRunner<KeyedStateHandle, ? extends FullSnapshotResources<?>>
+                savepointRunner =
+                        StreamOperatorStateHandler.prepareSavepoint(
+                                keyedBackend, new CloseableRegistry());
+
         RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot =
-                keyedBackend.snapshot(
+                savepointRunner.snapshot(
                         0L,
                         0L,
                         new MemCheckpointStreamFactory(4 * 1024 * 1024),
@@ -234,9 +260,10 @@ public abstract class SavepointStateBackendSwitchTestBase {
             Integer namespace1,
             Integer namespace2,
             Integer namespace3,
+            Integer namespace4,
             CheckpointableKeyedStateBackend<String> keyedBackend)
             throws Exception {
-        InternalMapState<String, Integer, Long, Long> state =
+        InternalMapState<String, Integer, Long, Long> mapState =
                 keyedBackend.createInternalState(IntSerializer.INSTANCE, mapStateDescriptor);
 
         InternalValueState<String, Integer, Long> valueState =
@@ -246,34 +273,37 @@ public abstract class SavepointStateBackendSwitchTestBase {
                 keyedBackend.createInternalState(IntSerializer.INSTANCE, listStateDescriptor);
 
         keyedBackend.setCurrentKey("abc");
-        state.setCurrentNamespace(namespace1);
-        assertEquals(33L, (long) state.get(33L));
-        assertEquals(55L, (long) state.get(55L));
-        assertEquals(2, getStateSize(state));
+        mapState.setCurrentNamespace(namespace1);
+        assertEquals(33L, (long) mapState.get(33L));
+        assertEquals(55L, (long) mapState.get(55L));
+        assertEquals(2, getStateSize(mapState));
 
-        state.setCurrentNamespace(namespace2);
-        assertEquals(22L, (long) state.get(22L));
-        assertEquals(11L, (long) state.get(11L));
-        assertEquals(2, getStateSize(state));
+        mapState.setCurrentNamespace(namespace2);
+        assertEquals(22L, (long) mapState.get(22L));
+        assertEquals(11L, (long) mapState.get(11L));
+        assertEquals(2, getStateSize(mapState));
         listState.setCurrentNamespace(namespace2);
         assertThat(listState.get(), contains(4L, 5L, 6L));
 
-        state.setCurrentNamespace(namespace3);
-        assertEquals(44L, (long) state.get(44L));
-        assertEquals(1, getStateSize(state));
+        mapState.setCurrentNamespace(namespace3);
+        assertEquals(44L, (long) mapState.get(44L));
+        assertEquals(1, getStateSize(mapState));
 
         keyedBackend.setCurrentKey("mno");
-        state.setCurrentNamespace(namespace3);
-        assertEquals(11L, (long) state.get(11L));
-        assertEquals(22L, (long) state.get(22L));
-        assertEquals(33L, (long) state.get(33L));
-        assertEquals(44L, (long) state.get(44L));
-        assertEquals(55L, (long) state.get(55L));
-        assertEquals(5, getStateSize(state));
+        mapState.setCurrentNamespace(namespace3);
+        assertEquals(11L, (long) mapState.get(11L));
+        assertEquals(22L, (long) mapState.get(22L));
+        assertEquals(33L, (long) mapState.get(33L));
+        assertEquals(44L, (long) mapState.get(44L));
+        assertEquals(55L, (long) mapState.get(55L));
+        assertEquals(5, getStateSize(mapState));
         valueState.setCurrentNamespace(namespace3);
         assertEquals(1239L, (long) valueState.value());
         listState.setCurrentNamespace(namespace3);
         assertThat(listState.get(), contains(1L, 2L, 3L));
+
+        mapState.setCurrentNamespace(namespace4);
+        assertThat(mapState.isEmpty(), is(true));
 
         KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<String, Integer>> priorityQueue =
                 keyedBackend.create(

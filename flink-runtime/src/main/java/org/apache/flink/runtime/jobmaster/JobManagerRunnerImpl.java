@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.client.JobInitializationException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -31,6 +30,7 @@ import org.apache.flink.runtime.jobmaster.factories.JobMasterServiceFactory;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.function.ThrowingRunnable;
@@ -241,10 +241,10 @@ public class JobManagerRunnerImpl
 
     /** Job completion notification triggered by JobManager. */
     @Override
-    public void jobReachedGloballyTerminalState(ArchivedExecutionGraph executionGraph) {
+    public void jobReachedGloballyTerminalState(ExecutionGraphInfo executionGraphInfo) {
         unregisterJobFromHighAvailability();
-        // complete the result future with the terminal execution graph
-        resultFuture.complete(JobManagerRunnerResult.forSuccess(executionGraph));
+        // complete the result future with the information of the information of the terminated job
+        resultFuture.complete(JobManagerRunnerResult.forSuccess(executionGraphInfo));
     }
 
     /** Job completion notification triggered by self. */

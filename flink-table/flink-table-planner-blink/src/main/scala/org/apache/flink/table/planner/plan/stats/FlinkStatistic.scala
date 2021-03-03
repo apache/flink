@@ -19,8 +19,7 @@
 package org.apache.flink.table.planner.plan.stats
 
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
-import org.apache.flink.table.planner.plan.`trait`.RelModifiedMonotonicity
-
+import org.apache.flink.table.planner.plan.`trait`.{RelModifiedMonotonicity, RelWindowProperties}
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.rel.{RelCollation, RelDistribution, RelReferentialConstraint}
 import org.apache.calcite.schema.Statistic
@@ -36,7 +35,8 @@ import scala.collection.JavaConversions._
 class FlinkStatistic(
     tableStats: TableStats,
     uniqueKeys: util.Set[_ <: util.Set[String]] = null,
-    relModifiedMonotonicity: RelModifiedMonotonicity = null)
+    relModifiedMonotonicity: RelModifiedMonotonicity = null,
+    relWindowProperties: RelWindowProperties = null)
   extends Statistic {
 
   require(tableStats != null, "tableStats should not be null")
@@ -74,6 +74,11 @@ class FlinkStatistic(
     * Returns the modified monotonicity of the table
     */
   def getRelModifiedMonotonicity: RelModifiedMonotonicity = relModifiedMonotonicity
+
+  /**
+   * Returns the window properties of the table
+   */
+  def getRelWindowProperties: RelWindowProperties = relWindowProperties
 
   /**
     * Returns the number of rows of the table.
@@ -129,6 +134,9 @@ class FlinkStatistic(
     if (relModifiedMonotonicity != null) {
       builder.append(relModifiedMonotonicity.toString).append(", ")
     }
+    if (relWindowProperties != null) {
+      builder.append(relWindowProperties.toString).append(", ")
+    }
 
     if (builder.nonEmpty && builder.length() > 2) {
       // delete `, ` if build is not empty
@@ -153,6 +161,7 @@ object FlinkStatistic {
     private var tableStats: TableStats = TableStats.UNKNOWN
     private var uniqueKeys: util.Set[_ <: util.Set[String]] = _
     private var relModifiedMonotonicity: RelModifiedMonotonicity = _
+    private var windowProperties: RelWindowProperties = _
 
     def tableStats(tableStats: TableStats): Builder = {
       if (tableStats != null) {
@@ -173,6 +182,11 @@ object FlinkStatistic {
       this
     }
 
+    def relWindowProperties(windowProperties: RelWindowProperties): Builder = {
+      this.windowProperties = windowProperties
+      this
+    }
+
     def statistic(statistic: FlinkStatistic): Builder = {
       require(statistic != null, "input statistic cannot be null!")
       this.tableStats = statistic.getTableStats
@@ -184,7 +198,8 @@ object FlinkStatistic {
     def build(): FlinkStatistic = {
       if (tableStats == TableStats.UNKNOWN &&
         uniqueKeys == null &&
-        relModifiedMonotonicity == null) {
+        relModifiedMonotonicity == null &&
+        windowProperties == null) {
         UNKNOWN
       } else {
         new FlinkStatistic(tableStats, uniqueKeys, relModifiedMonotonicity)

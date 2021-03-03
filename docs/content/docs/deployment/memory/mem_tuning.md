@@ -63,15 +63,14 @@ This is only relevant for TaskManagers.
 When deploying a Flink streaming application, the type of [state backend]({{< ref "docs/ops/state/state_backends" >}}) used
 will dictate the optimal memory configurations of your cluster.
 
-### Heap state backend
+### HashMap state backend
 
-When running a stateless job or using a heap state backend ([MemoryStateBackend]({{< ref "docs/ops/state/state_backends" >}}#the-memorystatebackend)
-or [FsStateBackend]({{< ref "docs/ops/state/state_backends" >}}#the-fsstatebackend)), set [managed memory]({{< ref "docs/deployment/memory/mem_setup_tm" >}}#managed-memory) to zero.
+When running a stateless job or using the [HashMapStateBackend]({{< ref "docs/ops/state/state_backends#the-hashmapstatebackend" >}})), set [managed memory]({{< ref "docs/deployment/memory/mem_setup_tm" >}}#managed-memory) to zero.
 This will ensure that the maximum amount of heap memory is allocated for user code on the JVM.
 
 ### RocksDB state backend
 
-The [RocksDBStateBackend]({{< ref "docs/ops/state/state_backends" >}}#the-rocksdbstatebackend) uses native memory. By default,
+The [EmbeddedRocksDBStateBackend]({{< ref "docs/ops/state/state_backends#the-embeddedrocksdbstatebackend" >}}) uses native memory. By default,
 RocksDB is set up to limit native memory allocation to the size of the [managed memory]({{< ref "docs/deployment/memory/mem_setup_tm" >}}#managed-memory).
 Therefore, it is important to reserve enough *managed memory* for your state. If you disable the default RocksDB memory control,
 TaskManagers can be killed in containerized deployments if RocksDB allocates memory above the limit of the requested container size

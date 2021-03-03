@@ -29,6 +29,7 @@ import org.apache.flink.kubernetes.kubeclient.decorators.KubernetesStepDecorator
 import org.apache.flink.kubernetes.kubeclient.decorators.MountSecretsDecorator;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesTaskManagerParameters;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
+import org.apache.flink.util.Preconditions;
 
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
@@ -37,8 +38,8 @@ import io.fabric8.kubernetes.api.model.PodBuilder;
 public class KubernetesTaskManagerFactory {
 
     public static KubernetesPod buildTaskManagerKubernetesPod(
-            KubernetesTaskManagerParameters kubernetesTaskManagerParameters) {
-        FlinkPod flinkPod = new FlinkPod.Builder().build();
+            FlinkPod podTemplate, KubernetesTaskManagerParameters kubernetesTaskManagerParameters) {
+        FlinkPod flinkPod = Preconditions.checkNotNull(podTemplate).copy();
 
         final KubernetesStepDecorator[] stepDecorators =
                 new KubernetesStepDecorator[] {
@@ -56,7 +57,7 @@ public class KubernetesTaskManagerFactory {
         }
 
         final Pod resolvedPod =
-                new PodBuilder(flinkPod.getPod())
+                new PodBuilder(flinkPod.getPodWithoutMainContainer())
                         .editOrNewSpec()
                         .addToContainers(flinkPod.getMainContainer())
                         .endSpec()

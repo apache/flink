@@ -26,7 +26,6 @@ import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
@@ -260,7 +259,7 @@ public class AsyncIOExample {
 
         if (statePath != null) {
             // setup state and checkpoint mode
-            env.setStateBackend(new FsStateBackend(statePath));
+            env.getCheckpointConfig().setCheckpointStorage(statePath);
         }
 
         if (EXACTLY_ONCE_MODE.equals(cpMode)) {

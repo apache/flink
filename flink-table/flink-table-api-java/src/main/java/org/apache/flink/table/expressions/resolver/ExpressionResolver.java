@@ -93,6 +93,7 @@ public class ExpressionResolver {
                 ResolverRules.OVER_WINDOWS,
                 ResolverRules.FIELD_RESOLVE,
                 ResolverRules.QUALIFY_BUILT_IN_FUNCTIONS,
+                ResolverRules.RESOLVE_SQL_CALL,
                 ResolverRules.RESOLVE_CALL_BY_ARGUMENTS);
     }
 
@@ -307,6 +308,11 @@ public class ExpressionResolver {
         }
 
         @Override
+        public List<LocalReferenceExpression> getLocalReferences() {
+            return new ArrayList<>(localReferences.values());
+        }
+
+        @Override
         public Optional<LocalOverWindow> getOverWindow(Expression alias) {
             return Optional.ofNullable(localOverWindows.get(alias));
         }
@@ -444,7 +450,7 @@ public class ExpressionResolver {
 
         public ExpressionResolverBuilder withLocalReferences(
                 LocalReferenceExpression... localReferences) {
-            this.localReferences.addAll(Arrays.asList(localReferences));
+            this.localReferences = Arrays.asList(localReferences);
             return this;
         }
 

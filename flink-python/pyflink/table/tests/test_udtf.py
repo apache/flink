@@ -20,8 +20,8 @@ import unittest
 from pyflink.table import DataTypes
 from pyflink.table.udf import TableFunction, udtf, ScalarFunction, udf
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
-    PyFlinkBlinkStreamTableTestCase, PyFlinkBatchTableTestCase, PyFlinkBlinkBatchTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkOldStreamTableTestCase, \
+    PyFlinkBlinkStreamTableTestCase, PyFlinkOldBatchTableTestCase, PyFlinkBlinkBatchTableTestCase
 
 
 class UserDefinedTableFunctionTests(object):
@@ -72,7 +72,7 @@ class UserDefinedTableFunctionTests(object):
 
 
 class PyFlinkStreamUserDefinedTableFunctionTests(UserDefinedTableFunctionTests,
-                                                 PyFlinkStreamTableTestCase):
+                                                 PyFlinkOldStreamTableTestCase):
     pass
 
 
@@ -87,7 +87,7 @@ class PyFlinkBlinkBatchUserDefinedFunctionTests(UserDefinedTableFunctionTests,
 
 
 class PyFlinkBatchUserDefinedTableFunctionTests(UserDefinedTableFunctionTests,
-                                                PyFlinkBatchTableTestCase):
+                                                PyFlinkOldBatchTableTestCase):
     def _register_table_sink(self, field_names: list, field_types: list):
         pass
 

@@ -1961,7 +1961,7 @@ def _to_java_data_type(data_type: DataType):
     elif isinstance(data_type, BinaryType):
         j_data_type = JDataTypes.BINARY(data_type.length)
     elif isinstance(data_type, DecimalType):
-        j_data_type = JDataTypes.Decimal(data_type.precision, data_type.scale)
+        j_data_type = JDataTypes.DECIMAL(data_type.precision, data_type.scale)
     elif isinstance(data_type, DateType):
         j_data_type = JDataTypes.DATE()
     elif isinstance(data_type, TimeType):

@@ -29,7 +29,7 @@ import org.apache.flink.table.data.RowData;
  *
  * <p>Note: This provider is only meant for advanced connector developers. Usually, a sink should
  * consist of a single entity expressed via {@link OutputFormatProvider} or {@link
- * SinkFunctionProvider}.
+ * SinkFunctionProvider}, or {@link SinkProvider}.
  */
 @PublicEvolving
 public interface DataStreamSinkProvider extends DynamicTableSink.SinkRuntimeProvider {

@@ -28,7 +28,7 @@ import org.apache.flink.runtime.checkpoint.RestoredCheckpointStats;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
-import org.apache.flink.runtime.rest.handler.job.AbstractExecutionGraphHandler;
+import org.apache.flink.runtime.rest.handler.job.AbstractAccessExecutionGraphHandler;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
@@ -56,7 +56,7 @@ import java.util.concurrent.Executor;
 
 /** Handler which serves the checkpoint statistics. */
 public class CheckpointingStatisticsHandler
-        extends AbstractExecutionGraphHandler<CheckpointingStatistics, JobMessageParameters>
+        extends AbstractAccessExecutionGraphHandler<CheckpointingStatistics, JobMessageParameters>
         implements JsonArchivist {
 
     public CheckpointingStatisticsHandler(

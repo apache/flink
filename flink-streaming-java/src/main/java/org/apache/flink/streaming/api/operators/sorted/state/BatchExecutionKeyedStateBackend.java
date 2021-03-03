@@ -38,6 +38,7 @@ import org.apache.flink.runtime.state.KeyedStateFunction;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.PriorityComparable;
 import org.apache.flink.runtime.state.PriorityComparator;
+import org.apache.flink.runtime.state.SavepointResources;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
@@ -244,8 +245,8 @@ class BatchExecutionKeyedStateBackend<K> implements CheckpointableKeyedStateBack
 
     @Nonnull
     @Override
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    public <T extends HeapPriorityQueueElement & PriorityComparable & Keyed>
+    @SuppressWarnings({"unchecked"})
+    public <T extends HeapPriorityQueueElement & PriorityComparable<? super T> & Keyed<?>>
             KeyGroupedInternalPriorityQueue<T> create(
                     @Nonnull String stateName,
                     @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
@@ -276,6 +277,13 @@ class BatchExecutionKeyedStateBackend<K> implements CheckpointableKeyedStateBack
             @Nonnull CheckpointOptions checkpointOptions) {
         throw new UnsupportedOperationException(
                 "Snapshotting is not supported in BATCH runtime mode.");
+    }
+
+    @Nonnull
+    @Override
+    public SavepointResources<K> savepoint() throws Exception {
+        throw new UnsupportedOperationException(
+                "Savepoints are not supported in BATCH runtime mode.");
     }
 
     @FunctionalInterface

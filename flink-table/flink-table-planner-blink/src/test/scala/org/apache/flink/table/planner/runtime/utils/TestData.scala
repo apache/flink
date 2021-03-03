@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
 import org.apache.flink.types.Row
 
-import java.lang.{Long => JLong, Boolean => JBool}
+import java.lang.{Boolean => JBool, Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
 import java.time.{Instant, LocalDate, LocalDateTime, LocalTime, ZoneId}
 
@@ -194,6 +194,25 @@ object TestData {
     row(5, 0.8),
     row(5, 0.9)
   )
+
+  lazy val tupleData2: Seq[(Int, Double)] = {
+    val data = new mutable.MutableList[(Int, Double)]
+    data.+=((1, 0.1))
+    data.+=((2, 0.2))
+    data.+=((2, 0.2))
+    data.+=((3, 0.3))
+    data.+=((3, 0.3))
+    data.+=((3, 0.4))
+    data.+=((4, 0.5))
+    data.+=((4, 0.5))
+    data.+=((4, 0.6))
+    data.+=((4, 0.6))
+    data.+=((5, 0.7))
+    data.+=((5, 0.7))
+    data.+=((5, 0.8))
+    data.+=((5, 0.8))
+    data.+=((5, 0.9))
+  }
 
   lazy val tupleData3: Seq[(Int, Long, String)] = {
     val data = new mutable.MutableList[(Int, Long, String)]
@@ -567,6 +586,22 @@ object TestData {
     changelogRow("+U", "Euro", JLong.valueOf(119L)),
     changelogRow("-D", "Yen", JLong.valueOf(1L))
   )
+
+  val windowData: Seq[Row] = List(
+    row("2020-10-10 00:00:01", 1, 1d, 1f, new JBigDecimal("1.11"), "Hi", "a"),
+    row("2020-10-10 00:00:02", 2, 2d, 2f, new JBigDecimal("2.22"), "Comment#1", "a"),
+    row("2020-10-10 00:00:03", 2, 2d, 2f, new JBigDecimal("2.22"), "Comment#1", "a"),
+    row("2020-10-10 00:00:04", 5, 5d, 5f, new JBigDecimal("5.55"), null, "a"),
+
+    row("2020-10-10 00:00:07", 3, 3d, 3f, null, "Hello", "b"),
+    row("2020-10-10 00:00:06", 6, 6d, 6f, new JBigDecimal("6.66"), "Hi", "b"), // out of order
+    row("2020-10-10 00:00:08", 3, null, 3f, new JBigDecimal("3.33"), "Comment#2", "a"),
+    row("2020-10-10 00:00:04", 5, 5d, null, new JBigDecimal("5.55"), "Hi", "a"), // late event
+
+    row("2020-10-10 00:00:16", 4, 4d, 4f, new JBigDecimal("4.44"), "Hi", "b"),
+
+    row("2020-10-10 00:00:32", 7, 7d, 7f, new JBigDecimal("7.77"), null, null),
+    row("2020-10-10 00:00:34", 1, 3d, 3f, new JBigDecimal("3.33"), "Comment#3", "b"))
 
   val fullDataTypesData: Seq[Row] = {
     val bools = List(true, false, true, false, null)

@@ -61,7 +61,24 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * This state backend holds the working state in the memory (JVM heap) of the TaskManagers. The
+ * <b>IMPORTANT</b> {@link FsStateBackend} is deprecated in favor of {@link
+ * org.apache.flink.runtime.state.hashmap.HashMapStateBackend} and {@link
+ * org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage}. This change does not affect
+ * the runtime characteristics of your Jobs and is simply an API change to help better communicate
+ * the ways Flink separates local state storage from fault tolerance. Jobs can be upgraded without
+ * loss of state. If configuring your state backend via the {@code StreamExecutionEnvironment}
+ * please make the following changes.
+ *
+ * <pre>{@code
+ * 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+ * 		env.setStateBackend(new HashMapStateBackend());
+ * 		env.getCheckpointConfig().setCheckpointStorage("hdfs://checkpoints");
+ * }</pre>
+ *
+ * <p>If you are configuring your state backend via the {@code flink-conf.yaml} please make the
+ * following changes set your state backend type to "hashmap" {@code state.backend: hashmap}.
+ *
+ * <p>This state backend holds the working state in the memory (JVM heap) of the TaskManagers. The
  * state backend checkpoints state as files to a file system (hence the backend's name).
  *
  * <p>Each checkpoint individually will store all its files in a subdirectory that includes the
@@ -98,6 +115,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * specified in the Flink configuration of the running job/cluster. That behavior is implemented via
  * the {@link #configure(ReadableConfig, ClassLoader)} method.
  */
+@Deprecated
 @PublicEvolving
 public class FsStateBackend extends AbstractFileStateBackend implements ConfigurableStateBackend {
 

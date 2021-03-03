@@ -32,12 +32,14 @@ import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.collect.ClientAndIterator;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.FunctionWithException;
 
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -164,6 +166,7 @@ public class FileSourceTextLinesITCase extends TestLogger {
      * record format (text lines) and restarts TaskManager.
      */
     @Test
+    @Category(FailsWithAdaptiveScheduler.class)
     public void testContinuousTextFileSourceWithTaskManagerFailover() throws Exception {
         testContinuousTextFileSource(FailoverType.TM);
     }

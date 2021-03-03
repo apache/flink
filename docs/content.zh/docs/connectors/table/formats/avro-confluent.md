@@ -31,13 +31,13 @@ under the License.
 
 
 
-Avro Schema Registry (``avro-confluent``) 格式能让你读取被 ``io.confluent.kafka.serializers.KafkaAvroSerializer``序列化的记录，以及可以写入成能被 ``io.confluent.kafka.serializers.KafkaAvroDeserializer``反序列化的记录。
+Avro Schema Registry (``avro-confluent``) 格式能让你读取被 ``io.confluent.kafka.serializers.KafkaAvroSerializer`` 序列化的记录，以及可以写入成能被 ``io.confluent.kafka.serializers.KafkaAvroDeserializer`` 反序列化的记录。
 
 当以这种格式读取（反序列化）记录时，将根据记录中编码的 schema 版本 id 从配置的 Confluent Schema Registry 中获取 Avro writer schema ，而从 table schema 中推断出 reader schema。
 
 当以这种格式写入（序列化）记录时，Avro schema 是从 table schema 中推断出来的，并会用来检索要与数据一起编码的 schema id。我们会在配置的 Confluent Schema Registry 中配置的 [subject](https://docs.confluent.io/current/schema-registry/index.html#schemas-subjects-and-topics) 下，检索 schema id。subject 通过 `avro-confluent.schema-registry.subject` 参数来制定。
 
-The Avro Schema Registry format can only be used in conjunction with the [Apache Kafka SQL connector]({{< ref "docs/connectors/table/kafka" >}}) or the [Upsert Kafka SQL Connector]({{< ref "docs/connectors/table/upsert-kafka" >}}).
+Avro Schema Registry 格式只能与 [Apache Kafka SQL 连接器]({{< ref "docs/connectors/table/kafka" >}})或 [Upsert Kafka SQL 连接器]({{< ref "docs/connectors/table/upsert-kafka" >}})一起使用。
 
 依赖
 ------------
@@ -52,17 +52,17 @@ The Avro Schema Registry format can only be used in conjunction with the [Apache
 {{< tabs "3df131fd-0e20-4635-a8f9-3574a764db7a" >}}
 {{< tab "SQL" >}}
 
-Example of a table using raw UTF-8 string as Kafka key and Avro records registered in the Schema Registry as Kafka values:
+使用原始的 UTF-8 字符串作为 Kafka 的 key，Schema Registry 中注册的 Avro 记录作为 Kafka 的 values 的表的示例：
 
 ```sql
 CREATE TABLE user_created (
 
-  -- one column mapped to the Kafka raw UTF-8 key
+  -- 该列映射到 Kafka 原始的 UTF-8 key
   the_kafka_key STRING,
   
-  -- a few columns mapped to the Avro fields of the Kafka value
+  -- 映射到 Kafka value 中的 Avro 字段的一些列
   id STRING,
-  name STRING, 
+  name STRING,
   email STRING
 
 ) WITH (
@@ -71,7 +71,7 @@ CREATE TABLE user_created (
   'topic' = 'user_events_example1',
   'properties.bootstrap.servers' = 'localhost:9092',
 
-  -- UTF-8 string as Kafka keys, using the 'the_kafka_key' table column
+  -- UTF-8 字符串作为 Kafka 的 keys，使用表中的 'the_kafka_key' 列
   'key.format' = 'raw',
   'key.fields' = 'the_kafka_key',
 
@@ -81,30 +81,30 @@ CREATE TABLE user_created (
 )
 ```
 
-We can write data into the kafka table as follows:
+我们可以像下面这样将数据写入到 kafka 表中：
 
 ```sql
 INSERT INTO user_created
 SELECT
-  -- replicating the user id into a column mapped to the kafka key
+  -- 将 user id 复制至映射到 kafka key 的列中
   id as the_kafka_key,
 
-  -- all values
+  -- 所有的 values
   id, name, email
 FROM some_table
 ```
 
 ---
 
-Example of a table with both the Kafka key and value registered as Avro records in the Schema Registry:
+Kafka 的 key 和 value 在 Schema Registry 中都注册为 Avro 记录的表的示例：
 
 ```sql
 CREATE TABLE user_created (
   
-  -- one column mapped to the 'id' Avro field of the Kafka key
+  -- 该列映射到 Kafka key 中的 Avro 字段 'id'
   kafka_key_id STRING,
   
-  -- a few columns mapped to the Avro fields of the Kafka value
+  -- 映射到 Kafka value 中的 Avro 字段的一些列
   id STRING,
   name STRING, 
   email STRING
@@ -115,41 +115,40 @@ CREATE TABLE user_created (
   'topic' = 'user_events_example2',
   'properties.bootstrap.servers' = 'localhost:9092',
 
-  -- Watch out: schema evolution in the context of a Kafka key is almost never backward nor
-  -- forward compatible due to hash partitioning.
+  -- 注意：由于哈希分区，在 Kafka key 的上下文中，schema 升级几乎从不向后也不向前兼容。
   'key.format' = 'avro-confluent',
   'key.avro-confluent.schema-registry.url' = 'http://localhost:8082',
   'key.fields' = 'kafka_key_id',
 
-  -- In this example, we want the Avro types of both the Kafka key and value to contain the field 'id'
-  -- => adding a prefix to the table column associated to the Kafka key field avoids clashes
+  -- 在本例中，我们希望 Kafka 的 key 和 value 的 Avro 类型都包含 'id' 字段
+  -- => 给表中与 Kafka key 字段关联的列添加一个前缀来避免冲突
   'key.fields-prefix' = 'kafka_key_',
 
   'value.format' = 'avro-confluent',
   'value.avro-confluent.schema-registry.url' = 'http://localhost:8082',
   'value.fields-include' = 'EXCEPT_KEY',
    
-  -- subjects have a default value since Flink 1.13, though can be overriden:
+  -- 自 Flink 1.13 起，subjects 具有一个默认值, 但是可以被覆盖：
   'key.avro-confluent.schema-registry.subject' = 'user_events_example2-key2',
   'value.avro-confluent.schema-registry.subject' = 'user_events_example2-value2'
 )
 ```
 
 ---
-Example of a table using the upsert connector with the Kafka value registered as an Avro record in the Schema Registry:
+使用 upsert-kafka 连接器，Kafka 的 value 在 Schema Registry 中注册为 Avro 记录的表的示例：
 
 ```sql
 CREATE TABLE user_created (
   
-  -- one column mapped to the Kafka raw UTF-8 key
+  -- 该列映射到 Kafka 原始的 UTF-8 key
   kafka_key_id STRING,
   
-  -- a few columns mapped to the Avro fields of the Kafka value
+  -- 映射到 Kafka value 中的 Avro 字段的一些列
   id STRING, 
   name STRING, 
   email STRING, 
   
-  -- upsert-kafka connector requires a primary key to define the upsert behavior
+  -- upsert-kafka 连接器需要一个主键来定义 upsert 行为
   PRIMARY KEY (kafka_key_id) NOT ENFORCED
 
 ) WITH (
@@ -158,12 +157,12 @@ CREATE TABLE user_created (
   'topic' = 'user_events_example3',
   'properties.bootstrap.servers' = 'localhost:9092',
 
-  -- UTF-8 string as Kafka keys
-  -- We don't specify 'key.fields' in this case since it's dictated by the primary key of the table
+  -- UTF-8 字符串作为 Kafka 的 keys
+  -- 在本例中我们不指定 'key.fields'，因为它由表的主键决定
   'key.format' = 'raw',
   
-  -- In this example, we want the Avro types of both the Kafka key and value to contain the field 'id'
-  -- => adding a prefix to the table column associated to the kafka key field to avoid clashes
+  -- 在本例中，我们希望 Kafka 的 key 和 value 的 Avro 类型都包含 'id' 字段
+  -- => 给表中与 Kafka key 字段关联的列添加一个前缀来避免冲突
   'key.fields-prefix' = 'kafka_key_',
 
   'value.format' = 'avro-confluent',

@@ -1571,31 +1571,13 @@ val alerts = patternStream.select(createAlert(_))
 {{< /tab >}}
 {{< /tabs >}}
 
-## Migrating from an older Flink version(pre 1.3)
+## Migrating from an older Flink version(pre 1.5)
 
-### Migrating to 1.4+
+### Migrating from Flink <= 1.5
 
-In Flink-1.4 the backward compatibility of CEP library with <= Flink 1.2 was dropped. Unfortunately 
-it is not possible to restore a CEP job that was once run with 1.2.x
+In Flink 1.13 we dropped direct savepoint backward compatibility with Flink <= 1.5. If you want to restore
+from a savepoint taken from an older version, migrate it first to a newer version (1.6-1.12), take a savepoint
+and then use that savepoint to restore with Flink >= 1.13.
 
-### Migrating to 1.3.x
-
-The CEP library in Flink-1.3 ships with a number of new features which have led to some changes in the API. Here we
-describe the changes that you need to make to your old CEP jobs, in order to be able to run them with Flink-1.3. After
-making these changes and recompiling your job, you will be able to resume its execution from a savepoint taken with the
-old version of your job, *i.e.* without having to re-process your past data.
-
-The changes required are:
-
-1. Change your conditions (the ones in the `where(...)` clause) to extend the `SimpleCondition` class instead of
-implementing the `FilterFunction` interface.
-
-2. Change your functions provided as arguments to the `select(...)` and `flatSelect(...)` methods to expect a list of
-events associated with each pattern (`List` in `Java`, `Iterable` in `Scala`). This is because with the addition of
-the looping patterns, multiple input events can match a single (looping) pattern.
-
-3. The `followedBy()` in Flink 1.1 and 1.2 implied `non-deterministic relaxed contiguity` (see
-[here](#conditions-on-contiguity)). In Flink 1.3 this has changed and `followedBy()` implies `relaxed contiguity`,
-while `followedByAny()` should be used if `non-deterministic relaxed contiguity` is required.
 
 {{< top >}}

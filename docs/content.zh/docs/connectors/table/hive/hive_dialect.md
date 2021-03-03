@@ -83,7 +83,7 @@ tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
 from pyflink.table import *
 
 settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
-t_env = BatchTableEnvironment.create(environment_settings=settings)
+t_env = TableEnvironment.create(settings)
 
 # to use hive dialect
 t_env.get_config().set_sql_dialect(SqlDialect.HIVE)

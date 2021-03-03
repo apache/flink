@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.client.gateway;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.types.Row;
@@ -73,7 +72,7 @@ public interface Executor {
     /** Executes a SQL statement, and return {@link TableResult} as execution result. */
     TableResult executeSql(String sessionId, String statement) throws SqlExecutionException;
 
-    /** Lists all modules known to the executor in their loaded order. */
+    /** Lists used modules known to the executor in their resolution order. */
     List<String> listModules(String sessionId) throws SqlExecutionException;
 
     /** Returns a sql parser instance. */
@@ -86,7 +85,7 @@ public interface Executor {
     ResultDescriptor executeQuery(String sessionId, String query) throws SqlExecutionException;
 
     /** Asks for the next changelog results (non-blocking). */
-    TypedResult<List<Tuple2<Boolean, Row>>> retrieveResultChanges(String sessionId, String resultId)
+    TypedResult<List<Row>> retrieveResultChanges(String sessionId, String resultId)
             throws SqlExecutionException;
 
     /**

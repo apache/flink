@@ -20,10 +20,13 @@ package org.apache.flink.table.planner.plan.stream.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.PandasAggregateFunction
+import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_EARLY_FIRE_DELAY, TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED}
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.{PandasAggregateFunction, TestPythonAggregateFunction}
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.Test
+
+import java.time.Duration
 
 class PythonGroupWindowAggregateTest extends TableTestBase {
 
@@ -99,5 +102,98 @@ class PythonGroupWindowAggregateTest extends TableTestBase {
       .groupBy('w, 'b)
       .select('b, 'w.start, 'w.end, func('a, 'c))
     util.verifyExecPlan(windowedTable)
+  }
+
+  @Test
+  def testGeneralEventTimeTumblingGroupWindowOverTime(): Unit = {
+    val util = streamTestUtil()
+    val sourceTable = util.addTableSource[(Int, Long, Int, Long)](
+      "MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
+    val func = new TestPythonAggregateFunction
+
+    val resultTable = sourceTable
+      .window(Tumble over 5.millis on 'rowtime as 'w)
+      .groupBy('w, 'b)
+      .select('b, 'w.start,'w.end, func('a, 'c))
+
+    util.verifyExecPlan(resultTable)
+  }
+
+  @Test
+  def testGeneralEventTimeTumblingGroupWindowOverCount(): Unit = {
+    val util = streamTestUtil()
+    val sourceTable = util.addTableSource[(Int, Long, Int)](
+      "MyTable", 'a, 'b, 'c, 'proctime.proctime)
+    val func = new TestPythonAggregateFunction
+
+    val resultTable = sourceTable
+      .window(Tumble over 2.rows on 'proctime as 'w)
+      .groupBy('w, 'b)
+      .select('b, func('a, 'c))
+
+    util.verifyExecPlan(resultTable)
+  }
+
+  @Test
+  def testGeneralEventTimeSlidingGroupWindowOverTime(): Unit = {
+    val util = streamTestUtil()
+    val sourceTable = util.addTableSource[(Int, Long, Int, Long)](
+      "MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
+    val func = new TestPythonAggregateFunction
+
+    val resultTable = sourceTable
+      .window(Slide over 5.millis every 2.millis on 'rowtime as 'w)
+      .groupBy('w, 'b)
+      .select('b, 'w.start,'w.end, func('a, 'c))
+
+    util.verifyExecPlan(resultTable)
+  }
+
+  @Test
+  def testGeneralEventTimeSlidingGroupWindowOverCount(): Unit = {
+    val util = streamTestUtil()
+    val sourceTable = util.addTableSource[(Int, Long, Int)](
+      "MyTable", 'a, 'b, 'c, 'proctime.proctime)
+    val func = new TestPythonAggregateFunction
+
+    val resultTable = sourceTable
+      .window(Slide over 5.rows every 2.rows on 'proctime as 'w)
+      .groupBy('w, 'b)
+      .select('b, func('a, 'c))
+
+    util.verifyExecPlan(resultTable)
+  }
+
+  @Test
+  def testGeneralEventTimeSessionGroupWindowOverTime(): Unit = {
+    val util = streamTestUtil()
+    val sourceTable = util.addTableSource[(Int, Long, Int, Long)](
+      "MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
+    val func = new TestPythonAggregateFunction
+
+    val windowedTable = sourceTable
+      .window(Session withGap 7.millis on 'rowtime as 'w)
+      .groupBy('w, 'b)
+      .select('b, 'w.start, 'w.end, func('a, 'c))
+    util.verifyExecPlan(windowedTable)
+  }
+
+  @Test(expected = classOf[TableException])
+  def testEmitStrategyNotSupported(): Unit = {
+    val util = streamTestUtil()
+    val tableConf = util.getTableEnv.getConfig
+    tableConf.getConfiguration.setBoolean(TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED, true)
+    tableConf.getConfiguration.set(TABLE_EXEC_EMIT_EARLY_FIRE_DELAY, Duration.ofMillis(10))
+
+    val sourceTable = util.addTableSource[(Int, Long, Int, Long)](
+      "MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
+    val func = new TestPythonAggregateFunction
+
+    val resultTable = sourceTable
+      .window(Tumble over 5.millis on 'rowtime as 'w)
+      .groupBy('w, 'b)
+      .select('b, 'w.start,'w.end, func('a, 'c))
+
+    util.verifyExecPlan(resultTable)
   }
 }

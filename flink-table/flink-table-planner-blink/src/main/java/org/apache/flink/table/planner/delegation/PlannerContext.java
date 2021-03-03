@@ -110,7 +110,7 @@ public class PlannerContext {
         this.rootSchema = rootSchema;
         this.traitDefs = traitDefs;
         // Make a framework config to initialize the RelOptCluster instance,
-        // caution that we can only use the attributes that can not be overwrite/configured
+        // caution that we can only use the attributes that can not be overwritten/configured
         // by user.
         this.frameworkConfig = createFrameworkConfig();
 

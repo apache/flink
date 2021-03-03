@@ -93,7 +93,7 @@ public class RocksDBStateBackendConfigTest {
         final boolean defaultIncremental =
                 CheckpointingOptions.INCREMENTAL_CHECKPOINTS.defaultValue();
 
-        RocksDBStateBackend backend = new RocksDBStateBackend(tempFolder.newFolder().toURI());
+        EmbeddedRocksDBStateBackend backend = new EmbeddedRocksDBStateBackend();
         assertEquals(defaultIncremental, backend.isIncrementalCheckpointsEnabled());
     }
 
@@ -104,8 +104,7 @@ public class RocksDBStateBackendConfigTest {
     /** This test checks the behavior for basic setting of local DB directories. */
     @Test
     public void testSetDbPath() throws Exception {
-        final RocksDBStateBackend rocksDbBackend =
-                new RocksDBStateBackend(tempFolder.newFolder().toURI().toString());
+        final EmbeddedRocksDBStateBackend rocksDbBackend = new EmbeddedRocksDBStateBackend();
 
         final String testDir1 = tempFolder.newFolder().getAbsolutePath();
         final String testDir2 = tempFolder.newFolder().getAbsolutePath();
@@ -152,18 +151,18 @@ public class RocksDBStateBackendConfigTest {
                 RocksDBOptions.TIMER_SERVICE_FACTORY.key());
 
         // Fix the option value string and ensure all are covered
-        Assert.assertEquals(2, RocksDBStateBackend.PriorityQueueStateType.values().length);
+        Assert.assertEquals(2, EmbeddedRocksDBStateBackend.PriorityQueueStateType.values().length);
         Assert.assertEquals(
-                "ROCKSDB", RocksDBStateBackend.PriorityQueueStateType.ROCKSDB.toString());
-        Assert.assertEquals("HEAP", RocksDBStateBackend.PriorityQueueStateType.HEAP.toString());
+                "ROCKSDB", EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB.toString());
+        Assert.assertEquals(
+                "HEAP", EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP.toString());
 
         // Fix the default
         Assert.assertEquals(
-                RocksDBStateBackend.PriorityQueueStateType.ROCKSDB,
+                EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB,
                 RocksDBOptions.TIMER_SERVICE_FACTORY.defaultValue());
 
-        RocksDBStateBackend rocksDbBackend =
-                new RocksDBStateBackend(tempFolder.newFolder().toURI().toString());
+        EmbeddedRocksDBStateBackend rocksDbBackend = new EmbeddedRocksDBStateBackend();
 
         RocksDBKeyedStateBackend<Integer> keyedBackend =
                 createKeyedStateBackend(rocksDbBackend, env, IntSerializer.INSTANCE);
@@ -175,7 +174,7 @@ public class RocksDBStateBackendConfigTest {
         Configuration conf = new Configuration();
         conf.set(
                 RocksDBOptions.TIMER_SERVICE_FACTORY,
-                RocksDBStateBackend.PriorityQueueStateType.HEAP);
+                EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP);
 
         rocksDbBackend =
                 rocksDbBackend.configure(conf, Thread.currentThread().getContextClassLoader());
@@ -193,9 +192,8 @@ public class RocksDBStateBackendConfigTest {
         final MockEnvironment env = new MockEnvironmentBuilder().build();
 
         // priorityQueueStateType of the job backend
-        final RocksDBStateBackend backend =
-                new RocksDBStateBackend(tempFolder.newFolder().toURI().toString());
-        backend.setPriorityQueueStateType(RocksDBStateBackend.PriorityQueueStateType.HEAP);
+        final EmbeddedRocksDBStateBackend backend = new EmbeddedRocksDBStateBackend();
+        backend.setPriorityQueueStateType(EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP);
 
         // priorityQueueStateType in the cluster config
         final Configuration configFromConfFile = new Configuration();
@@ -204,7 +202,7 @@ public class RocksDBStateBackendConfigTest {
                 RocksDBStateBackend.PriorityQueueStateType.ROCKSDB.toString());
 
         // configure final backend from job and cluster config
-        final RocksDBStateBackend configuredRocksDBStateBackend =
+        final EmbeddedRocksDBStateBackend configuredRocksDBStateBackend =
                 backend.configure(
                         configFromConfFile, Thread.currentThread().getContextClassLoader());
         final RocksDBKeyedStateBackend<Integer> keyedBackend =
@@ -261,8 +259,7 @@ public class RocksDBStateBackendConfigTest {
     }
 
     private void testLocalDbPaths(String configuredPath, File expectedPath) throws Exception {
-        final RocksDBStateBackend rocksDbBackend =
-                new RocksDBStateBackend(tempFolder.newFolder().toURI().toString());
+        final EmbeddedRocksDBStateBackend rocksDbBackend = new EmbeddedRocksDBStateBackend();
         rocksDbBackend.setDbStoragePath(configuredPath);
 
         final MockEnvironment env = getMockEnvironment(tempFolder.newFolder());

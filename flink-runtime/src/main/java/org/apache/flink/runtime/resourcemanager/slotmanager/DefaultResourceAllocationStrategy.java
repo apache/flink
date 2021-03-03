@@ -22,12 +22,11 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.slots.ResourceCounter;
 import org.apache.flink.runtime.slots.ResourceRequirement;
+import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -55,25 +54,29 @@ import static org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerUt
 public class DefaultResourceAllocationStrategy implements ResourceAllocationStrategy {
     private final ResourceProfile defaultSlotResourceProfile;
     private final ResourceProfile totalResourceProfile;
+    private final int numSlotsPerWorker;
 
     public DefaultResourceAllocationStrategy(
             ResourceProfile defaultSlotResourceProfile, int numSlotsPerWorker) {
         this.defaultSlotResourceProfile = defaultSlotResourceProfile;
         this.totalResourceProfile = defaultSlotResourceProfile.multiply(numSlotsPerWorker);
+        this.numSlotsPerWorker = numSlotsPerWorker;
     }
 
     @Override
     public ResourceAllocationResult tryFulfillRequirements(
             Map<JobID, Collection<ResourceRequirement>> missingResources,
-            Map<InstanceID, Tuple2<ResourceProfile, ResourceProfile>> registeredResources,
-            List<PendingTaskManager> pendingTaskManagers) {
+            TaskManagerResourceInfoProvider taskManagerResourceInfoProvider) {
         final ResourceAllocationResult.Builder resultBuilder = ResourceAllocationResult.builder();
+
+        // Tuples of available and default slot resource for registered task managers, indexed by
+        // instanceId
+        final Map<InstanceID, Tuple2<ResourceProfile, ResourceProfile>> registeredResources =
+                getRegisteredResources(taskManagerResourceInfoProvider);
+        // Available resources of pending task managers, indexed by the pendingTaskManagerId
         final Map<PendingTaskManagerId, ResourceProfile> pendingResources =
-                pendingTaskManagers.stream()
-                        .collect(
-                                Collectors.toMap(
-                                        PendingTaskManager::getPendingTaskManagerId,
-                                        PendingTaskManager::getTotalResourceProfile));
+                getPendingResources(taskManagerResourceInfoProvider);
+
         for (Map.Entry<JobID, Collection<ResourceRequirement>> resourceRequirements :
                 missingResources.entrySet()) {
             final JobID jobId = resourceRequirements.getKey();
@@ -93,20 +96,42 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
         return resultBuilder.build();
     }
 
+    private static Map<InstanceID, Tuple2<ResourceProfile, ResourceProfile>> getRegisteredResources(
+            TaskManagerResourceInfoProvider taskManagerResourceInfoProvider) {
+        return taskManagerResourceInfoProvider.getRegisteredTaskManagers().stream()
+                .collect(
+                        Collectors.toMap(
+                                TaskManagerInfo::getInstanceId,
+                                taskManager ->
+                                        Tuple2.of(
+                                                taskManager.getAvailableResource(),
+                                                taskManager.getDefaultSlotResourceProfile())));
+    }
+
+    private static Map<PendingTaskManagerId, ResourceProfile> getPendingResources(
+            TaskManagerResourceInfoProvider taskManagerResourceInfoProvider) {
+        return taskManagerResourceInfoProvider.getPendingTaskManagers().stream()
+                .collect(
+                        Collectors.toMap(
+                                PendingTaskManager::getPendingTaskManagerId,
+                                PendingTaskManager::getTotalResourceProfile));
+    }
+
     private static ResourceCounter tryFulfillRequirementsForJobWithRegisteredResources(
             JobID jobId,
             Collection<ResourceRequirement> missingResources,
             Map<InstanceID, Tuple2<ResourceProfile, ResourceProfile>> registeredResources,
             ResourceAllocationResult.Builder resultBuilder) {
-        final ResourceCounter outstandingRequirements = new ResourceCounter();
+        ResourceCounter outstandingRequirements = ResourceCounter.empty();
 
         for (ResourceRequirement resourceRequirement : missingResources) {
             int numMissingRequirements =
                     tryFindSlotsForRequirement(
                             jobId, resourceRequirement, registeredResources, resultBuilder);
             if (numMissingRequirements > 0) {
-                outstandingRequirements.incrementCount(
-                        resourceRequirement.getResourceProfile(), numMissingRequirements);
+                outstandingRequirements =
+                        outstandingRequirements.add(
+                                resourceRequirement.getResourceProfile(), numMissingRequirements);
             }
         }
         return outstandingRequirements;
@@ -191,7 +216,7 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
             Map<PendingTaskManagerId, ResourceProfile> availableResources,
             ResourceAllocationResult.Builder resultBuilder) {
         for (Map.Entry<ResourceProfile, Integer> missingResource :
-                unfulfilledRequirements.getResourceProfilesWithCount().entrySet()) {
+                unfulfilledRequirements.getResourcesWithCount()) {
             // for this strategy, all pending resources should have the same default slot resource
             final ResourceProfile effectiveProfile =
                     getEffectiveResourceProfile(
@@ -210,17 +235,15 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
                 } else {
                     if (totalResourceProfile.allFieldsNoLessThan(effectiveProfile)) {
                         // Add new pending task manager
-                        final PendingTaskManagerId pendingTaskManagerId =
-                                PendingTaskManagerId.generate();
-                        resultBuilder.addPendingTaskManagerAllocate(
-                                new PendingTaskManager(
-                                        pendingTaskManagerId,
-                                        totalResourceProfile,
-                                        defaultSlotResourceProfile));
+                        final PendingTaskManager pendingTaskManager =
+                                new PendingTaskManager(totalResourceProfile, numSlotsPerWorker);
+                        resultBuilder.addPendingTaskManagerAllocate(pendingTaskManager);
                         resultBuilder.addAllocationOnPendingResource(
-                                jobId, pendingTaskManagerId, effectiveProfile);
+                                jobId,
+                                pendingTaskManager.getPendingTaskManagerId(),
+                                effectiveProfile);
                         availableResources.put(
-                                pendingTaskManagerId,
+                                pendingTaskManager.getPendingTaskManagerId(),
                                 totalResourceProfile.subtract(effectiveProfile));
                     } else {
                         resultBuilder.addUnfulfillableJob(jobId);

@@ -23,6 +23,7 @@ import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.ExplainOperation;
+import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ShowCatalogsOperation;
@@ -32,8 +33,11 @@ import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
 import org.apache.flink.table.operations.ShowPartitionsOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
+import org.apache.flink.table.operations.ShowViewsOperation;
+import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
+import org.apache.flink.table.operations.UseModulesOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterTableOperation;
@@ -153,6 +157,9 @@ public final class SqlCommandParser {
         } else if (operation instanceof ShowTablesOperation) {
             cmd = SqlCommand.SHOW_TABLES;
             operands = new String[0];
+        } else if (operation instanceof ShowViewsOperation) {
+            cmd = SqlCommand.SHOW_VIEWS;
+            operands = new String[0];
         } else if (operation instanceof ShowFunctionsOperation) {
             cmd = SqlCommand.SHOW_FUNCTIONS;
             operands = new String[0];
@@ -168,6 +175,12 @@ public final class SqlCommandParser {
             cmd = SqlCommand.ALTER_FUNCTION;
         } else if (operation instanceof ExplainOperation) {
             cmd = SqlCommand.EXPLAIN;
+        } else if (operation instanceof LoadModuleOperation) {
+            cmd = SqlCommand.LOAD_MODULE;
+        } else if (operation instanceof UnloadModuleOperation) {
+            cmd = SqlCommand.UNLOAD_MODULE;
+        } else if (operation instanceof UseModulesOperation) {
+            cmd = SqlCommand.USE_MODULES;
         } else if (operation instanceof DescribeTableOperation) {
             cmd = SqlCommand.DESCRIBE;
             operands =
@@ -247,10 +260,18 @@ public final class SqlCommandParser {
 
         SHOW_TABLES,
 
+        SHOW_VIEWS,
+
         SHOW_FUNCTIONS,
 
         // FLINK-17396
         SHOW_MODULES("SHOW\\s+MODULES", NO_OPERANDS),
+
+        LOAD_MODULE,
+
+        UNLOAD_MODULE,
+
+        USE_MODULES,
 
         SHOW_PARTITIONS,
 

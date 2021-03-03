@@ -24,7 +24,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
-import org.apache.flink.runtime.rest.handler.job.AbstractExecutionGraphHandler;
+import org.apache.flink.runtime.rest.handler.job.AbstractAccessExecutionGraphHandler;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
@@ -47,7 +47,7 @@ import java.util.concurrent.Executor;
  */
 public abstract class AbstractCheckpointHandler<
                 R extends ResponseBody, M extends CheckpointMessageParameters>
-        extends AbstractExecutionGraphHandler<R, M> {
+        extends AbstractAccessExecutionGraphHandler<R, M> {
 
     private final CheckpointStatsCache checkpointStatsCache;
 

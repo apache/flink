@@ -29,6 +29,7 @@ import org.apache.flink.cep.nfa.sharedbuffer.EventId;
 import org.apache.flink.cep.nfa.sharedbuffer.NodeId;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferEdge;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferNode;
+import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferNodeSerializer;
 import org.apache.flink.testutils.migration.MigrationVersion;
 
 import org.hamcrest.Matcher;
@@ -77,12 +78,6 @@ public class NFASerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Obje
                             migrationVersion,
                             SharedBufferEdgeSerializerSetup.class,
                             SharedBufferEdgeSerializerVerifier.class));
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "shared-buffer-node-serializer",
-                            migrationVersion,
-                            SharedBufferNodeSerializerSetup.class,
-                            SharedBufferNodeSerializerVerifier.class));
             testSpecifications.add(
                     new TestSpecification<>(
                             "nfa-state-serializer",
@@ -294,7 +289,7 @@ public class NFASerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Obje
 
         @Override
         public TypeSerializer<SharedBufferNode> createPriorSerializer() {
-            return new SharedBufferNode.SharedBufferNodeSerializer();
+            return new SharedBufferNodeSerializer();
         }
 
         @Override
@@ -316,7 +311,7 @@ public class NFASerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Obje
 
         @Override
         public TypeSerializer<SharedBufferNode> createUpgradedSerializer() {
-            return new SharedBufferNode.SharedBufferNodeSerializer();
+            return new SharedBufferNodeSerializer();
         }
 
         @Override

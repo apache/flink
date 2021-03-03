@@ -56,7 +56,7 @@ import java.util.concurrent.Executor;
 
 /** Handler returning the details for the specified job. */
 public class JobDetailsHandler
-        extends AbstractExecutionGraphHandler<JobDetailsInfo, JobMessageParameters>
+        extends AbstractAccessExecutionGraphHandler<JobDetailsInfo, JobMessageParameters>
         implements JsonArchivist {
 
     private final MetricFetcher metricFetcher;
@@ -148,6 +148,7 @@ public class JobDetailsHandler
                 startTime,
                 endTime,
                 duration,
+                executionGraph.getArchivedExecutionConfig().getMaxParallelism(),
                 now,
                 timestamps,
                 jobVertexInfos,
@@ -223,6 +224,7 @@ public class JobDetailsHandler
         return new JobDetailsInfo.JobVertexDetailsInfo(
                 ejv.getJobVertexId(),
                 ejv.getName(),
+                ejv.getMaxParallelism(),
                 ejv.getParallelism(),
                 jobVertexState,
                 startTime,

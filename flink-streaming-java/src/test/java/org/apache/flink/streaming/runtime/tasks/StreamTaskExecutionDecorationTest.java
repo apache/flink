@@ -75,8 +75,7 @@ public class StreamTaskExecutionDecorationTest {
                 new CheckpointMetaData(1, 2),
                 new CheckpointOptions(
                         CheckpointType.CHECKPOINT,
-                        new CheckpointStorageLocationReference(new byte[] {1})),
-                false);
+                        new CheckpointStorageLocationReference(new byte[] {1})));
         Assert.assertTrue("mailbox is empty", mailbox.hasMail());
         Assert.assertFalse("execution decorator was called preliminary", decorator.wasCalled());
         mailbox.drain()

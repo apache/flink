@@ -26,6 +26,7 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.heap.InternalKeyContext;
 import org.apache.flink.runtime.state.internal.InternalKvState;
@@ -348,7 +349,11 @@ public abstract class AbstractKeyedStateBackend<K>
     }
 
     // TODO remove this once heap-based timers are working with RocksDB incremental snapshots!
-    public boolean requiresLegacySynchronousTimerSnapshots() {
+    public boolean requiresLegacySynchronousTimerSnapshots(CheckpointType checkpointType) {
+        return false;
+    }
+
+    public boolean isStateImmutableInStateBackend(CheckpointType checkpointType) {
         return false;
     }
 }

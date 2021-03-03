@@ -18,442 +18,932 @@
 
 package org.apache.flink.table.planner.plan.stream.sql.agg
 
-import org.apache.flink.api.common.time.Time
-import org.apache.flink.api.scala._
-import org.apache.flink.table.api._
+import org.apache.flink.configuration.Configuration
+import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
-import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_LATE_FIRE_DELAY, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
+import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_EARLY_FIRE_DELAY, TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED, TABLE_EXEC_EMIT_LATE_FIRE_DELAY, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.TestPythonAggregateFunction
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.JavaTableFunc1
 import org.apache.flink.table.planner.utils.TableTestBase
-
-import java.time.Duration
-
 import org.junit.Test
 
+/**
+ * Tests for window aggregates based on window table-valued function.
+ */
 class WindowAggregateTest extends TableTestBase {
 
   private val util = streamTestUtil()
-  util.addDataStream[(Int, String, Long)](
-    "MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
   util.addTemporarySystemFunction("weightedAvg", classOf[WeightedAvgWithMerge])
   util.tableEnv.executeSql(
     s"""
-       |create table MyTable1 (
-       |  a int,
-       |  b bigint,
-       |  c as proctime()
+       |CREATE TABLE MyTable (
+       |  a INT,
+       |  b BIGINT,
+       |  c STRING NOT NULL,
+       |  d DECIMAL(10, 3),
+       |  e BIGINT,
+       |  rowtime TIMESTAMP(3),
+       |  proctime as PROCTIME(),
+       |  WATERMARK FOR rowtime AS rowtime - INTERVAL '1' SECOND
        |) with (
-       |  'connector' = 'COLLECTION'
+       |  'connector' = 'values'
        |)
        |""".stripMargin)
 
-  @Test(expected = classOf[TableException])
-  def testTumbleWindowNoOffset(): Unit = {
-    val sqlQuery =
-      "SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable " +
-        "GROUP BY TUMBLE(proctime, INTERVAL '2' HOUR, TIME '10:00:00')"
-    util.verifyExecPlan(sqlQuery)
+  @Test
+  def testTumble_OnRowtime(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
   }
 
-  @Test(expected = classOf[TableException])
-  def testHopWindowNoOffset(): Unit = {
-    val sqlQuery =
-      "SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable " +
-        "GROUP BY HOP(proctime, INTERVAL '1' HOUR, INTERVAL '2' HOUR, TIME '10:00:00')"
-    util.verifyExecPlan(sqlQuery)
+  @Test
+  def testTumble_OnProctime(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '15' MINUTE))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
   }
 
-  @Test(expected = classOf[TableException])
-  def testSessionWindowNoOffset(): Unit = {
-    val sqlQuery =
-      "SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable " +
-        "GROUP BY SESSION(proctime, INTERVAL '2' HOUR, TIME '10:00:00')"
-    util.verifyExecPlan(sqlQuery)
+  @Test
+  def testTumble_CalcOnTVF(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM (
+        |  SELECT window_start, rowtime, d, proctime, e, b, c, window_end, window_time, a
+        |  FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |  WHERE b > 1000
+        |)
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
   }
 
-  @Test(expected = classOf[TableException])
-  def testVariableWindowSize(): Unit = {
-    val sql = "SELECT COUNT(*) FROM MyTable GROUP BY TUMBLE(proctime, c * INTERVAL '1' MINUTE)"
+  @Test
+  def testTumble_WindowColumnsAtEnd(): Unit = {
+    // there shouldn't be any Calc on the WindowAggregate,
+    // because fields order are align with WindowAggregate schema
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv,
+        |   window_start,
+        |   window_end
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testTumble_GroupMultipleWindowColumns(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   ws,
+        |   window_end,
+        |   window_time,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM (
+        |  SELECT *, window_start as ws
+        |  FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |)
+        |GROUP BY a, window_start, window_end, ws, window_time
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testTumble_GroupMultipleKeys(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   b,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   count(distinct c) AS uv
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |GROUP BY window_start, a, window_end, b
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testTumble_GroupOnlyWindowColumns(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   count(distinct c) AS uv
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |GROUP BY window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testTumble_GroupOnLiteralValue(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   count(distinct c) AS uv
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |GROUP BY 'literal', window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testTumble_ProjectionPushDown(): Unit = {
+    // TODO: FLINK-21290 [b, c, e, proctime] are never used, should be pruned in source
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d)
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testTumble_CascadingWindow(): Unit = {
+    util.tableEnv.executeSql(
+      """
+        |CREATE VIEW window1 AS
+        |SELECT
+        |   a,
+        |   b,
+        |   window_time as rowtime,
+        |   count(*) as cnt,
+        |   sum(d) as sum_d,
+        |   max(d) as max_d
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE))
+        |GROUP BY a, window_start, window_end, window_time, b
+      """.stripMargin)
+
+    val sql =
+      """
+        |SELECT
+        |  a,
+        |  window_start,
+        |  window_end,
+        |  sum(cnt),
+        |  sum(sum_d),
+        |  max(max_d)
+        |FROM TABLE(TUMBLE(TABLE window1, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE))
+        |GROUP BY a, window_start, window_end
+        |""".stripMargin
+
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testTumble_DistinctSplitEnabled(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   count(distinct c) AS uv
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testTumble_DistinctOnWindowColumns(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+    // window_time is used in agg arg, thus we shouldn't merge WindowTVF into WindowAggregate.
+    // actually, after expanded, there's HASH_CODE(window_time),
+    // and thus we shouldn't transpose WindowTVF and Expand too.
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   max(d) filter (where b > 1000),
+        |   count(distinct window_time) AS uv
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testTumble_DoNotSplitProcessingTimeWindow(): Unit = {
+    // the processing-time window aggregate with distinct shouldn't be split into two-level agg
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   count(distinct c) AS uv
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '15' MINUTE))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testTumble_NotOutputWindowColumns(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |GROUP BY window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testCumulate_OnRowtime(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |  CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testCumulate_OnProctime(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |  CUMULATE(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testCumulate_DistinctSplitEnabled(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |  CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testHop_OnRowtime(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |   HOP(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testHop_OnProctime(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |   HOP(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testHop_DistinctSplitEnabled(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |   HOP(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testMultipleAggregateOnSameWindowTVF(): Unit = {
+    util.tableEnv.executeSql(
+      """
+        |CREATE VIEW tvf AS
+        |SELECT * FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |""".stripMargin)
+    val statementSet = util.tableEnv.createStatementSet()
+    util.tableEnv.executeSql(
+      """
+        |CREATE TABLE s1 (
+        |  wstart TIMESTAMP(3),
+        |  wend TIMESTAMP(3),
+        |  `result` BIGINT
+        |) WITH (
+        |  'connector' = 'values'
+        |)
+        |""".stripMargin)
+
+    statementSet.addInsertSql(
+      """
+        |INSERT INTO s1
+        |SELECT
+        |   window_start,
+        |   window_end,
+        |   weightedAvg(b, e) AS wAvg
+        |FROM tvf
+        |GROUP BY window_start, window_end
+        |""".stripMargin)
+
+    statementSet.addInsertSql(
+      """
+        |INSERT INTO s1
+        |SELECT
+        |   window_start,
+        |   window_end,
+        |   count(*)
+        |FROM tvf
+        |GROUP BY window_start, window_end
+        |""".stripMargin)
+
+    util.verifyExecPlan(statementSet)
+  }
+
+  // ----------------------------------------------------------------------------------------
+  // Tests for queries can't be translated to window aggregate for now
+  // ----------------------------------------------------------------------------------------
+
+  @Test
+  def testCantMergeWindowTVF_FilterOnWindowStart(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM (
+        |  SELECT window_start, rowtime, d, proctime, e, b, c, window_end, window_time, a
+        |  FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |  WHERE window_start >= TIMESTAMP '2021-01-01 10:10:00.000'
+        |)
+        |GROUP BY window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testCantMergeWindowTVF_UdtfOnWindowTVF(): Unit = {
+    util.tableEnv.createTemporaryFunction("len_udtf", classOf[JavaTableFunc1])
+    val sql =
+      """
+        |SELECT
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(len),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM (
+        |  SELECT *
+        |  FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE)),
+        |  LATERAL TABLE(len_udtf(c)) AS T(len)
+        |)
+        |GROUP BY window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testCantTranslateToWindowAgg_GroupOnOnlyStart(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   window_start,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |GROUP BY window_start
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testCantTranslateToWindowAgg_PythonAggregateCall(): Unit = {
+    util.tableEnv.createTemporaryFunction("python_agg", classOf[TestPythonAggregateFunction])
+    val sql =
+      """
+        |SELECT
+        |   window_start,
+        |   window_end,
+        |   python_agg(1, 1)
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |GROUP BY window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testUnsupportedException_EarlyFire(): Unit = {
+    val conf = new Configuration()
+    conf.setString(TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED.key(), "true")
+    conf.setString(TABLE_EXEC_EMIT_EARLY_FIRE_DELAY.key(), "5s")
+    util.tableEnv.getConfig.addConfiguration(conf)
+
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("Currently, window table function based aggregate doesn't support " +
+      "early-fire and late-fire configuration 'table.exec.emit.early-fire.enabled' and " +
+      "'table.exec.emit.late-fire.enabled'.")
     util.verifyExecPlan(sql)
   }
 
-  @Test(expected = classOf[ValidationException])
-  def testWindowUdAggInvalidArgs(): Unit = {
-    val sqlQuery = "SELECT SUM(a) AS sumA, weightedAvg(a, b) AS wAvg FROM MyTable " +
-      "GROUP BY TUMBLE(proctime(), INTERVAL '2' HOUR, TIME '10:00:00')"
-    util.verifyExecPlan(sqlQuery)
+  @Test
+  def testUnsupportedException_LateFire(): Unit = {
+    val conf = new Configuration()
+    conf.setString(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED.key(), "true")
+    conf.setString(TABLE_EXEC_EMIT_LATE_FIRE_DELAY.key(), "5s")
+    util.tableEnv.getConfig.addConfiguration(conf)
+
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("Currently, window table function based aggregate doesn't support " +
+      "early-fire and late-fire configuration 'table.exec.emit.early-fire.enabled' and " +
+      "'table.exec.emit.late-fire.enabled'.")
+    util.verifyExecPlan(sql)
   }
 
-  @Test(expected = classOf[AssertionError])
-  def testWindowAggWithGroupSets(): Unit = {
-    // TODO supports group sets
-    // currently, the optimized plan is not collect, and an exception will be thrown in code-gen
+  @Test
+  def testUnsupportedException_HopSizeNonDivisible(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*)
+        |FROM TABLE(
+        |   HOP(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '4' MINUTE, INTERVAL '10' MINUTE))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("HOP table function based aggregate requires size must be an " +
+      "integral multiple of slide, but got size 600000 ms and slide 240000 ms")
+    util.verifyExplain(sql)
+  }
+
+  @Test
+  def testUnsupportedException_CumulateSizeNonDivisible(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*)
+        |FROM TABLE(
+        |   CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '25' MINUTE, INTERVAL '1' HOUR))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("CUMULATE table function based aggregate requires maxSize " +
+      "must be an integral multiple of step, but got maxSize 3600000 ms and step 1500000 ms")
+    util.verifyExplain(sql)
+  }
+
+  @Test
+  def testCantTranslateToWindowAgg_GroupingSetsWithoutWindowStartEnd(): Unit = {
+    // Cannot translate to window aggregate because group keys don't contain both window_start
+    // and window_end
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   count(distinct c) AS uv
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |GROUP BY GROUPING SETS ((a), (window_start), (window_end))
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testCantTranslateToWindowAgg_GroupingSetsOnlyWithWindowStart(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   count(distinct c) AS uv
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |GROUP BY GROUPING SETS ((a, window_start), (window_start))
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testTumble_GroupingSets(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   b,
+        |   count(distinct c) AS uv
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |GROUP BY GROUPING SETS ((a, window_start, window_end), (b, window_start, window_end))
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testTumble_GroupingSets1(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   b,
+        |   count(distinct c) AS uv
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |GROUP BY GROUPING SETS ((a), (b)), window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testTumble_GroupingSetsDistinctSplitEnabled(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   b,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   count(distinct c) AS uv
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |GROUP BY GROUPING SETS ((a), (b)), window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testCantTranslateToWindowAgg_CubeWithoutWindowStartEnd(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   b,
+        |   count(distinct c) AS uv
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |GROUP BY CUBE (a, b, window_start, window_end)
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testCantTranslateToWindowAgg_RollupWithoutWindowStartEnd(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   b,
+        |   count(distinct c) AS uv
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |GROUP BY ROLLUP (a, b, window_start, window_end)
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testTumble_Rollup(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   b,
+        |   count(distinct c) AS uv
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |GROUP BY ROLLUP (a, b), window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testCantMergeWindowTVF_GroupingSetsDistinctOnWindowColumns(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+    // window_time is used in agg arg, thus we shouldn't merge WindowTVF into WindowAggregate.
+    // actually, after expanded, there's HASH_CODE(window_time),
+    // and thus we shouldn't transpose WindowTVF and Expand too.
     val sql =
     """
-      |SELECT COUNT(*),
-      |    TUMBLE_END(rowtime, INTERVAL '15' MINUTE) + INTERVAL '1' MINUTE
-      |FROM MyTable
-      |    GROUP BY rollup(TUMBLE(rowtime, INTERVAL '15' MINUTE), b)
-    """.stripMargin
-    util.verifyRelPlanNotExpected(sql, "TUMBLE(rowtime")
-  }
-
-  @Test
-  def testWindowWrongWindowParameter1(): Unit = {
-    expectedException.expect(classOf[TableException])
-    expectedException.expectMessage(
-      "Window aggregate only support SECOND, MINUTE, HOUR, DAY as the time unit. " +
-        "MONTH and YEAR time unit are not supported yet.")
-
-    val sqlQuery =
-      "SELECT COUNT(*) FROM MyTable GROUP BY TUMBLE(proctime, INTERVAL '1' MONTH)"
-
-    util.verifyExecPlan(sqlQuery)
-  }
-
-  @Test
-  def testWindowWrongWindowParameter2(): Unit = {
-    expectedException.expect(classOf[TableException])
-    expectedException.expectMessage(
-      "Window aggregate only support SECOND, MINUTE, HOUR, DAY as the time unit. " +
-        "MONTH and YEAR time unit are not supported yet.")
-
-    val sqlQuery =
-      "SELECT COUNT(*) FROM MyTable GROUP BY TUMBLE(proctime, INTERVAL '2-10' YEAR TO MONTH)"
-
-    util.verifyExecPlan(sqlQuery)
-  }
-
-  @Test
-  def testIntervalDay(): Unit = {
-    val sqlQuery =
-      "SELECT COUNT(*) FROM MyTable GROUP BY TUMBLE(proctime, INTERVAL '35' DAY)"
-    util.verifyExecPlan(sqlQuery)
-  }
-
-  @Test
-  def testTumbleFunction(): Unit = {
-    val sql =
-      """
-        |SELECT COUNT(*),
-        |    weightedAvg(c, a) AS wAvg,
-        |    TUMBLE_START(rowtime, INTERVAL '15' MINUTE),
-        |    TUMBLE_END(rowtime, INTERVAL '15' MINUTE)
-        |FROM MyTable
-        |    GROUP BY TUMBLE(rowtime, INTERVAL '15' MINUTE)
+      |SELECT
+      |   a,
+      |   b,
+      |   count(*),
+      |   max(d) filter (where b > 1000),
+      |   count(distinct window_time) AS uv
+      |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+      |GROUP BY GROUPING SETS ((a), (b)), window_start, window_end
       """.stripMargin
-    util.verifyExecPlan(sql)
+    util.verifyRelPlan(sql)
   }
 
   @Test
-  def testWindowGroupByOnConstant(): Unit = {
-    val sql =
-      """
-        |SELECT COUNT(*),
-        |    weightedAvg(c, a) AS wAvg,
-        |    TUMBLE_START(rowtime, INTERVAL '15' MINUTE),
-        |    TUMBLE_END(rowtime, INTERVAL '15' MINUTE)
-        |FROM MyTable
-        |    GROUP BY 'a', TUMBLE(rowtime, INTERVAL '15' MINUTE)
-      """.stripMargin
-    util.verifyExecPlan(sql)
-  }
-
-  @Test
-  def testTumblingWindowWithProctime(): Unit = {
-    val sql = "select sum(a), max(b) from MyTable1 group by TUMBLE(c, INTERVAL '1' SECOND)"
-    util.verifyExecPlan(sql)
-  }
-
-  @Test
-  def testMultiHopWindows(): Unit = {
+  def testHop_GroupingSets(): Unit = {
     val sql =
       """
         |SELECT
-        |   HOP_START(rowtime, INTERVAL '1' MINUTE, INTERVAL '1' HOUR),
-        |   HOP_END(rowtime, INTERVAL '1' MINUTE, INTERVAL '1' HOUR),
+        |   a,
+        |   b,
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |   HOP(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |GROUP BY GROUPING SETS ((a), (b)), window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testHop_GroupingSets_DistinctSplitEnabled(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   b,
         |   count(*),
-        |   sum(c)
-        |FROM MyTable
-        |GROUP BY HOP(rowtime, INTERVAL '1' MINUTE, INTERVAL '1' HOUR)
-        |UNION ALL
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |  HOP(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |GROUP BY GROUPING SETS ((a), (b)), window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testHop_Cube(): Unit = {
+    val sql =
+      """
         |SELECT
-        |   HOP_START(rowtime, INTERVAL '1' MINUTE, INTERVAL '1' DAY),
-        |   HOP_END(rowtime, INTERVAL '1' MINUTE, INTERVAL '1' DAY),
+        |   a,
+        |   b,
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |  HOP(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |GROUP BY CUBE (a, b), window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testHop_Rollup(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   b,
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |  HOP(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |GROUP BY ROLLUP (a, b), window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testCumulate_GroupingSets(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   b,
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |   CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '25' MINUTE, INTERVAL '1' HOUR))
+        |GROUP BY GROUPING SETS ((a), (b)), window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testCumulate_GroupingSets_DistinctSplitEnabled(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   b,
         |   count(*),
-        |   sum(c)
-        |FROM MyTable
-        |GROUP BY HOP(rowtime, INTERVAL '1' MINUTE, INTERVAL '1' DAY)
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |  CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |GROUP BY GROUPING SETS ((a), (b)), window_start, window_end
       """.stripMargin
-    util.verifyExecPlan(sql)
+    util.verifyRelPlan(sql)
   }
 
   @Test
-  def testMultiHopWindowsJoin(): Unit = {
-    val sql =
-      """
-        |SELECT * FROM
-        | (SELECT
-        |   HOP_START(rowtime, INTERVAL '1' MINUTE, INTERVAL '1' HOUR) as hs1,
-        |   HOP_END(rowtime, INTERVAL '1' MINUTE, INTERVAL '1' HOUR) as he1,
-        |   count(*) as c1,
-        |   sum(c) as s1
-        | FROM MyTable
-        | GROUP BY HOP(rowtime, INTERVAL '1' MINUTE, INTERVAL '1' HOUR)) t1
-        |JOIN
-        | (SELECT
-        |   HOP_START(rowtime, INTERVAL '1' MINUTE, INTERVAL '1' DAY) as hs2,
-        |   HOP_END(rowtime, INTERVAL '1' MINUTE, INTERVAL '1' DAY) as he2,
-        |   count(*) as c2,
-        |   sum(c) as s2
-        | FROM MyTable
-        | GROUP BY HOP(rowtime, INTERVAL '1' MINUTE, INTERVAL '1' DAY)) t2 ON t1.he1 = t2.he2
-        |WHERE t1.s1 IS NOT NULL
-      """.stripMargin
-    util.verifyExecPlan(sql)
-  }
-
-  @Test
-  def testHoppingFunction(): Unit = {
-    val sql =
-      """
-        |SELECT COUNT(*),
-        |    weightedAvg(c, a) AS wAvg,
-        |    HOP_START(proctime, INTERVAL '15' MINUTE, INTERVAL '1' HOUR),
-        |    HOP_END(proctime, INTERVAL '15' MINUTE, INTERVAL '1' HOUR)
-        |FROM MyTable
-        |    GROUP BY HOP(proctime, INTERVAL '15' MINUTE, INTERVAL '1' HOUR)
-      """.stripMargin
-    util.verifyExecPlan(sql)
-  }
-
-  @Test
-  def testHopWindowWithProctime(): Unit = {
-    val sql =
-      s"""
-         |select sum(a), max(b)
-         |from MyTable1
-         |group by HOP(c, INTERVAL '1' SECOND, INTERVAL '1' MINUTE)
-         |""".stripMargin
-    util.verifyExecPlan(sql)
-  }
-
-  @Test
-  def testSessionFunction(): Unit = {
+  def testCumulate_Cube(): Unit = {
     val sql =
       """
         |SELECT
-        |    COUNT(*), weightedAvg(c, a) AS wAvg,
-        |    SESSION_START(proctime, INTERVAL '15' MINUTE),
-        |    SESSION_END(proctime, INTERVAL '15' MINUTE)
-        |FROM MyTable
-        |    GROUP BY SESSION(proctime, INTERVAL '15' MINUTE)
+        |   a,
+        |   b,
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |  CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |GROUP BY CUBE (a, b), window_start, window_end
       """.stripMargin
-    util.verifyExecPlan(sql)
+    util.verifyRelPlan(sql)
   }
 
   @Test
-  def testSessionWindowWithProctime(): Unit = {
-    val sql =
-      s"""
-         |select sum(a), max(b)
-         |from MyTable1
-         |group by SESSION(c, INTERVAL '1' MINUTE)
-         |""".stripMargin
-    util.verifyExecPlan(sql)
-  }
-
-  @Test
-  def testExpressionOnWindowAuxFunction(): Unit = {
-    val sql =
-      """
-        |SELECT COUNT(*),
-        |    TUMBLE_END(rowtime, INTERVAL '15' MINUTE) + INTERVAL '1' MINUTE
-        |FROM MyTable
-        |    GROUP BY TUMBLE(rowtime, INTERVAL '15' MINUTE)
-      """.stripMargin
-    util.verifyExecPlan(sql)
-  }
-
-  @Test
-  def testMultiWindowSqlWithAggregation(): Unit = {
+  def testCumulate_Rollup(): Unit = {
     val sql =
       """
         |SELECT
-        |  TUMBLE_ROWTIME(zzzzz, INTERVAL '0.004' SECOND),
-        |  TUMBLE_END(zzzzz, INTERVAL '0.004' SECOND),
-        |  COUNT(`a`) AS `a`
-        |FROM (
-        |  SELECT
-        |    COUNT(`a`) AS `a`,
-        |    TUMBLE_ROWTIME(rowtime, INTERVAL '0.002' SECOND) AS `zzzzz`
-        |  FROM MyTable
-        |  GROUP BY TUMBLE(rowtime, INTERVAL '0.002' SECOND)
-        |)
-        |GROUP BY TUMBLE(zzzzz, INTERVAL '0.004' SECOND)
+        |   a,
+        |   b,
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |  CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |GROUP BY ROLLUP (a, b), window_start, window_end
       """.stripMargin
-    util.verifyExecPlan(sql)
-  }
-
-  @Test
-  def testTumbleFunInGroupBy(): Unit = {
-    val sql =
-      """
-        |SELECT weightedAvg(c, a) FROM
-        |    (SELECT a, b, c,
-        |        TUMBLE_START(rowtime, INTERVAL '15' MINUTE) as ping_start
-        |     FROM MyTable
-        |         GROUP BY a, b, c, TUMBLE(rowtime, INTERVAL '15' MINUTE)
-        |     ) AS t1
-        | GROUP BY b, ping_start
-      """.stripMargin
-    util.verifyExecPlan(sql)
-  }
-
-  @Test
-  def testTumbleFunNotInGroupBy(): Unit = {
-    val sql =
-      """
-        |SELECT weightedAvg(c, a) FROM
-        |    (SELECT a, b, c,
-        |        TUMBLE_START(rowtime, INTERVAL '15' MINUTE) as ping_start
-        |     FROM MyTable
-        |         GROUP BY a, b, c, TUMBLE(rowtime, INTERVAL '15' MINUTE)) AS t1
-        |GROUP BY b
-      """.stripMargin
-    util.verifyExecPlan(sql)
-  }
-
-  @Test
-  def testTumbleFunAndRegularAggFunInGroupBy(): Unit = {
-    val sql =
-      """
-        |SELECT weightedAvg(c, a) FROM
-        |    (SELECT a, b, c, count(*) d,
-        |        TUMBLE_START(rowtime, INTERVAL '15' MINUTE) as ping_start
-        |     FROM MyTable
-        |         GROUP BY a, b, c, TUMBLE(rowtime, INTERVAL '15' MINUTE)) AS t1
-        |GROUP BY b, d, ping_start
-      """.stripMargin
-    util.verifyExecPlan(sql)
-  }
-
-  @Test
-  def testRegularAggFunInGroupByAndTumbleFunAndNotInGroupBy(): Unit = {
-    val sql =
-      """
-        |SELECT weightedAvg(c, a) FROM
-        |    (SELECT a, b, c, count(*) d,
-        |        TUMBLE_START(rowtime, INTERVAL '15' MINUTE) as ping_start
-        |     FROM MyTable
-        |         GROUP BY a, b, c, TUMBLE(rowtime, INTERVAL '15' MINUTE)) AS t1
-        |GROUP BY b, d
-      """.stripMargin
-    util.verifyExecPlan(sql)
-  }
-
-  @Test
-  def testDecomposableAggFunctions(): Unit = {
-    val sql =
-      """
-        |SELECT
-        |    VAR_POP(c),
-        |    VAR_SAMP(c),
-        |    STDDEV_POP(c),
-        |    STDDEV_SAMP(c),
-        |    TUMBLE_START(rowtime, INTERVAL '15' MINUTE),
-        |    TUMBLE_END(rowtime, INTERVAL '15' MINUTE)
-        |FROM MyTable
-        |    GROUP BY TUMBLE(rowtime, INTERVAL '15' MINUTE)
-      """.stripMargin
-    util.verifyExecPlan(sql)
-  }
-
-  @Test
-  def testExpressionOnWindowHavingFunction(): Unit = {
-    val sql =
-      """
-        |SELECT COUNT(*),
-        |    HOP_START(rowtime, INTERVAL '15' MINUTE, INTERVAL '1' MINUTE)
-        | FROM MyTable
-        |     GROUP BY HOP(rowtime, INTERVAL '15' MINUTE, INTERVAL '1' MINUTE)
-        |     HAVING SUM(a) > 0 AND
-        |         QUARTER(HOP_START(rowtime, INTERVAL '15' MINUTE, INTERVAL '1' MINUTE)) = 1
-      """.stripMargin
-    util.verifyExecPlan(sql)
-  }
-
-  @Test
-  def testReturnTypeInferenceForWindowAgg(): Unit = {
-
-    val sql =
-      """
-        |SELECT
-        |  SUM(correct) AS s,
-        |  AVG(correct) AS a,
-        |  TUMBLE_START(rowtime, INTERVAL '15' MINUTE) AS wStart
-        |FROM (
-        |  SELECT CASE a
-        |      WHEN 1 THEN 1
-        |      ELSE 99
-        |    END AS correct, rowtime
-        |  FROM MyTable
-        |)
-        |GROUP BY TUMBLE(rowtime, INTERVAL '15' MINUTE)
-      """.stripMargin
-
-    util.verifyExecPlan(sql)
-  }
-
-  @Test
-  def testWindowAggregateWithDifferentWindows(): Unit = {
-    // This test ensures that the LogicalWindowAggregate node' digest contains the window specs.
-    // This allows the planner to make the distinction between similar aggregations using different
-    // windows (see FLINK-15577).
-    val sql =
-    """
-      |WITH window_1h AS (
-      |    SELECT 1
-      |    FROM MyTable
-      |    GROUP BY HOP(`rowtime`, INTERVAL '1' HOUR, INTERVAL '1' HOUR)
-      |),
-      |
-      |window_2h AS (
-      |    SELECT 1
-      |    FROM MyTable
-      |    GROUP BY HOP(`rowtime`, INTERVAL '1' HOUR, INTERVAL '2' HOUR)
-      |)
-      |
-      |(SELECT * FROM window_1h)
-      |UNION ALL
-      |(SELECT * FROM window_2h)
-      |""".stripMargin
-
-    util.verifyExecPlan(sql)
-  }
-
-  @Test
-  def testWindowAggregateWithLateFire(): Unit = {
-    util.conf.getConfiguration.setBoolean(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED, true)
-    util.conf.getConfiguration.set(TABLE_EXEC_EMIT_LATE_FIRE_DELAY, Duration.ofSeconds(5))
-    util.conf.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
-    val sql =
-      """
-        |SELECT TUMBLE_START(`rowtime`, INTERVAL '1' SECOND), COUNT(*) cnt
-        |FROM MyTable
-        |GROUP BY TUMBLE(`rowtime`, INTERVAL '1' SECOND)
-        |""".stripMargin
-    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
-  }
-
-  @Test
-  def testWindowAggregateWithAllowLatenessOnly(): Unit = {
-    util.conf.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
-    val sql =
-      """
-        |SELECT TUMBLE_START(`rowtime`, INTERVAL '1' SECOND), COUNT(*) cnt
-        |FROM MyTable
-        |GROUP BY TUMBLE(`rowtime`, INTERVAL '1' SECOND)
-        |""".stripMargin
-    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(sql)
   }
 }

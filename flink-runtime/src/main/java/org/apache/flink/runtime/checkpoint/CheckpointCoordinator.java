@@ -20,6 +20,8 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.checkpoint.CheckpointType.PostCheckpointAction;
 import org.apache.flink.runtime.checkpoint.hooks.MasterHooks;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
@@ -77,6 +79,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toMap;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
@@ -437,14 +440,13 @@ public class CheckpointCoordinator {
             @Nullable final String targetLocation) {
         final CheckpointProperties properties =
                 CheckpointProperties.forSavepoint(!unalignedCheckpointsEnabled);
-        return triggerSavepointInternal(properties, false, targetLocation);
+        return triggerSavepointInternal(properties, targetLocation);
     }
 
     /**
      * Triggers a synchronous savepoint with the given savepoint directory as a target.
      *
-     * @param advanceToEndOfEventTime Flag indicating if the source should inject a {@code
-     *     MAX_WATERMARK} in the pipeline to fire any registered event-time timers.
+     * @param terminate flag indicating if the job should terminate or just suspend
      * @param targetLocation Target location for the savepoint, optional. If null, the state
      *     backend's configured default will be used.
      * @return A future to the completed checkpoint
@@ -452,17 +454,16 @@ public class CheckpointCoordinator {
      *     savepoint directory has been configured
      */
     public CompletableFuture<CompletedCheckpoint> triggerSynchronousSavepoint(
-            final boolean advanceToEndOfEventTime, @Nullable final String targetLocation) {
+            final boolean terminate, @Nullable final String targetLocation) {
 
         final CheckpointProperties properties =
-                CheckpointProperties.forSyncSavepoint(!unalignedCheckpointsEnabled);
+                CheckpointProperties.forSyncSavepoint(!unalignedCheckpointsEnabled, terminate);
 
-        return triggerSavepointInternal(properties, advanceToEndOfEventTime, targetLocation);
+        return triggerSavepointInternal(properties, targetLocation);
     }
 
     private CompletableFuture<CompletedCheckpoint> triggerSavepointInternal(
             final CheckpointProperties checkpointProperties,
-            final boolean advanceToEndOfEventTime,
             @Nullable final String targetLocation) {
 
         checkNotNull(checkpointProperties);
@@ -472,11 +473,7 @@ public class CheckpointCoordinator {
         final CompletableFuture<CompletedCheckpoint> resultFuture = new CompletableFuture<>();
         timer.execute(
                 () ->
-                        triggerCheckpoint(
-                                        checkpointProperties,
-                                        targetLocation,
-                                        false,
-                                        advanceToEndOfEventTime)
+                        triggerCheckpoint(checkpointProperties, targetLocation, false)
                                 .whenComplete(
                                         (completedCheckpoint, throwable) -> {
                                             if (throwable == null) {
@@ -498,25 +495,24 @@ public class CheckpointCoordinator {
      * @return a future to the completed checkpoint.
      */
     public CompletableFuture<CompletedCheckpoint> triggerCheckpoint(boolean isPeriodic) {
-        return triggerCheckpoint(checkpointProperties, null, isPeriodic, false);
+        return triggerCheckpoint(checkpointProperties, null, isPeriodic);
     }
 
     @VisibleForTesting
     public CompletableFuture<CompletedCheckpoint> triggerCheckpoint(
             CheckpointProperties props,
             @Nullable String externalSavepointLocation,
-            boolean isPeriodic,
-            boolean advanceToEndOfTime) {
+            boolean isPeriodic) {
 
-        if (advanceToEndOfTime && !(props.isSynchronous() && props.isSavepoint())) {
+        if (props.getCheckpointType().getPostCheckpointAction() == PostCheckpointAction.TERMINATE
+                && !(props.isSynchronous() && props.isSavepoint())) {
             return FutureUtils.completedExceptionally(
                     new IllegalArgumentException(
                             "Only synchronous savepoints are allowed to advance the watermark to MAX."));
         }
 
         CheckpointTriggerRequest request =
-                new CheckpointTriggerRequest(
-                        props, externalSavepointLocation, isPeriodic, advanceToEndOfTime);
+                new CheckpointTriggerRequest(props, externalSavepointLocation, isPeriodic);
         chooseRequestToExecute(request).ifPresent(this::startTriggeringCheckpoint);
         return request.onCompletionPromise;
     }
@@ -527,25 +523,41 @@ public class CheckpointCoordinator {
                 preCheckGlobalState(request.isPeriodic);
             }
 
-            CheckpointPlan checkpointPlan = checkpointPlanCalculator.calculateCheckpointPlan();
-
             // we will actually trigger this checkpoint!
             Preconditions.checkState(!isTriggering);
             isTriggering = true;
 
             final long timestamp = System.currentTimeMillis();
+
+            CompletableFuture<CheckpointPlan> checkpointPlanFuture =
+                    checkpointPlanCalculator.calculateCheckpointPlan();
+
             final CompletableFuture<PendingCheckpoint> pendingCheckpointCompletableFuture =
-                    initializeCheckpoint(request.props, request.externalSavepointLocation)
+                    checkpointPlanFuture
                             .thenApplyAsync(
-                                    (checkpointIdAndStorageLocation) ->
+                                    plan -> {
+                                        try {
+                                            CheckpointIdAndStorageLocation
+                                                    checkpointIdAndStorageLocation =
+                                                            initializeCheckpoint(
+                                                                    request.props,
+                                                                    request.externalSavepointLocation);
+                                            return new Tuple2<>(
+                                                    plan, checkpointIdAndStorageLocation);
+                                        } catch (Throwable e) {
+                                            throw new CompletionException(e);
+                                        }
+                                    },
+                                    executor)
+                            .thenApplyAsync(
+                                    (checkpointInfo) ->
                                             createPendingCheckpoint(
                                                     timestamp,
                                                     request.props,
-                                                    checkpointPlan,
+                                                    checkpointInfo.f0,
                                                     request.isPeriodic,
-                                                    checkpointIdAndStorageLocation.checkpointId,
-                                                    checkpointIdAndStorageLocation
-                                                            .checkpointStorageLocation,
+                                                    checkpointInfo.f1.checkpointId,
+                                                    checkpointInfo.f1.checkpointStorageLocation,
                                                     request.getOnCompletionFuture()),
                                     timer);
 
@@ -614,8 +626,9 @@ public class CheckpointCoordinator {
                                                         checkpointId,
                                                         checkpoint.getCheckpointStorageLocation(),
                                                         request.props,
-                                                        checkpointPlan.getTasksToTrigger(),
-                                                        request.advanceToEndOfTime);
+                                                        checkpoint
+                                                                .getCheckpointPlan()
+                                                                .getTasksToTrigger());
 
                                                 coordinatorsToCheckpoint.forEach(
                                                         (ctx) ->
@@ -652,38 +665,29 @@ public class CheckpointCoordinator {
     }
 
     /**
-     * Initialize the checkpoint trigger asynchronously. It will be executed in io thread due to it
-     * might be time-consuming.
+     * Initialize the checkpoint trigger asynchronously. It will expected to be executed in io
+     * thread due to it might be time-consuming.
      *
      * @param props checkpoint properties
      * @param externalSavepointLocation the external savepoint location, it might be null
-     * @return the future of initialized result, checkpoint id and checkpoint location
+     * @return the initialized result, checkpoint id and checkpoint location
      */
-    private CompletableFuture<CheckpointIdAndStorageLocation> initializeCheckpoint(
-            CheckpointProperties props, @Nullable String externalSavepointLocation) {
+    private CheckpointIdAndStorageLocation initializeCheckpoint(
+            CheckpointProperties props, @Nullable String externalSavepointLocation)
+            throws Exception {
 
-        return CompletableFuture.supplyAsync(
-                () -> {
-                    try {
-                        // this must happen outside the coordinator-wide lock, because it
-                        // communicates
-                        // with external services (in HA mode) and may block for a while.
-                        long checkpointID = checkpointIdCounter.getAndIncrement();
+        // this must happen outside the coordinator-wide lock, because it
+        // communicates
+        // with external services (in HA mode) and may block for a while.
+        long checkpointID = checkpointIdCounter.getAndIncrement();
 
-                        CheckpointStorageLocation checkpointStorageLocation =
-                                props.isSavepoint()
-                                        ? checkpointStorageView.initializeLocationForSavepoint(
-                                                checkpointID, externalSavepointLocation)
-                                        : checkpointStorageView.initializeLocationForCheckpoint(
-                                                checkpointID);
+        CheckpointStorageLocation checkpointStorageLocation =
+                props.isSavepoint()
+                        ? checkpointStorageView.initializeLocationForSavepoint(
+                                checkpointID, externalSavepointLocation)
+                        : checkpointStorageView.initializeLocationForCheckpoint(checkpointID);
 
-                        return new CheckpointIdAndStorageLocation(
-                                checkpointID, checkpointStorageLocation);
-                    } catch (Throwable throwable) {
-                        throw new CompletionException(throwable);
-                    }
-                },
-                executor);
+        return new CheckpointIdAndStorageLocation(checkpointID, checkpointStorageLocation);
     }
 
     private PendingCheckpoint createPendingCheckpoint(
@@ -801,16 +805,13 @@ public class CheckpointCoordinator {
      * @param checkpointStorageLocation the checkpoint location
      * @param props the checkpoint properties
      * @param tasksToTrigger the executions which should be triggered
-     * @param advanceToEndOfTime Flag indicating if the source should inject a {@code MAX_WATERMARK}
-     *     in the pipeline to fire any registered event-time timers.
      */
     private void snapshotTaskState(
             long timestamp,
             long checkpointID,
             CheckpointStorageLocation checkpointStorageLocation,
             CheckpointProperties props,
-            List<Execution> tasksToTrigger,
-            boolean advanceToEndOfTime) {
+            List<Execution> tasksToTrigger) {
 
         final CheckpointOptions checkpointOptions =
                 CheckpointOptions.forConfig(
@@ -823,8 +824,7 @@ public class CheckpointCoordinator {
         // send the messages to the tasks that trigger their checkpoint
         for (Execution execution : tasksToTrigger) {
             if (props.isSynchronous()) {
-                execution.triggerSynchronousSavepoint(
-                        checkpointID, timestamp, checkpointOptions, advanceToEndOfTime);
+                execution.triggerSynchronousSavepoint(checkpointID, timestamp, checkpointOptions);
             } else {
                 execution.triggerCheckpoint(checkpointID, timestamp, checkpointOptions);
             }
@@ -883,6 +883,8 @@ public class CheckpointCoordinator {
                 synchronized (lock) {
                     abortPendingCheckpoint(checkpoint, cause);
                 }
+            } else {
+                LOG.warn("Failed to trigger checkpoint for job {}.)", job, throwable);
             }
         } finally {
             isTriggering = false;
@@ -2013,21 +2015,18 @@ public class CheckpointCoordinator {
         final CheckpointProperties props;
         final @Nullable String externalSavepointLocation;
         final boolean isPeriodic;
-        final boolean advanceToEndOfTime;
         private final CompletableFuture<CompletedCheckpoint> onCompletionPromise =
                 new CompletableFuture<>();
 
         CheckpointTriggerRequest(
                 CheckpointProperties props,
                 @Nullable String externalSavepointLocation,
-                boolean isPeriodic,
-                boolean advanceToEndOfTime) {
+                boolean isPeriodic) {
 
             this.timestamp = System.currentTimeMillis();
             this.props = checkNotNull(props);
             this.externalSavepointLocation = externalSavepointLocation;
             this.isPeriodic = isPeriodic;
-            this.advanceToEndOfTime = advanceToEndOfTime;
         }
 
         CompletableFuture<CompletedCheckpoint> getOnCompletionFuture() {
@@ -2060,18 +2059,36 @@ public class CheckpointCoordinator {
             return;
         }
         Map<JobVertexID, Integer> vertices =
-                checkpoint.getCheckpointPlan().getTasksToWaitFor().values().stream()
+                Stream.concat(
+                                checkpoint.getCheckpointPlan().getTasksToWaitFor().stream(),
+                                checkpoint.getCheckpointPlan().getFinishedTasks().stream())
+                        .map(Execution::getVertex)
                         .map(ExecutionVertex::getJobVertex)
                         .distinct()
                         .collect(
                                 toMap(
                                         ExecutionJobVertex::getJobVertexId,
                                         ExecutionJobVertex::getParallelism));
-        statsTracker.reportPendingCheckpoint(
-                checkpoint.getCheckpointID(),
-                checkpoint.getCheckpointTimestamp(),
-                checkpoint.getProps(),
-                vertices);
+
+        PendingCheckpointStats pendingCheckpointStats =
+                statsTracker.reportPendingCheckpoint(
+                        checkpoint.getCheckpointID(),
+                        checkpoint.getCheckpointTimestamp(),
+                        checkpoint.getProps(),
+                        vertices);
+
+        reportFinishedTasks(
+                pendingCheckpointStats, checkpoint.getCheckpointPlan().getFinishedTasks());
+    }
+
+    private void reportFinishedTasks(
+            PendingCheckpointStats pendingCheckpointStats, List<Execution> finishedTasks) {
+        long now = System.currentTimeMillis();
+        finishedTasks.forEach(
+                execution ->
+                        pendingCheckpointStats.reportSubtaskStats(
+                                execution.getVertex().getJobvertexId(),
+                                new SubtaskStateStats(execution.getParallelSubtaskIndex(), now)));
     }
 
     @Nullable

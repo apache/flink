@@ -524,7 +524,7 @@ public static class LiteralFunction extends ScalarFunction {
 {{< /tabs >}}
 
 For more examples of custom type inference, see also the `flink-examples-table` module with
-{% gh_link flink-examples/flink-examples-table/src/main/java/org/apache/flink/table/examples/java/functions/AdvancedFunctionsExample.java "advanced function implementation" %}.
+{{< gh_link file="flink-examples/flink-examples-table/src/main/java/org/apache/flink/table/examples/java/functions/AdvancedFunctionsExample.java" name="advanced function implementation" >}}.
 
 ### 运行时集成
 -------------------

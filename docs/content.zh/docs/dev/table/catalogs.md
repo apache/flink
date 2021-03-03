@@ -241,7 +241,7 @@ from pyflink.table.catalog import HiveCatalog, CatalogDatabase, ObjectPath, Cata
 from pyflink.table.descriptors import Kafka
 
 settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
-t_env = BatchTableEnvironment.create(environment_settings=settings)
+t_env = TableEnvironment.create(settings)
 
 # Create a HiveCatalog
 catalog = HiveCatalog("myhive", None, "<path_of_hive_conf>")

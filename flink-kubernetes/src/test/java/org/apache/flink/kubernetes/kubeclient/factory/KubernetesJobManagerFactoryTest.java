@@ -23,6 +23,7 @@ import org.apache.flink.kubernetes.KubernetesTestUtils;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptionsInternal;
 import org.apache.flink.kubernetes.entrypoint.KubernetesSessionClusterEntrypoint;
+import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerSpecification;
 import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerTestBase;
 import org.apache.flink.kubernetes.kubeclient.decorators.ExternalServiceDecorator;
@@ -30,7 +31,6 @@ import org.apache.flink.kubernetes.kubeclient.decorators.FlinkConfMountDecorator
 import org.apache.flink.kubernetes.kubeclient.decorators.HadoopConfMountDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.InternalServiceDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.KerberosMountDecorator;
-import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
@@ -87,6 +87,8 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
                             "testapp",
                             "e3c9aa3f-cc42-4178-814a-64aa15c82373"));
 
+    private final FlinkPod flinkPod = new FlinkPod.Builder().build();
+
     protected KubernetesJobManagerSpecification kubernetesJobManagerSpecification;
 
     @Override
@@ -118,7 +120,7 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
     public void testDeploymentMetadata() throws IOException {
         kubernetesJobManagerSpecification =
                 KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(
-                        kubernetesJobManagerParameters);
+                        flinkPod, kubernetesJobManagerParameters);
         final Deployment resultDeployment = this.kubernetesJobManagerSpecification.getDeployment();
         assertEquals(Constants.APPS_API_VERSION, resultDeployment.getApiVersion());
         assertEquals(
@@ -138,7 +140,7 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
     public void testDeploymentSpec() throws IOException {
         kubernetesJobManagerSpecification =
                 KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(
-                        kubernetesJobManagerParameters);
+                        flinkPod, kubernetesJobManagerParameters);
 
         final DeploymentSpec resultDeploymentSpec =
                 this.kubernetesJobManagerSpecification.getDeployment().getSpec();
@@ -158,7 +160,7 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
     public void testPodSpec() throws IOException {
         kubernetesJobManagerSpecification =
                 KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(
-                        kubernetesJobManagerParameters);
+                        flinkPod, kubernetesJobManagerParameters);
 
         final PodSpec resultPodSpec =
                 this.kubernetesJobManagerSpecification
@@ -172,9 +174,7 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
         assertEquals(3, resultPodSpec.getVolumes().size());
 
         final Container resultedMainContainer = resultPodSpec.getContainers().get(0);
-        assertEquals(
-                KubernetesJobManagerParameters.JOB_MANAGER_MAIN_CONTAINER_NAME,
-                resultedMainContainer.getName());
+        assertEquals(Constants.MAIN_CONTAINER_NAME, resultedMainContainer.getName());
         assertEquals(CONTAINER_IMAGE, resultedMainContainer.getImage());
         assertEquals(
                 CONTAINER_IMAGE_PULL_POLICY.name(), resultedMainContainer.getImagePullPolicy());
@@ -201,7 +201,7 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
     public void testAdditionalResourcesSize() throws IOException {
         kubernetesJobManagerSpecification =
                 KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(
-                        kubernetesJobManagerParameters);
+                        flinkPod, kubernetesJobManagerParameters);
 
         final List<HasMetadata> resultAdditionalResources =
                 this.kubernetesJobManagerSpecification.getAccompanyingResources();
@@ -230,7 +230,7 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
     public void testServices() throws IOException {
         kubernetesJobManagerSpecification =
                 KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(
-                        kubernetesJobManagerParameters);
+                        flinkPod, kubernetesJobManagerParameters);
 
         final List<Service> resultServices =
                 this.kubernetesJobManagerSpecification.getAccompanyingResources().stream()
@@ -288,7 +288,7 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
     public void testKerberosConfConfigMap() throws IOException {
         kubernetesJobManagerSpecification =
                 KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(
-                        kubernetesJobManagerParameters);
+                        flinkPod, kubernetesJobManagerParameters);
 
         final ConfigMap resultConfigMap =
                 (ConfigMap)
@@ -320,7 +320,7 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
     public void testKerberosKeytabSecret() throws IOException {
         kubernetesJobManagerSpecification =
                 KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(
-                        kubernetesJobManagerParameters);
+                        flinkPod, kubernetesJobManagerParameters);
 
         final Secret resultSecret =
                 (Secret)
@@ -348,7 +348,7 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
     public void testFlinkConfConfigMap() throws IOException {
         kubernetesJobManagerSpecification =
                 KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(
-                        kubernetesJobManagerParameters);
+                        flinkPod, kubernetesJobManagerParameters);
 
         final ConfigMap resultConfigMap =
                 (ConfigMap)
@@ -386,7 +386,7 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
                 KubernetesConfigOptions.HADOOP_CONF_CONFIG_MAP, EXISTING_HADOOP_CONF_CONFIG_MAP);
         kubernetesJobManagerSpecification =
                 KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(
-                        kubernetesJobManagerParameters);
+                        flinkPod, kubernetesJobManagerParameters);
 
         assertFalse(
                 kubernetesJobManagerSpecification.getAccompanyingResources().stream()
@@ -416,7 +416,7 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
         generateHadoopConfFileItems();
         kubernetesJobManagerSpecification =
                 KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(
-                        kubernetesJobManagerParameters);
+                        flinkPod, kubernetesJobManagerParameters);
 
         final ConfigMap resultConfigMap =
                 (ConfigMap)
@@ -446,7 +446,7 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
         setHadoopConfDirEnv();
         kubernetesJobManagerSpecification =
                 KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(
-                        kubernetesJobManagerParameters);
+                        flinkPod, kubernetesJobManagerParameters);
 
         assertFalse(
                 kubernetesJobManagerSpecification.getAccompanyingResources().stream()

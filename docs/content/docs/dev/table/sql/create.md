@@ -110,7 +110,7 @@ tableEnv.executeSql(
 {{< tab "Python" >}}
 ```python
 settings = EnvironmentSettings.new_instance()...
-table_env = StreamTableEnvironment.create(env, settings)
+table_env = TableEnvironment.create(settings)
 
 # SQL query with a registered table
 # register a table named "Orders"
@@ -304,9 +304,9 @@ MyTable(`timestamp` BIGINT, `user_id` BIGINT, `name` STRING)
 Computed columns are virtual columns that are generated using the syntax `column_name AS computed_column_expression`.
 
 A computed column evaluates an expression that can reference other columns declared in the same table.
-Both physical columns and metadata columns can be accessed if they preceed the computed column in the
-schema declaration. The column itself is not physically stored within the table. The column's data type
-is derived automatically from the given expression and does not have to be declared manually.
+Both physical columns and metadata columns can be accessed. The column itself is not physically stored
+within the table. The column's data type is derived automatically from the given expression and does
+not have to be declared manually.
 
 The planner will transform computed columns into a regular projection after the source. For optimization
 or [watermark strategy push down]({{< ref "docs/dev/table/sourcesSinks" >}}), the evaluation might be spread

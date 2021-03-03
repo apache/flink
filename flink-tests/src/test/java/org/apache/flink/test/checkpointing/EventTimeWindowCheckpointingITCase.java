@@ -30,6 +30,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.contrib.streaming.state.RocksDBOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.core.fs.Path;
@@ -49,6 +50,7 @@ import org.apache.flink.test.checkpointing.utils.FailingSource;
 import org.apache.flink.test.checkpointing.utils.IntType;
 import org.apache.flink.test.checkpointing.utils.ValidatingSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
@@ -58,6 +60,7 @@ import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
@@ -84,6 +87,7 @@ import static org.junit.Assert.fail;
  */
 @SuppressWarnings("serial")
 @RunWith(Parameterized.class)
+@Category(FailsWithAdaptiveScheduler.class) // FLINK-21400
 public class EventTimeWindowCheckpointingITCase extends TestLogger {
 
     private static final int MAX_MEM_STATE_SIZE = 20 * 1024 * 1024;
@@ -182,7 +186,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                 // Test RocksDB based timer service as well
                 config.set(
                         RocksDBOptions.TIMER_SERVICE_FACTORY,
-                        RocksDBStateBackend.PriorityQueueStateType.ROCKSDB);
+                        EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB);
                 setupRocksDB(config, 16, true);
                 break;
             case ROCKSDB_INCREMENTAL_ZK:

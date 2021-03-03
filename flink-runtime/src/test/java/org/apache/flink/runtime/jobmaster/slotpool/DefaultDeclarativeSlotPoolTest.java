@@ -21,9 +21,6 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
-import org.apache.flink.runtime.jobmaster.JobMasterId;
-import org.apache.flink.runtime.jobmaster.RpcTaskManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
@@ -31,6 +28,7 @@ import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
+import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
@@ -150,7 +148,8 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
         Collection<SlotOffer> slotOffers =
                 createSlotOffersForResourceRequirements(resourceRequirements);
 
-        final Collection<SlotOffer> acceptedSlots = offerSlots(slotPool, slotOffers);
+        final Collection<SlotOffer> acceptedSlots =
+                SlotPoolTestUtils.offerSlots(slotPool, slotOffers);
 
         assertThat(acceptedSlots, containsInAnyOrder(slotOffers.toArray()));
 
@@ -183,11 +182,12 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
         final Collection<SlotOffer> slotOffers =
                 createSlotOffersForResourceRequirements(resourceRequirements);
 
-        offerSlots(slotPool, slotOffers);
+        SlotPoolTestUtils.offerSlots(slotPool, slotOffers);
 
         drainNewSlotService(notifyNewSlots);
 
-        final Collection<SlotOffer> acceptedSlots = offerSlots(slotPool, slotOffers);
+        final Collection<SlotOffer> acceptedSlots =
+                SlotPoolTestUtils.offerSlots(slotPool, slotOffers);
 
         assertThat(acceptedSlots, containsInAnyOrder(slotOffers.toArray()));
         // duplicate slots should not trigger notify new slots
@@ -210,7 +210,8 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
         final Collection<SlotOffer> slotOffers =
                 createSlotOffersForResourceRequirements(increasedRequirements);
 
-        final Collection<SlotOffer> acceptedSlots = offerSlots(slotPool, slotOffers);
+        final Collection<SlotOffer> acceptedSlots =
+                SlotPoolTestUtils.offerSlots(slotPool, slotOffers);
 
         final Map<ResourceProfile, Long> resourceProfileCount =
                 acceptedSlots.stream()
@@ -383,7 +384,8 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
                 createSlotOffersForResourceRequirements(resourceRequirements);
 
         slotPool.increaseResourceRequirementsBy(resourceRequirements);
-        final Collection<SlotOffer> acceptedSlots = offerSlots(slotPool, slotOffers);
+        final Collection<SlotOffer> acceptedSlots =
+                SlotPoolTestUtils.offerSlots(slotPool, slotOffers);
 
         final ResourceCounter requiredResources =
                 ResourceCounter.withResource(RESOURCE_PROFILE_1, 1);
@@ -427,7 +429,7 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
                 slotPool.offerSlots(
                         newSlotOffers,
                         new LocalTaskManagerLocation(),
-                        createTaskManagerGateway(null),
+                        SlotPoolTestUtils.createTaskManagerGateway(null),
                         0);
 
         assertThat(acceptedSlots, is(empty()));
@@ -445,7 +447,7 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
 
         slotPool.increaseResourceRequirementsBy(
                 ResourceCounter.withResource(largeResourceProfile, 1));
-        offerSlots(
+        SlotPoolTestUtils.offerSlots(
                 slotPool,
                 createSlotOffersForResourceRequirements(
                         ResourceCounter.withResource(ResourceProfile.ANY, 1)));
@@ -485,7 +487,7 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
 
         slotPool.increaseResourceRequirementsBy(
                 ResourceCounter.withResource(largeResourceProfile, 1));
-        offerSlots(
+        SlotPoolTestUtils.offerSlots(
                 slotPool,
                 createSlotOffersForResourceRequirements(
                         ResourceCounter.withResource(largeResourceProfile, 1)));
@@ -608,13 +610,6 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
     }
 
     @Nonnull
-    public static Collection<SlotOffer> offerSlots(
-            DeclarativeSlotPool slotPool, Collection<SlotOffer> slotOffers) {
-        return slotPool.offerSlots(
-                slotOffers, new LocalTaskManagerLocation(), createTaskManagerGateway(null), 0);
-    }
-
-    @Nonnull
     private static Collection<SlotOffer> increaseRequirementsAndOfferSlotsToSlotPool(
             DefaultDeclarativeSlotPool slotPool,
             ResourceCounter resourceRequirements,
@@ -637,7 +632,7 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
         return slotPool.offerSlots(
                 slotOffers,
                 taskManagerLocation == null ? new LocalTaskManagerLocation() : taskManagerLocation,
-                createTaskManagerGateway(taskExecutorGateway),
+                SlotPoolTestUtils.createTaskManagerGateway(taskExecutorGateway),
                 0);
     }
 
@@ -654,15 +649,6 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
 
     private static TypeSafeMatcher<PhysicalSlot> matchesSlotOffer(SlotOffer slotOffer) {
         return new PhysicalSlotSlotOfferMatcher(slotOffer);
-    }
-
-    private static TaskManagerGateway createTaskManagerGateway(
-            @Nullable TaskExecutorGateway taskExecutorGateway) {
-        return new RpcTaskManagerGateway(
-                taskExecutorGateway == null
-                        ? new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway()
-                        : taskExecutorGateway,
-                JobMasterId.generate());
     }
 
     private static final class NewResourceRequirementsService

@@ -38,8 +38,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class KubernetesTaskManagerParameters extends AbstractKubernetesParameters {
 
-    public static final String TASK_MANAGER_MAIN_CONTAINER_NAME = "flink-task-manager";
-
     private final String podName;
 
     private final String dynamicProperties;
@@ -99,10 +97,6 @@ public class KubernetesTaskManagerParameters extends AbstractKubernetesParameter
                 .orElse(Collections.emptyList());
     }
 
-    public String getTaskManagerMainContainerName() {
-        return TASK_MANAGER_MAIN_CONTAINER_NAME;
-    }
-
     public String getPodName() {
         return podName;
     }
@@ -123,9 +117,7 @@ public class KubernetesTaskManagerParameters extends AbstractKubernetesParameter
     }
 
     public String getServiceAccount() {
-        return flinkConfig
-                .getOptional(KubernetesConfigOptions.TASK_MANAGER_SERVICE_ACCOUNT)
-                .orElse(flinkConfig.getString(KubernetesConfigOptions.KUBERNETES_SERVICE_ACCOUNT));
+        return flinkConfig.get(KubernetesConfigOptions.TASK_MANAGER_SERVICE_ACCOUNT);
     }
 
     public Map<String, Long> getTaskManagerExternalResources() {

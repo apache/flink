@@ -20,7 +20,6 @@
 package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.program.ClusterClient;
@@ -49,6 +48,8 @@ import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.table.client.gateway.utils.SimpleCatalogFactory;
 import org.apache.flink.table.client.gateway.utils.TestUserClassLoaderJar;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.module.ModuleEntry;
+import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestBaseUtils;
@@ -56,6 +57,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.RunnableWithException;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableMap;
 
@@ -87,7 +89,10 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.apache.flink.table.client.gateway.local.ExecutionContextTest.CATALOGS_ENVIRONMENT_FILE;
+import static org.apache.flink.table.client.gateway.local.ExecutionContextTest.MODULES_ENVIRONMENT_FILE;
+import static org.apache.flink.table.client.gateway.local.ExecutionContextTest.createModuleReplaceVars;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.CoreMatchers.is;
@@ -425,7 +430,6 @@ public class LocalExecutorITCase extends TestLogger {
             expectedProperties.put("execution.restart-strategy.failure-rate-interval", "99000");
             expectedProperties.put("execution.restart-strategy.delay", "1000");
             expectedProperties.put("table.optimizer.join-reorder-enabled", "false");
-            expectedProperties.put("deployment.response-timeout", "5000");
 
             assertEquals(expectedProperties, actualProperties);
 
@@ -527,12 +531,12 @@ public class LocalExecutorITCase extends TestLogger {
                     retrieveChangelogResult(executor, sessionId, desc.getResultId());
 
             final List<String> expectedResults = new ArrayList<>();
-            expectedResults.add("(true,+I[47, Hello World, ABC])");
-            expectedResults.add("(true,+I[27, Hello World, ABC])");
-            expectedResults.add("(true,+I[37, Hello World, ABC])");
-            expectedResults.add("(true,+I[37, Hello World, ABC])");
-            expectedResults.add("(true,+I[47, Hello World, ABC])");
-            expectedResults.add("(true,+I[57, Hello World!!!!, ABC])");
+            expectedResults.add("+I[47, Hello World, ABC]");
+            expectedResults.add("+I[27, Hello World, ABC]");
+            expectedResults.add("+I[37, Hello World, ABC]");
+            expectedResults.add("+I[37, Hello World, ABC]");
+            expectedResults.add("+I[47, Hello World, ABC]");
+            expectedResults.add("+I[57, Hello World!!!!, ABC]");
 
             TestBaseUtils.compareResultCollections(
                     expectedResults, actualResults, Comparator.naturalOrder());
@@ -559,12 +563,12 @@ public class LocalExecutorITCase extends TestLogger {
         assertEquals("test-session", sessionId);
 
         final List<String> expectedResults = new ArrayList<>();
-        expectedResults.add("(true,+I[47, Hello World])");
-        expectedResults.add("(true,+I[27, Hello World])");
-        expectedResults.add("(true,+I[37, Hello World])");
-        expectedResults.add("(true,+I[37, Hello World])");
-        expectedResults.add("(true,+I[47, Hello World])");
-        expectedResults.add("(true,+I[57, Hello World!!!!])");
+        expectedResults.add("+I[47, Hello World]");
+        expectedResults.add("+I[27, Hello World]");
+        expectedResults.add("+I[37, Hello World]");
+        expectedResults.add("+I[37, Hello World]");
+        expectedResults.add("+I[47, Hello World]");
+        expectedResults.add("+I[57, Hello World!!!!]");
 
         try {
             for (int i = 0; i < 3; i++) {
@@ -896,34 +900,46 @@ public class LocalExecutorITCase extends TestLogger {
             final String statement1 =
                     "INSERT INTO TableSourceSink SELECT IntegerField1 = 42,"
                             + " LowerUDF(StringField1), TimestampField1 FROM TableNumber1";
-            executeAndVerifySinkResult(executor, sessionId, statement1, csvOutputPath);
+            executeAndVerifySinkResult(
+                    executor, sessionId, statement1, () -> verifySinkResult(csvOutputPath));
             // Case 1.2: Registered sink with lowercase insert into keyword.
             final String statement2 =
                     "insert Into TableSourceSink \n "
                             + "SELECT IntegerField1 = 42, LowerUDF(StringField1), TimestampField1 "
                             + "FROM TableNumber1";
-            executeAndVerifySinkResult(executor, sessionId, statement2, csvOutputPath);
+            executeAndVerifySinkResult(
+                    executor, sessionId, statement2, () -> verifySinkResult(csvOutputPath));
             // Case 1.3: Execute the same statement again, the results should expect to be the same.
-            executeAndVerifySinkResult(executor, sessionId, statement2, csvOutputPath);
+            executeAndVerifySinkResult(
+                    executor, sessionId, statement2, () -> verifySinkResult(csvOutputPath));
 
             // Case 2: Temporary sink
             executor.executeSql(sessionId, "use catalog `simple-catalog`");
             executor.executeSql(sessionId, "use default_database");
+            // create temporary sink
+            executor.executeSql(
+                    sessionId,
+                    "CREATE TEMPORARY TABLE MySink (id int, str VARCHAR) WITH ('connector' = 'COLLECTION')");
+            final String statement3 = "INSERT INTO MySink select * from `test-table`";
+
             // all queries are pipelined to an in-memory sink, check it is properly registered
-            final ResultDescriptor otherCatalogDesc =
-                    executor.executeQuery(sessionId, "SELECT * FROM `test-table`");
-
-            final List<String> otherCatalogResults =
-                    retrieveTableResult(executor, sessionId, otherCatalogDesc.getResultId());
-
-            TestBaseUtils.compareResultCollections(
-                    SimpleCatalogFactory.TABLE_CONTENTS.stream()
-                            .map(Row::toString)
-                            .collect(Collectors.toList()),
-                    otherCatalogResults,
-                    Comparator.naturalOrder());
+            executeAndVerifySinkResult(
+                    executor,
+                    sessionId,
+                    statement3,
+                    () -> {
+                        TestBaseUtils.compareResultCollections(
+                                SimpleCatalogFactory.TABLE_CONTENTS.stream()
+                                        .map(Row::toString)
+                                        .collect(Collectors.toList()),
+                                TestCollectionTableFactory.getResult().stream()
+                                        .map(Row::toString)
+                                        .collect(Collectors.toList()),
+                                Comparator.naturalOrder());
+                    });
         } finally {
             executor.closeSession(sessionId);
+            TestCollectionTableFactory.reset();
         }
     }
 
@@ -1618,6 +1634,191 @@ public class LocalExecutorITCase extends TestLogger {
         executor.closeSession(sessionId);
     }
 
+    @Test
+    public void testLoadModuleWithModuleConfEnabled() throws Exception {
+        // only blink planner supports LOAD MODULE syntax
+        Assume.assumeTrue(planner.equals("blink"));
+        final Executor executor =
+                createModifiedExecutor(
+                        MODULES_ENVIRONMENT_FILE, clusterClient, createModuleReplaceVars());
+        final SessionContext session = new SessionContext("test-session", new Environment());
+        String sessionId = executor.openSession(session);
+        assertEquals("test-session", sessionId);
+
+        assertThrows(
+                "Could not execute statement: load module core",
+                SqlExecutionException.class,
+                () -> executor.executeSql(sessionId, "load module core"));
+
+        executor.executeSql(sessionId, "load module hive");
+        assertEquals(
+                executor.listModules(sessionId),
+                Arrays.asList("core", "mymodule", "myhive", "myhive2", "hive"));
+    }
+
+    @Test
+    public void testUnloadModuleWithModuleConfEnabled() throws Exception {
+        // only blink planner supports UNLOAD MODULE syntax
+        Assume.assumeTrue(planner.equals("blink"));
+        final Executor executor =
+                createModifiedExecutor(
+                        MODULES_ENVIRONMENT_FILE, clusterClient, createModuleReplaceVars());
+        final SessionContext session = new SessionContext("test-session", new Environment());
+        String sessionId = executor.openSession(session);
+        assertEquals("test-session", sessionId);
+
+        executor.executeSql(sessionId, "unload module mymodule");
+        assertEquals(executor.listModules(sessionId), Arrays.asList("core", "myhive", "myhive2"));
+
+        exception.expect(SqlExecutionException.class);
+        exception.expectMessage("Could not execute statement: unload module mymodule");
+        executor.executeSql(sessionId, "unload module mymodule");
+    }
+
+    @Test
+    public void testHiveBuiltInFunctionWithHiveModuleEnabled() throws Exception {
+        // only blink planner supports LOAD MODULE syntax
+        Assume.assumeTrue(planner.equals("blink"));
+
+        final URL url = getClass().getClassLoader().getResource("test-data.csv");
+        Objects.requireNonNull(url);
+        final Map<String, String> replaceVars = new HashMap<>();
+        replaceVars.put("$VAR_PLANNER", planner);
+        replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
+        replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
+        replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
+        replaceVars.put("$VAR_MAX_ROWS", "100");
+        replaceVars.put("$VAR_RESULT_MODE", "table");
+
+        final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
+        final SessionContext session = new SessionContext("test-session", new Environment());
+        String sessionId = executor.openSession(session);
+        assertEquals("test-session", sessionId);
+
+        // cannot use hive built-in function without loading hive module
+        assertThrows(
+                "Could not execute statement: select substring_index('www.apache.org', '.', 2) from TableNumber1",
+                SqlExecutionException.class,
+                () ->
+                        executor.executeSql(
+                                sessionId,
+                                "select substring_index('www.apache.org', '.', 2) from TableNumber1"));
+
+        executor.executeSql(sessionId, "load module hive");
+        assertEquals(executor.listModules(sessionId), Arrays.asList("core", "hive"));
+
+        assertShowResult(
+                executor.executeSql(
+                        sessionId,
+                        "select substring_index('www.apache.org', '.', 2) from TableNumber1"),
+                hasItems("www.apache"));
+    }
+
+    @Test
+    public void testUseModulesWithModuleConfEnabled() throws Exception {
+        // only blink planner supports USE MODULES syntax
+        Assume.assumeTrue(planner.equals("blink"));
+        final LocalExecutor executor =
+                createModifiedExecutor(
+                        MODULES_ENVIRONMENT_FILE, clusterClient, createModuleReplaceVars());
+        final SessionContext session = new SessionContext("test-session", new Environment());
+        String sessionId = executor.openSession(session);
+        assertEquals("test-session", sessionId);
+        assertEquals(
+                executor.listModules(sessionId),
+                Arrays.asList("core", "mymodule", "myhive", "myhive2"));
+        assertEquals(
+                executor.listFullModules(sessionId),
+                Arrays.asList(
+                        new ModuleEntry("core", true),
+                        new ModuleEntry("mymodule", true),
+                        new ModuleEntry("myhive", true),
+                        new ModuleEntry("myhive2", true)));
+
+        // change resolution order
+        executor.executeSql(sessionId, "use modules myhive2, core, mymodule, myhive");
+        assertEquals(
+                executor.listModules(sessionId),
+                Arrays.asList("myhive2", "core", "mymodule", "myhive"));
+        assertEquals(
+                executor.listFullModules(sessionId),
+                Arrays.asList(
+                        new ModuleEntry("myhive2", true),
+                        new ModuleEntry("core", true),
+                        new ModuleEntry("mymodule", true),
+                        new ModuleEntry("myhive", true)));
+
+        // disable modules by not using
+        executor.executeSql(sessionId, "use modules core, myhive");
+        assertEquals(executor.listModules(sessionId), Arrays.asList("core", "myhive"));
+        assertEquals(
+                executor.listFullModules(sessionId),
+                Arrays.asList(
+                        new ModuleEntry("core", true),
+                        new ModuleEntry("myhive", true),
+                        new ModuleEntry("mymodule", false),
+                        new ModuleEntry("myhive2", false)));
+
+        // use duplicate module names
+        assertThrows(
+                "Could not execute statement: use modules core, myhive, core",
+                SqlExecutionException.class,
+                () -> executor.executeSql(sessionId, "use modules core, myhive, core"));
+
+        // use non-existed module name
+        assertThrows(
+                "Could not execute statement: use modules core, dummy",
+                SqlExecutionException.class,
+                () -> executor.executeSql(sessionId, "use modules core, dummy"));
+    }
+
+    @Test
+    public void testHiveBuiltInFunctionWithoutUsingHiveModule() throws Exception {
+        // only blink planner supports USE MODULES syntax
+        Assume.assumeTrue(planner.equals("blink"));
+
+        final URL url = getClass().getClassLoader().getResource("test-data.csv");
+        Objects.requireNonNull(url);
+        final Map<String, String> replaceVars = new HashMap<>();
+        replaceVars.put("$VAR_PLANNER", planner);
+        replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
+        replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
+        replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
+        replaceVars.put("$VAR_MAX_ROWS", "100");
+        replaceVars.put("$VAR_RESULT_MODE", "table");
+
+        final LocalExecutor executor = createModifiedExecutor(clusterClient, replaceVars);
+        final SessionContext session = new SessionContext("test-session", new Environment());
+        String sessionId = executor.openSession(session);
+        assertEquals("test-session", sessionId);
+
+        executor.executeSql(sessionId, "load module hive");
+        assertEquals(executor.listModules(sessionId), Arrays.asList("core", "hive"));
+        assertEquals(
+                executor.listFullModules(sessionId),
+                Arrays.asList(new ModuleEntry("core", true), new ModuleEntry("hive", true)));
+
+        assertShowResult(
+                executor.executeSql(
+                        sessionId,
+                        "select substring_index('www.apache.org', '.', 2) from TableNumber1"),
+                hasItems("www.apache"));
+
+        // cannot use hive built-in function without using hive module
+        executor.executeSql(sessionId, "use modules core");
+        assertEquals(executor.listModules(sessionId), Collections.singletonList("core"));
+        assertEquals(
+                executor.listFullModules(sessionId),
+                Arrays.asList(new ModuleEntry("core", true), new ModuleEntry("hive", false)));
+        assertThrows(
+                "Could not execute statement: select substring_index('www.apache.org', '.', 2) from TableNumber1",
+                SqlExecutionException.class,
+                () ->
+                        executor.executeSql(
+                                sessionId,
+                                "select substring_index('www.apache.org', '.', 2) from TableNumber1"));
+    }
+
     private void executeStreamQueryTable(
             Map<String, String> replaceVars, String query, List<String> expectedResults)
             throws Exception {
@@ -1674,7 +1875,10 @@ public class LocalExecutorITCase extends TestLogger {
     }
 
     private void executeAndVerifySinkResult(
-            Executor executor, String sessionId, String statement, String resultPath)
+            Executor executor,
+            String sessionId,
+            String statement,
+            RunnableWithException verifyResult)
             throws Exception {
         final ProgramTargetDescriptor targetDescriptor =
                 executor.executeUpdate(sessionId, statement);
@@ -1691,7 +1895,7 @@ public class LocalExecutorITCase extends TestLogger {
                     continue;
                 case FINISHED:
                     isRunning = false;
-                    verifySinkResult(resultPath);
+                    verifyResult.run();
                     break;
                 default:
                     fail("Unexpected job status.");
@@ -1768,11 +1972,11 @@ public class LocalExecutorITCase extends TestLogger {
         final List<String> actualResults = new ArrayList<>();
         while (true) {
             Thread.sleep(50); // slow the processing down
-            final TypedResult<List<Tuple2<Boolean, Row>>> result =
+            final TypedResult<List<Row>> result =
                     executor.retrieveResultChanges(sessionId, resultID);
             if (result.getType() == TypedResult.ResultType.PAYLOAD) {
-                for (Tuple2<Boolean, Row> change : result.getPayload()) {
-                    actualResults.add(change.toString());
+                for (Row row : result.getPayload()) {
+                    actualResults.add(row.toString());
                 }
             } else if (result.getType() == TypedResult.ResultType.EOS) {
                 break;

@@ -297,6 +297,9 @@ public class CliClient implements AutoCloseable {
             case SHOW_TABLES:
                 callShowTables();
                 break;
+            case SHOW_VIEWS:
+                callShowViews();
+                break;
             case SHOW_FUNCTIONS:
                 callShowFunctions();
                 break;
@@ -382,6 +385,24 @@ public class CliClient implements AutoCloseable {
                 break;
             case DROP_CATALOG:
                 callDdl(cmdCall.operands[0], CliStrings.MESSAGE_CATALOG_REMOVED);
+                break;
+            case LOAD_MODULE:
+                callDdl(
+                        cmdCall.operands[0],
+                        CliStrings.MESSAGE_LOAD_MODULE_SUCCEEDED,
+                        CliStrings.MESSAGE_LOAD_MODULE_FAILED);
+                break;
+            case UNLOAD_MODULE:
+                callDdl(
+                        cmdCall.operands[0],
+                        CliStrings.MESSAGE_UNLOAD_MODULE_SUCCEEDED,
+                        CliStrings.MESSAGE_UNLOAD_MODULE_FAILED);
+                break;
+            case USE_MODULES:
+                callDdl(
+                        cmdCall.operands[0],
+                        CliStrings.MESSAGE_USE_MODULES_SUCCEEDED,
+                        CliStrings.MESSAGE_USE_MODULES_FAILED);
                 break;
             default:
                 throw new SqlClientException("Unsupported command: " + cmdCall.command);
@@ -526,6 +547,22 @@ public class CliClient implements AutoCloseable {
         terminal.flush();
     }
 
+    private void callShowViews() {
+        final List<String> views;
+        try {
+            views = getShowResult("VIEWS");
+        } catch (SqlExecutionException e) {
+            printExecutionException(e);
+            return;
+        }
+        if (views.isEmpty()) {
+            terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY).toAnsi());
+        } else {
+            views.forEach((v) -> terminal.writer().println(v));
+        }
+        terminal.flush();
+    }
+
     private void callShowFunctions() {
         final List<String> functions;
         try {
@@ -654,11 +691,7 @@ public class CliClient implements AutoCloseable {
         if (resultDesc.isTableauMode()) {
             try (CliTableauResultView tableauResultView =
                     new CliTableauResultView(terminal, executor, sessionId, resultDesc)) {
-                if (resultDesc.isMaterialized()) {
-                    tableauResultView.displayBatchResults();
-                } else {
-                    tableauResultView.displayStreamResults();
-                }
+                tableauResultView.displayResults();
             } catch (SqlExecutionException e) {
                 printExecutionException(e);
             }

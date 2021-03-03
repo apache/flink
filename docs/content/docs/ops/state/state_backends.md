@@ -39,59 +39,27 @@ When checkpointing is activated, such state is persisted upon checkpoints to gua
 How the state is represented internally, and how and where it is persisted upon checkpoints depends on the
 chosen **State Backend**.
 
-# Available State Backends
+## Available State Backends
 
 Out of the box, Flink bundles these state backends:
 
- - *MemoryStateBackend*
- - *FsStateBackend*
- - *RocksDBStateBackend*
+ - *HashMapStateBackend*
+ - *EmbeddedRocksDBStateBackend*
 
-If nothing else is configured, the system will use the MemoryStateBackend.
+If nothing else is configured, the system will use the HashMapStateBackend.
 
+### The HashMapStateBackend
 
-### The MemoryStateBackend
-
-The *MemoryStateBackend* holds data internally as objects on the Java heap. Key/value state and window operators hold hash tables
+The *HashMapStateBackend* holds data internally as objects on the Java heap. Key/value state and window operators hold hash tables
 that store the values, triggers, etc.
 
-Upon checkpoints, this state backend will snapshot the state and send it as part of the checkpoint acknowledgement messages to the
-JobManager, which stores it on its heap as well.
-
-The MemoryStateBackend can be configured to use asynchronous snapshots. While we strongly encourage the use of asynchronous snapshots to avoid blocking pipelines, please note that this is currently enabled 
-by default. To disable this feature, users can instantiate a `MemoryStateBackend` with the corresponding boolean flag in the constructor set to `false`(this should only used for debug), e.g.:
+The HashMapStateBackend uses *asynchronous snapshots by default* to avoid blocking the processing pipeline while writing state checkpoints. To disable this feature, users can instantiate a HashMapStateBackend with the corresponding boolean flag in the constructor set to `false`, e.g.:
 
 ```java
-new MemoryStateBackend(MAX_MEM_STATE_SIZE, false);
+new HashMapStateBackend(false);
 ```
 
-Limitations of the MemoryStateBackend:
-
-  - The size of each individual state is by default limited to 5 MB. This value can be increased in the constructor of the MemoryStateBackend.
-  - Irrespective of the configured maximal state size, the state cannot be larger than the akka frame size (see [Configuration]({{< ref "docs/deployment/config" >}})).
-  - The aggregate state must fit into the JobManager memory.
-
-The MemoryStateBackend is encouraged for:
-
-  - Local development and debugging
-  - Jobs that do hold little state, such as jobs that consist only of record-at-a-time functions (Map, FlatMap, Filter, ...). The Kafka Consumer requires very little state.
-
-It is also recommended to set [managed memory]({{< ref "docs/deployment/memory/mem_setup_tm" >}}#managed-memory) to zero.
-This will ensure that the maximum amount of memory is allocated for user code on the JVM.
-
-### The FsStateBackend
-
-The *FsStateBackend* is configured with a file system URL (type, address, path), such as "hdfs://namenode:40010/flink/checkpoints" or "file:///data/flink/checkpoints".
-
-The FsStateBackend holds in-flight data in the TaskManager's memory. Upon checkpointing, it writes state snapshots into files in the configured file system and directory. Minimal metadata is stored in the JobManager's memory (or, in high-availability mode, in the metadata checkpoint).
-
-The FsStateBackend uses *asynchronous snapshots by default* to avoid blocking the processing pipeline while writing state checkpoints. To disable this feature, users can instantiate a `FsStateBackend` with the corresponding boolean flag in the constructor set to `false`, e.g.:
-
-```java
-new FsStateBackend(path, false);
-```
-
-The FsStateBackend is encouraged for:
+The HashMapStateBackend is encouraged for:
 
   - Jobs with large state, long windows, large key/value states.
   - All high-availability setups.
@@ -99,36 +67,32 @@ The FsStateBackend is encouraged for:
 It is also recommended to set [managed memory]({{< ref "docs/deployment/memory/mem_setup_tm" >}}#managed-memory) to zero.
 This will ensure that the maximum amount of memory is allocated for user code on the JVM.
 
-### The RocksDBStateBackend
+### The EmbeddedRocksDBStateBackend
 
-The *RocksDBStateBackend* is configured with a file system URL (type, address, path), such as "hdfs://namenode:40010/flink/checkpoints" or "file:///data/flink/checkpoints".
+The EmbeddedRocksDBStateBackend holds in-flight data in a [RocksDB](http://rocksdb.org) database
+that is (per default) stored in the TaskManager local data directories.
 
-The RocksDBStateBackend holds in-flight data in a [RocksDB](http://rocksdb.org) database
-that is (per default) stored in the TaskManager data directories. Upon checkpointing, the whole
-RocksDB database will be checkpointed into the configured file system and directory. Minimal
-metadata is stored in the JobManager's memory (or, in high-availability mode, in the metadata checkpoint).
+The EmbeddedRocksDBStateBackend always performs asynchronous snapshots.
 
-The RocksDBStateBackend always performs asynchronous snapshots.
-
-Limitations of the RocksDBStateBackend:
+Limitations of the EmbeddedRocksDBStateBackend:
 
   - As RocksDB's JNI bridge API is based on byte[], the maximum supported size per key and per value is 2^31 bytes each. 
-  IMPORTANT: states that use merge operations in RocksDB (e.g. ListState) can silently accumulate value sizes > 2^31 bytes and will then fail on their next retrieval. This is currently a limitation of RocksDB JNI.
+  States that use merge operations in RocksDB (e.g. ListState) can silently accumulate value sizes > 2^31 bytes and will then fail on their next retrieval. This is currently a limitation of RocksDB JNI.
 
-The RocksDBStateBackend is encouraged for:
+The EmbeddedRocksDBStateBackend is encouraged for:
 
   - Jobs with very large state, long windows, large key/value states.
   - All high-availability setups.
 
 Note that the amount of state that you can keep is only limited by the amount of disk space available.
-This allows keeping very large state, compared to the FsStateBackend that keeps state in memory.
+This allows keeping very large state, compared to the HashMapStateBackend that keeps state in memory.
 This also means, however, that the maximum throughput that can be achieved will be lower with
 this state backend. All reads/writes from/to this backend have to go through de-/serialization to retrieve/store the state objects, which is also more expensive than always working with the
 on-heap representation as the heap-based backends are doing.
 
-Check also recommendations about the [task executor memory configuration]({{< ref "docs/deployment/memory/mem_tuning" >}}#rocksdb-state-backend) for the RocksDBStateBackend.
+Check also recommendations about the [task executor memory configuration]({{< ref "docs/deployment/memory/mem_tuning" >}}#rocksdb-state-backend) for the EmbeddedRocksDBStateBackend.
 
-RocksDBStateBackend is currently the only backend that offers incremental checkpoints (see [here]({{< ref "docs/ops/state/large_state_tuning" >}})). 
+EmbeddedRocksDBStateBackend is currently the only backend that offers incremental checkpoints (see [here]({{< ref "docs/ops/state/large_state_tuning" >}})). 
 
 Certain RocksDB native metrics are available but disabled by default, you can find full documentation [here]({{< ref "docs/deployment/config" >}}#rocksdb-native-metrics)
 
@@ -136,14 +100,16 @@ The total memory amount of RocksDB instance(s) per slot can also be bounded, ple
 
 # Choose The Right State Backend
 
-Currently, Flink's savepoint binary format is state backend specific.
-A savepoint taken with one state backend cannot be restored using another, and you should carefully consider which backend you use before going to production.
-
-In general, we recommend avoiding `MemoryStateBackend` in production because it stores its snapshots inside the JobManager as opposed to persistent disk.
-When deciding between `FsStateBackend` and `RocksDB`, it is a choice between performance and scalability.
-`FsStateBackend` is very fast as each state access and update operates on objects on the Java heap; however, state size is limited by available memory within the cluster.
+When deciding between `HashMapStateBackend` and `RocksDB`, it is a choice between performance and scalability.
+`HashMapStateBackend` is very fast as each state access and update operates on objects on the Java heap; however, state size is limited by available memory within the cluster.
 On the other hand, `RocksDB` can scale based on available disk space and is the only state backend to support incremental snapshots.
 However, each state access and update requires (de-)serialization and potentially reading from disk which leads to average performance that is an order of magnitude slower than the memory state backends.
+
+{{< hint info >}}
+In Flink 1.13 we unified the binary format of Flink's savepoints. That means you can take a savepoint and then restore from it using a different state backend.
+All the state backends produce a common format only starting from version 1.13. Therefore, if you want to switch the state backend you should first upgrade your Flink version then
+take a savepoint with the new version, and only after that you can restore it with a different state backend.
+{{< /hint >}}
 
 # Configuring a State Backend
 
@@ -157,18 +123,18 @@ The per-job state backend is set on the `StreamExecutionEnvironment` of the job,
 {{< tab "Java" >}}
 ```java
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-env.setStateBackend(new FsStateBackend("hdfs://namenode:40010/flink/checkpoints"));
+env.setStateBackend(new HashMapStateBackend());
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
 val env = StreamExecutionEnvironment.getExecutionEnvironment()
-env.setStateBackend(new FsStateBackend("hdfs://namenode:40010/flink/checkpoints"))
+env.setStateBackend(new HashMapStateBackend())
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
-If you want to use the `RocksDBStateBackend` in your IDE or configure it programmatically in your Flink job, you will have to add the following dependency to your Flink project.
+If you want to use the `EmbeddedRocksDBStateBackend` in your IDE or configure it programmatically in your Flink job, you will have to add the following dependency to your Flink project.
 
 ```xml
 <dependency>
@@ -179,18 +145,18 @@ If you want to use the `RocksDBStateBackend` in your IDE or configure it program
 </dependency>
 ```
 
-<div class="alert alert-info" markdown="span">
-  <strong>Note:</strong> Since RocksDB is part of the default Flink distribution, you do not need this dependency if you are not using any RocksDB code in your job and configure the state backend via `state.backend` and further [checkpointing]({{< ref "docs/deployment/config" >}}#checkpointing) and [RocksDB-specific]({{< ref "docs/deployment/config" >}}#rocksdb-state-backend) parameters in your `flink-conf.yaml`.
-</div>
+{{< hint info >}}
+Since RocksDB is part of the default Flink distribution, you do not need this dependency if you are not using any RocksDB code in your job and configure the state backend via `state.backend` and further [checkpointing]({{< ref "docs/deployment/config" >}}#checkpointing) and [RocksDB-specific]({{< ref "docs/deployment/config" >}}#rocksdb-state-backend) parameters in your `flink-conf.yaml`.
+{{< /hint >}}
 
 
 ### Setting Default State Backend
 
 A default state backend can be configured in the `flink-conf.yaml`, using the configuration key `state.backend`.
 
-Possible values for the config entry are *jobmanager* (MemoryStateBackend), *filesystem* (FsStateBackend), *rocksdb* (RocksDBStateBackend), or the fully qualified class
+Possible values for the config entry are *hashmap* (HashMapStateBackend), *rocksdb* (EmbeddedRocksDBStateBackend), or the fully qualified class
 name of the class that implements the state backend factory [StateBackendFactory](https://github.com/apache/flink/blob/master/flink-runtime/src/main/java/org/apache/flink/runtime/state/StateBackendFactory.java),
-such as `org.apache.flink.contrib.streaming.state.RocksDBStateBackendFactory` for RocksDBStateBackend.
+such as `org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackendFactory` for EmbeddedRocksDBStateBackend.
 
 The `state.checkpoints.dir` option defines the directory to which all backends write checkpoint data and meta data files.
 You can find more details about the checkpoint directory structure [here]({{< ref "docs/ops/state/checkpoints" >}}#directory-structure).
@@ -199,12 +165,11 @@ A sample section in the configuration file could look as follows:
 
 ```yaml
 # The backend that will be used to store operator state checkpoints
-state.backend: filesystem
+state.backend: hashmap
 
 # Directory for storing checkpoints
 state.checkpoints.dir: hdfs://namenode:40010/flink/checkpoints
 ```
-
 
 # RocksDB State Backend Details
 
@@ -221,7 +186,7 @@ Recovery time of incremental checkpoints may be longer or shorter compared to fu
 
 While we encourage the use of incremental checkpoints for large state, you need to enable this feature manually:
   - Setting a default in your `flink-conf.yaml`: `state.backend.incremental: true` will enable incremental checkpoints, unless the application overrides this setting in the code.
-  - You can alternatively configure this directly in the code (overrides the config default): `RocksDBStateBackend backend = new RocksDBStateBackend(checkpointDirURI, true);`
+  - You can alternatively configure this directly in the code (overrides the config default): `EmbeddedRocksDBStateBackend backend = new EmbeddedRocksDBStateBackend(true);`
 
 Notice that once incremental checkpoont is enabled, the `Checkpointed Data Size` showed in web UI only represents the 
 delta checkpointed data size of that checkpoint instead of full state size.
@@ -253,9 +218,13 @@ For advanced tuning, Flink also provides two parameters to control the division 
   Moreover, the L0 level filter and index are pinned into the cache by default to mitigate performance problems,
   more details please refer to the [RocksDB-documentation](https://github.com/facebook/rocksdb/wiki/Block-Cache#caching-index-filter-and-compression-dictionary-blocks).
 
-<span class="label label-info">Note</span> When the above described mechanism (`cache` and `write buffer manager`) is enabled, it will override any customized settings for block caches and write buffers done via [`PredefinedOptions`](#predefined-per-columnfamily-options) and [`RocksDBOptionsFactory`](#passing-options-factory-to-rocksdb).
+{{< hint info >}}
+When the above described mechanism (`cache` and `write buffer manager`) is enabled, it will override any customized settings for block caches and write buffers done via [`PredefinedOptions`](#predefined-per-columnfamily-options) and [`RocksDBOptionsFactory`](#passing-options-factory-to-rocksdb).
+{{< /hint >}}
 
-<span class="label label-info">Note</span> *Expert Mode*: To control memory manually, you can set `state.backend.rocksdb.memory.managed` to `false` and configure RocksDB via [`ColumnFamilyOptions`](#passing-options-factory-to-rocksdb). Alternatively, you can use the above mentioned cache/buffer-manager mechanism, but set the memory size to a fixed amount independent of Flink's managed memory size (`state.backend.rocksdb.memory.fixed-per-slot` option). Note that in both cases, users need to ensure on their own that enough memory is available outside the JVM for RocksDB.
+{{< details "Expert Mode" >}}
+To control memory manually, you can set `state.backend.rocksdb.memory.managed` to `false` and configure RocksDB via [`ColumnFamilyOptions`](#passing-options-factory-to-rocksdb). Alternatively, you can use the above mentioned cache/buffer-manager mechanism, but set the memory size to a fixed amount independent of Flink's managed memory size (`state.backend.rocksdb.memory.fixed-per-slot` option). Note that in both cases, users need to ensure on their own that enough memory is available outside the JVM for RocksDB.
+{{< /details >}}
 
 ### Timers (Heap vs. RocksDB)
 
@@ -265,9 +234,13 @@ When selecting the RocksDB State Backend, timers are by default also stored in R
 
 Set the configuration option `state.backend.rocksdb.timer-service.factory` to `heap` (rather than the default, `rocksdb`) to store timers on heap.
 
-<span class="label label-info">Note</span> *The combination RocksDB state backend with heap-based timers currently does **NOT** support asynchronous snapshots for the timers state. Other state like keyed state is still snapshotted asynchronously.*
+{{< hint warning >}}
+*The combination RocksDB state backend with heap-based timers currently does **NOT** support asynchronous snapshots for the timers state. Other state like keyed state is still snapshotted asynchronously.*
+{{< /hint >}}
 
-<span class="label label-info">Note</span> *When using RocksDB state backend with heap-based timers, checkpointing and taking savepoints is expected to fail if there are operators in application that write to raw keyed state.*
+{{< hint warning >}}
+*When using RocksDB state backend with heap-based timers, checkpointing and taking savepoints is expected to fail if there are operators in application that write to raw keyed state.* This is only relevant to advanced users who are writing custom stream operators.
+{{< /hint >}}
 
 ### Enabling RocksDB Native Metrics
 
@@ -278,25 +251,25 @@ See [configuration docs]({{< ref "docs/deployment/config" >}}#rocksdb-native-met
 Enabling RocksDB's native metrics may have a negative performance impact on your application.
 {{< /hint >}}
 
-### Predefined Per-ColumnFamily Options
+### Advanced RocksDB Memory Turning
 
 {{< hint info >}}
-With the introduction of [memory management for RocksDB](#memory-management) this mechanism should be mainly used for *expert tuning* or *trouble shooting*.
+Flink offers sophisticated default [memory management for RocksDB](#memory-management) that should work for most use-cases. The below mechanisms should mainly be used for *expert tuning* or *trouble shooting*.
 {{< /hint >}}
+
+#### Predefined Per-ColumnFamily Options
 
 With *Predefined Options*, users can apply some predefined config profiles on each RocksDB Column Family, configuring for example memory use, thread, compaction settings, etc. There is currently one Column Family per each state in each operator.
 
 There are two ways to select predefined options to be applied:
   - Set the option's name in `flink-conf.yaml` via `state.backend.rocksdb.predefined-options`.
-  - Set the predefined options programmatically: `RocksDBStateBackend.setPredefinedOptions(PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM)`.
+  - Set the predefined options programmatically: `EmbeddedRocksDBStateBackend.setPredefinedOptions(PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM)`.
 
 The default value for this option is `DEFAULT` which translates to `PredefinedOptions.DEFAULT`.
 
-<span class="label label-info">Note</span> Predefined options set programmatically would override the ones configured via `flink-conf.yaml`.
+Predefined options set programmatically would override the ones configured via `flink-conf.yaml`.
 
-### Passing Options Factory to RocksDB
-
-<span class="label label-info">Note</span> With the introduction of [memory management for RocksDB](#memory-management) this mechanism should be mainly used for *expert tuning* or *trouble shooting*.
+#### Passing Options Factory to RocksDB
 
 To manually control RocksDB's options, you need to configure an `RocksDBOptionsFactory`. This mechanism gives you fine-grained control over the settings of the Column Families, for example memory use, thread, compaction settings, etc. There is currently one Column Family per each state in each operator.
 
@@ -304,12 +277,12 @@ There are two ways to pass a RocksDBOptionsFactory to the RocksDB State Backend:
 
   - Configure options factory class name in the `flink-conf.yaml` via `state.backend.rocksdb.options-factory`.
   
-  - Set the options factory programmatically, e.g. `RocksDBStateBackend.setRocksDBOptions(new MyOptionsFactory());`
+  - Set the options factory programmatically, e.g. `EmbeddedRocksDBStateBackend.setRocksDBOptions(new MyOptionsFactory());`
 
-<span class="label label-info">Note</span> Options factory which set programmatically would override the one configured via `flink-conf.yaml`,
+Options factory which set programmatically would override the one configured via `flink-conf.yaml`,
 and options factory has a higher priority over the predefined options if ever configured or set.
 
-<span class="label label-info">Note</span> RocksDB is a native library that allocates memory directly from the process,
+RocksDB is a native library that allocates memory directly from the process,
 and not from the JVM. Any memory you assign to RocksDB will have to be accounted for, typically by decreasing the JVM heap size
 of the TaskManagers by the same amount. Not doing that may result in YARN/Mesos/etc terminating the JVM processes for
 allocating more memory than configured.

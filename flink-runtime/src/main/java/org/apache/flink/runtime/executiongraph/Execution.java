@@ -27,6 +27,7 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.CheckpointType.PostCheckpointAction;
 import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -55,7 +56,6 @@ import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.OptionalFailure;
@@ -153,7 +153,8 @@ public class Execution
 
     private LogicalSlot assignedResource;
 
-    private Throwable failureCause; // once assigned, never changes
+    private Optional<ErrorInfo> failureCause =
+            Optional.empty(); // once an ErrorInfo is set, never changes
 
     /**
      * Information to restore the task on recovery, such as checkpoint id and task state snapshot.
@@ -317,13 +318,9 @@ public class Execution
                 : null;
     }
 
-    public Throwable getFailureCause() {
-        return failureCause;
-    }
-
     @Override
-    public String getFailureCauseAsString() {
-        return ExceptionUtils.stringifyException(getFailureCause());
+    public Optional<ErrorInfo> getFailureInfo() {
+        return failureCause;
     }
 
     @Override
@@ -814,7 +811,7 @@ public class Execution
      */
     public void triggerCheckpoint(
             long checkpointId, long timestamp, CheckpointOptions checkpointOptions) {
-        triggerCheckpointHelper(checkpointId, timestamp, checkpointOptions, false);
+        triggerCheckpointHelper(checkpointId, timestamp, checkpointOptions);
     }
 
     /**
@@ -823,26 +820,17 @@ public class Execution
      * @param checkpointId of th checkpoint to trigger
      * @param timestamp of the checkpoint to trigger
      * @param checkpointOptions of the checkpoint to trigger
-     * @param advanceToEndOfEventTime Flag indicating if the source should inject a {@code
-     *     MAX_WATERMARK} in the pipeline to fire any registered event-time timers
      */
     public void triggerSynchronousSavepoint(
-            long checkpointId,
-            long timestamp,
-            CheckpointOptions checkpointOptions,
-            boolean advanceToEndOfEventTime) {
-        triggerCheckpointHelper(
-                checkpointId, timestamp, checkpointOptions, advanceToEndOfEventTime);
+            long checkpointId, long timestamp, CheckpointOptions checkpointOptions) {
+        triggerCheckpointHelper(checkpointId, timestamp, checkpointOptions);
     }
 
     private void triggerCheckpointHelper(
-            long checkpointId,
-            long timestamp,
-            CheckpointOptions checkpointOptions,
-            boolean advanceToEndOfEventTime) {
+            long checkpointId, long timestamp, CheckpointOptions checkpointOptions) {
 
         final CheckpointType checkpointType = checkpointOptions.getCheckpointType();
-        if (advanceToEndOfEventTime
+        if (checkpointType.getPostCheckpointAction() == PostCheckpointAction.TERMINATE
                 && !(checkpointType.isSynchronous() && checkpointType.isSavepoint())) {
             throw new IllegalArgumentException(
                     "Only synchronous savepoints are allowed to advance the watermark to MAX.");
@@ -854,12 +842,7 @@ public class Execution
             final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
 
             taskManagerGateway.triggerCheckpoint(
-                    attemptId,
-                    getVertex().getJobId(),
-                    checkpointId,
-                    timestamp,
-                    checkpointOptions,
-                    advanceToEndOfEventTime);
+                    attemptId, getVertex().getJobId(), checkpointId, timestamp, checkpointOptions);
         } else {
             LOG.debug(
                     "The execution has no slot assigned. This indicates that the execution is no longer running.");
@@ -913,7 +896,7 @@ public class Execution
     }
 
     @VisibleForTesting
-    void markFinished() {
+    public void markFinished() {
         markFinished(null, null);
     }
 
@@ -1133,7 +1116,9 @@ public class Execution
         checkState(transitionState(current, FAILED, t));
 
         // success (in a manner of speaking)
-        this.failureCause = t;
+        this.failureCause =
+                Optional.of(
+                        ErrorInfo.createErrorInfoWithNullableCause(t, getStateTimestamp(FAILED)));
 
         updateAccumulatorsAndMetrics(userAccumulators, metrics);
 

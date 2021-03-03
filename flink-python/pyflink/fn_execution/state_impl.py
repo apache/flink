@@ -17,6 +17,7 @@
 ################################################################################
 import collections
 from enum import Enum
+from functools import partial
 
 from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_fn_api_pb2
@@ -24,7 +25,9 @@ from apache_beam.runners.worker.bundle_processor import SynchronousBagRuntimeSta
 from apache_beam.transforms import userstate
 from typing import List, Tuple, Any
 
-from pyflink.common.state import ValueState, ListState, MapState
+from pyflink.datastream import ReduceFunction
+from pyflink.datastream.functions import AggregateFunction
+from pyflink.datastream.state import ValueState, ListState, MapState, ReducingState
 
 
 class LRUCache(object):
@@ -118,6 +121,68 @@ class SynchronousListRuntimeState(ListState):
     def update(self, values):
         self.clear()
         self.add_all(values)
+
+    def clear(self):
+        self._internal_state.clear()
+
+
+class SynchronousReducingRuntimeState(ReducingState):
+    """
+    The runtime ReducingState implementation backed by a :class:`SynchronousBagRuntimeState`.
+    """
+
+    def __init__(self, internal_state: SynchronousBagRuntimeState, reduce_function: ReduceFunction):
+        self._internal_state = internal_state
+        self._reduce_function = reduce_function
+
+    def add(self, v):
+        current_value = self.get()
+        if current_value is None:
+            self._internal_state.add(v)
+        else:
+            self._internal_state.clear()
+            self._internal_state.add(self._reduce_function.reduce(current_value, v))
+
+    def get(self):
+        for i in self._internal_state.read():
+            return i
+        return None
+
+    def clear(self):
+        self._internal_state.clear()
+
+
+class SynchronousAggregatingRuntimeState(ReducingState):
+    """
+    The runtime AggregatingState implementation backed by a :class:`SynchronousBagRuntimeState`.
+    """
+
+    def __init__(self, internal_state: SynchronousBagRuntimeState, agg_function: AggregateFunction):
+        self._internal_state = internal_state
+        self._agg_function = agg_function
+
+    def add(self, v):
+        if v is None:
+            self.clear()
+            return
+        accumulator = self._get_accumulator()
+        if accumulator is None:
+            accumulator = self._agg_function.create_accumulator()
+        accumulator = self._agg_function.add(v, accumulator)
+        self._internal_state.clear()
+        self._internal_state.add(accumulator)
+
+    def get(self):
+        accumulator = self._get_accumulator()
+        if accumulator is None:
+            return None
+        else:
+            return self._agg_function.get_result(accumulator)
+
+    def _get_accumulator(self):
+        for i in self._internal_state.read():
+            return i
+        return None
 
     def clear(self):
         self._internal_state.clear()
@@ -748,22 +813,12 @@ class RemoteKeyedStateBackend(object):
                 key=self._encoded_current_key))
 
     def get_list_state(self, name, element_coder):
-        if name in self._all_states:
-            self.validate_list_state(name, element_coder)
-            return self._all_states[name]
-        internal_bag_state = self._get_internal_bag_state(name, element_coder)
-        list_state = SynchronousListRuntimeState(internal_bag_state)
-        self._all_states[name] = list_state
-        return list_state
+        return self._wrap_internal_bag_state(
+            name, element_coder, SynchronousListRuntimeState, SynchronousListRuntimeState)
 
     def get_value_state(self, name, value_coder):
-        if name in self._all_states:
-            self.validate_value_state(name, value_coder)
-            return self._all_states[name]
-        internal_bag_state = self._get_internal_bag_state(name, value_coder)
-        value_state = SynchronousValueRuntimeState(internal_bag_state)
-        self._all_states[name] = value_state
-        return value_state
+        return self._wrap_internal_bag_state(
+            name, value_coder, SynchronousValueRuntimeState, SynchronousValueRuntimeState)
 
     def get_map_state(self, name, map_key_coder, map_value_coder):
         if name in self._all_states:
@@ -774,21 +829,22 @@ class RemoteKeyedStateBackend(object):
         self._all_states[name] = map_state
         return map_state
 
-    def validate_value_state(self, name, coder):
-        if name in self._all_states:
-            state = self._all_states[name]
-            if not isinstance(state, SynchronousValueRuntimeState):
-                raise Exception("The state name '%s' is already in use and not a value state."
-                                % name)
-            if state._internal_state._value_coder != coder:
-                raise Exception("State name corrupted: %s" % name)
+    def get_reducing_state(self, name, coder, reduce_function):
+        return self._wrap_internal_bag_state(
+            name, coder, SynchronousReducingRuntimeState,
+            partial(SynchronousReducingRuntimeState, reduce_function=reduce_function))
 
-    def validate_list_state(self, name, coder):
+    def get_aggregating_state(self, name, coder, agg_function):
+        return self._wrap_internal_bag_state(
+            name, coder, SynchronousAggregatingRuntimeState,
+            partial(SynchronousAggregatingRuntimeState, agg_function=agg_function))
+
+    def validate_state(self, name, coder, expected_type):
         if name in self._all_states:
             state = self._all_states[name]
-            if not isinstance(state, SynchronousListRuntimeState):
-                raise Exception("The state name '%s' is already in use and not a list state."
-                                % name)
+            if not isinstance(state, expected_type):
+                raise Exception("The state name '%s' is already in use and not a %s."
+                                % (name, expected_type))
             if state._internal_state._value_coder != coder:
                 raise Exception("State name corrupted: %s" % name)
 
@@ -802,10 +858,23 @@ class RemoteKeyedStateBackend(object):
                     state._internal_state._map_value_coder != map_value_coder:
                 raise Exception("State name corrupted: %s" % name)
 
+    def _wrap_internal_bag_state(self, name, element_coder, wrapper_type, wrap_method):
+        if name in self._all_states:
+            self.validate_state(name, element_coder, wrapper_type)
+            return self._all_states[name]
+        internal_state = self._get_internal_bag_state(name, element_coder)
+        wrapped_state = wrap_method(internal_state)
+        self._all_states[name] = wrapped_state
+        return wrapped_state
+
     def _get_internal_bag_state(self, name, element_coder):
         cached_state = self._internal_state_cache.get((name, self._encoded_current_key))
         if cached_state is not None:
             return cached_state
+        # The created internal state would not be put into the internal state cache
+        # at once. The internal state cache is only updated when the current key changes.
+        # The reason is that the state cache size may be smaller that the count of activated
+        # state (i.e. the state with current key).
         state_spec = userstate.BagStateSpec(name, element_coder)
         internal_state = self._create_bag_state(state_spec)
         return internal_state
@@ -858,7 +927,11 @@ class RemoteKeyedStateBackend(object):
                 # cache old internal state
                 self._internal_state_cache.put(
                     (state_name, encoded_old_key), state_obj._internal_state)
-            if isinstance(state_obj, (SynchronousValueRuntimeState, SynchronousListRuntimeState)):
+            if isinstance(state_obj,
+                          (SynchronousValueRuntimeState,
+                           SynchronousListRuntimeState,
+                           SynchronousReducingRuntimeState,
+                           SynchronousAggregatingRuntimeState)):
                 state_obj._internal_state = self._get_internal_bag_state(
                     state_name, state_obj._internal_state._value_coder)
             elif isinstance(state_obj, SynchronousMapRuntimeState):

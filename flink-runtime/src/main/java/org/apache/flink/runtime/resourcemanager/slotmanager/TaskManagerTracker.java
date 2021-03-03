@@ -22,14 +22,12 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
-import org.apache.flink.runtime.slots.ResourceCounter;
+import org.apache.flink.runtime.util.ResourceCounter;
 
-import java.util.Collection;
 import java.util.Map;
-import java.util.Optional;
 
 /** Tracks TaskManager's resource and slot status. */
-interface TaskManagerTracker {
+interface TaskManagerTracker extends TaskManagerResourceInfoProvider {
 
     // ---------------------------------------------------------------------------------------------
     // Add / Remove (pending) Resource
@@ -97,56 +95,6 @@ interface TaskManagerTracker {
      */
     void replaceAllPendingAllocations(
             Map<PendingTaskManagerId, Map<JobID, ResourceCounter>> pendingSlotAllocations);
-
-    // ---------------------------------------------------------------------------------------------
-    // Getters
-    // ---------------------------------------------------------------------------------------------
-
-    /**
-     * Get the pending allocations of the given pending task manager.
-     *
-     * @param pendingTaskManagerId of the pending task manager
-     * @return pending allocations, mapped by jobId
-     */
-    Map<JobID, ResourceCounter> getPendingAllocationsOfPendingTaskManager(
-            PendingTaskManagerId pendingTaskManagerId);
-
-    /**
-     * Get the {@link TaskManagerInfo}s of all registered task managers.
-     *
-     * @return a collection of {@link TaskManagerInfo}s of all registered task managers.
-     */
-    Collection<? extends TaskManagerInfo> getRegisteredTaskManagers();
-
-    /**
-     * Get the {@link TaskManagerInfo} of a registered task manager with the given instanceId
-     *
-     * @param instanceId of the task manager
-     * @return An Optional of {@link TaskManagerInfo}, if find, of the task manager
-     */
-    Optional<TaskManagerInfo> getRegisteredTaskManager(InstanceID instanceId);
-
-    /**
-     * Get all pending task managers.
-     *
-     * @return a collection of {@link PendingTaskManager}s.
-     */
-    Collection<PendingTaskManager> getPendingTaskManagers();
-
-    /**
-     * Get the {@link TaskManagerSlotInformation} of the allocated slot with the given allocationId.
-     *
-     * @param allocationId of the slot
-     * @return An Optional of {@link TaskManagerSlotInformation}, if find, of the slot
-     */
-    Optional<TaskManagerSlotInformation> getAllocatedOrPendingSlot(AllocationID allocationId);
-
-    /**
-     * Get the current {@link ClusterResourceOverview}.
-     *
-     * @return the current {@link ClusterResourceOverview}
-     */
-    ClusterResourceOverview getClusterResourceOverview();
 
     /** Removes all state from the tracker. */
     void clear();

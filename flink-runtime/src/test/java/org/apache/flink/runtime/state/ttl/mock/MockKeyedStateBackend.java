@@ -30,6 +30,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -40,6 +41,7 @@ import org.apache.flink.runtime.state.Keyed;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.PriorityComparable;
 import org.apache.flink.runtime.state.PriorityComparator;
+import org.apache.flink.runtime.state.SavepointResources;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
@@ -181,7 +183,7 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
     }
 
     @Override
-    public boolean requiresLegacySynchronousTimerSnapshots() {
+    public boolean requiresLegacySynchronousTimerSnapshots(CheckpointType checkpointOptions) {
         return false;
     }
 
@@ -228,6 +230,13 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                         SnapshotResult.of(
                                 new MockKeyedStateHandle<>(
                                         copy(stateValues, stateSnapshotFilters))));
+    }
+
+    @Nonnull
+    @Override
+    public SavepointResources<K> savepoint() throws Exception {
+        throw new UnsupportedOperationException(
+                "Unified savepoints are not supported on this testing StateBackend.");
     }
 
     static <K> Map<String, Map<K, Map<Object, Object>>> copy(
@@ -278,7 +287,7 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
     @Nonnull
     @Override
-    public <T extends HeapPriorityQueueElement & PriorityComparable & Keyed>
+    public <T extends HeapPriorityQueueElement & PriorityComparable<? super T> & Keyed<?>>
             KeyGroupedInternalPriorityQueue<T> create(
                     @Nonnull String stateName,
                     @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {

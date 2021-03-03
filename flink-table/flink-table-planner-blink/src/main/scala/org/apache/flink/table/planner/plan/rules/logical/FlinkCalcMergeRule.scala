@@ -24,7 +24,7 @@ import org.apache.calcite.plan.RelOptUtil.InputFinder
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.core.{Calc, RelFactories}
 import org.apache.calcite.rex.{RexNode, RexOver, RexProgramBuilder, RexUtil}
-import org.apache.calcite.tools.RelBuilderFactory
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalCalc
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
 
 import scala.collection.JavaConversions._
@@ -44,10 +44,10 @@ import scala.collection.JavaConversions._
   * <p>The resulting [[Calc]] has the same project list as the upper [[Calc]],
   * but expressed in terms of the lower [[Calc]]'s inputs.
   */
-class FlinkCalcMergeRule(relBuilderFactory: RelBuilderFactory) extends RelOptRule(
-  operand(classOf[Calc],
-    operand(classOf[Calc], any)),
-  relBuilderFactory,
+class FlinkCalcMergeRule[C <: Calc](calcClass: Class[C]) extends RelOptRule(
+  operand(calcClass,
+    operand(calcClass, any)),
+  RelFactories.LOGICAL_BUILDER,
   "FlinkCalcMergeRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
@@ -146,5 +146,6 @@ class FlinkCalcMergeRule(relBuilderFactory: RelBuilderFactory) extends RelOptRul
 }
 
 object FlinkCalcMergeRule {
-  val INSTANCE = new FlinkCalcMergeRule(RelFactories.LOGICAL_BUILDER)
+  val INSTANCE = new FlinkCalcMergeRule(classOf[Calc])
+  val STREAM_PHYSICAL_INSTANCE = new FlinkCalcMergeRule(classOf[StreamPhysicalCalc])
 }

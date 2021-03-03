@@ -1009,7 +1009,6 @@ public class TaskTest extends TestLogger {
                 final TaskExecutionState taskState = queue.take();
                 assertNotNull("There is no additional listener message", state);
 
-                assertEquals(task.getJobID(), taskState.getJobID());
                 assertEquals(task.getExecutionId(), taskState.getID());
                 assertEquals(state, taskState.getExecutionState());
 

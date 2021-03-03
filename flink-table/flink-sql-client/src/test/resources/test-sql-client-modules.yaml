@@ -40,9 +40,6 @@ execution:
     failure-rate-interval: 99000
     delay: 1000
 
-deployment:
-  response-timeout: 5000
-
 modules:
   - name: core
     type: core
