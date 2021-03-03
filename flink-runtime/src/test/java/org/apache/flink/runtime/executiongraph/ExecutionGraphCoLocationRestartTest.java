@@ -26,8 +26,8 @@ import org.apache.flink.runtime.executiongraph.failover.flip1.FixedDelayRestartB
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
@@ -68,7 +68,7 @@ public class ExecutionGraphCoLocationRestartTest {
 
         // initiate and schedule job
         final JobGraph jobGraph = new JobGraph(groupVertex, groupVertex2);
-        jobGraph.setScheduleMode(ScheduleMode.EAGER);
+        jobGraph.setJobType(JobType.STREAMING);
 
         final ManuallyTriggeredScheduledExecutorService delayExecutor =
                 new ManuallyTriggeredScheduledExecutorService();
