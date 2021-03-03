@@ -145,6 +145,9 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
     /** The default rocksdb metrics options. */
     private final RocksDBNativeMetricOptions defaultMetricOptions;
 
+    /** The options to track rocksdb latency. */
+    private final RocksDBAccessMetric.Builder accessMetricBuilder;
+
     // -- runtime values, set on TaskManager when initializing / using the backend
 
     /** Base paths for RocksDB directory, as initialized. */
@@ -190,6 +193,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
         this.enableIncrementalCheckpointing = enableIncrementalCheckpointing;
         this.numberOfTransferThreads = UNDEFINED_NUMBER_OF_TRANSFER_THREADS;
         this.defaultMetricOptions = new RocksDBNativeMetricOptions();
+        this.accessMetricBuilder = new RocksDBAccessMetric.Builder();
         this.memoryConfiguration = new RocksDBMemoryConfiguration();
         this.writeBatchSize = UNDEFINED_WRITE_BATCH_SIZE;
     }
@@ -253,6 +257,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
 
         // configure metric options
         this.defaultMetricOptions = RocksDBNativeMetricOptions.fromConfig(config);
+        this.accessMetricBuilder = RocksDBAccessMetric.builderFromConfig(config);
 
         // configure RocksDB predefined options
         this.predefinedOptions =
@@ -467,6 +472,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
                         .setNumberOfTransferingThreads(getNumberOfTransferThreads())
                         .setNativeMetricOptions(
                                 resourceContainer.getMemoryWatcherOptions(defaultMetricOptions))
+                        .setAccessMetricBuilder(accessMetricBuilder)
                         .setWriteBatchSize(getWriteBatchSize());
         return builder.build();
     }

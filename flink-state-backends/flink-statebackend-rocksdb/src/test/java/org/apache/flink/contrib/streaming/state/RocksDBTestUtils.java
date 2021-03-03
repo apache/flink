@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -85,6 +86,22 @@ public final class RocksDBTestUtils {
             ColumnFamilyHandle defaultCFHandle,
             ColumnFamilyOptions columnFamilyOptions) {
 
+        return builderForTestDB(
+                instanceBasePath,
+                keySerializer,
+                db,
+                defaultCFHandle,
+                columnFamilyOptions,
+                new UnregisteredMetricsGroup());
+    }
+
+    public static <K> RocksDBKeyedStateBackendBuilder<K> builderForTestDB(
+            File instanceBasePath,
+            TypeSerializer<K> keySerializer,
+            RocksDB db,
+            ColumnFamilyHandle defaultCFHandle,
+            ColumnFamilyOptions columnFamilyOptions,
+            MetricGroup metricGroup) {
         final RocksDBResourceContainer optionsContainer = new RocksDBResourceContainer();
 
         return new RocksDBKeyedStateBackendBuilder<>(
@@ -101,7 +118,7 @@ public final class RocksDBTestUtils {
                 TestLocalRecoveryConfig.disabled(),
                 EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP,
                 TtlTimeProvider.DEFAULT,
-                new UnregisteredMetricsGroup(),
+                metricGroup,
                 Collections.emptyList(),
                 UncompressedStreamCompressionDecorator.INSTANCE,
                 db,

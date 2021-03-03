@@ -20,7 +20,9 @@ package org.apache.flink.contrib.streaming.state.snapshot;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.contrib.streaming.state.ColumnFamilyHandleWrapper;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
+import org.apache.flink.contrib.streaming.state.RocksDBWrapper;
 import org.apache.flink.contrib.streaming.state.RocksIteratorWrapper;
 import org.apache.flink.contrib.streaming.state.iterator.RocksQueueIterator;
 import org.apache.flink.contrib.streaming.state.iterator.RocksStatesPerKeyGroupMergeIterator;
@@ -39,9 +41,7 @@ import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.ResourceGuard;
 
-import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ReadOptions;
-import org.rocksdb.RocksDB;
 import org.rocksdb.RocksIterator;
 import org.rocksdb.Snapshot;
 
@@ -58,7 +58,7 @@ public class RocksDBFullSnapshotResources<K> implements FullSnapshotResources<K>
     private final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots;
     private final ResourceGuard.Lease lease;
     private final Snapshot snapshot;
-    private final RocksDB db;
+    private final RocksDBWrapper dbWrapper;
     private final List<MetaData> metaData;
 
     /** Number of bytes in the key-group prefix. */
@@ -75,7 +75,7 @@ public class RocksDBFullSnapshotResources<K> implements FullSnapshotResources<K>
             List<RocksDBKeyedStateBackend.RocksDbKvStateInfo> metaDataCopy,
             List<HeapPriorityQueueStateSnapshot<?>> heapPriorityQueuesSnapshots,
             List<StateMetaInfoSnapshot> stateMetaInfoSnapshots,
-            RocksDB db,
+            RocksDBWrapper dbWrapper,
             int keyGroupPrefixBytes,
             KeyGroupRange keyGroupRange,
             TypeSerializer<K> keySerializer,
@@ -84,7 +84,7 @@ public class RocksDBFullSnapshotResources<K> implements FullSnapshotResources<K>
         this.snapshot = snapshot;
         this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
         this.heapPriorityQueuesSnapshots = heapPriorityQueuesSnapshots;
-        this.db = db;
+        this.dbWrapper = dbWrapper;
         this.keyGroupPrefixBytes = keyGroupPrefixBytes;
         this.keyGroupRange = keyGroupRange;
         this.keySerializer = keySerializer;
@@ -100,7 +100,7 @@ public class RocksDBFullSnapshotResources<K> implements FullSnapshotResources<K>
                     kvStateInformation,
             // TODO: was it important that this is a LinkedHashMap
             final Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates,
-            final RocksDB db,
+            final RocksDBWrapper dbWrapper,
             final ResourceGuard rocksDBResourceGuard,
             final KeyGroupRange keyGroupRange,
             final TypeSerializer<K> keySerializer,
@@ -127,7 +127,7 @@ public class RocksDBFullSnapshotResources<K> implements FullSnapshotResources<K>
         }
 
         final ResourceGuard.Lease lease = rocksDBResourceGuard.acquireResource();
-        final Snapshot snapshot = db.getSnapshot();
+        final Snapshot snapshot = dbWrapper.getDb().getSnapshot();
 
         return new RocksDBFullSnapshotResources<>(
                 lease,
@@ -135,7 +135,7 @@ public class RocksDBFullSnapshotResources<K> implements FullSnapshotResources<K>
                 metaDataCopy,
                 heapPriorityQueuesSnapshots,
                 stateMetaInfoSnapshots,
-                db,
+                dbWrapper,
                 keyGroupPrefixBytes,
                 keyGroupRange,
                 keySerializer,
@@ -212,8 +212,8 @@ public class RocksDBFullSnapshotResources<K> implements FullSnapshotResources<K>
         for (MetaData metaDataEntry : metaData) {
             RocksIteratorWrapper rocksIteratorWrapper =
                     createRocksIteratorWrapper(
-                            db,
-                            metaDataEntry.rocksDbKvStateInfo.columnFamilyHandle,
+                            dbWrapper,
+                            metaDataEntry.rocksDbKvStateInfo.columnFamilyHandleWrapper,
                             metaDataEntry.stateSnapshotTransformer,
                             readOptions);
             kvStateIterators.add(Tuple2.of(rocksIteratorWrapper, kvStateId));
@@ -225,13 +225,18 @@ public class RocksDBFullSnapshotResources<K> implements FullSnapshotResources<K>
     }
 
     private static RocksIteratorWrapper createRocksIteratorWrapper(
-            RocksDB db,
-            ColumnFamilyHandle columnFamilyHandle,
+            RocksDBWrapper dbWrapper,
+            ColumnFamilyHandleWrapper columnFamilyHandleWrapper,
             StateSnapshotTransformer<byte[]> stateSnapshotTransformer,
             ReadOptions readOptions) {
-        RocksIterator rocksIterator = db.newIterator(columnFamilyHandle, readOptions);
+        RocksIterator rocksIterator =
+                dbWrapper
+                        .getDb()
+                        .newIterator(
+                                columnFamilyHandleWrapper.getColumnFamilyHandle(), readOptions);
         return stateSnapshotTransformer == null
-                ? new RocksIteratorWrapper(rocksIterator)
+                ? new RocksIteratorWrapper(
+                        rocksIterator, dbWrapper.getAccessMetric(), columnFamilyHandleWrapper)
                 : new RocksTransformingIteratorWrapper(rocksIterator, stateSnapshotTransformer);
     }
 
@@ -257,7 +262,7 @@ public class RocksDBFullSnapshotResources<K> implements FullSnapshotResources<K>
 
     @Override
     public void release() {
-        db.releaseSnapshot(snapshot);
+        dbWrapper.getDb().releaseSnapshot(snapshot);
         IOUtils.closeQuietly(snapshot);
         IOUtils.closeQuietly(lease);
     }

@@ -49,13 +49,18 @@ public class RocksDBWriteBatchWrapperTest {
             data.add(new Tuple2<>(("key:" + i).getBytes(), ("value:" + i).getBytes()));
         }
 
-        try (RocksDB db = RocksDB.open(folder.newFolder().getAbsolutePath());
+        try (RocksDBWrapper db =
+                        new RocksDBWrapper(RocksDB.open(folder.newFolder().getAbsolutePath()));
                 WriteOptions options = new WriteOptions().setDisableWAL(true);
                 ColumnFamilyHandle handle =
                         db.createColumnFamily(new ColumnFamilyDescriptor("test".getBytes()));
                 RocksDBWriteBatchWrapper writeBatchWrapper =
                         new RocksDBWriteBatchWrapper(
-                                db, options, 200, WRITE_BATCH_SIZE.defaultValue().getBytes())) {
+                                db,
+                                null,
+                                options,
+                                200,
+                                WRITE_BATCH_SIZE.defaultValue().getBytes())) {
 
             // insert data
             for (Tuple2<byte[], byte[]> item : data) {
@@ -65,7 +70,7 @@ public class RocksDBWriteBatchWrapperTest {
 
             // valid result
             for (Tuple2<byte[], byte[]> item : data) {
-                Assert.assertArrayEquals(item.f1, db.get(handle, item.f0));
+                Assert.assertArrayEquals(item.f1, db.getDb().get(handle, item.f0));
             }
         }
     }
@@ -76,12 +81,13 @@ public class RocksDBWriteBatchWrapperTest {
      */
     @Test
     public void testWriteBatchWrapperFlushAfterMemorySizeExceed() throws Exception {
-        try (RocksDB db = RocksDB.open(folder.newFolder().getAbsolutePath());
+        try (RocksDBWrapper db =
+                        new RocksDBWrapper(RocksDB.open(folder.newFolder().getAbsolutePath()));
                 WriteOptions options = new WriteOptions().setDisableWAL(true);
                 ColumnFamilyHandle handle =
                         db.createColumnFamily(new ColumnFamilyDescriptor("test".getBytes()));
                 RocksDBWriteBatchWrapper writeBatchWrapper =
-                        new RocksDBWriteBatchWrapper(db, options, 200, 50)) {
+                        new RocksDBWriteBatchWrapper(db, null, options, 500, 50)) {
 
             long initBatchSize = writeBatchWrapper.getDataSize();
             byte[] dummy = new byte[6];
@@ -105,12 +111,13 @@ public class RocksDBWriteBatchWrapperTest {
      */
     @Test
     public void testWriteBatchWrapperFlushAfterCountExceed() throws Exception {
-        try (RocksDB db = RocksDB.open(folder.newFolder().getAbsolutePath());
+        try (RocksDBWrapper db =
+                        new RocksDBWrapper(RocksDB.open(folder.newFolder().getAbsolutePath()));
                 WriteOptions options = new WriteOptions().setDisableWAL(true);
                 ColumnFamilyHandle handle =
                         db.createColumnFamily(new ColumnFamilyDescriptor("test".getBytes()));
                 RocksDBWriteBatchWrapper writeBatchWrapper =
-                        new RocksDBWriteBatchWrapper(db, options, 100, 50000)) {
+                        new RocksDBWriteBatchWrapper(db, null, options, 100, 50000)) {
             long initBatchSize = writeBatchWrapper.getDataSize();
             byte[] dummy = new byte[2];
             ThreadLocalRandom.current().nextBytes(dummy);

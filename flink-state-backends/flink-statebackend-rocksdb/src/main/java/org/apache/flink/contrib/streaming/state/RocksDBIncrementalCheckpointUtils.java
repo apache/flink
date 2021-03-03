@@ -129,10 +129,10 @@ public class RocksDBIncrementalCheckpointUtils {
         for (ColumnFamilyHandle columnFamilyHandle : columnFamilyHandles) {
             try (ReadOptions readOptions = RocksDBOperationUtils.createTotalOrderSeekReadOptions();
                     RocksIteratorWrapper iteratorWrapper =
-                            RocksDBOperationUtils.getRocksIterator(
+                            RocksDBOperationUtils.getRocksIteratorWithoutAccessMetric(
                                     db, columnFamilyHandle, readOptions);
                     RocksDBWriteBatchWrapper writeBatchWrapper =
-                            new RocksDBWriteBatchWrapper(db, writeBatchSize)) {
+                            new RocksDBWriteBatchWrapper(new RocksDBWrapper(db), writeBatchSize)) {
 
                 iteratorWrapper.seek(beginKeyBytes);
 

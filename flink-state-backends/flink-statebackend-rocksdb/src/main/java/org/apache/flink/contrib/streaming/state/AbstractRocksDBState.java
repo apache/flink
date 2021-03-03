@@ -30,7 +30,6 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
 
-import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.WriteOptions;
 
@@ -61,7 +60,7 @@ public abstract class AbstractRocksDBState<K, N, V> implements InternalKvState<K
     protected RocksDBKeyedStateBackend<K> backend;
 
     /** The column family of this particular instance of state. */
-    protected ColumnFamilyHandle columnFamily;
+    protected ColumnFamilyHandleWrapper columnFamily;
 
     protected final V defaultValue;
 
@@ -83,7 +82,7 @@ public abstract class AbstractRocksDBState<K, N, V> implements InternalKvState<K
      * @param backend The backend for which this state is bind to.
      */
     protected AbstractRocksDBState(
-            ColumnFamilyHandle columnFamily,
+            ColumnFamilyHandleWrapper columnFamily,
             TypeSerializer<N> namespaceSerializer,
             TypeSerializer<V> valueSerializer,
             V defaultValue,

@@ -22,7 +22,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalAppendingState;
 import org.apache.flink.util.FlinkRuntimeException;
 
-import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
 
 import java.io.IOException;
@@ -41,7 +40,7 @@ abstract class AbstractRocksDBAppendingState<K, N, IN, SV, OUT>
      * @param backend The backend for which this state is bind to.
      */
     protected AbstractRocksDBAppendingState(
-            ColumnFamilyHandle columnFamily,
+            ColumnFamilyHandleWrapper columnFamily,
             TypeSerializer<N> namespaceSerializer,
             TypeSerializer<SV> valueSerializer,
             SV defaultValue,

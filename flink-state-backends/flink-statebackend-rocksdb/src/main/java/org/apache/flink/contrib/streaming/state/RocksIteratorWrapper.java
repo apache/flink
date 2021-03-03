@@ -19,12 +19,14 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.Preconditions;
 
 import org.rocksdb.RocksDBException;
 import org.rocksdb.RocksIterator;
 import org.rocksdb.RocksIteratorInterface;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.Closeable;
 
@@ -39,10 +41,25 @@ import java.io.Closeable;
  */
 public class RocksIteratorWrapper implements RocksIteratorInterface, Closeable {
 
-    private RocksIterator iterator;
+    private final RocksIterator iterator;
 
-    public RocksIteratorWrapper(@Nonnull RocksIterator iterator) {
+    private final RocksDBAccessMetric accessMetric;
+
+    private final ColumnFamilyHandleWrapper columnFamilyHandleWrapper;
+
+    private final boolean trackLatencyEnabled;
+
+    public RocksIteratorWrapper(
+            @Nonnull RocksIterator iterator,
+            @Nullable RocksDBAccessMetric accessMetric,
+            @Nullable ColumnFamilyHandleWrapper columnFamilyHandleWrapper) {
         this.iterator = iterator;
+        this.accessMetric = accessMetric;
+        this.trackLatencyEnabled = accessMetric != null;
+        this.columnFamilyHandleWrapper = columnFamilyHandleWrapper;
+        Preconditions.checkArgument(
+                !trackLatencyEnabled || columnFamilyHandleWrapper != null,
+                "Should provide column family handle wrapper when enable latency track.");
     }
 
     @Override
@@ -64,6 +81,28 @@ public class RocksIteratorWrapper implements RocksIteratorInterface, Closeable {
 
     @Override
     public void seek(byte[] target) {
+        if (trackLatencyEnabled) {
+            seekAndUpdateMetric(target);
+        } else {
+            originalSeek(target);
+        }
+    }
+
+    private void seekAndUpdateMetric(final byte[] target) {
+        if (accessMetric.checkAndUpdateSeekCounter(columnFamilyHandleWrapper.getColumnFamilyId())) {
+            long start = System.nanoTime();
+            originalSeek(target);
+            long end = System.nanoTime();
+            accessMetric.updateHistogram(
+                    columnFamilyHandleWrapper.getColumnFamilyId(),
+                    RocksDBAccessMetric.SEEK_LATENCY,
+                    end - start);
+        } else {
+            originalSeek(target);
+        }
+    }
+
+    private void originalSeek(byte[] target) {
         iterator.seek(target);
         status();
     }
@@ -76,6 +115,28 @@ public class RocksIteratorWrapper implements RocksIteratorInterface, Closeable {
 
     @Override
     public void next() {
+        if (trackLatencyEnabled) {
+            nextAndUpdateMetric();
+        } else {
+            originalNext();
+        }
+    }
+
+    private void nextAndUpdateMetric() {
+        if (accessMetric.checkAndUpdateNextCounter(columnFamilyHandleWrapper.getColumnFamilyId())) {
+            long start = System.nanoTime();
+            originalNext();
+            long end = System.nanoTime();
+            accessMetric.updateHistogram(
+                    columnFamilyHandleWrapper.getColumnFamilyId(),
+                    RocksDBAccessMetric.NEXT_LATENCY,
+                    end - start);
+        } else {
+            originalNext();
+        }
+    }
+
+    private void originalNext() {
         iterator.next();
         status();
     }

@@ -21,6 +21,7 @@ package org.apache.flink.contrib.streaming.state.snapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.RocksDbKvStateInfo;
 import org.apache.flink.contrib.streaming.state.RocksDBStateUploader;
+import org.apache.flink.contrib.streaming.state.RocksDBWrapper;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -52,7 +53,6 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ResourceGuard;
 
 import org.rocksdb.Checkpoint;
-import org.rocksdb.RocksDB;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -110,7 +110,7 @@ public class RocksIncrementalSnapshotStrategy<K>
     private final String localDirectoryName;
 
     public RocksIncrementalSnapshotStrategy(
-            @Nonnull RocksDB db,
+            @Nonnull RocksDBWrapper db,
             @Nonnull ResourceGuard rocksDBResourceGuard,
             @Nonnull TypeSerializer<K> keySerializer,
             @Nonnull LinkedHashMap<String, RocksDbKvStateInfo> kvStateInformation,
@@ -279,7 +279,7 @@ public class RocksIncrementalSnapshotStrategy<K>
             throws Exception {
         // create hard links of living files in the output path
         try (ResourceGuard.Lease ignored = rocksDBResourceGuard.acquireResource();
-                Checkpoint checkpoint = Checkpoint.create(db)) {
+                Checkpoint checkpoint = Checkpoint.create(db.getDb())) {
             checkpoint.createCheckpoint(outputDirectory.getDirectory().toString());
         } catch (Exception ex) {
             try {

@@ -99,9 +99,22 @@ public class RocksDBOperationUtils {
         return dbRef;
     }
 
-    public static RocksIteratorWrapper getRocksIterator(
+    public static RocksIteratorWrapper getRocksIteratorWithoutAccessMetric(
             RocksDB db, ColumnFamilyHandle columnFamilyHandle, ReadOptions readOptions) {
-        return new RocksIteratorWrapper(db.newIterator(columnFamilyHandle, readOptions));
+        return new RocksIteratorWrapper(
+                db.newIterator(columnFamilyHandle, readOptions), null, null);
+    }
+
+    public static RocksIteratorWrapper getRocksIterator(
+            RocksDBWrapper db,
+            ColumnFamilyHandleWrapper columnFamilyHandleWrapper,
+            ReadOptions readOptions) {
+        return new RocksIteratorWrapper(
+                db.getDb()
+                        .newIterator(
+                                columnFamilyHandleWrapper.getColumnFamilyHandle(), readOptions),
+                db.getAccessMetric(),
+                columnFamilyHandleWrapper);
     }
 
     /**
@@ -117,13 +130,21 @@ public class RocksDBOperationUtils {
     public static void registerKvStateInformation(
             Map<String, RocksDBKeyedStateBackend.RocksDbKvStateInfo> kvStateInformation,
             RocksDBNativeMetricMonitor nativeMetricMonitor,
+            RocksDBAccessMetric accessMetric,
             String columnFamilyName,
             RocksDBKeyedStateBackend.RocksDbKvStateInfo registeredColumn) {
 
         kvStateInformation.put(columnFamilyName, registeredColumn);
         if (nativeMetricMonitor != null) {
             nativeMetricMonitor.registerColumnFamily(
-                    columnFamilyName, registeredColumn.columnFamilyHandle);
+                    columnFamilyName,
+                    registeredColumn.columnFamilyHandleWrapper.getColumnFamilyHandle());
+        }
+
+        if (accessMetric != null) {
+            accessMetric.registerColumnFamily(
+                    columnFamilyName,
+                    registeredColumn.columnFamilyHandleWrapper.getColumnFamilyHandle());
         }
     }
 
@@ -235,10 +256,10 @@ public class RocksDBOperationUtils {
                 .setMergeOperatorName(MERGE_OPERATOR_NAME);
     }
 
-    private static ColumnFamilyHandle createColumnFamily(
+    private static ColumnFamilyHandleWrapper createColumnFamily(
             ColumnFamilyDescriptor columnDescriptor, RocksDB db) {
         try {
-            return db.createColumnFamily(columnDescriptor);
+            return new ColumnFamilyHandleWrapper(db.createColumnFamily(columnDescriptor));
         } catch (RocksDBException e) {
             IOUtils.closeQuietly(columnDescriptor.getOptions());
             throw new FlinkRuntimeException("Error creating ColumnFamilyHandle.", e);

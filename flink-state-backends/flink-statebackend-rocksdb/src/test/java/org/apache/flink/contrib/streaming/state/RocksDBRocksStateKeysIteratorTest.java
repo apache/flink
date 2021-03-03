@@ -96,7 +96,7 @@ public class RocksDBRocksStateKeysIteratorTest {
             try (RocksIteratorWrapper iterator =
                             RocksDBOperationUtils.getRocksIterator(
                                     keyedStateBackend.db,
-                                    handle,
+                                    new ColumnFamilyHandleWrapper(handle),
                                     keyedStateBackend.getReadOptions());
                     RocksStateKeysIterator<K> iteratorWrapper =
                             new RocksStateKeysIterator<>(

@@ -33,10 +33,6 @@ under the License.
 	<name>Flink : Metrics : </name>
 	<packaging>pom</packaging>
 
-	<properties>
-		<dropwizard.version>3.2.6</dropwizard.version>
-	</properties>
-
 	<modules>
 		<module>flink-metrics-core</module>
 		<module>flink-metrics-dropwizard</module>

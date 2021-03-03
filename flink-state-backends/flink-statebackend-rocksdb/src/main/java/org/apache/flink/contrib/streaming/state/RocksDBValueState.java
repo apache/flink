@@ -27,7 +27,6 @@ import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.util.FlinkRuntimeException;
 
-import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
 
 import java.io.IOException;
@@ -52,7 +51,7 @@ class RocksDBValueState<K, N, V> extends AbstractRocksDBState<K, N, V>
      * @param backend The backend for which this state is bind to.
      */
     private RocksDBValueState(
-            ColumnFamilyHandle columnFamily,
+            ColumnFamilyHandleWrapper columnFamily,
             TypeSerializer<N> namespaceSerializer,
             TypeSerializer<V> valueSerializer,
             V defaultValue,
@@ -113,7 +112,7 @@ class RocksDBValueState<K, N, V> extends AbstractRocksDBState<K, N, V>
     @SuppressWarnings("unchecked")
     static <K, N, SV, S extends State, IS extends S> IS create(
             StateDescriptor<S, SV> stateDesc,
-            Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>>
+            Tuple2<ColumnFamilyHandleWrapper, RegisteredKeyValueStateBackendMetaInfo<N, SV>>
                     registerResult,
             RocksDBKeyedStateBackend<K> backend) {
         return (IS)

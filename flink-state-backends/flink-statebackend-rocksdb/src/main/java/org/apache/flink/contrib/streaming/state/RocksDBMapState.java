@@ -36,8 +36,6 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
 
-import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,7 +80,7 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
      * @param backend The backend for which this state is bind to.
      */
     private RocksDBMapState(
-            ColumnFamilyHandle columnFamily,
+            ColumnFamilyHandleWrapper columnFamily,
             TypeSerializer<N> namespaceSerializer,
             TypeSerializer<Map<UK, UV>> valueSerializer,
             Map<UK, UV> defaultValue,
@@ -146,14 +144,18 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
 
         try (RocksDBWriteBatchWrapper writeBatchWrapper =
                 new RocksDBWriteBatchWrapper(
-                        backend.db, writeOptions, backend.getWriteBatchSize())) {
+                        backend.db,
+                        columnFamily,
+                        writeOptions,
+                        RocksDBWriteBatchWrapper.DEFAULT_CAPACITY,
+                        backend.getWriteBatchSize())) {
             for (Map.Entry<UK, UV> entry : map.entrySet()) {
                 byte[] rawKeyBytes =
                         serializeCurrentKeyWithGroupAndNamespacePlusUserKey(
                                 entry.getKey(), userKeySerializer);
                 byte[] rawValueBytes =
                         serializeValueNullSensitive(entry.getValue(), userValueSerializer);
-                writeBatchWrapper.put(columnFamily, rawKeyBytes, rawValueBytes);
+                writeBatchWrapper.put(rawKeyBytes, rawValueBytes);
             }
         }
     }
@@ -285,7 +287,9 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
                     RocksDBWriteBatchWrapper rocksDBWriteBatchWrapper =
                             new RocksDBWriteBatchWrapper(
                                     backend.db,
+                                    columnFamily,
                                     backend.getWriteOptions(),
+                                    RocksDBWriteBatchWrapper.DEFAULT_CAPACITY,
                                     backend.getWriteBatchSize())) {
 
                 final byte[] keyPrefixBytes = serializeCurrentKeyWithGroupAndNamespace();
@@ -294,7 +298,7 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
                 while (iterator.isValid()) {
                     byte[] keyBytes = iterator.key();
                     if (startWithKeyPrefix(keyPrefixBytes, keyBytes)) {
-                        rocksDBWriteBatchWrapper.remove(columnFamily, keyBytes);
+                        rocksDBWriteBatchWrapper.remove(keyBytes);
                     } else {
                         break;
                     }
@@ -414,7 +418,7 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
 
     /** A map entry in RocksDBMapState. */
     private class RocksDBMapEntry implements Map.Entry<UK, UV> {
-        private final RocksDB db;
+        private final RocksDBWrapper db;
 
         /**
          * The raw bytes of the key stored in RocksDB. Each user key is stored in RocksDB with the
@@ -446,7 +450,7 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
         private final DataInputDeserializer dataInputView;
 
         RocksDBMapEntry(
-                @Nonnull final RocksDB db,
+                @Nonnull final RocksDBWrapper db,
                 @Nonnegative final int userKeyOffset,
                 @Nonnull final byte[] rawKeyBytes,
                 @Nonnull final byte[] rawValueBytes,
@@ -537,7 +541,7 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
         private static final int CACHE_SIZE_LIMIT = 128;
 
         /** The db where data resides. */
-        private final RocksDB db;
+        private final RocksDBWrapper db;
 
         /**
          * The prefix bytes of the key being accessed. All entries under the same key have the same
@@ -567,7 +571,7 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
         private final DataInputDeserializer dataInputView;
 
         RocksDBMapIterator(
-                final RocksDB db,
+                final RocksDBWrapper db,
                 final byte[] keyPrefixBytes,
                 final TypeSerializer<UK> keySerializer,
                 final TypeSerializer<UV> valueSerializer,
@@ -684,7 +688,7 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
     @SuppressWarnings("unchecked")
     static <UK, UV, K, N, SV, S extends State, IS extends S> IS create(
             StateDescriptor<S, SV> stateDesc,
-            Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>>
+            Tuple2<ColumnFamilyHandleWrapper, RegisteredKeyValueStateBackendMetaInfo<N, SV>>
                     registerResult,
             RocksDBKeyedStateBackend<K> backend) {
         return (IS)

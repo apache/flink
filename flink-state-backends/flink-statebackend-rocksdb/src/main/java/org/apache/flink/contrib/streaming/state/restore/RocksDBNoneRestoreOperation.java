@@ -18,6 +18,7 @@
 
 package org.apache.flink.contrib.streaming.state.restore;
 
+import org.apache.flink.contrib.streaming.state.RocksDBAccessMetric;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.RocksDbKvStateInfo;
 import org.apache.flink.contrib.streaming.state.RocksDBNativeMetricOptions;
 import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersManager;
@@ -43,6 +44,7 @@ public class RocksDBNoneRestoreOperation<K> implements RocksDBRestoreOperation {
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
             RocksDBNativeMetricOptions nativeMetricOptions,
             MetricGroup metricGroup,
+            RocksDBAccessMetric.Builder accessMetricBuilder,
             @Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
             Long writeBufferManagerCapacity) {
         this.rocksHandle =
@@ -53,6 +55,7 @@ public class RocksDBNoneRestoreOperation<K> implements RocksDBRestoreOperation {
                         columnFamilyOptionsFactory,
                         nativeMetricOptions,
                         metricGroup,
+                        accessMetricBuilder,
                         ttlCompactFiltersManager,
                         writeBufferManagerCapacity);
     }
@@ -61,7 +64,7 @@ public class RocksDBNoneRestoreOperation<K> implements RocksDBRestoreOperation {
     public RocksDBRestoreResult restore() throws Exception {
         this.rocksHandle.openDB();
         return new RocksDBRestoreResult(
-                this.rocksHandle.getDb(),
+                this.rocksHandle.getDBWrapper(),
                 this.rocksHandle.getDefaultColumnFamilyHandle(),
                 this.rocksHandle.getNativeMetricMonitor(),
                 -1,

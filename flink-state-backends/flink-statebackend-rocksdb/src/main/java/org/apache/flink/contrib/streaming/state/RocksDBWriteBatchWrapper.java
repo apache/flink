@@ -23,7 +23,6 @@ import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.WriteBatch;
 import org.rocksdb.WriteOptions;
@@ -39,13 +38,13 @@ import javax.annotation.Nullable;
  */
 public class RocksDBWriteBatchWrapper implements AutoCloseable {
 
+    public static final int DEFAULT_CAPACITY = 500;
+
     private static final int MIN_CAPACITY = 100;
     private static final int MAX_CAPACITY = 1000;
     private static final int PER_RECORD_BYTES = 100;
-    // default 0 for disable memory size based flush
-    private static final long DEFAULT_BATCH_SIZE = 0;
 
-    private final RocksDB db;
+    private final RocksDBWrapper db;
 
     private final WriteBatch batch;
 
@@ -55,21 +54,19 @@ public class RocksDBWriteBatchWrapper implements AutoCloseable {
 
     @Nonnegative private final long batchSize;
 
-    public RocksDBWriteBatchWrapper(@Nonnull RocksDB rocksDB, long writeBatchSize) {
-        this(rocksDB, null, 500, writeBatchSize);
-    }
+    /**
+     * WriteBatch could be used for multi column family handles, which could happen during restoring
+     * or rocksDB timer access, we set the column family handler wrapper as null in these cases.
+     */
+    @Nullable private final ColumnFamilyHandleWrapper columnFamilyHandleWrapper;
 
-    public RocksDBWriteBatchWrapper(@Nonnull RocksDB rocksDB, @Nullable WriteOptions options) {
-        this(rocksDB, options, 500, DEFAULT_BATCH_SIZE);
-    }
-
-    public RocksDBWriteBatchWrapper(
-            @Nonnull RocksDB rocksDB, @Nullable WriteOptions options, long batchSize) {
-        this(rocksDB, options, 500, batchSize);
+    public RocksDBWriteBatchWrapper(@Nonnull RocksDBWrapper rocksDB, long writeBatchSize) {
+        this(rocksDB, null, null, DEFAULT_CAPACITY, writeBatchSize);
     }
 
     public RocksDBWriteBatchWrapper(
-            @Nonnull RocksDB rocksDB,
+            @Nonnull RocksDBWrapper rocksDB,
+            @Nullable ColumnFamilyHandleWrapper columnFamilyHandle,
             @Nullable WriteOptions options,
             int capacity,
             long batchSize) {
@@ -79,6 +76,7 @@ public class RocksDBWriteBatchWrapper implements AutoCloseable {
         Preconditions.checkArgument(batchSize >= 0, "Max batch size have to be no negative.");
 
         this.db = rocksDB;
+        this.columnFamilyHandleWrapper = columnFamilyHandle;
         this.options = options;
         this.capacity = capacity;
         this.batchSize = batchSize;
@@ -91,10 +89,24 @@ public class RocksDBWriteBatchWrapper implements AutoCloseable {
         }
     }
 
+    public void put(@Nonnull byte[] key, @Nonnull byte[] value) throws RocksDBException {
+        Preconditions.checkNotNull(columnFamilyHandleWrapper);
+        batch.put(columnFamilyHandleWrapper.getColumnFamilyHandle(), key, value);
+
+        flushIfNeeded();
+    }
+
     public void put(@Nonnull ColumnFamilyHandle handle, @Nonnull byte[] key, @Nonnull byte[] value)
             throws RocksDBException {
 
         batch.put(handle, key, value);
+
+        flushIfNeeded();
+    }
+
+    public void remove(@Nonnull byte[] key) throws RocksDBException {
+        Preconditions.checkNotNull(columnFamilyHandleWrapper);
+        batch.remove(columnFamilyHandleWrapper.getColumnFamilyHandle(), key);
 
         flushIfNeeded();
     }
@@ -109,11 +121,11 @@ public class RocksDBWriteBatchWrapper implements AutoCloseable {
 
     public void flush() throws RocksDBException {
         if (options != null) {
-            db.write(options, batch);
+            db.write(columnFamilyHandleWrapper, options, batch);
         } else {
             // use the default WriteOptions, if wasn't provided.
             try (WriteOptions writeOptions = new WriteOptions()) {
-                db.write(writeOptions, batch);
+                db.write(columnFamilyHandleWrapper, writeOptions, batch);
             }
         }
         batch.clear();

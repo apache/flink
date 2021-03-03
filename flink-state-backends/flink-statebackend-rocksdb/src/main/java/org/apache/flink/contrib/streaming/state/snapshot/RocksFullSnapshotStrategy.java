@@ -20,6 +20,7 @@ package org.apache.flink.contrib.streaming.state.snapshot;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.RocksDbKvStateInfo;
+import org.apache.flink.contrib.streaming.state.RocksDBWrapper;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamWithResultProvider;
@@ -35,7 +36,6 @@ import org.apache.flink.runtime.state.heap.HeapPriorityQueueSnapshotRestoreWrapp
 import org.apache.flink.util.ResourceGuard;
 import org.apache.flink.util.function.SupplierWithException;
 
-import org.rocksdb.RocksDB;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,7 +65,7 @@ public class RocksFullSnapshotStrategy<K>
             registeredPQStates;
 
     public RocksFullSnapshotStrategy(
-            @Nonnull RocksDB db,
+            @Nonnull RocksDBWrapper db,
             @Nonnull ResourceGuard rocksDBResourceGuard,
             @Nonnull TypeSerializer<K> keySerializer,
             @Nonnull LinkedHashMap<String, RocksDbKvStateInfo> kvStateInformation,

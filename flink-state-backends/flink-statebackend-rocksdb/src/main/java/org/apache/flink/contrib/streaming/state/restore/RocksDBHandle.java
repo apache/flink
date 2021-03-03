@@ -18,10 +18,13 @@
 
 package org.apache.flink.contrib.streaming.state.restore;
 
+import org.apache.flink.contrib.streaming.state.ColumnFamilyHandleWrapper;
+import org.apache.flink.contrib.streaming.state.RocksDBAccessMetric;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.RocksDbKvStateInfo;
 import org.apache.flink.contrib.streaming.state.RocksDBNativeMetricMonitor;
 import org.apache.flink.contrib.streaming.state.RocksDBNativeMetricOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBOperationUtils;
+import org.apache.flink.contrib.streaming.state.RocksDBWrapper;
 import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersManager;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
@@ -33,7 +36,6 @@ import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
-import org.rocksdb.RocksDB;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,6 +70,7 @@ class RocksDBHandle implements AutoCloseable {
     private List<ColumnFamilyHandle> columnFamilyHandles;
     private List<ColumnFamilyDescriptor> columnFamilyDescriptors;
     private final RocksDBNativeMetricOptions nativeMetricOptions;
+    private final RocksDBAccessMetric.Builder accessMetricBuilder;
     private final MetricGroup metricGroup;
     // Current places to set compact filter into column family options:
     // - Incremental restore
@@ -83,7 +86,7 @@ class RocksDBHandle implements AutoCloseable {
     // column family
     private final RocksDbTtlCompactFiltersManager ttlCompactFiltersManager;
 
-    private RocksDB db;
+    private RocksDBWrapper db;
     private ColumnFamilyHandle defaultColumnFamilyHandle;
     private RocksDBNativeMetricMonitor nativeMetricMonitor;
     private final Long writeBufferManagerCapacity;
@@ -95,6 +98,7 @@ class RocksDBHandle implements AutoCloseable {
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
             RocksDBNativeMetricOptions nativeMetricOptions,
             MetricGroup metricGroup,
+            RocksDBAccessMetric.Builder accessMetricBuilder,
             @Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
             Long writeBufferManagerCapacity) {
         this.kvStateInformation = kvStateInformation;
@@ -103,6 +107,7 @@ class RocksDBHandle implements AutoCloseable {
         this.columnFamilyOptionsFactory = columnFamilyOptionsFactory;
         this.nativeMetricOptions = nativeMetricOptions;
         this.metricGroup = metricGroup;
+        this.accessMetricBuilder = accessMetricBuilder;
         this.ttlCompactFiltersManager = ttlCompactFiltersManager;
         this.columnFamilyHandles = new ArrayList<>(1);
         this.columnFamilyDescriptors = Collections.emptyList();
@@ -131,19 +136,22 @@ class RocksDBHandle implements AutoCloseable {
 
     private void loadDb() throws IOException {
         db =
-                RocksDBOperationUtils.openDB(
-                        dbPath,
-                        columnFamilyDescriptors,
-                        columnFamilyHandles,
-                        RocksDBOperationUtils.createColumnFamilyOptions(
-                                columnFamilyOptionsFactory, "default"),
-                        dbOptions);
+                new RocksDBWrapper(
+                        RocksDBOperationUtils.openDB(
+                                dbPath,
+                                columnFamilyDescriptors,
+                                columnFamilyHandles,
+                                RocksDBOperationUtils.createColumnFamilyOptions(
+                                        columnFamilyOptionsFactory, "default"),
+                                dbOptions),
+                        accessMetricBuilder.setMetricGroup(metricGroup));
         // remove the default column family which is located at the first index
         defaultColumnFamilyHandle = columnFamilyHandles.remove(0);
         // init native metrics monitor if configured
         nativeMetricMonitor =
                 nativeMetricOptions.isEnabled()
-                        ? new RocksDBNativeMetricMonitor(nativeMetricOptions, metricGroup, db)
+                        ? new RocksDBNativeMetricMonitor(
+                                nativeMetricOptions, metricGroup, db.getDb())
                         : null;
     }
 
@@ -162,18 +170,20 @@ class RocksDBHandle implements AutoCloseable {
                 registeredStateMetaInfoEntry =
                         RocksDBOperationUtils.createStateInfo(
                                 stateMetaInfo,
-                                db,
+                                db.getDb(),
                                 columnFamilyOptionsFactory,
                                 ttlCompactFiltersManager,
                                 writeBufferManagerCapacity);
             } else {
                 registeredStateMetaInfoEntry =
-                        new RocksDbKvStateInfo(columnFamilyHandle, stateMetaInfo);
+                        new RocksDbKvStateInfo(
+                                new ColumnFamilyHandleWrapper(columnFamilyHandle), stateMetaInfo);
             }
 
             RocksDBOperationUtils.registerKvStateInformation(
                     kvStateInformation,
                     nativeMetricMonitor,
+                    db.getAccessMetric(),
                     stateMetaInfoSnapshot.getName(),
                     registeredStateMetaInfoEntry);
         } else {
@@ -211,12 +221,16 @@ class RocksDBHandle implements AutoCloseable {
         }
     }
 
-    public RocksDB getDb() {
+    public RocksDBWrapper getDBWrapper() {
         return db;
     }
 
     public RocksDBNativeMetricMonitor getNativeMetricMonitor() {
         return nativeMetricMonitor;
+    }
+
+    public RocksDBAccessMetric.Builder getAccessMetricBuilder() {
+        return accessMetricBuilder;
     }
 
     public ColumnFamilyHandle getDefaultColumnFamilyHandle() {

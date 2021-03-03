@@ -19,10 +19,10 @@
 package org.apache.flink.contrib.streaming.state.restore;
 
 import org.apache.flink.contrib.streaming.state.RocksDBNativeMetricMonitor;
+import org.apache.flink.contrib.streaming.state.RocksDBWrapper;
 import org.apache.flink.runtime.state.StateHandleID;
 
 import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.RocksDB;
 
 import java.util.Set;
 import java.util.SortedMap;
@@ -30,7 +30,7 @@ import java.util.UUID;
 
 /** Entity holding result of RocksDB instance restore. */
 public class RocksDBRestoreResult {
-    private final RocksDB db;
+    private final RocksDBWrapper db;
     private final ColumnFamilyHandle defaultColumnFamilyHandle;
     private final RocksDBNativeMetricMonitor nativeMetricMonitor;
 
@@ -40,7 +40,7 @@ public class RocksDBRestoreResult {
     private final SortedMap<Long, Set<StateHandleID>> restoredSstFiles;
 
     public RocksDBRestoreResult(
-            RocksDB db,
+            RocksDBWrapper db,
             ColumnFamilyHandle defaultColumnFamilyHandle,
             RocksDBNativeMetricMonitor nativeMetricMonitor,
             long lastCompletedCheckpointId,
@@ -54,7 +54,7 @@ public class RocksDBRestoreResult {
         this.restoredSstFiles = restoredSstFiles;
     }
 
-    public RocksDB getDb() {
+    public RocksDBWrapper getDBWrapper() {
         return db;
     }
 

@@ -60,6 +60,12 @@ under the License.
 			<version>5.17.2-artisans-2.0</version>
 		</dependency>
 
+		<dependency>
+			<groupId>io.dropwizard.metrics</groupId>
+			<artifactId>metrics-core</artifactId>
+			<version>${dropwizard.version}</version>
+		</dependency>
+
 		<!-- test dependencies -->
 
 		<dependency>

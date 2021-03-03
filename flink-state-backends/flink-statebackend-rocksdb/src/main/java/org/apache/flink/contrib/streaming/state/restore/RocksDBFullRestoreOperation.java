@@ -18,6 +18,7 @@
 
 package org.apache.flink.contrib.streaming.state.restore;
 
+import org.apache.flink.contrib.streaming.state.RocksDBAccessMetric;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.RocksDbKvStateInfo;
 import org.apache.flink.contrib.streaming.state.RocksDBNativeMetricOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBWriteBatchWrapper;
@@ -68,6 +69,7 @@ public class RocksDBFullRestoreOperation<K> implements RocksDBRestoreOperation {
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
             RocksDBNativeMetricOptions nativeMetricOptions,
             MetricGroup metricGroup,
+            RocksDBAccessMetric.Builder accessMetricBuilder,
             @Nonnull Collection<KeyedStateHandle> restoreStateHandles,
             @Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
             @Nonnegative long writeBatchSize,
@@ -81,6 +83,7 @@ public class RocksDBFullRestoreOperation<K> implements RocksDBRestoreOperation {
                         columnFamilyOptionsFactory,
                         nativeMetricOptions,
                         metricGroup,
+                        accessMetricBuilder,
                         ttlCompactFiltersManager,
                         writeBufferManagerCapacity);
         this.savepointRestoreOperation =
@@ -103,7 +106,7 @@ public class RocksDBFullRestoreOperation<K> implements RocksDBRestoreOperation {
             }
         }
         return new RocksDBRestoreResult(
-                this.rocksHandle.getDb(),
+                this.rocksHandle.getDBWrapper(),
                 this.rocksHandle.getDefaultColumnFamilyHandle(),
                 this.rocksHandle.getNativeMetricMonitor(),
                 -1,
@@ -120,7 +123,8 @@ public class RocksDBFullRestoreOperation<K> implements RocksDBRestoreOperation {
             StateMetaInfoSnapshot restoredMetaInfo = restoredMetaInfos.get(i);
             RocksDbKvStateInfo registeredStateCFHandle =
                     this.rocksHandle.getOrRegisterStateColumnFamilyHandle(null, restoredMetaInfo);
-            columnFamilyHandles.put(i, registeredStateCFHandle.columnFamilyHandle);
+            columnFamilyHandles.put(
+                    i, registeredStateCFHandle.columnFamilyHandleWrapper.getColumnFamilyHandle());
         }
 
         try (ThrowingIterator<KeyGroup> keyGroups = savepointRestoreResult.getRestoredKeyGroups()) {
@@ -137,7 +141,7 @@ public class RocksDBFullRestoreOperation<K> implements RocksDBRestoreOperation {
             throws IOException, RocksDBException, StateMigrationException {
         // for all key-groups in the current state handle...
         try (RocksDBWriteBatchWrapper writeBatchWrapper =
-                new RocksDBWriteBatchWrapper(this.rocksHandle.getDb(), writeBatchSize)) {
+                new RocksDBWriteBatchWrapper(this.rocksHandle.getDBWrapper(), writeBatchSize)) {
             ColumnFamilyHandle handle = null;
             while (keyGroups.hasNext()) {
                 KeyGroup keyGroup = keyGroups.next();

@@ -65,9 +65,10 @@ public class KeyGroupPartitionedPriorityQueueWithRocksDBStoreTest
             return new RocksDBCachingPriorityQueueSet<>(
                     keyGroupId,
                     keyGroupPrefixBytes,
-                    rocksDBResource.getRocksDB(),
+                    new RocksDBWrapper(rocksDBResource.getRocksDB()),
                     rocksDBResource.getReadOptions(),
-                    rocksDBResource.getDefaultColumnFamily(),
+                    null,
+                    new ColumnFamilyHandleWrapper(rocksDBResource.getDefaultColumnFamily()),
                     TestElementSerializer.INSTANCE,
                     outputStreamWithPos,
                     inputStreamWithPos,

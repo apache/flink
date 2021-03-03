@@ -147,7 +147,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
     private interface StateFactory {
         <K, N, SV, S extends State, IS extends S> IS createState(
                 StateDescriptor<S, SV> stateDesc,
-                Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>>
+                Tuple2<ColumnFamilyHandleWrapper, RegisteredKeyValueStateBackendMetaInfo<N, SV>>
                         registerResult,
                 RocksDBKeyedStateBackend<K> backend)
                 throws Exception;
@@ -200,8 +200,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
      */
     private final ColumnFamilyHandle defaultColumnFamily;
 
-    /** Shared wrapper for batch writes to the RocksDB instance. */
-    private final RocksDBWriteBatchWrapper writeBatchWrapper;
+    /** Shared wrapper for batch writes to the RocksDB instance for timers. */
+    private final RocksDBWriteBatchWrapper timerWriteBatchWrapper;
 
     /**
      * The checkpoint snapshot strategy, e.g., if we use full or incremental checkpoints, local
@@ -226,7 +226,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
      * to store state. The different k/v states that we have don't each have their own RocksDB
      * instance. They all write to this instance but to their own column family.
      */
-    protected final RocksDB db;
+    protected final RocksDBWrapper db;
 
     // mark whether this backend is already disposed and prevent duplicate disposing
     private boolean disposed = false;
@@ -242,7 +242,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             TypeSerializer<K> keySerializer,
             ExecutionConfig executionConfig,
             TtlTimeProvider ttlTimeProvider,
-            RocksDB db,
+            RocksDBWrapper db,
             LinkedHashMap<String, RocksDbKvStateInfo> kvStateInformation,
             Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates,
             int keyGroupPrefixBytes,
@@ -250,7 +250,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             StreamCompressionDecorator keyGroupCompressionDecorator,
             ResourceGuard rocksDBResourceGuard,
             RocksDBSnapshotStrategyBase<K, ?> checkpointSnapshotStrategy,
-            RocksDBWriteBatchWrapper writeBatchWrapper,
+            RocksDBWriteBatchWrapper timerWriteBatchWrapper,
             ColumnFamilyHandle defaultColumnFamilyHandle,
             RocksDBNativeMetricMonitor nativeMetricMonitor,
             SerializedCompositeKeyBuilder<K> sharedRocksKeyBuilder,
@@ -287,7 +287,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         this.db = db;
         this.rocksDBResourceGuard = rocksDBResourceGuard;
         this.checkpointSnapshotStrategy = checkpointSnapshotStrategy;
-        this.writeBatchWrapper = writeBatchWrapper;
+        this.timerWriteBatchWrapper = timerWriteBatchWrapper;
         this.defaultColumnFamily = defaultColumnFamilyHandle;
         this.nativeMetricMonitor = nativeMetricMonitor;
         this.sharedRocksKeyBuilder = sharedRocksKeyBuilder;
@@ -333,7 +333,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
         RocksIteratorWrapper iterator =
                 RocksDBOperationUtils.getRocksIterator(
-                        db, columnInfo.columnFamilyHandle, readOptions);
+                        db, columnInfo.columnFamilyHandleWrapper, readOptions);
         iterator.seekToFirst();
 
         final RocksStateKeysIterator<K> iteratorWrapper =
@@ -371,7 +371,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
         RocksIteratorWrapper iterator =
                 RocksDBOperationUtils.getRocksIterator(
-                        db, columnInfo.columnFamilyHandle, readOptions);
+                        db, columnInfo.columnFamilyHandleWrapper, readOptions);
         iterator.seekToFirst();
 
         final RocksStateKeysAndNamespaceIterator<K, N> iteratorWrapper =
@@ -393,7 +393,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
     @VisibleForTesting
     ColumnFamilyHandle getColumnFamilyHandle(String state) {
         RocksDbKvStateInfo columnInfo = kvStateInformation.get(state);
-        return columnInfo != null ? columnInfo.columnFamilyHandle : null;
+        return columnInfo != null
+                ? columnInfo.columnFamilyHandleWrapper.getColumnFamilyHandle()
+                : null;
     }
 
     @Override
@@ -421,7 +423,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         // working on the disposed object results in SEGFAULTS.
         if (db != null) {
 
-            IOUtils.closeQuietly(writeBatchWrapper);
+            IOUtils.closeQuietly(timerWriteBatchWrapper);
 
             // Metric collection occurs on a background thread. When this method returns
             // it is guaranteed that thr RocksDB reference has been invalidated
@@ -445,8 +447,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             // ... continue with the ones created by Flink...
             for (RocksDbKvStateInfo kvStateInfo : kvStateInformation.values()) {
                 RocksDBOperationUtils.addColumnFamilyOptionsToCloseLater(
-                        columnFamilyOptions, kvStateInfo.columnFamilyHandle);
-                IOUtils.closeQuietly(kvStateInfo.columnFamilyHandle);
+                        columnFamilyOptions,
+                        kvStateInfo.columnFamilyHandleWrapper.getColumnFamilyHandle());
+                IOUtils.closeQuietly(kvStateInfo.columnFamilyHandleWrapper);
             }
 
             // ... and finally close the DB instance ...
@@ -543,7 +546,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             throws Exception {
 
         // flush everything into db before taking a snapshot
-        writeBatchWrapper.flush();
+        timerWriteBatchWrapper.flush();
 
         return new SnapshotStrategyRunner<>(
                         checkpointSnapshotStrategy.getDescription(),
@@ -558,7 +561,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
     public SavepointResources<K> savepoint() throws Exception {
 
         // flush everything into db before taking a snapshot
-        writeBatchWrapper.flush();
+        timerWriteBatchWrapper.flush();
 
         Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates;
         if (heapPriorityQueuesManager != null) {
@@ -604,7 +607,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
      * (after some necessary state compatibility checks) or create a new one if it does not exist.
      */
     private <N, S extends State, SV, SEV>
-            Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>>
+            Tuple2<ColumnFamilyHandleWrapper, RegisteredKeyValueStateBackendMetaInfo<N, SV>>
                     tryRegisterKvStateInformation(
                             StateDescriptor<S, SV> stateDesc,
                             TypeSerializer<N> namespaceSerializer,
@@ -624,13 +627,13 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
             newMetaInfo =
                     updateRestoredStateMetaInfo(
-                            Tuple2.of(oldStateInfo.columnFamilyHandle, castedMetaInfo),
+                            Tuple2.of(oldStateInfo.columnFamilyHandleWrapper, castedMetaInfo),
                             stateDesc,
                             namespaceSerializer,
                             stateSerializer);
 
             newRocksStateInfo =
-                    new RocksDbKvStateInfo(oldStateInfo.columnFamilyHandle, newMetaInfo);
+                    new RocksDbKvStateInfo(oldStateInfo.columnFamilyHandleWrapper, newMetaInfo);
             kvStateInformation.put(stateDesc.getName(), newRocksStateInfo);
         } else {
             newMetaInfo =
@@ -644,13 +647,14 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             newRocksStateInfo =
                     RocksDBOperationUtils.createStateInfo(
                             newMetaInfo,
-                            db,
+                            db.getDb(),
                             columnFamilyOptionsFactory,
                             ttlCompactFiltersManager,
                             optionsContainer.getWriteBufferManagerCapacity());
             RocksDBOperationUtils.registerKvStateInformation(
                     this.kvStateInformation,
                     this.nativeMetricMonitor,
+                    this.db.getAccessMetric(),
                     stateDesc.getName(),
                     newRocksStateInfo);
         }
@@ -662,12 +666,12 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
         ttlCompactFiltersManager.configCompactFilter(stateDesc, newMetaInfo.getStateSerializer());
 
-        return Tuple2.of(newRocksStateInfo.columnFamilyHandle, newMetaInfo);
+        return Tuple2.of(newRocksStateInfo.columnFamilyHandleWrapper, newMetaInfo);
     }
 
     private <N, S extends State, SV>
             RegisteredKeyValueStateBackendMetaInfo<N, SV> updateRestoredStateMetaInfo(
-                    Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>>
+                    Tuple2<ColumnFamilyHandleWrapper, RegisteredKeyValueStateBackendMetaInfo<N, SV>>
                             oldStateInfo,
                     StateDescriptor<S, SV> stateDesc,
                     TypeSerializer<N> namespaceSerializer,
@@ -722,7 +726,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
     @SuppressWarnings("unchecked")
     private <N, S extends State, SV> void migrateStateValues(
             StateDescriptor<S, SV> stateDesc,
-            Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> stateMetaInfo)
+            Tuple2<ColumnFamilyHandleWrapper, RegisteredKeyValueStateBackendMetaInfo<N, SV>>
+                    stateMetaInfo)
             throws Exception {
 
         if (stateDesc.getType() == StateDescriptor.Type.MAP) {
@@ -774,11 +779,16 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         @SuppressWarnings("unchecked")
         AbstractRocksDBState<?, ?, SV> rocksDBState = (AbstractRocksDBState<?, ?, SV>) state;
 
-        Snapshot rocksDBSnapshot = db.getSnapshot();
+        Snapshot rocksDBSnapshot = db.getDb().getSnapshot();
         try (RocksIteratorWrapper iterator =
                         RocksDBOperationUtils.getRocksIterator(db, stateMetaInfo.f0, readOptions);
                 RocksDBWriteBatchWrapper batchWriter =
-                        new RocksDBWriteBatchWrapper(db, getWriteOptions(), getWriteBatchSize())) {
+                        new RocksDBWriteBatchWrapper(
+                                db,
+                                stateMetaInfo.f0,
+                                getWriteOptions(),
+                                500,
+                                getWriteBatchSize())) {
             iterator.seekToFirst();
 
             DataInputDeserializer serializedValueInput = new DataInputDeserializer();
@@ -793,7 +803,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                         stateMetaInfo.f1.getStateSerializer());
 
                 batchWriter.put(
-                        stateMetaInfo.f0,
+                        stateMetaInfo.f0.getColumnFamilyHandle(),
                         iterator.key(),
                         migratedSerializedValueOutput.getCopyOfBuffer());
 
@@ -801,7 +811,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                 iterator.next();
             }
         } finally {
-            db.releaseSnapshot(rocksDBSnapshot);
+            db.getDb().releaseSnapshot(rocksDBSnapshot);
             rocksDBSnapshot.close();
         }
     }
@@ -835,9 +845,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                             stateDesc.getClass(), this.getClass());
             throw new FlinkRuntimeException(message);
         }
-        Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> registerResult =
-                tryRegisterKvStateInformation(
-                        stateDesc, namespaceSerializer, snapshotTransformFactory);
+        Tuple2<ColumnFamilyHandleWrapper, RegisteredKeyValueStateBackendMetaInfo<N, SV>>
+                registerResult =
+                        tryRegisterKvStateInformation(
+                                stateDesc, namespaceSerializer, snapshotTransformFactory);
         return stateFactory.createState(stateDesc, registerResult, RocksDBKeyedStateBackend.this);
     }
 
@@ -855,7 +866,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             // TODO maybe filterOrTransform only for k/v states
             try (RocksIteratorWrapper rocksIterator =
                     RocksDBOperationUtils.getRocksIterator(
-                            db, metaInfo.columnFamilyHandle, readOptions)) {
+                            db, metaInfo.columnFamilyHandleWrapper, readOptions)) {
                 rocksIterator.seekToFirst();
 
                 while (rocksIterator.isValid()) {
@@ -881,25 +892,26 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
     /** Rocks DB specific information about the k/v states. */
     public static class RocksDbKvStateInfo implements AutoCloseable {
-        public final ColumnFamilyHandle columnFamilyHandle;
+        public final ColumnFamilyHandleWrapper columnFamilyHandleWrapper;
         public final RegisteredStateMetaInfoBase metaInfo;
 
         public RocksDbKvStateInfo(
-                ColumnFamilyHandle columnFamilyHandle, RegisteredStateMetaInfoBase metaInfo) {
-            this.columnFamilyHandle = columnFamilyHandle;
+                ColumnFamilyHandleWrapper columnFamilyHandleWrapper,
+                RegisteredStateMetaInfoBase metaInfo) {
+            this.columnFamilyHandleWrapper = columnFamilyHandleWrapper;
             this.metaInfo = metaInfo;
         }
 
         @Override
         public void close() throws Exception {
-            this.columnFamilyHandle.close();
+            this.columnFamilyHandleWrapper.close();
         }
     }
 
     @VisibleForTesting
     public void compactState(StateDescriptor<?, ?> stateDesc) throws RocksDBException {
         RocksDbKvStateInfo kvStateInfo = kvStateInformation.get(stateDesc.getName());
-        db.compactRange(kvStateInfo.columnFamilyHandle);
+        db.getDb().compactRange(kvStateInfo.columnFamilyHandleWrapper.getColumnFamilyHandle());
     }
 
     @Nonnegative

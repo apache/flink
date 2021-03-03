@@ -65,7 +65,7 @@ public class RocksDBResource extends ExternalResource {
     private ReadOptions readOptions;
 
     /** The RocksDB instance object. */
-    private RocksDB rocksDB;
+    private RocksDBWrapper rocksDB;
 
     /** List of all column families that have been created with the RocksDB instance. */
     private List<ColumnFamilyHandle> columnFamilyHandles;
@@ -124,7 +124,7 @@ public class RocksDBResource extends ExternalResource {
     }
 
     public RocksDB getRocksDB() {
-        return rocksDB;
+        return rocksDB.getDb();
     }
 
     public ReadOptions getReadOptions() {
@@ -168,14 +168,15 @@ public class RocksDBResource extends ExternalResource {
         this.readOptions = RocksDBOperationUtils.createTotalOrderSeekReadOptions();
         this.columnFamilyHandles = new ArrayList<>(1);
         this.rocksDB =
-                RocksDB.open(
-                        dbOptions,
-                        rocksFolder.getAbsolutePath(),
-                        Collections.singletonList(
-                                new ColumnFamilyDescriptor(
-                                        "default".getBytes(), columnFamilyOptions)),
-                        columnFamilyHandles);
-        this.batchWrapper = new RocksDBWriteBatchWrapper(rocksDB, writeOptions);
+                new RocksDBWrapper(
+                        RocksDB.open(
+                                dbOptions,
+                                rocksFolder.getAbsolutePath(),
+                                Collections.singletonList(
+                                        new ColumnFamilyDescriptor(
+                                                "default".getBytes(), columnFamilyOptions)),
+                                columnFamilyHandles));
+        this.batchWrapper = new RocksDBWriteBatchWrapper(rocksDB, null, writeOptions, 500, 0);
     }
 
     @Override

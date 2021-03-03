@@ -21,6 +21,7 @@ package org.apache.flink.contrib.streaming.state.snapshot;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.RocksDbKvStateInfo;
+import org.apache.flink.contrib.streaming.state.RocksDBWrapper;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
@@ -28,7 +29,6 @@ import org.apache.flink.runtime.state.SnapshotResources;
 import org.apache.flink.runtime.state.SnapshotStrategy;
 import org.apache.flink.util.ResourceGuard;
 
-import org.rocksdb.RocksDB;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,7 +49,7 @@ public abstract class RocksDBSnapshotStrategyBase<K, R extends SnapshotResources
 
     @Nonnull private final String description;
     /** RocksDB instance from the backend. */
-    @Nonnull protected RocksDB db;
+    @Nonnull protected RocksDBWrapper db;
 
     /** Resource guard for the RocksDB instance. */
     @Nonnull protected final ResourceGuard rocksDBResourceGuard;
@@ -71,7 +71,7 @@ public abstract class RocksDBSnapshotStrategyBase<K, R extends SnapshotResources
 
     public RocksDBSnapshotStrategyBase(
             @Nonnull String description,
-            @Nonnull RocksDB db,
+            @Nonnull RocksDBWrapper db,
             @Nonnull ResourceGuard rocksDBResourceGuard,
             @Nonnull TypeSerializer<K> keySerializer,
             @Nonnull LinkedHashMap<String, RocksDbKvStateInfo> kvStateInformation,

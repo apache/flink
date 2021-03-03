@@ -18,6 +18,7 @@
 
 package org.apache.flink.contrib.streaming.state.restore;
 
+import org.apache.flink.contrib.streaming.state.RocksDBAccessMetric;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.RocksDbKvStateInfo;
 import org.apache.flink.contrib.streaming.state.RocksDBNativeMetricOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBWriteBatchWrapper;
@@ -91,6 +92,7 @@ public class RocksDBHeapTimersFullRestoreOperation<K> implements RocksDBRestoreO
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
             RocksDBNativeMetricOptions nativeMetricOptions,
             MetricGroup metricGroup,
+            RocksDBAccessMetric.Builder accessMetricBuilder,
             @Nonnull Collection<KeyedStateHandle> restoreStateHandles,
             @Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
             @Nonnegative long writeBatchSize,
@@ -104,6 +106,7 @@ public class RocksDBHeapTimersFullRestoreOperation<K> implements RocksDBRestoreO
                         columnFamilyOptionsFactory,
                         nativeMetricOptions,
                         metricGroup,
+                        accessMetricBuilder,
                         ttlCompactFiltersManager,
                         writeBufferManagerCapacity);
         this.savepointRestoreOperation =
@@ -133,7 +136,7 @@ public class RocksDBHeapTimersFullRestoreOperation<K> implements RocksDBRestoreO
             }
         }
         return new RocksDBRestoreResult(
-                this.rocksHandle.getDb(),
+                this.rocksHandle.getDBWrapper(),
                 this.rocksHandle.getDefaultColumnFamilyHandle(),
                 this.rocksHandle.getNativeMetricMonitor(),
                 -1,
@@ -163,7 +166,9 @@ public class RocksDBHeapTimersFullRestoreOperation<K> implements RocksDBRestoreO
                 RocksDbKvStateInfo registeredStateCFHandle =
                         this.rocksHandle.getOrRegisterStateColumnFamilyHandle(
                                 null, restoredMetaInfo);
-                columnFamilyHandles.put(i, registeredStateCFHandle.columnFamilyHandle);
+                columnFamilyHandles.put(
+                        i,
+                        registeredStateCFHandle.columnFamilyHandleWrapper.getColumnFamilyHandle());
             }
         }
 
@@ -183,7 +188,7 @@ public class RocksDBHeapTimersFullRestoreOperation<K> implements RocksDBRestoreO
             throws IOException, RocksDBException, StateMigrationException {
         // for all key-groups in the current state handle...
         try (RocksDBWriteBatchWrapper writeBatchWrapper =
-                new RocksDBWriteBatchWrapper(this.rocksHandle.getDb(), writeBatchSize)) {
+                new RocksDBWriteBatchWrapper(this.rocksHandle.getDBWrapper(), writeBatchSize)) {
             HeapPriorityQueueSnapshotRestoreWrapper<HeapPriorityQueueElement> restoredPQ = null;
             ColumnFamilyHandle handle = null;
             while (keyGroups.hasNext()) {

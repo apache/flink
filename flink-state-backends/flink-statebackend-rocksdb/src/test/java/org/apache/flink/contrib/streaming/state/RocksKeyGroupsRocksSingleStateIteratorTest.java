@@ -126,7 +126,7 @@ public class RocksKeyGroupsRocksSingleStateIteratorTest {
             for (Tuple2<ColumnFamilyHandle, Integer> columnFamilyHandle :
                     columnFamilyHandlesWithKeyCount) {
                 RocksIteratorWrapper rocksIterator =
-                        RocksDBOperationUtils.getRocksIterator(
+                        RocksDBOperationUtils.getRocksIteratorWithoutAccessMetric(
                                 rocksDB, columnFamilyHandle.f0, readOptions);
                 closeableRegistry.registerCloseable(rocksIterator);
                 rocksIteratorsWithKVStateId.add(new Tuple2<>(rocksIterator, id));

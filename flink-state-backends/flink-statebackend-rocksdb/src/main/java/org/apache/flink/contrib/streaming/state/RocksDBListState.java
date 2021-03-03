@@ -34,7 +34,6 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
 
-import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
 
 import javax.annotation.Nullable;
@@ -79,7 +78,7 @@ class RocksDBListState<K, N, V> extends AbstractRocksDBState<K, N, List<V>>
      * @param backend The backend for which this state is bind to.
      */
     private RocksDBListState(
-            ColumnFamilyHandle columnFamily,
+            ColumnFamilyHandleWrapper columnFamily,
             TypeSerializer<N> namespaceSerializer,
             TypeSerializer<List<V>> valueSerializer,
             List<V> defaultValue,
@@ -245,7 +244,7 @@ class RocksDBListState<K, N, V> extends AbstractRocksDBState<K, N, List<V>>
     @SuppressWarnings("unchecked")
     static <E, K, N, SV, S extends State, IS extends S> IS create(
             StateDescriptor<S, SV> stateDesc,
-            Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>>
+            Tuple2<ColumnFamilyHandleWrapper, RegisteredKeyValueStateBackendMetaInfo<N, SV>>
                     registerResult,
             RocksDBKeyedStateBackend<K> backend) {
         return (IS)

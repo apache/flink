@@ -249,7 +249,7 @@ public class EmbeddedRocksDBStateBackendTest
                                 return rocksIterator;
                             }
                         })
-                .when(keyedStateBackend.db)
+                .when(keyedStateBackend.db.getDb())
                 .newIterator(any(ColumnFamilyHandle.class), any(ReadOptions.class));
 
         doAnswer(
@@ -264,7 +264,7 @@ public class EmbeddedRocksDBStateBackendTest
                                 return snapshot;
                             }
                         })
-                .when(keyedStateBackend.db)
+                .when(keyedStateBackend.db.getDb())
                 .getSnapshot();
 
         doAnswer(
@@ -279,7 +279,7 @@ public class EmbeddedRocksDBStateBackendTest
                                 return snapshot;
                             }
                         })
-                .when(keyedStateBackend.db)
+                .when(keyedStateBackend.db.getDb())
                 .createColumnFamily(any(ColumnFamilyDescriptor.class));
 
         for (int i = 0; i < 100; ++i) {
@@ -337,7 +337,7 @@ public class EmbeddedRocksDBStateBackendTest
                             testStreamFactory,
                             CheckpointOptions.forCheckpointWithDefaultLocation());
 
-            RocksDB spyDB = keyedStateBackend.db;
+            RocksDB spyDB = keyedStateBackend.db.getDb();
 
             if (!enableIncrementalCheckpointing) {
                 verify(spyDB, times(1)).getSnapshot();
@@ -625,7 +625,7 @@ public class EmbeddedRocksDBStateBackendTest
         }
 
         assertNotNull(null, keyedStateBackend.db);
-        RocksDB spyDB = keyedStateBackend.db;
+        RocksDB spyDB = keyedStateBackend.db.getDb();
 
         if (!enableIncrementalCheckpointing) {
             verify(spyDB, times(1)).getSnapshot();
