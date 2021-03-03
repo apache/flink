@@ -96,6 +96,7 @@ class WaitingForResources implements State, ResourceConsumer {
     }
 
     private void resourceTimeout() {
+        log.debug("Resource timeout triggered: Creating ExecutionGraph with available resources.");
         createExecutionGraphWithAvailableResources();
     }
 
