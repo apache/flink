@@ -1536,13 +1536,13 @@ public class CheckpointCoordinator {
                     throw new IllegalStateException("No completed checkpoint available");
                 }
 
-                LOG.debug("Resetting the master hooks.");
-                MasterHooks.reset(masterHooks.values(), LOG);
-
                 if (operatorCoordinatorRestoreBehavior
                         == OperatorCoordinatorRestoreBehavior.RESTORE_OR_RESET) {
                     // we let the JobManager-side components know that there was a recovery,
                     // even if there was no checkpoint to recover from, yet
+                    LOG.debug("Resetting the master hooks.");
+                    MasterHooks.reset(masterHooks.values(), LOG);
+
                     LOG.info("Resetting the Operator Coordinators to an empty state.");
                     restoreStateToCoordinators(
                             OperatorCoordinator.NO_CHECKPOINT, Collections.emptyMap());
