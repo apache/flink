@@ -29,7 +29,6 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
-import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.RpcTaskManagerGateway;
@@ -94,8 +93,7 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
     public void testSchedulingOfJobWithFewerSlotsThanParallelism() throws Exception {
         final int parallelism = 5;
         final Time batchSlotTimeout = Time.milliseconds(5L);
-        final JobGraph jobGraph = createJobGraph(parallelism);
-        jobGraph.setJobType(JobType.BATCH);
+        final JobGraph jobGraph = createBatchJobGraph(parallelism);
 
         try (final SlotPoolImpl slotPool = createSlotPool(mainThreadExecutor, batchSlotTimeout)) {
             final ArrayBlockingQueue<ExecutionAttemptID> submittedTasksQueue =
@@ -184,7 +182,7 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
                 .build();
     }
 
-    private JobGraph createJobGraph(int parallelism) {
+    private JobGraph createBatchJobGraph(int parallelism) {
         final JobVertex jobVertex = new JobVertex("testing task");
         jobVertex.setParallelism(parallelism);
         jobVertex.setInvokableClass(NoOpInvokable.class);

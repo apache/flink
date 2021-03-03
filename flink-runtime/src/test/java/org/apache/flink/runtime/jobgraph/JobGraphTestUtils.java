@@ -20,45 +20,32 @@ package org.apache.flink.runtime.jobgraph;
 
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 
-import javax.annotation.Nonnull;
+import java.util.Arrays;
 
 /** Utilities for creating {@link JobGraph JobGraphs} for testing purposes. */
 public class JobGraphTestUtils {
 
     public static JobGraph emptyJobGraph() {
-        final JobGraph jobGraph = new JobGraph();
-        jobGraph.setJobType(JobType.STREAMING);
-
-        return jobGraph;
+        return JobGraphBuilder.newStreamingJobGraphBuilder().build();
     }
 
     public static JobGraph singleNoOpJobGraph() {
         JobVertex jobVertex = new JobVertex("jobVertex");
         jobVertex.setInvokableClass(NoOpInvokable.class);
 
-        final JobGraph jobGraph = createJobGraphInternal(jobVertex);
-        jobGraph.setJobType(JobType.STREAMING);
-
-        return jobGraph;
+        return JobGraphBuilder.newStreamingJobGraphBuilder().addJobVertex(jobVertex).build();
     }
 
     public static JobGraph streamingJobGraph(JobVertex... jobVertices) {
-        JobGraph jobGraph = createJobGraphInternal(jobVertices);
-        jobGraph.setJobType(JobType.STREAMING);
-
-        return jobGraph;
+        return JobGraphBuilder.newStreamingJobGraphBuilder()
+                .addJobVertices(Arrays.asList(jobVertices))
+                .build();
     }
 
     public static JobGraph batchJobGraph(JobVertex... jobVertices) {
-        final JobGraph jobGraph = createJobGraphInternal(jobVertices);
-        jobGraph.setJobType(JobType.BATCH);
-
-        return jobGraph;
-    }
-
-    @Nonnull
-    private static JobGraph createJobGraphInternal(JobVertex... jobVertices) {
-        return new JobGraph(jobVertices);
+        return JobGraphBuilder.newBatchJobGraphBuilder()
+                .addJobVertices(Arrays.asList(jobVertices))
+                .build();
     }
 
     private JobGraphTestUtils() {

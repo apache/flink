@@ -18,6 +18,7 @@
 
 package org.apache.flink.optimizer.plantranslate;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.aggregators.LongSumAggregator;
 import org.apache.flink.api.common.cache.DistributedCache;
@@ -40,7 +41,6 @@ import org.apache.flink.optimizer.testfunctions.IdentityMapper;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobGraphUtils;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -56,8 +56,7 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 
 import static org.hamcrest.CoreMatchers.is;
@@ -248,36 +247,27 @@ public class JobGraphGeneratorTest {
         Path directory2 = tmp.newFolder("directory2").toPath();
         Files.createDirectory(directory2.resolve("containedFile2"));
 
-        JobGraph jb = JobGraphTestUtils.emptyJobGraph();
-
         final String executableFileName = "executableFile";
         final String nonExecutableFileName = "nonExecutableFile";
         final String executableDirName = "executableDir";
         final String nonExecutableDirName = "nonExecutableDIr";
 
-        Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> originalArtifacts =
-                Arrays.asList(
-                        Tuple2.of(
-                                executableFileName,
-                                new DistributedCache.DistributedCacheEntry(
-                                        plainFile1.toString(), true)),
-                        Tuple2.of(
-                                nonExecutableFileName,
-                                new DistributedCache.DistributedCacheEntry(
-                                        plainFile2.toString(), false)),
-                        Tuple2.of(
-                                executableDirName,
-                                new DistributedCache.DistributedCacheEntry(
-                                        directory1.toString(), true)),
-                        Tuple2.of(
-                                nonExecutableDirName,
-                                new DistributedCache.DistributedCacheEntry(
-                                        directory2.toString(), false)));
+        Map<String, DistributedCache.DistributedCacheEntry> originalArtifacts = new HashMap<>();
+        originalArtifacts.put(
+                executableFileName,
+                new DistributedCache.DistributedCacheEntry(plainFile1.toString(), true));
+        originalArtifacts.put(
+                nonExecutableFileName,
+                new DistributedCache.DistributedCacheEntry(plainFile2.toString(), false));
+        originalArtifacts.put(
+                executableDirName,
+                new DistributedCache.DistributedCacheEntry(directory1.toString(), true));
+        originalArtifacts.put(
+                nonExecutableDirName,
+                new DistributedCache.DistributedCacheEntry(directory2.toString(), false));
 
-        JobGraphUtils.addUserArtifactEntries(originalArtifacts, jb);
-
-        Map<String, DistributedCache.DistributedCacheEntry> submittedArtifacts =
-                jb.getUserArtifacts();
+        final Map<String, DistributedCache.DistributedCacheEntry> submittedArtifacts =
+                JobGraphUtils.prepareUserArtifactEntries(originalArtifacts, new JobID());
 
         DistributedCache.DistributedCacheEntry executableFileEntry =
                 submittedArtifacts.get(executableFileName);
