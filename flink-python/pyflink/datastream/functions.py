@@ -23,7 +23,8 @@ from typing import Union, Any, Dict
 from py4j.java_gateway import JavaObject
 
 from pyflink.datastream.state import ValueState, ValueStateDescriptor, ListStateDescriptor, \
-    ListState, MapStateDescriptor, MapState, ReducingStateDescriptor, ReducingState
+    ListState, MapStateDescriptor, MapState, ReducingStateDescriptor, ReducingState, \
+    AggregatingStateDescriptor, AggregatingState
 from pyflink.datastream.time_domain import TimeDomain
 from pyflink.datastream.timerservice import TimerService
 from pyflink.java_gateway import get_gateway
@@ -35,6 +36,7 @@ __all__ = [
     'FlatMapFunction',
     'CoFlatMapFunction',
     'ReduceFunction',
+    'AggregateFunction',
     'KeySelector',
     'FilterFunction',
     'Partitioner',
@@ -151,6 +153,17 @@ class RuntimeContext(object):
         Gets a handle to the system's key/value reducing state. This state is similar to the state
         accessed via get_state(ValueStateDescriptor), but is optimized for state that aggregates
         values.
+
+        This state is only accessible if the function is executed on a KeyedStream.
+        """
+        pass
+
+    def get_aggregating_state(
+            self, state_descriptor: AggregatingStateDescriptor) -> AggregatingState:
+        """
+        Gets a handle to the system's key/value aggregating state. This state is similar to the
+        state accessed via get_state(ValueStateDescriptor), but is optimized for state that
+        aggregates values with different types.
 
         This state is only accessible if the function is executed on a KeyedStream.
         """
@@ -338,6 +351,83 @@ class ReduceFunction(Function):
         :param value1: The first value to combine.
         :param value2: The second value to combine.
         :return: The combined value of both input values.
+        """
+        pass
+
+
+class AggregateFunction(Function):
+    """
+    The AggregateFunction is a flexible aggregation function, characterized by the following
+    features:
+
+        - The aggregates may use different types for input values, intermediate aggregates, and
+          result type, to support a wide range of aggregation types.
+        - Support for distributive aggregations: Different intermediate aggregates can be merged
+          together, to allow for pre-aggregation/final-aggregation optimizations.
+
+    The AggregateFunction's intermediate aggregate (in-progress aggregation state) is called the
+    `accumulator`. Values are added to the accumulator, and final aggregates are obtained by
+    finalizing the accumulator state. This supports aggregation functions where the intermediate
+    state needs to be different than the aggregated values and the final result type, such as for
+    example average (which typically keeps a count and sum). Merging intermediate aggregates
+    (partial aggregates) means merging the accumulators.
+
+    The AggregationFunction itself is stateless. To allow a single AggregationFunction instance to
+    maintain multiple aggregates (such as one aggregate per key), the AggregationFunction creates a
+    new accumulator whenever a new aggregation is started.
+    """
+
+    @abc.abstractmethod
+    def create_accumulator(self):
+        """
+        Creates a new accumulator, starting a new aggregate.
+
+        The new accumulator is typically meaningless unless a value is added via
+        :func:`~AggregateFunction.add`.
+
+        The accumulator is the state of a running aggregation. When a program has multiple
+        aggregates in progress (such as per key and window), the state (per key and window) is the
+        size of the accumulator.
+
+        :return: A new accumulator, corresponding to an empty aggregate.
+        """
+        pass
+
+    @abc.abstractmethod
+    def add(self, value, accumulator):
+        """
+        Adds the given input value to the given accumulator, returning the new accumulator value.
+
+        For efficiency, the input accumulator may be modified and returned.
+
+        :param value: The value to add.
+        :param accumulator: The accumulator to add the value to.
+        :return: The accumulator with the updated state.
+        """
+        pass
+
+    @abc.abstractmethod
+    def get_result(self, accumulator):
+        """
+        Gets the result of the aggregation from the accumulator.
+
+        :param accumulator: The accumulator of the aggregation.
+        :return: The final aggregation result.
+        """
+        pass
+
+    @abc.abstractmethod
+    def merge(self, acc_a, acc_b):
+        """
+        Merges two accumulators, returning an accumulator with the merged state.
+
+        This function may reuse any of the given accumulators as the target for the merge and
+        return that. The assumption is that the given accumulators will not be used any more after
+        having been passed to this function.
+
+        :param acc_a: An accumulator to merge.
+        :param acc_b: Another accumulator to merge.
+        :return: The accumulator with the merged state.
         """
         pass
 

@@ -25,12 +25,13 @@ from pyflink.common.typeinfo import Types
 from pyflink.common.watermark_strategy import WatermarkStrategy, TimestampAssigner
 from pyflink.datastream import StreamExecutionEnvironment, TimeCharacteristic, RuntimeContext
 from pyflink.datastream.data_stream import DataStream
-from pyflink.datastream.functions import CoMapFunction, CoFlatMapFunction
+from pyflink.datastream.functions import CoMapFunction, CoFlatMapFunction, AggregateFunction
 from pyflink.datastream.functions import FilterFunction, ProcessFunction, KeyedProcessFunction
 from pyflink.datastream.functions import KeySelector
 from pyflink.datastream.functions import MapFunction, FlatMapFunction
 from pyflink.datastream.state import ValueStateDescriptor, ListStateDescriptor, \
-    MapStateDescriptor, ReducingStateDescriptor, ReducingState
+    MapStateDescriptor, ReducingStateDescriptor, ReducingState, AggregatingState, \
+    AggregatingStateDescriptor
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkTestCase, invoke_java_object_method
@@ -868,6 +869,50 @@ class DataStreamTests(PyFlinkTestCase):
             .process(MyProcessFunction(), output_type=Types.TUPLE([Types.INT(), Types.STRING()])) \
             .add_sink(self.test_sink)
         self.env.execute('test_reducing_state')
+        result = self.test_sink.get_results()
+        expected_result = ['(1,hi)', '(2,hello)', '(4,hi)', '(6,hello)', '(9,hi)', '(12,hello)']
+        result.sort()
+        expected_result.sort()
+        self.assertEqual(expected_result, result)
+
+    def test_aggregating_state(self):
+        self.env.set_parallelism(2)
+        data_stream = self.env.from_collection([
+            (1, 'hi'), (2, 'hello'), (3, 'hi'), (4, 'hello'), (5, 'hi'), (6, 'hello')],
+            type_info=Types.TUPLE([Types.INT(), Types.STRING()]))
+
+        class MyAggregateFunction(AggregateFunction):
+
+            def create_accumulator(self):
+                return 0
+
+            def add(self, value, accumulator):
+                return value + accumulator
+
+            def get_result(self, accumulator):
+                return accumulator
+
+            def merge(self, acc_a, acc_b):
+                return acc_a + acc_b
+
+        class MyProcessFunction(KeyedProcessFunction):
+
+            def __init__(self):
+                self.aggregating_state = None  # type: AggregatingState
+
+            def open(self, runtime_context: RuntimeContext):
+                self.aggregating_state = runtime_context.get_aggregating_state(
+                    AggregatingStateDescriptor(
+                        'aggregating_state', MyAggregateFunction(), Types.INT()))
+
+            def process_element(self, value, ctx):
+                self.aggregating_state.add(value[0])
+                yield Row(self.aggregating_state.get(), value[1])
+
+        data_stream.key_by(lambda x: x[1], key_type_info=Types.STRING()) \
+            .process(MyProcessFunction(), output_type=Types.TUPLE([Types.INT(), Types.STRING()])) \
+            .add_sink(self.test_sink)
+        self.env.execute('test_aggregating_state')
         result = self.test_sink.get_results()
         expected_result = ['(1,hi)', '(2,hello)', '(4,hi)', '(6,hello)', '(9,hi)', '(12,hello)']
         result.sort()

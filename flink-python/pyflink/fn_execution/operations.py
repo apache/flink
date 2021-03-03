@@ -24,7 +24,8 @@ from typing import List, Tuple, Any, Dict
 from apache_beam.coders import PickleCoder
 
 from pyflink.datastream.state import ValueStateDescriptor, ValueState, ListStateDescriptor, \
-    ListState, MapStateDescriptor, MapState, ReducingStateDescriptor, ReducingState
+    ListState, MapStateDescriptor, MapState, ReducingStateDescriptor, ReducingState, \
+    AggregatingStateDescriptor, AggregatingState
 from pyflink.datastream import TimeDomain, TimerService
 from pyflink.datastream.functions import RuntimeContext, ProcessFunction, KeyedProcessFunction
 from pyflink.fn_execution import flink_fn_execution_pb2, operation_utils
@@ -460,6 +461,11 @@ class InternalRuntimeContext(RuntimeContext):
     def get_reducing_state(self, state_descriptor: ReducingStateDescriptor) -> ReducingState:
         return self._keyed_state_backend.get_reducing_state(
             state_descriptor.get_name(), PickleCoder(), state_descriptor.get_reduce_function())
+
+    def get_aggregating_state(
+            self, state_descriptor: AggregatingStateDescriptor) -> AggregatingState:
+        return self._keyed_state_backend.get_aggregating_state(
+            state_descriptor.get_name(), PickleCoder(), state_descriptor.get_agg_function())
 
 
 class ProcessFunctionOperation(DataStreamStatelessFunctionOperation):
