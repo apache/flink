@@ -18,15 +18,9 @@
 
 package org.apache.flink.yarn.security;
 
-import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.configuration.ConfigUtils;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.FlinkRuntimeException;
-import org.apache.flink.util.function.FunctionUtils;
-import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.Master;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -34,10 +28,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /** Delegation token provider implementation for Hadoop FileSystems. */
 public class HadoopFSDelegationTokenProvider implements HadoopDelegationTokenProvider {
@@ -45,26 +37,30 @@ public class HadoopFSDelegationTokenProvider implements HadoopDelegationTokenPro
     private static final Logger LOG =
             LoggerFactory.getLogger(HadoopFSDelegationTokenProvider.class);
 
+    private final HadoopDelegationTokenConfiguration hadoopDelegationTokenConf;
+
+    public HadoopFSDelegationTokenProvider(
+            HadoopDelegationTokenConfiguration hadoopDelegationTokenConf) {
+        this.hadoopDelegationTokenConf = hadoopDelegationTokenConf;
+    }
+
     @Override
     public String serviceName() {
         return "hadoopfs";
     }
 
     @Override
-    public boolean delegationTokensRequired(
-            Configuration flinkConf, org.apache.hadoop.conf.Configuration hadoopConf) {
+    public boolean delegationTokensRequired() {
         return UserGroupInformation.isSecurityEnabled();
     }
 
     @Override
-    public Optional<Long> obtainDelegationTokens(
-            Configuration flinkConf,
-            org.apache.hadoop.conf.Configuration hadoopConf,
-            Credentials credentials) {
+    public Optional<Long> obtainDelegationTokens(Credentials credentials) {
         try {
-            Set<FileSystem> fileSystemsToAccess = getFileSystemsToAccess(flinkConf, hadoopConf);
+            Set<FileSystem> fileSystemsToAccess =
+                    hadoopDelegationTokenConf.getFileSystemsToAccess();
 
-            final String renewer = getTokenRenewer(hadoopConf);
+            final String renewer = getTokenRenewer(hadoopDelegationTokenConf.getHadoopConf());
             fileSystemsToAccess.forEach(
                     fs -> {
                         try {
@@ -79,27 +75,6 @@ public class HadoopFSDelegationTokenProvider implements HadoopDelegationTokenPro
         }
         // Flink does not support to renew the delegation token currently
         return Optional.empty();
-    }
-
-    @VisibleForTesting
-    Set<FileSystem> getFileSystemsToAccess(
-            Configuration flinkConf, org.apache.hadoop.conf.Configuration hadoopConf)
-            throws IOException {
-        Set<FileSystem> fileSystemsToAccess = new HashSet<>();
-        // add default FS
-        fileSystemsToAccess.add(FileSystem.get(hadoopConf));
-
-        // add additional FSs
-        Set<FileSystem> additionalFileSystems =
-                ConfigUtils.decodeListFromConfig(
-                                flinkConf, YarnConfigOptions.YARN_ACCESS, Path::new)
-                        .stream()
-                        .map(
-                                FunctionUtils.uncheckedFunction(
-                                        path -> path.getFileSystem(hadoopConf)))
-                        .collect(Collectors.toSet());
-        fileSystemsToAccess.addAll(additionalFileSystems);
-        return fileSystemsToAccess;
     }
 
     private String getTokenRenewer(org.apache.hadoop.conf.Configuration hadoopConf) {

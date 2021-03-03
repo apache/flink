@@ -19,7 +19,6 @@
 package org.apache.flink.yarn.security;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.configuration.Configuration;
 
 import org.apache.hadoop.security.Credentials;
 import org.slf4j.Logger;
@@ -28,7 +27,9 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.ServiceLoader;
+import java.util.stream.Collectors;
 
 /**
  * HadoopDelegationTokenManager is responsible for managing delegation tokens. It can be used to
@@ -37,14 +38,12 @@ import java.util.ServiceLoader;
 public class HadoopDelegationTokenManager {
     private static final Logger LOG = LoggerFactory.getLogger(HadoopDelegationTokenManager.class);
 
-    private final Configuration flinkConf;
-    private final org.apache.hadoop.conf.Configuration hadoopConf;
+    private final HadoopDelegationTokenConfiguration hadoopDelegationTokenConf;
     private final List<HadoopDelegationTokenProvider> delegationTokenProviders;
 
     public HadoopDelegationTokenManager(
-            Configuration flinkConf, org.apache.hadoop.conf.Configuration hadoopConf) {
-        this.flinkConf = flinkConf;
-        this.hadoopConf = hadoopConf;
+            HadoopDelegationTokenConfiguration hadoopDelegationTokenConf) {
+        this.hadoopDelegationTokenConf = hadoopDelegationTokenConf;
         delegationTokenProviders = loadProviders();
     }
 
@@ -57,8 +56,8 @@ public class HadoopDelegationTokenManager {
     public void obtainDelegationTokens(Credentials credentials) {
         delegationTokenProviders.forEach(
                 provider -> {
-                    if (provider.delegationTokensRequired(flinkConf, hadoopConf)) {
-                        provider.obtainDelegationTokens(flinkConf, hadoopConf, credentials);
+                    if (provider.delegationTokensRequired()) {
+                        provider.obtainDelegationTokens(credentials);
                     } else {
                         LOG.info(
                                 "Service {} does not need to require a token,",
@@ -68,20 +67,24 @@ public class HadoopDelegationTokenManager {
     }
 
     private List<HadoopDelegationTokenProvider> loadProviders() {
-        ServiceLoader<HadoopDelegationTokenProvider> serviceLoader =
-                ServiceLoader.load(HadoopDelegationTokenProvider.class);
+        ServiceLoader<HadoopDelegationTokenProviderFactory> serviceLoader =
+                ServiceLoader.load(HadoopDelegationTokenProviderFactory.class);
 
-        List<HadoopDelegationTokenProvider> providers = new ArrayList<>();
+        List<HadoopDelegationTokenProviderFactory> providerFactories = new ArrayList<>();
 
-        Iterator<HadoopDelegationTokenProvider> iterator = serviceLoader.iterator();
+        Iterator<HadoopDelegationTokenProviderFactory> iterator = serviceLoader.iterator();
         while (iterator.hasNext()) {
             try {
-                providers.add(iterator.next());
+                providerFactories.add(iterator.next());
             } catch (Throwable t) {
-                LOG.debug("Failed to load hadoop delegation provider.", t);
+                LOG.debug("Failed to load hadoop delegation provider factory.", t);
             }
         }
-        return providers;
+
+        return providerFactories.stream()
+                .map(factory -> factory.createProvider(hadoopDelegationTokenConf))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
     }
 
     @VisibleForTesting

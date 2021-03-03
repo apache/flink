@@ -18,8 +18,9 @@
 
 package org.apache.flink.yarn.security;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.Preconditions;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
@@ -36,7 +37,14 @@ public class HBaseDelegationTokenProvider implements HadoopDelegationTokenProvid
 
     private static final Logger LOG = LoggerFactory.getLogger(HBaseDelegationTokenProvider.class);
 
-    private org.apache.hadoop.conf.Configuration hbaseConf;
+    private final Configuration hadoopConf;
+
+    private Configuration hbaseConf;
+
+    public HBaseDelegationTokenProvider(Configuration hadoopConf) {
+        this.hadoopConf = hadoopConf;
+        this.hbaseConf = null;
+    }
 
     @Override
     public String serviceName() {
@@ -44,8 +52,7 @@ public class HBaseDelegationTokenProvider implements HadoopDelegationTokenProvid
     }
 
     @Override
-    public boolean delegationTokensRequired(
-            Configuration flinkConf, org.apache.hadoop.conf.Configuration hadoopConf) {
+    public boolean delegationTokensRequired() {
         if (UserGroupInformation.isSecurityEnabled()) {
             hbaseConf = createHBaseConfiguration(hadoopConf);
             if (hbaseConf != null) {
@@ -64,12 +71,11 @@ public class HBaseDelegationTokenProvider implements HadoopDelegationTokenProvid
         return false;
     }
 
-    private org.apache.hadoop.conf.Configuration createHBaseConfiguration(
-            org.apache.hadoop.conf.Configuration conf) {
+    private Configuration createHBaseConfiguration(Configuration conf) {
         try {
             // ----
             // Intended call: HBaseConfiguration.create(conf);
-            return (org.apache.hadoop.conf.Configuration)
+            return (Configuration)
                     Class.forName("org.apache.hadoop.hbase.HBaseConfiguration")
                             .getMethod("create", org.apache.hadoop.conf.Configuration.class)
                             .invoke(null, conf);
@@ -88,12 +94,10 @@ public class HBaseDelegationTokenProvider implements HadoopDelegationTokenProvid
     }
 
     @Override
-    public Optional<Long> obtainDelegationTokens(
-            Configuration flinkConf,
-            org.apache.hadoop.conf.Configuration hadoopConf,
-            Credentials credentials) {
+    public Optional<Long> obtainDelegationTokens(Credentials credentials) {
         Token<?> token;
         try {
+            Preconditions.checkNotNull(hbaseConf);
             try {
                 LOG.info("Obtaining Kerberos security token for HBase");
                 // ----

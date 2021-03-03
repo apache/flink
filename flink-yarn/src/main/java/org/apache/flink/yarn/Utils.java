@@ -28,6 +28,7 @@ import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.configuration.YarnResourceManagerDriverConfiguration;
+import org.apache.flink.yarn.security.HadoopDelegationTokenConfiguration;
 import org.apache.flink.yarn.security.HadoopDelegationTokenManager;
 
 import org.apache.hadoop.conf.Configuration;
@@ -202,8 +203,10 @@ public final class Utils {
         Credentials credentials = new Credentials();
 
         // obtain tokens from HadoopDelegationTokenProviders
+        HadoopDelegationTokenConfiguration hadoopDelegationTokenConf =
+                new HadoopDelegationTokenConfiguration(flinkConf, hadoopConf);
         HadoopDelegationTokenManager delegationTokenManager =
-                new HadoopDelegationTokenManager(flinkConf, hadoopConf);
+                new HadoopDelegationTokenManager(hadoopDelegationTokenConf);
         delegationTokenManager.obtainDelegationTokens(credentials);
 
         // for user

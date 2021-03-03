@@ -48,13 +48,17 @@ public class HadoopFSDelegationTokenProviderTest {
 
     @Test
     public void testShouldReturnFalseWhenSecurityIsNotEnabled() {
-        HadoopFSDelegationTokenProvider provider = new HadoopFSDelegationTokenProvider();
 
         final Configuration hadoopConf = new Configuration();
         assumeTrue("simple".equals(hadoopConf.get(HADOOP_SECURITY_AUTHENTICATION)));
+
+        HadoopDelegationTokenConfiguration securityConf =
+                new HadoopDelegationTokenConfiguration(flinkConf, hadoopConf);
+        HadoopFSDelegationTokenProvider provider =
+                new HadoopFSDelegationTokenProvider(securityConf);
         assertFalse(
                 "Hadoop FS delegation tokens are not required when authentication is simple",
-                provider.delegationTokensRequired(flinkConf, hadoopConf));
+                provider.delegationTokensRequired());
     }
 
     @Test
@@ -70,10 +74,13 @@ public class HadoopFSDelegationTokenProviderTest {
         hadoopConf.set(HADOOP_SECURITY_AUTHENTICATION, "kerberos");
         try {
             UserGroupInformation.setConfiguration(hadoopConf);
-            HadoopFSDelegationTokenProvider provider = new HadoopFSDelegationTokenProvider();
+            HadoopDelegationTokenConfiguration securityConf =
+                    new HadoopDelegationTokenConfiguration(flinkConf, hadoopConf);
+            HadoopFSDelegationTokenProvider provider =
+                    new HadoopFSDelegationTokenProvider(securityConf);
             assertTrue(
                     "Hadoop FS delegation tokens are required when authentication is not simple",
-                    provider.delegationTokensRequired(flinkConf, hadoopConf));
+                    provider.delegationTokensRequired());
         } finally {
             System.clearProperty("java.security.krb5.kdc");
             System.clearProperty("java.security.krb5.realm");
@@ -86,7 +93,6 @@ public class HadoopFSDelegationTokenProviderTest {
 
     @Test
     public void testGetFileSystemsToAccess() throws IOException {
-        HadoopFSDelegationTokenProvider provider = new HadoopFSDelegationTokenProvider();
         final org.apache.flink.configuration.Configuration flinkConf =
                 new org.apache.flink.configuration.Configuration();
         final Configuration hadoopConf = new Configuration();
@@ -102,7 +108,9 @@ public class HadoopFSDelegationTokenProviderTest {
         expected.add(new Path(defaultFSs).getFileSystem(hadoopConf));
         expected.add(new Path(additionalFs).getFileSystem(hadoopConf));
 
-        Set<FileSystem> fileSystems = provider.getFileSystemsToAccess(flinkConf, hadoopConf);
+        HadoopDelegationTokenConfiguration securityConf =
+                new HadoopDelegationTokenConfiguration(flinkConf, hadoopConf);
+        Set<FileSystem> fileSystems = securityConf.getFileSystemsToAccess();
 
         assertThat(fileSystems, is(expected));
     }

@@ -33,11 +33,14 @@ public class HadoopDelegationTokenManagerTest {
 
     private final Configuration hadoopConf = new Configuration();
 
+    private final HadoopDelegationTokenConfiguration hadoopDelegationTokenConf =
+            new HadoopDelegationTokenConfiguration(flinkConf, hadoopConf);
+
     @Test
     public void testProvidersLoadedNormally() {
 
         HadoopDelegationTokenManager manager =
-                new HadoopDelegationTokenManager(flinkConf, hadoopConf);
+                new HadoopDelegationTokenManager(hadoopDelegationTokenConf);
 
         // built-in providers:
         assertTrue(manager.isProviderLoaded("hadoopfs"));
@@ -47,7 +50,7 @@ public class HadoopDelegationTokenManagerTest {
     @Test
     public void testObtainDelegationTokens() {
         HadoopDelegationTokenManager manager =
-                new HadoopDelegationTokenManager(flinkConf, hadoopConf);
+                new HadoopDelegationTokenManager(hadoopDelegationTokenConf);
 
         Credentials credentials = new Credentials();
         manager.obtainDelegationTokens(credentials);

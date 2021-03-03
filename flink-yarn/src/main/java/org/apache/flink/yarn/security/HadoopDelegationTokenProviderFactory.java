@@ -18,29 +18,12 @@
 
 package org.apache.flink.yarn.security;
 
-import org.apache.hadoop.security.Credentials;
-
-import java.util.Optional;
-
-/** Hadoop delegation token provider. */
-public interface HadoopDelegationTokenProvider {
-
-    /** Name of the service to provide delegation tokens. This name should be unique. */
-    String serviceName();
+/** A factory for a {@link HadoopDelegationTokenProvider}. */
+public interface HadoopDelegationTokenProviderFactory {
 
     /**
-     * Return true if delegation tokens are required for this service.
-     *
-     * @return true if delegation tokens are required
+     * Creates and returns a {@link HadoopDelegationTokenProvider}. This can return @{code null} if
+     * this factory fails to create the provider.
      */
-    boolean delegationTokensRequired();
-
-    /**
-     * Obtain delegation tokens for this service.
-     *
-     * @param credentials Credentials to add tokens and security keys to.
-     * @return If the returned tokens are renewable and can be renewed, return the time of the next
-     *     renewal, otherwise Optional.EMPTY should be returned.
-     */
-    Optional<Long> obtainDelegationTokens(Credentials credentials);
+    HadoopDelegationTokenProvider createProvider(HadoopDelegationTokenConfiguration conf);
 }
