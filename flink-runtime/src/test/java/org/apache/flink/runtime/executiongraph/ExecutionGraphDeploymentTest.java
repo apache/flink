@@ -38,9 +38,9 @@ import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGate
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -607,7 +607,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
                 new RpcTaskManagerGateway(taskExecutorGateway, JobMasterId.generate());
 
         final JobGraph jobGraph = new JobGraph(jobId, "Test Job", sourceVertex, sinkVertex);
-        jobGraph.setScheduleMode(ScheduleMode.EAGER);
+        jobGraph.setJobType(JobType.STREAMING);
 
         final TestingPhysicalSlotProvider physicalSlotProvider =
                 TestingPhysicalSlotProvider.createWithoutImmediatePhysicalSlotCreation();

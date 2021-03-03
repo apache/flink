@@ -29,8 +29,8 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmanager.Tasks.AgnosticBinaryReceiver;
 import org.apache.flink.runtime.jobmanager.Tasks.AgnosticReceiver;
 import org.apache.flink.runtime.jobmanager.Tasks.AgnosticTertiaryReceiver;
@@ -108,36 +108,21 @@ public class MiniClusterITCase extends TestLogger {
     @Test
     public void testHandleStreamingJobsWhenNotEnoughSlot() throws Exception {
         try {
-            setupAndRunHandleJobsWhenNotEnoughSlots(ScheduleMode.EAGER);
+            final JobVertex vertex = new JobVertex("Test Vertex");
+            vertex.setParallelism(2);
+            vertex.setMaxParallelism(2);
+            vertex.setInvokableClass(BlockingNoOpInvokable.class);
+
+            final JobGraph jobGraph = new JobGraph("Test Job", vertex);
+            jobGraph.setJobType(JobType.STREAMING);
+
+            runHandleJobsWhenNotEnoughSlots(jobGraph);
+
             fail("Job should fail.");
         } catch (JobExecutionException e) {
             assertTrue(findThrowableWithMessage(e, "Job execution failed.").isPresent());
             assertTrue(findThrowable(e, NoResourceAvailableException.class).isPresent());
         }
-    }
-
-    @Test
-    public void testHandleBatchJobsWhenNotEnoughSlot() throws Exception {
-        try {
-            setupAndRunHandleJobsWhenNotEnoughSlots(ScheduleMode.LAZY_FROM_SOURCES);
-            fail("Job should fail.");
-        } catch (JobExecutionException e) {
-            assertTrue(findThrowableWithMessage(e, "Job execution failed.").isPresent());
-            assertTrue(findThrowable(e, NoResourceAvailableException.class).isPresent());
-        }
-    }
-
-    private void setupAndRunHandleJobsWhenNotEnoughSlots(ScheduleMode scheduleMode)
-            throws Exception {
-        final JobVertex vertex = new JobVertex("Test Vertex");
-        vertex.setParallelism(2);
-        vertex.setMaxParallelism(2);
-        vertex.setInvokableClass(BlockingNoOpInvokable.class);
-
-        final JobGraph jobGraph = new JobGraph("Test Job", vertex);
-        jobGraph.setScheduleMode(scheduleMode);
-
-        runHandleJobsWhenNotEnoughSlots(jobGraph);
     }
 
     private void runHandleJobsWhenNotEnoughSlots(final JobGraph jobGraph) throws Exception {
@@ -339,7 +324,7 @@ public class MiniClusterITCase extends TestLogger {
 
             final JobGraph jobGraph = new JobGraph("Forwarding Job", sender, forwarder, receiver);
 
-            jobGraph.setScheduleMode(ScheduleMode.EAGER);
+            jobGraph.setJobType(JobType.STREAMING);
 
             miniCluster.executeJobBlocking(jobGraph);
         }
@@ -717,7 +702,7 @@ public class MiniClusterITCase extends TestLogger {
         task.setInvokableClass(NoOpInvokable.class);
 
         final JobGraph jg = new JobGraph(new JobID(), "Test Job", task);
-        jg.setScheduleMode(ScheduleMode.EAGER);
+        jg.setJobType(JobType.STREAMING);
 
         final ExecutionConfig executionConfig = new ExecutionConfig();
         executionConfig.setRestartStrategy(

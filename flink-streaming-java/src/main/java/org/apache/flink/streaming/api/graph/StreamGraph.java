@@ -38,7 +38,6 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
@@ -95,8 +94,6 @@ public class StreamGraph implements Pipeline {
     private final ExecutionConfig executionConfig;
     private final CheckpointConfig checkpointConfig;
     private SavepointRestoreSettings savepointRestoreSettings = SavepointRestoreSettings.none();
-
-    private ScheduleMode scheduleMode;
 
     private boolean chaining;
 
@@ -208,14 +205,6 @@ public class StreamGraph implements Pipeline {
 
     public void setTimerServiceProvider(InternalTimeServiceManager.Provider timerServiceProvider) {
         this.timerServiceProvider = checkNotNull(timerServiceProvider);
-    }
-
-    public ScheduleMode getScheduleMode() {
-        return scheduleMode;
-    }
-
-    public void setScheduleMode(ScheduleMode scheduleMode) {
-        this.scheduleMode = scheduleMode;
     }
 
     public Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> getUserArtifacts() {

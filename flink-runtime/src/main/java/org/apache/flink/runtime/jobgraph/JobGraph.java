@@ -80,9 +80,6 @@ public class JobGraph implements Serializable {
     /** Name of this job. */
     private final String jobName;
 
-    /** The mode in which the job is scheduled. */
-    private ScheduleMode scheduleMode = ScheduleMode.LAZY_FROM_SOURCES;
-
     private JobType jobType = JobType.BATCH;
 
     /**
@@ -231,14 +228,6 @@ public class JobGraph implements Serializable {
      */
     public SerializedValue<ExecutionConfig> getSerializedExecutionConfig() {
         return serializedExecutionConfig;
-    }
-
-    public void setScheduleMode(ScheduleMode scheduleMode) {
-        this.scheduleMode = scheduleMode;
-    }
-
-    public ScheduleMode getScheduleMode() {
-        return scheduleMode;
     }
 
     public void setJobType(JobType type) {

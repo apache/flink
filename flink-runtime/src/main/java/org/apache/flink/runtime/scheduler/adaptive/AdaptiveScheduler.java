@@ -67,7 +67,6 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTrackerDeploymentListenerAdapter;
@@ -276,10 +275,6 @@ public class AdaptiveScheduler
         Preconditions.checkState(
                 jobGraph.getJobType() == JobType.STREAMING,
                 "The adaptive scheduler only supports streaming jobs.");
-        Preconditions.checkState(
-                jobGraph.getScheduleMode()
-                        != ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST,
-                "The adaptive schedules does not support batch slot requests.");
 
         for (JobVertex vertex : jobGraph.getVertices()) {
             for (JobEdge jobEdge : vertex.getInputs()) {
