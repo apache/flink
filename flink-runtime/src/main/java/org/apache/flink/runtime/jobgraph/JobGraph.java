@@ -32,6 +32,8 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.SerializedValue;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URISyntaxException;
@@ -134,7 +136,7 @@ public class JobGraph implements Serializable {
      * @param jobId The id of the job. A random ID is generated, if {@code null} is passed.
      * @param jobName The name of the job.
      */
-    public JobGraph(JobID jobId, String jobName) {
+    public JobGraph(@Nullable JobID jobId, String jobName) {
         this.jobID = jobId == null ? new JobID() : jobId;
         this.jobName = jobName == null ? "(unnamed job)" : jobName;
 
@@ -178,7 +180,7 @@ public class JobGraph implements Serializable {
      * @param jobName The name of the job.
      * @param vertices The vertices to add to the graph.
      */
-    public JobGraph(JobID jobId, String jobName, JobVertex... vertices) {
+    public JobGraph(@Nullable JobID jobId, String jobName, JobVertex... vertices) {
         this(jobId, jobName);
 
         for (JobVertex vertex : vertices) {
