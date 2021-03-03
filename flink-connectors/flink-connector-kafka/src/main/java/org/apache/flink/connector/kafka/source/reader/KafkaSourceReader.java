@@ -75,9 +75,11 @@ public class KafkaSourceReader<T>
     protected void onSplitFinished(Map<String, KafkaPartitionSplitState> finishedSplitIds) {
         finishedSplitIds.forEach(
                 (ignored, splitState) -> {
-                    offsetsOfFinishedSplits.put(
-                            splitState.getTopicPartition(),
-                            new OffsetAndMetadata(splitState.getCurrentOffset()));
+                    if (splitState.getCurrentOffset() >= 0) {
+                        offsetsOfFinishedSplits.put(
+                                splitState.getTopicPartition(),
+                                new OffsetAndMetadata(splitState.getCurrentOffset()));
+                    }
                 });
     }
 
@@ -91,9 +93,13 @@ public class KafkaSourceReader<T>
                     offsetsToCommit.computeIfAbsent(checkpointId, id -> new HashMap<>());
             // Put the offsets of the active splits.
             for (KafkaPartitionSplit split : splits) {
-                offsetsMap.put(
-                        split.getTopicPartition(),
-                        new OffsetAndMetadata(split.getStartingOffset(), null));
+                // If the checkpoint is triggered before the partition starting offsets
+                // is retrieved, do not commit the offsets for those partitions.
+                if (split.getStartingOffset() >= 0) {
+                    offsetsMap.put(
+                            split.getTopicPartition(),
+                            new OffsetAndMetadata(split.getStartingOffset()));
+                }
             }
             // Put offsets of all the finished splits.
             offsetsMap.putAll(offsetsOfFinishedSplits);

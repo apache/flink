@@ -207,6 +207,20 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
         }
     }
 
+    @Test
+    public void testNotCommitOffsetsForUninitializedSplits() throws Exception {
+        final long checkpointId = 1234L;
+        try (KafkaSourceReader<Integer> reader = (KafkaSourceReader<Integer>) createReader()) {
+            KafkaPartitionSplit split =
+                    new KafkaPartitionSplit(
+                            new TopicPartition(TOPIC, 0), KafkaPartitionSplit.EARLIEST_OFFSET);
+            reader.addSplits(Collections.singletonList(split));
+            reader.snapshotState(checkpointId);
+            assertEquals(1, reader.getOffsetsToCommit().size());
+            assertTrue(reader.getOffsetsToCommit().get(checkpointId).isEmpty());
+        }
+    }
+
     // ------------------------------------------
 
     @Override
