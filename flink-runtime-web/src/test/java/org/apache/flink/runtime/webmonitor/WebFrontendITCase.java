@@ -29,6 +29,7 @@ import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -278,7 +279,11 @@ public class WebFrontendITCase extends TestLogger {
         sender.setParallelism(2);
         sender.setInvokableClass(BlockingInvokable.class);
 
-        final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(sender);
+        final JobGraph jobGraph =
+                JobGraphBuilder.newStreamingJobGraphBuilder()
+                        .setJobName("Stoppable streaming test job")
+                        .addJobVertex(sender)
+                        .build();
         final JobID jid = jobGraph.getJobID();
 
         ClusterClient<?> clusterClient = CLUSTER.getClusterClient();

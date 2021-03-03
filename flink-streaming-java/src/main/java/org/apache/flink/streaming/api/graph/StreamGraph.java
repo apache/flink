@@ -67,6 +67,7 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -97,7 +98,8 @@ public class StreamGraph implements Pipeline {
 
     private boolean chaining;
 
-    private Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> userArtifacts;
+    private Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> userArtifacts =
+            Collections.emptyList();
 
     private TimeCharacteristic timeCharacteristic;
 
@@ -213,7 +215,7 @@ public class StreamGraph implements Pipeline {
 
     public void setUserArtifacts(
             Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> userArtifacts) {
-        this.userArtifacts = userArtifacts;
+        this.userArtifacts = checkNotNull(userArtifacts);
     }
 
     public TimeCharacteristic getTimeCharacteristic() {

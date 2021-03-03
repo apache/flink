@@ -41,6 +41,7 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
@@ -343,7 +344,6 @@ public class DispatcherTest extends TestLogger {
 
         JobGraph jobGraphWithTwoVertices =
                 JobGraphTestUtils.streamingJobGraph(firstVertex, secondVertex);
-        new JobGraph(jobId, "twoVerticesJob", firstVertex, secondVertex);
 
         dispatcher =
                 createAndStartDispatcher(
@@ -494,8 +494,12 @@ public class DispatcherTest extends TestLogger {
         final FailingInitializationJobVertex failingInitializationJobVertex =
                 new FailingInitializationJobVertex("testVertex");
         failingInitializationJobVertex.setInvokableClass(NoOpInvokable.class);
-        JobGraph blockingJobGraph =
-                new JobGraph(jobId, "failingTestJob", failingInitializationJobVertex);
+
+        final JobGraph blockingJobGraph =
+                JobGraphBuilder.newStreamingJobGraphBuilder()
+                        .setJobId(jobId)
+                        .addJobVertex(failingInitializationJobVertex)
+                        .build();
 
         dispatcherGateway.submitJob(blockingJobGraph, TIMEOUT).get();
 
@@ -992,13 +996,20 @@ public class DispatcherTest extends TestLogger {
         final BlockingJobVertex blockingJobVertex = new BlockingJobVertex("testVertex");
         blockingJobVertex.setInvokableClass(NoOpInvokable.class);
         return Tuple2.of(
-                new JobGraph(jobId, "blockingTestJob", blockingJobVertex), blockingJobVertex);
+                JobGraphBuilder.newStreamingJobGraphBuilder()
+                        .setJobId(jobId)
+                        .addJobVertex(blockingJobVertex)
+                        .build(),
+                blockingJobVertex);
     }
 
     private JobGraph createFailingJobGraph(Exception failureCause) {
         final FailingJobVertex jobVertex = new FailingJobVertex("Failing JobVertex", failureCause);
         jobVertex.setInvokableClass(NoOpInvokable.class);
-        return new JobGraph(jobGraph.getJobID(), "Failing JobGraph", jobVertex);
+        return JobGraphBuilder.newStreamingJobGraphBuilder()
+                .setJobId(jobGraph.getJobID())
+                .addJobVertex(jobVertex)
+                .build();
     }
 
     private static class FailingJobVertex extends JobVertex {

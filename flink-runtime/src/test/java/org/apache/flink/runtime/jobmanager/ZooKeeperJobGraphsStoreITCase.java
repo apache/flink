@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmanager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.dispatcher.NoOpJobGraphListener;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.JobGraphStore.JobGraphListener;
@@ -338,14 +339,14 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
     }
 
     private JobGraph createJobGraph(JobID jobId, String jobName) {
-        final JobGraph jobGraph = new JobGraph(jobId, jobName);
-
         final JobVertex jobVertex = new JobVertex("Test JobVertex");
         jobVertex.setParallelism(1);
 
-        jobGraph.addVertex(jobVertex);
-
-        return jobGraph;
+        return JobGraphBuilder.newStreamingJobGraphBuilder()
+                .setJobName(jobName)
+                .setJobId(jobId)
+                .addJobVertex(jobVertex)
+                .build();
     }
 
     private void verifyJobGraphs(JobGraph expected, JobGraph actual) {

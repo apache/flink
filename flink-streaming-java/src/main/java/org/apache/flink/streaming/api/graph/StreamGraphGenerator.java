@@ -150,7 +150,8 @@ public class StreamGraphGenerator {
 
     private boolean chaining = true;
 
-    private Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> userArtifacts;
+    private Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> userArtifacts =
+            Collections.emptyList();
 
     private TimeCharacteristic timeCharacteristic = DEFAULT_TIME_CHARACTERISTIC;
 
@@ -252,7 +253,7 @@ public class StreamGraphGenerator {
 
     public StreamGraphGenerator setUserArtifacts(
             Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> userArtifacts) {
-        this.userArtifacts = userArtifacts;
+        this.userArtifacts = checkNotNull(userArtifacts);
         return this;
     }
 

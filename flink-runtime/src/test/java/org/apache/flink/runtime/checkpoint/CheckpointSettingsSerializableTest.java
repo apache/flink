@@ -27,6 +27,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.TestingDefaultExecutionGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
@@ -91,8 +92,10 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
                                 new CustomCheckpointStorage(outOfClassPath)),
                         serHooks);
 
-        final JobGraph jobGraph = new JobGraph(new JobID(), "test job");
-        jobGraph.setSnapshotSettings(checkpointingSettings);
+        final JobGraph jobGraph =
+                JobGraphBuilder.newStreamingJobGraphBuilder()
+                        .setJobCheckpointingSettings(checkpointingSettings)
+                        .build();
 
         // to serialize/deserialize the job graph to see if the behavior is correct under
         // distributed execution

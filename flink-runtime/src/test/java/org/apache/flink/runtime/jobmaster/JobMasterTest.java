@@ -66,8 +66,8 @@ import org.apache.flink.runtime.io.network.partition.TestingJobMasterPartitionTr
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
-import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -923,12 +923,14 @@ public class JobMasterTest extends TestLogger {
         source.setInputSplitSource(inputSplitSource);
         source.setInvokableClass(AbstractInvokable.class);
 
-        final JobGraph inputSplitJobGraph = new JobGraph(source);
-        inputSplitJobGraph.setJobType(JobType.STREAMING);
-
         final ExecutionConfig executionConfig = new ExecutionConfig();
         executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(100, 0));
-        inputSplitJobGraph.setExecutionConfig(executionConfig);
+
+        final JobGraph inputSplitJobGraph =
+                JobGraphBuilder.newStreamingJobGraphBuilder()
+                        .addJobVertex(source)
+                        .setExecutionConfig(executionConfig)
+                        .build();
 
         final JobMaster jobMaster =
                 new JobMasterBuilder(inputSplitJobGraph, rpcService)

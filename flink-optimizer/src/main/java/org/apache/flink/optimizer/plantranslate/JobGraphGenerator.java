@@ -30,7 +30,6 @@ import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.api.java.io.BlockingShuffleOutputFormat;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.AlgorithmOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -66,8 +65,8 @@ import org.apache.flink.runtime.jobgraph.InputOutputFormatVertex;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraphUtils;
-import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
@@ -245,30 +244,33 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 
         // ----------- finalize the job graph -----------
 
+        for (JobVertex vertex : this.auxVertices) {
+            vertex.setSlotSharingGroup(sharingGroup);
+        }
+
+        final Map<String, DistributedCache.DistributedCacheEntry> userArtifacts =
+                JobGraphUtils.prepareUserArtifactEntries(
+                        program.getOriginalPlan().getCachedFiles().stream()
+                                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)),
+                        jobId);
+
         // create the job graph object
-        JobGraph graph = new JobGraph(jobId, program.getJobName());
-        graph.setJobType(JobType.BATCH);
+        final JobGraph graph;
         try {
-            graph.setExecutionConfig(program.getOriginalPlan().getExecutionConfig());
+            graph =
+                    JobGraphBuilder.newBatchJobGraphBuilder()
+                            .setJobId(jobId)
+                            .setJobName(program.getJobName())
+                            .setExecutionConfig(program.getOriginalPlan().getExecutionConfig())
+                            .addJobVertices(vertices.values())
+                            .addJobVertices(auxVertices)
+                            .addUserArtifacts(userArtifacts)
+                            .build();
         } catch (IOException e) {
             throw new CompilerException(
                     "Could not serialize the ExecutionConfig."
                             + "This indicates that non-serializable types (like custom serializers) were registered");
         }
-
-        // add vertices to the graph
-        this.vertices.values().forEach(graph::addVertex);
-
-        for (JobVertex vertex : this.auxVertices) {
-            graph.addVertex(vertex);
-            vertex.setSlotSharingGroup(sharingGroup);
-        }
-
-        Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> userArtifacts =
-                program.getOriginalPlan().getCachedFiles().stream()
-                        .map(entry -> Tuple2.of(entry.getKey(), entry.getValue()))
-                        .collect(Collectors.toList());
-        JobGraphUtils.addUserArtifactEntries(userArtifacts, graph);
 
         // release all references again
         this.vertices = null;
