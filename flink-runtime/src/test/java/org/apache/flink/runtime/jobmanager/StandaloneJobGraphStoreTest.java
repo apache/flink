@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 
 import org.junit.Test;
 
@@ -33,7 +34,7 @@ public class StandaloneJobGraphStoreTest {
     public void testNoOps() {
         StandaloneJobGraphStore jobGraphs = new StandaloneJobGraphStore();
 
-        JobGraph jobGraph = new JobGraph("testNoOps");
+        JobGraph jobGraph = JobGraphTestUtils.emptyJobGraph();
 
         assertEquals(0, jobGraphs.getJobIds().size());
 

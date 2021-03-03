@@ -24,7 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerRunnerResult;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerRunner;
@@ -33,7 +33,6 @@ import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
-import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -49,7 +48,6 @@ import static org.junit.Assert.assertThat;
 public class DispatcherJobTest extends TestLogger {
 
     private static final Time TIMEOUT = Time.seconds(10L);
-    private static final JobID TEST_JOB_ID = new JobID();
 
     @Test
     public void testStatusWhenInitializing() throws Exception {
@@ -277,10 +275,7 @@ public class DispatcherJobTest extends TestLogger {
     }
 
     private TestContext createTestContext() {
-        final JobVertex testVertex = new JobVertex("testVertex");
-        testVertex.setInvokableClass(NoOpInvokable.class);
-
-        JobGraph jobGraph = new JobGraph(TEST_JOB_ID, "testJob", testVertex);
+        JobGraph jobGraph = JobGraphTestUtils.singleNoOpJobGraph();
         CompletableFuture<JobManagerRunner> jobManagerRunnerCompletableFuture =
                 new CompletableFuture<>();
         DispatcherJob dispatcherJob =

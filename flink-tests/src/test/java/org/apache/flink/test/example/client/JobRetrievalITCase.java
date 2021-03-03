@@ -27,6 +27,7 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
@@ -79,12 +80,11 @@ public class JobRetrievalITCase extends TestLogger {
 
     @Test
     public void testJobRetrieval() throws Exception {
-        final JobID jobID = new JobID();
-
         final JobVertex imalock = new JobVertex("imalock");
         imalock.setInvokableClass(SemaphoreInvokable.class);
 
-        final JobGraph jobGraph = new JobGraph(jobID, "testjob", imalock);
+        final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(imalock);
+        final JobID jobId = jobGraph.getJobID();
 
         // acquire the lock to make sure that the job cannot complete until the job client
         // has been attached in resumingThread
@@ -96,7 +96,7 @@ public class JobRetrievalITCase extends TestLogger {
                 new CheckedThread("Flink-Job-Retriever") {
                     @Override
                     public void go() throws Exception {
-                        assertNotNull(client.requestJobResult(jobID).get());
+                        assertNotNull(client.requestJobResult(jobId).get());
                     }
                 };
 

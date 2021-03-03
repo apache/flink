@@ -39,7 +39,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
-import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
@@ -121,120 +120,111 @@ public class DefaultExecutionGraphDeploymentTest extends TestLogger {
     }
 
     @Test
-    public void testBuildDeploymentDescriptor() {
-        try {
-            final JobID jobId = new JobID();
+    public void testBuildDeploymentDescriptor() throws Exception {
 
-            final JobVertexID jid1 = new JobVertexID();
-            final JobVertexID jid2 = new JobVertexID();
-            final JobVertexID jid3 = new JobVertexID();
-            final JobVertexID jid4 = new JobVertexID();
+        final JobVertexID jid1 = new JobVertexID();
+        final JobVertexID jid2 = new JobVertexID();
+        final JobVertexID jid3 = new JobVertexID();
+        final JobVertexID jid4 = new JobVertexID();
 
-            JobVertex v1 = new JobVertex("v1", jid1);
-            JobVertex v2 = new JobVertex("v2", jid2);
-            JobVertex v3 = new JobVertex("v3", jid3);
-            JobVertex v4 = new JobVertex("v4", jid4);
+        JobVertex v1 = new JobVertex("v1", jid1);
+        JobVertex v2 = new JobVertex("v2", jid2);
+        JobVertex v3 = new JobVertex("v3", jid3);
+        JobVertex v4 = new JobVertex("v4", jid4);
 
-            v1.setParallelism(10);
-            v2.setParallelism(10);
-            v3.setParallelism(10);
-            v4.setParallelism(10);
+        v1.setParallelism(10);
+        v2.setParallelism(10);
+        v3.setParallelism(10);
+        v4.setParallelism(10);
 
-            v1.setInvokableClass(BatchTask.class);
-            v2.setInvokableClass(BatchTask.class);
-            v3.setInvokableClass(BatchTask.class);
-            v4.setInvokableClass(BatchTask.class);
+        v1.setInvokableClass(BatchTask.class);
+        v2.setInvokableClass(BatchTask.class);
+        v3.setInvokableClass(BatchTask.class);
+        v4.setInvokableClass(BatchTask.class);
 
-            v2.connectNewDataSetAsInput(
-                    v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-            v3.connectNewDataSetAsInput(
-                    v2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-            v4.connectNewDataSetAsInput(
-                    v2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+        v2.connectNewDataSetAsInput(
+                v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+        v3.connectNewDataSetAsInput(
+                v2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+        v4.connectNewDataSetAsInput(
+                v2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 
-            DirectScheduledExecutorService executor = new DirectScheduledExecutorService();
-            DefaultExecutionGraph eg =
-                    TestingDefaultExecutionGraphBuilder.newBuilder()
-                            .setJobGraph(new JobGraph(jobId, "Test Job"))
-                            .setFutureExecutor(executor)
-                            .setIoExecutor(executor)
-                            .setBlobWriter(blobWriter)
-                            .build();
+        final JobGraph jobGraph = JobGraphTestUtils.batchJobGraph(v1, v2, v3, v4);
+        final JobID jobId = jobGraph.getJobID();
 
-            eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+        DirectScheduledExecutorService executor = new DirectScheduledExecutorService();
+        DefaultExecutionGraph eg =
+                TestingDefaultExecutionGraphBuilder.newBuilder()
+                        .setJobGraph(jobGraph)
+                        .setFutureExecutor(executor)
+                        .setIoExecutor(executor)
+                        .setBlobWriter(blobWriter)
+                        .build();
 
-            checkJobOffloaded(eg);
+        eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
-            List<JobVertex> ordered = Arrays.asList(v1, v2, v3, v4);
+        checkJobOffloaded(eg);
 
-            eg.attachJobGraph(ordered);
+        ExecutionJobVertex ejv = eg.getAllVertices().get(jid2);
+        ExecutionVertex vertex = ejv.getTaskVertices()[3];
 
-            ExecutionJobVertex ejv = eg.getAllVertices().get(jid2);
-            ExecutionVertex vertex = ejv.getTaskVertices()[3];
+        final SimpleAckingTaskManagerGateway taskManagerGateway =
+                new SimpleAckingTaskManagerGateway();
+        final CompletableFuture<TaskDeploymentDescriptor> tdd = new CompletableFuture<>();
 
-            final SimpleAckingTaskManagerGateway taskManagerGateway =
-                    new SimpleAckingTaskManagerGateway();
-            final CompletableFuture<TaskDeploymentDescriptor> tdd = new CompletableFuture<>();
+        taskManagerGateway.setSubmitConsumer(
+                FunctionUtils.uncheckedConsumer(
+                        taskDeploymentDescriptor -> {
+                            taskDeploymentDescriptor.loadBigData(blobCache);
+                            tdd.complete(taskDeploymentDescriptor);
+                        }));
 
-            taskManagerGateway.setSubmitConsumer(
-                    FunctionUtils.uncheckedConsumer(
-                            taskDeploymentDescriptor -> {
-                                taskDeploymentDescriptor.loadBigData(blobCache);
-                                tdd.complete(taskDeploymentDescriptor);
-                            }));
+        final LogicalSlot slot =
+                new TestingLogicalSlotBuilder()
+                        .setTaskManagerGateway(taskManagerGateway)
+                        .createTestingLogicalSlot();
 
-            final LogicalSlot slot =
-                    new TestingLogicalSlotBuilder()
-                            .setTaskManagerGateway(taskManagerGateway)
-                            .createTestingLogicalSlot();
+        assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
-            assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
+        vertex.getCurrentExecutionAttempt()
+                .registerProducedPartitions(slot.getTaskManagerLocation(), true)
+                .get();
+        vertex.deployToSlot(slot);
 
-            vertex.getCurrentExecutionAttempt()
-                    .registerProducedPartitions(slot.getTaskManagerLocation(), true)
-                    .get();
-            vertex.deployToSlot(slot);
+        assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
+        checkTaskOffloaded(eg, vertex.getJobvertexId());
 
-            assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
-            checkTaskOffloaded(eg, vertex.getJobvertexId());
+        TaskDeploymentDescriptor descr = tdd.get();
+        assertNotNull(descr);
 
-            TaskDeploymentDescriptor descr = tdd.get();
-            assertNotNull(descr);
+        JobInformation jobInformation =
+                descr.getSerializedJobInformation().deserializeValue(getClass().getClassLoader());
+        TaskInformation taskInformation =
+                descr.getSerializedTaskInformation().deserializeValue(getClass().getClassLoader());
 
-            JobInformation jobInformation =
-                    descr.getSerializedJobInformation()
-                            .deserializeValue(getClass().getClassLoader());
-            TaskInformation taskInformation =
-                    descr.getSerializedTaskInformation()
-                            .deserializeValue(getClass().getClassLoader());
+        assertEquals(jobId, descr.getJobId());
+        assertEquals(jobId, jobInformation.getJobId());
+        assertEquals(jid2, taskInformation.getJobVertexId());
+        assertEquals(3, descr.getSubtaskIndex());
+        assertEquals(10, taskInformation.getNumberOfSubtasks());
+        assertEquals(BatchTask.class.getName(), taskInformation.getInvokableClassName());
+        assertEquals("v2", taskInformation.getTaskName());
 
-            assertEquals(jobId, descr.getJobId());
-            assertEquals(jobId, jobInformation.getJobId());
-            assertEquals(jid2, taskInformation.getJobVertexId());
-            assertEquals(3, descr.getSubtaskIndex());
-            assertEquals(10, taskInformation.getNumberOfSubtasks());
-            assertEquals(BatchTask.class.getName(), taskInformation.getInvokableClassName());
-            assertEquals("v2", taskInformation.getTaskName());
+        Collection<ResultPartitionDeploymentDescriptor> producedPartitions =
+                descr.getProducedPartitions();
+        Collection<InputGateDeploymentDescriptor> consumedPartitions = descr.getInputGates();
 
-            Collection<ResultPartitionDeploymentDescriptor> producedPartitions =
-                    descr.getProducedPartitions();
-            Collection<InputGateDeploymentDescriptor> consumedPartitions = descr.getInputGates();
+        assertEquals(2, producedPartitions.size());
+        assertEquals(1, consumedPartitions.size());
 
-            assertEquals(2, producedPartitions.size());
-            assertEquals(1, consumedPartitions.size());
+        Iterator<ResultPartitionDeploymentDescriptor> iteratorProducedPartitions =
+                producedPartitions.iterator();
+        Iterator<InputGateDeploymentDescriptor> iteratorConsumedPartitions =
+                consumedPartitions.iterator();
 
-            Iterator<ResultPartitionDeploymentDescriptor> iteratorProducedPartitions =
-                    producedPartitions.iterator();
-            Iterator<InputGateDeploymentDescriptor> iteratorConsumedPartitions =
-                    consumedPartitions.iterator();
-
-            assertEquals(10, iteratorProducedPartitions.next().getNumberOfSubpartitions());
-            assertEquals(10, iteratorProducedPartitions.next().getNumberOfSubpartitions());
-            assertEquals(10, iteratorConsumedPartitions.next().getShuffleDescriptors().length);
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        assertEquals(10, iteratorProducedPartitions.next().getNumberOfSubpartitions());
+        assertEquals(10, iteratorProducedPartitions.next().getNumberOfSubpartitions());
+        assertEquals(10, iteratorConsumedPartitions.next().getShuffleDescriptors().length);
     }
 
     @Test
@@ -445,7 +435,6 @@ public class DefaultExecutionGraphDeploymentTest extends TestLogger {
      */
     @Test
     public void testNoResourceAvailableFailure() throws Exception {
-        final JobID jobId = new JobID();
         JobVertex v1 = new JobVertex("source");
         JobVertex v2 = new JobVertex("sink");
 
@@ -461,7 +450,7 @@ public class DefaultExecutionGraphDeploymentTest extends TestLogger {
         v2.connectNewDataSetAsInput(
                 v1, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
 
-        final JobGraph graph = new JobGraph(jobId, "Test Job", v1, v2);
+        final JobGraph graph = JobGraphTestUtils.batchJobGraph(v1, v2);
 
         DirectScheduledExecutorService directExecutor = new DirectScheduledExecutorService();
 
@@ -589,7 +578,6 @@ public class DefaultExecutionGraphDeploymentTest extends TestLogger {
         sinkVertex.connectNewDataSetAsInput(
                 sourceVertex, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
-        final JobID jobId = new JobID();
         final int numberTasks = sourceParallelism + sinkParallelism;
         final ArrayBlockingQueue<ExecutionAttemptID> submittedTasksQueue =
                 new ArrayBlockingQueue<>(numberTasks);
@@ -607,8 +595,7 @@ public class DefaultExecutionGraphDeploymentTest extends TestLogger {
         final RpcTaskManagerGateway taskManagerGateway =
                 new RpcTaskManagerGateway(taskExecutorGateway, JobMasterId.generate());
 
-        final JobGraph jobGraph = new JobGraph(jobId, "Test Job", sourceVertex, sinkVertex);
-        jobGraph.setJobType(JobType.STREAMING);
+        final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(sourceVertex, sinkVertex);
 
         final TestingPhysicalSlotProvider physicalSlotProvider =
                 TestingPhysicalSlotProvider.createWithoutImmediatePhysicalSlotCreation();
@@ -660,8 +647,7 @@ public class DefaultExecutionGraphDeploymentTest extends TestLogger {
     }
 
     private ExecutionGraph createExecutionGraph(Configuration configuration) throws Exception {
-        final JobID jobId = new JobID();
-        final JobGraph jobGraph = new JobGraph(jobId, "test");
+        final JobGraph jobGraph = JobGraphTestUtils.emptyJobGraph();
         jobGraph.setSnapshotSettings(
                 new JobCheckpointingSettings(
                         new CheckpointCoordinatorConfiguration(

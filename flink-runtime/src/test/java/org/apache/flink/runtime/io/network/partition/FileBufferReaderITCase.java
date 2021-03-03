@@ -29,6 +29,7 @@ import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
@@ -145,9 +146,7 @@ public class FileBufferReaderITCase extends TestLogger {
         sink.connectNewDataSetAsInput(
                 source, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
 
-        final JobGraph jobGraph = new JobGraph(source, sink);
-
-        return jobGraph;
+        return JobGraphTestUtils.batchJobGraph(source, sink);
     }
 
     /**

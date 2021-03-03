@@ -398,7 +398,7 @@ public class ExecutionGraphTestUtils {
     public static ExecutionJobVertex getExecutionJobVertex(
             JobVertex jobVertex, ScheduledExecutorService executor) throws Exception {
 
-        JobGraph jobGraph = new JobGraph(jobVertex);
+        JobGraph jobGraph = JobGraphTestUtils.batchJobGraph(jobVertex);
 
         SchedulerBase scheduler =
                 SchedulerTestingUtils.newSchedulerBuilder(
