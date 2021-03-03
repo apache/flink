@@ -17,18 +17,13 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
-
 import javax.annotation.concurrent.NotThreadSafe;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
-
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A repartitioner that assigns the same channel state to multiple subtasks according to some
@@ -40,21 +35,22 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @NotThreadSafe
 public class MappingBasedRepartitioner<T> implements OperatorStateRepartitioner<T> {
-    private final Map<Integer, Set<Integer>> newToOldSubtasksMapping;
+    private final RescaleMappings newToOldSubtasksMapping;
 
-    public MappingBasedRepartitioner(Map<Integer, Set<Integer>> newToOldSubtasksMapping) {
+    public MappingBasedRepartitioner(RescaleMappings newToOldSubtasksMapping) {
         this.newToOldSubtasksMapping = newToOldSubtasksMapping;
     }
 
     private static <T> List<T> extractOldState(
-            List<List<T>> previousParallelSubtaskStates, Set<Integer> oldIndexes) {
-        switch (oldIndexes.size()) {
+            List<List<T>> previousParallelSubtaskStates, int[] oldIndexes) {
+        switch (oldIndexes.length) {
             case 0:
                 return Collections.emptyList();
             case 1:
-                return previousParallelSubtaskStates.get(Iterables.getOnlyElement(oldIndexes));
+                return previousParallelSubtaskStates.get(oldIndexes[0]);
             default:
-                return oldIndexes.stream()
+                return Arrays.stream(oldIndexes)
+                        .boxed()
                         .flatMap(oldIndex -> previousParallelSubtaskStates.get(oldIndex).stream())
                         .collect(Collectors.toList());
         }
@@ -63,13 +59,12 @@ public class MappingBasedRepartitioner<T> implements OperatorStateRepartitioner<
     @Override
     public List<List<T>> repartitionState(
             List<List<T>> previousParallelSubtaskStates, int oldParallelism, int newParallelism) {
-        checkState(newParallelism == newToOldSubtasksMapping.size());
-
         List<List<T>> repartitioned = new ArrayList<>();
         for (int newIndex = 0; newIndex < newParallelism; newIndex++) {
             repartitioned.add(
                     extractOldState(
-                            previousParallelSubtaskStates, newToOldSubtasksMapping.get(newIndex)));
+                            previousParallelSubtaskStates,
+                            newToOldSubtasksMapping.getMappedIndexes(newIndex)));
         }
         return repartitioned;
     }

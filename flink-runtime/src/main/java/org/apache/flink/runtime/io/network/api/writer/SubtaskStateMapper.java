@@ -18,19 +18,12 @@
 package org.apache.flink.runtime.io.network.api.writer;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.checkpoint.RescaleMappings;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.runtime.util.IntArrayList;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
-
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
-import static java.util.Collections.emptySet;
-import static java.util.Collections.singleton;
 
 /**
  * The {@code SubtaskStateMapper} narrows down the subtasks that need to be read during rescaling to
@@ -53,7 +46,7 @@ public enum SubtaskStateMapper {
      */
     ARBITRARY {
         @Override
-        public Set<Integer> getOldSubtasks(
+        public int[] getOldSubtasks(
                 int newSubtaskIndex, int oldNumberOfSubtasks, int newNumberOfSubtasks) {
             // The current implementation uses round robin but that may be changed later.
             return ROUND_ROBIN.getOldSubtasks(
@@ -67,32 +60,37 @@ public enum SubtaskStateMapper {
      */
     DISCARD_EXTRA_STATE {
         @Override
-        public Set<Integer> getOldSubtasks(
+        public int[] getOldSubtasks(
                 int newSubtaskIndex, int oldNumberOfSubtasks, int newNumberOfSubtasks) {
-            return newSubtaskIndex >= oldNumberOfSubtasks ? emptySet() : singleton(newSubtaskIndex);
+            return newSubtaskIndex >= oldNumberOfSubtasks ? EMPTY : new int[] {newSubtaskIndex};
         }
     },
 
     /** Restores extra subtasks to the first subtask. */
     FIRST {
         @Override
-        public Set<Integer> getOldSubtasks(
+        public int[] getOldSubtasks(
                 int newSubtaskIndex, int oldNumberOfSubtasks, int newNumberOfSubtasks) {
-            return newSubtaskIndex == 0
-                    ? IntStream.range(0, oldNumberOfSubtasks).boxed().collect(Collectors.toSet())
-                    : emptySet();
+            return newSubtaskIndex == 0 ? IntStream.range(0, oldNumberOfSubtasks).toArray() : EMPTY;
         }
     },
 
     /**
      * Replicates the state to all subtasks. This rescaling causes a huge overhead and completely
      * relies on filtering the data downstream.
+     *
+     * <p>This strategy should only be used as a fallback.
      */
     FULL {
         @Override
-        public Set<Integer> getOldSubtasks(
+        public int[] getOldSubtasks(
                 int newSubtaskIndex, int oldNumberOfSubtasks, int newNumberOfSubtasks) {
-            return IntStream.range(0, oldNumberOfSubtasks).boxed().collect(Collectors.toSet());
+            return IntStream.range(0, oldNumberOfSubtasks).toArray();
+        }
+
+        @Override
+        public boolean isAmbiguous() {
+            return true;
         }
     },
 
@@ -119,7 +117,7 @@ public enum SubtaskStateMapper {
      */
     RANGE {
         @Override
-        public Set<Integer> getOldSubtasks(
+        public int[] getOldSubtasks(
                 int newSubtaskIndex, int oldNumberOfSubtasks, int newNumberOfSubtasks) {
             // the actual maxParallelism cancels out
             int maxParallelism = KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM;
@@ -132,7 +130,12 @@ public enum SubtaskStateMapper {
             final int end =
                     KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(
                             maxParallelism, oldNumberOfSubtasks, newRange.getEndKeyGroup());
-            return IntStream.range(start, end + 1).boxed().collect(Collectors.toSet());
+            return IntStream.range(start, end + 1).toArray();
+        }
+
+        @Override
+        public boolean isAmbiguous() {
+            return true;
         }
     },
 
@@ -169,36 +172,45 @@ public enum SubtaskStateMapper {
      */
     ROUND_ROBIN {
         @Override
-        public Set<Integer> getOldSubtasks(
+        public int[] getOldSubtasks(
                 int newSubtaskIndex, int oldNumberOfSubtasks, int newNumberOfSubtasks) {
-            final Set<Integer> subtasks =
-                    Sets.newHashSetWithExpectedSize(newNumberOfSubtasks / oldNumberOfSubtasks + 1);
+            final IntArrayList subtasks =
+                    new IntArrayList(oldNumberOfSubtasks / newNumberOfSubtasks + 1);
             for (int subtask = newSubtaskIndex;
                     subtask < oldNumberOfSubtasks;
                     subtask += newNumberOfSubtasks) {
                 subtasks.add(subtask);
             }
-            return subtasks;
+            return subtasks.toArray();
         }
     };
+
+    private static final int[] EMPTY = new int[0];
 
     /**
      * Returns all old subtask indexes that need to be read to restore all buffers for the given new
      * subtask index on rescale.
      */
-    public abstract Set<Integer> getOldSubtasks(
+    public abstract int[] getOldSubtasks(
             int newSubtaskIndex, int oldNumberOfSubtasks, int newNumberOfSubtasks);
 
     /** Returns a mapping new subtask index to all old subtask indexes. */
-    public Map<Integer, Set<Integer>> getNewToOldSubtasksMapping(
-            int oldParallelism, int newParallelism) {
-        return IntStream.range(0, newParallelism)
-                .boxed()
-                .collect(
-                        Collectors.toMap(
-                                Function.identity(),
+    public RescaleMappings getNewToOldSubtasksMapping(int oldParallelism, int newParallelism) {
+        return RescaleMappings.of(
+                IntStream.range(0, newParallelism)
+                        .mapToObj(
                                 channelIndex ->
                                         getOldSubtasks(
-                                                channelIndex, oldParallelism, newParallelism)));
+                                                channelIndex, oldParallelism, newParallelism)),
+                oldParallelism);
+    }
+
+    /**
+     * Returns true iff this mapper can potentially lead to ambiguous mappings where the different
+     * new subtasks map to the same old subtask. The assumption is that such replicated data needs
+     * to be filtered.
+     */
+    public boolean isAmbiguous() {
+        return false;
     }
 }
