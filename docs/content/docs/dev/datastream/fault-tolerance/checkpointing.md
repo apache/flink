@@ -50,12 +50,8 @@ By default, checkpointing is disabled. To enable checkpointing, call `enableChec
 
 Other parameters for checkpointing include:
 
-<<<<<<< HEAD
-  - *checkpoint storage*: You can set the location where checkpoints snapshots are made durable. By default Flink will use the JobManager's heap. For production deployments it is recomended to instead use a durable filesystem. See [checkpoint storage]({{< ref "docs/ops/state/checkpoints#checkpoint-storage" >}}) for more details on the available options for job-wide and cluster-wide configuration.
-=======
   - *checkpoint storage*: You can set the location where checkpoint snapshots are made durable. By default Flink will use the JobManager's heap. For production deployments it is recomended to instead use a durable filesystem. See [checkpoint storage]({{< ref "docs/ops/state/checkpoints#checkpoint-storage" >}}) for more details on the available options for job-wide and cluster-wide configuration.
->>>>>>> 2c620f19df5d81be1f665b5a90439c185e0fd3b7
- 
+
   - *exactly-once vs. at-least-once*: You can optionally pass a mode to the `enableCheckpointing(n)` method to choose between the two guarantee levels.
     Exactly-once is preferable for most applications. At-least-once may be relevant for certain super-low-latency (consistently few milliseconds) applications.
 
@@ -202,14 +198,9 @@ Where the checkpoints are stored (e.g., JobManager memory, file system, database
 **Checkpoint Storage**. 
 
 By default, checkpoints are stored in memory in the JobManager. For proper persistence of large state,
-Flink supports various approaches for checkpointing state in other locations. 
-<<<<<<< HEAD
-The choice of checkpoint storag ecan be configured via `StreamExecutionEnvironment.getCheckpointConfig().setCheckpointStorage(…)`.
-It is highly encouraged that checkpoints are stored in a highly-available filesystem for most production deployments. 
-=======
+Flink supports various approaches for checkpointing state in other locations.
 The choice of checkpoint storage can be configured via `StreamExecutionEnvironment.getCheckpointConfig().setCheckpointStorage(…)`.
 It is strongly encouraged that checkpoints be stored in a highly-available filesystem for production deployments. 
->>>>>>> 2c620f19df5d81be1f665b5a90439c185e0fd3b7
 
 See [checkpoint storage]({{< ref "docs/ops/state/checkpoints#checkpoint-storage" >}}) for more details on the available options for job-wide and cluster-wide configuration.
 
