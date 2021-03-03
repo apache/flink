@@ -219,8 +219,8 @@ public class FileSystemTableSource extends AbstractFileSystemTable
 
     @Override
     public Result applyFilters(List<ResolvedExpression> filters) {
-        this.filters = filters;
-        return Result.of(Collections.emptyList(), filters);
+        this.filters = new ArrayList<>(filters);
+        return Result.of(new ArrayList<>(filters), new ArrayList<>(filters));
     }
 
     @Override
