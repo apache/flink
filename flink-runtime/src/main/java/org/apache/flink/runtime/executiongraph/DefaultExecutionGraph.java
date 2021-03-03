@@ -224,6 +224,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     /** Future for an ongoing or completed scheduling action. */
     @Nullable private CompletableFuture<Void> schedulingFuture;
 
+    private final VertexAttemptNumberStore initialAttemptCounts;
+
     // ------ Fields that are relevant to the execution and need to be cleared before archiving
     // -------
 
@@ -276,7 +278,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             TaskDeploymentDescriptorFactory.PartitionLocationConstraint partitionLocationConstraint,
             ExecutionDeploymentListener executionDeploymentListener,
             ExecutionStateUpdateListener executionStateUpdateListener,
-            long initializationTimestamp)
+            long initializationTimestamp,
+            VertexAttemptNumberStore initialAttemptCounts)
             throws IOException {
 
         this.jobInformation = checkNotNull(jobInformation);
@@ -330,6 +333,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
         this.executionDeploymentListener = executionDeploymentListener;
         this.executionStateUpdateListener = executionStateUpdateListener;
+
+        this.initialAttemptCounts = initialAttemptCounts;
 
         this.edgeManager = new EdgeManager();
         this.executionVerticesById = new HashMap<>();
@@ -775,7 +780,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                             jobVertex,
                             maxPriorAttemptsHistoryLength,
                             rpcTimeout,
-                            createTimestamp);
+                            createTimestamp,
+                            this.initialAttemptCounts.getAttemptCounts(jobVertex.getID()));
 
             ejv.connectToPredecessors(this.intermediateResults);
 

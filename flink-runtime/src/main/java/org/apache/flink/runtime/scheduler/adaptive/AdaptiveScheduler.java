@@ -46,6 +46,7 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.DefaultExecutionGraphBuilder;
+import org.apache.flink.runtime.executiongraph.DefaultVertexAttemptNumberStore;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionDeploymentListener;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -53,6 +54,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionStateUpdateListener;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
+import org.apache.flink.runtime.executiongraph.MutableVertexAttemptNumberStore;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ExecutionFailureHandler;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
@@ -195,6 +197,9 @@ public class AdaptiveScheduler
     private boolean isTransitioningState = false;
 
     private int numRestarts = 0;
+
+    private final MutableVertexAttemptNumberStore vertexAttemptNumberStore =
+            new DefaultVertexAttemptNumberStore();
 
     public AdaptiveScheduler(
             JobGraph jobGraph,
@@ -653,7 +658,8 @@ public class AdaptiveScheduler
                                 .MUST_BE_KNOWN, // AdaptiveScheduler only supports streaming jobs
                         executionDeploymentListener,
                         executionStateUpdateListener,
-                        initializationTimestamp);
+                        initializationTimestamp,
+                        vertexAttemptNumberStore);
 
         final CheckpointCoordinator checkpointCoordinator =
                 newExecutionGraph.getCheckpointCoordinator();
@@ -763,6 +769,17 @@ public class AdaptiveScheduler
             ExecutionGraphHandler executionGraphHandler,
             OperatorCoordinatorHandler operatorCoordinatorHandler,
             Duration backoffTime) {
+
+        for (ExecutionVertex executionVertex : executionGraph.getAllExecutionVertices()) {
+            final int attemptNumber =
+                    executionVertex.getCurrentExecutionAttempt().getAttemptNumber();
+
+            this.vertexAttemptNumberStore.setAttemptCount(
+                    executionVertex.getJobvertexId(),
+                    executionVertex.getParallelSubtaskIndex(),
+                    attemptNumber + 1);
+        }
+
         transitionToState(
                 new Restarting.Factory(
                         this,

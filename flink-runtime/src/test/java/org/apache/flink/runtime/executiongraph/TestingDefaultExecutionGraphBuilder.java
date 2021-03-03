@@ -178,6 +178,7 @@ public class TestingDefaultExecutionGraphBuilder {
                         jobGraph.getJobType()),
                 executionDeploymentListener,
                 executionStateUpdateListener,
-                System.currentTimeMillis());
+                System.currentTimeMillis(),
+                new DefaultVertexAttemptNumberStore());
     }
 }

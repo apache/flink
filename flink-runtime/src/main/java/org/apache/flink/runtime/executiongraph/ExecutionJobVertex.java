@@ -131,7 +131,8 @@ public class ExecutionJobVertex
             JobVertex jobVertex,
             int maxPriorAttemptsHistoryLength,
             Time timeout,
-            long createTimestamp)
+            long createTimestamp,
+            SubtaskAttemptNumberStore initialAttemptCounts)
             throws JobException {
 
         if (graph == null || jobVertex == null) {
@@ -193,7 +194,8 @@ public class ExecutionJobVertex
                             producedDataSets,
                             timeout,
                             createTimestamp,
-                            maxPriorAttemptsHistoryLength);
+                            maxPriorAttemptsHistoryLength,
+                            initialAttemptCounts.getAttemptCount(i));
 
             this.taskVertices[i] = vertex;
         }
