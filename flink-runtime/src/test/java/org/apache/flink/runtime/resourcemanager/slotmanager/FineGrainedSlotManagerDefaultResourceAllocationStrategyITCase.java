@@ -40,7 +40,7 @@ public class FineGrainedSlotManagerDefaultResourceAllocationStrategyITCase
     protected Optional<ResourceAllocationStrategy> getResourceAllocationStrategy() {
         return Optional.of(
                 new DefaultResourceAllocationStrategy(
-                        DEFAULT_SLOT_RESOURCE_PROFILE, DEFAULT_NUM_SLOTS_PER_WORKER));
+                        DEFAULT_TOTAL_RESOURCE_PROFILE, DEFAULT_NUM_SLOTS_PER_WORKER));
     }
 
     /**
