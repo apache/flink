@@ -473,7 +473,8 @@ object StreamTableEnvironment {
       executionEnvironment: StreamExecutionEnvironment,
       settings: EnvironmentSettings)
     : StreamTableEnvironment = {
-    StreamTableEnvironmentImpl.create(executionEnvironment, settings, new TableConfig)
+    StreamTableEnvironmentImpl
+      .create(executionEnvironment, settings, new TableConfig(settings.toConfiguration))
   }
 
   /**

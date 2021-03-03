@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.planner.delegation
 
+import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.table.api.{ExplainDetail, TableConfig, TableException, TableSchema}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectIdentifier}
 import org.apache.flink.table.delegation.Executor
@@ -166,5 +168,18 @@ class StreamPlanner(
     }
 
     sb.toString()
+  }
+
+  override def isSpecifiedPlanner(): Unit = {
+    super.isSpecifiedPlanner()
+    if (!config.getConfiguration.get(ExecutionOptions.RUNTIME_MODE)
+      .equals(RuntimeExecutionMode.STREAMING)) {
+      throw new IllegalArgumentException(
+        "Expect BATCH mode but get STREAMING mode. " +
+          "Please make sure `execution.runtime-mode` is consistent with the " +
+          "current TableEnvironment. Otherwise rebuild a new TableEnvironment that is satisfied " +
+          "the requirement."
+      )
+    }
   }
 }

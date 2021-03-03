@@ -18,12 +18,15 @@
 
 package org.apache.flink.table.api
 
+import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.common.typeinfo.Types.STRING
 import org.apache.flink.api.scala._
+import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecutionEnvironment}
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment => ScalaStreamTableEnvironment, _}
+import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableEnvironmentInternal}
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.functions.TestGenericUDF
@@ -33,6 +36,7 @@ import org.apache.flink.table.planner.utils.TableTestUtil.{readFromResource, rep
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks, TestTableSourceWithTime}
 import org.apache.flink.types.{Row, RowKind}
 import org.apache.flink.util.{CollectionUtil, FileUtils, TestLogger}
+
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit.rules.{ExpectedException, TemporaryFolder}
 import org.junit.runner.RunWith
@@ -78,6 +82,52 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
       case _ => throw new UnsupportedOperationException("unsupported tableEnvName: " + tableEnvName)
     }
     TestTableSourceSinks.createPersonCsvTemporaryTable(tEnv, "MyTable")
+  }
+
+  @Test
+  def testSetPlannerType: Unit = {
+    tEnv.getConfig.getConfiguration.set(TableConfigOptions.TABLE_PLANNER, PlannerType.OLD)
+
+    TestTableSourceSinks.createCsvTemporarySinkTable(
+      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink1")
+
+    val expected = "Expect OLD planner but get BLINK planner. " +
+      "Please make sure `table.planner` is consistent with the current TableEnvironment. " +
+      "Otherwise rebuild a new TableEnvironment that is satisfied the requirement."
+
+    try {
+      tEnv.executeSql("insert into MySink1 select first from MyTable")
+    } catch {
+      case e: IllegalArgumentException => Assert.assertEquals(expected, e.getMessage); return
+      case e: Throwable => throw e
+    }
+    fail("Don't trigger validation.")
+  }
+
+  @Test
+  def testSetExecutionMode(): Unit = {
+    val expected = if (isStreaming) {
+      tEnv.getConfig.getConfiguration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
+      "Expect BATCH mode but get STREAMING mode. " +
+        "Please make sure `execution.runtime-mode` is consistent with the current " +
+        "TableEnvironment. Otherwise rebuild a new TableEnvironment that is satisfied " +
+        "the requirement."
+    } else {
+      tEnv.getConfig.getConfiguration.set(ExecutionOptions.RUNTIME_MODE,
+        RuntimeExecutionMode.STREAMING)
+      "Expect STREAMING mode but get BATCH mode. " +
+        "Please make sure `execution.runtime-mode` is consistent with the " +
+        "current TableEnvironment. Otherwise rebuild a new TableEnvironment that is satisfied " +
+        "the requirement."
+    }
+
+    try {
+      tEnv.explainSql("select first from MyTable")
+    } catch {
+      case e: IllegalArgumentException => Assert.assertEquals(expected, e.getMessage); return
+      case e: Throwable => throw e
+    }
+    fail("Don't trigger validation.")
   }
 
   @Test

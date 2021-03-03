@@ -18,8 +18,10 @@
 
 package org.apache.flink.table.planner.runtime.utils
 
+import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.Tuple
+import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode
@@ -40,11 +42,13 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.{BigIntType, LogicalType}
 import org.apache.flink.types.Row
 import org.apache.flink.util.CollectionUtil
+
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.runtime.CalciteContextException
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.calcite.sql.parser.SqlParseException
 import org.apache.flink.table.runtime.util.RowDataTestUtil
+
 import org.junit.Assert._
 import org.junit.{After, Assert, Before}
 
@@ -73,6 +77,7 @@ class BatchTestBase extends BatchAbstractTestBase {
 
   @Before
   def before(): Unit = {
+    conf.getConfiguration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
     BatchTestBase.configForMiniCluster(conf)
   }
 

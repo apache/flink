@@ -19,9 +19,11 @@
 package org.apache.flink.table.api.bridge.java;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
@@ -36,6 +38,8 @@ import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.module.ModuleManager;
 
 import java.lang.reflect.Constructor;
+
+import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 
 /**
  * The {@link TableEnvironment} for a Java batch {@link ExecutionEnvironment} that works with {@link
@@ -446,7 +450,9 @@ public interface BatchTableEnvironment extends TableEnvironment {
      *     TableEnvironment.
      */
     static BatchTableEnvironment create(ExecutionEnvironment executionEnvironment) {
-        return create(executionEnvironment, new TableConfig());
+        Configuration configuration = new Configuration();
+        configuration.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
+        return create(executionEnvironment, new TableConfig(configuration));
     }
 
     /**

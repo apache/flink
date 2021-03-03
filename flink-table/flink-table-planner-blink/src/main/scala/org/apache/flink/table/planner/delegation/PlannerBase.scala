@@ -22,7 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, TableConfigOptions}
-import org.apache.flink.table.api.{SqlDialect, TableConfig, TableEnvironment, TableException, TableSchema}
+import org.apache.flink.table.api.{PlannerType, SqlDialect, TableConfig, TableEnvironment, TableException, TableSchema}
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.delegation.{Executor, Parser, Planner}
@@ -284,6 +284,8 @@ abstract class PlannerBase(
 
   @VisibleForTesting
   private[flink] def optimize(relNodes: Seq[RelNode]): Seq[RelNode] = {
+    // different planner in different mode differs in optimization
+    isSpecifiedPlanner()
     val optimizedRelNodes = getOptimizer.optimize(relNodes)
     require(optimizedRelNodes.size == relNodes.size)
     optimizedRelNodes
@@ -291,6 +293,8 @@ abstract class PlannerBase(
 
   @VisibleForTesting
   private[flink] def optimize(relNode: RelNode): RelNode = {
+    // different planner in different mode differs in optimization
+    isSpecifiedPlanner()
     val optimizedRelNodes = getOptimizer.optimize(Seq(relNode))
     require(optimizedRelNodes.size == 1)
     optimizedRelNodes.head
@@ -447,5 +451,14 @@ abstract class PlannerBase(
 
   private def getClassLoader: ClassLoader = {
     Thread.currentThread().getContextClassLoader
+  }
+
+  protected def isSpecifiedPlanner(): Unit = {
+    if (!config.getConfiguration.get(TableConfigOptions.TABLE_PLANNER).equals(PlannerType.BLINK)) {
+      throw new IllegalArgumentException("Expect OLD planner but get BLINK planner. " +
+        "Please make sure `table.planner` is consistent with the current TableEnvironment. " +
+        "Otherwise rebuild a new TableEnvironment that is satisfied " +
+        "the requirement.");
+    }
   }
 }

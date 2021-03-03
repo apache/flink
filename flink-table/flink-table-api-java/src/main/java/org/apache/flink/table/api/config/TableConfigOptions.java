@@ -21,6 +21,7 @@ package org.apache.flink.table.api.config;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.table.api.PlannerType;
 import org.apache.flink.table.api.SqlDialect;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
@@ -33,6 +34,15 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 @PublicEvolving
 public class TableConfigOptions {
     private TableConfigOptions() {}
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<PlannerType> TABLE_PLANNER =
+            key("table.planner")
+                    .enumType(PlannerType.class)
+                    .defaultValue(PlannerType.BLINK)
+                    .withDescription(
+                            "Use blink planner or old planner. The default value for the option is blink. "
+                                    + "The value of the option will also influence time semantics and so on. Currently it's forbidden to set this option after initialization of the table environment.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Boolean> TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED =

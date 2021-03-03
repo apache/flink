@@ -19,10 +19,13 @@
 package org.apache.flink.table.planner
 
 import org.apache.flink.annotation.VisibleForTesting
+import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.calcite._
 import org.apache.flink.table.catalog.{CatalogManager, CatalogManagerCalciteSchema, CatalogTable, ConnectorCatalogTable, _}
 import org.apache.flink.table.delegation.{Executor, Parser, Planner}
@@ -115,7 +118,7 @@ class StreamPlanner(
     val planner = createDummyPlanner()
     tableOperations.asScala.map { operation =>
       val (ast, updatesAsRetraction) = translateToRel(operation)
-      val optimizedPlan = optimizer.optimize(ast, updatesAsRetraction, getRelBuilder)
+      val optimizedPlan = optimize(ast, updatesAsRetraction)
       val dataStream = translateToCRow(planner, optimizedPlan)
       dataStream.getTransformation.asInstanceOf[Transformation[_]]
     }.filter(Objects.nonNull).asJava
@@ -147,7 +150,7 @@ class StreamPlanner(
 
     val optimizedNodes = astWithUpdatesAsRetractionTuples.map {
       case (ast, updatesAsRetraction) =>
-        optimizer.optimize(ast, updatesAsRetraction, getRelBuilder)
+        optimize(ast, updatesAsRetraction)
     }
 
     val planner = createDummyPlanner()
@@ -365,5 +368,24 @@ class StreamPlanner(
   override def translateJsonPlan(jsonPlan: String): util.List[Transformation[_]] = {
     throw new TableException(
       "This method is not supported for legacy planner, please use Blink planner.")
+  }
+
+  private def optimize(ast: RelNode, updatesAsRetraction: Boolean): RelNode = {
+    // different planner in different mode differs in optimization
+    val configuration = config.getConfiguration
+    if (!configuration.get(ExecutionOptions.RUNTIME_MODE).equals(RuntimeExecutionMode.STREAMING) ||
+      !configuration.get(TableConfigOptions.TABLE_PLANNER).equals(PlannerType.OLD)) {
+      throw new IllegalArgumentException(
+        String.format("Expect %s %s planner but get STREAMING OLD planner. " +
+          "Please make sure `execution.runtime-mode` and `table.planner` are consistent with the " +
+          "current TableEnvironment. Otherwise rebuild a new TableEnvironment that is satisfied " +
+          "the requirement.",
+          configuration.get(ExecutionOptions.RUNTIME_MODE),
+          configuration.get(TableConfigOptions.TABLE_PLANNER)
+        )
+      )
+    }
+
+    optimizer.optimize(ast, updatesAsRetraction, getRelBuilder)
   }
 }
