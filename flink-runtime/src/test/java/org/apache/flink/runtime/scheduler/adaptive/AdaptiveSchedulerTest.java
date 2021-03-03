@@ -711,6 +711,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
         // create a new operator
         final JobVertex jobVertex = new JobVertex("New operator");
         jobVertex.setInvokableClass(NoOpInvokable.class);
+        jobVertex.setParallelism(1);
 
         // this test will fail in the end due to the previously created Savepoint having a state for
         // a given OperatorID that does not match any operator of the newly created JobGraph
@@ -759,6 +760,8 @@ public class AdaptiveSchedulerTest extends TestLogger {
         // create a new operator
         final JobVertex jobVertex = new JobVertex("New operator");
         jobVertex.setInvokableClass(NoOpInvokable.class);
+        jobVertex.setParallelism(1);
+
         final JobGraph jobGraphWithNewOperator =
                 TestUtils.createJobGraphFromJobVerticesWithCheckpointing(
                         savepointRestoreSettings, jobVertex);

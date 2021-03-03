@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -33,8 +35,10 @@ import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFact
 import org.apache.flink.runtime.jobmaster.factories.JobMasterServiceFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.scheduler.adaptive.ReactiveModeUtils;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleServiceLoader;
+import org.apache.flink.util.Preconditions;
 
 /** Singleton default factory for {@link JobManagerRunnerImpl}. */
 public enum DefaultJobManagerRunnerFactory implements JobManagerRunnerFactory {
@@ -59,6 +63,15 @@ public enum DefaultJobManagerRunnerFactory implements JobManagerRunnerFactory {
         final SlotPoolServiceSchedulerFactory slotPoolServiceSchedulerFactory =
                 DefaultSlotPoolServiceSchedulerFactory.fromConfiguration(
                         configuration, jobGraph.getJobType());
+
+        if (jobMasterConfiguration.getConfiguration().get(JobManagerOptions.SCHEDULER_MODE)
+                == SchedulerExecutionMode.REACTIVE) {
+            Preconditions.checkState(
+                    slotPoolServiceSchedulerFactory.getSchedulerType()
+                            == JobManagerOptions.SchedulerType.Adaptive,
+                    "Adaptive Scheduler is required for reactive mode");
+            ReactiveModeUtils.configureJobGraphForReactiveMode(jobGraph);
+        }
 
         final ShuffleMaster<?> shuffleMaster =
                 ShuffleServiceLoader.loadShuffleServiceFactory(configuration)
