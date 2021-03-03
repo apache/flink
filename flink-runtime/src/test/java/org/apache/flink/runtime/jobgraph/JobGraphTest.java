@@ -34,6 +34,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -351,24 +352,36 @@ public class JobGraphTest extends TestLogger {
     }
 
     @Test
-    public void checkpointingIsDisabledByDefault() {
-        final JobGraph jobGraph = new JobGraph();
+    public void checkpointingIsDisabledByDefaultForStreamingJobGraph() {
+        final JobGraph jobGraph = JobGraphBuilder.newStreamingJobGraphBuilder().build();
+
+        assertFalse(jobGraph.isCheckpointingEnabled());
+    }
+
+    @Test
+    public void checkpointingIsDisabledByDefaultForBatchJobGraph() {
+        final JobGraph jobGraph = JobGraphBuilder.newBatchJobGraphBuilder().build();
 
         assertFalse(jobGraph.isCheckpointingEnabled());
     }
 
     @Test
     public void checkpointingIsEnabledIfIntervalIsqAndLegal() {
-        final JobGraph jobGraph = new JobGraph();
-        jobGraph.setSnapshotSettings(createCheckpointSettingsWithInterval(10));
+        final JobGraph jobGraph =
+                JobGraphBuilder.newStreamingJobGraphBuilder()
+                        .setJobCheckpointingSettings(createCheckpointSettingsWithInterval(10))
+                        .build();
 
         assertTrue(jobGraph.isCheckpointingEnabled());
     }
 
     @Test
     public void checkpointingIsDisabledIfIntervalIsMaxValue() {
-        final JobGraph jobGraph = new JobGraph();
-        jobGraph.setSnapshotSettings(createCheckpointSettingsWithInterval(Long.MAX_VALUE));
+        final JobGraph jobGraph =
+                JobGraphBuilder.newStreamingJobGraphBuilder()
+                        .setJobCheckpointingSettings(
+                                createCheckpointSettingsWithInterval(Long.MAX_VALUE))
+                        .build();
 
         assertFalse(jobGraph.isCheckpointingEnabled());
     }
@@ -405,7 +418,10 @@ public class JobGraphTest extends TestLogger {
         v3.setSlotSharingGroup(group2);
         v4.setSlotSharingGroup(group2);
 
-        final JobGraph jobGraph = new JobGraph(v1, v2, v3, v4);
+        final JobGraph jobGraph =
+                JobGraphBuilder.newStreamingJobGraphBuilder()
+                        .addJobVertices(Arrays.asList(v1, v2, v3, v4))
+                        .build();
 
         assertThat(jobGraph.getSlotSharingGroups(), containsInAnyOrder(group1, group2));
     }
@@ -422,7 +438,10 @@ public class JobGraphTest extends TestLogger {
         v2.setSlotSharingGroup(slotSharingGroup);
         v1.setStrictlyCoLocatedWith(v2);
 
-        final JobGraph jobGraph = new JobGraph(v1, v2, v3, v4);
+        final JobGraph jobGraph =
+                JobGraphBuilder.newStreamingJobGraphBuilder()
+                        .addJobVertices(Arrays.asList(v1, v2, v3, v4))
+                        .build();
 
         assertThat(jobGraph.getCoLocationGroups(), hasSize(1));
 
