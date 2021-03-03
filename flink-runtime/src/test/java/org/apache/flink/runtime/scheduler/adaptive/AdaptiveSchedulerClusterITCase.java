@@ -24,7 +24,7 @@ import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobType;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.minicluster.MiniCluster;
@@ -135,8 +135,7 @@ public class AdaptiveSchedulerClusterITCase extends TestLogger {
 
         blockingOperator.setParallelism(parallelism);
 
-        final JobGraph jobGraph = new JobGraph("Blocking job.", blockingOperator);
-        jobGraph.setJobType(JobType.STREAMING);
+        final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(blockingOperator);
 
         ExecutionConfig executionConfig = new ExecutionConfig();
         executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));

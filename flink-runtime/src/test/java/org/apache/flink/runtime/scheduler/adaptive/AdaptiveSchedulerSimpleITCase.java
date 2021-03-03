@@ -28,7 +28,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobType;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -103,7 +103,7 @@ public class AdaptiveSchedulerSimpleITCase extends TestLogger {
         sink.connectNewDataSetAsInput(
                 source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
-        return new JobGraph("Simple job", source, sink);
+        return JobGraphTestUtils.streamingJobGraph(source, sink);
     }
 
     @Test
@@ -132,8 +132,7 @@ public class AdaptiveSchedulerSimpleITCase extends TestLogger {
         onceFailingOperator.setInvokableClass(OnceFailingInvokable.class);
 
         onceFailingOperator.setParallelism(1);
-        final JobGraph jobGraph = new JobGraph("Once failing job", onceFailingOperator);
-        jobGraph.setJobType(JobType.STREAMING);
+        final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(onceFailingOperator);
         ExecutionConfig executionConfig = new ExecutionConfig();
         executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));
         jobGraph.setExecutionConfig(executionConfig);

@@ -28,6 +28,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -66,8 +67,6 @@ import static org.junit.Assert.fail;
 public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
 
     protected final Logger log = LoggerFactory.getLogger(getClass());
-
-    private static final JobID jobId = new JobID();
 
     private static ScheduledExecutorService singleThreadScheduledExecutorService;
     private static ComponentMainThreadExecutor mainThreadExecutor;
@@ -189,7 +188,7 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
         final JobVertex jobVertex = new JobVertex("testing task");
         jobVertex.setParallelism(parallelism);
         jobVertex.setInvokableClass(NoOpInvokable.class);
-        return new JobGraph(jobId, "test job", jobVertex);
+        return JobGraphTestUtils.batchJobGraph(jobVertex);
     }
 
     private static class GloballyTerminalJobStatusListener implements JobStatusListener {

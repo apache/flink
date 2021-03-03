@@ -30,6 +30,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -185,7 +186,7 @@ public class TaskExecutorITCase extends TestLogger {
         sender.setSlotSharingGroup(slotSharingGroup);
         receiver.setSlotSharingGroup(slotSharingGroup);
 
-        return new JobGraph("Blocking test job with slot sharing", sender, receiver);
+        return JobGraphTestUtils.streamingJobGraph(sender, receiver);
     }
 
     /** Blocking invokable which is controlled by a static field. */

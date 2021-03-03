@@ -30,6 +30,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -659,7 +660,7 @@ public class StateAssignmentOperationTest extends TestLogger {
             jobEdge.setUpstreamSubtaskStateMapper(upstreamRescaler);
         }
 
-        JobGraph jobGraph = new JobGraph("Pointwise job", jobVertices);
+        JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(jobVertices);
         ExecutionGraph eg =
                 TestingDefaultExecutionGraphBuilder.newBuilder().setJobGraph(jobGraph).build();
         return Arrays.stream(jobVertices)

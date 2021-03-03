@@ -141,7 +141,7 @@ public class JobSubmitHandlerTest extends TestLogger {
         final Path jobGraphFile = TEMPORARY_FOLDER.newFile().toPath();
         try (ObjectOutputStream objectOut =
                 new ObjectOutputStream(Files.newOutputStream(jobGraphFile))) {
-            objectOut.writeObject(new JobGraph("testjob"));
+            objectOut.writeObject(JobGraphTestUtils.emptyJobGraph());
         }
 
         TestingDispatcherGateway.Builder builder = new TestingDispatcherGateway.Builder();
@@ -180,7 +180,7 @@ public class JobSubmitHandlerTest extends TestLogger {
         final Path jobGraphFile = TEMPORARY_FOLDER.newFile().toPath();
         try (ObjectOutputStream objectOut =
                 new ObjectOutputStream(Files.newOutputStream(jobGraphFile))) {
-            objectOut.writeObject(new JobGraph("testjob"));
+            objectOut.writeObject(JobGraphTestUtils.emptyJobGraph());
         }
         final Path countExceedingFile = TEMPORARY_FOLDER.newFile().toPath();
 
@@ -309,7 +309,7 @@ public class JobSubmitHandlerTest extends TestLogger {
 
         final Path jobGraphFile = TEMPORARY_FOLDER.newFile().toPath();
 
-        JobGraph jobGraph = new JobGraph("testjob");
+        JobGraph jobGraph = JobGraphTestUtils.emptyJobGraph();
         try (ObjectOutputStream objectOut =
                 new ObjectOutputStream(Files.newOutputStream(jobGraphFile))) {
             objectOut.writeObject(jobGraph);

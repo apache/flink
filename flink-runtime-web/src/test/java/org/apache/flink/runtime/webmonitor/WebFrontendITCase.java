@@ -29,6 +29,7 @@ import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -277,7 +278,7 @@ public class WebFrontendITCase extends TestLogger {
         sender.setParallelism(2);
         sender.setInvokableClass(BlockingInvokable.class);
 
-        final JobGraph jobGraph = new JobGraph("Stoppable streaming test job", sender);
+        final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(sender);
         final JobID jid = jobGraph.getJobID();
 
         ClusterClient<?> clusterClient = CLUSTER.getClusterClient();
@@ -341,7 +342,7 @@ public class WebFrontendITCase extends TestLogger {
         sender.setParallelism(2);
         sender.setInvokableClass(BlockingInvokable.class);
 
-        final JobGraph jobGraph = new JobGraph("Stoppable streaming test job", sender);
+        final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(sender);
 
         ClusterClient<?> clusterClient = CLUSTER.getClusterClient();
         clusterClient.submitJob(jobGraph).get();
@@ -385,7 +386,7 @@ public class WebFrontendITCase extends TestLogger {
         sender.setParallelism(2);
         sender.setInvokableClass(BlockingInvokable.class);
 
-        final JobGraph jobGraph = new JobGraph("Stoppable streaming test job", sender);
+        final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(sender);
         final JobID jid = jobGraph.getJobID();
 
         ClusterClient<?> clusterClient = CLUSTER.getClusterClient();

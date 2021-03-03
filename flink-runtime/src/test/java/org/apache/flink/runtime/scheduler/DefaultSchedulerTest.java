@@ -19,7 +19,6 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.FlinkMatchers;
@@ -120,8 +119,6 @@ import static org.junit.Assert.fail;
 public class DefaultSchedulerTest extends TestLogger {
 
     private static final int TIMEOUT_MS = 1000;
-
-    private static final JobID TEST_JOB_ID = new JobID();
 
     @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
@@ -1228,29 +1225,23 @@ public class DefaultSchedulerTest extends TestLogger {
     }
 
     private static JobGraph singleJobVertexJobGraph(final int parallelism) {
-        final JobGraph jobGraph = new JobGraph(TEST_JOB_ID, "Testjob");
         final JobVertex vertex = new JobVertex("source");
         vertex.setInvokableClass(NoOpInvokable.class);
         vertex.setParallelism(parallelism);
-        jobGraph.addVertex(vertex);
-        return jobGraph;
+        return JobGraphTestUtils.streamingJobGraph(vertex);
     }
 
     private static JobGraph nonParallelSourceSinkJobGraph() {
-        final JobGraph jobGraph = new JobGraph(TEST_JOB_ID, "Testjob");
-
         final JobVertex source = new JobVertex("source");
         source.setInvokableClass(NoOpInvokable.class);
-        jobGraph.addVertex(source);
 
         final JobVertex sink = new JobVertex("sink");
         sink.setInvokableClass(NoOpInvokable.class);
-        jobGraph.addVertex(sink);
 
         sink.connectNewDataSetAsInput(
                 source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
-        return jobGraph;
+        return JobGraphTestUtils.streamingJobGraph(source, sink);
     }
 
     private static JobVertex getOnlyJobVertex(final JobGraph jobGraph) {

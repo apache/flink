@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServicesWithLeadershipControl;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmaster.JobNotFinishedException;
@@ -192,7 +193,7 @@ public class LeaderChangeClusterComponentsTest extends TestLogger {
         vertex.setParallelism(parallelism);
         vertex.setInvokableClass(BlockingOperator.class);
 
-        return new JobGraph("Blocking test job", vertex);
+        return JobGraphTestUtils.streamingJobGraph(vertex);
     }
 
     /** Blocking invokable which is controlled by a static field. */

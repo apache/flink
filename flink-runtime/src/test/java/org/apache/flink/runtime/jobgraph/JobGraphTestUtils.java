@@ -20,6 +20,8 @@ package org.apache.flink.runtime.jobgraph;
 
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 
+import javax.annotation.Nonnull;
+
 /** Utilities for creating {@link JobGraph JobGraphs} for testing purposes. */
 public class JobGraphTestUtils {
 
@@ -31,20 +33,32 @@ public class JobGraphTestUtils {
     }
 
     public static JobGraph singleNoOpJobGraph() {
-        JobGraph jobGraph = new JobGraph();
         JobVertex jobVertex = new JobVertex("jobVertex");
         jobVertex.setInvokableClass(NoOpInvokable.class);
-        jobGraph.addVertex(jobVertex);
+
+        final JobGraph jobGraph = createJobGraphInternal(jobVertex);
         jobGraph.setJobType(JobType.STREAMING);
 
         return jobGraph;
     }
 
     public static JobGraph streamingJobGraph(JobVertex... jobVertices) {
-        JobGraph jobGraph = new JobGraph(jobVertices);
+        JobGraph jobGraph = createJobGraphInternal(jobVertices);
         jobGraph.setJobType(JobType.STREAMING);
 
         return jobGraph;
+    }
+
+    public static JobGraph batchJobGraph(JobVertex... jobVertices) {
+        final JobGraph jobGraph = createJobGraphInternal(jobVertices);
+        jobGraph.setJobType(JobType.BATCH);
+
+        return jobGraph;
+    }
+
+    @Nonnull
+    private static JobGraph createJobGraphInternal(JobVertex... jobVertices) {
+        return new JobGraph(jobVertices);
     }
 
     private JobGraphTestUtils() {

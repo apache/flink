@@ -39,7 +39,7 @@ import org.apache.flink.runtime.dispatcher.VoidHistoryServerArchivist;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServicesBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerRunner;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
@@ -47,7 +47,6 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.TestingJobGraphStore;
 import org.apache.flink.runtime.util.BlobServerResource;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
@@ -78,8 +77,6 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
     private static final Logger LOG = LoggerFactory.getLogger(DefaultDispatcherRunnerITCase.class);
 
     private static final Time TIMEOUT = Time.seconds(10L);
-
-    private static final JobID TEST_JOB_ID = new JobID();
 
     @ClassRule
     public static TestingRpcServiceResource rpcServiceResource = new TestingRpcServiceResource();
@@ -240,9 +237,7 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
     }
 
     private static JobGraph createJobGraph() {
-        final JobVertex testVertex = new JobVertex("testVertex");
-        testVertex.setInvokableClass(NoOpInvokable.class);
-        return new JobGraph(TEST_JOB_ID, "testJob", testVertex);
+        return JobGraphTestUtils.singleNoOpJobGraph();
     }
 
     private DispatcherRunner createDispatcherRunner() throws Exception {

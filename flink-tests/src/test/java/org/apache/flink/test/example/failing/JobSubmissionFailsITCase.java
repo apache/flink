@@ -25,6 +25,7 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -70,9 +71,7 @@ public class JobSubmissionFailsITCase extends TestLogger {
     }
 
     private static JobGraph getWorkingJobGraph() {
-        final JobVertex jobVertex = new JobVertex("Working job vertex.");
-        jobVertex.setInvokableClass(NoOpInvokable.class);
-        return new JobGraph("Working testing job", jobVertex);
+        return JobGraphTestUtils.singleNoOpJobGraph();
     }
 
     // --------------------------------------------------------------------------------------------
@@ -82,7 +81,7 @@ public class JobSubmissionFailsITCase extends TestLogger {
         final JobVertex failingJobVertex = new FailingJobVertex("Failing job vertex");
         failingJobVertex.setInvokableClass(NoOpInvokable.class);
 
-        final JobGraph failingJobGraph = new JobGraph("Failing testing job", failingJobVertex);
+        final JobGraph failingJobGraph = JobGraphTestUtils.streamingJobGraph(failingJobVertex);
         runJobSubmissionTest(
                 failingJobGraph,
                 e ->
@@ -95,7 +94,7 @@ public class JobSubmissionFailsITCase extends TestLogger {
 
     @Test
     public void testSubmitEmptyJobGraph() throws Exception {
-        final JobGraph jobGraph = new JobGraph("Testing job");
+        final JobGraph jobGraph = JobGraphTestUtils.emptyJobGraph();
         runJobSubmissionTest(
                 jobGraph,
                 e ->
