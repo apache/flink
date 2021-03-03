@@ -43,7 +43,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -57,7 +56,6 @@ import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
@@ -1365,57 +1363,6 @@ public class Execution
     // --------------------------------------------------------------------------------------------
     //  Miscellaneous
     // --------------------------------------------------------------------------------------------
-
-    /**
-     * Calculates the preferred locations based on the location preference constraint.
-     *
-     * @param locationPreferenceConstraint constraint for the location preference
-     * @return Future containing the collection of preferred locations. This might not be completed
-     *     if not all inputs have been a resource assigned.
-     */
-    @VisibleForTesting
-    public CompletableFuture<Collection<TaskManagerLocation>> calculatePreferredLocations(
-            LocationPreferenceConstraint locationPreferenceConstraint) {
-        final Collection<CompletableFuture<TaskManagerLocation>> preferredLocationFutures =
-                getVertex().getPreferredLocations();
-        final CompletableFuture<Collection<TaskManagerLocation>> preferredLocationsFuture;
-
-        switch (locationPreferenceConstraint) {
-            case ALL:
-                preferredLocationsFuture = FutureUtils.combineAll(preferredLocationFutures);
-                break;
-            case ANY:
-                final ArrayList<TaskManagerLocation> completedTaskManagerLocations =
-                        new ArrayList<>(preferredLocationFutures.size());
-
-                for (CompletableFuture<TaskManagerLocation> preferredLocationFuture :
-                        preferredLocationFutures) {
-                    if (preferredLocationFuture.isDone()
-                            && !preferredLocationFuture.isCompletedExceptionally()) {
-                        final TaskManagerLocation taskManagerLocation =
-                                preferredLocationFuture.getNow(null);
-
-                        if (taskManagerLocation == null) {
-                            throw new FlinkRuntimeException(
-                                    "TaskManagerLocationFuture was completed with null. This indicates a programming bug.");
-                        }
-
-                        completedTaskManagerLocations.add(taskManagerLocation);
-                    }
-                }
-
-                preferredLocationsFuture =
-                        CompletableFuture.completedFuture(completedTaskManagerLocations);
-                break;
-            default:
-                throw new RuntimeException(
-                        "Unknown LocationPreferenceConstraint "
-                                + locationPreferenceConstraint
-                                + '.');
-        }
-
-        return preferredLocationsFuture;
-    }
 
     public void transitionState(ExecutionState targetState) {
         transitionState(state, targetState);
