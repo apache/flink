@@ -32,6 +32,7 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -170,6 +171,8 @@ public class TestingExecutionGraphBuilder {
                 LOG,
                 shuffleMaster,
                 partitionTracker,
+                TaskDeploymentDescriptorFactory.PartitionLocationConstraint.fromJobType(
+                        jobGraph.getJobType()),
                 executionDeploymentListener,
                 executionStateUpdateListener,
                 System.currentTimeMillis());

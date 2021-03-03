@@ -43,6 +43,7 @@ import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
@@ -351,6 +352,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                 log,
                 shuffleMaster,
                 partitionTracker,
+                TaskDeploymentDescriptorFactory.PartitionLocationConstraint.fromJobType(
+                        jobGraph.getJobType()),
                 executionDeploymentListener,
                 executionStateUpdateListener,
                 initializationTimestamp);

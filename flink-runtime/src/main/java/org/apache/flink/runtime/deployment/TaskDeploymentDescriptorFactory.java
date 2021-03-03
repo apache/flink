@@ -37,6 +37,7 @@ import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
 import org.apache.flink.types.Either;
@@ -147,9 +148,7 @@ public class TaskDeploymentDescriptorFactory {
                 getSerializedTaskInformation(
                         executionVertex.getJobVertex().getTaskInformationOrBlobKey()),
                 executionGraph.getJobID(),
-                executionGraph.getScheduleMode().allowLazyDeployment()
-                        ? PartitionLocationConstraint.CAN_BE_UNKNOWN
-                        : PartitionLocationConstraint.MUST_BE_KNOWN,
+                executionGraph.getPartitionLocationConstraint(),
                 executionVertex.getParallelSubtaskIndex(),
                 executionVertex.getAllInputEdges());
     }
@@ -258,6 +257,20 @@ public class TaskDeploymentDescriptorFactory {
      */
     public enum PartitionLocationConstraint {
         MUST_BE_KNOWN,
-        CAN_BE_UNKNOWN,
+        CAN_BE_UNKNOWN;
+
+        public static PartitionLocationConstraint fromJobType(JobType jobType) {
+            switch (jobType) {
+                case BATCH:
+                    return CAN_BE_UNKNOWN;
+                case STREAMING:
+                    return MUST_BE_KNOWN;
+                default:
+                    throw new IllegalArgumentException(
+                            String.format(
+                                    "Unknown JobType %s. Cannot derive partition location constraint for it.",
+                                    jobType));
+            }
+        }
     }
 }

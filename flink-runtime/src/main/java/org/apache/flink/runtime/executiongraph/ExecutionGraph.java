@@ -50,6 +50,7 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils.ConjunctFuture;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.entrypoint.ClusterEntryPointExceptionUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
@@ -60,7 +61,6 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.scheduler.InternalFailuresListener;
@@ -210,12 +210,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
     // ------ Configuration of the Execution -------
 
-    /**
-     * The mode of scheduling. Decides how to select the initial set of tasks to be deployed. May
-     * indicate to deploy all sources, or to deploy everything, or to deploy via backtracking from
-     * results than need to be materialized.
-     */
-    private final ScheduleMode scheduleMode;
+    private final TaskDeploymentDescriptorFactory.PartitionLocationConstraint
+            partitionLocationConstraint;
 
     /** The maximum number of prior execution attempts kept in history. */
     private final int maxPriorAttemptsHistoryLength;
@@ -294,7 +290,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
             PartitionReleaseStrategy.Factory partitionReleaseStrategyFactory,
             ShuffleMaster<?> shuffleMaster,
             JobMasterPartitionTracker partitionTracker,
-            ScheduleMode scheduleMode,
+            TaskDeploymentDescriptorFactory.PartitionLocationConstraint partitionLocationConstraint,
             ExecutionDeploymentListener executionDeploymentListener,
             ExecutionStateUpdateListener executionStateUpdateListener,
             long initializationTimestamp)
@@ -304,7 +300,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
         this.blobWriter = Preconditions.checkNotNull(blobWriter);
 
-        this.scheduleMode = checkNotNull(scheduleMode);
+        this.partitionLocationConstraint = Preconditions.checkNotNull(partitionLocationConstraint);
 
         this.jobInformationOrBlobKey =
                 BlobWriter.serializeAndTryOffload(
@@ -374,8 +370,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
         return executionTopology;
     }
 
-    public ScheduleMode getScheduleMode() {
-        return scheduleMode;
+    public TaskDeploymentDescriptorFactory.PartitionLocationConstraint
+            getPartitionLocationConstraint() {
+        return partitionLocationConstraint;
     }
 
     @Nonnull
