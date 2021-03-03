@@ -38,8 +38,8 @@ import java.util.Optional;
  *   <li>bqual consists of 4 random bytes (generated using {@link SecureRandom})
  * </ol>
  *
- * <p>Each {@link SemanticXidGenerator} instance MUST be used for only one Sink (otherwise Xids
- * will collide).
+ * <p>Each {@link SemanticXidGenerator} instance MUST be used for only one Sink (otherwise Xids will
+ * collide).
  */
 @Internal
 class SemanticXidGenerator implements XidGenerator {
@@ -50,7 +50,8 @@ class SemanticXidGenerator implements XidGenerator {
 
     private static final int FORMAT_ID = 201;
 
-    private transient byte[] gtridBuffer; // globalTransactionId = job id + task index + checkpoint id
+    private transient byte[]
+            gtridBuffer; // globalTransactionId = job id + task index + checkpoint id
     private transient byte[] bqualBuffer; // branchQualifier = random bytes
 
     @Override
