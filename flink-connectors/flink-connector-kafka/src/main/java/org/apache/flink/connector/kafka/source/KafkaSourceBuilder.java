@@ -22,7 +22,7 @@ import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.NoStoppingOffsetsInitializer;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.connector.kafka.source.enumerator.subscriber.KafkaSubscriber;
-import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializer;
+import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.TopicPartition;
@@ -96,7 +96,7 @@ public class KafkaSourceBuilder<OUT> {
     private OffsetsInitializer stoppingOffsetsInitializer;
     // Boundedness
     private Boundedness boundedness;
-    private KafkaRecordDeserializer<OUT> deserializationSchema;
+    private KafkaRecordDeserializationSchema<OUT> deserializationSchema;
     // The configurations.
     protected Properties props;
 
@@ -303,7 +303,7 @@ public class KafkaSourceBuilder<OUT> {
     }
 
     /**
-     * Sets the {@link KafkaRecordDeserializer deserializer} of the {@link
+     * Sets the {@link KafkaRecordDeserializationSchema deserializer} of the {@link
      * org.apache.kafka.clients.consumer.ConsumerRecord ConsumerRecord} for KafkaSource.
      *
      * @param recordDeserializer the deserializer for Kafka {@link
@@ -311,7 +311,7 @@ public class KafkaSourceBuilder<OUT> {
      * @return this KafkaSourceBuilder.
      */
     public KafkaSourceBuilder<OUT> setDeserializer(
-            KafkaRecordDeserializer<OUT> recordDeserializer) {
+            KafkaRecordDeserializationSchema<OUT> recordDeserializer) {
         this.deserializationSchema = recordDeserializer;
         return this;
     }
