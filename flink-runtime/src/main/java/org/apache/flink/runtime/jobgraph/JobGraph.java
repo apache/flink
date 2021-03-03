@@ -149,29 +149,6 @@ public class JobGraph implements Serializable {
     }
 
     /**
-     * Constructs a new job graph with no name, a random job ID, the given {@link ExecutionConfig},
-     * and the given job vertices. The ExecutionConfig will be serialized and can't be modified
-     * afterwards.
-     *
-     * @param vertices The vertices to add to the graph.
-     */
-    public JobGraph(JobVertex... vertices) {
-        this(null, vertices);
-    }
-
-    /**
-     * Constructs a new job graph with the given name, the given {@link ExecutionConfig}, a random
-     * job ID, and the given job vertices. The ExecutionConfig will be serialized and can't be
-     * modified afterwards.
-     *
-     * @param jobName The name of the job.
-     * @param vertices The vertices to add to the graph.
-     */
-    public JobGraph(String jobName, JobVertex... vertices) {
-        this(null, jobName, vertices);
-    }
-
-    /**
      * Constructs a new job graph with the given name, the given {@link ExecutionConfig}, the given
      * jobId or a random one if null supplied, and the given job vertices. The ExecutionConfig will
      * be serialized and can't be modified afterwards.
