@@ -162,8 +162,6 @@ public class StreamingJobGraphGenerator {
         preValidate();
         jobGraph.setJobType(streamGraph.getJobType());
 
-        // make sure that all vertices start immediately
-        jobGraph.setScheduleMode(streamGraph.getScheduleMode());
         jobGraph.enableApproximateLocalRecovery(
                 streamGraph.getCheckpointConfig().isApproximateLocalRecoveryEnabled());
 

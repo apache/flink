@@ -50,7 +50,6 @@ import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
@@ -853,9 +852,9 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
         assertEquals(iterationSourceCoLocationGroup, iterationSinkCoLocationGroup);
     }
 
-    /** Test default schedule mode. */
+    /** Test default job type. */
     @Test
-    public void testDefaultScheduleMode() {
+    public void testDefaultJobType() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         // use eager schedule mode by default
@@ -864,7 +863,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
                                 Collections.emptyList(), env.getConfig(), env.getCheckpointConfig())
                         .generate();
         JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
-        assertEquals(ScheduleMode.EAGER, jobGraph.getScheduleMode());
+        assertEquals(JobType.STREAMING, jobGraph.getJobType());
     }
 
     @Test
