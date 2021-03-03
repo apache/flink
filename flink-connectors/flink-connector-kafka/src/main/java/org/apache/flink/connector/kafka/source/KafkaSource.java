@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.kafka.source;
 
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
@@ -42,6 +43,8 @@ import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDe
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplitSerializer;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import javax.annotation.Nullable;
 
@@ -114,9 +117,23 @@ public class KafkaSource<OUT>
     }
 
     @Override
-    public SourceReader<OUT, KafkaPartitionSplit> createReader(SourceReaderContext readerContext) {
+    public SourceReader<OUT, KafkaPartitionSplit> createReader(SourceReaderContext readerContext)
+            throws Exception {
         FutureCompletingBlockingQueue<RecordsWithSplitIds<Tuple3<OUT, Long, Long>>> elementsQueue =
                 new FutureCompletingBlockingQueue<>();
+        deserializationSchema.open(
+                new DeserializationSchema.InitializationContext() {
+                    @Override
+                    public MetricGroup getMetricGroup() {
+                        return readerContext.metricGroup().addGroup("deserializer");
+                    }
+
+                    @Override
+                    public UserCodeClassLoader getUserCodeClassLoader() {
+                        return readerContext.getUserCodeClassLoader();
+                    }
+                });
+
         Supplier<KafkaPartitionSplitReader<OUT>> splitReaderSupplier =
                 () ->
                         new KafkaPartitionSplitReader<>(
