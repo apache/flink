@@ -97,6 +97,7 @@ public class ExecutionVertex
      *     Execution with.
      * @param maxPriorExecutionHistoryLength The number of prior Executions (= execution attempts)
      *     to keep.
+     * @param initialAttemptCount The attempt number of the first execution of this vertex.
      */
     @VisibleForTesting
     public ExecutionVertex(
@@ -105,7 +106,8 @@ public class ExecutionVertex
             IntermediateResult[] producedDataSets,
             Time timeout,
             long createTimestamp,
-            int maxPriorExecutionHistoryLength) {
+            int maxPriorExecutionHistoryLength,
+            int initialAttemptCount) {
 
         this.jobVertex = jobVertex;
         this.subTaskIndex = subTaskIndex;
@@ -137,7 +139,7 @@ public class ExecutionVertex
                 new Execution(
                         getExecutionGraphAccessor().getFutureExecutor(),
                         this,
-                        0,
+                        initialAttemptCount,
                         createTimestamp,
                         timeout);
 

@@ -29,6 +29,7 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.DefaultSubtaskAttemptNumberStore;
 import org.apache.flink.runtime.executiongraph.EdgeManager;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -593,7 +594,8 @@ public class ExecutingTest extends TestLogger {
                     new JobVertex("test"),
                     1,
                     Time.milliseconds(1L),
-                    1L);
+                    1L,
+                    new DefaultSubtaskAttemptNumberStore(Collections.emptyList()));
             mockExecutionVertex = new MockExecutionVertex(this);
         }
 
@@ -615,7 +617,7 @@ public class ExecutingTest extends TestLogger {
         private boolean deployed = false;
 
         MockExecutionVertex(ExecutionJobVertex jobVertex) {
-            super(jobVertex, 1, new IntermediateResult[] {}, Time.milliseconds(1L), 1L, 1);
+            super(jobVertex, 1, new IntermediateResult[] {}, Time.milliseconds(1L), 1L, 1, 0);
         }
 
         @Override

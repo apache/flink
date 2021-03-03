@@ -90,7 +90,8 @@ public class DefaultExecutionGraphBuilder {
             TaskDeploymentDescriptorFactory.PartitionLocationConstraint partitionLocationConstraint,
             ExecutionDeploymentListener executionDeploymentListener,
             ExecutionStateUpdateListener executionStateUpdateListener,
-            long initializationTimestamp)
+            long initializationTimestamp,
+            VertexAttemptNumberStore vertexAttemptNumberStore)
             throws JobExecutionException, JobException {
 
         checkNotNull(jobGraph, "job graph cannot be null");
@@ -132,7 +133,8 @@ public class DefaultExecutionGraphBuilder {
                             partitionLocationConstraint,
                             executionDeploymentListener,
                             executionStateUpdateListener,
-                            initializationTimestamp);
+                            initializationTimestamp,
+                            vertexAttemptNumberStore);
         } catch (IOException e) {
             throw new JobException("Could not create the ExecutionGraph.", e);
         }
