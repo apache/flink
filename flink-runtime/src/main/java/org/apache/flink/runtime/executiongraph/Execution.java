@@ -742,7 +742,9 @@ public class Execution
         IntermediateDataSetID intermediateDataSetID =
                 executionEdge.getSource().getIntermediateResult().getId();
         ShuffleDescriptor shuffleDescriptor =
-                getConsumedPartitionShuffleDescriptor(executionEdge, false);
+                getConsumedPartitionShuffleDescriptor(
+                        executionEdge,
+                        TaskDeploymentDescriptorFactory.PartitionLocationConstraint.MUST_BE_KNOWN);
         return new PartitionInfo(intermediateDataSetID, shuffleDescriptor);
     }
 
