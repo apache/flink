@@ -42,6 +42,7 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -648,6 +649,8 @@ public class AdaptiveScheduler
                         LOG,
                         shuffleMaster,
                         partitionTracker,
+                        TaskDeploymentDescriptorFactory.PartitionLocationConstraint
+                                .MUST_BE_KNOWN, // AdaptiveScheduler only supports streaming jobs
                         executionDeploymentListener,
                         executionStateUpdateListener,
                         initializationTimestamp);

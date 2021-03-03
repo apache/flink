@@ -27,6 +27,7 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -41,7 +42,6 @@ import org.apache.flink.runtime.executiongraph.TestingExecutionGraphBuilder;
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategyFactoryLoader;
 import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
@@ -515,7 +515,7 @@ public class ExecutingTest extends TestLogger {
                             new Configuration()),
                     NettyShuffleMaster.INSTANCE,
                     NoOpJobMasterPartitionTracker.INSTANCE,
-                    ScheduleMode.EAGER,
+                    TaskDeploymentDescriptorFactory.PartitionLocationConstraint.MUST_BE_KNOWN,
                     NoOpExecutionDeploymentListener.get(),
                     (execution, newState) -> {},
                     0L);
@@ -558,7 +558,7 @@ public class ExecutingTest extends TestLogger {
                             new Configuration()),
                     NettyShuffleMaster.INSTANCE,
                     NoOpJobMasterPartitionTracker.INSTANCE,
-                    ScheduleMode.EAGER,
+                    TaskDeploymentDescriptorFactory.PartitionLocationConstraint.MUST_BE_KNOWN,
                     NoOpExecutionDeploymentListener.get(),
                     (execution, newState) -> {},
                     0L);

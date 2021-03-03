@@ -35,6 +35,7 @@ import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.checkpoint.hooks.MasterHooks;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategyFactoryLoader;
 import org.apache.flink.runtime.executiongraph.metrics.DownTimeGauge;
@@ -86,6 +87,7 @@ public class ExecutionGraphBuilder {
             Logger log,
             ShuffleMaster<?> shuffleMaster,
             JobMasterPartitionTracker partitionTracker,
+            TaskDeploymentDescriptorFactory.PartitionLocationConstraint partitionLocationConstraint,
             ExecutionDeploymentListener executionDeploymentListener,
             ExecutionStateUpdateListener executionStateUpdateListener,
             long initializationTimestamp)
@@ -127,7 +129,7 @@ public class ExecutionGraphBuilder {
                             partitionReleaseStrategyFactory,
                             shuffleMaster,
                             partitionTracker,
-                            jobGraph.getScheduleMode(),
+                            partitionLocationConstraint,
                             executionDeploymentListener,
                             executionStateUpdateListener,
                             initializationTimestamp);
