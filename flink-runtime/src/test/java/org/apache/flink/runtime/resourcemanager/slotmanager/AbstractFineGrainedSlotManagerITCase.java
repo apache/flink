@@ -565,12 +565,14 @@ public abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSl
                                     });
                             assertFutureCompleteAndReturn(slotRequestCallFuture);
 
-                            getSlotManager()
-                                    .unregisterTaskManager(
-                                            taskExecutionConnection.getInstanceID(),
-                                            TEST_EXCEPTION);
-
-                            slotRequestFuture.complete(Acknowledge.get());
+                            runInMainThread(
+                                    () -> {
+                                        getSlotManager()
+                                                .unregisterTaskManager(
+                                                        taskExecutionConnection.getInstanceID(),
+                                                        TEST_EXCEPTION);
+                                        slotRequestFuture.complete(Acknowledge.get());
+                                    });
 
                             assertThat(
                                     trackingSecurityManager.getSystemExitFuture().isDone(),
@@ -626,13 +628,15 @@ public abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSl
 
                             final AllocationID allocationId =
                                     assertFutureCompleteAndReturn(allocationIdFuture);
-                            getSlotManager()
-                                    .reportSlotStatus(
-                                            taskExecutionConnection.getInstanceID(),
-                                            new SlotReport(
-                                                    createAllocatedSlotStatus(
-                                                            allocationId,
-                                                            DEFAULT_SLOT_RESOURCE_PROFILE)));
+                            runInMainThread(
+                                    () ->
+                                            getSlotManager()
+                                                    .reportSlotStatus(
+                                                            taskExecutionConnection.getInstanceID(),
+                                                            new SlotReport(
+                                                                    createAllocatedSlotStatus(
+                                                                            allocationId,
+                                                                            DEFAULT_SLOT_RESOURCE_PROFILE))));
 
                             assertThat(
                                     trackingSecurityManager.getSystemExitFuture().isDone(),
