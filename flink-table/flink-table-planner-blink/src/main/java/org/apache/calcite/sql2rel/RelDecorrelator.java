@@ -1869,13 +1869,12 @@ public class RelDecorrelator implements ReflectiveVisitor {
                 return;
             }
 
-            // singleAggRel produces a nullable type, so create the new
-            // projection that casts proj expr to a nullable type.
             final RelBuilder relBuilder = call.builder();
+            final boolean nullable = singleAggregate.getAggCallList().get(0).getType().isNullable();
             final RelDataType type =
                     relBuilder
                             .getTypeFactory()
-                            .createTypeWithNullability(projExprs.get(0).getType(), true);
+                            .createTypeWithNullability(projExprs.get(0).getType(), nullable);
             final RexNode cast = relBuilder.getRexBuilder().makeCast(type, projExprs.get(0));
             relBuilder.push(aggregate).project(cast);
             call.transformTo(relBuilder.build());
