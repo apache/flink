@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler.adaptive;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -37,6 +38,8 @@ import org.apache.flink.util.TestLogger;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import java.time.Duration;
+
 import static org.junit.Assert.assertTrue;
 
 /** SlotSharing tests for the adaptive scheduler. */
@@ -44,13 +47,26 @@ public class AdaptiveSchedulerSlotSharingITCase extends TestLogger {
 
     private static final int NUMBER_TASK_MANAGERS = 1;
     private static final int NUMBER_SLOTS_PER_TASK_MANAGER = 1;
-    private static final int PARALLELISM = 10;
+    private static final int PARALLELISM = 1;
 
     private static Configuration getConfiguration() {
         final Configuration configuration = new Configuration();
 
         configuration.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
         configuration.set(ClusterOptions.ENABLE_DECLARATIVE_RESOURCE_MANAGEMENT, true);
+
+        // The test failed occasionally due to a race condition between the task being
+        // freed by the TaskManager (calling TaskSlotTableImpl.freeSlotInternal(..) through
+        // JobMaster.onStop()) and the ResourceManager cleaning up the job's requirements
+        // (JobMaster.dissolveResourceManagerConnection(..) through JobMaster.onStop()).
+        //
+        // The DefaultDeclarativeSlotPool triggers a new slot request for the finished job
+        // if the TaskManager freed the slot before the requirements were cleaned up by the
+        // ResourceManager. The AdaptiveScheduler's resource timeout and the TaskManager's
+        // slot timeout are competing in this case since both timeouts set to 10s by default.
+        // The second job would fail if the resource times out before the additional slot request
+        // was handled. Hence, we lower the slot timeout to work around this special case.
+        configuration.set(TaskManagerOptions.SLOT_TIMEOUT, Duration.ofSeconds(5));
 
         return configuration;
     }
@@ -73,7 +89,7 @@ public class AdaptiveSchedulerSlotSharingITCase extends TestLogger {
 
     private void runJob() throws Exception {
         final MiniCluster miniCluster = MINI_CLUSTER_RESOURCE.getMiniCluster();
-        final JobGraph jobGraph = createJobGraph();
+        final JobGraph jobGraph = createJobGraphWithSlotSharingGroup();
 
         miniCluster.submitJob(jobGraph).join();
 
@@ -89,7 +105,7 @@ public class AdaptiveSchedulerSlotSharingITCase extends TestLogger {
      * Returns a JobGraph that requires slot sharing to work in order to be able to run with a
      * single slot.
      */
-    private static JobGraph createJobGraph() {
+    private static JobGraph createJobGraphWithSlotSharingGroup() {
         final SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
 
         final JobVertex source = new JobVertex("Source");
