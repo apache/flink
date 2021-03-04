@@ -399,7 +399,6 @@ public class DispatcherTest extends TestLogger {
                         heartbeatServices,
                         haServices,
                         new BlockingJobManagerRunnerFactory(latch::await));
-        jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
         final JobGraph emptyJobGraph = JobGraphTestUtils.emptyJobGraph();
@@ -437,7 +436,6 @@ public class DispatcherTest extends TestLogger {
                         haServices,
                         new BlockingJobManagerRunnerFactory(latch::await));
 
-        jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
         final JobGraph emptyJobGraph =
@@ -810,7 +808,6 @@ public class DispatcherTest extends TestLogger {
                                     }
                                 }));
 
-        jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
 
