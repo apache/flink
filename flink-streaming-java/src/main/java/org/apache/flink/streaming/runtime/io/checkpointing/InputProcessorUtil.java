@@ -31,6 +31,8 @@ import org.apache.flink.streaming.runtime.io.StreamOneInputProcessor;
 import org.apache.flink.streaming.runtime.io.StreamTaskSourceInput;
 import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor;
 import org.apache.flink.streaming.runtime.tasks.SubtaskCheckpointCoordinator;
+import org.apache.flink.util.clock.Clock;
+import org.apache.flink.util.clock.SystemClock;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
@@ -137,21 +139,23 @@ public class InputProcessorUtil {
                         .sorted(Comparator.comparing(CheckpointableInput::getInputGateIndex))
                         .toArray(CheckpointableInput[]::new);
 
+        Clock clock = SystemClock.getInstance();
         switch (config.getCheckpointMode()) {
             case EXACTLY_ONCE:
                 int numberOfChannels =
                         (int)
                                 Arrays.stream(inputs)
-                                        .flatMap(gate -> gate.getChannelInfos().stream())
-                                        .count();
+                                        .mapToLong(gate -> gate.getChannelInfos().size())
+                                        .sum();
                 CheckpointBarrierBehaviourController controller =
                         config.isUnalignedCheckpointsEnabled()
                                 ? new AlternatingController(
                                         new AlignedController(inputs),
-                                        new UnalignedController(checkpointCoordinator, inputs))
+                                        new UnalignedController(checkpointCoordinator, inputs),
+                                        clock)
                                 : new AlignedController(inputs);
                 return new SingleCheckpointBarrierHandler(
-                        taskName, toNotifyOnCheckpoint, numberOfChannels, controller);
+                        taskName, toNotifyOnCheckpoint, clock, numberOfChannels, controller);
             case AT_LEAST_ONCE:
                 if (config.isUnalignedCheckpointsEnabled()) {
                     throw new IllegalStateException(
@@ -162,7 +166,7 @@ public class InputProcessorUtil {
                         Arrays.stream(inputs)
                                 .mapToInt(CheckpointableInput::getNumberOfInputChannels)
                                 .sum();
-                return new CheckpointBarrierTracker(numInputChannels, toNotifyOnCheckpoint);
+                return new CheckpointBarrierTracker(numInputChannels, toNotifyOnCheckpoint, clock);
             default:
                 throw new UnsupportedOperationException(
                         "Unrecognized Checkpointing Mode: " + config.getCheckpointMode());

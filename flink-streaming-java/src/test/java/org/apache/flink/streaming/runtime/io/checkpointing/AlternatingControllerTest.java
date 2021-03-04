@@ -39,6 +39,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxProcessor;
+import org.apache.flink.util.clock.ManualClock;
 
 import org.junit.Test;
 
@@ -46,6 +47,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import static java.util.Collections.singletonList;
 import static junit.framework.TestCase.assertTrue;
@@ -68,11 +70,13 @@ import static org.junit.Assert.assertFalse;
 /** {@link AlternatingController} test. */
 public class AlternatingControllerTest {
 
+    private static final ManualClock clock = new ManualClock(1);
+
     @Test
     public void testChannelUnblockedAfterDifferentBarriers() throws Exception {
         CheckpointedInputGate gate = buildGate(new ValidatingCheckpointHandler(), 3);
         long barrierId = 1L;
-        long ts = System.currentTimeMillis();
+        long ts = clock.relativeTimeNanos();
         long timeout = 10;
 
         send(barrier(barrierId, ts, unaligned(getDefault())), 0, gate);
@@ -85,7 +89,7 @@ public class AlternatingControllerTest {
                 gate);
         assertFalse(acChannel.isBlocked());
 
-        Thread.sleep(timeout);
+        clock.advanceTime(timeout, TimeUnit.MILLISECONDS);
         TestInputChannel acChannelWithTimeout = (TestInputChannel) gate.getChannel(2);
         acChannelWithTimeout.setBlocked(true);
         send(
@@ -108,7 +112,7 @@ public class AlternatingControllerTest {
 
         sendBarrier(
                 0,
-                System.currentTimeMillis(),
+                clock.relativeTimeMillis(),
                 SAVEPOINT,
                 gate,
                 0); // using AC because UC would require ordering in gate while polling
@@ -117,7 +121,7 @@ public class AlternatingControllerTest {
         send(
                 toBuffer(
                         new CheckpointBarrier(
-                                1, System.currentTimeMillis(), unaligned(getDefault())),
+                                1, clock.relativeTimeMillis(), unaligned(getDefault())),
                         true),
                 1,
                 gate);
@@ -135,13 +139,13 @@ public class AlternatingControllerTest {
         inputGate.setInputChannels(
                 new TestInputChannel(inputGate, 0), new TestInputChannel(inputGate, 1));
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
-        SingleCheckpointBarrierHandler barrierHandler = barrierHandler(inputGate, target);
+        barrierHandler(inputGate, target);
         CheckpointedInputGate gate = buildGate(target, 2);
 
         CheckpointBarrier aligned =
                 new CheckpointBarrier(
                         1,
-                        System.currentTimeMillis(),
+                        clock.relativeTimeMillis(),
                         alignedWithTimeout(getDefault(), Integer.MAX_VALUE));
 
         send(
@@ -180,7 +184,7 @@ public class AlternatingControllerTest {
                 send(
                         barrier(
                                         barrier,
-                                        System.currentTimeMillis(),
+                                        clock.relativeTimeMillis(),
                                         alignedNoTimeout(type, getDefault()))
                                 .retainBuffer(),
                         channel,
@@ -220,7 +224,7 @@ public class AlternatingControllerTest {
         send(
                 barrier(
                         1,
-                        System.currentTimeMillis(),
+                        clock.relativeTimeMillis(),
                         alignedWithTimeout(getDefault(), Integer.MAX_VALUE)),
                 2,
                 gate);
@@ -243,7 +247,7 @@ public class AlternatingControllerTest {
 
         assertEquals(0, target.getTriggeredCheckpointCounter());
         assertAnnouncement(gate);
-        Thread.sleep(alignmentTimeout * 2);
+        clock.advanceTime(alignmentTimeout * 2, TimeUnit.MILLISECONDS);
         assertAnnouncement(gate);
         assertBarrier(gate);
         assertBarrier(gate);
@@ -282,7 +286,7 @@ public class AlternatingControllerTest {
         }
         assertEquals(0, target.getTriggeredCheckpointCounter());
 
-        Thread.sleep(alignmentTimeout * 4);
+        clock.advanceTime(alignmentTimeout * 4, TimeUnit.MILLISECONDS);
 
         assertBarrier(gate);
         assertEquals(1, target.getTriggeredCheckpointCounter());
@@ -310,7 +314,7 @@ public class AlternatingControllerTest {
                         toBuffer(
                                         new CheckpointBarrier(
                                                 1,
-                                                System.currentTimeMillis(),
+                                                clock.relativeTimeMillis(),
                                                 unaligned(getDefault())),
                                         true)
                                 .retainBuffer(),
@@ -349,7 +353,6 @@ public class AlternatingControllerTest {
             boolean sleepBeforeProcess,
             boolean sleepBeforePostProcess)
             throws Exception {
-        ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
         SingleInputGate gate = new SingleInputGateBuilder().setNumberOfChannels(1).build();
         TestInputChannel channel0 = new TestInputChannel(gate, 0, false, true);
         gate.setInputChannels(channel0);
@@ -359,12 +362,13 @@ public class AlternatingControllerTest {
                 new AlternatingController(
                         new AlignedController(gate),
                         new UnalignedController(
-                                new TestSubtaskCheckpointCoordinator(channelStateWriter), gate));
+                                new TestSubtaskCheckpointCoordinator(channelStateWriter), gate),
+                        clock);
 
         long alignmentTimeout = 10;
         CheckpointBarrier barrier =
                 new CheckpointBarrier(
-                        1, System.currentTimeMillis(), alignedNoTimeout(CHECKPOINT, getDefault()));
+                        1, clock.relativeTimeMillis(), alignedNoTimeout(CHECKPOINT, getDefault()));
 
         InputChannelInfo channelInfo = channel0.getChannelInfo();
 
@@ -372,17 +376,17 @@ public class AlternatingControllerTest {
         controller.barrierAnnouncement(channelInfo, barrier, 1);
 
         if (sleepBeforePreProcess) {
-            Thread.sleep(alignmentTimeout * 2);
+            clock.advanceTime(alignmentTimeout * 2, TimeUnit.MILLISECONDS);
         }
         Optional<CheckpointBarrier> preProcessTrigger =
                 controller.preProcessFirstBarrier(channelInfo, barrier);
         if (sleepBeforeProcess) {
-            Thread.sleep(alignmentTimeout * 2);
+            clock.advanceTime(alignmentTimeout * 2, TimeUnit.MILLISECONDS);
         }
         Optional<CheckpointBarrier> processTrigger =
                 controller.barrierReceived(channelInfo, barrier);
         if (sleepBeforePostProcess) {
-            Thread.sleep(alignmentTimeout * 2);
+            clock.advanceTime(alignmentTimeout * 2, TimeUnit.MILLISECONDS);
         }
         Optional<CheckpointBarrier> postProcessTrigger =
                 controller.postProcessLastBarrier(channelInfo, barrier);
@@ -431,13 +435,13 @@ public class AlternatingControllerTest {
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
         CheckpointedInputGate gate = buildGate(target, numChannels);
 
-        long startNanos = System.nanoTime();
-        long checkpoint1CreationTime = System.currentTimeMillis() - 10;
+        long startNanos = clock.relativeTimeNanos();
+        long checkpoint1CreationTime = clock.relativeTimeMillis() - 10;
         sendBarrier(1, checkpoint1CreationTime, CHECKPOINT, gate, 0);
         sendData(bufferSize, 0, gate);
         sendData(bufferSize, 1, gate);
 
-        Thread.sleep(6);
+        clock.advanceTime(6, TimeUnit.MILLISECONDS);
         sendBarrier(1, checkpoint1CreationTime, CHECKPOINT, gate, 1);
         sendData(bufferSize, 0, gate);
 
@@ -450,8 +454,8 @@ public class AlternatingControllerTest {
                 10_000_000L,
                 bufferSize * 2);
 
-        startNanos = System.nanoTime();
-        long checkpoint2CreationTime = System.currentTimeMillis() - 5;
+        startNanos = clock.relativeTimeNanos();
+        long checkpoint2CreationTime = clock.relativeTimeMillis() - 5;
         sendBarrier(2, checkpoint2CreationTime, SAVEPOINT, gate, 0);
         sendData(bufferSize, 1, gate);
 
@@ -463,7 +467,7 @@ public class AlternatingControllerTest {
                 0L,
                 5_000_000L,
                 bufferSize * 2);
-        Thread.sleep(5);
+        clock.advanceTime(5, TimeUnit.MILLISECONDS);
         sendBarrier(2, checkpoint2CreationTime, SAVEPOINT, gate, 1);
         sendData(bufferSize, 0, gate);
 
@@ -476,14 +480,14 @@ public class AlternatingControllerTest {
                 5_000_000L,
                 bufferSize);
 
-        startNanos = System.nanoTime();
-        long checkpoint3CreationTime = System.currentTimeMillis() - 7;
+        startNanos = clock.relativeTimeNanos();
+        long checkpoint3CreationTime = clock.relativeTimeMillis() - 7;
         send(barrier(3, checkpoint3CreationTime, unaligned(getDefault())), 0, gate);
         sendData(bufferSize, 0, gate);
         sendData(bufferSize, 1, gate);
         assertMetrics(
                 target, gate.getCheckpointBarrierHandler(), 3L, startNanos, 0L, 7_000_000L, -1L);
-        Thread.sleep(10);
+        clock.advanceTime(10, TimeUnit.MILLISECONDS);
         send(barrier(3, checkpoint2CreationTime, unaligned(getDefault())), 1, gate);
         assertMetrics(
                 target,
@@ -501,22 +505,22 @@ public class AlternatingControllerTest {
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
         CheckpointedInputGate gate = buildGate(target, numChannels);
 
-        long checkpoint1CreationTime = System.currentTimeMillis() - 10;
-        long startNanos = System.nanoTime();
+        long checkpoint1CreationTime = clock.relativeTimeMillis() - 10;
+        long startNanos = clock.relativeTimeNanos();
 
         sendData(1000, 0, gate);
         sendBarrier(1, checkpoint1CreationTime, CHECKPOINT, gate, 0);
         sendData(1000, 0, gate);
-        Thread.sleep(6);
+        clock.advanceTime(6, TimeUnit.MILLISECONDS);
         assertMetrics(
                 target, gate.getCheckpointBarrierHandler(), 1L, startNanos, 0L, 10_000_000L, 0);
 
-        long checkpoint2CreationTime = System.currentTimeMillis() - 5;
-        startNanos = System.nanoTime();
+        long checkpoint2CreationTime = clock.relativeTimeMillis() - 5;
+        startNanos = clock.relativeTimeNanos();
         sendData(1000, 0, gate);
         sendBarrier(2, checkpoint2CreationTime, SAVEPOINT, gate, 0);
         sendData(1000, 0, gate);
-        Thread.sleep(5);
+        clock.advanceTime(5, TimeUnit.MILLISECONDS);
         assertMetrics(
                 target, gate.getCheckpointBarrierHandler(), 2L, startNanos, 0L, 5_000_000L, 0);
     }
@@ -531,7 +535,8 @@ public class AlternatingControllerTest {
             long bytesProcessedDuringAlignment) {
         assertThat(checkpointBarrierHandler.getLatestCheckpointId(), equalTo(latestCheckpointId));
         long alignmentDurationNanos = checkpointBarrierHandler.getAlignmentDurationNanos();
-        long expectedAlignmentDurationNanosMax = System.nanoTime() - alignmentDurationStartNanos;
+        long expectedAlignmentDurationNanosMax =
+                clock.relativeTimeNanos() - alignmentDurationStartNanos;
         assertThat(alignmentDurationNanos, greaterThanOrEqualTo(alignmentDurationNanosMin));
         assertThat(alignmentDurationNanos, lessThanOrEqualTo(expectedAlignmentDurationNanosMax));
         assertThat(
@@ -563,7 +568,7 @@ public class AlternatingControllerTest {
             barrierHandler.processBarrier(
                     new CheckpointBarrier(
                             i,
-                            System.currentTimeMillis(),
+                            clock.relativeTimeMillis(),
                             new CheckpointOptions(type, getDefault())),
                     new InputChannelInfo(0, channel));
             if (type.isSavepoint()) {
@@ -594,7 +599,7 @@ public class AlternatingControllerTest {
         barrierHandler.processBarrier(
                 new CheckpointBarrier(
                         id,
-                        System.currentTimeMillis(),
+                        clock.relativeTimeMillis(),
                         new CheckpointOptions(CHECKPOINT, getDefault())),
                 new InputChannelInfo(0, 0));
 
@@ -616,14 +621,14 @@ public class AlternatingControllerTest {
         barrierHandler.processBarrier(
                 new CheckpointBarrier(
                         checkpointId,
-                        System.currentTimeMillis(),
+                        clock.relativeTimeMillis(),
                         new CheckpointOptions(CHECKPOINT, getDefault())),
                 new InputChannelInfo(0, 0));
         secondChannel.setBlocked(true);
         barrierHandler.processBarrier(
                 new CheckpointBarrier(
                         outOfOrderSavepointId,
-                        System.currentTimeMillis(),
+                        clock.relativeTimeMillis(),
                         new CheckpointOptions(SAVEPOINT, getDefault())),
                 new InputChannelInfo(0, 1));
 
@@ -702,7 +707,7 @@ public class AlternatingControllerTest {
 
     private Buffer withTimeout(long alignmentTimeout) throws IOException {
         return barrier(
-                1, System.currentTimeMillis(), alignedWithTimeout(getDefault(), alignmentTimeout));
+                1, clock.relativeTimeMillis(), alignedWithTimeout(getDefault(), alignmentTimeout));
     }
 
     private Buffer barrier(long barrierId, long barrierTimestamp, CheckpointOptions options)
@@ -725,11 +730,13 @@ public class AlternatingControllerTest {
         return new SingleCheckpointBarrierHandler(
                 taskName,
                 target,
+                clock,
                 inputGate.getNumberOfInputChannels(),
                 new AlternatingController(
                         new AlignedController(inputGate),
                         new UnalignedController(
-                                new TestSubtaskCheckpointCoordinator(stateWriter), inputGate)));
+                                new TestSubtaskCheckpointCoordinator(stateWriter), inputGate),
+                        clock));
     }
 
     private static CheckpointedInputGate buildGate(AbstractInvokable target, int numChannels) {
