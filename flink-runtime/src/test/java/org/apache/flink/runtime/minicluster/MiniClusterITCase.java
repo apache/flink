@@ -154,7 +154,7 @@ public class MiniClusterITCase extends TestLogger {
         final MiniClusterConfiguration cfg =
                 new MiniClusterConfiguration.Builder()
                         .setNumTaskManagers(1)
-                        .setNumSlotsPerTaskManager(parallelism)
+                        .setNumSlotsPerTaskManager(2 * parallelism)
                         .setConfiguration(getDefaultConfiguration())
                         .build();
 
@@ -185,7 +185,7 @@ public class MiniClusterITCase extends TestLogger {
         final MiniClusterConfiguration cfg =
                 new MiniClusterConfiguration.Builder()
                         .setNumTaskManagers(1)
-                        .setNumSlotsPerTaskManager(parallelism)
+                        .setNumSlotsPerTaskManager(2 * parallelism)
                         .setConfiguration(getDefaultConfiguration())
                         .build();
 
@@ -342,7 +342,7 @@ public class MiniClusterITCase extends TestLogger {
         final MiniClusterConfiguration cfg =
                 new MiniClusterConfiguration.Builder()
                         .setNumTaskManagers(1)
-                        .setNumSlotsPerTaskManager(parallelism)
+                        .setNumSlotsPerTaskManager(2 * parallelism)
                         .setConfiguration(getDefaultConfiguration())
                         .build();
 
@@ -428,7 +428,7 @@ public class MiniClusterITCase extends TestLogger {
         final MiniClusterConfiguration cfg =
                 new MiniClusterConfiguration.Builder()
                         .setNumTaskManagers(1)
-                        .setNumSlotsPerTaskManager(parallelism)
+                        .setNumSlotsPerTaskManager(2 * parallelism)
                         .setConfiguration(getDefaultConfiguration())
                         .build();
 
@@ -466,7 +466,7 @@ public class MiniClusterITCase extends TestLogger {
         final MiniClusterConfiguration cfg =
                 new MiniClusterConfiguration.Builder()
                         .setNumTaskManagers(1)
-                        .setNumSlotsPerTaskManager(parallelism)
+                        .setNumSlotsPerTaskManager(2 * parallelism)
                         .setConfiguration(getDefaultConfiguration())
                         .build();
 
@@ -554,7 +554,7 @@ public class MiniClusterITCase extends TestLogger {
         final MiniClusterConfiguration cfg =
                 new MiniClusterConfiguration.Builder()
                         .setNumTaskManagers(1)
-                        .setNumSlotsPerTaskManager(parallelism)
+                        .setNumSlotsPerTaskManager(2 * parallelism)
                         .setConfiguration(getDefaultConfiguration())
                         .build();
 
