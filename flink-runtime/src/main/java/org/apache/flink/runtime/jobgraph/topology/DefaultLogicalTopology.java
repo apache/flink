@@ -37,8 +37,7 @@ import java.util.function.Function;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Default implementation of {@link LogicalTopology}. It is an adapter of {@link JobGraph}. */
-public class DefaultLogicalTopology
-        implements LogicalTopology<DefaultLogicalVertex, DefaultLogicalResult> {
+public class DefaultLogicalTopology implements LogicalTopology {
 
     private final List<DefaultLogicalVertex> verticesSorted;
 
@@ -93,11 +92,11 @@ public class DefaultLogicalTopology
     }
 
     public Set<DefaultLogicalPipelinedRegion> getLogicalPipelinedRegions() {
-        final Set<Set<DefaultLogicalVertex>> regionsRaw =
+        final Set<Set<LogicalVertex>> regionsRaw =
                 PipelinedRegionComputeUtil.computePipelinedRegions(verticesSorted);
 
         final Set<DefaultLogicalPipelinedRegion> regions = new HashSet<>();
-        for (Set<DefaultLogicalVertex> regionVertices : regionsRaw) {
+        for (Set<LogicalVertex> regionVertices : regionsRaw) {
             regions.add(new DefaultLogicalPipelinedRegion(regionVertices));
         }
         return regions;
