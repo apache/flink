@@ -164,14 +164,6 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
         chooseController(barrier).obsoleteBarrierReceived(channelInfo, barrier);
     }
 
-    private void checkActiveController(CheckpointBarrier barrier) {
-        if (isAligned(barrier)) {
-            checkState(activeController == alignedController);
-        } else {
-            checkState(activeController == unalignedController);
-        }
-    }
-
     private boolean isAligned(CheckpointBarrier barrier) {
         return barrier.getCheckpointOptions().needsAlignment();
     }
