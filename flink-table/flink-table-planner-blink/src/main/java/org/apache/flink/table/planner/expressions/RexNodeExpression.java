@@ -80,7 +80,7 @@ public final class RexNodeExpression implements ResolvedExpression {
         throw new TableException(
                 String.format(
                         "Expression '%s' is not string serializable. Currently, only expressions that "
-                                + "originated from a SQL expressions have a well-defined string representation.",
+                                + "originated from a SQL expression have a well-defined string representation.",
                         asSummaryString()));
     }
 
@@ -102,5 +102,10 @@ public final class RexNodeExpression implements ResolvedExpression {
     @Override
     public List<ResolvedExpression> getResolvedChildren() {
         return new ArrayList<>();
+    }
+
+    @Override
+    public String toString() {
+        return asSummaryString();
     }
 }

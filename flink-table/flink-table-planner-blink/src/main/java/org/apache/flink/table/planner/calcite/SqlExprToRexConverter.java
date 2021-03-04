@@ -34,7 +34,7 @@ public interface SqlExprToRexConverter {
     /**
      * Converts a SQL expression to a {@link RexNode} expression.
      *
-     * @param expr a SQL expression e.g. e.g. {@code `my_catalog`.`my_database`.`my_udf`(`f0`) + 1}
+     * @param expr a SQL expression e.g. {@code `my_catalog`.`my_database`.`my_udf`(`f0`) + 1}
      */
     RexNode convertToRexNode(String expr);
 
