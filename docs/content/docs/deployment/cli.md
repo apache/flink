@@ -344,10 +344,10 @@ pages of the documentation.
 Currently, users are able to submit a PyFlink job via the CLI. It does not require to specify the
 JAR file path or the entry main class, which is different from the Java job submission.
 
-<span class="label label-info">Note</span> When submitting Python job via `flink run`, Flink will run the command "python". Please run the following command to confirm that the python executable in current environment points to a supported Python version of 3.5+.
+<span class="label label-info">Note</span> When submitting Python job via `flink run`, Flink will run the command "python". Please run the following command to confirm that the python executable in current environment points to a supported Python version of 3.6+.
 ```bash
 $ python --version
-# the version printed here must be 3.5+
+# the version printed here must be 3.6+
 ```
 
 The following commands show different PyFlink job submission use-cases:
