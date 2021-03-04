@@ -28,7 +28,7 @@ under the License.
 
 用户自定义函数是重要的功能，因为它们极大地扩展了Python Table API程序的表达能力。
 
-**注意:** 要执行Python用户自定义函数，客户端和集群端都需要安装Python版本(3.5、3.6、3.7 或 3.8)，并安装PyFlink。
+**注意:** 要执行Python用户自定义函数，客户端和集群端都需要安装Python版本(3.6、3.7 或 3.8)，并安装PyFlink。
 
 
 

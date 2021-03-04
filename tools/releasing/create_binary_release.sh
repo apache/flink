@@ -112,8 +112,8 @@ make_python_release() {
   cp ${pyflink_actual_name} "${PYTHON_RELEASE_DIR}/${pyflink_release_name}"
 
   wheel_packages_num=0
-  # py35,py36,py37,py38 for mac and linux (8 wheel packages)
-  EXPECTED_WHEEL_PACKAGES_NUM=8
+  # py36,py37,py38 for mac and linux (6 wheel packages)
+  EXPECTED_WHEEL_PACKAGES_NUM=6
   # Need to move the downloaded wheel packages from Azure CI to the directory flink-python/dist manually.
   for wheel_file in *.whl; do
     if [[ ! ${wheel_file} =~ ^apache_flink-$PYFLINK_VERSION- ]]; then

@@ -49,7 +49,7 @@ In particular, Apache Flink's [user mailing list](https://flink.apache.org/commu
 If you want to follow along, you will require a computer with: 
 
 * Java 8 or 11
-* Python 3.5, 3.6 or 3.7
+* Python 3.6, 3.7 or 3.8
 
 Using Python DataStream API requires installing PyFlink, which is available on [PyPI](https://pypi.org/project/apache-flink/) and can be easily installed using `pip`. 
 

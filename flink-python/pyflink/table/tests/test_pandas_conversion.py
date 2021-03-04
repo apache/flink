@@ -138,7 +138,11 @@ class PandasConversionITTests(PandasConversionTestBase):
         result_pdf = table.to_pandas()
         result_pdf.index = self.pdf.index
         self.assertEqual(2, len(result_pdf))
-        assert_frame_equal(self.pdf, result_pdf)
+        expected_arrow = self.pdf.to_records(index=False)
+        result_arrow = result_pdf.to_records(index=False)
+        for r in range(len(expected_arrow)):
+            for e in range(len(expected_arrow[r])):
+                self.assert_equal_field(expected_arrow[r][e], result_arrow[r][e])
 
     def test_empty_to_pandas(self):
         table = self.t_env.from_pandas(self.pdf, self.data_type)
@@ -154,6 +158,18 @@ class PandasConversionITTests(PandasConversionTestBase):
 
         result_pdf = table.group_by("f2").select("max(f1) as f2").to_pandas()
         assert_frame_equal(result_pdf, pd.DataFrame(data={'f2': np.int8([1, 1])}))
+
+    def assert_equal_field(self, expected_field, result_field):
+        import numpy as np
+        result_type = type(result_field)
+        if result_type == dict:
+            self.assertEqual(expected_field.keys(), result_field.keys())
+            for key in expected_field:
+                self.assert_equal_field(expected_field[key], result_field[key])
+        elif result_type == np.ndarray:
+            self.assertTrue((expected_field == result_field).all())
+        else:
+            self.assertTrue(expected_field == result_field)
 
 
 class StreamPandasConversionTests(PandasConversionITTests,

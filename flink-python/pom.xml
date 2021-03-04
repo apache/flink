@@ -242,6 +242,13 @@ under the License.
 				<artifactId>protobuf-java</artifactId>
 				<version>${protoc.version}</version>
 			</dependency>
+
+			<dependency>
+				<groupId>org.conscrypt</groupId>
+				<artifactId>conscrypt-openjdk-uber</artifactId>
+				<version>2.5.1</version>
+				<scope>runtime</scope>
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
