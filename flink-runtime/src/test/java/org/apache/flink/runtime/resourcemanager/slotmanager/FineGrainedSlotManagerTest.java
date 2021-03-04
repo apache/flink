@@ -508,9 +508,9 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
             {
                 resourceActionsBuilder.setNotEnoughResourcesConsumer(
                         (jobId1, acquiredResources) -> {
-                            notifyNotEnoughResourceFuture.complete(null);
                             notEnoughResourceNotifications.add(
                                     Tuple2.of(jobId1, acquiredResources));
+                            notifyNotEnoughResourceFuture.complete(null);
                         });
                 resourceAllocationStrategyBuilder.setTryFulfillRequirementsFunction(
                         ((jobIDCollectionMap, taskManagerResourceInfoProvider) ->
