@@ -40,6 +40,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 import org.apache.flink.streaming.runtime.io.MockInputGate;
+import org.apache.flink.util.clock.SystemClock;
 
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
@@ -135,6 +136,7 @@ public class AlignedControllerTest {
                 new SingleCheckpointBarrierHandler(
                         "Testing",
                         toNotify,
+                        SystemClock.getInstance(),
                         gate.getNumberOfInputChannels(),
                         new AlignedController(gate) {
                             @Override

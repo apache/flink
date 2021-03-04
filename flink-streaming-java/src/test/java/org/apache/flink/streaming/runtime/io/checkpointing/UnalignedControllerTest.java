@@ -43,6 +43,7 @@ import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
+import org.apache.flink.util.clock.SystemClock;
 
 import org.hamcrest.Matchers;
 import org.junit.After;
@@ -722,7 +723,11 @@ public class UnalignedControllerTest {
                         .build();
         final SingleCheckpointBarrierHandler handler =
                 SingleCheckpointBarrierHandler.createUnalignedCheckpointBarrierHandler(
-                        TestSubtaskCheckpointCoordinator.INSTANCE, "test", invokable, inputGate);
+                        TestSubtaskCheckpointCoordinator.INSTANCE,
+                        "test",
+                        invokable,
+                        SystemClock.getInstance(),
+                        inputGate);
 
         // should trigger respective checkpoint
         handler.processBarrier(
@@ -743,7 +748,11 @@ public class UnalignedControllerTest {
                         .build();
         final SingleCheckpointBarrierHandler handler =
                 SingleCheckpointBarrierHandler.createUnalignedCheckpointBarrierHandler(
-                        TestSubtaskCheckpointCoordinator.INSTANCE, "test", invokable, inputGate);
+                        TestSubtaskCheckpointCoordinator.INSTANCE,
+                        "test",
+                        invokable,
+                        SystemClock.getInstance(),
+                        inputGate);
 
         handler.processCancellationBarrier(new CancelCheckpointMarker(DEFAULT_CHECKPOINT_ID));
 
@@ -795,7 +804,11 @@ public class UnalignedControllerTest {
                         .build();
         final SingleCheckpointBarrierHandler handler =
                 SingleCheckpointBarrierHandler.createUnalignedCheckpointBarrierHandler(
-                        TestSubtaskCheckpointCoordinator.INSTANCE, "test", invokable, inputGate);
+                        TestSubtaskCheckpointCoordinator.INSTANCE,
+                        "test",
+                        invokable,
+                        SystemClock.getInstance(),
+                        inputGate);
 
         // should trigger respective checkpoint
         handler.processBarrier(
@@ -924,6 +937,7 @@ public class UnalignedControllerTest {
                         new TestSubtaskCheckpointCoordinator(channelStateWriter),
                         "Test",
                         toNotify,
+                        SystemClock.getInstance(),
                         gate);
         return new CheckpointedInputGate(gate, barrierHandler, new SyncMailboxExecutor());
     }

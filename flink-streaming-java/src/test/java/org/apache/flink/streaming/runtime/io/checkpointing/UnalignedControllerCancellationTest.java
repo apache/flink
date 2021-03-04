@@ -31,6 +31,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBui
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator;
+import org.apache.flink.util.clock.SystemClock;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -94,7 +95,11 @@ public class UnalignedControllerCancellationTest {
                         .build();
         SingleCheckpointBarrierHandler unaligner =
                 SingleCheckpointBarrierHandler.createUnalignedCheckpointBarrierHandler(
-                        TestSubtaskCheckpointCoordinator.INSTANCE, "test", invokable, inputGate);
+                        TestSubtaskCheckpointCoordinator.INSTANCE,
+                        "test",
+                        invokable,
+                        SystemClock.getInstance(),
+                        inputGate);
 
         for (RuntimeEvent e : events) {
             if (e instanceof CancelCheckpointMarker) {

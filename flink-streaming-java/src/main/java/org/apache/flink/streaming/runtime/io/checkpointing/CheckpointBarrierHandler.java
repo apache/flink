@@ -27,6 +27,7 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.util.clock.Clock;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -44,6 +45,8 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 
     /** The listener to be notified on complete checkpoints. */
     private final AbstractInvokable toNotifyOnCheckpoint;
+
+    private final Clock clock;
 
     /** The time (in nanoseconds) that the latest alignment took. */
     private CompletableFuture<Long> latestAlignmentDurationNanos = new CompletableFuture<>();
@@ -65,8 +68,9 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 
     private CompletableFuture<Long> latestBytesProcessedDuringAlignment = new CompletableFuture<>();
 
-    public CheckpointBarrierHandler(AbstractInvokable toNotifyOnCheckpoint) {
+    public CheckpointBarrierHandler(AbstractInvokable toNotifyOnCheckpoint, Clock clock) {
         this.toNotifyOnCheckpoint = checkNotNull(toNotifyOnCheckpoint);
+        this.clock = checkNotNull(clock);
     }
 
     @Override
@@ -88,7 +92,7 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 
     public long getAlignmentDurationNanos() {
         if (isDuringAlignment()) {
-            return System.nanoTime() - startOfAlignmentTimestamp;
+            return clock.relativeTimeNanos() - startOfAlignmentTimestamp;
         } else {
             return FutureUtils.getOrDefault(latestAlignmentDurationNanos, 0L);
         }
@@ -135,14 +139,14 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 
     protected void markAlignmentStart(long checkpointCreationTimestamp) {
         latestCheckpointStartDelayNanos =
-                1_000_000 * Math.max(0, System.currentTimeMillis() - checkpointCreationTimestamp);
+                1_000_000 * Math.max(0, clock.absoluteTimeMillis() - checkpointCreationTimestamp);
 
         resetAlignment();
-        startOfAlignmentTimestamp = System.nanoTime();
+        startOfAlignmentTimestamp = clock.relativeTimeNanos();
     }
 
     protected void markAlignmentEnd() {
-        markAlignmentEnd(System.nanoTime() - startOfAlignmentTimestamp);
+        markAlignmentEnd(clock.relativeTimeNanos() - startOfAlignmentTimestamp);
     }
 
     protected void markAlignmentEnd(long alignmentDuration) {

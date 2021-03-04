@@ -29,6 +29,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
+import org.apache.flink.util.clock.SystemClock;
 
 import org.junit.Test;
 
@@ -72,6 +73,7 @@ public class AlignedControllerMassiveRandomTest {
                             new SingleCheckpointBarrierHandler(
                                     "Testing: No task associated",
                                     new DummyCheckpointInvokable(),
+                                    SystemClock.getInstance(),
                                     myIG.getNumberOfInputChannels(),
                                     new AlignedController(myIG) {
                                         @Override
