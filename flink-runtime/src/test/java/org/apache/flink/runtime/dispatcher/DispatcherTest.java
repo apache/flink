@@ -635,20 +635,17 @@ public class DispatcherTest extends TestLogger {
      */
     @Test
     public void testWaitingForJobMasterLeadership() throws Exception {
-        ExpectedJobIdJobManagerRunnerFactory jobManagerRunnerFactor =
-                new ExpectedJobIdJobManagerRunnerFactory(jobId, createdJobManagerRunnerLatch);
+        final TestingJobManagerRunnerFactory testingJobManagerRunnerFactory =
+                new TestingJobManagerRunnerFactory();
         dispatcher =
-                createAndStartDispatcher(heartbeatServices, haServices, jobManagerRunnerFactor);
+                createAndStartDispatcher(
+                        heartbeatServices, haServices, testingJobManagerRunnerFactory);
 
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
 
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
         log.info("Job submission completed");
-
-        // wait until job has been initialized: approximated by the time when the leaderelection
-        // finished
-        jobMasterLeaderElectionService.getStartFuture().get();
 
         // try getting a blocking, non-initializing job status future in a retry-loop.
         // In some CI environments, we can not guarantee that the job immediately leaves the
@@ -671,7 +668,21 @@ public class DispatcherTest extends TestLogger {
             fail("Unable to get a job status future blocked on leader election.");
         }
 
-        jobMasterLeaderElectionService.isLeader(UUID.randomUUID()).get();
+        final TestingJobManagerRunner testingJobManagerRunner =
+                testingJobManagerRunnerFactory.takeCreatedJobManagerRunner();
+
+        // completing the JobMasterGatewayFuture means that the JobManagerRunner has confirmed the
+        // leadership
+        testingJobManagerRunner.completeJobMasterGatewayFuture(
+                new TestingJobMasterGatewayBuilder()
+                        .setRequestJobSupplier(
+                                () ->
+                                        CompletableFuture.completedFuture(
+                                                new ExecutionGraphInfo(
+                                                        new ArchivedExecutionGraphBuilder()
+                                                                .setState(JobStatus.RUNNING)
+                                                                .build())))
+                        .build());
 
         assertThat(jobStatusFuture.get(), is(JobStatus.RUNNING));
     }
