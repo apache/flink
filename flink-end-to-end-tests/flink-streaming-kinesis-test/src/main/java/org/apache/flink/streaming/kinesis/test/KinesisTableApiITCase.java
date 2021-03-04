@@ -21,6 +21,7 @@ package org.apache.flink.streaming.kinesis.test;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisPubsubClient;
 import org.apache.flink.streaming.kinesis.test.containers.KinesaliteContainer;
+import org.apache.flink.streaming.kinesis.test.model.Order;
 import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.tests.util.flink.FlinkContainer;
@@ -28,10 +29,8 @@ import org.apache.flink.tests.util.flink.SQLJobSubmission;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableList;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.SneakyThrows;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -56,8 +55,8 @@ import static org.junit.Assert.assertTrue;
 /** End-to-end test for Kinesis Table API using Kinesalite. */
 @Category(value = {TravisGroup1.class})
 public class KinesisTableApiITCase {
-    private static final String ORDERS = "orders";
-    private static final String LARGE_ORDERS = "large_orders";
+    private static final String ORDERS_STREAM = "orders";
+    private static final String LARGE_ORDERS_STREAM = "large_orders";
 
     private final Path sqlConnectorKinesisJar = TestUtils.getResource(".*kinesis.jar");
     private final Network network = Network.newNetwork();
@@ -103,11 +102,11 @@ public class KinesisTableApiITCase {
                 ImmutableList.of(new Order("C", 15), new Order("D", 20), new Order("E", 25));
 
         KinesisPubsubClient client = new KinesisPubsubClient(properties);
-        client.createTopic(ORDERS, 1, properties);
-        client.createTopic(LARGE_ORDERS, 1, properties);
+        client.createTopic(ORDERS_STREAM, 1, properties);
+        client.createTopic(LARGE_ORDERS_STREAM, 1, properties);
 
-        smallOrders.forEach(order -> client.sendMessage(ORDERS, toJson(order)));
-        largeOrders.forEach(order -> client.sendMessage(ORDERS, toJson(order)));
+        smallOrders.forEach(order -> client.sendMessage(ORDERS_STREAM, toJson(order)));
+        largeOrders.forEach(order -> client.sendMessage(ORDERS_STREAM, toJson(order)));
 
         executeSqlStatements(readSqlFile("filter-large-orders.sql"));
 
@@ -123,7 +122,7 @@ public class KinesisTableApiITCase {
         do {
             Thread.sleep(1000);
             orders =
-                    client.readAllMessages(LARGE_ORDERS).stream()
+                    client.readAllMessages(LARGE_ORDERS_STREAM).stream()
                             .map(order -> fromJson(order, Order.class))
                             .collect(Collectors.toList());
         } while (deadline.hasTimeLeft() && orders.size() < 3);
@@ -142,21 +141,19 @@ public class KinesisTableApiITCase {
                         .build());
     }
 
-    @SneakyThrows
     private <T> String toJson(final T object) {
-        return new ObjectMapper().writeValueAsString(object);
+        try {
+            return new ObjectMapper().writeValueAsString(object);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Test Failure.", e);
+        }
     }
 
-    @SneakyThrows
     private <T> T fromJson(final String json, final Class<T> type) {
-        return new ObjectMapper().readValue(json, type);
-    }
-
-    /** Test data model class for sending and receiving records on Kinesis. */
-    @Data
-    @EqualsAndHashCode
-    public static class Order {
-        private final String code;
-        private final int quantity;
+        try {
+            return new ObjectMapper().readValue(json, type);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Test Failure.", e);
+        }
     }
 }
