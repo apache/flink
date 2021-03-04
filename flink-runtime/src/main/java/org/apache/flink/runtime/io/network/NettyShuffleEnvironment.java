@@ -343,7 +343,11 @@ public class NettyShuffleEnvironment
             }
 
             // make sure that the global buffer pool re-acquires all buffers
-            networkBufferPool.destroyAllBufferPools();
+            try {
+                networkBufferPool.destroyAllBufferPools();
+            } catch (Throwable t) {
+                LOG.warn("Could not destroy all buffer pools.", t);
+            }
 
             // destroy the buffer pool
             try {
