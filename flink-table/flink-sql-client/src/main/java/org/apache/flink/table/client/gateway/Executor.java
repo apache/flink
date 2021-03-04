@@ -106,14 +106,4 @@ public interface Executor {
      * has been sent to cluster.
      */
     void cancelQuery(String sessionId, String resultId) throws SqlExecutionException;
-
-    /**
-     * Submits a Flink SQL update statement such as INSERT INTO.
-     *
-     * @param sessionId to identify the user session.
-     * @param statement SQL update statement (currently only INSERT INTO is supported)
-     * @return information about the target of the submitted Flink job
-     */
-    ProgramTargetDescriptor executeUpdate(String sessionId, String statement)
-            throws SqlExecutionException;
 }
