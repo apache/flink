@@ -236,6 +236,16 @@ public class TaskManagerOptions {
                                     + " is typically proportional to the number of physical CPU cores that the TaskManager's machine has"
                                     + " (e.g., equal to the number of cores, or half the number of cores).");
 
+    /** Timeout for identifying inactive slots. */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+    public static final ConfigOption<Duration> SLOT_TIMEOUT =
+            ConfigOptions.key("taskmanager.slot.timeout")
+                    .durationType()
+                    .defaultValue(TimeUtils.parseDuration("10 s"))
+                    .withDescription(
+                            "Timeout used for identifying inactive slots. The TaskManager will free the slot if it does not become active "
+                                    + "within the given amount of time. Inactive slots can be caused by an out-dated slot request.");
+
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
     public static final ConfigOption<Boolean> DEBUG_MEMORY_LOG =
             key("taskmanager.debug.memory.log")
