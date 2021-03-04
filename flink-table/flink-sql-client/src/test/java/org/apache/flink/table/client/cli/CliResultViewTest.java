@@ -21,10 +21,8 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.client.cli.utils.TerminalUtils;
-import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
-import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.delegation.Parser;
@@ -37,7 +35,6 @@ import java.io.File;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -81,9 +78,9 @@ public class CliResultViewTest {
             throws Exception {
         final CountDownLatch cancellationCounterLatch =
                 new CountDownLatch(expectedCancellationCount);
-        final SessionContext session = new SessionContext("test-session", new Environment());
+
         final MockExecutor executor = new MockExecutor(typedResult, cancellationCounterLatch);
-        String sessionId = executor.openSession(session);
+        String sessionId = executor.openSession("test-session");
         final ResultDescriptor descriptor =
                 new ResultDescriptor(
                         "result-id",
@@ -134,8 +131,8 @@ public class CliResultViewTest {
         }
 
         @Override
-        public String openSession(SessionContext session) throws SqlExecutionException {
-            return UUID.randomUUID().toString();
+        public String openSession(String sessionId) throws SqlExecutionException {
+            return sessionId;
         }
 
         @Override

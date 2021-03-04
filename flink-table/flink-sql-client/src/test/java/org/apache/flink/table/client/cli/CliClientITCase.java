@@ -19,12 +19,11 @@
 package org.apache.flink.table.client.cli;
 
 import org.apache.flink.client.cli.DefaultCLI;
-import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.client.cli.utils.TestSqlStatement;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
-import org.apache.flink.table.client.gateway.SessionContext;
+import org.apache.flink.table.client.gateway.context.DefaultContext;
 import org.apache.flink.table.client.gateway.local.LocalExecutor;
 import org.apache.flink.table.client.gateway.utils.TestUserClassLoaderJar;
 import org.apache.flink.test.util.AbstractTestBase;
@@ -121,17 +120,16 @@ public class CliClientITCase extends AbstractTestBase {
      */
     private List<Result> runSqlStatements(List<String> statements) throws IOException {
         final String sqlContent = String.join("\n", statements);
-        final Executor executor =
-                new LocalExecutor(
+        DefaultContext defaultContext =
+                new DefaultContext(
                         new Environment(),
                         Collections.singletonList(udfDependency),
                         new Configuration(miniClusterResource.getClientConfiguration()),
-                        new DefaultCLI(),
-                        new DefaultClusterClientServiceLoader());
+                        Collections.singletonList(new DefaultCLI()));
+        final Executor executor = new LocalExecutor(defaultContext);
         InputStream inputStream = new ByteArrayInputStream(sqlContent.getBytes());
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream(256);
-        SessionContext sessionContext = new SessionContext("test-session", new Environment());
-        String sessionId = executor.openSession(sessionContext);
+        String sessionId = executor.openSession("test-session");
 
         try (Terminal terminal = new DumbTerminal(inputStream, outputStream);
                 CliClient client =

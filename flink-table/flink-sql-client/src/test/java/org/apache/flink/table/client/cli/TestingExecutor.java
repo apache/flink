@@ -21,7 +21,6 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.client.cli.utils.SqlParserHelper;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
-import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.delegation.Parser;
@@ -118,8 +117,8 @@ class TestingExecutor implements Executor {
     public void start() throws SqlExecutionException {}
 
     @Override
-    public String openSession(SessionContext session) throws SqlExecutionException {
-        return session.getSessionId();
+    public String openSession(String sessionId) throws SqlExecutionException {
+        return sessionId;
     }
 
     @Override

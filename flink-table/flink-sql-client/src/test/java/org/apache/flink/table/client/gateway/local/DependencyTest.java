@@ -19,7 +19,6 @@
 package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.client.cli.DefaultCLI;
-import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableResult;
@@ -40,7 +39,7 @@ import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
 import org.apache.flink.table.catalog.hive.factories.HiveCatalogFactory;
 import org.apache.flink.table.client.config.Environment;
-import org.apache.flink.table.client.gateway.SessionContext;
+import org.apache.flink.table.client.gateway.context.DefaultContext;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.table.client.gateway.utils.TestTableSinkFactoryBase;
 import org.apache.flink.table.client.gateway.utils.TestTableSourceFactoryBase;
@@ -86,9 +85,8 @@ public class DependencyTest {
 
     @Test
     public void testTableFactoryDiscovery() throws Exception {
-        final LocalExecutor executor = createExecutor();
-        final SessionContext session = new SessionContext("test-session", new Environment());
-        String sessionId = executor.openSession(session);
+        final LocalExecutor executor = createLocalExecutor();
+        String sessionId = executor.openSession("test-session");
         try {
             final TableResult tableResult = executor.executeSql(sessionId, "DESCRIBE TableNumber1");
             assertEquals(
@@ -126,9 +124,8 @@ public class DependencyTest {
 
     @Test
     public void testSqlParseWithUserClassLoader() throws Exception {
-        final LocalExecutor executor = createExecutor();
-        final SessionContext session = new SessionContext("test-session", new Environment());
-        String sessionId = executor.openSession(session);
+        final LocalExecutor executor = createLocalExecutor();
+        String sessionId = executor.openSession("test-session");
         try {
             final Parser sqlParser = executor.getSqlParser(sessionId);
             List<Operation> operations =
@@ -140,7 +137,7 @@ public class DependencyTest {
         }
     }
 
-    private LocalExecutor createExecutor() throws Exception {
+    private LocalExecutor createLocalExecutor() throws Exception {
         // create environment
         final Map<String, String> replaceVars = new HashMap<>();
         replaceVars.put("$VAR_CONNECTOR_TYPE", CONNECTOR_TYPE_VALUE);
@@ -151,12 +148,14 @@ public class DependencyTest {
 
         // create executor with dependencies
         final URL dependency = Paths.get("target", TABLE_FACTORY_JAR_FILE).toUri().toURL();
-        return new LocalExecutor(
-                env,
-                Collections.singletonList(dependency),
-                new Configuration(),
-                new DefaultCLI(),
-                new DefaultClusterClientServiceLoader());
+        // create default context
+        DefaultContext defaultContext =
+                new DefaultContext(
+                        env,
+                        Collections.singletonList(dependency),
+                        new Configuration(),
+                        Collections.singletonList(new DefaultCLI()));
+        return new LocalExecutor(defaultContext);
     }
 
     // --------------------------------------------------------------------------------------------

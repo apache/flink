@@ -16,10 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.gateway.local;
+package org.apache.flink.table.client.gateway.context;
 
 import org.apache.flink.client.cli.DefaultCLI;
-import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.python.PythonFunctionFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
@@ -40,7 +39,7 @@ import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.config.entries.CatalogEntry;
-import org.apache.flink.table.client.gateway.SessionContext;
+import org.apache.flink.table.client.gateway.local.DependencyTest;
 import org.apache.flink.table.client.gateway.utils.DummyTableSourceFactory;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.table.factories.CatalogFactory;
@@ -51,7 +50,6 @@ import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.testutils.junit.FailsOnJava11;
 import org.apache.flink.util.StringUtils;
 
-import org.apache.commons.cli.Options;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -62,6 +60,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.net.URL;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -105,9 +104,11 @@ public class ExecutionContextTest {
     private static final String FUNCTION_ENVIRONMENT_FILE = "test-sql-client-python-functions.yaml";
     private static final String EXECUTION_ENVIRONMENT_FILE = "test-sql-client-execution.yaml";
 
+    private SessionContext sessionContext;
+
     @Test
     public void testExecutionConfig() throws Exception {
-        final ExecutionContext<?> context = createDefaultExecutionContext();
+        final ExecutionContext context = createDefaultExecutionContext();
         final TableEnvironment tableEnv = context.getTableEnvironment();
         final TableConfig tableConfig = tableEnv.getConfig();
 
@@ -140,7 +141,7 @@ public class ExecutionContextTest {
 
     @Test
     public void testDefaultExecutionConfig() throws Exception {
-        final ExecutionContext<?> context = createExecutionExecutionContext();
+        final ExecutionContext context = createExecutionExecutionContext();
         final TableEnvironment tableEnv = context.getTableEnvironment();
         final TableConfig tableConfig = tableEnv.getConfig();
 
@@ -173,7 +174,7 @@ public class ExecutionContextTest {
 
     @Test
     public void testModules() throws Exception {
-        final ExecutionContext<?> context = createModuleExecutionContext();
+        final ExecutionContext context = createModuleExecutionContext();
         final TableEnvironment tableEnv = context.getTableEnvironment();
 
         Set<String> allModules = new HashSet<>(Arrays.asList(tableEnv.listModules()));
@@ -189,7 +190,7 @@ public class ExecutionContextTest {
         final String hiveCatalog = "hivecatalog";
         final String hiveDefaultVersionCatalog = "hivedefaultversion";
 
-        final ExecutionContext<?> context = createCatalogExecutionContext();
+        final ExecutionContext context = createCatalogExecutionContext();
         final TableEnvironment tableEnv = context.getTableEnvironment();
 
         assertEquals(inmemoryCatalog, tableEnv.getCurrentCatalog());
@@ -223,7 +224,7 @@ public class ExecutionContextTest {
                                 "catalog2")),
                 allCatalogs);
 
-        context.close();
+        sessionContext.close();
     }
 
     @Test
@@ -231,7 +232,7 @@ public class ExecutionContextTest {
     public void testDatabases() throws Exception {
         final String hiveCatalog = "hivecatalog";
 
-        final ExecutionContext<?> context = createCatalogExecutionContext();
+        final ExecutionContext context = createCatalogExecutionContext();
         final TableEnvironment tableEnv = context.getTableEnvironment();
 
         assertEquals(1, tableEnv.listDatabases().length);
@@ -257,12 +258,12 @@ public class ExecutionContextTest {
                 DependencyTest.TestHiveCatalogFactory.ADDITIONAL_TEST_DATABASE,
                 tableEnv.getCurrentDatabase());
 
-        context.close();
+        sessionContext.close();
     }
 
     @Test
     public void testFunctions() throws Exception {
-        final ExecutionContext<?> context = createDefaultExecutionContext();
+        final ExecutionContext context = createDefaultExecutionContext();
         final TableEnvironment tableEnv = context.getTableEnvironment();
         final String[] expected = new String[] {"scalarudf", "tableudf", "aggregateudf"};
         final String[] actual = tableEnv.listUserDefinedFunctions();
@@ -290,7 +291,7 @@ public class ExecutionContextTest {
 
     @Test
     public void testTables() throws Exception {
-        final ExecutionContext<?> context = createDefaultExecutionContext();
+        final ExecutionContext context = createDefaultExecutionContext();
         final TableEnvironment tableEnv = context.getTableEnvironment();
 
         assertArrayEquals(
@@ -302,7 +303,7 @@ public class ExecutionContextTest {
 
     @Test
     public void testTemporalTables() throws Exception {
-        final ExecutionContext<?> context = createStreamingExecutionContext();
+        final ExecutionContext context = createStreamingExecutionContext();
         final StreamTableEnvironment tableEnv =
                 (StreamTableEnvironment) context.getTableEnvironment();
 
@@ -336,7 +337,7 @@ public class ExecutionContextTest {
 
     @Test
     public void testConfiguration() throws Exception {
-        final ExecutionContext<?> context = createConfigurationExecutionContext();
+        final ExecutionContext context = createConfigurationExecutionContext();
         final TableEnvironment tableEnv = context.getTableEnvironment();
 
         Configuration conf = tableEnv.getConfig().getConfiguration();
@@ -373,33 +374,26 @@ public class ExecutionContextTest {
         catalogProps.put("type", "test_cl_catalog");
         env.getCatalogs().clear();
         env.getCatalogs().put("test", CatalogEntry.create(catalogProps));
-        Configuration flinkConfig = new Configuration();
-        ExecutionContext.builder(
-                        env,
-                        new SessionContext("test-session", new Environment()),
-                        Collections.emptyList(),
-                        flinkConfig,
-                        new DefaultClusterClientServiceLoader(),
-                        new Options(),
-                        Collections.singletonList(new DefaultCLI()))
-                .build();
+
+        createExecutionContext(env);
     }
 
-    @SuppressWarnings("unchecked")
-    private <T> ExecutionContext<T> createExecutionContext(
-            String file, Map<String, String> replaceVars) throws Exception {
+    private ExecutionContext createExecutionContext(String file, Map<String, String> replaceVars)
+            throws Exception {
         final Environment env = EnvironmentFileUtil.parseModified(file, replaceVars);
-        final Configuration flinkConfig = new Configuration();
-        return (ExecutionContext<T>)
-                ExecutionContext.builder(
-                                env,
-                                new SessionContext("test-session", new Environment()),
-                                Collections.emptyList(),
-                                flinkConfig,
-                                new DefaultClusterClientServiceLoader(),
-                                new Options(),
-                                Collections.singletonList(new DefaultCLI()))
-                        .build();
+        return createExecutionContext(env);
+    }
+
+    private ExecutionContext createExecutionContext(Environment env) throws Exception {
+        final Configuration configuration = new Configuration();
+        DefaultContext defaultContext =
+                new DefaultContext(
+                        env,
+                        new ArrayList<>(),
+                        configuration,
+                        Collections.singletonList(new DefaultCLI()));
+        sessionContext = SessionContext.create(defaultContext, "test-session");
+        return sessionContext.getExecutionContext();
     }
 
     private Map<String, String> createDefaultReplaceVars() {
@@ -423,16 +417,16 @@ public class ExecutionContextTest {
         return replaceVars;
     }
 
-    private <T> ExecutionContext<T> createDefaultExecutionContext() throws Exception {
+    private ExecutionContext createDefaultExecutionContext() throws Exception {
         final Map<String, String> replaceVars = createDefaultReplaceVars();
         return createExecutionContext(DEFAULTS_ENVIRONMENT_FILE, replaceVars);
     }
 
-    private <T> ExecutionContext<T> createModuleExecutionContext() throws Exception {
+    private ExecutionContext createModuleExecutionContext() throws Exception {
         return createExecutionContext(MODULES_ENVIRONMENT_FILE, createModuleReplaceVars());
     }
 
-    private <T> ExecutionContext<T> createCatalogExecutionContext() throws Exception {
+    private ExecutionContext createCatalogExecutionContext() throws Exception {
         final Map<String, String> replaceVars = new HashMap<>();
         replaceVars.put("$VAR_PLANNER", "old");
         replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
@@ -442,7 +436,7 @@ public class ExecutionContextTest {
         return createExecutionContext(CATALOGS_ENVIRONMENT_FILE, replaceVars);
     }
 
-    private <T> ExecutionContext<T> createStreamingExecutionContext() throws Exception {
+    private ExecutionContext createStreamingExecutionContext() throws Exception {
         final Map<String, String> replaceVars = new HashMap<>();
         replaceVars.put("$VAR_CONNECTOR_TYPE", DummyTableSourceFactory.CONNECTOR_TYPE_VALUE);
         replaceVars.put("$VAR_CONNECTOR_PROPERTY", DummyTableSourceFactory.TEST_PROPERTY);
@@ -450,16 +444,16 @@ public class ExecutionContextTest {
         return createExecutionContext(STREAMING_ENVIRONMENT_FILE, replaceVars);
     }
 
-    private <T> ExecutionContext<T> createExecutionExecutionContext() throws Exception {
+    private ExecutionContext createExecutionExecutionContext() throws Exception {
         final Map<String, String> replaceVars = createDefaultReplaceVars();
         return createExecutionContext(EXECUTION_ENVIRONMENT_FILE, replaceVars);
     }
 
-    private <T> ExecutionContext<T> createConfigurationExecutionContext() throws Exception {
+    private ExecutionContext createConfigurationExecutionContext() throws Exception {
         return createExecutionContext(CONFIGURATION_ENVIRONMENT_FILE, new HashMap<>());
     }
 
-    private <T> ExecutionContext<T> createPythonFunctionExecutionContext() throws Exception {
+    private ExecutionContext createPythonFunctionExecutionContext() throws Exception {
         return createExecutionContext(FUNCTION_ENVIRONMENT_FILE, new HashMap<>());
     }
 

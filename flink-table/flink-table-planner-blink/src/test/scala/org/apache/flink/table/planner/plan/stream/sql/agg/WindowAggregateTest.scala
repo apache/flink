@@ -44,8 +44,8 @@ class WindowAggregateTest extends TableTestBase {
        |  d DECIMAL(10, 3),
        |  e BIGINT,
        |  rowtime TIMESTAMP(3),
-       |  proctime as PROCTIME(),
-       |  WATERMARK FOR rowtime AS rowtime - INTERVAL '1' SECOND
+       |  ts as rowtime,
+       |  WATERMARK FOR ts AS ts - INTERVAL '1' SECOND
        |) with (
        |  'connector' = 'values'
        |)

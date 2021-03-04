@@ -20,7 +20,6 @@
 package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.client.cli.DefaultCLI;
-import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -35,9 +34,9 @@ import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.config.entries.ExecutionEntry;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
-import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.client.gateway.context.DefaultContext;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.table.client.gateway.utils.SimpleCatalogFactory;
 import org.apache.flink.table.client.gateway.utils.TestUserClassLoaderJar;
@@ -79,8 +78,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
-import static org.apache.flink.table.client.gateway.local.ExecutionContextTest.MODULES_ENVIRONMENT_FILE;
-import static org.apache.flink.table.client.gateway.local.ExecutionContextTest.createModuleReplaceVars;
+import static org.apache.flink.table.client.gateway.context.ExecutionContextTest.MODULES_ENVIRONMENT_FILE;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.CoreMatchers.hasItems;
@@ -101,7 +99,6 @@ public class LocalExecutorITCase extends TestLogger {
     }
 
     private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
-    private static final String DIALECT_ENVIRONMENT_FILE = "test-sql-client-dialect.yaml";
 
     private static final int NUM_TMS = 2;
     private static final int NUM_SLOTS_PER_TM = 2;
@@ -120,7 +117,7 @@ public class LocalExecutorITCase extends TestLogger {
     private static ClusterClient<?> clusterClient;
 
     // a generated UDF jar used for testing classloading of dependencies
-    private static URL udfDependency;
+    private static List<URL> udfDependency;
 
     @BeforeClass
     public static void setup() throws IOException {
@@ -128,7 +125,7 @@ public class LocalExecutorITCase extends TestLogger {
         File udfJar =
                 TestUserClassLoaderJar.createJarFile(
                         tempFolder.newFolder("test-jar"), "test-classloader-udf.jar");
-        udfDependency = udfJar.toURI().toURL();
+        udfDependency = Collections.singletonList(udfJar.toURI().toURL());
     }
 
     private static Configuration getConfig() {
@@ -146,9 +143,9 @@ public class LocalExecutorITCase extends TestLogger {
 
     @Test
     public void testCompleteStatement() throws Exception {
-        final Executor executor = createDefaultExecutor(clusterClient);
-        final SessionContext session = new SessionContext("test-session", new Environment());
-        String sessionId = executor.openSession(session);
+        final Executor executor =
+                createLocalExecutor(createDefaultEnvironment(), Collections.emptyList());
+        String sessionId = executor.openSession("test-session");
         assertEquals("test-session", sessionId);
 
         final List<String> expectedTableHints =
@@ -183,9 +180,9 @@ public class LocalExecutorITCase extends TestLogger {
         replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
         replaceVars.put("$VAR_MAX_ROWS", "100");
 
-        final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
-        final SessionContext session = new SessionContext("test-session", new Environment());
-        String sessionId = executor.openSession(session);
+        final Executor executor =
+                createLocalExecutor(createModifiedEnvironment(replaceVars), udfDependency);
+        String sessionId = executor.openSession("test-session");
         assertEquals("test-session", sessionId);
 
         try {
@@ -227,9 +224,9 @@ public class LocalExecutorITCase extends TestLogger {
         replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
         replaceVars.put("$VAR_MAX_ROWS", "100");
 
-        final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
-        final SessionContext session = new SessionContext("test-session", new Environment());
-        String sessionId = executor.openSession(session);
+        final Executor executor =
+                createLocalExecutor(createModifiedEnvironment(replaceVars), udfDependency);
+        String sessionId = executor.openSession("test-session");
         assertEquals("test-session", sessionId);
 
         final List<String> expectedResults = new ArrayList<>();
@@ -311,9 +308,9 @@ public class LocalExecutorITCase extends TestLogger {
         expectedResults.add("+I[47, Hello World]");
         expectedResults.add("+I[57, Hello World!!!!]");
 
-        final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
-        final SessionContext session = new SessionContext("test-session", new Environment());
-        String sessionId = executor.openSession(session);
+        final Executor executor =
+                createLocalExecutor(createModifiedEnvironment(replaceVars), udfDependency);
+        String sessionId = executor.openSession("test-session");
         assertEquals("test-session", sessionId);
 
         try {
@@ -359,9 +356,9 @@ public class LocalExecutorITCase extends TestLogger {
         replaceVars.put("$VAR_UPDATE_MODE", "");
         replaceVars.put("$VAR_MAX_ROWS", "100");
 
-        final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
-        final SessionContext session = new SessionContext("test-session", new Environment());
-        String sessionId = executor.openSession(session);
+        final Executor executor =
+                createLocalExecutor(createModifiedEnvironment(replaceVars), udfDependency);
+        String sessionId = executor.openSession("test-session");
         assertEquals("test-session", sessionId);
 
         try {
@@ -400,9 +397,10 @@ public class LocalExecutorITCase extends TestLogger {
         replaceVars.put("$VAR_UPDATE_MODE", "");
         replaceVars.put("$VAR_MAX_ROWS", "100");
 
-        final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
-        final SessionContext session = new SessionContext("test-session", new Environment());
-        String sessionId = executor.openSession(session);
+        final Executor executor =
+                createLocalExecutor(
+                        createModifiedEnvironment(replaceVars), Collections.emptyList());
+        String sessionId = executor.openSession("test-session");
         assertEquals("test-session", sessionId);
 
         final List<String> expectedResults = new ArrayList<>();
@@ -447,9 +445,9 @@ public class LocalExecutorITCase extends TestLogger {
         replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
         replaceVars.put("$VAR_MAX_ROWS", "100");
 
-        final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
-        final SessionContext session = new SessionContext("test-session", new Environment());
-        String sessionId = executor.openSession(session);
+        final Executor executor =
+                createLocalExecutor(createModifiedEnvironment(replaceVars), udfDependency);
+        String sessionId = executor.openSession("test-session");
         assertEquals("test-session", sessionId);
 
         try {
@@ -503,10 +501,11 @@ public class LocalExecutorITCase extends TestLogger {
         // only blink planner supports LOAD MODULE syntax
         Assume.assumeTrue(planner.equals("blink"));
         final LocalExecutor executor =
-                createModifiedExecutor(
-                        MODULES_ENVIRONMENT_FILE, clusterClient, createModuleReplaceVars());
-        final SessionContext session = new SessionContext("test-session", new Environment());
-        String sessionId = executor.openSession(session);
+                createLocalExecutor(
+                        createModifiedEnvironment(
+                                MODULES_ENVIRONMENT_FILE, createModuleReplaceVars()),
+                        udfDependency);
+        String sessionId = executor.openSession("test-session");
         assertEquals("test-session", sessionId);
 
         assertThrows(
@@ -525,10 +524,11 @@ public class LocalExecutorITCase extends TestLogger {
         // only blink planner supports UNLOAD MODULE syntax
         Assume.assumeTrue(planner.equals("blink"));
         final LocalExecutor executor =
-                createModifiedExecutor(
-                        MODULES_ENVIRONMENT_FILE, clusterClient, createModuleReplaceVars());
-        final SessionContext session = new SessionContext("test-session", new Environment());
-        String sessionId = executor.openSession(session);
+                createLocalExecutor(
+                        createModifiedEnvironment(
+                                MODULES_ENVIRONMENT_FILE, createModuleReplaceVars()),
+                        Collections.emptyList());
+        String sessionId = executor.openSession("test-session");
         assertEquals("test-session", sessionId);
 
         executor.executeSql(sessionId, "unload module mymodule");
@@ -554,9 +554,10 @@ public class LocalExecutorITCase extends TestLogger {
         replaceVars.put("$VAR_MAX_ROWS", "100");
         replaceVars.put("$VAR_RESULT_MODE", "table");
 
-        final LocalExecutor executor = createModifiedExecutor(clusterClient, replaceVars);
-        final SessionContext session = new SessionContext("test-session", new Environment());
-        String sessionId = executor.openSession(session);
+        final LocalExecutor executor =
+                createLocalExecutor(
+                        createModifiedEnvironment(replaceVars), Collections.emptyList());
+        String sessionId = executor.openSession("test-session");
         assertEquals("test-session", sessionId);
 
         // cannot use hive built-in function without loading hive module
@@ -583,10 +584,11 @@ public class LocalExecutorITCase extends TestLogger {
         // only blink planner supports USE MODULES syntax
         Assume.assumeTrue(planner.equals("blink"));
         final LocalExecutor executor =
-                createModifiedExecutor(
-                        MODULES_ENVIRONMENT_FILE, clusterClient, createModuleReplaceVars());
-        final SessionContext session = new SessionContext("test-session", new Environment());
-        String sessionId = executor.openSession(session);
+                createLocalExecutor(
+                        createModifiedEnvironment(
+                                MODULES_ENVIRONMENT_FILE, createModuleReplaceVars()),
+                        Collections.emptyList());
+        String sessionId = executor.openSession("test-session");
         assertEquals("test-session", sessionId);
         assertEquals(
                 executor.listModules(sessionId),
@@ -651,9 +653,10 @@ public class LocalExecutorITCase extends TestLogger {
         replaceVars.put("$VAR_MAX_ROWS", "100");
         replaceVars.put("$VAR_RESULT_MODE", "table");
 
-        final LocalExecutor executor = createModifiedExecutor(clusterClient, replaceVars);
-        final SessionContext session = new SessionContext("test-session", new Environment());
-        String sessionId = executor.openSession(session);
+        final LocalExecutor executor =
+                createLocalExecutor(
+                        createModifiedEnvironment(replaceVars), Collections.emptyList());
+        String sessionId = executor.openSession("test-session");
         assertEquals("test-session", sessionId);
 
         executor.executeSql(sessionId, "load module hive");
@@ -689,10 +692,11 @@ public class LocalExecutorITCase extends TestLogger {
         Assume.assumeTrue(planner.equals("blink"));
 
         final LocalExecutor executor =
-                createModifiedExecutor(
-                        MODULES_ENVIRONMENT_FILE, clusterClient, createModuleReplaceVars());
-        final SessionContext session = new SessionContext("test-session", new Environment());
-        String sessionId = executor.openSession(session);
+                createLocalExecutor(
+                        createModifiedEnvironment(
+                                MODULES_ENVIRONMENT_FILE, createModuleReplaceVars()),
+                        Collections.emptyList());
+        String sessionId = executor.openSession("test-session");
         assertEquals("test-session", sessionId);
 
         verifyShowModules(
@@ -722,13 +726,40 @@ public class LocalExecutorITCase extends TestLogger {
                 executor, sessionId, Arrays.asList(Row.of("core", true), Row.of("myhive", false)));
     }
 
+    // --------------------------------------------------------------------------------------------
+    // Helper method
+    // --------------------------------------------------------------------------------------------
+
+    private LocalExecutor createLocalExecutor(Environment environment, List<URL> dependencies) {
+
+        DefaultContext defaultContext =
+                new DefaultContext(
+                        environment,
+                        dependencies,
+                        clusterClient.getFlinkConfiguration(),
+                        Collections.singletonList(new DefaultCLI()));
+        return new LocalExecutor(defaultContext);
+    }
+
+    private Map<String, String> createModuleReplaceVars() {
+        Map<String, String> replaceVars = new HashMap<>();
+        replaceVars.put("$VAR_PLANNER", "blink");
+        replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
+        replaceVars.put("$VAR_RESULT_MODE", "changelog");
+        replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
+        replaceVars.put("$VAR_MAX_ROWS", "100");
+        return replaceVars;
+    }
+
     private void executeStreamQueryTable(
             Map<String, String> replaceVars, String query, List<String> expectedResults)
             throws Exception {
 
-        final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
-        final SessionContext session = new SessionContext("test-session", new Environment());
-        String sessionId = executor.openSession(session);
+        final Executor executor =
+                createLocalExecutor(
+                        createModifiedEnvironment(replaceVars), Collections.emptyList());
+        String sessionId = executor.openSession("test-session");
+
         assertEquals("test-session", sessionId);
 
         try {
@@ -780,43 +811,26 @@ public class LocalExecutorITCase extends TestLogger {
         verifySinkResult(resultPath);
     }
 
-    private <T> LocalExecutor createDefaultExecutor(ClusterClient<T> clusterClient)
-            throws Exception {
+    private Environment createDefaultEnvironment() throws Exception {
         final Map<String, String> replaceVars = new HashMap<>();
         replaceVars.put("$VAR_PLANNER", planner);
         replaceVars.put("$VAR_EXECUTION_TYPE", "batch");
         replaceVars.put("$VAR_UPDATE_MODE", "");
         replaceVars.put("$VAR_MAX_ROWS", "100");
         replaceVars.put("$VAR_RESTART_STRATEGY_TYPE", "failure-rate");
-        return new LocalExecutor(
-                EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, replaceVars),
-                Collections.emptyList(),
-                clusterClient.getFlinkConfiguration(),
-                new DefaultCLI(),
-                new DefaultClusterClientServiceLoader());
+        return EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, replaceVars);
     }
 
-    private <T> LocalExecutor createModifiedExecutor(
-            ClusterClient<T> clusterClient, Map<String, String> replaceVars) throws Exception {
-        replaceVars.putIfAbsent("$VAR_RESTART_STRATEGY_TYPE", "failure-rate");
-        return new LocalExecutor(
-                EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, replaceVars),
-                Collections.singletonList(udfDependency),
-                clusterClient.getFlinkConfiguration(),
-                new DefaultCLI(),
-                new DefaultClusterClientServiceLoader());
-    }
-
-    private <T> LocalExecutor createModifiedExecutor(
-            String yamlFile, ClusterClient<T> clusterClient, Map<String, String> replaceVars)
+    private Environment createModifiedEnvironment(Map<String, String> replaceVars)
             throws Exception {
         replaceVars.putIfAbsent("$VAR_RESTART_STRATEGY_TYPE", "failure-rate");
-        return new LocalExecutor(
-                EnvironmentFileUtil.parseModified(yamlFile, replaceVars),
-                Collections.singletonList(udfDependency),
-                clusterClient.getFlinkConfiguration(),
-                new DefaultCLI(),
-                new DefaultClusterClientServiceLoader());
+        return EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, replaceVars);
+    }
+
+    private Environment createModifiedEnvironment(String yamlFile, Map<String, String> replaceVars)
+            throws Exception {
+        replaceVars.putIfAbsent("$VAR_RESTART_STRATEGY_TYPE", "failure-rate");
+        return EnvironmentFileUtil.parseModified(yamlFile, replaceVars);
     }
 
     private List<String> retrieveTableResult(Executor executor, String sessionId, String resultID)
