@@ -72,9 +72,6 @@ public interface Executor {
     /** Executes a SQL statement, and return {@link TableResult} as execution result. */
     TableResult executeSql(String sessionId, String statement) throws SqlExecutionException;
 
-    /** Lists used modules known to the executor in their resolution order. */
-    List<String> listModules(String sessionId) throws SqlExecutionException;
-
     /** Returns a sql parser instance. */
     Parser getSqlParser(String sessionId);
 

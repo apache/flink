@@ -304,7 +304,7 @@ public class CliClient implements AutoCloseable {
                 callShowFunctions();
                 break;
             case SHOW_MODULES:
-                callShowModules();
+                callShowModules(cmdCall);
                 break;
             case SHOW_PARTITIONS:
                 callShowPartitions(cmdCall);
@@ -594,21 +594,8 @@ public class CliClient implements AutoCloseable {
                 .collect(Collectors.toList());
     }
 
-    private void callShowModules() {
-        final List<String> modules;
-        try {
-            modules = executor.listModules(sessionId);
-        } catch (SqlExecutionException e) {
-            printExecutionException(e);
-            return;
-        }
-        if (modules.isEmpty()) {
-            terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY).toAnsi());
-        } else {
-            // modules are already in the loaded order
-            modules.forEach((v) -> terminal.writer().println(v));
-        }
-        terminal.flush();
+    private void callShowModules(SqlCommandCall cmdCall) {
+        getResultAsTableauForm(cmdCall.operands[0]);
     }
 
     private void callShowPartitions(SqlCommandCall cmdCall) {
@@ -648,16 +635,20 @@ public class CliClient implements AutoCloseable {
     }
 
     private void callDescribe(SqlCommandCall cmdCall) {
-        final TableResult tableResult;
+        getResultAsTableauForm("DESCRIBE " + cmdCall.operands[0]);
+    }
+
+    private void getResultAsTableauForm(String statement) {
+        final TableResult result;
         try {
-            tableResult = executor.executeSql(sessionId, "DESCRIBE " + cmdCall.operands[0]);
+            result = executor.executeSql(sessionId, statement);
         } catch (SqlExecutionException e) {
             printExecutionException(e);
             return;
         }
         PrintUtils.printAsTableauForm(
-                tableResult.getTableSchema(),
-                tableResult.collect(),
+                result.getTableSchema(),
+                result.collect(),
                 terminal.writer(),
                 Integer.MAX_VALUE,
                 "",
