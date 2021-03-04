@@ -24,6 +24,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -45,9 +46,11 @@ import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables.Sender;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testtasks.WaitingNoOpInvokable;
+import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -105,6 +108,9 @@ public class MiniClusterITCase extends TestLogger {
     }
 
     @Test
+    @Category(
+            FailsWithAdaptiveScheduler
+                    .class) // AdaptiveScheduler scales the job down to a parallelism of 1
     public void testHandleStreamingJobsWhenNotEnoughSlot() throws Exception {
         try {
             final JobVertex vertex = new JobVertex("Test Vertex");
@@ -559,6 +565,8 @@ public class MiniClusterITCase extends TestLogger {
             source.setInvokableClass(WaitingNoOpInvokable.class);
             source.setParallelism(parallelism);
 
+            WaitOnFinalizeJobVertex.resetFinalizedOnMaster();
+
             final WaitOnFinalizeJobVertex sink = new WaitOnFinalizeJobVertex("Sink", 20L);
             sink.setInvokableClass(NoOpInvokable.class);
             sink.setParallelism(parallelism);
@@ -578,7 +586,7 @@ public class MiniClusterITCase extends TestLogger {
 
             jobResultFuture.get().toJobExecutionResult(getClass().getClassLoader());
 
-            assertTrue(sink.finalizedOnMaster.get());
+            assertTrue(WaitOnFinalizeJobVertex.finalizedOnMaster.get());
         }
     }
 
@@ -596,14 +604,7 @@ public class MiniClusterITCase extends TestLogger {
         try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
             miniCluster.start();
 
-            final JobVertex failingJobVertex =
-                    new JobVertex("FailingInFinalization") {
-
-                        @Override
-                        public void finalizeOnMaster(ClassLoader loader) {
-                            throw new OutOfMemoryError("Java heap space");
-                        }
-                    };
+            final JobVertex failingJobVertex = new OutOfMemoryJobVertex();
             failingJobVertex.setInvokableClass(NoOpInvokable.class);
             failingJobVertex.setParallelism(parallelism);
 
@@ -620,7 +621,7 @@ public class MiniClusterITCase extends TestLogger {
             try {
                 jobResultFuture.get().toJobExecutionResult(getClass().getClassLoader());
             } catch (JobExecutionException e) {
-                assertTrue(findThrowable(e, OutOfMemoryError.class).isPresent());
+                assertThat(e, FlinkMatchers.containsCause(OutOfMemoryError.class));
                 assertThat(
                         findThrowable(e, OutOfMemoryError.class)
                                 .map(OutOfMemoryError::getMessage)
@@ -711,7 +712,7 @@ public class MiniClusterITCase extends TestLogger {
 
         private static final long serialVersionUID = -1179547322468530299L;
 
-        private final AtomicBoolean finalizedOnMaster = new AtomicBoolean(false);
+        private static final AtomicBoolean finalizedOnMaster = new AtomicBoolean(false);
 
         private final long waitingTime;
 
@@ -725,6 +726,22 @@ public class MiniClusterITCase extends TestLogger {
         public void finalizeOnMaster(ClassLoader loader) throws Exception {
             Thread.sleep(waitingTime);
             finalizedOnMaster.set(true);
+        }
+
+        static void resetFinalizedOnMaster() {
+            finalizedOnMaster.set(false);
+        }
+    }
+
+    private static class OutOfMemoryJobVertex extends JobVertex {
+
+        private OutOfMemoryJobVertex() {
+            super("FailingInFinalization");
+        }
+
+        @Override
+        public void finalizeOnMaster(ClassLoader loader) {
+            throw new OutOfMemoryError("Java heap space");
         }
     }
 }
