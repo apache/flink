@@ -29,6 +29,7 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.partition.consumer.CheckpointableInput;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.streaming.runtime.tasks.SubtaskCheckpointCoordinator;
+import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.function.TriFunctionWithException;
 
 import org.slf4j.Logger;
@@ -80,10 +81,12 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
             SubtaskCheckpointCoordinator checkpointCoordinator,
             String taskName,
             AbstractInvokable toNotifyOnCheckpoint,
+            Clock clock,
             CheckpointableInput... inputs) {
         return new SingleCheckpointBarrierHandler(
                 taskName,
                 toNotifyOnCheckpoint,
+                clock,
                 (int)
                         Arrays.stream(inputs)
                                 .flatMap(gate -> gate.getChannelInfos().stream())
@@ -94,9 +97,10 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
     SingleCheckpointBarrierHandler(
             String taskName,
             AbstractInvokable toNotifyOnCheckpoint,
+            Clock clock,
             int numOpenChannels,
             CheckpointBarrierBehaviourController controller) {
-        super(toNotifyOnCheckpoint);
+        super(toNotifyOnCheckpoint, clock);
 
         this.taskName = taskName;
         this.numOpenChannels = numOpenChannels;

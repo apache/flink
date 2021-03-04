@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.util.clock.Clock;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -35,15 +36,19 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class AlternatingController implements CheckpointBarrierBehaviourController {
     private final AlignedController alignedController;
     private final UnalignedController unalignedController;
+    private final Clock clock;
 
     private CheckpointBarrierBehaviourController activeController;
     private long firstBarrierArrivalTime = Long.MAX_VALUE;
     private long lastSeenBarrier = -1L;
 
     public AlternatingController(
-            AlignedController alignedController, UnalignedController unalignedController) {
+            AlignedController alignedController,
+            UnalignedController unalignedController,
+            Clock clock) {
         this.activeController = this.alignedController = alignedController;
         this.unalignedController = unalignedController;
+        this.clock = clock;
     }
 
     @Override
@@ -135,7 +140,7 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
 
         activeController = unalignedController;
 
-        // alignedController might has already processed some barriers, so "migrate"/forward those
+        // alignedController might have already processed some barriers, so "migrate"/forward those
         // calls to unalignedController.
         unalignedController.preProcessFirstBarrier(channelInfo, barrier);
         for (InputChannelInfo blockedChannel : blockedChannels) {
@@ -180,12 +185,12 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
         return barrier.getCheckpointOptions().isTimeoutable()
                 && barrier.getId() <= lastSeenBarrier
                 && barrier.getCheckpointOptions().getAlignmentTimeout() * 1_000_000
-                        < (System.nanoTime() - firstBarrierArrivalTime);
+                        < (clock.relativeTimeNanos() - firstBarrierArrivalTime);
     }
 
     private long getArrivalTime(CheckpointBarrier announcedBarrier) {
         return announcedBarrier.getCheckpointOptions().isTimeoutable()
-                ? System.nanoTime()
+                ? clock.relativeTimeNanos()
                 : Long.MAX_VALUE;
     }
 }

@@ -47,6 +47,7 @@ import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorImpl;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
+import org.apache.flink.util.clock.SystemClock;
 
 import org.apache.flink.shaded.guava18.com.google.common.io.Closer;
 
@@ -334,7 +335,8 @@ public class CheckpointedInputGateTest {
                         new AbstractInvokable(new DummyEnvironment()) {
                             @Override
                             public void invoke() {}
-                        });
+                        },
+                        SystemClock.getInstance());
 
         CheckpointedInputGate checkpointedInputGate =
                 new CheckpointedInputGate(

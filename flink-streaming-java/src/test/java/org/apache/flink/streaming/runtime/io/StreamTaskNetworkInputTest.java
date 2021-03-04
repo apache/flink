@@ -54,6 +54,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator;
+import org.apache.flink.util.clock.SystemClock;
 
 import org.junit.After;
 import org.junit.Test;
@@ -152,6 +153,7 @@ public class StreamTaskNetworkInputTest {
                                                 TestSubtaskCheckpointCoordinator.INSTANCE,
                                                 "test",
                                                 new DummyCheckpointInvokable(),
+                                                SystemClock.getInstance(),
                                                 inputGate.getInputGate()),
                                 new SyncMailboxExecutor()),
                         inSerializer,
@@ -228,7 +230,8 @@ public class StreamTaskNetworkInputTest {
     private static CheckpointedInputGate createCheckpointedInputGate(InputGate inputGate) {
         return new CheckpointedInputGate(
                 inputGate,
-                new CheckpointBarrierTracker(1, new DummyCheckpointInvokable()),
+                new CheckpointBarrierTracker(
+                        1, new DummyCheckpointInvokable(), SystemClock.getInstance()),
                 new SyncMailboxExecutor());
     }
 
