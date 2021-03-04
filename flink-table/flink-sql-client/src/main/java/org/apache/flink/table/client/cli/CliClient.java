@@ -23,7 +23,6 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.cli.SqlCommandParser.SqlCommandCall;
 import org.apache.flink.table.client.gateway.Executor;
-import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.utils.PrintUtils;
@@ -56,6 +55,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** SQL CLI client. */
 public class CliClient implements AutoCloseable {
@@ -719,13 +719,18 @@ public class CliClient implements AutoCloseable {
         printInfo(CliStrings.MESSAGE_SUBMITTING_STATEMENT);
 
         try {
-            final ProgramTargetDescriptor programTarget =
-                    executor.executeUpdate(sessionId, cmdCall.operands[0]);
+            final TableResult tableResult = executor.executeSql(sessionId, cmdCall.operands[0]);
+            checkState(tableResult.getJobClient().isPresent());
             terminal.writer()
                     .println(
                             CliStrings.messageInfo(CliStrings.MESSAGE_STATEMENT_SUBMITTED)
                                     .toAnsi());
-            terminal.writer().println(programTarget.toString());
+            // keep compatibility with before
+            terminal.writer()
+                    .println(
+                            String.format(
+                                    "Job ID: %s\n",
+                                    tableResult.getJobClient().get().getJobID().toString()));
             terminal.flush();
         } catch (SqlExecutionException e) {
             printExecutionException(e);

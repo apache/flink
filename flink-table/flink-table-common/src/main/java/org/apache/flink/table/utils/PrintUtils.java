@@ -52,8 +52,8 @@ public class PrintUtils {
     // constants for printing
     public static final int MAX_COLUMN_WIDTH = 30;
     public static final String NULL_COLUMN = "(NULL)";
-    private static final String COLUMN_TRUNCATED_FLAG = "...";
     public static final String ROW_KIND_COLUMN = "op";
+    private static final String COLUMN_TRUNCATED_FLAG = "...";
 
     private PrintUtils() {}
 
