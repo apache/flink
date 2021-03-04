@@ -406,33 +406,37 @@ public class DispatcherTest extends TestLogger {
 
     @Test(timeout = 5_000L)
     public void testInvalidCallDuringInitialization() throws Exception {
+        final OneShotLatch latch = new OneShotLatch();
         dispatcher =
                 createAndStartDispatcher(
                         heartbeatServices,
                         haServices,
-                        new ExpectedJobIdJobManagerRunnerFactory(
-                                jobId, createdJobManagerRunnerLatch));
+                        new BlockingJobManagerRunnerFactory(latch::await));
+
         jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
-        Tuple2<JobGraph, BlockingJobVertex> blockingJobGraph = getBlockingJobGraphAndVertex();
-        JobID jid = blockingJobGraph.f0.getJobID();
+        final JobGraph emptyJobGraph =
+                JobGraphBuilder.newStreamingJobGraphBuilder().setJobId(jobId).build();
 
-        dispatcherGateway.submitJob(blockingJobGraph.f0, TIMEOUT).get();
+        dispatcherGateway.submitJob(emptyJobGraph, TIMEOUT).get();
 
         assertThat(
-                dispatcherGateway.requestJobStatus(jid, TIMEOUT).get(), is(JobStatus.INITIALIZING));
+                dispatcherGateway.requestJobStatus(jobId, TIMEOUT).get(),
+                is(JobStatus.INITIALIZING));
 
         // this call is supposed to fail
         try {
-            dispatcherGateway.triggerSavepoint(jid, "file:///tmp/savepoint", false, TIMEOUT).get();
+            dispatcherGateway
+                    .triggerSavepoint(jobId, "file:///tmp/savepoint", false, TIMEOUT)
+                    .get();
             fail("Previous statement should have failed");
         } catch (ExecutionException t) {
             assertTrue(t.getCause() instanceof UnavailableDispatcherOperationException);
         }
 
         // submission has succeeded, let the initialization finish.
-        blockingJobGraph.f1.unblock();
+        latch.trigger();
 
         // ensure job is running
         CommonTestUtils.waitUntilCondition(
