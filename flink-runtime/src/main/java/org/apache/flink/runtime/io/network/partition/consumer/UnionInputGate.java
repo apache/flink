@@ -290,9 +290,6 @@ public class UnionInputGate extends InputGate {
 
     @Override
     public void resumeConsumption(InputChannelInfo channelInfo) throws IOException {
-        // BEWARE: consumption resumption only happens for streaming jobs in which all
-        // slots are allocated together so there should be no UnknownInputChannel. We
-        // will refactor the code to not rely on this assumption in the future.
         inputGatesByGateIndex.get(channelInfo.getGateIdx()).resumeConsumption(channelInfo);
     }
 
