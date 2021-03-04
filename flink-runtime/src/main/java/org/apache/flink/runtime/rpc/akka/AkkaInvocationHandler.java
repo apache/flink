@@ -34,7 +34,6 @@ import org.apache.flink.runtime.rpc.messages.RpcInvocation;
 import org.apache.flink.runtime.rpc.messages.RunAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.SerializedValue;
 
 import akka.actor.ActorRef;
 import akka.pattern.Patterns;
@@ -389,9 +388,9 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
     }
 
     static Object deserializeValueIfNeeded(Object o, Method method) {
-        if (o instanceof SerializedValue) {
+        if (o instanceof AkkaRpcSerializedValue) {
             try {
-                return ((SerializedValue<?>) o)
+                return ((AkkaRpcSerializedValue) o)
                         .deserializeValue(AkkaInvocationHandler.class.getClassLoader());
             } catch (IOException | ClassNotFoundException e) {
                 throw new CompletionException(

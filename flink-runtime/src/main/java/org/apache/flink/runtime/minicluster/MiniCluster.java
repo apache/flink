@@ -43,7 +43,7 @@ import org.apache.flink.runtime.concurrent.ExponentialBackoffRetryStrategy;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
-import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
+import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
@@ -468,7 +468,7 @@ public class MiniCluster implements AutoCloseableAsync {
                         blobServer,
                         heartbeatServices,
                         metricRegistry,
-                        new MemoryArchivedExecutionGraphStore(),
+                        new MemoryExecutionGraphInfoStore(),
                         metricQueryServiceRetriever,
                         fatalErrorHandler));
     }
@@ -718,11 +718,11 @@ public class MiniCluster implements AutoCloseableAsync {
     }
 
     public CompletableFuture<String> stopWithSavepoint(
-            JobID jobId, String targetDirectory, boolean advanceToEndOfEventTime) {
+            JobID jobId, String targetDirectory, boolean terminate) {
         return runDispatcherCommand(
                 dispatcherGateway ->
                         dispatcherGateway.stopWithSavepoint(
-                                jobId, targetDirectory, advanceToEndOfEventTime, rpcTimeout));
+                                jobId, targetDirectory, terminate, rpcTimeout));
     }
 
     public CompletableFuture<Acknowledge> disposeSavepoint(String savepointPath) {

@@ -211,6 +211,11 @@ public class TaskManagerCheckInSlotManagerTest extends TestLogger {
                                 new SlotRequest(
                                         new JobID(), allocationID, resourceProfile, "foobar"));
                         mainThreadExecutor.triggerAll();
+                        // The test case can be unstable w/o this sleep, because
+                        // TaskManagerRegistration.idleSince, which is set to
+                        // System.currentTimeMillis(), may not change after occupying and
+                        // releasing the slot.
+                        Thread.sleep(1);
                         slotManager.freeSlot(slotId, allocationID);
                     });
             verifyTmReleased(false);

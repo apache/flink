@@ -20,6 +20,7 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -41,9 +42,11 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -273,5 +276,58 @@ public class JobLeaderIdServiceTest extends TestLogger {
 
         // the new timeout should be valid
         assertTrue(jobLeaderIdService.isValidTimeout(jobId, lastTimeoutId.get()));
+    }
+
+    /**
+     * Tests that the leaderId future is only completed once the service is notified about an actual
+     * leader being elected. Specifically, it tests that the future is not completed if the
+     * leadership was revoked without a new leader having been elected.
+     */
+    @Test(timeout = 10000)
+    public void testLeaderFutureWaitsForValidLeader() throws Exception {
+        final JobID jobId = new JobID();
+        TestingHighAvailabilityServices highAvailabilityServices =
+                new TestingHighAvailabilityServices();
+        SettableLeaderRetrievalService leaderRetrievalService =
+                new SettableLeaderRetrievalService(null, null);
+
+        highAvailabilityServices.setJobMasterLeaderRetriever(jobId, leaderRetrievalService);
+
+        JobLeaderIdService jobLeaderIdService =
+                new JobLeaderIdService(
+                        highAvailabilityServices,
+                        new ManuallyTriggeredScheduledExecutor(),
+                        Time.milliseconds(5000L));
+
+        jobLeaderIdService.start(new NoOpJobLeaderIdActions());
+
+        jobLeaderIdService.addJob(jobId);
+
+        // elect some leader
+        leaderRetrievalService.notifyListener("foo", UUID.randomUUID());
+
+        // notify about leadership loss
+        leaderRetrievalService.notifyListener(null, null);
+
+        final CompletableFuture<JobMasterId> leaderIdFuture = jobLeaderIdService.getLeaderId(jobId);
+        // there is currently no leader, so this should not be completed
+        assertThat(leaderIdFuture.isDone(), is(false));
+
+        // elect a new leader
+        final UUID newLeaderId = UUID.randomUUID();
+        leaderRetrievalService.notifyListener("foo", newLeaderId);
+        assertThat(leaderIdFuture.get(), is(JobMasterId.fromUuidOrNull(newLeaderId)));
+    }
+
+    private static class NoOpJobLeaderIdActions implements JobLeaderIdActions {
+
+        @Override
+        public void jobLeaderLostLeadership(JobID jobId, JobMasterId oldJobMasterId) {}
+
+        @Override
+        public void notifyJobTimeout(JobID jobId, UUID timeoutId) {}
+
+        @Override
+        public void handleError(Throwable error) {}
     }
 }

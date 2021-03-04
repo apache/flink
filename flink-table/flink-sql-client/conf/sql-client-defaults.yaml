@@ -140,17 +140,3 @@ execution:
 #   table.exec.spill-compression.enabled: true
 #   table.exec.spill-compression.block-size: 128kb
 #   table.optimizer.join-reorder-enabled: true
-
-#==============================================================================
-# Deployment properties
-#==============================================================================
-
-# Properties that describe the cluster to which table programs are submitted to.
-
-deployment:
-  # general cluster communication timeout in ms
-  response-timeout: 5000
-  # (optional) address from cluster to gateway
-  gateway-address: ""
-  # (optional) port from cluster to gateway
-  gateway-port: 0

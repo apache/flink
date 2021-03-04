@@ -63,6 +63,7 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageCoordinatorView;
@@ -264,8 +265,8 @@ public class DispatcherTest extends TestLogger {
             TestingResourceManagerGateway resourceManagerGateway =
                     new TestingResourceManagerGateway();
 
-            final MemoryArchivedExecutionGraphStore archivedExecutionGraphStore =
-                    new MemoryArchivedExecutionGraphStore();
+            final MemoryExecutionGraphInfoStore executionGraphInfoStore =
+                    new MemoryExecutionGraphInfoStore();
 
             return new TestingDispatcher(
                     rpcService,
@@ -278,7 +279,7 @@ public class DispatcherTest extends TestLogger {
                             () -> CompletableFuture.completedFuture(resourceManagerGateway),
                             blobServer,
                             heartbeatServices,
-                            archivedExecutionGraphStore,
+                            executionGraphInfoStore,
                             testingFatalErrorHandlerResource.getFatalErrorHandler(),
                             VoidHistoryServerArchivist.INSTANCE,
                             null,
@@ -530,21 +531,23 @@ public class DispatcherTest extends TestLogger {
         final JobID failedJobId = new JobID();
 
         final JobStatus expectedState = JobStatus.FAILED;
-        final ArchivedExecutionGraph failedExecutionGraph =
-                new ArchivedExecutionGraphBuilder()
-                        .setJobID(failedJobId)
-                        .setState(expectedState)
-                        .setFailureCause(new ErrorInfo(new RuntimeException("expected"), 1L))
-                        .build();
+        final ExecutionGraphInfo failedExecutionGraphInfo =
+                new ExecutionGraphInfo(
+                        new ArchivedExecutionGraphBuilder()
+                                .setJobID(failedJobId)
+                                .setState(expectedState)
+                                .setFailureCause(
+                                        new ErrorInfo(new RuntimeException("expected"), 1L))
+                                .build());
 
-        dispatcher.completeJobExecution(failedExecutionGraph);
+        dispatcher.completeJobExecution(failedExecutionGraphInfo);
 
         assertThat(
                 dispatcherGateway.requestJobStatus(failedJobId, TIMEOUT).get(),
                 equalTo(expectedState));
         assertThat(
-                dispatcherGateway.requestJob(failedJobId, TIMEOUT).get(),
-                equalTo(failedExecutionGraph));
+                dispatcherGateway.requestExecutionGraphInfo(failedJobId, TIMEOUT).get(),
+                equalTo(failedExecutionGraphInfo));
     }
 
     @Test
@@ -970,13 +973,14 @@ public class DispatcherTest extends TestLogger {
                             .setRequestJobSupplier(
                                     () ->
                                             CompletableFuture.completedFuture(
-                                                    ArchivedExecutionGraph
-                                                            .createFromInitializingJob(
-                                                                    jobGraph.getJobID(),
-                                                                    jobGraph.getName(),
-                                                                    JobStatus.RUNNING,
-                                                                    null,
-                                                                    1337)))
+                                                    new ExecutionGraphInfo(
+                                                            ArchivedExecutionGraph
+                                                                    .createFromInitializingJob(
+                                                                            jobGraph.getJobID(),
+                                                                            jobGraph.getName(),
+                                                                            JobStatus.RUNNING,
+                                                                            null,
+                                                                            1337))))
                             .build();
             testingRunner.completeJobMasterGatewayFuture(testingJobMasterGateway);
             return testingRunner;

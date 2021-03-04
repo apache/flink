@@ -49,7 +49,7 @@ class StreamExecutionEnvironmentCompletenessTests(PythonAPICompletenessTestCase,
                 'socketTextStream', 'initializeContextEnvironment', 'readTextFile', 'addSource',
                 'setNumberOfExecutionRetries', 'configure', 'executeAsync', 'registerJobListener',
                 'clearJobListeners', 'getJobListeners', "fromSource", "fromSequence",
-                'setRuntimeMode'}
+                'setRuntimeMode', 'setDefaultSavepointDirectory', 'getDefaultSavepointDirectory'}
 
 
 if __name__ == '__main__':

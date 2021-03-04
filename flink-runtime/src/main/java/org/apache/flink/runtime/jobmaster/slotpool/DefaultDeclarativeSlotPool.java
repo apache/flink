@@ -32,6 +32,7 @@ import org.apache.flink.runtime.slots.RequirementMatcher;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
@@ -211,7 +212,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         final Optional<ResourceProfile> match =
                 requirementMatcher.match(
                         slotOffer.getResourceProfile(),
-                        totalResourceRequirements.getResourcesWithCount(),
+                        totalResourceRequirements,
                         fulfilledResourceRequirements::getResourceCount);
 
         if (match.isPresent()) {

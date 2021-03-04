@@ -44,6 +44,7 @@ import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Assume;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -76,6 +77,7 @@ import static org.junit.Assert.fail;
  * ITCases testing the stop with savepoint functionality. This includes checking both SUSPEND and
  * TERMINATE.
  */
+@Ignore("broken test; see FLINK-21031")
 public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 
     @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -290,9 +292,6 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 
         jobGraph.setSnapshotSettings(
                 new JobCheckpointingSettings(
-                        Collections.singletonList(vertex.getID()),
-                        Collections.singletonList(vertex.getID()),
-                        Collections.singletonList(vertex.getID()),
                         new CheckpointCoordinatorConfiguration(
                                 CHECKPOINT_INTERVAL,
                                 60_000,
@@ -350,19 +349,16 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 
         @Override
         public Future<Boolean> triggerCheckpointAsync(
-                CheckpointMetaData checkpointMetaData,
-                CheckpointOptions checkpointOptions,
-                boolean advanceToEndOfEventTime) {
+                CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
             final long checkpointId = checkpointMetaData.getCheckpointId();
             final CheckpointType checkpointType = checkpointOptions.getCheckpointType();
 
-            if (checkpointType == CheckpointType.SYNC_SAVEPOINT) {
+            if (checkpointType == CheckpointType.SAVEPOINT_SUSPEND) {
                 synchronousSavepointId = checkpointId;
                 syncSavepointId.compareAndSet(-1, synchronousSavepointId);
             }
 
-            return super.triggerCheckpointAsync(
-                    checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
+            return super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions);
         }
 
         @Override
@@ -434,8 +430,7 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
         @Override
         public Future<Boolean> triggerCheckpointAsync(
                 final CheckpointMetaData checkpointMetaData,
-                final CheckpointOptions checkpointOptions,
-                final boolean advanceToEndOfEventTime) {
+                final CheckpointOptions checkpointOptions) {
             final long taskIndex = getEnvironment().getTaskInfo().getIndexOfThisSubtask();
             if (taskIndex == 0) {
                 checkpointsToWaitFor.countDown();

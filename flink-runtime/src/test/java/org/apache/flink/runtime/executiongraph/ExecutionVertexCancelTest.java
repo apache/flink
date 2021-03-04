@@ -43,7 +43,6 @@ import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.se
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.setVertexState;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -65,7 +64,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 
             assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
 
-            assertNull(vertex.getFailureCause());
+            assertFalse(vertex.getFailureInfo().isPresent());
 
             assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
             assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELING) > 0);
@@ -88,7 +87,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 
             assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
 
-            assertNull(vertex.getFailureCause());
+            assertFalse(vertex.getFailureInfo().isPresent());
 
             assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
             assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELING) > 0);
@@ -123,7 +122,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 
             assertFalse(slot.isAlive());
 
-            assertNull(vertex.getFailureCause());
+            assertFalse(vertex.getFailureInfo().isPresent());
 
             assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
             assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELING) > 0);
@@ -165,7 +164,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 
             assertFalse(slot.isAlive());
 
-            assertNull(vertex.getFailureCause());
+            assertFalse(vertex.getFailureInfo().isPresent());
 
             assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
             assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELING) > 0);
@@ -197,7 +196,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 
             assertEquals(ExecutionState.CANCELING, vertex.getExecutionState());
 
-            assertNull(vertex.getFailureCause());
+            assertFalse(vertex.getFailureInfo().isPresent());
 
             assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
             assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELING) > 0);

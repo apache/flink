@@ -60,6 +60,8 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.sql.SqlOperatorTable;
+import org.apache.calcite.sql.dialect.AnsiSqlDialect;
+import org.apache.calcite.sql.dialect.HiveSqlDialect;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.util.SqlOperatorTables;
 import org.apache.calcite.sql.validate.SqlConformance;
@@ -110,7 +112,7 @@ public class PlannerContext {
         this.rootSchema = rootSchema;
         this.traitDefs = traitDefs;
         // Make a framework config to initialize the RelOptCluster instance,
-        // caution that we can only use the attributes that can not be overwrite/configured
+        // caution that we can only use the attributes that can not be overwritten/configured
         // by user.
         this.frameworkConfig = createFrameworkConfig();
 
@@ -128,6 +130,7 @@ public class PlannerContext {
                 checkNotNull(frameworkConfig),
                 checkNotNull(typeFactory),
                 checkNotNull(cluster),
+                checkNotNull(getCalciteSqlDialect()),
                 rowType);
     }
 
@@ -254,6 +257,18 @@ public class PlannerContext {
                 return FlinkSqlConformance.HIVE;
             case DEFAULT:
                 return FlinkSqlConformance.DEFAULT;
+            default:
+                throw new TableException("Unsupported SQL dialect: " + sqlDialect);
+        }
+    }
+
+    private org.apache.calcite.sql.SqlDialect getCalciteSqlDialect() {
+        SqlDialect sqlDialect = tableConfig.getSqlDialect();
+        switch (sqlDialect) {
+            case HIVE:
+                return HiveSqlDialect.DEFAULT;
+            case DEFAULT:
+                return AnsiSqlDialect.DEFAULT;
             default:
                 throw new TableException("Unsupported SQL dialect: " + sqlDialect);
         }

@@ -72,6 +72,8 @@ public class TestLogger {
                 }
             };
 
+    @Rule public final TestRule nameProvider = new TestNameProvider();
+
     private static String exceptionToString(Throwable t) {
         if (t == null) {
             return "(null)";

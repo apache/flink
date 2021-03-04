@@ -164,9 +164,7 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
                     taskDeploymentDescriptorFuture.get();
             jobMasterGateway.updateTaskExecutionState(
                     new TaskExecutionState(
-                            taskDeploymentDescriptor.getJobId(),
-                            taskDeploymentDescriptor.getExecutionAttemptId(),
-                            finalExecutionState));
+                            taskDeploymentDescriptor.getExecutionAttemptId(), finalExecutionState));
 
             assertThat(
                     taskExecutorCallSelector.apply(testSetup).get(),

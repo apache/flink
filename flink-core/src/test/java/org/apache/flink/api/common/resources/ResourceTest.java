@@ -62,6 +62,13 @@ public class ResourceTest extends TestLogger {
     }
 
     @Test
+    public void testHashCodeIgnoringScale() {
+        final Resource v1 = new TestResource(new BigDecimal("0.1"));
+        final Resource v2 = new TestResource(new BigDecimal("0.10"));
+        assertTrue(v1.hashCode() == v2.hashCode());
+    }
+
+    @Test
     public void testMerge() {
         final Resource v1 = new TestResource(0.1);
         final Resource v2 = new TestResource(0.2);
@@ -150,6 +157,15 @@ public class ResourceTest extends TestLogger {
         final Resource resource = new TestResource(0.3);
         final int by = -2;
         resource.multiply(by);
+    }
+
+    @Test
+    public void testIsZero() {
+        final Resource resource1 = new TestResource(0.0);
+        final Resource resource2 = new TestResource(1.0);
+
+        assertTrue(resource1.isZero());
+        assertFalse(resource2.isZero());
     }
 
     private static void assertTestResourceValueEquals(final double value, final Resource resource) {

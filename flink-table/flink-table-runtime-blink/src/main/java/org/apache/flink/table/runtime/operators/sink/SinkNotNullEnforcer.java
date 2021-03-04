@@ -24,6 +24,8 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.ExecutionConfigOptions.NotNullEnforcer;
 import org.apache.flink.table.data.RowData;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /** Checks writing null values into NOT NULL columns. */
 public class SinkNotNullEnforcer implements FilterFunction<RowData> {
 
@@ -31,23 +33,20 @@ public class SinkNotNullEnforcer implements FilterFunction<RowData> {
 
     private final NotNullEnforcer notNullEnforcer;
     private final int[] notNullFieldIndices;
-    private final boolean notNullCheck;
     private final String[] allFieldNames;
 
     public SinkNotNullEnforcer(
             NotNullEnforcer notNullEnforcer, int[] notNullFieldIndices, String[] allFieldNames) {
+        checkArgument(
+                notNullFieldIndices.length > 0,
+                "SinkNotNullEnforcer requires that there are not-null fields.");
         this.notNullFieldIndices = notNullFieldIndices;
         this.notNullEnforcer = notNullEnforcer;
-        this.notNullCheck = notNullFieldIndices.length > 0;
         this.allFieldNames = allFieldNames;
     }
 
     @Override
     public boolean filter(RowData row) {
-        if (!notNullCheck) {
-            return true;
-        }
-
         for (int index : notNullFieldIndices) {
             if (row.isNullAt(index)) {
                 if (notNullEnforcer == NotNullEnforcer.ERROR) {

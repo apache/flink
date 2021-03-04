@@ -25,6 +25,9 @@ import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecExchange;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitor;
 import org.apache.flink.table.types.logical.LogicalType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,20 +39,51 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @param <T> The type of the elements that result from this node.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public abstract class ExecNodeBase<T> implements ExecNode<T> {
 
-    private final String description;
-    private final List<InputProperty> inputProperties;
-    private final LogicalType outputType;
-    private List<ExecEdge> inputEdges;
+    /** The unique identifier for each ExecNode in the json plan. */
+    @JsonIgnore private final int id;
 
-    private transient Transformation<T> transformation;
+    @JsonIgnore private final String description;
 
+    @JsonIgnore private final LogicalType outputType;
+
+    @JsonIgnore private final List<InputProperty> inputProperties;
+
+    @JsonIgnore private List<ExecEdge> inputEdges;
+
+    @JsonIgnore private transient Transformation<T> transformation;
+
+    /** This is used to assign a unique ID to every ExecNode. */
+    private static Integer idCounter = 0;
+
+    /** Generate an unique ID for ExecNode. */
+    public static int getNewNodeId() {
+        idCounter++;
+        return idCounter;
+    }
+
+    // used for json creator
     protected ExecNodeBase(
-            List<InputProperty> inputProperties, LogicalType outputType, String description) {
+            int id,
+            List<InputProperty> inputProperties,
+            LogicalType outputType,
+            String description) {
+        this.id = id;
         this.inputProperties = checkNotNull(inputProperties);
         this.outputType = checkNotNull(outputType);
         this.description = checkNotNull(description);
+    }
+
+    protected ExecNodeBase(
+            List<InputProperty> inputProperties, LogicalType outputType, String description) {
+        this(getNewNodeId(), inputProperties, outputType, description);
+    }
+
+    @Override
+    public final int getId() {
+        return id;
     }
 
     @Override
@@ -67,6 +101,7 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
         return inputProperties;
     }
 
+    @JsonIgnore
     @Override
     public List<ExecEdge> getInputEdges() {
         return checkNotNull(
@@ -74,6 +109,7 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
                 "inputEdges should not null, please call `setInputEdges(List<ExecEdge>)` first.");
     }
 
+    @JsonIgnore
     @Override
     public void setInputEdges(List<ExecEdge> inputEdges) {
         checkNotNull(inputEdges, "inputEdges should not be null.");

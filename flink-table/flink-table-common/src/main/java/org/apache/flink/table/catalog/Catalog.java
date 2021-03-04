@@ -45,7 +45,9 @@ import java.util.Optional;
 
 /**
  * This interface is responsible for reading and writing metadata such as database/table/views/UDFs
- * from a registered catalog. It connects a registered catalog and Flink's Table API.
+ * from a registered catalog. It connects a registered catalog and Flink's Table API. This interface
+ * only processes permanent metadata objects. In order to process temporary objects, a catalog can
+ * also implement the {@link TemporaryOperationListener} interface.
  */
 @PublicEvolving
 public interface Catalog {

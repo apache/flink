@@ -268,7 +268,10 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                 () ->
                         FutureUtils.assertNoException(
                                 cancelFuture.thenRunAsync(
-                                        restartTasks(executionVertexVersions, globalRecovery),
+                                        () -> {
+                                            archiveFromFailureHandlingResult(failureHandlingResult);
+                                            restartTasks(executionVertexVersions, globalRecovery);
+                                        },
                                         getMainThreadExecutor())),
                 failureHandlingResult.getRestartDelayMS(),
                 TimeUnit.MILLISECONDS);
@@ -286,27 +289,24 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         }
     }
 
-    private Runnable restartTasks(
+    private void restartTasks(
             final Set<ExecutionVertexVersion> executionVertexVersions,
             final boolean isGlobalRecovery) {
-        return () -> {
-            final Set<ExecutionVertexID> verticesToRestart =
-                    executionVertexVersioner.getUnmodifiedExecutionVertices(
-                            executionVertexVersions);
+        final Set<ExecutionVertexID> verticesToRestart =
+                executionVertexVersioner.getUnmodifiedExecutionVertices(executionVertexVersions);
 
-            removeVerticesFromRestartPending(verticesToRestart);
+        removeVerticesFromRestartPending(verticesToRestart);
 
-            resetForNewExecutions(verticesToRestart);
+        resetForNewExecutions(verticesToRestart);
 
-            try {
-                restoreState(verticesToRestart, isGlobalRecovery);
-            } catch (Throwable t) {
-                handleGlobalFailure(t);
-                return;
-            }
+        try {
+            restoreState(verticesToRestart, isGlobalRecovery);
+        } catch (Throwable t) {
+            handleGlobalFailure(t);
+            return;
+        }
 
-            schedulingStrategy.restartTasks(verticesToRestart);
-        };
+        schedulingStrategy.restartTasks(verticesToRestart);
     }
 
     private CompletableFuture<?> cancelTasksAsync(final Set<ExecutionVertexID> verticesToRestart) {
@@ -397,8 +397,6 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         return executionSlotAllocator.allocateSlotsFor(
                 executionVertexDeploymentOptions.stream()
                         .map(ExecutionVertexDeploymentOption::getExecutionVertexId)
-                        .map(this::getExecutionVertex)
-                        .map(ExecutionVertexSchedulingRequirementsMapper::from)
                         .collect(Collectors.toList()));
     }
 

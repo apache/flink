@@ -147,4 +147,24 @@ class StreamPlanner(
     val executor = new StreamExecutor(dummyExecEnv)
     new StreamPlanner(executor, config, functionCatalog, catalogManager)
   }
+
+  override def explainJsonPlan(jsonPlan: String, extraDetails: ExplainDetail*): String = {
+    val execGraph = ExecNodeGraph.createExecNodeGraph(jsonPlan, createSerdeContext)
+    val transformations = translateToPlan(execGraph)
+    val streamGraph = ExecutorUtils.generateStreamGraph(getExecEnv, transformations)
+
+    val sb = new StringBuilder
+    sb.append("== Optimized Execution Plan ==")
+    sb.append(System.lineSeparator)
+    sb.append(ExecNodePlanDumper.dagToString(execGraph))
+
+    if (extraDetails.contains(ExplainDetail.JSON_EXECUTION_PLAN)) {
+      sb.append(System.lineSeparator)
+      sb.append("== Physical Execution Plan ==")
+      sb.append(System.lineSeparator)
+      sb.append(streamGraph.getStreamingPlanAsJSON)
+    }
+
+    sb.toString()
+  }
 }

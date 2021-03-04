@@ -33,7 +33,6 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.heartbeat.HeartbeatListener;
@@ -53,7 +52,6 @@ import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolServiceFactory;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -75,8 +73,8 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.PermanentlyFencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
-import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -156,8 +154,6 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
     private final SlotPoolService slotPoolService;
 
-    private final SchedulerNGFactory schedulerNGFactory;
-
     private final long initializationTimestamp;
 
     private final boolean retrieveTaskManagerHostName;
@@ -212,14 +208,13 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
             ResourceID resourceId,
             JobGraph jobGraph,
             HighAvailabilityServices highAvailabilityService,
-            SlotPoolServiceFactory slotPoolFactory,
+            SlotPoolServiceSchedulerFactory slotPoolServiceSchedulerFactory,
             JobManagerSharedServices jobManagerSharedServices,
             HeartbeatServices heartbeatServices,
             JobManagerJobMetricGroupFactory jobMetricGroupFactory,
             OnCompletionActions jobCompletionActions,
             FatalErrorHandler fatalErrorHandler,
             ClassLoader userCodeLoader,
-            SchedulerNGFactory schedulerNGFactory,
             ShuffleMaster<?> shuffleMaster,
             PartitionTrackerFactory partitionTrackerFactory,
             ExecutionDeploymentTracker executionDeploymentTracker,
@@ -241,7 +236,6 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                         for (ExecutionAttemptID executionAttemptId : executionAttemptIds) {
                             schedulerNG.updateTaskExecutionState(
                                     new TaskExecutionState(
-                                            jobGraph.getJobID(),
                                             executionAttemptId,
                                             ExecutionState.FAILED,
                                             new FlinkException(
@@ -282,7 +276,6 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
         this.jobCompletionActions = checkNotNull(jobCompletionActions);
         this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
         this.userCodeLoader = checkNotNull(userCodeLoader);
-        this.schedulerNGFactory = checkNotNull(schedulerNGFactory);
         this.initializationTimestamp = initializationTimestamp;
         this.retrieveTaskManagerHostName =
                 jobMasterConfiguration
@@ -297,7 +290,8 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
         resourceManagerLeaderRetriever =
                 highAvailabilityServices.getResourceManagerLeaderRetriever();
 
-        this.slotPoolService = checkNotNull(slotPoolFactory).createSlotPoolService(jid);
+        this.slotPoolService =
+                checkNotNull(slotPoolServiceSchedulerFactory).createSlotPoolService(jid);
 
         this.registeredTaskManagers = new HashMap<>(4);
         this.partitionTracker =
@@ -320,7 +314,10 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
         this.jobStatusListener = new JobManagerJobStatusListener();
         this.schedulerNG =
                 createScheduler(
-                        executionDeploymentTracker, jobManagerJobMetricGroup, jobStatusListener);
+                        slotPoolServiceSchedulerFactory,
+                        executionDeploymentTracker,
+                        jobManagerJobMetricGroup,
+                        jobStatusListener);
 
         this.heartbeatServices = checkNotNull(heartbeatServices);
         this.taskManagerHeartbeatManager = NoOpHeartbeatManager.getInstance();
@@ -333,12 +330,13 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
     }
 
     private SchedulerNG createScheduler(
+            SlotPoolServiceSchedulerFactory slotPoolServiceSchedulerFactory,
             ExecutionDeploymentTracker executionDeploymentTracker,
             JobManagerJobMetricGroup jobManagerJobMetricGroup,
             JobStatusListener jobStatusListener)
             throws Exception {
         final SchedulerNG scheduler =
-                schedulerNGFactory.createInstance(
+                slotPoolServiceSchedulerFactory.createScheduler(
                         log,
                         jobGraph,
                         scheduledExecutorService,
@@ -356,6 +354,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                         executionDeploymentTracker,
                         initializationTimestamp,
                         getMainThreadExecutor(),
+                        fatalErrorHandler,
                         jobStatusListener);
 
         return scheduler;
@@ -766,7 +765,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
     }
 
     @Override
-    public CompletableFuture<ArchivedExecutionGraph> requestJob(Time timeout) {
+    public CompletableFuture<ExecutionGraphInfo> requestJob(Time timeout) {
         return CompletableFuture.completedFuture(schedulerNG.requestJob());
     }
 
@@ -779,11 +778,9 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
     @Override
     public CompletableFuture<String> stopWithSavepoint(
-            @Nullable final String targetDirectory,
-            final boolean advanceToEndOfEventTime,
-            final Time timeout) {
+            @Nullable final String targetDirectory, final boolean terminate, final Time timeout) {
 
-        return schedulerNG.stopWithSavepoint(targetDirectory, advanceToEndOfEventTime);
+        return schedulerNG.stopWithSavepoint(targetDirectory, terminate);
     }
 
     @Override
@@ -975,11 +972,9 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                                                     : partitionTracker
                                                             ::stopTrackingAndReleasePartitionsFor));
 
-            final ArchivedExecutionGraph archivedExecutionGraph = schedulerNG.requestJob();
+            final ExecutionGraphInfo executionGraphInfo = schedulerNG.requestJob();
             scheduledExecutorService.execute(
-                    () ->
-                            jobCompletionActions.jobReachedGloballyTerminalState(
-                                    archivedExecutionGraph));
+                    () -> jobCompletionActions.jobReachedGloballyTerminalState(executionGraphInfo));
         }
     }
 

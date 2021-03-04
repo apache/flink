@@ -38,7 +38,7 @@ resources:
   containers:
   # Container with Maven 3.2.5, SSL to have the same environment everywhere.
   - container: flink-build-container
-    image: rmetzger/flink-ci:ubuntu-amd64-f009d96
+    image: rmetzger/flink-ci:ubuntu-amd64-98ad098
 
 variables:
   MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
@@ -91,12 +91,6 @@ stages:
               addToPath: true
           - script: ./tools/ci/docs.sh
             condition: not(eq(variables['SKIP'], '1'))
-          # upload spider.log for debugging
-          - task: PublishPipelineArtifact@1
-            condition: not(eq(variables['SKIP'], '1'))
-            inputs:
-             targetPath: ./docs/spider.log
-             artifact: spider.log
   # Special stage for nightly builds:
   - stage: cron_build
     displayName: "Cron build"
@@ -163,6 +157,17 @@ stages:
           run_end_to_end: true
           container: flink-build-container
           jdk: jdk11
+      - template: jobs-template.yml
+        parameters:
+          stage_name: cron_adaptive_scheduler
+          test_pool_definition:
+            name: Default
+          e2e_pool_definition:
+            vmImage: 'ubuntu-16.04'
+          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Penable-adaptive-scheduler"
+          run_end_to_end: true
+          container: flink-build-container
+          jdk: jdk8
       - job: docs_404_check # run on a MSFT provided machine
         pool:
           vmImage: 'ubuntu-16.04'

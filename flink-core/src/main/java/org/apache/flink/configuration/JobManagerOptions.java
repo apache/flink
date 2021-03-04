@@ -22,8 +22,11 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 
+import java.time.Duration;
+
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.LinkElement.link;
+import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.configuration.description.TextElement.text;
 
 /** Configuration options for the JobManager. */
@@ -347,15 +350,67 @@ public class JobManagerOptions {
 
     /** Config parameter determining the scheduler implementation. */
     @Documentation.ExcludeFromDocumentation("SchedulerNG is still in development.")
-    public static final ConfigOption<String> SCHEDULER =
+    public static final ConfigOption<SchedulerType> SCHEDULER =
             key("jobmanager.scheduler")
-                    .stringType()
-                    .defaultValue("ng")
+                    .enumType(SchedulerType.class)
+                    .defaultValue(SchedulerType.Ng)
                     .withDescription(
                             Description.builder()
                                     .text(
                                             "Determines which scheduler implementation is used to schedule tasks. Accepted values are:")
-                                    .list(text("'ng': new generation scheduler"))
+                                    .list(
+                                            text("'Ng': new generation scheduler"),
+                                            text(
+                                                    "'Adaptive': adaptive scheduler; supports reactive mode"))
+                                    .build());
+
+    /** Type of scheduler implementation. */
+    public enum SchedulerType {
+        Ng,
+        Adaptive
+    }
+
+    @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
+    public static final ConfigOption<SchedulerExecutionMode> SCHEDULER_MODE =
+            key("scheduler-mode")
+                    .enumType(SchedulerExecutionMode.class)
+                    .defaultValue(null)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Determines the mode of the scheduler. Note that %s=%s is only supported by standalone application deployments, not by active resource managers (YARN, Kubernetes) or session clusters.",
+                                            code("scheduler-mode"),
+                                            code(SchedulerExecutionMode.REACTIVE.name()))
+                                    .build());
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Integer> MIN_PARALLELISM_INCREASE =
+            key("jobmanager.adaptive-scheduler.min-parallelism-increase")
+                    .intType()
+                    .defaultValue(1)
+                    .withDescription(
+                            "Configure the minimum increase in parallelism for a job to scale up.");
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Duration> RESOURCE_WAIT_TIMEOUT =
+            key("jobmanager.adaptive-scheduler.resource-wait-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(10))
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The maximum time the JobManager will wait to acquire all required resources after a job submission or restart. "
+                                                    + "Once elapsed it will try to run the job with a lower parallelism, or fail if the minimum amount of resources could not be acquired.")
+                                    .linebreak()
+                                    .text(
+                                            "Increasing this value will make the cluster more resilient against temporary resources shortages (e.g., there is more time for a failed TaskManager to be restarted), "
+                                                    + "while decreasing this value reduces downtime of a job (provided that enough slots are available to still run the job).")
                                     .build());
 
     /**

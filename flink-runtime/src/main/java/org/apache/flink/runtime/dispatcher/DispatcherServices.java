@@ -48,7 +48,7 @@ public class DispatcherServices {
 
     @Nonnull private final JobManagerMetricGroup jobManagerMetricGroup;
 
-    @Nonnull private final ArchivedExecutionGraphStore archivedExecutionGraphStore;
+    @Nonnull private final ExecutionGraphInfoStore executionGraphInfoStore;
 
     @Nonnull private final FatalErrorHandler fatalErrorHandler;
 
@@ -68,7 +68,7 @@ public class DispatcherServices {
             @Nonnull GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
             @Nonnull BlobServer blobServer,
             @Nonnull HeartbeatServices heartbeatServices,
-            @Nonnull ArchivedExecutionGraphStore archivedExecutionGraphStore,
+            @Nonnull ExecutionGraphInfoStore executionGraphInfoStore,
             @Nonnull FatalErrorHandler fatalErrorHandler,
             @Nonnull HistoryServerArchivist historyServerArchivist,
             @Nullable String metricQueryServiceAddress,
@@ -81,7 +81,7 @@ public class DispatcherServices {
         this.resourceManagerGatewayRetriever = resourceManagerGatewayRetriever;
         this.blobServer = blobServer;
         this.heartbeatServices = heartbeatServices;
-        this.archivedExecutionGraphStore = archivedExecutionGraphStore;
+        this.executionGraphInfoStore = executionGraphInfoStore;
         this.fatalErrorHandler = fatalErrorHandler;
         this.historyServerArchivist = historyServerArchivist;
         this.metricQueryServiceAddress = metricQueryServiceAddress;
@@ -122,8 +122,8 @@ public class DispatcherServices {
     }
 
     @Nonnull
-    public ArchivedExecutionGraphStore getArchivedExecutionGraphStore() {
-        return archivedExecutionGraphStore;
+    public ExecutionGraphInfoStore getArchivedExecutionGraphStore() {
+        return executionGraphInfoStore;
     }
 
     @Nonnull

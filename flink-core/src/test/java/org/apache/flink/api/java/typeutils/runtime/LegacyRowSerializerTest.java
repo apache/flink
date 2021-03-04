@@ -27,6 +27,7 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.types.Row;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.Serializable;
@@ -144,6 +145,7 @@ public class LegacyRowSerializerTest {
         return row;
     }
 
+    @Ignore("Prevents this class from being considered a test class by JUnit.")
     private class RowSerializerTestInstance extends SerializerTestInstance<Row> {
 
         RowSerializerTestInstance(TypeSerializer<Row> serializer, Row... testData) {

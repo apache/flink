@@ -42,7 +42,7 @@ import java.util.concurrent.Executor;
 
 /** Handler serving the job configuration. */
 public class JobConfigHandler
-        extends AbstractExecutionGraphHandler<JobConfigInfo, JobMessageParameters>
+        extends AbstractAccessExecutionGraphHandler<JobConfigInfo, JobMessageParameters>
         implements JsonArchivist {
 
     public JobConfigHandler(

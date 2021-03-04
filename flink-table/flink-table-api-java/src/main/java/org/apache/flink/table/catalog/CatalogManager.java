@@ -649,6 +649,8 @@ public final class CatalogManager {
      */
     public void createTemporaryTable(
             CatalogBaseTable table, ObjectIdentifier objectIdentifier, boolean ignoreIfExists) {
+        Optional<TemporaryOperationListener> listener =
+                getTemporaryOperationListener(objectIdentifier);
         temporaryTables.compute(
                 objectIdentifier,
                 (k, v) -> {
@@ -661,6 +663,10 @@ public final class CatalogManager {
                         }
                         return v;
                     } else {
+                        if (listener.isPresent()) {
+                            return listener.get()
+                                    .onCreateTemporaryTable(objectIdentifier.toObjectPath(), table);
+                        }
                         return table;
                     }
                 });
@@ -696,6 +702,8 @@ public final class CatalogManager {
             boolean ignoreIfNotExists) {
         CatalogBaseTable catalogBaseTable = temporaryTables.get(objectIdentifier);
         if (filter.test(catalogBaseTable)) {
+            getTemporaryOperationListener(objectIdentifier)
+                    .ifPresent(l -> l.onDropTemporaryTable(objectIdentifier.toObjectPath()));
             temporaryTables.remove(objectIdentifier);
         } else if (!ignoreIfNotExists) {
             throw new ValidationException(
@@ -703,6 +711,16 @@ public final class CatalogManager {
                             "Temporary table or view with identifier '%s' does not exist.",
                             objectIdentifier.asSummaryString()));
         }
+    }
+
+    protected Optional<TemporaryOperationListener> getTemporaryOperationListener(
+            ObjectIdentifier identifier) {
+        return getCatalog(identifier.getCatalogName())
+                .map(
+                        c ->
+                                c instanceof TemporaryOperationListener
+                                        ? (TemporaryOperationListener) c
+                                        : null);
     }
 
     /**

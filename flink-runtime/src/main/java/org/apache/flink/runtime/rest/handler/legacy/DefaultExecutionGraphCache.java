@@ -20,8 +20,7 @@ package org.apache.flink.runtime.rest.handler.legacy;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.util.Preconditions;
 
@@ -63,12 +62,12 @@ public class DefaultExecutionGraphCache implements ExecutionGraphCache {
     }
 
     @Override
-    public CompletableFuture<AccessExecutionGraph> getExecutionGraph(
+    public CompletableFuture<ExecutionGraphInfo> getExecutionGraphInfo(
             JobID jobId, RestfulGateway restfulGateway) {
         return getExecutionGraphInternal(jobId, restfulGateway).thenApply(Function.identity());
     }
 
-    private CompletableFuture<ArchivedExecutionGraph> getExecutionGraphInternal(
+    private CompletableFuture<ExecutionGraphInfo> getExecutionGraphInternal(
             JobID jobId, RestfulGateway restfulGateway) {
         Preconditions.checkState(running, "ExecutionGraphCache is no longer running");
 
@@ -78,10 +77,10 @@ public class DefaultExecutionGraphCache implements ExecutionGraphCache {
             final long currentTime = System.currentTimeMillis();
 
             if (oldEntry != null && currentTime < oldEntry.getTTL()) {
-                final CompletableFuture<ArchivedExecutionGraph> executionGraphFuture =
-                        oldEntry.getExecutionGraphFuture();
-                if (!executionGraphFuture.isCompletedExceptionally()) {
-                    return executionGraphFuture;
+                final CompletableFuture<ExecutionGraphInfo> executionGraphInfoFuture =
+                        oldEntry.getExecutionGraphInfoFuture();
+                if (!executionGraphInfoFuture.isCompletedExceptionally()) {
+                    return executionGraphInfoFuture;
                 }
                 // otherwise it must be completed exceptionally
             }
@@ -96,22 +95,23 @@ public class DefaultExecutionGraphCache implements ExecutionGraphCache {
             } else {
                 successfulUpdate = cachedExecutionGraphs.replace(jobId, oldEntry, newEntry);
                 // cancel potentially outstanding futures
-                oldEntry.getExecutionGraphFuture().cancel(false);
+                oldEntry.getExecutionGraphInfoFuture().cancel(false);
             }
 
             if (successfulUpdate) {
-                final CompletableFuture<ArchivedExecutionGraph> executionGraphFuture =
-                        restfulGateway.requestJob(jobId, timeout);
+                final CompletableFuture<ExecutionGraphInfo> executionGraphInfoFuture =
+                        restfulGateway.requestExecutionGraphInfo(jobId, timeout);
 
-                executionGraphFuture.whenComplete(
-                        (ArchivedExecutionGraph executionGraph, Throwable throwable) -> {
+                executionGraphInfoFuture.whenComplete(
+                        (ExecutionGraphInfo executionGraph, Throwable throwable) -> {
                             if (throwable != null) {
-                                newEntry.getExecutionGraphFuture().completeExceptionally(throwable);
+                                newEntry.getExecutionGraphInfoFuture()
+                                        .completeExceptionally(throwable);
 
                                 // remove exceptionally completed entry because it doesn't help
                                 cachedExecutionGraphs.remove(jobId, newEntry);
                             } else {
-                                newEntry.getExecutionGraphFuture().complete(executionGraph);
+                                newEntry.getExecutionGraphInfoFuture().complete(executionGraph);
                             }
                         });
 
@@ -120,7 +120,7 @@ public class DefaultExecutionGraphCache implements ExecutionGraphCache {
                     cachedExecutionGraphs.remove(jobId, newEntry);
                 }
 
-                return newEntry.getExecutionGraphFuture();
+                return newEntry.getExecutionGraphInfoFuture();
             }
         }
     }
@@ -139,19 +139,19 @@ public class DefaultExecutionGraphCache implements ExecutionGraphCache {
     private static final class ExecutionGraphEntry {
         private final long ttl;
 
-        private final CompletableFuture<ArchivedExecutionGraph> executionGraphFuture;
+        private final CompletableFuture<ExecutionGraphInfo> executionGraphInfoFuture;
 
         ExecutionGraphEntry(long ttl) {
             this.ttl = ttl;
-            this.executionGraphFuture = new CompletableFuture<>();
+            this.executionGraphInfoFuture = new CompletableFuture<>();
         }
 
         public long getTTL() {
             return ttl;
         }
 
-        public CompletableFuture<ArchivedExecutionGraph> getExecutionGraphFuture() {
-            return executionGraphFuture;
+        public CompletableFuture<ExecutionGraphInfo> getExecutionGraphInfoFuture() {
+            return executionGraphInfoFuture;
         }
     }
 }

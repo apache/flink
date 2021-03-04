@@ -35,26 +35,26 @@ public abstract class AbstractCatalogTable implements CatalogTable {
     // partitioned
     private final List<String> partitionKeys;
     // Properties of the table
-    private final Map<String, String> properties;
+    private final Map<String, String> options;
     // Comment of the table
     private final String comment;
 
     public AbstractCatalogTable(
-            TableSchema tableSchema, Map<String, String> properties, String comment) {
-        this(tableSchema, new ArrayList<>(), properties, comment);
+            TableSchema tableSchema, Map<String, String> options, String comment) {
+        this(tableSchema, new ArrayList<>(), options, comment);
     }
 
     public AbstractCatalogTable(
             TableSchema tableSchema,
             List<String> partitionKeys,
-            Map<String, String> properties,
+            Map<String, String> options,
             String comment) {
         this.tableSchema = checkNotNull(tableSchema, "tableSchema cannot be null");
         this.partitionKeys = checkNotNull(partitionKeys, "partitionKeys cannot be null");
-        this.properties = checkNotNull(properties, "properties cannot be null");
+        this.options = checkNotNull(options, "options cannot be null");
 
         checkArgument(
-                properties.entrySet().stream()
+                options.entrySet().stream()
                         .allMatch(e -> e.getKey() != null && e.getValue() != null),
                 "properties cannot have null keys or values");
 
@@ -72,8 +72,8 @@ public abstract class AbstractCatalogTable implements CatalogTable {
     }
 
     @Override
-    public Map<String, String> getProperties() {
-        return properties;
+    public Map<String, String> getOptions() {
+        return options;
     }
 
     @Override

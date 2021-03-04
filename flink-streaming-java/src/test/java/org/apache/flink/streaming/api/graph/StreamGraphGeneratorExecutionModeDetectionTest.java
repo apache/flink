@@ -28,7 +28,7 @@ import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
-import org.apache.flink.runtime.jobgraph.ScheduleMode;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
@@ -75,8 +75,7 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
 
         assertThat(
                 environment.getStreamGraph(),
-                hasProperties(
-                        GlobalDataExchangeMode.ALL_EDGES_PIPELINED, ScheduleMode.EAGER, true));
+                hasProperties(GlobalDataExchangeMode.ALL_EDGES_PIPELINED, JobType.STREAMING, true));
     }
 
     @Test
@@ -94,7 +93,7 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
         assertThat(
                 environment.getStreamGraph(),
                 hasProperties(
-                        GlobalDataExchangeMode.ALL_EDGES_PIPELINED, ScheduleMode.EAGER, false));
+                        GlobalDataExchangeMode.ALL_EDGES_PIPELINED, JobType.STREAMING, false));
     }
 
     @Test
@@ -121,9 +120,7 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
         assertThat(
                 streamGraph,
                 hasProperties(
-                        GlobalDataExchangeMode.FORWARD_EDGES_PIPELINED,
-                        ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST,
-                        false));
+                        GlobalDataExchangeMode.FORWARD_EDGES_PIPELINED, JobType.BATCH, false));
     }
 
     @Test
@@ -173,7 +170,7 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
         assertThat(
                 graph,
                 hasProperties(
-                        GlobalDataExchangeMode.ALL_EDGES_PIPELINED, ScheduleMode.EAGER, false));
+                        GlobalDataExchangeMode.ALL_EDGES_PIPELINED, JobType.STREAMING, false));
     }
 
     @Test
@@ -186,9 +183,7 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
         assertThat(
                 graph,
                 hasProperties(
-                        GlobalDataExchangeMode.FORWARD_EDGES_PIPELINED,
-                        ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST,
-                        false));
+                        GlobalDataExchangeMode.FORWARD_EDGES_PIPELINED, JobType.BATCH, false));
     }
 
     @Test
@@ -201,7 +196,7 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
         assertThat(
                 graph,
                 hasProperties(
-                        GlobalDataExchangeMode.ALL_EDGES_PIPELINED, ScheduleMode.EAGER, false));
+                        GlobalDataExchangeMode.ALL_EDGES_PIPELINED, JobType.STREAMING, false));
     }
 
     @Test
@@ -218,7 +213,7 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
         assertThat(
                 graph,
                 hasProperties(
-                        GlobalDataExchangeMode.ALL_EDGES_PIPELINED, ScheduleMode.EAGER, false));
+                        GlobalDataExchangeMode.ALL_EDGES_PIPELINED, JobType.STREAMING, false));
     }
 
     @Test
@@ -231,16 +226,14 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
         assertThat(
                 graph,
                 hasProperties(
-                        GlobalDataExchangeMode.FORWARD_EDGES_PIPELINED,
-                        ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST,
-                        false));
+                        GlobalDataExchangeMode.FORWARD_EDGES_PIPELINED, JobType.BATCH, false));
 
         final StreamGraph streamingGraph =
                 generateStreamGraph(RuntimeExecutionMode.STREAMING, bounded);
         assertThat(
                 streamingGraph,
                 hasProperties(
-                        GlobalDataExchangeMode.ALL_EDGES_PIPELINED, ScheduleMode.EAGER, false));
+                        GlobalDataExchangeMode.ALL_EDGES_PIPELINED, JobType.STREAMING, false));
     }
 
     private StreamGraph generateStreamGraph(
@@ -268,14 +261,14 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
 
     private static TypeSafeMatcher<StreamGraph> hasProperties(
             final GlobalDataExchangeMode exchangeMode,
-            final ScheduleMode scheduleMode,
+            final JobType jobType,
             final boolean isCheckpointingEnable) {
 
         return new TypeSafeMatcher<StreamGraph>() {
             @Override
             protected boolean matchesSafely(StreamGraph actualStreamGraph) {
                 return exchangeMode == actualStreamGraph.getGlobalDataExchangeMode()
-                        && scheduleMode == actualStreamGraph.getScheduleMode()
+                        && jobType == actualStreamGraph.getJobType()
                         && actualStreamGraph.getCheckpointConfig().isCheckpointingEnabled()
                                 == isCheckpointingEnable;
             }
@@ -285,8 +278,8 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
                 description
                         .appendText("a StreamGraph with exchangeMode='")
                         .appendValue(exchangeMode)
-                        .appendText("' and scheduleMode='")
-                        .appendValue(scheduleMode)
+                        .appendText("' and jobType='")
+                        .appendValue(jobType)
                         .appendText("'");
             }
 
@@ -298,7 +291,7 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
                         .appendText("a StreamGraph with exchangeMode='")
                         .appendValue(item.getGlobalDataExchangeMode())
                         .appendText("' and scheduleMode='")
-                        .appendValue(item.getScheduleMode())
+                        .appendValue(item.getJobType())
                         .appendText("'");
             }
         };

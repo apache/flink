@@ -183,7 +183,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
             checkpoints.addCheckpoint(checkpoint, new CheckpointsCleaner(), () -> {});
         }
 
-        checkpoints.shutdown(JobStatus.FINISHED, new CheckpointsCleaner(), () -> {});
+        checkpoints.shutdown(JobStatus.FINISHED, new CheckpointsCleaner());
 
         // Empty state
         assertNull(checkpoints.getLatestCheckpoint(false));

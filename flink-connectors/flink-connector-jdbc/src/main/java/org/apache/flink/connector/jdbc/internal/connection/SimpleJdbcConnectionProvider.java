@@ -26,8 +26,11 @@ import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.Serializable;
 import java.sql.Connection;
+import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.Enumeration;
+import java.util.Properties;
 
 /** Simple JDBC connection provider. */
 @NotThreadSafe
@@ -39,6 +42,7 @@ public class SimpleJdbcConnectionProvider implements JdbcConnectionProvider, Ser
 
     private final JdbcConnectionOptions jdbcOptions;
 
+    private transient Driver cachedDriver;
     private transient Connection connection;
 
     static {
@@ -68,18 +72,45 @@ public class SimpleJdbcConnectionProvider implements JdbcConnectionProvider, Ser
                 && connection.isValid(jdbcOptions.getConnectionCheckTimeoutSeconds());
     }
 
+    private Driver getDriver() throws SQLException, ClassNotFoundException {
+        if (cachedDriver != null) {
+            return cachedDriver;
+        }
+        String driverName = jdbcOptions.getDriverName();
+        Enumeration<Driver> drivers = DriverManager.getDrivers();
+        while (drivers.hasMoreElements()) {
+            Driver driver = drivers.nextElement();
+            if (driver.getClass().getName().equals(driverName)) {
+                cachedDriver = driver;
+                return driver;
+            }
+        }
+        // We could reach here for reasons:
+        // * Class loader hell of DriverManager(see JDK-8146872).
+        // * driver is not installed as a service provider.
+        Class<?> clazz =
+                Class.forName(driverName, true, Thread.currentThread().getContextClassLoader());
+        try {
+            cachedDriver = (Driver) clazz.newInstance();
+            return cachedDriver;
+        } catch (Exception ex) {
+            throw new SQLException("Fail to create driver of class " + driverName, ex);
+        }
+    }
+
     @Override
     public Connection getOrEstablishConnection() throws SQLException, ClassNotFoundException {
         if (connection == null) {
-            Class.forName(jdbcOptions.getDriverName());
-            if (jdbcOptions.getUsername().isPresent()) {
-                connection =
-                        DriverManager.getConnection(
-                                jdbcOptions.getDbURL(),
-                                jdbcOptions.getUsername().get(),
-                                jdbcOptions.getPassword().orElse(null));
-            } else {
-                connection = DriverManager.getConnection(jdbcOptions.getDbURL());
+            Driver driver = getDriver();
+            Properties info = new Properties();
+            jdbcOptions.getUsername().ifPresent(user -> info.setProperty("user", user));
+            jdbcOptions.getPassword().ifPresent(password -> info.setProperty("password", password));
+            connection = driver.connect(jdbcOptions.getDbURL(), info);
+            if (connection == null) {
+                // Throw same exception as DriverManager.getConnection when no driver found to match
+                // caller expectation.
+                throw new SQLException(
+                        "No suitable driver found for " + jdbcOptions.getDbURL(), "08001");
             }
         }
         return connection;

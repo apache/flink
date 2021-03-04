@@ -38,7 +38,7 @@ resources:
   containers:
   # Container with Maven 3.2.5, SSL to have the same environment everywhere.
   - container: flink-build-container
-    image: rmetzger/flink-ci:ubuntu-amd64-f009d96
+    image: rmetzger/flink-ci:ubuntu-amd64-98ad098
     # On AZP provided machines, set this flag to allow writing coredumps in docker
     options: --privileged
 
@@ -79,16 +79,7 @@ stages:
         pool:
           vmImage: 'ubuntu-16.04'
         steps:
-          - task: UseRubyVersion@0
-            inputs:
-              versionSpec: '= 2.4'
-              addToPath: true
           - script: ./tools/ci/docs.sh
-          # upload spider.log for debugging
-          - task: PublishPipelineArtifact@1
-            inputs:
-              targetPath: ./docs/spider.log
-              artifact: spider.log
   # CI / Special stage for release, e.g. building PyFlink wheel packages, etc:
   - stage: ci_release
     displayName: "CI build (release)"

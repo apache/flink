@@ -34,7 +34,8 @@ import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 
@@ -313,9 +314,9 @@ public class Checkpoints {
                     StateBackendLoader.loadStateBackendFromConfig(configuration, classLoader, null);
 
             if (backend == null && logger != null) {
-                logger.info(
+                logger.debug(
                         "No state backend configured, attempting to dispose savepoint "
-                                + "with default backend (file system based)");
+                                + "with configured checkpoint storage");
             }
         } catch (Throwable t) {
             // catches exceptions and errors (like linking errors)
@@ -326,9 +327,10 @@ public class Checkpoints {
         }
 
         if (backend == null) {
-            // We use the memory state backend by default. The MemoryStateBackend is actually
-            // FileSystem-based for metadata
-            backend = new MemoryStateBackend();
+            // We use the hashmap state backend by default. This will
+            // force the checkpoint storage loader to load
+            // the configured storage backend.
+            backend = new HashMapStateBackend();
         }
         return backend;
     }
@@ -345,7 +347,8 @@ public class Checkpoints {
         CheckpointStorage checkpointStorage = null;
         try {
             checkpointStorage =
-                    CheckpointStorageLoader.load(null, backend, configuration, classLoader, null);
+                    CheckpointStorageLoader.load(
+                            null, null, backend, configuration, classLoader, null);
         } catch (Throwable t) {
             // catches exceptions and errors (like linking errors)
             if (logger != null) {
@@ -354,6 +357,12 @@ public class Checkpoints {
             }
         }
 
+        if (checkpointStorage == null) {
+            // We use the jobmanager checkpoint storage by default.
+            // The JobManagerCheckpointStorage is actually
+            // FileSystem-based for metadata
+            return new JobManagerCheckpointStorage();
+        }
         return checkpointStorage;
     }
 

@@ -304,7 +304,6 @@ public class Task
             int attemptNumber,
             List<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors,
             List<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors,
-            int targetSlotNumber,
             MemoryManager memManager,
             IOManager ioManager,
             ShuffleEnvironment<?, ?> shuffleEnvironment,
@@ -331,8 +330,6 @@ public class Task
 
         Preconditions.checkArgument(0 <= subtaskIndex, "The subtask index must be positive.");
         Preconditions.checkArgument(0 <= attemptNumber, "The attempt number must be positive.");
-        Preconditions.checkArgument(
-                0 <= targetSlotNumber, "The target slot number must be positive.");
 
         this.taskInfo =
                 new TaskInfo(
@@ -748,7 +745,7 @@ public class Task
 
             // notify everyone that we switched to running
             taskManagerActions.updateTaskExecutionState(
-                    new TaskExecutionState(jobId, executionId, ExecutionState.RUNNING));
+                    new TaskExecutionState(executionId, ExecutionState.RUNNING));
 
             // make sure the user code classloader is accessible thread-locally
             executingThread.setContextClassLoader(userCodeClassLoader.asClassLoader());
@@ -1004,7 +1001,7 @@ public class Task
     private void notifyFinalState() {
         checkState(executionState.isTerminal());
         taskManagerActions.updateTaskExecutionState(
-                new TaskExecutionState(jobId, executionId, executionState, failureCause));
+                new TaskExecutionState(executionId, executionState, failureCause));
     }
 
     private void notifyFatalError(String message, Throwable cause) {
@@ -1042,12 +1039,12 @@ public class Task
                         newState);
             } else {
                 LOG.warn(
-                        "{} ({}) switched from {} to {}.",
+                        "{} ({}) switched from {} to {} with failure cause: {}",
                         taskNameWithSubtask,
                         executionId,
                         currentState,
                         newState,
-                        cause);
+                        ExceptionUtils.stringifyException(cause));
             }
 
             return true;
@@ -1254,14 +1251,11 @@ public class Task
      * @param checkpointID The ID identifying the checkpoint.
      * @param checkpointTimestamp The timestamp associated with the checkpoint.
      * @param checkpointOptions Options for performing this checkpoint.
-     * @param advanceToEndOfEventTime Flag indicating if the source should inject a {@code
-     *     MAX_WATERMARK} in the pipeline to fire any registered event-time timers.
      */
     public void triggerCheckpointBarrier(
             final long checkpointID,
             final long checkpointTimestamp,
-            final CheckpointOptions checkpointOptions,
-            final boolean advanceToEndOfEventTime) {
+            final CheckpointOptions checkpointOptions) {
 
         final AbstractInvokable invokable = this.invokable;
         final CheckpointMetaData checkpointMetaData =
@@ -1269,8 +1263,7 @@ public class Task
 
         if (executionState == ExecutionState.RUNNING && invokable != null) {
             try {
-                invokable.triggerCheckpointAsync(
-                        checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
+                invokable.triggerCheckpointAsync(checkpointMetaData, checkpointOptions);
             } catch (RejectedExecutionException ex) {
                 // This may happen if the mailbox is closed. It means that the task is shutting
                 // down, so we just ignore it.

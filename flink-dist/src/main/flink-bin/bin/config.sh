@@ -200,22 +200,22 @@ MY_JAVA_HOME=$(readFromConfig ${KEY_ENV_JAVA_HOME} "" "${YAML_CONF}")
 # check if config specified JAVA_HOME
 if [ -z "${MY_JAVA_HOME}" ]; then
     # config did not specify JAVA_HOME. Use system JAVA_HOME
-    MY_JAVA_HOME=${JAVA_HOME}
+    MY_JAVA_HOME="${JAVA_HOME}"
 fi
 # check if we have a valid JAVA_HOME and if java is not available
 if [ -z "${MY_JAVA_HOME}" ] && ! type java > /dev/null 2> /dev/null; then
     echo "Please specify JAVA_HOME. Either in Flink config ./conf/flink-conf.yaml or as system-wide JAVA_HOME."
     exit 1
 else
-    JAVA_HOME=${MY_JAVA_HOME}
+    JAVA_HOME="${MY_JAVA_HOME}"
 fi
 
 UNAME=$(uname -s)
 if [ "${UNAME:0:6}" == "CYGWIN" ]; then
     JAVA_RUN=java
 else
-    if [[ -d $JAVA_HOME ]]; then
-        JAVA_RUN=$JAVA_HOME/bin/java
+    if [[ -d "$JAVA_HOME" ]]; then
+        JAVA_RUN="$JAVA_HOME"/bin/java
     else
         JAVA_RUN=java
     fi
@@ -482,7 +482,7 @@ runBashJavaUtilsCmd() {
     local dynamic_args=${@:4}
     class_path=`manglePathList "${class_path}"`
 
-    local output=`${JAVA_RUN} -classpath "${class_path}" org.apache.flink.runtime.util.bash.BashJavaUtils ${cmd} --configDir "${conf_dir}" $dynamic_args 2>&1 | tail -n 1000`
+    local output=`"${JAVA_RUN}" -classpath "${class_path}" org.apache.flink.runtime.util.bash.BashJavaUtils ${cmd} --configDir "${conf_dir}" $dynamic_args 2>&1 | tail -n 1000`
     if [[ $? -ne 0 ]]; then
         echo "[ERROR] Cannot run BashJavaUtils to execute command ${cmd}." 1>&2
         # Print the output in case the user redirect the log to console.
@@ -524,8 +524,9 @@ extractLoggingOutputs() {
     echo "${output}" | grep -v ${EXECUTION_PREFIX}
 }
 
-parseJmArgsAndExportLogs() {
-  java_utils_output=$(runBashJavaUtilsCmd GET_JM_RESOURCE_PARAMS "${FLINK_CONF_DIR}" "${FLINK_BIN_DIR}/bash-java-utils.jar:$(findFlinkDistJar)" "$@")
+parseResourceParamsAndExportLogs() {
+  local cmd=$1
+  java_utils_output=$(runBashJavaUtilsCmd ${cmd} "${FLINK_CONF_DIR}" "${FLINK_BIN_DIR}/bash-java-utils.jar:$(findFlinkDistJar)" "$@")
   logging_output=$(extractLoggingOutputs "${java_utils_output}")
   params_output=$(extractExecutionResults "${java_utils_output}" 2)
 
@@ -543,8 +544,17 @@ parseJmArgsAndExportLogs() {
   export FLINK_INHERITED_LOGS="
 $FLINK_INHERITED_LOGS
 
-JM_RESOURCE_PARAMS extraction logs:
+RESOURCE_PARAMS extraction logs:
 jvm_params: $jvm_params
+dynamic_configs: $DYNAMIC_PARAMETERS
 logs: $logging_output
 "
+}
+
+parseJmArgsAndExportLogs() {
+  parseResourceParamsAndExportLogs GET_JM_RESOURCE_PARAMS
+}
+
+parseTmArgsAndExportLogs() {
+  parseResourceParamsAndExportLogs GET_TM_RESOURCE_PARAMS
 }

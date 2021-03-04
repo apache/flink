@@ -109,9 +109,8 @@ public class SynchronousCheckpointITCase {
                     42,
                     156865867234L,
                     new CheckpointOptions(
-                            CheckpointType.SYNC_SAVEPOINT,
-                            CheckpointStorageLocationReference.getDefault()),
-                    true);
+                            CheckpointType.SAVEPOINT_SUSPEND,
+                            CheckpointStorageLocationReference.getDefault()));
 
             assertThat(eventQueue.take(), is(Event.PRE_TRIGGER_CHECKPOINT));
             assertThat(eventQueue.take(), is(Event.POST_TRIGGER_CHECKPOINT));
@@ -154,14 +153,11 @@ public class SynchronousCheckpointITCase {
 
         @Override
         public Future<Boolean> triggerCheckpointAsync(
-                CheckpointMetaData checkpointMetaData,
-                CheckpointOptions checkpointOptions,
-                boolean advanceToEndOfEventTime) {
+                CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
             try {
                 eventQueue.put(Event.PRE_TRIGGER_CHECKPOINT);
                 Future<Boolean> result =
-                        super.triggerCheckpointAsync(
-                                checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
+                        super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions);
                 eventQueue.put(Event.POST_TRIGGER_CHECKPOINT);
                 return result;
             } catch (InterruptedException e) {
@@ -262,7 +258,6 @@ public class SynchronousCheckpointITCase {
                 0,
                 Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
                 Collections.<InputGateDeploymentDescriptor>emptyList(),
-                0,
                 mock(MemoryManager.class),
                 mock(IOManager.class),
                 shuffleEnvironment,

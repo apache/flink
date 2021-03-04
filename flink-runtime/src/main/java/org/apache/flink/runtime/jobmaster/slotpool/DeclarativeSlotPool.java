@@ -26,6 +26,7 @@ import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.util.ResourceCounter;
 
 import javax.annotation.Nullable;
 

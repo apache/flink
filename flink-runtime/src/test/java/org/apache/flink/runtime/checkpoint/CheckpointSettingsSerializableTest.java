@@ -27,7 +27,6 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.TestingExecutionGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
@@ -52,7 +51,6 @@ import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
-import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -78,9 +76,6 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
 
         final JobCheckpointingSettings checkpointingSettings =
                 new JobCheckpointingSettings(
-                        Collections.<JobVertexID>emptyList(),
-                        Collections.<JobVertexID>emptyList(),
-                        Collections.<JobVertexID>emptyList(),
                         new CheckpointCoordinatorConfiguration(
                                 1000L,
                                 10000L,

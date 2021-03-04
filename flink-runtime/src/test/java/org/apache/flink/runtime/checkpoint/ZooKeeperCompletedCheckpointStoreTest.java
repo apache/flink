@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
@@ -26,6 +27,7 @@ import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
@@ -42,10 +44,13 @@ import org.junit.Test;
 import javax.annotation.Nonnull;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION;
 import static org.apache.flink.runtime.checkpoint.CompletedCheckpointStoreTest.createCheckpoint;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.rethrow;
@@ -184,12 +189,7 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
         try {
             test.accept(store, checkpointsInZk, sharedStateRegistry);
         } finally {
-            store.shutdown(
-                    JobStatus.FINISHED,
-                    new CheckpointsCleaner(),
-                    () -> {
-                        /* no op */
-                    });
+            store.shutdown(JobStatus.FINISHED, new CheckpointsCleaner());
             sharedStateRegistry.close();
         }
     }
@@ -254,7 +254,7 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
             checkpointStore.addCheckpoint(checkpoint1, new CheckpointsCleaner(), () -> {});
             assertThat(checkpointStore.getAllCheckpoints(), Matchers.contains(checkpoint1));
 
-            checkpointStore.shutdown(JobStatus.FINISHED, new CheckpointsCleaner(), () -> {});
+            checkpointStore.shutdown(JobStatus.FINISHED, new CheckpointsCleaner());
 
             // verify that the checkpoint is discarded
             CompletedCheckpointStoreTest.verifyCheckpointDiscarded(checkpoint1);
@@ -300,5 +300,44 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
         public long getStateSize() {
             return 0;
         }
+    }
+
+    /**
+     * Tests that the checkpoint does not exist in the store when we fail to add it into the store
+     * (i.e., there exists an exception thrown by the method).
+     */
+    @Test
+    public void testAddCheckpointWithFailedRemove() throws Exception {
+
+        final int numCheckpointsToRetain = 1;
+        final Configuration configuration = new Configuration();
+        configuration.setString(
+                HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
+
+        final CuratorFramework client = ZooKeeperUtils.startCuratorFramework(configuration);
+        final CompletedCheckpointStore store = createZooKeeperCheckpointStore(client);
+
+        CountDownLatch discardAttempted = new CountDownLatch(1);
+        for (long i = 0; i < numCheckpointsToRetain + 1; ++i) {
+            CompletedCheckpoint checkpointToAdd =
+                    new CompletedCheckpoint(
+                            new JobID(),
+                            i,
+                            i,
+                            i,
+                            Collections.emptyMap(),
+                            Collections.emptyList(),
+                            CheckpointProperties.forCheckpoint(NEVER_RETAIN_AFTER_TERMINATION),
+                            new TestCompletedCheckpointStorageLocation());
+            // shouldn't fail despite the exception
+            store.addCheckpoint(
+                    checkpointToAdd,
+                    new CheckpointsCleaner(),
+                    () -> {
+                        discardAttempted.countDown();
+                        throw new RuntimeException();
+                    });
+        }
+        discardAttempted.await();
     }
 }

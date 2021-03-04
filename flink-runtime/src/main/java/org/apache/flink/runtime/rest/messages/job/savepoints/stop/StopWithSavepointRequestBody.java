@@ -42,9 +42,9 @@ public class StopWithSavepointRequestBody implements RequestBody {
     @JsonCreator
     public StopWithSavepointRequestBody(
             @Nullable @JsonProperty(FIELD_NAME_TARGET_DIRECTORY) final String targetDirectory,
-            @JsonProperty(value = FIELD_NAME_DRAIN, defaultValue = "false") final boolean drain) {
+            @Nullable @JsonProperty(FIELD_NAME_DRAIN) final Boolean drain) {
         this.targetDirectory = targetDirectory;
-        this.drain = drain;
+        this.drain = drain != null ? drain : false;
     }
 
     @Nullable

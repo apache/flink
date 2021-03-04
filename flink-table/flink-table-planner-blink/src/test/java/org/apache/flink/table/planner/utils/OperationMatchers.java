@@ -88,7 +88,7 @@ public class OperationMatchers {
                 equalTo(mapOf(entries)), "options of the derived table", "options") {
             @Override
             protected Map<String, String> featureValueOf(CreateTableOperation actual) {
-                return actual.getCatalogTable().getProperties();
+                return actual.getCatalogTable().getOptions();
             }
         };
     }

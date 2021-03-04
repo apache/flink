@@ -574,7 +574,7 @@ public class HiveCatalog extends AbstractCatalog {
                         hiveTable,
                         (CatalogTable) newCatalogTable,
                         hiveTable.getParameters(),
-                        newCatalogTable.getProperties(),
+                        newCatalogTable.getOptions(),
                         hiveTable.getSd());
             }
         }

@@ -349,11 +349,6 @@ public class FactoryUtilTest {
         }
 
         @Override
-        public Map<String, String> getProperties() {
-            return options;
-        }
-
-        @Override
         public Map<String, String> getOptions() {
             return options;
         }

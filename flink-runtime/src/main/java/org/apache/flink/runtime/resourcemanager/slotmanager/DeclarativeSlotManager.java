@@ -32,13 +32,13 @@ import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
-import org.apache.flink.runtime.slots.ResourceCounter;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotOccupiedException;
+import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -296,7 +296,10 @@ public class DeclarativeSlotManager implements SlotManager {
             return false;
         } else {
             if (!taskExecutorManager.registerTaskManager(
-                    taskExecutorConnection, initialSlotReport)) {
+                    taskExecutorConnection,
+                    initialSlotReport,
+                    totalResourceProfile,
+                    defaultSlotResourceProfile)) {
                 LOG.debug(
                         "Task executor {} could not be registered.",
                         taskExecutorConnection.getResourceID());
@@ -432,8 +435,8 @@ public class DeclarativeSlotManager implements SlotManager {
             return;
         }
 
-        final ResourceCounter pendingSlots =
-                new ResourceCounter(
+        ResourceCounter pendingSlots =
+                ResourceCounter.withResources(
                         taskExecutorManager.getPendingTaskManagerSlots().stream()
                                 .collect(
                                         Collectors.groupingBy(
@@ -442,24 +445,26 @@ public class DeclarativeSlotManager implements SlotManager {
 
         for (Map.Entry<JobID, ResourceCounter> unfulfilledRequirement :
                 unfulfilledRequirements.entrySet()) {
-            tryFulfillRequirementsWithPendingSlots(
-                    unfulfilledRequirement.getKey(),
-                    unfulfilledRequirement.getValue().getResourceProfilesWithCount(),
-                    pendingSlots);
+            pendingSlots =
+                    tryFulfillRequirementsWithPendingSlots(
+                            unfulfilledRequirement.getKey(),
+                            unfulfilledRequirement.getValue().getResourcesWithCount(),
+                            pendingSlots);
         }
     }
 
     private ResourceCounter tryAllocateSlotsForJob(
             JobID jobId, Collection<ResourceRequirement> missingResources) {
-        final ResourceCounter outstandingRequirements = new ResourceCounter();
+        ResourceCounter outstandingRequirements = ResourceCounter.empty();
 
         for (ResourceRequirement resourceRequirement : missingResources) {
             int numMissingSlots =
                     internalTryAllocateSlots(
                             jobId, jobMasterTargetAddresses.get(jobId), resourceRequirement);
             if (numMissingSlots > 0) {
-                outstandingRequirements.incrementCount(
-                        resourceRequirement.getResourceProfile(), numMissingSlots);
+                outstandingRequirements =
+                        outstandingRequirements.add(
+                                resourceRequirement.getResourceProfile(), numMissingSlots);
             }
         }
         return outstandingRequirements;
@@ -597,48 +602,54 @@ public class DeclarativeSlotManager implements SlotManager {
         FutureUtils.assertNoException(slotAllocationResponseProcessingFuture);
     }
 
-    private void tryFulfillRequirementsWithPendingSlots(
+    private ResourceCounter tryFulfillRequirementsWithPendingSlots(
             JobID jobId,
-            Map<ResourceProfile, Integer> missingResources,
+            Collection<Map.Entry<ResourceProfile, Integer>> missingResources,
             ResourceCounter pendingSlots) {
-        for (Map.Entry<ResourceProfile, Integer> missingResource : missingResources.entrySet()) {
+        for (Map.Entry<ResourceProfile, Integer> missingResource : missingResources) {
             ResourceProfile profile = missingResource.getKey();
             for (int i = 0; i < missingResource.getValue(); i++) {
-                if (!tryFulfillWithPendingSlots(profile, pendingSlots)) {
-                    boolean couldAllocateWorkerAndReserveSlot =
+                final MatchingResult matchingResult =
+                        tryFulfillWithPendingSlots(profile, pendingSlots);
+                pendingSlots = matchingResult.getNewAvailableResources();
+                if (!matchingResult.isSuccessfulMatching()) {
+                    final WorkerAllocationResult allocationResult =
                             tryAllocateWorkerAndReserveSlot(profile, pendingSlots);
-                    if (!couldAllocateWorkerAndReserveSlot && sendNotEnoughResourceNotifications) {
+                    pendingSlots = allocationResult.getNewAvailableResources();
+                    if (!allocationResult.isSuccessfulAllocating()
+                            && sendNotEnoughResourceNotifications) {
                         LOG.warn("Could not fulfill resource requirements of job {}.", jobId);
                         resourceActions.notifyNotEnoughResourcesAvailable(
                                 jobId, resourceTracker.getAcquiredResources(jobId));
-                        return;
+                        return pendingSlots;
                     }
                 }
             }
         }
+        return pendingSlots;
     }
 
-    private boolean tryFulfillWithPendingSlots(
+    private MatchingResult tryFulfillWithPendingSlots(
             ResourceProfile resourceProfile, ResourceCounter pendingSlots) {
-        Set<ResourceProfile> pendingSlotProfiles = pendingSlots.getResourceProfiles();
+        Set<ResourceProfile> pendingSlotProfiles = pendingSlots.getResources();
 
         // short-cut, pretty much only applicable to fine-grained resource management
         if (pendingSlotProfiles.contains(resourceProfile)) {
-            pendingSlots.decrementCount(resourceProfile, 1);
-            return true;
+            pendingSlots = pendingSlots.subtract(resourceProfile, 1);
+            return new MatchingResult(true, pendingSlots);
         }
 
         for (ResourceProfile pendingSlotProfile : pendingSlotProfiles) {
             if (pendingSlotProfile.isMatching(resourceProfile)) {
-                pendingSlots.decrementCount(pendingSlotProfile, 1);
-                return true;
+                pendingSlots = pendingSlots.subtract(pendingSlotProfile, 1);
+                return new MatchingResult(true, pendingSlots);
             }
         }
 
-        return false;
+        return new MatchingResult(false, pendingSlots);
     }
 
-    private boolean tryAllocateWorkerAndReserveSlot(
+    private WorkerAllocationResult tryAllocateWorkerAndReserveSlot(
             ResourceProfile profile, ResourceCounter pendingSlots) {
         Optional<ResourceRequirement> newlyFulfillableRequirements =
                 taskExecutorManager.allocateWorker(profile);
@@ -646,12 +657,14 @@ public class DeclarativeSlotManager implements SlotManager {
             ResourceRequirement newSlots = newlyFulfillableRequirements.get();
             // reserve one of the new slots
             if (newSlots.getNumberOfRequiredSlots() > 1) {
-                pendingSlots.incrementCount(
-                        newSlots.getResourceProfile(), newSlots.getNumberOfRequiredSlots() - 1);
+                pendingSlots =
+                        pendingSlots.add(
+                                newSlots.getResourceProfile(),
+                                newSlots.getNumberOfRequiredSlots() - 1);
             }
-            return true;
+            return new WorkerAllocationResult(true, pendingSlots);
         } else {
-            return false;
+            return new WorkerAllocationResult(false, pendingSlots);
         }
     }
 
@@ -716,5 +729,43 @@ public class DeclarativeSlotManager implements SlotManager {
 
     private void checkInit() {
         Preconditions.checkState(started, "The slot manager has not been started.");
+    }
+
+    private static class MatchingResult {
+        private final boolean isSuccessfulMatching;
+        private final ResourceCounter newAvailableResources;
+
+        private MatchingResult(
+                boolean isSuccessfulMatching, ResourceCounter newAvailableResources) {
+            this.isSuccessfulMatching = isSuccessfulMatching;
+            this.newAvailableResources = Preconditions.checkNotNull(newAvailableResources);
+        }
+
+        private ResourceCounter getNewAvailableResources() {
+            return newAvailableResources;
+        }
+
+        private boolean isSuccessfulMatching() {
+            return isSuccessfulMatching;
+        }
+    }
+
+    private static class WorkerAllocationResult {
+        private final boolean isSuccessfulAllocating;
+        private final ResourceCounter newAvailableResources;
+
+        private WorkerAllocationResult(
+                boolean isSuccessfulAllocating, ResourceCounter newAvailableResources) {
+            this.isSuccessfulAllocating = isSuccessfulAllocating;
+            this.newAvailableResources = Preconditions.checkNotNull(newAvailableResources);
+        }
+
+        private ResourceCounter getNewAvailableResources() {
+            return newAvailableResources;
+        }
+
+        private boolean isSuccessfulAllocating() {
+            return isSuccessfulAllocating;
+        }
     }
 }

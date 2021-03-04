@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalCorrelate, BatchPhysicalGroupAggregateBase}
+import org.apache.flink.table.planner.plan.utils.ReflectionsUtil
 
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{Aggregate, Correlate}
@@ -105,12 +106,9 @@ class MetadataHandlerConsistencyTest(
     * @return A list contains all subclasses of [[MetadataHandler]] in flink.
     */
   private def fetchAllExtendedMetadataHandlers: Seq[Class[_ <: MetadataHandler[_]]] = {
-    val reflections = new Reflections(
-      new ConfigurationBuilder()
-        .useParallelExecutor(Runtime.getRuntime.availableProcessors)
-        .addUrls(ClasspathHelper.forPackage("org.apache.flink.table.planner.plan.cost")))
-    reflections.getSubTypesOf(classOf[MetadataHandler[_]]).filter(
-      mdhClass => !mdhClass.isInterface && !Modifier.isAbstract(mdhClass.getModifiers)).toList
+    ReflectionsUtil.scanSubClasses(
+      "org.apache.flink.table.planner.plan.cost",
+      classOf[MetadataHandler[_]]).toSeq
   }
 
   /**

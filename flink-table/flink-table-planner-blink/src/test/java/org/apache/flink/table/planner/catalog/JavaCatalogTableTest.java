@@ -176,7 +176,7 @@ public class JavaCatalogTableTest extends TableTestBase {
         }
 
         @Override
-        public Map<String, String> getProperties() {
+        public Map<String, String> getOptions() {
             Map<String, String> map = new HashMap<>();
             map.put("connector", "values");
             map.put("bounded", Boolean.toString(!isStreamingMode));

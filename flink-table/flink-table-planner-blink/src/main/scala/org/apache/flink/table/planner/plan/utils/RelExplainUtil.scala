@@ -763,9 +763,9 @@ object RelExplainUtil {
     }
     val groupStrings = grouping.map(inFields(_))
 
-    val aggStrings = aggs.map(a => {
-      val distinct = if (a.isDistinct) {
-        if (a.getArgList.size() == 0) {
+    val aggStrings = aggs.map(call => {
+      val distinct = if (call.isDistinct) {
+        if (call.getArgList.size() == 0) {
           "DISTINCT"
         } else {
           "DISTINCT "
@@ -773,12 +773,19 @@ object RelExplainUtil {
       } else {
         ""
       }
-      val argList = if (a.getArgList.size() > 0) {
-        a.getArgList.map(inFields(_)).mkString(", ")
+      val argList = if (call.getArgList.size() > 0) {
+        call.getArgList.map(inFields(_)).mkString(", ")
       } else {
         "*"
       }
-      s"${a.getAggregation}($distinct$argList)"
+
+      val filter = if (call.filterArg >= 0 && call.filterArg < inFields.size) {
+        s" FILTER ${inFields(call.filterArg)}"
+      } else {
+        ""
+      }
+
+      s"${call.getAggregation}($distinct$argList)$filter"
     })
 
     val propStrings = namedProperties.map(_.property.toString)

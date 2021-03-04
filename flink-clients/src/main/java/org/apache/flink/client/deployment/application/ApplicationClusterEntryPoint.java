@@ -27,8 +27,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
-import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
-import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
+import org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStore;
+import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
 import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.runner.DefaultDispatcherRunnerFactory;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
@@ -37,6 +37,7 @@ import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerCo
 import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
 import org.apache.flink.runtime.rest.JobRestEndpointFactory;
 
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Collections;
@@ -47,7 +48,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Base class for cluster entry points targeting executing applications in "Application Mode". The
- * lifecycle of the enrtypoint is bound to that of the specific application being executed, and the
+ * lifecycle of the entry point is bound to that of the specific application being executed, and the
  * {@code main()} method of the application is run on the cluster.
  */
 public class ApplicationClusterEntryPoint extends ClusterEntrypoint {
@@ -77,9 +78,9 @@ public class ApplicationClusterEntryPoint extends ClusterEntrypoint {
     }
 
     @Override
-    protected ArchivedExecutionGraphStore createSerializableExecutionGraphStore(
+    protected ExecutionGraphInfoStore createSerializableExecutionGraphStore(
             final Configuration configuration, final ScheduledExecutor scheduledExecutor) {
-        return new MemoryArchivedExecutionGraphStore();
+        return new MemoryExecutionGraphInfoStore();
     }
 
     protected static void configureExecution(
@@ -113,5 +114,12 @@ public class ApplicationClusterEntryPoint extends ClusterEntrypoint {
         classpath.addAll(program.getClasspaths());
         return Collections.unmodifiableList(
                 classpath.stream().distinct().collect(Collectors.toList()));
+    }
+
+    @Override
+    protected void cleanupDirectories() throws IOException {
+        // Close the packaged program explicitly to clean up temporary jars.
+        program.close();
+        super.cleanupDirectories();
     }
 }

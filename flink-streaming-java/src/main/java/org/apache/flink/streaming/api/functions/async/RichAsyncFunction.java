@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.functions.async;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
 import org.apache.flink.api.common.accumulators.Histogram;
@@ -49,6 +50,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -102,6 +104,11 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction
 
         RichAsyncFunctionRuntimeContext(RuntimeContext context) {
             runtimeContext = Preconditions.checkNotNull(context);
+        }
+
+        @Override
+        public Optional<JobID> getJobId() {
+            return runtimeContext.getJobId();
         }
 
         @Override
@@ -289,6 +296,11 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction
         public <T extends Value> T getPreviousIterationAggregate(String name) {
             throw new UnsupportedOperationException(
                     "Iteration aggregators are not supported in rich async functions.");
+        }
+
+        @Override
+        public Optional<JobID> getJobId() {
+            return iterationRuntimeContext.getJobId();
         }
     }
 }

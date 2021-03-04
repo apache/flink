@@ -38,6 +38,7 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguratio
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
+import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
@@ -46,7 +47,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -106,12 +106,7 @@ public class ArchivedExecutionGraphTest extends TestLogger {
                         false,
                         0);
         JobCheckpointingSettings checkpointingSettings =
-                new JobCheckpointingSettings(
-                        Arrays.asList(v1ID, v2ID),
-                        Arrays.asList(v1ID, v2ID),
-                        Arrays.asList(v1ID, v2ID),
-                        chkConfig,
-                        null);
+                new JobCheckpointingSettings(chkConfig, null);
         jobGraph.setSnapshotSettings(checkpointingSettings);
 
         SchedulerBase scheduler =
@@ -121,8 +116,16 @@ public class ArchivedExecutionGraphTest extends TestLogger {
         runtimeGraph = scheduler.getExecutionGraph();
 
         scheduler.startScheduling();
-        scheduler.handleGlobalFailure(
-                new RuntimeException("This exception was thrown on purpose."));
+        scheduler.updateTaskExecutionState(
+                new TaskExecutionState(
+                        runtimeGraph
+                                .getAllExecutionVertices()
+                                .iterator()
+                                .next()
+                                .getCurrentExecutionAttempt()
+                                .getAttemptId(),
+                        ExecutionState.FAILED,
+                        new RuntimeException("Local failure")));
     }
 
     @Test
@@ -151,6 +154,15 @@ public class ArchivedExecutionGraphTest extends TestLogger {
 
         assertThat(suspendedExecutionGraph.getState(), is(JobStatus.SUSPENDED));
         assertThat(suspendedExecutionGraph.getFailureInfo(), notNullValue());
+    }
+
+    @Test
+    public void testArchiveWithStatusOverride() throws IOException, ClassNotFoundException {
+        ArchivedExecutionGraph archivedGraph =
+                ArchivedExecutionGraph.createFrom(runtimeGraph, JobStatus.RESTARTING);
+
+        assertThat(archivedGraph.getState(), is(JobStatus.RESTARTING));
+        assertThat(archivedGraph.getStatusTimestamp(JobStatus.FAILED), is(0L));
     }
 
     private static void compareExecutionGraph(
@@ -350,8 +362,12 @@ public class ArchivedExecutionGraphTest extends TestLogger {
         assertEquals(
                 runtimeVertex.getStateTimestamp(ExecutionState.FAILED),
                 archivedVertex.getStateTimestamp(ExecutionState.FAILED));
-        assertEquals(
-                runtimeVertex.getFailureCauseAsString(), archivedVertex.getFailureCauseAsString());
+        assertThat(
+                runtimeVertex.getFailureInfo().map(ErrorInfo::getExceptionAsString),
+                is(archivedVertex.getFailureInfo().map(ErrorInfo::getExceptionAsString)));
+        assertThat(
+                runtimeVertex.getFailureInfo().map(ErrorInfo::getTimestamp),
+                is(archivedVertex.getFailureInfo().map(ErrorInfo::getTimestamp)));
         assertEquals(
                 runtimeVertex.getCurrentAssignedResourceLocation(),
                 archivedVertex.getCurrentAssignedResourceLocation());
@@ -371,9 +387,12 @@ public class ArchivedExecutionGraphTest extends TestLogger {
         assertEquals(
                 runtimeExecution.getAssignedResourceLocation(),
                 archivedExecution.getAssignedResourceLocation());
-        assertEquals(
-                runtimeExecution.getFailureCauseAsString(),
-                archivedExecution.getFailureCauseAsString());
+        assertThat(
+                runtimeExecution.getFailureInfo().map(ErrorInfo::getExceptionAsString),
+                is(archivedExecution.getFailureInfo().map(ErrorInfo::getExceptionAsString)));
+        assertThat(
+                runtimeExecution.getFailureInfo().map(ErrorInfo::getTimestamp),
+                is(archivedExecution.getFailureInfo().map(ErrorInfo::getTimestamp)));
         assertEquals(
                 runtimeExecution.getStateTimestamp(ExecutionState.CREATED),
                 archivedExecution.getStateTimestamp(ExecutionState.CREATED));

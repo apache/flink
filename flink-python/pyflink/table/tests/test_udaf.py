@@ -261,7 +261,7 @@ class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
                            pd.DataFrame([[3, 12, 12, 12.0]], columns=['a', 'b', 'c', 'd']))
 
     def test_mixed_with_built_in_functions_with_retract(self):
-        self.env.set_parallelism(1)
+        self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
         self.t_env.create_temporary_system_function(
             "concat",
             ConcatAggregateFunction())
@@ -305,11 +305,11 @@ class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
         expected = Row('Hi,Hi,hello,hello2', 'Hi', 'hello', 4, 5, 'Hi,Hi,hello2,hello',
                        'Hi|Hi|hello2|hello', 10, 11.0, 2, Decimal(3.0), 24, 28.0, 6, 7.0,
                        3.1622777, 3.6514838, 10.0, 13.333333)
-        expected.set_row_kind(RowKind.INSERT)
+        expected.set_row_kind(RowKind.UPDATE_AFTER)
         self.assertEqual(result[len(result) - 1], expected)
 
     def test_mixed_with_built_in_functions_without_retract(self):
-        self.env.set_parallelism(1)
+        self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
         self.t_env.create_temporary_system_function(
             "concat",
             ConcatAggregateFunction())
@@ -338,7 +338,7 @@ class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
         result = [i for i in result_table.execute().collect()]
         expected = Row('Hi,Hi,hello,hello2', 'Hi', 'hello', 4, 5, 'Hi,Hi,hello2,hello',
                        'Hi|Hi|hello2|hello', 10, 11.0, 2, Decimal(3.0), 24, 28.0)
-        expected.set_row_kind(RowKind.INSERT)
+        expected.set_row_kind(RowKind.UPDATE_AFTER)
         self.assertEqual(result[len(result) - 1], expected)
 
     def test_using_decorator(self):

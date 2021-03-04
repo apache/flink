@@ -19,7 +19,6 @@ import os
 import sys
 import tempfile
 import warnings
-from abc import ABCMeta, abstractmethod
 from typing import Union, List, Tuple, Iterable
 
 from py4j.java_gateway import get_java_class, get_method
@@ -59,7 +58,7 @@ __all__ = [
 ]
 
 
-class TableEnvironment(object, metaclass=ABCMeta):
+class TableEnvironment(object):
     """
     A table environment is the base class, entry point, and central context for creating Table
     and SQL API programs.
@@ -99,6 +98,21 @@ class TableEnvironment(object, metaclass=ABCMeta):
         # specified by sys.executable if users have not specified it explicitly via configuration
         # python.executable.
         self._set_python_executable_for_local_executor()
+
+    @staticmethod
+    def create(environment_settings: EnvironmentSettings) -> 'TableEnvironment':
+        """
+        Creates a table environment that is the entry point and central context for creating Table
+        and SQL API programs.
+
+        :param environment_settings: The environment settings used to instantiate the
+                                     :class:`~pyflink.table.TableEnvironment`.
+        :return: The :class:`~pyflink.table.TableEnvironment`.
+        """
+        gateway = get_gateway()
+        j_tenv = gateway.jvm.TableEnvironment.create(
+            environment_settings._j_environment_settings)
+        return TableEnvironment(j_tenv)
 
     @staticmethod
     def _judge_blink_planner(j_tenv):
@@ -985,7 +999,6 @@ class TableEnvironment(object, metaclass=ABCMeta):
             setattr(self, "table_config", table_config)
         return getattr(self, "table_config")
 
-    @abstractmethod
     def connect(self, connector_descriptor: ConnectorDescriptor) -> ConnectTableDescriptor:
         """
         Creates a temporary table from a descriptor.
@@ -996,8 +1009,6 @@ class TableEnvironment(object, metaclass=ABCMeta):
 
         The following example shows how to read from a connector using a JSON format and
         registering a temporary table as "MyTable":
-
-        Example:
         ::
 
             >>> table_env \\
@@ -1018,7 +1029,9 @@ class TableEnvironment(object, metaclass=ABCMeta):
 
         .. note:: Deprecated in 1.11. Use :func:`execute_sql` to register a table instead.
         """
-        pass
+        warnings.warn("Deprecated in 1.11. Use execute_sql instead.", DeprecationWarning)
+        return StreamTableDescriptor(
+            self._j_tenv.connect(connector_descriptor._j_connector_descriptor))
 
     def register_java_function(self, name: str, function_class_name: str):
         """
@@ -1045,7 +1058,8 @@ class TableEnvironment(object, metaclass=ABCMeta):
             .loadClass(function_class_name).newInstance()
         # this is a temporary solution and will be unified later when we use the new type
         # system(DataType) to replace the old type system(TypeInformation).
-        if self._is_blink_planner and isinstance(self, BatchTableEnvironment):
+        if (self._is_blink_planner and not isinstance(self, StreamTableEnvironment)) or \
+                self.__class__ == TableEnvironment:
             if self._is_table_function(java_function):
                 self._register_table_function(name, java_function)
             elif self._is_aggregate_function(java_function):
@@ -1090,7 +1104,8 @@ class TableEnvironment(object, metaclass=ABCMeta):
         java_function = function._java_user_defined_function()
         # this is a temporary solution and will be unified later when we use the new type
         # system(DataType) to replace the old type system(TypeInformation).
-        if self._is_blink_planner and isinstance(self, BatchTableEnvironment):
+        if (self._is_blink_planner and isinstance(self, BatchTableEnvironment)) or \
+                self.__class__ == TableEnvironment:
             if self._is_table_function(java_function):
                 self._register_table_function(name, java_function)
             elif self._is_aggregate_function(java_function):
@@ -1526,9 +1541,14 @@ class TableEnvironment(object, metaclass=ABCMeta):
                     jar_urls_set.add(url)
             j_configuration.setString(config_key, ";".join(jar_urls_set))
 
-    @abstractmethod
     def _get_j_env(self):
-        pass
+        if self._is_blink_planner:
+            return self._j_tenv.getPlanner().getExecEnv()
+        else:
+            try:
+                return self._j_tenv.execEnv()
+            except:
+                return self._j_tenv.getPlanner().getExecutionEnvironment()
 
     @staticmethod
     def _is_table_function(java_function):
@@ -1594,51 +1614,11 @@ class TableEnvironment(object, metaclass=ABCMeta):
 class StreamTableEnvironment(TableEnvironment):
 
     def __init__(self, j_tenv):
-        self._j_tenv = j_tenv
         super(StreamTableEnvironment, self).__init__(j_tenv)
-
-    def _get_j_env(self):
-        if self._is_blink_planner:
-            return self._j_tenv.getPlanner().getExecEnv()
-        else:
-            return self._j_tenv.getPlanner().getExecutionEnvironment()
-
-    def connect(self, connector_descriptor: ConnectorDescriptor) -> StreamTableDescriptor:
-        """
-        Creates a temporary table from a descriptor.
-
-        Descriptors allow for declaring the communication to external systems in an
-        implementation-agnostic way. The classpath is scanned for suitable table factories that
-        match the desired configuration.
-
-        The following example shows how to read from a connector using a JSON format and
-        registering a temporary table as "MyTable":
-        ::
-
-            >>> table_env \\
-            ...     .connect(ExternalSystemXYZ()
-            ...              .version("0.11")) \\
-            ...     .with_format(Json()
-            ...                  .json_schema("{...}")
-            ...                  .fail_on_missing_field(False)) \\
-            ...     .with_schema(Schema()
-            ...                  .field("user-name", "VARCHAR")
-            ...                  .from_origin_field("u_name")
-            ...                  .field("count", "DECIMAL")) \\
-            ...     .create_temporary_table("MyTable")
-
-        :param connector_descriptor: Connector descriptor describing the external system.
-        :return: A :class:`~pyflink.table.descriptors.StreamTableDescriptor` used to build the
-                 temporary table.
-
-        .. note:: Deprecated in 1.11. Use :func:`execute_sql` to register a table instead.
-        """
-        warnings.warn("Deprecated in 1.11. Use execute_sql instead.", DeprecationWarning)
-        return StreamTableDescriptor(
-            self._j_tenv.connect(connector_descriptor._j_connector_descriptor))
+        self._j_tenv = j_tenv
 
     @staticmethod
-    def create(stream_execution_environment: StreamExecutionEnvironment = None,
+    def create(stream_execution_environment: StreamExecutionEnvironment = None,  # type: ignore
                table_config: TableConfig = None,
                environment_settings: EnvironmentSettings = None) -> 'StreamTableEnvironment':
         """
@@ -1795,14 +1775,8 @@ class StreamTableEnvironment(TableEnvironment):
 class BatchTableEnvironment(TableEnvironment):
 
     def __init__(self, j_tenv):
-        self._j_tenv = j_tenv
         super(BatchTableEnvironment, self).__init__(j_tenv)
-
-    def _get_j_env(self):
-        if self._is_blink_planner:
-            return self._j_tenv.getPlanner().getExecEnv()
-        else:
-            return self._j_tenv.execEnv()
+        self._j_tenv = j_tenv
 
     def connect(self, connector_descriptor: ConnectorDescriptor) -> \
             Union[BatchTableDescriptor, StreamTableDescriptor]:
@@ -1848,7 +1822,7 @@ class BatchTableEnvironment(TableEnvironment):
                 self._j_tenv.connect(connector_descriptor._j_connector_descriptor))
 
     @staticmethod
-    def create(execution_environment: ExecutionEnvironment = None,
+    def create(execution_environment: ExecutionEnvironment = None,  # type: ignore
                table_config: TableConfig = None,
                environment_settings: EnvironmentSettings = None) -> 'BatchTableEnvironment':
         """

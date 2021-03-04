@@ -28,9 +28,10 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.StateBackend;
@@ -138,6 +139,11 @@ public class StreamGraphGenerator {
 
     private final ReadableConfig configuration;
 
+    // Records the slot sharing groups and their corresponding ResourceProfile
+    private final Map<String, ResourceProfile> slotSharingGroupResources = new HashMap<>();
+
+    private Path savepointDir;
+
     private StateBackend stateBackend;
 
     private CheckpointStorage checkpointStorage;
@@ -220,11 +226,17 @@ public class StreamGraphGenerator {
         this.executionConfig = checkNotNull(executionConfig);
         this.checkpointConfig = new CheckpointConfig(checkpointConfig);
         this.configuration = checkNotNull(configuration);
+        this.checkpointStorage = this.checkpointConfig.getCheckpointStorage();
     }
 
     public StreamGraphGenerator setRuntimeExecutionMode(
             final RuntimeExecutionMode runtimeExecutionMode) {
         this.runtimeExecutionMode = checkNotNull(runtimeExecutionMode);
+        return this;
+    }
+
+    public StreamGraphGenerator setSavepointDir(Path savepointDir) {
+        this.savepointDir = savepointDir;
         return this;
     }
 
@@ -256,6 +268,20 @@ public class StreamGraphGenerator {
 
     public StreamGraphGenerator setJobName(String jobName) {
         this.jobName = jobName;
+        return this;
+    }
+
+    /**
+     * Specify fine-grained resource requirements for slot sharing groups.
+     *
+     * <p>Note that a slot sharing group hints the scheduler that the grouped operators CAN be
+     * deployed into a shared slot. There's no guarantee that the scheduler always deploy the
+     * grouped operators together. In cases grouped operators are deployed into separate slots, the
+     * slot resources will be derived from the specified group requirements.
+     */
+    public StreamGraphGenerator setSlotSharingGroupResource(
+            Map<String, ResourceProfile> slotSharingGroupResources) {
+        this.slotSharingGroupResources.putAll(slotSharingGroupResources);
         return this;
     }
 
@@ -291,6 +317,7 @@ public class StreamGraphGenerator {
         graph.setTimeCharacteristic(timeCharacteristic);
         graph.setJobName(jobName);
         graph.setJobType(shouldExecuteInBatchMode ? JobType.BATCH : JobType.STREAMING);
+        graph.setSlotSharingGroupResource(slotSharingGroupResources);
 
         if (shouldExecuteInBatchMode) {
 
@@ -301,13 +328,12 @@ public class StreamGraphGenerator {
             }
 
             graph.setGlobalDataExchangeMode(GlobalDataExchangeMode.FORWARD_EDGES_PIPELINED);
-            graph.setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST);
             setDefaultBufferTimeout(-1);
             setBatchStateBackendAndTimerService(graph);
         } else {
             graph.setStateBackend(stateBackend);
             graph.setCheckpointStorage(checkpointStorage);
-            graph.setScheduleMode(ScheduleMode.EAGER);
+            graph.setSavepointDirectory(savepointDir);
 
             if (checkpointConfig.isApproximateLocalRecoveryEnabled()) {
                 checkApproximateLocalRecoveryCompatibility();

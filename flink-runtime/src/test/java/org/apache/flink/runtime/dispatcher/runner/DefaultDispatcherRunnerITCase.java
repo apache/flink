@@ -28,7 +28,7 @@ import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.DispatcherServices;
 import org.apache.flink.runtime.dispatcher.JobManagerRunnerFactory;
-import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
+import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithJobGraphStore;
 import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
@@ -116,7 +116,7 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
                         blobServerResource.getBlobServer(),
                         new TestingHeartbeatServices(),
                         UnregisteredMetricGroups::createUnregisteredJobManagerMetricGroup,
-                        new MemoryArchivedExecutionGraphStore(),
+                        new MemoryExecutionGraphInfoStore(),
                         fatalErrorHandler,
                         VoidHistoryServerArchivist.INSTANCE,
                         null,

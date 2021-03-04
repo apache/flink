@@ -24,6 +24,7 @@ import org.apache.flink.client.python.PythonFunctionFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -47,10 +48,17 @@ import org.apache.flink.table.functions.python.PythonScalarFunction;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.testutils.junit.FailsOnJava11;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.commons.cli.Options;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
+import org.junit.runner.RunWith;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.net.URL;
 import java.time.Duration;
@@ -69,12 +77,27 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.powermock.api.mockito.PowerMockito.when;
 
 /** Test for {@link ExecutionContext}. */
+@RunWith(PowerMockRunner.class)
+@PrepareForTest(PythonFunctionFactory.class)
+@PowerMockIgnore({
+    "org.apache.hive.*",
+    "org.apache.hadoop.*",
+    "com.sun.org.apache.xerces.*",
+    "javax.xml.*",
+    "org.xml.*",
+    "javax.management.*",
+    "org.w3c.dom.*",
+    "org.datanucleus.*"
+})
 public class ExecutionContextTest {
 
     private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
-    private static final String MODULES_ENVIRONMENT_FILE = "test-sql-client-modules.yaml";
+    public static final String MODULES_ENVIRONMENT_FILE = "test-sql-client-modules.yaml";
     public static final String CATALOGS_ENVIRONMENT_FILE = "test-sql-client-catalogs.yaml";
     private static final String STREAMING_ENVIRONMENT_FILE = "test-sql-client-streaming.yaml";
     private static final String CONFIGURATION_ENVIRONMENT_FILE =
@@ -160,6 +183,7 @@ public class ExecutionContextTest {
     }
 
     @Test
+    @Category(FailsOnJava11.class)
     public void testCatalogs() throws Exception {
         final String inmemoryCatalog = "inmemorycatalog";
         final String hiveCatalog = "hivecatalog";
@@ -203,6 +227,7 @@ public class ExecutionContextTest {
     }
 
     @Test
+    @Category(FailsOnJava11.class)
     public void testDatabases() throws Exception {
         final String hiveCatalog = "hivecatalog";
 
@@ -248,20 +273,19 @@ public class ExecutionContextTest {
 
     @Test
     public void testPythonFunction() throws Exception {
-        PythonFunctionFactory pythonFunctionFactory =
-                PythonFunctionFactory.PYTHON_FUNCTION_FACTORY_REF.get();
         PythonFunctionFactory testFunctionFactory =
                 (moduleName, objectName) ->
                         new PythonScalarFunction(null, null, null, null, null, false, false, null);
-        try {
-            PythonFunctionFactory.PYTHON_FUNCTION_FACTORY_REF.set(testFunctionFactory);
-            ExecutionContext context = createPythonFunctionExecutionContext();
-            final String[] expected = new String[] {"pythonudf"};
-            final String[] actual = context.getTableEnvironment().listUserDefinedFunctions();
-            assertArrayEquals(expected, actual);
-        } finally {
-            PythonFunctionFactory.PYTHON_FUNCTION_FACTORY_REF.set(pythonFunctionFactory);
-        }
+        PowerMockito.mockStatic(PythonFunctionFactory.class);
+        when(PythonFunctionFactory.getPythonFunction(
+                        anyString(), any(ReadableConfig.class), any(ClassLoader.class)))
+                .thenCallRealMethod();
+        when(PythonFunctionFactory.createPythonFunctionFactory(any(ReadableConfig.class)))
+                .thenReturn(testFunctionFactory);
+        ExecutionContext context = createPythonFunctionExecutionContext();
+        final String[] expected = new String[] {"pythonudf"};
+        final String[] actual = context.getTableEnvironment().listUserDefinedFunctions();
+        assertArrayEquals(expected, actual);
     }
 
     @Test
@@ -389,19 +413,23 @@ public class ExecutionContextTest {
         return replaceVars;
     }
 
+    static Map<String, String> createModuleReplaceVars() {
+        Map<String, String> replaceVars = new HashMap<>();
+        replaceVars.put("$VAR_PLANNER", "blink");
+        replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
+        replaceVars.put("$VAR_RESULT_MODE", "changelog");
+        replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
+        replaceVars.put("$VAR_MAX_ROWS", "100");
+        return replaceVars;
+    }
+
     private <T> ExecutionContext<T> createDefaultExecutionContext() throws Exception {
         final Map<String, String> replaceVars = createDefaultReplaceVars();
         return createExecutionContext(DEFAULTS_ENVIRONMENT_FILE, replaceVars);
     }
 
     private <T> ExecutionContext<T> createModuleExecutionContext() throws Exception {
-        final Map<String, String> replaceVars = new HashMap<>();
-        replaceVars.put("$VAR_PLANNER", "old");
-        replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
-        replaceVars.put("$VAR_RESULT_MODE", "changelog");
-        replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
-        replaceVars.put("$VAR_MAX_ROWS", "100");
-        return createExecutionContext(MODULES_ENVIRONMENT_FILE, replaceVars);
+        return createExecutionContext(MODULES_ENVIRONMENT_FILE, createModuleReplaceVars());
     }
 
     private <T> ExecutionContext<T> createCatalogExecutionContext() throws Exception {

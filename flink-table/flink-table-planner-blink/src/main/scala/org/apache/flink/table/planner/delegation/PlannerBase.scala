@@ -36,7 +36,8 @@ import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
 import org.apache.flink.table.planner.expressions.PlannerTypeInferenceUtilImpl
 import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalLegacySink
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, ExecNodeGraph, ExecNodeGraphGenerator}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNodeGraph, ExecNodeGraphGenerator}
+import org.apache.flink.table.planner.plan.nodes.exec.serde.SerdeContext
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.optimize.Optimizer
 import org.apache.flink.table.planner.plan.reuse.SubplanReuser
@@ -352,7 +353,7 @@ abstract class PlannerBase(
       case Some(table: CatalogTable) =>
         val catalog = catalogManager.getCatalog(objectIdentifier.getCatalogName)
         val tableToFind = if (dynamicOptions.nonEmpty) {
-          table.copy(FlinkHints.mergeTableOptions(dynamicOptions, table.getProperties))
+          table.copy(FlinkHints.mergeTableOptions(dynamicOptions, table.getOptions))
         } else {
           table
         }
@@ -372,7 +373,7 @@ abstract class PlannerBase(
             objectIdentifier,
             tableToFind,
             getTableConfig.getConfiguration,
-            Thread.currentThread().getContextClassLoader,
+            getClassLoader,
             isTemporary)
           Option(table, tableSink)
         }
@@ -412,5 +413,34 @@ abstract class PlannerBase(
         case _: Throwable => false
       }
     }
+  }
+
+  override def getJsonPlan(modifyOperations: util.List[ModifyOperation]): String = {
+    if (!isStreamingMode) {
+      throw new TableException("Only streaming mode is supported now.")
+    }
+    val relNodes = modifyOperations.map(translateToRel)
+    val optimizedRelNodes = optimize(relNodes)
+    val execGraph = translateToExecNodeGraph(optimizedRelNodes)
+    ExecNodeGraph.createJsonPlan(execGraph, createSerdeContext)
+  }
+
+  override def translateJsonPlan(jsonPlan: String): util.List[Transformation[_]] = {
+    if (!isStreamingMode) {
+      throw new TableException("Only streaming mode is supported now.")
+    }
+    val execGraph = ExecNodeGraph.createExecNodeGraph(jsonPlan, createSerdeContext)
+    // prepare the execEnv before translating
+    getExecEnv.configure(getTableConfig.getConfiguration, getClassLoader)
+    overrideEnvParallelism()
+    translateToPlan(execGraph)
+  }
+
+  protected def createSerdeContext: SerdeContext = {
+    new SerdeContext(config.getConfiguration, getClassLoader)
+  }
+
+  private def getClassLoader: ClassLoader = {
+    Thread.currentThread().getContextClassLoader
   }
 }

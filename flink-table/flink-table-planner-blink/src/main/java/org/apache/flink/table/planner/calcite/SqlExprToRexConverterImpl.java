@@ -26,6 +26,8 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.prepare.CalciteCatalogReader;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.SqlDialect;
+import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.tools.FrameworkConfig;
 
 import java.util.Collections;
@@ -37,12 +39,15 @@ public class SqlExprToRexConverterImpl implements SqlExprToRexConverter {
 
     private final FlinkPlannerImpl planner;
 
+    private final SqlDialect sqlDialect;
+
     private final RelDataType tableRowType;
 
     public SqlExprToRexConverterImpl(
             FrameworkConfig config,
             FlinkTypeFactory typeFactory,
             RelOptCluster cluster,
+            SqlDialect sqlDialect,
             RelDataType tableRowType) {
         this.planner =
                 new FlinkPlannerImpl(
@@ -50,7 +55,16 @@ public class SqlExprToRexConverterImpl implements SqlExprToRexConverter {
                         (isLenient) -> createEmptyCatalogReader(typeFactory),
                         typeFactory,
                         cluster);
+        this.sqlDialect = sqlDialect;
         this.tableRowType = tableRowType;
+    }
+
+    @Override
+    public String expand(String expr) {
+        final CalciteParser parser = planner.parser();
+        final SqlNode node = parser.parseExpression(expr);
+        final SqlNode validated = planner.validateExpression(node, tableRowType);
+        return validated.toSqlString(sqlDialect).getSql();
     }
 
     @Override

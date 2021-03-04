@@ -104,6 +104,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -165,6 +166,9 @@ public class StreamExecutionEnvironment {
 
     /** The state backend used for storing k/v state and state snapshots. */
     private StateBackend defaultStateBackend;
+
+    /** The default savepoint directory used by the job. */
+    private Path defaultSavepointDirectory;
 
     /** The time characteristic used by the data streams. */
     private TimeCharacteristic timeCharacteristic = DEFAULT_TIME_CHARACTERISTIC;
@@ -562,27 +566,30 @@ public class StreamExecutionEnvironment {
     }
 
     /**
-     * Sets the state backend that describes how to store and checkpoint operator state. It defines
-     * both which data structures hold state during execution (for example hash tables, RockDB, or
-     * other data stores) as well as where checkpointed data will be persisted.
+     * Sets the state backend that describes how to store operator. It defines the data structures
+     * that hold state during execution (for example hash tables, RocksDB, or other data stores).
      *
      * <p>State managed by the state backend includes both keyed state that is accessible on {@link
      * org.apache.flink.streaming.api.datastream.KeyedStream keyed streams}, as well as state
      * maintained directly by the user code that implements {@link
      * org.apache.flink.streaming.api.checkpoint.CheckpointedFunction CheckpointedFunction}.
      *
-     * <p>The {@link org.apache.flink.runtime.state.memory.MemoryStateBackend} for example maintains
-     * the state in heap memory, as objects. It is lightweight without extra dependencies, but can
-     * checkpoint only small states (some counters).
+     * <p>The {@link org.apache.flink.runtime.state.hashmap.HashMapStateBackend} maintains state in
+     * heap memory, as objects. It is lightweight without extra dependencies, but is limited to JVM
+     * heap memory.
      *
-     * <p>In contrast, the {@link org.apache.flink.runtime.state.filesystem.FsStateBackend} stores
-     * checkpoints of the state (also maintained as heap objects) in files. When using a replicated
-     * file system (like HDFS, S3, MapR FS, Alluxio, etc) this will guarantee that state is not lost
-     * upon failures of individual nodes and that streaming program can be executed highly available
-     * and strongly consistent (assuming that Flink is run in high-availability mode).
+     * <p>In contrast, the {@code EmbeddedRocksDBStateBackend} stores its state in an embedded
+     * {@code RocksDB} instance. This state backend can store very large state that exceeds memory
+     * and spills to local disk. All key/value state (including windows) is stored in the key/value
+     * index of RocksDB.
+     *
+     * <p>In both cases, fault tolerance is managed via the jobs {@link
+     * org.apache.flink.runtime.state.CheckpointStorage} which configures how and where state
+     * backends persist during a checkpoint.
      *
      * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
      * @see #getStateBackend()
+     * @see CheckpointConfig#setCheckpointStorage( org.apache.flink.runtime.state.CheckpointStorage)
      */
     @PublicEvolving
     public StreamExecutionEnvironment setStateBackend(StateBackend backend) {
@@ -598,6 +605,56 @@ public class StreamExecutionEnvironment {
     @PublicEvolving
     public StateBackend getStateBackend() {
         return defaultStateBackend;
+    }
+
+    /**
+     * Sets the default savepoint directory, where savepoints will be written to if no is explicitly
+     * provided when triggered.
+     *
+     * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
+     * @see #getDefaultSavepointDirectory()
+     */
+    @PublicEvolving
+    public StreamExecutionEnvironment setDefaultSavepointDirectory(String savepointDirectory) {
+        Preconditions.checkNotNull(savepointDirectory);
+        return setDefaultSavepointDirectory(new Path(savepointDirectory));
+    }
+
+    /**
+     * Sets the default savepoint directory, where savepoints will be written to if no is explicitly
+     * provided when triggered.
+     *
+     * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
+     * @see #getDefaultSavepointDirectory()
+     */
+    @PublicEvolving
+    public StreamExecutionEnvironment setDefaultSavepointDirectory(URI savepointDirectory) {
+        Preconditions.checkNotNull(savepointDirectory);
+        return setDefaultSavepointDirectory(new Path(savepointDirectory));
+    }
+
+    /**
+     * Sets the default savepoint directory, where savepoints will be written to if no is explicitly
+     * provided when triggered.
+     *
+     * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
+     * @see #getDefaultSavepointDirectory()
+     */
+    @PublicEvolving
+    public StreamExecutionEnvironment setDefaultSavepointDirectory(Path savepointDirectory) {
+        this.defaultSavepointDirectory = Preconditions.checkNotNull(savepointDirectory);
+        return this;
+    }
+
+    /**
+     * Gets the default savepoint directory for this Job.
+     *
+     * @see #setDefaultSavepointDirectory(Path)
+     */
+    @Nullable
+    @PublicEvolving
+    public Path getDefaultSavepointDirectory() {
+        return defaultSavepointDirectory;
     }
 
     /**
@@ -1973,6 +2030,7 @@ public class StreamExecutionEnvironment {
         return new StreamGraphGenerator(transformations, config, checkpointCfg, getConfiguration())
                 .setRuntimeExecutionMode(executionMode)
                 .setStateBackend(defaultStateBackend)
+                .setSavepointDir(defaultSavepointDirectory)
                 .setChaining(isChainingEnabled)
                 .setUserArtifacts(cacheFile)
                 .setTimeCharacteristic(timeCharacteristic)

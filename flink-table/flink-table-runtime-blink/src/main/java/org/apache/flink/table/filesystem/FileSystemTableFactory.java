@@ -111,6 +111,7 @@ public class FileSystemTableFactory implements DynamicTableSourceFactory, Dynami
         options.add(FileSystemOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME);
         options.add(FileSystemOptions.AUTO_COMPACTION);
         options.add(FileSystemOptions.COMPACTION_FILE_SIZE);
+        options.add(FileSystemOptions.SINK_PARALLELISM);
         return options;
     }
 

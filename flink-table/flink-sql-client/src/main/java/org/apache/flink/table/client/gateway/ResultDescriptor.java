@@ -31,15 +31,19 @@ public class ResultDescriptor {
 
     private final boolean isTableauMode;
 
+    private final boolean isStreamingMode;
+
     public ResultDescriptor(
             String resultId,
             TableSchema resultSchema,
             boolean isMaterialized,
-            boolean isTableauMode) {
+            boolean isTableauMode,
+            boolean isStreamingMode) {
         this.resultId = resultId;
         this.resultSchema = resultSchema;
         this.isMaterialized = isMaterialized;
         this.isTableauMode = isTableauMode;
+        this.isStreamingMode = isStreamingMode;
     }
 
     public String getResultId() {
@@ -56,5 +60,9 @@ public class ResultDescriptor {
 
     public boolean isTableauMode() {
         return isTableauMode;
+    }
+
+    public boolean isStreamingMode() {
+        return isStreamingMode;
     }
 }

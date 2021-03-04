@@ -20,7 +20,7 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.instance.SlotSharingGroupId;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
@@ -49,9 +49,6 @@ public class SingleLogicalSlot implements LogicalSlot, PhysicalSlot.Payload {
 
     private final SlotContext slotContext;
 
-    // null if the logical slot does not belong to a slot sharing group, otherwise non-null
-    @Nullable private final SlotSharingGroupId slotSharingGroupId;
-
     // locality of this slot wrt the requested preferred locations
     private final Locality locality;
 
@@ -72,23 +69,20 @@ public class SingleLogicalSlot implements LogicalSlot, PhysicalSlot.Payload {
     public SingleLogicalSlot(
             SlotRequestId slotRequestId,
             SlotContext slotContext,
-            @Nullable SlotSharingGroupId slotSharingGroupId,
             Locality locality,
             SlotOwner slotOwner) {
 
-        this(slotRequestId, slotContext, slotSharingGroupId, locality, slotOwner, true);
+        this(slotRequestId, slotContext, locality, slotOwner, true);
     }
 
     public SingleLogicalSlot(
             SlotRequestId slotRequestId,
             SlotContext slotContext,
-            @Nullable SlotSharingGroupId slotSharingGroupId,
             Locality locality,
             SlotOwner slotOwner,
             boolean willBeOccupiedIndefinitely) {
         this.slotRequestId = Preconditions.checkNotNull(slotRequestId);
         this.slotContext = Preconditions.checkNotNull(slotContext);
-        this.slotSharingGroupId = slotSharingGroupId;
         this.locality = Preconditions.checkNotNull(locality);
         this.slotOwner = Preconditions.checkNotNull(slotOwner);
         this.willBeOccupiedIndefinitely = willBeOccupiedIndefinitely;
@@ -140,11 +134,6 @@ public class SingleLogicalSlot implements LogicalSlot, PhysicalSlot.Payload {
     }
 
     @Override
-    public int getPhysicalSlotNumber() {
-        return slotContext.getPhysicalSlotNumber();
-    }
-
-    @Override
     public AllocationID getAllocationId() {
         return slotContext.getAllocationId();
     }
@@ -152,12 +141,6 @@ public class SingleLogicalSlot implements LogicalSlot, PhysicalSlot.Payload {
     @Override
     public SlotRequestId getSlotRequestId() {
         return slotRequestId;
-    }
-
-    @Nullable
-    @Override
-    public SlotSharingGroupId getSlotSharingGroupId() {
-        return slotSharingGroupId;
     }
 
     public static SingleLogicalSlot allocateFromPhysicalSlot(
@@ -171,7 +154,6 @@ public class SingleLogicalSlot implements LogicalSlot, PhysicalSlot.Payload {
                 new SingleLogicalSlot(
                         slotRequestId,
                         physicalSlot,
-                        null,
                         locality,
                         slotOwner,
                         slotWillBeOccupiedIndefinitely);
@@ -214,20 +196,17 @@ public class SingleLogicalSlot implements LogicalSlot, PhysicalSlot.Payload {
     }
 
     private void returnSlotToOwner(CompletableFuture<?> terminalStateFuture) {
-        terminalStateFuture.whenComplete(
-                (Object ignored, Throwable throwable) -> {
-                    if (state == State.RELEASING) {
-                        slotOwner.returnLogicalSlot(this);
-                    }
+        FutureUtils.assertNoException(
+                terminalStateFuture.thenRun(
+                        () -> {
+                            if (state == State.RELEASING) {
+                                slotOwner.returnLogicalSlot(this);
+                            }
 
-                    markReleased();
+                            markReleased();
 
-                    if (throwable != null) {
-                        releaseFuture.completeExceptionally(throwable);
-                    } else {
-                        releaseFuture.complete(null);
-                    }
-                });
+                            releaseFuture.complete(null);
+                        }));
     }
 
     private void markReleased() {

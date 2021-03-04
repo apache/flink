@@ -37,7 +37,6 @@ import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-import org.apache.flink.util.ExceptionUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -45,11 +44,13 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Executor;
 
 /** Handler serving the job exceptions. */
 public class JobExceptionsHandler
-        extends AbstractExecutionGraphHandler<JobExceptionsInfo, JobExceptionsMessageParameters>
+        extends AbstractAccessExecutionGraphHandler<
+                JobExceptionsInfo, JobExceptionsMessageParameters>
         implements JsonArchivist {
 
     static final int MAX_NUMBER_EXCEPTION_TO_REPORT = 20;
@@ -109,8 +110,8 @@ public class JobExceptionsHandler
         List<JobExceptionsInfo.ExecutionExceptionInfo> taskExceptionList = new ArrayList<>();
         boolean truncated = false;
         for (AccessExecutionVertex task : executionGraph.getAllExecutionVertices()) {
-            String t = task.getFailureCauseAsString();
-            if (t != null && !t.equals(ExceptionUtils.STRINGIFIED_NULL_EXCEPTION)) {
+            Optional<ErrorInfo> failure = task.getFailureInfo();
+            if (failure.isPresent()) {
                 if (taskExceptionList.size() >= exceptionToReportMaxSize) {
                     truncated = true;
                     break;
@@ -124,7 +125,7 @@ public class JobExceptionsHandler
                 long timestamp = task.getStateTimestamp(ExecutionState.FAILED);
                 taskExceptionList.add(
                         new JobExceptionsInfo.ExecutionExceptionInfo(
-                                t,
+                                failure.get().getExceptionAsString(),
                                 task.getTaskNameWithSubtaskIndex(),
                                 locationString,
                                 timestamp == 0 ? -1 : timestamp));

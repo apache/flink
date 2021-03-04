@@ -17,11 +17,9 @@
 
 package org.apache.flink.table.client.cli;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.client.cli.utils.SqlParserHelper;
 import org.apache.flink.table.client.gateway.Executor;
-import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
@@ -42,9 +40,7 @@ class TestingExecutor implements Executor {
     private int numCancelCalls = 0;
 
     private int numRetrieveResultChancesCalls = 0;
-    private final List<
-                    SupplierWithException<
-                            TypedResult<List<Tuple2<Boolean, Row>>>, SqlExecutionException>>
+    private final List<SupplierWithException<TypedResult<List<Row>>, SqlExecutionException>>
             resultChanges;
 
     private int numSnapshotResultCalls = 0;
@@ -69,9 +65,7 @@ class TestingExecutor implements Executor {
     private final SqlParserHelper helper;
 
     TestingExecutor(
-            List<
-                            SupplierWithException<
-                                    TypedResult<List<Tuple2<Boolean, Row>>>, SqlExecutionException>>
+            List<SupplierWithException<TypedResult<List<Row>>, SqlExecutionException>>
                     resultChanges,
             List<SupplierWithException<TypedResult<Integer>, SqlExecutionException>>
                     snapshotResults,
@@ -98,8 +92,8 @@ class TestingExecutor implements Executor {
     }
 
     @Override
-    public TypedResult<List<Tuple2<Boolean, Row>>> retrieveResultChanges(
-            String sessionId, String resultId) throws SqlExecutionException {
+    public TypedResult<List<Row>> retrieveResultChanges(String sessionId, String resultId)
+            throws SqlExecutionException {
         return resultChanges
                 .get(Math.min(numRetrieveResultChancesCalls++, resultChanges.size() - 1))
                 .get();
@@ -172,12 +166,6 @@ class TestingExecutor implements Executor {
 
     @Override
     public ResultDescriptor executeQuery(String sessionId, String query)
-            throws SqlExecutionException {
-        throw new UnsupportedOperationException("Not implemented.");
-    }
-
-    @Override
-    public ProgramTargetDescriptor executeUpdate(String sessionId, String statement)
             throws SqlExecutionException {
         throw new UnsupportedOperationException("Not implemented.");
     }

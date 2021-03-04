@@ -37,22 +37,18 @@ import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.EvictingBoundedList;
-import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
@@ -105,7 +101,8 @@ public class ExecutionVertex
      * @param maxPriorExecutionHistoryLength The number of prior Executions (= execution attempts)
      *     to keep.
      */
-    ExecutionVertex(
+    @VisibleForTesting
+    public ExecutionVertex(
             ExecutionJobVertex jobVertex,
             int subTaskIndex,
             IntermediateResult[] producedDataSets,
@@ -245,12 +242,8 @@ public class ExecutionVertex
     }
 
     @Override
-    public String getFailureCauseAsString() {
-        return ExceptionUtils.stringifyException(getFailureCause());
-    }
-
-    public Throwable getFailureCause() {
-        return currentExecution.getFailureCause();
+    public Optional<ErrorInfo> getFailureInfo() {
+        return currentExecution.getFailureInfo();
     }
 
     public CompletableFuture<TaskManagerLocation> getCurrentTaskManagerLocationFuture() {
@@ -429,53 +422,6 @@ public class ExecutionVertex
     }
 
     /**
-     * Gets the overall preferred execution location for this vertex's current execution. The
-     * preference is determined as follows:
-     *
-     * <ol>
-     *   <li>If the task execution has state to load (from a checkpoint), then the location
-     *       preference is the location of the previous execution (if there is a previous execution
-     *       attempt).
-     *   <li>If the task execution has no state or no previous location, then the location
-     *       preference is based on the task's inputs.
-     * </ol>
-     *
-     * <p>These rules should result in the following behavior:
-     *
-     * <ul>
-     *   <li>Stateless tasks are always scheduled based on co-location with inputs.
-     *   <li>Stateful tasks are on their initial attempt executed based on co-location with inputs.
-     *   <li>Repeated executions of stateful tasks try to co-locate the execution with its state.
-     * </ul>
-     *
-     * @see #getPreferredLocationsBasedOnState()
-     * @see #getPreferredLocationsBasedOnInputs()
-     * @return The preferred execution locations for the execution attempt.
-     */
-    public Collection<CompletableFuture<TaskManagerLocation>> getPreferredLocations() {
-        Collection<CompletableFuture<TaskManagerLocation>> basedOnState =
-                getPreferredLocationsBasedOnState();
-        return basedOnState != null ? basedOnState : getPreferredLocationsBasedOnInputs();
-    }
-
-    /**
-     * Gets the preferred location to execute the current task execution attempt, based on the state
-     * that the execution attempt will resume.
-     *
-     * @return A size-one collection with the location preference, or null, if there is no location
-     *     preference based on the state.
-     */
-    public Collection<CompletableFuture<TaskManagerLocation>> getPreferredLocationsBasedOnState() {
-        TaskManagerLocation priorLocation;
-        if (currentExecution.getTaskRestore() != null
-                && (priorLocation = getLatestPriorLocation()) != null) {
-            return Collections.singleton(CompletableFuture.completedFuture(priorLocation));
-        } else {
-            return null;
-        }
-    }
-
-    /**
      * Gets the preferred location to execute the current task execution attempt, based on the state
      * that the execution attempt will resume.
      */
@@ -485,61 +431,6 @@ public class ExecutionVertex
         }
 
         return Optional.empty();
-    }
-
-    /**
-     * Gets the location preferences of the vertex's current task execution, as determined by the
-     * locations of the predecessors from which it receives input data. If there are more than
-     * MAX_DISTINCT_LOCATIONS_TO_CONSIDER different locations of source data, this method returns
-     * {@code null} to indicate no location preference.
-     *
-     * @return The preferred locations based in input streams, or an empty iterable, if there is no
-     *     input-based preference.
-     */
-    public Collection<CompletableFuture<TaskManagerLocation>> getPreferredLocationsBasedOnInputs() {
-        // otherwise, base the preferred locations on the input connections
-        if (inputEdges == null) {
-            return Collections.emptySet();
-        } else {
-            Set<CompletableFuture<TaskManagerLocation>> locations =
-                    new HashSet<>(getTotalNumberOfParallelSubtasks());
-            Set<CompletableFuture<TaskManagerLocation>> inputLocations =
-                    new HashSet<>(getTotalNumberOfParallelSubtasks());
-
-            // go over all inputs
-            for (int i = 0; i < inputEdges.length; i++) {
-                inputLocations.clear();
-                ExecutionEdge[] sources = inputEdges[i];
-                if (sources != null) {
-                    // go over all input sources
-                    for (int k = 0; k < sources.length; k++) {
-                        // look-up assigned slot of input source
-                        CompletableFuture<TaskManagerLocation> locationFuture =
-                                sources[k]
-                                        .getSource()
-                                        .getProducer()
-                                        .getCurrentTaskManagerLocationFuture();
-                        // add input location
-                        inputLocations.add(locationFuture);
-                        // inputs which have too many distinct sources are not considered
-                        if (inputLocations.size() > MAX_DISTINCT_LOCATIONS_TO_CONSIDER) {
-                            inputLocations.clear();
-                            break;
-                        }
-                    }
-                }
-                // keep the locations of the input with the least preferred locations
-                if (locations.isEmpty()
-                        || // nothing assigned yet
-                        (!inputLocations.isEmpty() && inputLocations.size() < locations.size())) {
-                    // current input has fewer preferred locations
-                    locations.clear();
-                    locations.addAll(inputLocations);
-                }
-            }
-
-            return locations.isEmpty() ? Collections.emptyList() : locations;
-        }
     }
 
     // --------------------------------------------------------------------------------------------

@@ -21,7 +21,6 @@ package org.apache.flink.kubernetes.kubeclient.decorators;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerTestBase;
-import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
 import org.apache.flink.kubernetes.utils.Constants;
 
 import io.fabric8.kubernetes.api.model.Container;
@@ -92,7 +91,7 @@ public class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
                 new InitJobManagerDecorator(this.kubernetesJobManagerParameters);
         final FlinkPod resultFlinkPod = initJobManagerDecorator.decorateFlinkPod(this.baseFlinkPod);
 
-        this.resultPod = resultFlinkPod.getPod();
+        this.resultPod = resultFlinkPod.getPodWithoutMainContainer();
         this.resultMainContainer = resultFlinkPod.getMainContainer();
     }
 
@@ -103,9 +102,7 @@ public class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
 
     @Test
     public void testMainContainerName() {
-        assertEquals(
-                KubernetesJobManagerParameters.JOB_MANAGER_MAIN_CONTAINER_NAME,
-                this.resultMainContainer.getName());
+        assertEquals(Constants.MAIN_CONTAINER_NAME, this.resultMainContainer.getName());
     }
 
     @Test

@@ -37,16 +37,20 @@ import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureManager;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.CheckpointPlanCalculator;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.DefaultCheckpointPlanCalculator;
+import org.apache.flink.runtime.checkpoint.ExecutionAttemptMappingProvider;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.checkpoint.OperatorCoordinatorCheckpointContext;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils.ConjunctFuture;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.entrypoint.ClusterEntryPointExceptionUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
@@ -57,7 +61,6 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.scheduler.InternalFailuresListener;
@@ -87,7 +90,6 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -208,12 +210,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
     // ------ Configuration of the Execution -------
 
-    /**
-     * The mode of scheduling. Decides how to select the initial set of tasks to be deployed. May
-     * indicate to deploy all sources, or to deploy everything, or to deploy via backtracking from
-     * results than need to be materialized.
-     */
-    private final ScheduleMode scheduleMode;
+    private final TaskDeploymentDescriptorFactory.PartitionLocationConstraint
+            partitionLocationConstraint;
 
     /** The maximum number of prior execution attempts kept in history. */
     private final int maxPriorAttemptsHistoryLength;
@@ -221,7 +219,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
     // ------ Execution status and progress. These values are volatile, and accessed under the lock
     // -------
 
-    private int verticesFinished;
+    private int numFinishedVertices;
 
     /** Current status of the job execution. */
     private volatile JobStatus state = JobStatus.CREATED;
@@ -292,7 +290,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
             PartitionReleaseStrategy.Factory partitionReleaseStrategyFactory,
             ShuffleMaster<?> shuffleMaster,
             JobMasterPartitionTracker partitionTracker,
-            ScheduleMode scheduleMode,
+            TaskDeploymentDescriptorFactory.PartitionLocationConstraint partitionLocationConstraint,
             ExecutionDeploymentListener executionDeploymentListener,
             ExecutionStateUpdateListener executionStateUpdateListener,
             long initializationTimestamp)
@@ -302,7 +300,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
         this.blobWriter = Preconditions.checkNotNull(blobWriter);
 
-        this.scheduleMode = checkNotNull(scheduleMode);
+        this.partitionLocationConstraint = Preconditions.checkNotNull(partitionLocationConstraint);
 
         this.jobInformationOrBlobKey =
                 BlobWriter.serializeAndTryOffload(
@@ -372,8 +370,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
         return executionTopology;
     }
 
-    public ScheduleMode getScheduleMode() {
-        return scheduleMode;
+    public TaskDeploymentDescriptorFactory.PartitionLocationConstraint
+            getPartitionLocationConstraint() {
+        return partitionLocationConstraint;
     }
 
     @Nonnull
@@ -398,9 +397,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
     public void enableCheckpointing(
             CheckpointCoordinatorConfiguration chkConfig,
-            List<ExecutionJobVertex> verticesToTrigger,
-            List<ExecutionJobVertex> verticesToWaitFor,
-            List<ExecutionJobVertex> verticesToCommitTo,
             List<MasterTriggerRestoreHook<?>> masterHooks,
             CheckpointIDCounter checkpointIDCounter,
             CompletedCheckpointStore checkpointStore,
@@ -411,10 +407,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
         checkState(state == JobStatus.CREATED, "Job must be in CREATED state");
         checkState(checkpointCoordinator == null, "checkpointing already enabled");
-
-        ExecutionVertex[] tasksToTrigger = collectExecutionVertices(verticesToTrigger);
-        ExecutionVertex[] tasksToWaitFor = collectExecutionVertices(verticesToWaitFor);
-        ExecutionVertex[] tasksToCommitTo = collectExecutionVertices(verticesToCommitTo);
 
         final Collection<OperatorCoordinatorCheckpointContext> operatorCoordinators =
                 buildOpCoordinatorCheckpointContexts();
@@ -453,9 +445,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
                 new CheckpointCoordinator(
                         jobInformation.getJobId(),
                         chkConfig,
-                        tasksToTrigger,
-                        tasksToWaitFor,
-                        tasksToCommitTo,
                         operatorCoordinators,
                         checkpointIDCounter,
                         checkpointStore,
@@ -464,7 +453,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
                         checkpointsCleaner,
                         new ScheduledExecutorServiceAdapter(checkpointCoordinatorTimer),
                         SharedStateRegistry.DEFAULT_FACTORY,
-                        failureManager);
+                        failureManager,
+                        createCheckpointPlanCalculator(),
+                        new ExecutionAttemptMappingProvider(getAllExecutionVertices()));
 
         // register the master hooks on the checkpoint coordinator
         for (MasterTriggerRestoreHook<?> hook : masterHooks) {
@@ -488,6 +479,13 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
         this.stateBackendName = checkpointStateBackend.getClass().getSimpleName();
         this.checkpointStorageName = checkpointStorage.getClass().getSimpleName();
+    }
+
+    private CheckpointPlanCalculator createCheckpointPlanCalculator() {
+        return new DefaultCheckpointPlanCalculator(
+                getJobID(),
+                new ExecutionGraphCheckpointPlanCalculatorContext(this),
+                getVerticesTopologically());
     }
 
     @Nullable
@@ -514,27 +512,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
             return checkpointStatsTracker.createSnapshot();
         } else {
             return null;
-        }
-    }
-
-    private ExecutionVertex[] collectExecutionVertices(List<ExecutionJobVertex> jobVertices) {
-        if (jobVertices.size() == 1) {
-            ExecutionJobVertex jv = jobVertices.get(0);
-            if (jv.getGraph() != this) {
-                throw new IllegalArgumentException(
-                        "Can only use ExecutionJobVertices of this ExecutionGraph");
-            }
-            return jv.getTaskVertices();
-        } else {
-            ArrayList<ExecutionVertex> all = new ArrayList<>();
-            for (ExecutionJobVertex jv : jobVertices) {
-                if (jv.getGraph() != this) {
-                    throw new IllegalArgumentException(
-                            "Can only use ExecutionJobVertices of this ExecutionGraph");
-                }
-                all.addAll(Arrays.asList(jv.getTaskVertices()));
-            }
-            return all.toArray(new ExecutionVertex[all.size()]);
         }
     }
 
@@ -609,6 +586,10 @@ public class ExecutionGraph implements AccessExecutionGraph {
      */
     public long getNumberOfRestarts() {
         return numberOfRestartsCounter.getCount();
+    }
+
+    public int getNumFinishedVertices() {
+        return numFinishedVertices;
     }
 
     @Override
@@ -901,7 +882,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
         }
     }
 
-    private ConjunctFuture<Void> cancelVerticesAsync() {
+    @VisibleForTesting
+    protected ConjunctFuture<Void> cancelVerticesAsync() {
         final ArrayList<CompletableFuture<?>> futures =
                 new ArrayList<>(verticesInCreationOrder.size());
 
@@ -1101,7 +1083,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
      */
     void vertexFinished() {
         assertRunningInJobMasterMainThread();
-        final int numFinished = ++verticesFinished;
+        final int numFinished = ++numFinishedVertices;
         if (numFinished == numVerticesTotal) {
             // done :-)
 
@@ -1132,7 +1114,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
     void vertexUnFinished() {
         assertRunningInJobMasterMainThread();
-        verticesFinished--;
+        numFinishedVertices--;
     }
 
     /**
@@ -1201,6 +1183,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
     }
 
     private void onTerminalState(JobStatus status) {
+        LOG.debug("ExecutionGraph {} reached terminal state {}.", getJobID(), status);
+
         try {
             CheckpointCoordinator coord = this.checkpointCoordinator;
             this.checkpointCoordinator = null;

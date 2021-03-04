@@ -100,9 +100,6 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
 
         jobGraph.setSnapshotSettings(
                 new JobCheckpointingSettings(
-                        Collections.singletonList(vertex.getID()),
-                        Collections.singletonList(vertex.getID()),
-                        Collections.singletonList(vertex.getID()),
                         new CheckpointCoordinatorConfiguration(
                                 checkpointInterval,
                                 60_000,
@@ -238,8 +235,7 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
         @Override
         public Future<Boolean> triggerCheckpointAsync(
                 final CheckpointMetaData checkpointMetaData,
-                final CheckpointOptions checkpointOptions,
-                final boolean advanceToEndOfEventTime) {
+                final CheckpointOptions checkpointOptions) {
             final TaskStateSnapshot checkpointStateHandles = new TaskStateSnapshot();
             checkpointStateHandles.putSubtaskStateByOperatorID(
                     OperatorID.fromJobVertexID(getEnvironment().getJobVertexId()),

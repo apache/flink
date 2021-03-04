@@ -259,4 +259,8 @@ public final class CatalogSourceTable extends FlinkPreparingTableBase {
                 Thread.currentThread().getContextClassLoader(),
                 schemaTable.isTemporary());
     }
+
+    public CatalogTable getCatalogTable() {
+        return catalogTable;
+    }
 }

@@ -29,6 +29,7 @@ import org.apache.flink.util.Preconditions;
 
 import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
 
+import java.io.File;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -197,6 +198,11 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
         closeConsumer.accept(null);
     }
 
+    @Override
+    public KubernetesPod loadPodFromTemplateFile(File file) {
+        throw new UnsupportedOperationException();
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -356,13 +362,20 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
 
     /** Testing implementation of {@link KubernetesWatch}. */
     public static class MockKubernetesWatch extends KubernetesWatch {
+        private boolean isClosed;
+
         public MockKubernetesWatch() {
             super(null);
+            this.isClosed = false;
         }
 
         @Override
         public void close() {
-            // noop
+            this.isClosed = true;
+        }
+
+        public boolean isClosed() {
+            return isClosed;
         }
     }
 

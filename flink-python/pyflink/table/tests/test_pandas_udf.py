@@ -24,8 +24,8 @@ from pyflink.table import DataTypes
 from pyflink.table.tests.test_udf import SubtractOne
 from pyflink.table.udf import udf
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
-    PyFlinkBlinkBatchTableTestCase, PyFlinkBlinkStreamTableTestCase, PyFlinkBatchTableTestCase, \
+from pyflink.testing.test_case_utils import PyFlinkOldStreamTableTestCase, \
+    PyFlinkBlinkBatchTableTestCase, PyFlinkBlinkStreamTableTestCase, PyFlinkOldBatchTableTestCase, \
     PyFlinkTestCase
 
 
@@ -319,11 +319,11 @@ class BlinkPandasUDFITTests(object):
 
 
 class StreamPandasUDFITTests(PandasUDFITTests,
-                             PyFlinkStreamTableTestCase):
+                             PyFlinkOldStreamTableTestCase):
     pass
 
 
-class BatchPandasUDFITTests(PyFlinkBatchTableTestCase):
+class BatchPandasUDFITTests(PyFlinkOldBatchTableTestCase):
 
     def test_basic_functionality(self):
         add_one = udf(lambda i: i + 1, result_type=DataTypes.BIGINT(), func_type="pandas")

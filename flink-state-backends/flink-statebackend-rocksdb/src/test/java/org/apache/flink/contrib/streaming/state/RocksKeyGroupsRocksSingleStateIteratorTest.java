@@ -60,7 +60,10 @@ public class RocksKeyGroupsRocksSingleStateIteratorTest {
     public void testEmptyMergeIterator() throws Exception {
         RocksStatesPerKeyGroupMergeIterator emptyIterator =
                 new RocksStatesPerKeyGroupMergeIterator(
-                        new CloseableRegistry(), Collections.emptyList(), 2);
+                        new CloseableRegistry(),
+                        Collections.emptyList(),
+                        Collections.emptyList(),
+                        2);
         Assert.assertFalse(emptyIterator.isValid());
     }
 
@@ -118,21 +121,23 @@ public class RocksKeyGroupsRocksSingleStateIteratorTest {
                 totalKeysExpected += numKeys;
             }
 
+            CloseableRegistry closeableRegistry = new CloseableRegistry();
             int id = 0;
             for (Tuple2<ColumnFamilyHandle, Integer> columnFamilyHandle :
                     columnFamilyHandlesWithKeyCount) {
-                rocksIteratorsWithKVStateId.add(
-                        new Tuple2<>(
-                                RocksDBOperationUtils.getRocksIterator(
-                                        rocksDB, columnFamilyHandle.f0, readOptions),
-                                id));
+                RocksIteratorWrapper rocksIterator =
+                        RocksDBOperationUtils.getRocksIterator(
+                                rocksDB, columnFamilyHandle.f0, readOptions);
+                closeableRegistry.registerCloseable(rocksIterator);
+                rocksIteratorsWithKVStateId.add(new Tuple2<>(rocksIterator, id));
                 ++id;
             }
 
             try (RocksStatesPerKeyGroupMergeIterator mergeIterator =
                     new RocksStatesPerKeyGroupMergeIterator(
-                            new CloseableRegistry(),
+                            closeableRegistry,
                             rocksIteratorsWithKVStateId,
+                            Collections.emptyList(),
                             maxParallelism <= Byte.MAX_VALUE ? 1 : 2)) {
 
                 int prevKVState = -1;

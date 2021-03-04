@@ -29,7 +29,6 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -48,6 +47,7 @@ import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorToJobManagerHeartbeatPayload;
@@ -112,7 +112,7 @@ public class TestingJobMasterGatewayBuilder {
     private Consumer<ResourceID> resourceManagerHeartbeatConsumer = ignored -> {};
     private Supplier<CompletableFuture<JobDetails>> requestJobDetailsSupplier =
             () -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
-    private Supplier<CompletableFuture<ArchivedExecutionGraph>> requestJobSupplier =
+    private Supplier<CompletableFuture<ExecutionGraphInfo>> requestJobSupplier =
             () -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
     private BiFunction<String, Boolean, CompletableFuture<String>> triggerSavepointFunction =
             (targetDirectory, ignoredB) ->
@@ -264,7 +264,7 @@ public class TestingJobMasterGatewayBuilder {
     }
 
     public TestingJobMasterGatewayBuilder setRequestJobSupplier(
-            Supplier<CompletableFuture<ArchivedExecutionGraph>> requestJobSupplier) {
+            Supplier<CompletableFuture<ExecutionGraphInfo>> requestJobSupplier) {
         this.requestJobSupplier = requestJobSupplier;
         return this;
     }

@@ -23,9 +23,9 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
+import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -60,7 +60,7 @@ public class StateMachineExample {
         System.out.println(
                 "Usage with Kafka: StateMachineExample --kafka-topic <topic> [--brokers <brokers>]");
         System.out.println("Options for both the above setups: ");
-        System.out.println("\t[--backend <file|rocks>]");
+        System.out.println("\t[--backend <hashmap|rocks>]");
         System.out.println("\t[--checkpoint-dir <filepath>]");
         System.out.println("\t[--async-checkpoints <true|false>]");
         System.out.println("\t[--incremental-checkpoints <true|false>]");
@@ -107,14 +107,16 @@ public class StateMachineExample {
         env.enableCheckpointing(2000L);
 
         final String stateBackend = params.get("backend", "memory");
-        if ("file".equals(stateBackend)) {
+        if ("hashmap".equals(stateBackend)) {
             final String checkpointDir = params.get("checkpoint-dir");
             boolean asyncCheckpoints = params.getBoolean("async-checkpoints", false);
-            env.setStateBackend(new FsStateBackend(checkpointDir, asyncCheckpoints));
+            env.setStateBackend(new HashMapStateBackend(asyncCheckpoints));
+            env.getCheckpointConfig().setCheckpointStorage(checkpointDir);
         } else if ("rocks".equals(stateBackend)) {
             final String checkpointDir = params.get("checkpoint-dir");
             boolean incrementalCheckpoints = params.getBoolean("incremental-checkpoints", false);
-            env.setStateBackend(new RocksDBStateBackend(checkpointDir, incrementalCheckpoints));
+            env.setStateBackend(new EmbeddedRocksDBStateBackend(incrementalCheckpoints));
+            env.getCheckpointConfig().setCheckpointStorage(checkpointDir);
         }
 
         final String outputFile = params.get("output");

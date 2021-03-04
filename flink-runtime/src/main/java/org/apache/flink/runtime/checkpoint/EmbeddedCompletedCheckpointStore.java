@@ -62,9 +62,8 @@ public class EmbeddedCompletedCheckpointStore implements CompletedCheckpointStor
             throws Exception {
         checkpoints.addLast(checkpoint);
 
-        if (checkpoints.size() > maxRetainedCheckpoints) {
-            removeOldestCheckpoint();
-        }
+        CheckpointSubsumeHelper.subsume(
+                checkpoints, maxRetainedCheckpoints, CompletedCheckpoint::discardOnSubsume);
     }
 
     @VisibleForTesting
@@ -74,8 +73,7 @@ public class EmbeddedCompletedCheckpointStore implements CompletedCheckpointStor
     }
 
     @Override
-    public void shutdown(
-            JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner, Runnable postCleanup)
+    public void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner)
             throws Exception {
         if (jobStatus.isGloballyTerminalState()) {
             checkpoints.clear();

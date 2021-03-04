@@ -22,17 +22,17 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmaster.DefaultSlotPoolServiceSchedulerFactory;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerRunnerImpl;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.JobMasterConfiguration;
+import org.apache.flink.runtime.jobmaster.SlotPoolServiceSchedulerFactory;
 import org.apache.flink.runtime.jobmaster.factories.DefaultJobMasterServiceFactory;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.jobmaster.factories.JobMasterServiceFactory;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolServiceFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleServiceLoader;
 
@@ -56,10 +56,10 @@ public enum DefaultJobManagerRunnerFactory implements JobManagerRunnerFactory {
         final JobMasterConfiguration jobMasterConfiguration =
                 JobMasterConfiguration.fromConfiguration(configuration);
 
-        final SlotPoolServiceFactory slotPoolFactory =
-                SlotPoolServiceFactory.fromConfiguration(configuration);
-        final SchedulerNGFactory schedulerNGFactory =
-                SchedulerNGFactoryFactory.createSchedulerNGFactory(configuration);
+        final SlotPoolServiceSchedulerFactory slotPoolServiceSchedulerFactory =
+                DefaultSlotPoolServiceSchedulerFactory.fromConfiguration(
+                        configuration, jobGraph.getJobType());
+
         final ShuffleMaster<?> shuffleMaster =
                 ShuffleServiceLoader.loadShuffleServiceFactory(configuration)
                         .createShuffleMaster(configuration);
@@ -67,14 +67,13 @@ public enum DefaultJobManagerRunnerFactory implements JobManagerRunnerFactory {
         final JobMasterServiceFactory jobMasterFactory =
                 new DefaultJobMasterServiceFactory(
                         jobMasterConfiguration,
-                        slotPoolFactory,
+                        slotPoolServiceSchedulerFactory,
                         rpcService,
                         highAvailabilityServices,
                         jobManagerServices,
                         heartbeatServices,
                         jobManagerJobMetricGroupFactory,
                         fatalErrorHandler,
-                        schedulerNGFactory,
                         shuffleMaster);
 
         return new JobManagerRunnerImpl(

@@ -26,22 +26,29 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.rocksdb.BlockBasedTableConfig;
+import org.rocksdb.BloomFilter;
 import org.rocksdb.Cache;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
+import org.rocksdb.IndexType;
 import org.rocksdb.LRUCache;
 import org.rocksdb.NativeLibraryLoader;
 import org.rocksdb.ReadOptions;
+import org.rocksdb.TableFormatConfig;
 import org.rocksdb.WriteBufferManager;
 import org.rocksdb.WriteOptions;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 
+import static org.apache.flink.contrib.streaming.state.RocksDBResourceContainer.getFilterFromBlockBasedTableConfig;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
 /** Tests to guard {@link RocksDBResourceContainer}. */
@@ -152,7 +159,7 @@ public class RocksDBResourceContainerTest {
         final LRUCache cache = new LRUCache(cacheSize, -1, false, 0.1);
         final WriteBufferManager wbm = new WriteBufferManager(writeBufferSize, cache);
         RocksDBSharedResources rocksDBSharedResources =
-                new RocksDBSharedResources(cache, wbm, writeBufferSize);
+                new RocksDBSharedResources(cache, wbm, writeBufferSize, false);
         return new OpaqueMemoryResource<>(
                 rocksDBSharedResources, cacheSize, rocksDBSharedResources::close);
     }
@@ -240,7 +247,8 @@ public class RocksDBResourceContainerTest {
     public void testFreeSharedResourcesAfterClose() throws Exception {
         LRUCache cache = new LRUCache(1024L);
         WriteBufferManager wbm = new WriteBufferManager(1024L, cache);
-        RocksDBSharedResources sharedResources = new RocksDBSharedResources(cache, wbm, 1024L);
+        RocksDBSharedResources sharedResources =
+                new RocksDBSharedResources(cache, wbm, 1024L, false);
         final ThrowingRunnable<Exception> disposer = sharedResources::close;
         OpaqueMemoryResource<RocksDBSharedResources> opaqueResource =
                 new OpaqueMemoryResource<>(sharedResources, 1024L, disposer);
@@ -263,5 +271,55 @@ public class RocksDBResourceContainerTest {
         container.close();
         assertThat(writeOptions.isOwningHandle(), is(false));
         assertThat(readOptions.isOwningHandle(), is(false));
+    }
+
+    @Test
+    public void testGetColumnFamilyOptionsWithPartitionedIndex() throws Exception {
+        LRUCache cache = new LRUCache(1024L);
+        WriteBufferManager wbm = new WriteBufferManager(1024L, cache);
+        RocksDBSharedResources sharedResources =
+                new RocksDBSharedResources(cache, wbm, 1024L, true);
+        final ThrowingRunnable<Exception> disposer = sharedResources::close;
+        OpaqueMemoryResource<RocksDBSharedResources> opaqueResource =
+                new OpaqueMemoryResource<>(sharedResources, 1024L, disposer);
+        BloomFilter blockBasedFilter = new BloomFilter();
+        RocksDBOptionsFactory blockBasedBloomFilterOptionFactory =
+                new RocksDBOptionsFactory() {
+
+                    @Override
+                    public DBOptions createDBOptions(
+                            DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
+                        return currentOptions;
+                    }
+
+                    @Override
+                    public ColumnFamilyOptions createColumnOptions(
+                            ColumnFamilyOptions currentOptions,
+                            Collection<AutoCloseable> handlesToClose) {
+                        TableFormatConfig tableFormatConfig = currentOptions.tableFormatConfig();
+                        BlockBasedTableConfig blockBasedTableConfig =
+                                tableFormatConfig == null
+                                        ? new BlockBasedTableConfig()
+                                        : (BlockBasedTableConfig) tableFormatConfig;
+                        blockBasedTableConfig.setFilter(blockBasedFilter);
+                        handlesToClose.add(blockBasedFilter);
+                        currentOptions.setTableFormatConfig(blockBasedTableConfig);
+                        return currentOptions;
+                    }
+                };
+        try (RocksDBResourceContainer container =
+                new RocksDBResourceContainer(
+                        PredefinedOptions.DEFAULT,
+                        blockBasedBloomFilterOptionFactory,
+                        opaqueResource)) {
+            ColumnFamilyOptions columnOptions = container.getColumnOptions();
+            BlockBasedTableConfig actual =
+                    (BlockBasedTableConfig) columnOptions.tableFormatConfig();
+            assertThat(actual.indexType(), is(IndexType.kTwoLevelIndexSearch));
+            assertThat(actual.partitionFilters(), is(true));
+            assertThat(actual.pinTopLevelIndexAndFilter(), is(true));
+            assertThat(getFilterFromBlockBasedTableConfig(actual), not(blockBasedFilter));
+        }
+        assertFalse("Block based filter is left unclosed.", blockBasedFilter.isOwningHandle());
     }
 }

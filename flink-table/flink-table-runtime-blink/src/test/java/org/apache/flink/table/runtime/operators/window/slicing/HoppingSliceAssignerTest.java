@@ -60,8 +60,13 @@ public class HoppingSliceAssignerTest extends SliceAssignerTestBase {
                 SliceAssigners.hopping(0, Duration.ofSeconds(5), Duration.ofSeconds(1));
 
         assertEquals(-5000L, assigner.getWindowStart(0L));
+        assertEquals(-4000L, assigner.getWindowStart(1000L));
+        assertEquals(-3000L, assigner.getWindowStart(2000L));
+        assertEquals(-2000L, assigner.getWindowStart(3000L));
+        assertEquals(-1000L, assigner.getWindowStart(4000L));
         assertEquals(0L, assigner.getWindowStart(5000L));
         assertEquals(1000L, assigner.getWindowStart(6000L));
+        assertEquals(5000L, assigner.getWindowStart(10000L));
     }
 
     @Test

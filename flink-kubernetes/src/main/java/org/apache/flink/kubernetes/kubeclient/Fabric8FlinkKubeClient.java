@@ -34,6 +34,7 @@ import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.HasMetadata;
@@ -49,6 +50,7 @@ import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -97,7 +99,10 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
         final List<HasMetadata> accompanyingResources = kubernetesJMSpec.getAccompanyingResources();
 
         // create Deployment
-        LOG.debug("Start to create deployment with spec {}", deployment.getSpec().toString());
+        LOG.debug(
+                "Start to create deployment with spec {}{}",
+                System.lineSeparator(),
+                KubernetesUtils.tryToGetPrettyPrintYaml(deployment));
         final Deployment createdDeployment =
                 this.internalClient.apps().deployments().create(deployment);
 
@@ -133,9 +138,10 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
                             Collections.singletonList(kubernetesPod.getInternalResource()));
 
                     LOG.debug(
-                            "Start to create pod with metadata {}, spec {}",
-                            kubernetesPod.getInternalResource().getMetadata(),
-                            kubernetesPod.getInternalResource().getSpec());
+                            "Start to create pod with spec {}{}",
+                            System.lineSeparator(),
+                            KubernetesUtils.tryToGetPrettyPrintYaml(
+                                    kubernetesPod.getInternalResource()));
 
                     this.internalClient.pods().create(kubernetesPod.getInternalResource());
                 },
@@ -337,6 +343,15 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
     @Override
     public void close() {
         this.internalClient.close();
+    }
+
+    @Override
+    public KubernetesPod loadPodFromTemplateFile(File file) {
+        if (!file.exists()) {
+            throw new FlinkRuntimeException(
+                    String.format("Pod template file %s does not exist.", file));
+        }
+        return new KubernetesPod(this.internalClient.pods().load(file).get());
     }
 
     private void setOwnerReference(Deployment deployment, List<HasMetadata> resources) {

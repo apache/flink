@@ -168,7 +168,6 @@ public class StreamTaskTerminationTest extends TestLogger {
                         0,
                         Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
                         Collections.<InputGateDeploymentDescriptor>emptyList(),
-                        0,
                         MemoryManagerBuilder.newBuilder().setMemorySize(32L * 1024L).build(),
                         new IOManagerAsync(),
                         shuffleEnvironment,
@@ -200,8 +199,7 @@ public class StreamTaskTerminationTest extends TestLogger {
         task.triggerCheckpointBarrier(
                 checkpointId,
                 checkpointTimestamp,
-                CheckpointOptions.forCheckpointWithDefaultLocation(),
-                false);
+                CheckpointOptions.forCheckpointWithDefaultLocation());
 
         // wait until the task has completed execution
         taskRun.get();

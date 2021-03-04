@@ -18,8 +18,7 @@
 
 package org.apache.flink.table.client.cli;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.streaming.environment.TestingJobClient;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.TableResult;
@@ -30,7 +29,6 @@ import org.apache.flink.table.client.cli.utils.TerminalUtils.MockOutputStream;
 import org.apache.flink.table.client.cli.utils.TestTableResult;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
-import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
@@ -326,6 +324,31 @@ public class CliClientTest extends TestLogger {
         assertThat(executor.getNumExecuteSqlCalls(), is(1));
     }
 
+    @Test
+    public void testShowViews() throws Exception {
+        TestingExecutor executor =
+                new TestingExecutorBuilder()
+                        .setExecuteSqlConsumer(
+                                (ignored1, sql) -> {
+                                    if (sql.equalsIgnoreCase("show views")) {
+                                        SHOW_ROW.setField(0, "v1");
+                                        return new TestTableResult(
+                                                ResultKind.SUCCESS_WITH_CONTENT,
+                                                TableSchema.builder()
+                                                        .field("view", DataTypes.STRING())
+                                                        .build(),
+                                                CloseableIterator.ofElement(SHOW_ROW, ele -> {}));
+                                    } else {
+                                        throw new SqlExecutionException(
+                                                "unexpected sql statement: " + sql);
+                                    }
+                                })
+                        .build();
+        String output = testExecuteSql(executor, "show views;");
+        assertThat(executor.getNumExecuteSqlCalls(), is(1));
+        assertTrue(output.contains("v1"));
+    }
+
     // --------------------------------------------------------------------------------------------
 
     /** execute a sql statement and return the terminal output as string. */
@@ -449,6 +472,20 @@ public class CliClientTest extends TestLogger {
         @Override
         public TableResult executeSql(String sessionId, String statement)
                 throws SqlExecutionException {
+            receivedContext = sessionMap.get(sessionId);
+            receivedStatement = statement;
+            if (failExecution) {
+                throw new SqlExecutionException("Fail execution.");
+            }
+            if (statement.toLowerCase().startsWith("insert ")
+                    || statement.toLowerCase().startsWith("select ")) {
+                return new TestTableResult(
+                        new TestingJobClient(),
+                        ResultKind.SUCCESS_WITH_CONTENT,
+                        TableSchema.builder().field("result", DataTypes.BIGINT()).build(),
+                        CloseableIterator.adapterForIterator(
+                                Collections.singletonList(Row.of(-1L)).iterator()));
+            }
             return TestTableResult.TABLE_RESULT_OK;
         }
 
@@ -477,8 +514,8 @@ public class CliClientTest extends TestLogger {
         }
 
         @Override
-        public TypedResult<List<Tuple2<Boolean, Row>>> retrieveResultChanges(
-                String sessionId, String resultId) throws SqlExecutionException {
+        public TypedResult<List<Row>> retrieveResultChanges(String sessionId, String resultId)
+                throws SqlExecutionException {
             return null;
         }
 
@@ -497,18 +534,6 @@ public class CliClientTest extends TestLogger {
         @Override
         public void cancelQuery(String sessionId, String resultId) throws SqlExecutionException {
             // nothing to do
-        }
-
-        @Override
-        public ProgramTargetDescriptor executeUpdate(String sessionId, String statement)
-                throws SqlExecutionException {
-            receivedContext = sessionMap.get(sessionId);
-            receivedStatement = statement;
-            if (failExecution) {
-                throw new SqlExecutionException("Fail execution.");
-            }
-            JobID jobID = JobID.generate();
-            return new ProgramTargetDescriptor(jobID);
         }
     }
 }

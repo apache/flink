@@ -47,13 +47,16 @@ import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
+import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
+import org.apache.flink.table.operations.UseModulesOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterTableAddConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
-import org.apache.flink.table.operations.ddl.AlterTablePropertiesOperation;
+import org.apache.flink.table.operations.ddl.AlterTableOptionsOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
@@ -157,9 +160,9 @@ public class SqlToOperationConverterTest {
                         .field("c", DataTypes.INT())
                         .field("d", DataTypes.VARCHAR(Integer.MAX_VALUE))
                         .build();
-        Map<String, String> properties = new HashMap<>();
-        properties.put("connector", "COLLECTION");
-        final CatalogTable catalogTable = new CatalogTableImpl(tableSchema, properties, "");
+        Map<String, String> options = new HashMap<>();
+        options.put("connector", "COLLECTION");
+        final CatalogTable catalogTable = new CatalogTableImpl(tableSchema, options, "");
         catalog.createTable(path1, catalogTable, true);
         catalog.createTable(path2, catalogTable, true);
     }
@@ -288,6 +291,60 @@ public class SqlToOperationConverterTest {
         assertEquals(
                 properties,
                 ((AlterDatabaseOperation) operation).getCatalogDatabase().getProperties());
+    }
+
+    @Test
+    public void testLoadModule() {
+        final String sql = "LOAD MODULE dummy WITH ('k1' = 'v1', 'k2' = 'v2')";
+        final String expectedModuleName = "dummy";
+        final Map<String, String> expectedProperties = new HashMap<>();
+        expectedProperties.put("k1", "v1");
+        expectedProperties.put("k2", "v2");
+
+        Operation operation = parse(sql, SqlDialect.DEFAULT);
+        assert operation instanceof LoadModuleOperation;
+        final LoadModuleOperation loadModuleOperation = (LoadModuleOperation) operation;
+
+        assertEquals(expectedModuleName, loadModuleOperation.getModuleName());
+        assertEquals(expectedProperties, loadModuleOperation.getProperties());
+    }
+
+    @Test
+    public void testUnloadModule() {
+        final String sql = "UNLOAD MODULE dummy";
+        final String expectedModuleName = "dummy";
+
+        Operation operation = parse(sql, SqlDialect.DEFAULT);
+        assert operation instanceof UnloadModuleOperation;
+        final UnloadModuleOperation unloadModuleOperation = (UnloadModuleOperation) operation;
+
+        assertEquals(expectedModuleName, unloadModuleOperation.getModuleName());
+    }
+
+    @Test
+    public void testUseOneModule() {
+        final String sql = "USE MODULES dummy";
+        final List<String> expectedModuleNames = Collections.singletonList("dummy");
+
+        Operation operation = parse(sql, SqlDialect.DEFAULT);
+        assert operation instanceof UseModulesOperation;
+        final UseModulesOperation useModulesOperation = (UseModulesOperation) operation;
+
+        assertEquals(expectedModuleNames, useModulesOperation.getModuleNames());
+        assertEquals("USE MODULES: [dummy]", useModulesOperation.asSummaryString());
+    }
+
+    @Test
+    public void testUseMultipleModules() {
+        final String sql = "USE MODULES x, y, z";
+        final List<String> expectedModuleNames = Arrays.asList("x", "y", "z");
+
+        Operation operation = parse(sql, SqlDialect.DEFAULT);
+        assert operation instanceof UseModulesOperation;
+        final UseModulesOperation useModulesOperation = (UseModulesOperation) operation;
+
+        assertEquals(expectedModuleNames, useModulesOperation.getModuleNames());
+        assertEquals("USE MODULES: [x, y, z]", useModulesOperation.asSummaryString());
     }
 
     @Test
@@ -463,10 +520,10 @@ public class SqlToOperationConverterTest {
         assert operation instanceof CreateTableOperation;
         CreateTableOperation op = (CreateTableOperation) operation;
         CatalogTable catalogTable = op.getCatalogTable();
-        Map<String, String> properties =
-                catalogTable.getProperties().entrySet().stream()
+        Map<String, String> options =
+                catalogTable.getOptions().entrySet().stream()
                         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        Map<String, String> sortedProperties = new TreeMap<>(properties);
+        Map<String, String> sortedProperties = new TreeMap<>(options);
         final String expected =
                 "{a-B-c-d124=Ab, "
                         + "a.b-c-d.*=adad, "
@@ -1062,20 +1119,20 @@ public class SqlToOperationConverterTest {
             assertEquals(expectedIdentifier, alterTableRenameOperation.getTableIdentifier());
             assertEquals(expectedNewIdentifier, alterTableRenameOperation.getNewTableIdentifier());
         }
-        // test alter table properties
+        // test alter table options
         Operation operation =
                 parse(
                         "alter table cat1.db1.tb1 set ('k1' = 'v1', 'K2' = 'V2')",
                         SqlDialect.DEFAULT);
-        assert operation instanceof AlterTablePropertiesOperation;
-        final AlterTablePropertiesOperation alterTablePropertiesOperation =
-                (AlterTablePropertiesOperation) operation;
-        assertEquals(expectedIdentifier, alterTablePropertiesOperation.getTableIdentifier());
-        assertEquals(2, alterTablePropertiesOperation.getCatalogTable().getProperties().size());
-        Map<String, String> properties = new HashMap<>();
-        properties.put("k1", "v1");
-        properties.put("K2", "V2");
-        assertEquals(properties, alterTablePropertiesOperation.getCatalogTable().getProperties());
+        assert operation instanceof AlterTableOptionsOperation;
+        final AlterTableOptionsOperation alterTableOptionsOperation =
+                (AlterTableOptionsOperation) operation;
+        assertEquals(expectedIdentifier, alterTableOptionsOperation.getTableIdentifier());
+        assertEquals(2, alterTableOptionsOperation.getCatalogTable().getOptions().size());
+        Map<String, String> options = new HashMap<>();
+        options.put("k1", "v1");
+        options.put("K2", "V2");
+        assertEquals(options, alterTableOptionsOperation.getCatalogTable().getOptions());
     }
 
     @Test

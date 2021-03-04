@@ -30,10 +30,6 @@ import java.util.Optional;
  */
 public interface CatalogBaseTable {
 
-    /** @deprecated Use {@link #getOptions()}. */
-    @Deprecated
-    Map<String, String> getProperties();
-
     /**
      * Returns a map of string-based options.
      *
@@ -41,9 +37,7 @@ public interface CatalogBaseTable {
      * configuration for accessing the data in the external system. See {@link DynamicTableFactory}
      * for more information.
      */
-    default Map<String, String> getOptions() {
-        return getProperties();
-    }
+    Map<String, String> getOptions();
 
     /**
      * Get the schema of the table.

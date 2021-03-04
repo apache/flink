@@ -26,6 +26,7 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.heap.InternalKeyContext;
 import org.apache.flink.runtime.state.internal.InternalKvState;
@@ -127,7 +128,10 @@ public abstract class AbstractKeyedStateBackend<K>
                 numberOfKeyGroups >= 1, "NumberOfKeyGroups must be a positive number");
         Preconditions.checkArgument(
                 numberOfKeyGroups >= keyGroupRange.getNumberOfKeyGroups(),
-                "The total number of key groups must be at least the number in the key group range assigned to this backend");
+                "The total number of key groups must be at least the number in the key group range assigned to this backend. "
+                        + "The total number of key groups: %s, the number in key groups in range: %s",
+                numberOfKeyGroups,
+                keyGroupRange.getNumberOfKeyGroups());
 
         this.kvStateRegistry = kvStateRegistry;
         this.keySerializer = keySerializer;
@@ -281,7 +285,7 @@ public abstract class AbstractKeyedStateBackend<K>
                 throw new IllegalStateException("State backend has not been initialized for job.");
             }
             String name = stateDescriptor.getQueryableStateName();
-            kvStateRegistry.registerKvState(keyGroupRange, name, kvState);
+            kvStateRegistry.registerKvState(keyGroupRange, name, kvState, userCodeClassLoader);
         }
     }
 
@@ -345,7 +349,11 @@ public abstract class AbstractKeyedStateBackend<K>
     }
 
     // TODO remove this once heap-based timers are working with RocksDB incremental snapshots!
-    public boolean requiresLegacySynchronousTimerSnapshots() {
+    public boolean requiresLegacySynchronousTimerSnapshots(CheckpointType checkpointType) {
+        return false;
+    }
+
+    public boolean isStateImmutableInStateBackend(CheckpointType checkpointType) {
         return false;
     }
 }

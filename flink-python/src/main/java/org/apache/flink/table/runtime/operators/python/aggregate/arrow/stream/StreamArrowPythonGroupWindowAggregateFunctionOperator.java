@@ -41,6 +41,12 @@ import org.apache.flink.table.data.util.RowDataUtil;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
+import org.apache.flink.table.planner.expressions.PlannerProctimeAttribute;
+import org.apache.flink.table.planner.expressions.PlannerRowtimeAttribute;
+import org.apache.flink.table.planner.expressions.PlannerWindowEnd;
+import org.apache.flink.table.planner.expressions.PlannerWindowProperty;
+import org.apache.flink.table.planner.expressions.PlannerWindowStart;
 import org.apache.flink.table.runtime.operators.python.aggregate.arrow.AbstractArrowPythonAggregateFunctionOperator;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 import org.apache.flink.table.runtime.operators.window.Window;
@@ -63,11 +69,8 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
 
     private static final long serialVersionUID = 1L;
 
-    /**
-     * The Infos of the Window. 0 -> start of the Window. 1 -> end of the Window. 2 -> row time of
-     * the Window.
-     */
-    private final int[] namedProperties;
+    /** The Infos of the Window. */
+    private WindowProperty[] namedProperties;
 
     /** The row time index of the input data. */
     private final int inputTimeFieldIndex;
@@ -134,15 +137,15 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
             WindowAssigner<W> windowAssigner,
             Trigger<W> trigger,
             long allowedLateness,
-            int[] namedProperties,
+            FlinkRelBuilder.PlannerNamedWindowProperty[] namedProperties,
             int[] groupingSet,
             int[] udafInputOffsets) {
         super(config, pandasAggFunctions, inputType, outputType, groupingSet, udafInputOffsets);
-        this.namedProperties = namedProperties;
         this.inputTimeFieldIndex = inputTimeFieldIndex;
         this.windowAssigner = windowAssigner;
         this.trigger = trigger;
         this.allowedLateness = allowedLateness;
+        buildWindow(namedProperties);
     }
 
     @Override
@@ -235,6 +238,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
             windowAggResult.replace(key, arrowSerializer.read(i));
             rowDataWrapper.collect(reuseJoinedRow.replace(windowAggResult, windowProperty));
         }
+        arrowSerializer.resetReader();
     }
 
     @Override
@@ -264,6 +268,24 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
 
         if (!windowAssigner.isEventTime()) {
             cleanWindowIfNeeded(triggerContext.window, timer.getTimestamp());
+        }
+    }
+
+    private void buildWindow(FlinkRelBuilder.PlannerNamedWindowProperty[] namedProperties) {
+        this.namedProperties = new WindowProperty[namedProperties.length];
+        for (int i = 0; i < namedProperties.length; i++) {
+            PlannerWindowProperty property = namedProperties[i].property();
+            if (property instanceof PlannerWindowStart) {
+                this.namedProperties[i] = WindowProperty.WINDOW_START;
+            } else if (property instanceof PlannerWindowEnd) {
+                this.namedProperties[i] = WindowProperty.WINDOW_END;
+            } else if (property instanceof PlannerRowtimeAttribute) {
+                this.namedProperties[i] = WindowProperty.ROW_TIME_ATTRIBUTE;
+            } else if (property instanceof PlannerProctimeAttribute) {
+                this.namedProperties[i] = WindowProperty.PROC_TIME_ATTRIBUTE;
+            } else {
+                throw new RuntimeException("Unsupported Property " + property);
+            }
         }
     }
 
@@ -313,6 +335,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
                 checkInvokeFinishBundleByCount();
                 currentBatchCount = 0;
                 baos.reset();
+                arrowSerializer.resetWriter();
             }
         }
     }
@@ -362,23 +385,23 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
     private void setWindowProperty(W currentWindow) {
         for (int i = 0; i < namedProperties.length; i++) {
             switch (namedProperties[i]) {
-                case 0:
+                case WINDOW_START:
                     windowProperty.setField(
                             i,
                             TimestampData.fromEpochMillis(((TimeWindow) currentWindow).getStart()));
                     break;
-                case 1:
+                case WINDOW_END:
                     windowProperty.setField(
                             i,
                             TimestampData.fromEpochMillis(((TimeWindow) currentWindow).getEnd()));
                     break;
-                case 2:
+                case ROW_TIME_ATTRIBUTE:
                     windowProperty.setField(
                             i,
                             TimestampData.fromEpochMillis(
                                     ((TimeWindow) currentWindow).getEnd() - 1));
                     break;
-                case 3:
+                case PROC_TIME_ATTRIBUTE:
                     windowProperty.setField(i, TimestampData.fromEpochMillis(-1));
             }
         }
@@ -527,5 +550,12 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
         public void deleteCleanupTimer(W window) {
             throw new RuntimeException("The method deleteCleanupTimer should not be called.");
         }
+    }
+
+    private enum WindowProperty {
+        WINDOW_START,
+        WINDOW_END,
+        ROW_TIME_ATTRIBUTE,
+        PROC_TIME_ATTRIBUTE
     }
 }

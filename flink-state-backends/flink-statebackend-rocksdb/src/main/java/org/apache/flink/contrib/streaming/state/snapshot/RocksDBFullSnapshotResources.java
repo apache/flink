@@ -22,8 +22,10 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
 import org.apache.flink.contrib.streaming.state.RocksIteratorWrapper;
+import org.apache.flink.contrib.streaming.state.iterator.RocksQueueIterator;
 import org.apache.flink.contrib.streaming.state.iterator.RocksStatesPerKeyGroupMergeIterator;
 import org.apache.flink.contrib.streaming.state.iterator.RocksTransformingIteratorWrapper;
+import org.apache.flink.contrib.streaming.state.iterator.SingleStateIterator;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.state.FullSnapshotResources;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -31,6 +33,8 @@ import org.apache.flink.runtime.state.KeyValueStateIterator;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueSnapshotRestoreWrapper;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueStateSnapshot;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.ResourceGuard;
@@ -45,10 +49,12 @@ import javax.annotation.Nonnegative;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /** A {@link FullSnapshotResources} for the RocksDB backend. */
-class RocksDBFullSnapshotResources<K> implements FullSnapshotResources<K> {
+public class RocksDBFullSnapshotResources<K> implements FullSnapshotResources<K> {
     private final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots;
     private final ResourceGuard.Lease lease;
     private final Snapshot snapshot;
@@ -61,11 +67,13 @@ class RocksDBFullSnapshotResources<K> implements FullSnapshotResources<K> {
     private final KeyGroupRange keyGroupRange;
     private final TypeSerializer<K> keySerializer;
     private final StreamCompressionDecorator streamCompressionDecorator;
+    private final List<HeapPriorityQueueStateSnapshot<?>> heapPriorityQueuesSnapshots;
 
     public RocksDBFullSnapshotResources(
             ResourceGuard.Lease lease,
             Snapshot snapshot,
             List<RocksDBKeyedStateBackend.RocksDbKvStateInfo> metaDataCopy,
+            List<HeapPriorityQueueStateSnapshot<?>> heapPriorityQueuesSnapshots,
             List<StateMetaInfoSnapshot> stateMetaInfoSnapshots,
             RocksDB db,
             int keyGroupPrefixBytes,
@@ -75,6 +83,7 @@ class RocksDBFullSnapshotResources<K> implements FullSnapshotResources<K> {
         this.lease = lease;
         this.snapshot = snapshot;
         this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
+        this.heapPriorityQueuesSnapshots = heapPriorityQueuesSnapshots;
         this.db = db;
         this.keyGroupPrefixBytes = keyGroupPrefixBytes;
         this.keyGroupRange = keyGroupRange;
@@ -84,6 +93,53 @@ class RocksDBFullSnapshotResources<K> implements FullSnapshotResources<K> {
         // we need to to this in the constructor, i.e. in the synchronous part of the snapshot
         // TODO: better yet, we can do it outside the constructor
         this.metaData = fillMetaData(metaDataCopy);
+    }
+
+    public static <K> RocksDBFullSnapshotResources<K> create(
+            final LinkedHashMap<String, RocksDBKeyedStateBackend.RocksDbKvStateInfo>
+                    kvStateInformation,
+            // TODO: was it important that this is a LinkedHashMap
+            final Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates,
+            final RocksDB db,
+            final ResourceGuard rocksDBResourceGuard,
+            final KeyGroupRange keyGroupRange,
+            final TypeSerializer<K> keySerializer,
+            final int keyGroupPrefixBytes,
+            final StreamCompressionDecorator keyGroupCompressionDecorator)
+            throws IOException {
+
+        final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots =
+                new ArrayList<>(kvStateInformation.size());
+        final List<RocksDBKeyedStateBackend.RocksDbKvStateInfo> metaDataCopy =
+                new ArrayList<>(kvStateInformation.size());
+
+        for (RocksDBKeyedStateBackend.RocksDbKvStateInfo stateInfo : kvStateInformation.values()) {
+            // snapshot meta info
+            stateMetaInfoSnapshots.add(stateInfo.metaInfo.snapshot());
+            metaDataCopy.add(stateInfo);
+        }
+
+        List<HeapPriorityQueueStateSnapshot<?>> heapPriorityQueuesSnapshots =
+                new ArrayList<>(registeredPQStates.size());
+        for (HeapPriorityQueueSnapshotRestoreWrapper<?> stateInfo : registeredPQStates.values()) {
+            stateMetaInfoSnapshots.add(stateInfo.getMetaInfo().snapshot());
+            heapPriorityQueuesSnapshots.add(stateInfo.stateSnapshot());
+        }
+
+        final ResourceGuard.Lease lease = rocksDBResourceGuard.acquireResource();
+        final Snapshot snapshot = db.getSnapshot();
+
+        return new RocksDBFullSnapshotResources<>(
+                lease,
+                snapshot,
+                metaDataCopy,
+                heapPriorityQueuesSnapshots,
+                stateMetaInfoSnapshots,
+                db,
+                keyGroupPrefixBytes,
+                keyGroupRange,
+                keySerializer,
+                keyGroupCompressionDecorator);
     }
 
     private List<MetaData> fillMetaData(
@@ -115,16 +171,34 @@ class RocksDBFullSnapshotResources<K> implements FullSnapshotResources<K> {
             List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators =
                     createKVStateIterators(closeableRegistry, readOptions);
 
+            List<SingleStateIterator> heapPriorityQueueIterators =
+                    createHeapPriorityQueueIterators();
+
             // Here we transfer ownership of the required resources to the
             // RocksStatesPerKeyGroupMergeIterator
             return new RocksStatesPerKeyGroupMergeIterator(
-                    closeableRegistry, new ArrayList<>(kvStateIterators), keyGroupPrefixBytes);
+                    closeableRegistry,
+                    kvStateIterators,
+                    heapPriorityQueueIterators,
+                    keyGroupPrefixBytes);
         } catch (Throwable t) {
             // If anything goes wrong, clean up our stuff. If things went smoothly the
             // merging iterator is now responsible for closing the resources
             IOUtils.closeQuietly(closeableRegistry);
             throw new IOException("Error creating merge iterator", t);
         }
+    }
+
+    private List<SingleStateIterator> createHeapPriorityQueueIterators() {
+        int kvStateId = metaData.size();
+        List<SingleStateIterator> queuesIterators =
+                new ArrayList<>(heapPriorityQueuesSnapshots.size());
+        for (HeapPriorityQueueStateSnapshot<?> queuesSnapshot : heapPriorityQueuesSnapshots) {
+            queuesIterators.add(
+                    new RocksQueueIterator(
+                            queuesSnapshot, keyGroupRange, keyGroupPrefixBytes, kvStateId++));
+        }
+        return queuesIterators;
     }
 
     private List<Tuple2<RocksIteratorWrapper, Integer>> createKVStateIterators(

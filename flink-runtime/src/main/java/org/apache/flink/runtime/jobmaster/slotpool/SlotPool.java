@@ -52,8 +52,6 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
             ComponentMainThreadExecutor jmMainThreadScheduledExecutor)
             throws Exception;
 
-    void suspend();
-
     void close();
 
     // ------------------------------------------------------------------------

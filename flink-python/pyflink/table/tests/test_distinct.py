@@ -16,10 +16,10 @@
 # limitations under the License.
 ################################################################################
 
-from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkBlinkStreamTableTestCase
 
 
-class StreamTableDistinctTests(PyFlinkStreamTableTestCase):
+class StreamTableDistinctTests(PyFlinkBlinkStreamTableTestCase):
 
     def test_distinct(self):
         t = self.t_env.from_elements([(1, "Hi", "Hello")], ['a', 'b', 'c'])

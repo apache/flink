@@ -26,6 +26,7 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -73,10 +74,8 @@ public class DeclarativeSlotPoolBridgeResourceDeclarationTest extends TestLogger
                                 (allocationID, e) ->
                                         ResourceCounter.withResource(ResourceProfile.UNKNOWN, 1));
 
-        final DeclarativeSlotPoolBridgeTest.TestingDeclarativeSlotPoolFactory
-                declarativeSlotPoolFactory =
-                        new DeclarativeSlotPoolBridgeTest.TestingDeclarativeSlotPoolFactory(
-                                slotPoolBuilder);
+        final TestingDeclarativeSlotPoolFactory declarativeSlotPoolFactory =
+                new TestingDeclarativeSlotPoolFactory(slotPoolBuilder);
         declarativeSlotPoolBridge = createDeclarativeSlotPoolBridge(declarativeSlotPoolFactory);
     }
 

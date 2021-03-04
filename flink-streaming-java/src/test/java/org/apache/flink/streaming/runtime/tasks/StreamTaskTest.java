@@ -35,6 +35,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
@@ -52,6 +53,7 @@ import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.metrics.TimerGauge;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
@@ -115,6 +117,7 @@ import org.apache.flink.util.CloseableIterable;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.SupplierWithException;
 
@@ -151,7 +154,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import static java.util.Arrays.asList;
+import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
+import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE;
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
+import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
+import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MAX_PRIORITY;
 import static org.apache.flink.streaming.util.StreamTaskUtil.waitTaskIsRunning;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.Matchers.instanceOf;
@@ -182,12 +189,127 @@ public class StreamTaskTest extends TestLogger {
     @Rule public final Timeout timeoutPerTest = Timeout.seconds(30);
 
     @Test
+    public void testSavepointSuspendCompleted() throws Exception {
+        testSyncSavepointWithEndInput(
+                StreamTask::notifyCheckpointCompleteAsync, CheckpointType.SAVEPOINT_SUSPEND, false);
+    }
+
+    @Test
+    public void testSavepointTerminateCompleted() throws Exception {
+        testSyncSavepointWithEndInput(
+                StreamTask::notifyCheckpointCompleteAsync,
+                CheckpointType.SAVEPOINT_TERMINATE,
+                true);
+    }
+
+    @Test
+    public void testSavepointSuspendedAborted() throws Exception {
+        testSyncSavepointWithEndInput(
+                (task, id) ->
+                        task.abortCheckpointOnBarrier(
+                                id,
+                                new CheckpointException(
+                                        UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE)),
+                CheckpointType.SAVEPOINT_SUSPEND,
+                true);
+    }
+
+    @Test
+    public void testSavepointTerminateAborted() throws Exception {
+        testSyncSavepointWithEndInput(
+                (task, id) ->
+                        task.abortCheckpointOnBarrier(
+                                id,
+                                new CheckpointException(
+                                        UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE)),
+                CheckpointType.SAVEPOINT_TERMINATE,
+                true);
+    }
+
+    @Test
+    public void testSavepointSuspendAbortedAsync() throws Exception {
+        testSyncSavepointWithEndInput(
+                StreamTask::notifyCheckpointAbortAsync, CheckpointType.SAVEPOINT_SUSPEND, true);
+    }
+
+    @Test
+    public void testSavepointTerminateAbortedAsync() throws Exception {
+        testSyncSavepointWithEndInput(
+                StreamTask::notifyCheckpointAbortAsync, CheckpointType.SAVEPOINT_TERMINATE, true);
+    }
+
+    /**
+     * Test for SyncSavepoint and EndInput interactions. Targets following scenarios scenarios:
+     *
+     * <ol>
+     *   <li>Thread1: notify sync savepoint
+     *   <li>Thread2: endInput
+     *   <li>Thread1: confirm/abort/abortAsync
+     *   <li>assert inputEnded: confirmed - no, abort/abortAsync - yes
+     * </ol>
+     */
+    private void testSyncSavepointWithEndInput(
+            BiConsumerWithException<StreamTask<?, ?>, Long, IOException> savepointResult,
+            CheckpointType checkpointType,
+            boolean expectEndInput)
+            throws Exception {
+        StreamTaskMailboxTestHarness<String> harness =
+                new StreamTaskMailboxTestHarnessBuilder<>(OneInputStreamTask::new, STRING_TYPE_INFO)
+                        .addInput(STRING_TYPE_INFO)
+                        .setupOutputForSingletonOperatorChain(
+                                new TestBoundedOneInputStreamOperator())
+                        .build();
+
+        final long checkpointId = 1L;
+        CountDownLatch savepointTriggeredLatch = new CountDownLatch(1);
+        CountDownLatch inputEndedLatch = new CountDownLatch(1);
+
+        MailboxExecutor executor =
+                harness.streamTask.getMailboxExecutorFactory().createExecutor(MAX_PRIORITY);
+        executor.execute(
+                () -> {
+                    try {
+                        harness.streamTask.triggerCheckpointOnBarrier(
+                                new CheckpointMetaData(checkpointId, checkpointId),
+                                new CheckpointOptions(checkpointType, getDefault()),
+                                new CheckpointMetricsBuilder());
+                    } catch (IOException e) {
+                        fail(e.getMessage());
+                    }
+                },
+                "triggerCheckpointOnBarrier");
+        new Thread(
+                        () -> {
+                            try {
+                                savepointTriggeredLatch.await();
+                                harness.endInput();
+                                inputEndedLatch.countDown();
+                            } catch (InterruptedException e) {
+                                fail(e.getMessage());
+                            }
+                        })
+                .start();
+        // this mails should be executed from the one above (from triggerCheckpointOnBarrier)
+        executor.execute(savepointTriggeredLatch::countDown, "savepointTriggeredLatch");
+        executor.execute(
+                () -> {
+                    inputEndedLatch.await();
+                    savepointResult.accept(harness.streamTask, checkpointId);
+                },
+                "savepointResult");
+
+        while (harness.streamTask.isMailboxLoopRunning()) {
+            harness.streamTask.runMailboxStep();
+        }
+
+        Assert.assertEquals(expectEndInput, TestBoundedOneInputStreamOperator.isInputEnded());
+    }
+
+    @Test
     public void testCleanUpExceptionSuppressing() throws Exception {
         OneInputStreamTaskTestHarness<String, String> testHarness =
                 new OneInputStreamTaskTestHarness<>(
-                        OneInputStreamTask::new,
-                        BasicTypeInfo.STRING_TYPE_INFO,
-                        BasicTypeInfo.STRING_TYPE_INFO);
+                        OneInputStreamTask::new, STRING_TYPE_INFO, STRING_TYPE_INFO);
 
         testHarness.setupOutputForSingletonOperatorChain();
 
@@ -290,8 +412,7 @@ public class StreamTaskTest extends TestLogger {
                             .build();
 
             final TaskExecutionState state =
-                    new TaskExecutionState(
-                            task.getJobID(), task.getExecutionId(), ExecutionState.RUNNING);
+                    new TaskExecutionState(task.getExecutionId(), ExecutionState.RUNNING);
 
             task.startTaskThread();
 
@@ -576,8 +697,7 @@ public class StreamTaskTest extends TestLogger {
 
         streamTask.triggerCheckpointAsync(
                 new CheckpointMetaData(42L, 1L),
-                CheckpointOptions.forCheckpointWithDefaultLocation(),
-                false);
+                CheckpointOptions.forCheckpointWithDefaultLocation());
 
         try {
             task.waitForTaskCompletion(false);
@@ -628,8 +748,7 @@ public class StreamTaskTest extends TestLogger {
 
         streamTask.triggerCheckpointAsync(
                 new CheckpointMetaData(42L, 1L),
-                CheckpointOptions.forCheckpointWithDefaultLocation(),
-                false);
+                CheckpointOptions.forCheckpointWithDefaultLocation());
 
         final Throwable uncaughtException = uncaughtExceptionHandler.waitForUncaughtException();
         assertThat(uncaughtException, is(failingCause));
@@ -679,8 +798,7 @@ public class StreamTaskTest extends TestLogger {
             streamTask
                     .triggerCheckpointAsync(
                             new CheckpointMetaData(42L, 1L),
-                            CheckpointOptions.forCheckpointWithDefaultLocation(),
-                            false)
+                            CheckpointOptions.forCheckpointWithDefaultLocation())
                     .get();
 
             // wait for the completion of the async task
@@ -795,8 +913,7 @@ public class StreamTaskTest extends TestLogger {
             final long checkpointId = 42L;
             streamTask.triggerCheckpointAsync(
                     new CheckpointMetaData(checkpointId, 1L),
-                    CheckpointOptions.forCheckpointWithDefaultLocation(),
-                    false);
+                    CheckpointOptions.forCheckpointWithDefaultLocation());
 
             acknowledgeCheckpointLatch.await();
 
@@ -885,8 +1002,7 @@ public class StreamTaskTest extends TestLogger {
         final long checkpointId = 42L;
         task.streamTask.triggerCheckpointAsync(
                 new CheckpointMetaData(checkpointId, 1L),
-                CheckpointOptions.forCheckpointWithDefaultLocation(),
-                false);
+                CheckpointOptions.forCheckpointWithDefaultLocation());
 
         rawKeyedStateHandleFuture.awaitRun();
 
@@ -971,8 +1087,7 @@ public class StreamTaskTest extends TestLogger {
 
             task.streamTask.triggerCheckpointAsync(
                     new CheckpointMetaData(42L, 1L),
-                    CheckpointOptions.forCheckpointWithDefaultLocation(),
-                    false);
+                    CheckpointOptions.forCheckpointWithDefaultLocation());
 
             checkpointCompletedLatch.await(30, TimeUnit.SECONDS);
 
@@ -1259,6 +1374,7 @@ public class StreamTaskTest extends TestLogger {
         private final RunnableWithException resumeTask;
         private final long sleepTimeInsideMail;
         private final long sleepTimeOutsideMail;
+        private final TimerGauge sleepOutsideMailTimer;
 
         @Nullable private Exception asyncException;
 
@@ -1266,16 +1382,25 @@ public class StreamTaskTest extends TestLogger {
                 MailboxExecutor executor,
                 RunnableWithException resumeTask,
                 long sleepTimeInsideMail,
-                long sleepTimeOutsideMail) {
+                long sleepTimeOutsideMail,
+                TimerGauge sleepOutsideMailTimer) {
             this.executor = executor;
             this.resumeTask = resumeTask;
             this.sleepTimeInsideMail = sleepTimeInsideMail;
             this.sleepTimeOutsideMail = sleepTimeOutsideMail;
+            this.sleepOutsideMailTimer = sleepOutsideMailTimer;
         }
 
         @Override
         public void run() {
             try {
+                // Make sure that the Task thread actually starts measuring the backpressure before
+                // we start the measured sleep. The WaitingThread is started from within the mailbox
+                // so we should first wait until mailbox loop starts idling before we enter the
+                // measured sleep
+                while (!sleepOutsideMailTimer.isMeasuring()) {
+                    Thread.sleep(1);
+                }
                 Thread.sleep(sleepTimeOutsideMail);
             } catch (InterruptedException e) {
                 asyncException = e;
@@ -1307,6 +1432,8 @@ public class StreamTaskTest extends TestLogger {
                             .setStreamInputProcessor(inputProcessor)
                             .build();
             final MailboxExecutor executor = task.mailboxProcessor.getMainMailboxExecutor();
+            TaskIOMetricGroup ioMetricGroup =
+                    task.getEnvironment().getMetricGroup().getIOMetricGroup();
 
             final RunnableWithException completeFutureTask =
                     () -> {
@@ -1320,15 +1447,15 @@ public class StreamTaskTest extends TestLogger {
                             executor,
                             completeFutureTask,
                             sleepTimeInsideMail,
-                            sleepTimeOutsideMail);
+                            sleepTimeOutsideMail,
+                            ioMetricGroup.getBackPressuredTimePerSecond());
             // Make sure WaitingThread is started after Task starts processing.
             executor.submit(
                     waitingThread::start,
                     "This task will submit another task to execute after processing input once.");
 
             long startTs = System.currentTimeMillis();
-            TaskIOMetricGroup ioMetricGroup =
-                    task.getEnvironment().getMetricGroup().getIOMetricGroup();
+
             task.invoke();
             long totalDuration = System.currentTimeMillis() - startTs;
             assertThat(
@@ -1359,6 +1486,8 @@ public class StreamTaskTest extends TestLogger {
                     new MockStreamTaskBuilder(environment)
                             .setStreamInputProcessor(inputProcessor)
                             .build();
+            TaskIOMetricGroup ioMetricGroup =
+                    task.getEnvironment().getMetricGroup().getIOMetricGroup();
 
             final MailboxExecutor executor = task.mailboxProcessor.getMainMailboxExecutor();
             final RunnableWithException completeFutureTask =
@@ -1374,15 +1503,14 @@ public class StreamTaskTest extends TestLogger {
                             executor,
                             completeFutureTask,
                             sleepTimeInsideMail,
-                            sleepTimeOutsideMail);
+                            sleepTimeOutsideMail,
+                            ioMetricGroup.getIdleTimeMsPerSecond());
             // Make sure WaitingThread is started after Task starts processing.
             executor.submit(
                     waitingThread::start,
                     "Start WaitingThread after Task starts processing input.");
 
             long startTs = System.currentTimeMillis();
-            TaskIOMetricGroup ioMetricGroup =
-                    task.getEnvironment().getMetricGroup().getIOMetricGroup();
             task.invoke();
             long totalDuration = System.currentTimeMillis() - startTs;
 

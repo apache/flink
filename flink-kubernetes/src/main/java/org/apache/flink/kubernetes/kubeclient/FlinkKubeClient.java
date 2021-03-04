@@ -25,6 +25,7 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesWatch;
 
+import java.io.File;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -186,6 +187,14 @@ public interface FlinkKubeClient extends AutoCloseable {
     /** Close the Kubernetes client with no exception. */
     void close();
 
+    /**
+     * Load pod from template file.
+     *
+     * @param podTemplateFile The pod template file.
+     * @return Return a Kubernetes pod loaded from the template.
+     */
+    KubernetesPod loadPodFromTemplateFile(File podTemplateFile);
+
     /** Callback handler for kubernetes resources. */
     interface WatchCallbackHandler<T> {
 
@@ -197,6 +206,6 @@ public interface FlinkKubeClient extends AutoCloseable {
 
         void onError(List<T> resources);
 
-        void handleFatalError(Throwable throwable);
+        void handleError(Throwable throwable);
     }
 }

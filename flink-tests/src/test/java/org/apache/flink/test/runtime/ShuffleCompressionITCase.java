@@ -31,8 +31,8 @@ import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.util.EnvironmentInformation;
@@ -86,11 +86,7 @@ public class ShuffleCompressionITCase {
                 NettyShuffleEnvironmentOptions.BLOCKING_SHUFFLE_COMPRESSION_ENABLED, true);
         configuration.setString(AkkaOptions.ASK_TIMEOUT, "60 s");
 
-        JobGraph jobGraph =
-                createJobGraph(
-                        ScheduleMode.LAZY_FROM_SOURCES,
-                        ResultPartitionType.BLOCKING,
-                        ExecutionMode.BATCH);
+        JobGraph jobGraph = createJobGraph(ResultPartitionType.BLOCKING, ExecutionMode.BATCH);
         JobGraphRunningUtil.execute(jobGraph, configuration, NUM_TASKMANAGERS, NUM_SLOTS);
     }
 
@@ -103,18 +99,12 @@ public class ShuffleCompressionITCase {
                 NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM, 1);
         configuration.setString(AkkaOptions.ASK_TIMEOUT, "60 s");
 
-        JobGraph jobGraph =
-                createJobGraph(
-                        ScheduleMode.LAZY_FROM_SOURCES,
-                        ResultPartitionType.BLOCKING,
-                        ExecutionMode.BATCH);
+        JobGraph jobGraph = createJobGraph(ResultPartitionType.BLOCKING, ExecutionMode.BATCH);
         JobGraphRunningUtil.execute(jobGraph, configuration, NUM_TASKMANAGERS, NUM_SLOTS);
     }
 
     private static JobGraph createJobGraph(
-            ScheduleMode scheduleMode,
-            ResultPartitionType resultPartitionType,
-            ExecutionMode executionMode)
+            ResultPartitionType resultPartitionType, ExecutionMode executionMode)
             throws IOException {
         SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
 
@@ -130,7 +120,7 @@ public class ShuffleCompressionITCase {
 
         sink.connectNewDataSetAsInput(source, DistributionPattern.ALL_TO_ALL, resultPartitionType);
         JobGraph jobGraph = new JobGraph(source, sink);
-        jobGraph.setScheduleMode(scheduleMode);
+        jobGraph.setJobType(JobType.BATCH);
 
         ExecutionConfig executionConfig = new ExecutionConfig();
         executionConfig.setExecutionMode(executionMode);

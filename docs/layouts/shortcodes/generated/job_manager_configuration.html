@@ -1,0 +1,162 @@
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>jobmanager.adaptive-scheduler.min-parallelism-increase</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>Integer</td>
+            <td>Configure the minimum increase in parallelism for a job to scale up.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.adaptive-scheduler.resource-wait-timeout</h5></td>
+            <td style="word-wrap: break-word;">10 s</td>
+            <td>Duration</td>
+            <td>The maximum time the JobManager will wait to acquire all required resources after a job submission or restart. Once elapsed it will try to run the job with a lower parallelism, or fail if the minimum amount of resources could not be acquired.<br />Increasing this value will make the cluster more resilient against temporary resources shortages (e.g., there is more time for a failed TaskManager to be restarted), while decreasing this value reduces downtime of a job (provided that enough slots are available to still run the job).</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.archive.fs.dir</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Dictionary for JobManager to store the archives of completed jobs.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.bind-host</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The local address of the network interface that the job manager binds to. If not configured, '0.0.0.0' will be used.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.execution.attempts-history-size</h5></td>
+            <td style="word-wrap: break-word;">16</td>
+            <td>Integer</td>
+            <td>The maximum number of prior execution attempts kept in history.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.execution.failover-strategy</h5></td>
+            <td style="word-wrap: break-word;">"region"</td>
+            <td>String</td>
+            <td>This option specifies how the job computation recovers from task failures. Accepted values are:<ul><li>'full': Restarts all tasks to recover the job.</li><li>'region': Restarts all tasks that could be affected by the task failure. More details can be found <a href="../dev/task_failure_recovery.html#restart-pipelined-region-failover-strategy">here</a>.</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.memory.enable-jvm-direct-memory-limit</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to enable the JVM direct memory limit of the JobManager process (-XX:MaxDirectMemorySize). The limit will be set to the value of 'jobmanager.memory.off-heap.size' option. </td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.memory.flink.size</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>MemorySize</td>
+            <td>Total Flink Memory size for the JobManager. This includes all the memory that a JobManager consumes, except for JVM Metaspace and JVM Overhead. It consists of JVM Heap Memory and Off-heap Memory. See also 'jobmanager.memory.process.size' for total process memory size configuration.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.memory.heap.size</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>MemorySize</td>
+            <td>JVM Heap Memory size for JobManager. The minimum recommended JVM Heap size is 128.000mb (134217728 bytes).</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.memory.jvm-metaspace.size</h5></td>
+            <td style="word-wrap: break-word;">256 mb</td>
+            <td>MemorySize</td>
+            <td>JVM Metaspace Size for the JobManager.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.memory.jvm-overhead.fraction</h5></td>
+            <td style="word-wrap: break-word;">0.1</td>
+            <td>Float</td>
+            <td>Fraction of Total Process Memory to be reserved for JVM Overhead. This is off-heap memory reserved for JVM overhead, such as thread stack space, compile cache, etc. This includes native memory but not direct memory, and will not be counted when Flink calculates JVM max direct memory size parameter. The size of JVM Overhead is derived to make up the configured fraction of the Total Process Memory. If the derived size is less or greater than the configured min or max size, the min or max size will be used. The exact size of JVM Overhead can be explicitly specified by setting the min and max size to the same value.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.memory.jvm-overhead.max</h5></td>
+            <td style="word-wrap: break-word;">1 gb</td>
+            <td>MemorySize</td>
+            <td>Max JVM Overhead size for the JobManager. This is off-heap memory reserved for JVM overhead, such as thread stack space, compile cache, etc. This includes native memory but not direct memory, and will not be counted when Flink calculates JVM max direct memory size parameter. The size of JVM Overhead is derived to make up the configured fraction of the Total Process Memory. If the derived size is less or greater than the configured min or max size, the min or max size will be used. The exact size of JVM Overhead can be explicitly specified by setting the min and max size to the same value.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.memory.jvm-overhead.min</h5></td>
+            <td style="word-wrap: break-word;">192 mb</td>
+            <td>MemorySize</td>
+            <td>Min JVM Overhead size for the JobManager. This is off-heap memory reserved for JVM overhead, such as thread stack space, compile cache, etc. This includes native memory but not direct memory, and will not be counted when Flink calculates JVM max direct memory size parameter. The size of JVM Overhead is derived to make up the configured fraction of the Total Process Memory. If the derived size is less or greater than the configured min or max size, the min or max size will be used. The exact size of JVM Overhead can be explicitly specified by setting the min and max size to the same value.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.memory.off-heap.size</h5></td>
+            <td style="word-wrap: break-word;">128 mb</td>
+            <td>MemorySize</td>
+            <td>Off-heap Memory size for JobManager. This option covers all off-heap memory usage including direct and native memory allocation. The JVM direct memory limit of the JobManager process (-XX:MaxDirectMemorySize) will be set to this value if the limit is enabled by 'jobmanager.memory.enable-jvm-direct-memory-limit'. </td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.memory.process.size</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>MemorySize</td>
+            <td>Total Process Memory size for the JobManager. This includes all the memory that a JobManager JVM process consumes, consisting of Total Flink Memory, JVM Metaspace, and JVM Overhead. In containerized setups, this should be set to the container memory. See also 'jobmanager.memory.flink.size' for Total Flink Memory size configuration.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.retrieve-taskmanager-hostname</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Flag indicating whether JobManager would retrieve canonical host name of TaskManager during registration. If the option is set to "false", TaskManager registration with JobManager could be faster, since no reverse DNS lookup is performed. However, local input split assignment (such as for HDFS files) may be impacted.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.rpc.address</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The config parameter defining the network address to connect to for communication with the job manager. This value is only interpreted in setups where a single JobManager with static name or address exists (simple standalone setups, or container setups with dynamic service name resolution). It is not used in many high-availability setups, when a leader-election service (like ZooKeeper) is used to elect and discover the JobManager leader from potentially multiple standby JobManagers.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.rpc.bind-port</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Integer</td>
+            <td>The local RPC port that the JobManager binds to. If not configured, the external port (configured by 'jobmanager.rpc.port') will be used.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.rpc.port</h5></td>
+            <td style="word-wrap: break-word;">6123</td>
+            <td>Integer</td>
+            <td>The config parameter defining the network port to connect to for communication with the job manager. Like jobmanager.rpc.address, this value is only interpreted in setups where a single JobManager with static name/address and port exists (simple standalone setups, or container setups with dynamic service name resolution). This config option is not used in many high-availability setups, when a leader-election service (like ZooKeeper) is used to elect and discover the JobManager leader from potentially multiple standby JobManagers.</td>
+        </tr>
+        <tr>
+            <td><h5>jobstore.cache-size</h5></td>
+            <td style="word-wrap: break-word;">52428800</td>
+            <td>Long</td>
+            <td>The job store cache size in bytes which is used to keep completed jobs in memory.</td>
+        </tr>
+        <tr>
+            <td><h5>jobstore.expiration-time</h5></td>
+            <td style="word-wrap: break-word;">3600</td>
+            <td>Long</td>
+            <td>The time in seconds after which a completed job expires and is purged from the job store.</td>
+        </tr>
+        <tr>
+            <td><h5>jobstore.max-capacity</h5></td>
+            <td style="word-wrap: break-word;">2147483647</td>
+            <td>Integer</td>
+            <td>The max number of completed jobs that can be kept in the job store.</td>
+        </tr>
+        <tr>
+            <td><h5>scheduler-mode</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td><p>Enum</p>Possible values: [REACTIVE]</td>
+            <td>Determines the mode of the scheduler. Note that <span markdown="span">`scheduler-mode`</span>=<span markdown="span">`REACTIVE`</span> is only supported by standalone application deployments, not by active resource managers (YARN, Kubernetes) or session clusters.</td>
+        </tr>
+        <tr>
+            <td><h5>slot.idle.timeout</h5></td>
+            <td style="word-wrap: break-word;">50000</td>
+            <td>Long</td>
+            <td>The timeout in milliseconds for a idle slot in Slot Pool.</td>
+        </tr>
+        <tr>
+            <td><h5>slot.request.timeout</h5></td>
+            <td style="word-wrap: break-word;">300000</td>
+            <td>Long</td>
+            <td>The timeout in milliseconds for requesting a slot from Slot Pool.</td>
+        </tr>
+    </tbody>
+</table>

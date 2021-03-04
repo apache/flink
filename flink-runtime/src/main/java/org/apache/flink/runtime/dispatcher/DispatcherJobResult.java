@@ -19,25 +19,26 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
 /**
- * Container for returning the {@link ArchivedExecutionGraph} and a flag whether the initialization
- * has failed. For initialization failures, the throwable is also attached, to avoid deserializing
- * it from the ArchivedExecutionGraph.
+ * Container for returning the {@link ExecutionGraphInfo} and a flag whether the initialization has
+ * failed. For initialization failures, the throwable is also attached, to avoid deserializing it
+ * from the {@link ArchivedExecutionGraph}.
  */
 final class DispatcherJobResult {
 
-    private final ArchivedExecutionGraph archivedExecutionGraph;
+    private final ExecutionGraphInfo executionGraphInfo;
 
     // if the throwable field is set, the job failed during initialization.
     @Nullable private final Throwable initializationFailure;
 
     private DispatcherJobResult(
-            ArchivedExecutionGraph archivedExecutionGraph, @Nullable Throwable throwable) {
-        this.archivedExecutionGraph = archivedExecutionGraph;
+            ExecutionGraphInfo executionGraphInfo, @Nullable Throwable throwable) {
+        this.executionGraphInfo = executionGraphInfo;
         this.initializationFailure = throwable;
     }
 
@@ -45,8 +46,8 @@ final class DispatcherJobResult {
         return initializationFailure != null;
     }
 
-    public ArchivedExecutionGraph getArchivedExecutionGraph() {
-        return archivedExecutionGraph;
+    public ExecutionGraphInfo getExecutionGraphInfo() {
+        return executionGraphInfo;
     }
 
     /** @throws IllegalStateException if this DispatcherJobResult is a successful initialization. */
@@ -58,11 +59,11 @@ final class DispatcherJobResult {
     }
 
     public static DispatcherJobResult forInitializationFailure(
-            ArchivedExecutionGraph archivedExecutionGraph, Throwable throwable) {
-        return new DispatcherJobResult(archivedExecutionGraph, throwable);
+            ExecutionGraphInfo executionGraphInfo, Throwable throwable) {
+        return new DispatcherJobResult(executionGraphInfo, throwable);
     }
 
-    public static DispatcherJobResult forSuccess(ArchivedExecutionGraph archivedExecutionGraph) {
-        return new DispatcherJobResult(archivedExecutionGraph, null);
+    public static DispatcherJobResult forSuccess(ExecutionGraphInfo executionGraphInfo) {
+        return new DispatcherJobResult(executionGraphInfo, null);
     }
 }

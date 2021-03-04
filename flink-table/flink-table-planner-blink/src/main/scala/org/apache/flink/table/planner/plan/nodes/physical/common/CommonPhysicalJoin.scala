@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.physical.common
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.planner.plan.nodes.exec.utils.JoinSpec
+import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.utils.JoinUtil
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall

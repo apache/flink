@@ -53,7 +53,8 @@ import java.util.concurrent.Executor;
 
 /** Request handler for the job vertex details. */
 public class JobVertexDetailsHandler
-        extends AbstractExecutionGraphHandler<JobVertexDetailsInfo, JobVertexMessageParameters>
+        extends AbstractAccessExecutionGraphHandler<
+                JobVertexDetailsInfo, JobVertexMessageParameters>
         implements JsonArchivist {
     private final MetricFetcher metricFetcher;
 
@@ -129,6 +130,7 @@ public class JobVertexDetailsHandler
                 jobVertex.getJobVertexId(),
                 jobVertex.getName(),
                 jobVertex.getParallelism(),
+                jobVertex.getMaxParallelism(),
                 now,
                 subtasks);
     }

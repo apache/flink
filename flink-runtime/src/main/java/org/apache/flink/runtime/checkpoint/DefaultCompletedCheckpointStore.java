@@ -230,15 +230,15 @@ public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
 
         completedCheckpoints.addLast(checkpoint);
 
-        // Everything worked, let's remove a previous checkpoint if necessary.
-        while (completedCheckpoints.size() > maxNumberOfCheckpointsToRetain) {
-            final CompletedCheckpoint completedCheckpoint = completedCheckpoints.removeFirst();
-            tryRemoveCompletedCheckpoint(
-                    completedCheckpoint,
-                    completedCheckpoint.shouldBeDiscardedOnSubsume(),
-                    checkpointsCleaner,
-                    postCleanup);
-        }
+        CheckpointSubsumeHelper.subsume(
+                completedCheckpoints,
+                maxNumberOfCheckpointsToRetain,
+                completedCheckpoint ->
+                        tryRemoveCompletedCheckpoint(
+                                completedCheckpoint,
+                                completedCheckpoint.shouldBeDiscardedOnSubsume(),
+                                checkpointsCleaner,
+                                postCleanup));
 
         LOG.debug("Added {} to {}.", checkpoint, path);
     }
@@ -259,18 +259,21 @@ public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
     }
 
     @Override
-    public void shutdown(
-            JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner, Runnable postCleanup)
+    public void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner)
             throws Exception {
         if (jobStatus.isGloballyTerminalState()) {
             LOG.info("Shutting down");
 
             for (CompletedCheckpoint checkpoint : completedCheckpoints) {
-                tryRemoveCompletedCheckpoint(
-                        checkpoint,
-                        checkpoint.shouldBeDiscardedOnShutdown(jobStatus),
-                        checkpointsCleaner,
-                        postCleanup);
+                try {
+                    tryRemoveCompletedCheckpoint(
+                            checkpoint,
+                            checkpoint.shouldBeDiscardedOnShutdown(jobStatus),
+                            checkpointsCleaner,
+                            () -> {});
+                } catch (Exception e) {
+                    LOG.warn("Fail to remove checkpoint during shutdown.", e);
+                }
             }
 
             completedCheckpoints.clear();
@@ -293,14 +296,11 @@ public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
             CompletedCheckpoint completedCheckpoint,
             boolean shouldDiscard,
             CheckpointsCleaner checkpointsCleaner,
-            Runnable postCleanup) {
-        try {
-            if (tryRemove(completedCheckpoint.getCheckpointID())) {
-                checkpointsCleaner.cleanCheckpoint(
-                        completedCheckpoint, shouldDiscard, postCleanup, ioExecutor);
-            }
-        } catch (Exception e) {
-            LOG.warn("Failed to subsume the old checkpoint", e);
+            Runnable postCleanup)
+            throws Exception {
+        if (tryRemove(completedCheckpoint.getCheckpointID())) {
+            checkpointsCleaner.cleanCheckpoint(
+                    completedCheckpoint, shouldDiscard, postCleanup, ioExecutor);
         }
     }
 

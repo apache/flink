@@ -21,6 +21,7 @@ package org.apache.flink.api.common.functions;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
 import org.apache.flink.api.common.accumulators.Histogram;
@@ -42,6 +43,7 @@ import org.apache.flink.metrics.MetricGroup;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -55,6 +57,14 @@ import java.util.Set;
  */
 @Public
 public interface RuntimeContext {
+
+    /**
+     * The ID of the current job. Empty if the execution happens outside of any job context (e.g.
+     * standalone collection executor). Note that Job ID can change in particular upon manual
+     * restart. The returned ID should NOT be used for any job management tasks.
+     */
+    @PublicEvolving
+    Optional<JobID> getJobId();
 
     /**
      * Returns the name of the task in which the UDF runs, as assigned during plan construction.

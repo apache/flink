@@ -47,6 +47,7 @@ import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOption
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.MAX_OPEN_FILES;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.MAX_SIZE_LEVEL_BASE;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.MAX_WRITE_BUFFER_NUMBER;
+import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.METADATA_BLOCK_SIZE;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.MIN_WRITE_BUFFER_NUMBER_TO_MERGE;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.TARGET_FILE_SIZE_BASE;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.USE_DYNAMIC_LEVEL_SIZE;
@@ -55,7 +56,7 @@ import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOption
 /**
  * An implementation of {@link ConfigurableRocksDBOptionsFactory} using options provided by {@link
  * RocksDBConfigurableOptions}. It acts as the default options factory within {@link
- * RocksDBStateBackend} if the user did not define a {@link RocksDBOptionsFactory}.
+ * EmbeddedRocksDBStateBackend} if the user did not define a {@link RocksDBOptionsFactory}.
  */
 public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOptionsFactory {
 
@@ -129,6 +130,10 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
 
         if (isOptionConfigured(BLOCK_SIZE)) {
             blockBasedTableConfig.setBlockSize(getBlockSize());
+        }
+
+        if (isOptionConfigured(METADATA_BLOCK_SIZE)) {
+            blockBasedTableConfig.setMetadataBlockSize(getMetadataBlockSize());
         }
 
         if (isOptionConfigured(BLOCK_CACHE_SIZE)) {
@@ -316,6 +321,23 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
     }
 
     // --------------------------------------------------------------------------
+    // Approximate size of partitioned metadata packed per block.
+    // Currently applied to indexes block when partitioned index/filters option is enabled.
+    // --------------------------------------------------------------------------
+
+    private long getMetadataBlockSize() {
+        return MemorySize.parseBytes(getInternal(METADATA_BLOCK_SIZE.key()));
+    }
+
+    public DefaultConfigurableOptionsFactory setMetadataBlockSize(String metadataBlockSize) {
+        Preconditions.checkArgument(
+                MemorySize.parseBytes(metadataBlockSize) > 0,
+                "Invalid configuration " + metadataBlockSize + " for metadata block size.");
+        setInternal(METADATA_BLOCK_SIZE.key(), metadataBlockSize);
+        return this;
+    }
+
+    // --------------------------------------------------------------------------
     // The amount of the cache for data blocks in RocksDB
     // --------------------------------------------------------------------------
 
@@ -348,6 +370,7 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
                 MAX_WRITE_BUFFER_NUMBER,
                 MIN_WRITE_BUFFER_NUMBER_TO_MERGE,
                 BLOCK_SIZE,
+                METADATA_BLOCK_SIZE,
                 BLOCK_CACHE_SIZE
             };
 
@@ -365,6 +388,7 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
                             MAX_SIZE_LEVEL_BASE,
                             WRITE_BUFFER_SIZE,
                             BLOCK_SIZE,
+                            METADATA_BLOCK_SIZE,
                             BLOCK_CACHE_SIZE));
 
     /**

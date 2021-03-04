@@ -38,9 +38,9 @@ import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGate
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -340,7 +340,6 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
         TaskExecutionState state =
                 new TaskExecutionState(
-                        graph.getJobID(),
                         execution1.getAttemptId(),
                         ExecutionState.CANCELED,
                         null,
@@ -364,7 +363,6 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
         TaskExecutionState state2 =
                 new TaskExecutionState(
-                        graph.getJobID(),
                         execution2.getAttemptId(),
                         ExecutionState.FAILED,
                         null,
@@ -491,9 +489,9 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
                         .getCurrentExecutionAttempt()
                         .getAttemptId();
         scheduler.updateTaskExecutionState(
-                new TaskExecutionState(jobId, attemptID, ExecutionState.RUNNING));
+                new TaskExecutionState(attemptID, ExecutionState.RUNNING));
         scheduler.updateTaskExecutionState(
-                new TaskExecutionState(jobId, attemptID, ExecutionState.FINISHED, null));
+                new TaskExecutionState(attemptID, ExecutionState.FINISHED, null));
 
         assertEquals(JobStatus.FAILED, eg.getState());
     }
@@ -609,7 +607,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
                 new RpcTaskManagerGateway(taskExecutorGateway, JobMasterId.generate());
 
         final JobGraph jobGraph = new JobGraph(jobId, "Test Job", sourceVertex, sinkVertex);
-        jobGraph.setScheduleMode(ScheduleMode.EAGER);
+        jobGraph.setJobType(JobType.STREAMING);
 
         final TestingPhysicalSlotProvider physicalSlotProvider =
                 TestingPhysicalSlotProvider.createWithoutImmediatePhysicalSlotCreation();
@@ -665,9 +663,6 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
         final JobGraph jobGraph = new JobGraph(jobId, "test");
         jobGraph.setSnapshotSettings(
                 new JobCheckpointingSettings(
-                        Collections.<JobVertexID>emptyList(),
-                        Collections.<JobVertexID>emptyList(),
-                        Collections.<JobVertexID>emptyList(),
                         new CheckpointCoordinatorConfiguration(
                                 100,
                                 10 * 60 * 1000,

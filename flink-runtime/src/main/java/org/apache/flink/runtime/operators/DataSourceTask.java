@@ -433,6 +433,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
                 env.getDistributedCacheEntries(),
                 env.getAccumulatorRegistry().getUserMap(),
                 getEnvironment().getMetricGroup().getOrAddOperator(sourceName),
-                env.getExternalResourceInfoProvider());
+                env.getExternalResourceInfoProvider(),
+                env.getJobID());
     }
 }

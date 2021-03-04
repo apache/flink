@@ -23,6 +23,7 @@ import org.apache.flink.annotation.Internal;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -102,7 +103,7 @@ public abstract class Resource implements Serializable {
     @Override
     public int hashCode() {
         int result = name.hashCode();
-        result = 31 * result + value.hashCode();
+        result = 31 * result + Objects.hashCode(value.doubleValue());
         return result;
     }
 
@@ -117,6 +118,10 @@ public abstract class Resource implements Serializable {
 
     public BigDecimal getValue() {
         return value;
+    }
+
+    public boolean isZero() {
+        return value.compareTo(BigDecimal.ZERO) == 0;
     }
 
     /**

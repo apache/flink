@@ -28,8 +28,8 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.RpcTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelectionStrategy;
@@ -96,7 +96,7 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
         final int parallelism = 5;
         final Time batchSlotTimeout = Time.milliseconds(5L);
         final JobGraph jobGraph = createJobGraph(parallelism);
-        jobGraph.setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST);
+        jobGraph.setJobType(JobType.BATCH);
 
         try (final SlotPoolImpl slotPool = createSlotPool(mainThreadExecutor, batchSlotTimeout)) {
             final ArrayBlockingQueue<ExecutionAttemptID> submittedTasksQueue =
@@ -168,10 +168,10 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
                         () -> {
                             scheduler.updateTaskExecutionState(
                                     new TaskExecutionState(
-                                            jobId, executionAttemptId, ExecutionState.RUNNING));
+                                            executionAttemptId, ExecutionState.RUNNING));
                             scheduler.updateTaskExecutionState(
                                     new TaskExecutionState(
-                                            jobId, executionAttemptId, ExecutionState.FINISHED));
+                                            executionAttemptId, ExecutionState.FINISHED));
                         },
                         mainThreadExecutor)
                 .join();

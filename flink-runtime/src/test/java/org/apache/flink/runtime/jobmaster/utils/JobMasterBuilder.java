@@ -20,8 +20,6 @@ package org.apache.flink.runtime.jobmaster.utils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.dispatcher.SchedulerNGFactoryFactory;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
@@ -31,23 +29,22 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.DefaultExecutionDeploymentReconciler;
 import org.apache.flink.runtime.jobmaster.DefaultExecutionDeploymentTracker;
+import org.apache.flink.runtime.jobmaster.DefaultSlotPoolServiceSchedulerFactory;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentReconciler;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobMasterConfiguration;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
+import org.apache.flink.runtime.jobmaster.SlotPoolServiceSchedulerFactory;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerSharedServicesBuilder;
 import org.apache.flink.runtime.jobmaster.factories.UnregisteredJobManagerJobMetricGroupFactory;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolServiceFactory;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
-
-import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -73,7 +70,7 @@ public class JobMasterBuilder {
 
     private HeartbeatServices heartbeatServices = DEFAULT_HEARTBEAT_SERVICES;
 
-    private SlotPoolServiceFactory slotPoolFactory = null;
+    private SlotPoolServiceSchedulerFactory slotPoolServiceSchedulerFactory = null;
 
     private OnCompletionActions onCompletionActions = new TestingOnCompletionActions();
 
@@ -82,8 +79,6 @@ public class JobMasterBuilder {
     private PartitionTrackerFactory partitionTrackerFactory = NoOpJobMasterPartitionTracker.FACTORY;
 
     private ResourceID jmResourceId = ResourceID.generate();
-
-    @Nullable private SchedulerNGFactory schedulerFactory = null;
 
     private FatalErrorHandler fatalErrorHandler = error -> {};
 
@@ -129,8 +124,9 @@ public class JobMasterBuilder {
         return this;
     }
 
-    public JobMasterBuilder withSlotPoolFactory(SlotPoolServiceFactory slotPoolFactory) {
-        this.slotPoolFactory = slotPoolFactory;
+    public JobMasterBuilder withSlotPoolServiceSchedulerFactory(
+            SlotPoolServiceSchedulerFactory slotPoolServiceSchedulerFactory) {
+        this.slotPoolServiceSchedulerFactory = slotPoolServiceSchedulerFactory;
         return this;
     }
 
@@ -172,11 +168,6 @@ public class JobMasterBuilder {
         return this;
     }
 
-    public JobMasterBuilder withSchedulerFactory(SchedulerNGFactory schedulerFactory) {
-        this.schedulerFactory = schedulerFactory;
-        return this;
-    }
-
     public JobMasterBuilder withJobMasterId(JobMasterId jobMasterId) {
         this.jobMasterId = jobMasterId;
         return this;
@@ -193,18 +184,16 @@ public class JobMasterBuilder {
                 jmResourceId,
                 jobGraph,
                 highAvailabilityServices,
-                slotPoolFactory != null
-                        ? slotPoolFactory
-                        : SlotPoolServiceFactory.fromConfiguration(configuration),
+                slotPoolServiceSchedulerFactory != null
+                        ? slotPoolServiceSchedulerFactory
+                        : DefaultSlotPoolServiceSchedulerFactory.fromConfiguration(
+                                configuration, jobGraph.getJobType()),
                 jobManagerSharedServices,
                 heartbeatServices,
                 UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
                 onCompletionActions,
                 fatalErrorHandler,
                 JobMasterBuilder.class.getClassLoader(),
-                schedulerFactory != null
-                        ? schedulerFactory
-                        : SchedulerNGFactoryFactory.createSchedulerNGFactory(configuration),
                 shuffleMaster,
                 partitionTrackerFactory,
                 executionDeploymentTracker,
@@ -218,15 +207,15 @@ public class JobMasterBuilder {
      */
     public static final class TestingOnCompletionActions implements OnCompletionActions {
 
-        private final CompletableFuture<ArchivedExecutionGraph>
-                jobReachedGloballyTerminalStateFuture = new CompletableFuture<>();
+        private final CompletableFuture<ExecutionGraphInfo> jobReachedGloballyTerminalStateFuture =
+                new CompletableFuture<>();
         private final CompletableFuture<Void> jobFinishedByOtherFuture = new CompletableFuture<>();
         private final CompletableFuture<Throwable> jobMasterFailedFuture =
                 new CompletableFuture<>();
 
         @Override
-        public void jobReachedGloballyTerminalState(ArchivedExecutionGraph executionGraph) {
-            jobReachedGloballyTerminalStateFuture.complete(executionGraph);
+        public void jobReachedGloballyTerminalState(ExecutionGraphInfo executionGraphInfo) {
+            jobReachedGloballyTerminalStateFuture.complete(executionGraphInfo);
         }
 
         @Override
@@ -239,12 +228,11 @@ public class JobMasterBuilder {
             jobMasterFailedFuture.complete(cause);
         }
 
-        public CompletableFuture<ArchivedExecutionGraph>
-                getJobReachedGloballyTerminalStateFuture() {
+        public CompletableFuture<ExecutionGraphInfo> getJobReachedGloballyTerminalStateFuture() {
             return jobReachedGloballyTerminalStateFuture;
         }
 
-        public CompletableFuture<ArchivedExecutionGraph> getJobFinishedByOtherFuture() {
+        public CompletableFuture<ExecutionGraphInfo> getJobFinishedByOtherFuture() {
             return jobReachedGloballyTerminalStateFuture;
         }
 
