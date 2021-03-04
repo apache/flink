@@ -31,7 +31,6 @@ import org.apache.flink.table.runtime.operators.window.state.StateKeyContext;
 import org.apache.flink.table.runtime.operators.window.state.WindowValueState;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.runtime.util.WindowKey;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
 import java.util.Iterator;
@@ -57,9 +56,10 @@ public final class CombineRecordsFunction implements WindowCombineFunction {
     /** Function used to handle all aggregates. */
     private final NamespaceAggsHandleFunction<Long> aggregator;
 
-    /** Whether to copy input record, because record is reused. */
+    /** Whether to copy key and input record, because key and record are reused. */
     private final boolean requiresCopy;
 
+    /** Serializer to copy record if required. */
     private final RowDataSerializer recordSerializer;
 
     /** Whether the operator works in event-time mode, used to indicate registering which timer. */
@@ -78,15 +78,7 @@ public final class CombineRecordsFunction implements WindowCombineFunction {
         this.accState = accState;
         this.aggregator = aggregator;
         this.requiresCopy = requiresCopy;
-        if (requiresCopy) {
-            LogicalType[] recordFieldTypes =
-                    recordType.getFields().stream()
-                            .map(RowType.RowField::getType)
-                            .toArray(LogicalType[]::new);
-            this.recordSerializer = new RowDataSerializer(recordFieldTypes);
-        } else {
-            this.recordSerializer = null;
-        }
+        this.recordSerializer = new RowDataSerializer(recordType);
         this.isEventTime = isEventTime;
     }
 
@@ -174,13 +166,13 @@ public final class CombineRecordsFunction implements WindowCombineFunction {
             aggregator.open(
                     new PerWindowStateDataViewStore(
                             stateBackend, LongSerializer.INSTANCE, runtimeContext));
-            boolean requiresCopyRecord = !isStateImmutableInStateBackend(stateBackend);
+            boolean requiresCopy = !isStateImmutableInStateBackend(stateBackend);
             return new CombineRecordsFunction(
                     timerService,
                     stateBackend::setCurrentKey,
                     windowState,
                     aggregator,
-                    requiresCopyRecord,
+                    requiresCopy,
                     recordType,
                     isEventTime);
         }
