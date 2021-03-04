@@ -722,17 +722,26 @@ public class DispatcherTest extends TestLogger {
         final FlinkException testException = new FlinkException("Test exception");
         jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
 
-        final JobGraph failingJobGraph = createFailingJobGraph(testException);
-
+        final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
+                new TestingJobManagerRunnerFactory();
         dispatcher =
                 new TestingDispatcherBuilder()
-                        .setInitialJobGraphs(Collections.singleton(failingJobGraph))
+                        .setJobManagerRunnerFactory(jobManagerRunnerFactory)
+                        .setInitialJobGraphs(
+                                Collections.singleton(JobGraphTestUtils.emptyJobGraph()))
                         .build();
 
         dispatcher.start();
 
         final TestingFatalErrorHandler fatalErrorHandler =
                 testingFatalErrorHandlerResource.getFatalErrorHandler();
+
+        final TestingJobManagerRunner testingJobManagerRunner =
+                jobManagerRunnerFactory.takeCreatedJobManagerRunner();
+
+        // Let the initialization of the JobManagerRunner fail
+        testingJobManagerRunner.completeResultFuture(
+                JobManagerRunnerResult.forInitializationFailure(testException));
 
         final Throwable error =
                 fatalErrorHandler
@@ -1030,15 +1039,6 @@ public class DispatcherTest extends TestLogger {
                 blockingJobVertex);
     }
 
-    private JobGraph createFailingJobGraph(Exception failureCause) {
-        final FailingJobVertex jobVertex = new FailingJobVertex("Failing JobVertex", failureCause);
-        jobVertex.setInvokableClass(NoOpInvokable.class);
-        return JobGraphBuilder.newStreamingJobGraphBuilder()
-                .setJobId(jobGraph.getJobID())
-                .addJobVertex(jobVertex)
-                .build();
-    }
-
     private static class FailingJobVertex extends JobVertex {
 
         private static final long serialVersionUID = 3218428829168840760L;
@@ -1113,18 +1113,6 @@ public class DispatcherTest extends TestLogger {
 
         public void unblock() {
             oneShotLatch.trigger();
-        }
-    }
-
-    /** JobVertex that fails during initialization. */
-    public static class FailingInitializationJobVertex extends JobVertex {
-        public FailingInitializationJobVertex(String name) {
-            super(name);
-        }
-
-        @Override
-        public void initializeOnMaster(ClassLoader loader) {
-            throw new IllegalStateException("Artificial test failure");
         }
     }
 }
