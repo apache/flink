@@ -164,6 +164,11 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
     }
 
     @Override
+    public int getRemainingBacklog() {
+        return dataBufferBacklog;
+    }
+
+    @Override
     public Throwable getFailureCause() {
         // we can never throw an error after this was created
         return null;

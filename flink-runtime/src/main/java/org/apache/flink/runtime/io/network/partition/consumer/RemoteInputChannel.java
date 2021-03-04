@@ -58,6 +58,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -110,6 +111,8 @@ public class RemoteInputChannel extends InputChannel {
 
     private final ChannelStatePersister channelStatePersister;
 
+    private boolean isUpstreamBlocked;
+
     public RemoteInputChannel(
             SingleInputGate inputGate,
             int channelIndex,
@@ -131,6 +134,7 @@ public class RemoteInputChannel extends InputChannel {
                 maxBackoff,
                 numBytesIn,
                 numBuffersIn);
+        checkArgument(networkBuffersPerChannel >= 0, "Must be non-negative.");
 
         this.initialCredit = networkBuffersPerChannel;
         this.connectionId = checkNotNull(connectionId);
@@ -355,6 +359,25 @@ public class RemoteInputChannel extends InputChannel {
         partitionRequestClient.resumeConsumption(this);
     }
 
+    private void onBlockingUpstream() {
+        isUpstreamBlocked = true;
+        if (initialCredit == 0) {
+            // release the allocated floating buffers so that they can be used by other channels if
+            // no exclusive buffer is configured, it is important because a blocked channel can not
+            // transmit any data so the allocated floating buffers can not be recycled, as a result,
+            // other channels may can't allocate new buffers for data transmission (an extreme case
+            // is that we only have 1 floating buffer and 0 exclusive buffer)
+            bufferManager.releaseFloatingBuffers();
+        }
+    }
+
+    public void onConsumptionResumed() {
+        isUpstreamBlocked = false;
+        if (initialCredit == 0) {
+            unannouncedCredit.set(0);
+        }
+    }
+
     // ------------------------------------------------------------------------
     // Network I/O notifications (called by network I/O thread)
     // ------------------------------------------------------------------------
@@ -426,7 +449,7 @@ public class RemoteInputChannel extends InputChannel {
      */
     @Nullable
     public Buffer requestBuffer() {
-        return bufferManager.requestBuffer();
+        return bufferManager.requestBuffer(initialCredit);
     }
 
     /**
@@ -436,8 +459,11 @@ public class RemoteInputChannel extends InputChannel {
      *
      * @param backlog The number of unsent buffers in the producer's sub partition.
      */
-    void onSenderBacklog(int backlog) throws IOException {
-        notifyBufferAvailable(bufferManager.requestFloatingBuffers(backlog + initialCredit));
+    public void onSenderBacklog(int backlog) throws IOException {
+        // never allocate any new buffers if upstream has been blocked
+        if (!isUpstreamBlocked) {
+            notifyBufferAvailable(bufferManager.requestFloatingBuffers(backlog + initialCredit));
+        }
     }
 
     public void onBuffer(Buffer buffer, int sequenceNumber, int backlog) throws IOException {
@@ -503,6 +529,10 @@ public class RemoteInputChannel extends InputChannel {
 
             if (backlog >= 0) {
                 onSenderBacklog(backlog);
+            }
+
+            if (buffer.getDataType().isBlockingUpstream()) {
+                onBlockingUpstream();
             }
         } finally {
             if (recycleBuffer) {

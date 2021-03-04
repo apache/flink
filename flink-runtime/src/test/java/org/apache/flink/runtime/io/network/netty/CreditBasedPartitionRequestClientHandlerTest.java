@@ -237,6 +237,50 @@ public class CreditBasedPartitionRequestClientHandlerTest {
             releaseResource(inputGate, networkBufferPool);
         }
     }
+    /** Verifies that {@link NettyMessage.BacklogAnnouncement} can be handled correctly. */
+    @Test
+    public void testReceiveBacklogAnnouncement() throws Exception {
+        int bufferSize = 1024;
+        int numBuffers = 10;
+        NetworkBufferPool networkBufferPool = new NetworkBufferPool(numBuffers, bufferSize);
+        SingleInputGate inputGate =
+                new SingleInputGateBuilder().setSegmentProvider(networkBufferPool).build();
+        RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, null);
+        inputGate.setInputChannels(inputChannel);
+
+        try {
+            BufferPool bufferPool = networkBufferPool.createBufferPool(8, 8);
+            inputGate.setBufferPool(bufferPool);
+            inputGate.setupChannels();
+
+            CreditBasedPartitionRequestClientHandler handler =
+                    new CreditBasedPartitionRequestClientHandler();
+            handler.addInputChannel(inputChannel);
+
+            assertEquals(2, inputChannel.getNumberOfAvailableBuffers());
+            assertEquals(0, inputChannel.unsynchronizedGetFloatingBuffersAvailable());
+
+            int backlog = 5;
+            NettyMessage.BacklogAnnouncement announcement =
+                    new NettyMessage.BacklogAnnouncement(backlog, inputChannel.getInputChannelId());
+            handler.channelRead(null, announcement);
+            assertEquals(7, inputChannel.getNumberOfAvailableBuffers());
+            assertEquals(7, inputChannel.getNumberOfRequiredBuffers());
+            assertEquals(backlog, inputChannel.getSenderBacklog());
+            assertEquals(5, inputChannel.unsynchronizedGetFloatingBuffersAvailable());
+
+            backlog = 12;
+            announcement =
+                    new NettyMessage.BacklogAnnouncement(backlog, inputChannel.getInputChannelId());
+            handler.channelRead(null, announcement);
+            assertEquals(10, inputChannel.getNumberOfAvailableBuffers());
+            assertEquals(14, inputChannel.getNumberOfRequiredBuffers());
+            assertEquals(backlog, inputChannel.getSenderBacklog());
+            assertEquals(8, inputChannel.unsynchronizedGetFloatingBuffersAvailable());
+        } finally {
+            releaseResource(inputGate, networkBufferPool);
+        }
+    }
 
     /**
      * Verifies that {@link RemoteInputChannel#onError(Throwable)} is called when a {@link

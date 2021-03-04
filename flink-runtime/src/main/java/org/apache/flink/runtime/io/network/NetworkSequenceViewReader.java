@@ -42,12 +42,18 @@ public interface NetworkSequenceViewReader {
     @Nullable
     BufferAndAvailability getNextBuffer() throws IOException;
 
+    /** Returns the number of remaining backlog (non-event buffer) to be read. */
+    int getRemainingBacklog();
+
     /**
      * The credits from consumer are added in incremental way.
      *
      * @param creditDeltas The credit deltas
      */
     void addCredit(int creditDeltas);
+
+    /** Returns true if the producer backlog need to be announced to the consumer. */
+    boolean needAnnounceBacklog();
 
     /** Resumes data consumption after an exactly once checkpoint. */
     void resumeConsumption();

@@ -189,7 +189,7 @@ public class NettyMessageClientDecoderDelegateTest extends TestLogger {
         int seqNumber = 1;
         List<BufferResponse> messages = new ArrayList<>();
 
-        for (int i = 0; i < NUMBER_OF_BUFFER_RESPONSES - 1; i++) {
+        for (int i = 0; i < NUMBER_OF_BUFFER_RESPONSES - 2; i++) {
             addBufferResponse(
                     messages,
                     inputChannelId,
@@ -334,7 +334,7 @@ public class NettyMessageClientDecoderDelegateTest extends TestLogger {
             BufferResponse expected = expectedMessages.get(i);
             BufferResponse actual = (BufferResponse) decodedMessages.get(i);
             verifyBufferResponseHeader(expected, actual);
-            if (expected.bufferSize == 0 || !expected.receiverId.equals(inputChannelId)) {
+            if (!expected.receiverId.equals(inputChannelId)) {
                 assertNull(actual.getBuffer());
             } else {
                 assertEquals(expected.getBuffer(), actual.getBuffer());

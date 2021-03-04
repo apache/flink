@@ -34,6 +34,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 
+import junit.framework.TestCase;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -41,6 +42,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.util.Random;
 
+import static org.apache.flink.runtime.io.network.netty.NettyMessage.BacklogAnnouncement;
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse;
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.ErrorResponse;
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.NettyMessageEncoder;
@@ -147,6 +149,14 @@ public class NettyMessageClientSideSerializationTest extends TestLogger {
         testBufferResponse(false, true);
     }
 
+    @Test
+    public void testBacklogAnnouncement() {
+        BacklogAnnouncement expected = new BacklogAnnouncement(1024, inputChannelId);
+        BacklogAnnouncement actual = encodeAndDecode(expected, channel);
+        TestCase.assertEquals(expected.backlog, actual.backlog);
+        TestCase.assertEquals(expected.receiverId, actual.receiverId);
+    }
+
     private void testErrorResponse(ErrorResponse expect) {
         ErrorResponse actual = encodeAndDecode(expect, channel);
         verifyErrorResponse(expect, actual);
@@ -173,7 +183,11 @@ public class NettyMessageClientSideSerializationTest extends TestLogger {
         }
 
         BufferResponse expected =
-                new BufferResponse(testBuffer, random.nextInt(), inputChannelId, random.nextInt());
+                new BufferResponse(
+                        testBuffer,
+                        random.nextInt(Integer.MAX_VALUE),
+                        inputChannelId,
+                        random.nextInt(Integer.MAX_VALUE));
         BufferResponse actual = encodeAndDecode(expected, channel);
 
         assertTrue(buffer.isRecycled());

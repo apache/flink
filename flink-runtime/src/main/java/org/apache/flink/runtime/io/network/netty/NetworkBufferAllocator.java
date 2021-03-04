@@ -69,6 +69,9 @@ class NetworkBufferAllocator {
      * @return The un-pooled network buffer.
      */
     Buffer allocateUnPooledNetworkBuffer(int size, Buffer.DataType dataType) {
+        if (size <= 0) {
+            return null;
+        }
         byte[] byteArray = new byte[size];
         MemorySegment memSeg = MemorySegmentFactory.wrap(byteArray);
 

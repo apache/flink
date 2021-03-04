@@ -85,6 +85,11 @@ public class PipelinedSubpartitionView implements ResultSubpartitionView {
     }
 
     @Override
+    public int getRemainingBacklog() {
+        return parent.getBuffersInBacklog();
+    }
+
+    @Override
     public Throwable getFailureCause() {
         return parent.getFailureCause();
     }

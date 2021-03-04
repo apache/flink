@@ -295,7 +295,7 @@ public class PartitionRequestQueueTest {
         final InputChannelID receiverId = new InputChannelID();
         final PartitionRequestQueue queue = new PartitionRequestQueue();
         final CreditBasedSequenceNumberingViewReader reader =
-                new CreditBasedSequenceNumberingViewReader(receiverId, 0, queue);
+                new CreditBasedSequenceNumberingViewReader(receiverId, 2, queue);
         final EmbeddedChannel channel = new EmbeddedChannel(queue);
 
         reader.requestSubpartitionView(partitionProvider, new ResultPartitionID(), 0);
@@ -312,14 +312,14 @@ public class PartitionRequestQueueTest {
         // The reader is enqueued in the pipeline because the next buffer is an event, even though
         // no credits are available
         assertThat(queue.getAvailableReaders(), contains(reader)); // contains only (this) one!
-        assertEquals(0, reader.getNumCreditsAvailable());
+        assertEquals(2, reader.getNumCreditsAvailable());
 
         // Flush the buffer to make the channel writable again and see the final results
         channel.flush();
         assertSame(channelBlockingBuffer, channel.readOutbound());
 
         assertEquals(0, queue.getAvailableReaders().size());
-        assertEquals(0, reader.getNumCreditsAvailable());
+        assertEquals(2, reader.getNumCreditsAvailable());
         assertNull(channel.readOutbound());
     }
 
@@ -346,7 +346,8 @@ public class PartitionRequestQueueTest {
         final InputChannelID receiverId = new InputChannelID();
         final PartitionRequestQueue queue = new PartitionRequestQueue();
         final CreditBasedSequenceNumberingViewReader reader =
-                new CreditBasedSequenceNumberingViewReader(receiverId, 0, queue);
+                new CreditBasedSequenceNumberingViewReader(receiverId, 2, queue);
+        reader.addCredit(-2);
         final EmbeddedChannel channel = new EmbeddedChannel(queue);
 
         reader.requestSubpartitionView(partitionProvider, new ResultPartitionID(), 0);
@@ -423,13 +424,11 @@ public class PartitionRequestQueueTest {
         InputChannelID receiverId = new InputChannelID();
         PartitionRequestQueue queue = new PartitionRequestQueue();
         CreditBasedSequenceNumberingViewReader reader =
-                new CreditBasedSequenceNumberingViewReader(receiverId, 0, queue);
+                new CreditBasedSequenceNumberingViewReader(receiverId, 2, queue);
         EmbeddedChannel channel = new EmbeddedChannel(queue);
 
         reader.requestSubpartitionView(partitionProvider, new ResultPartitionID(), 0);
         queue.notifyReaderCreated(reader);
-        // we have adequate credits
-        reader.addCredit(Integer.MAX_VALUE);
         assertTrue(reader.isAvailable());
 
         reader.notifyDataAvailable();
@@ -449,6 +448,41 @@ public class PartitionRequestQueueTest {
     }
 
     @Test
+    public void testAnnounceBacklog() throws Exception {
+        PipelinedSubpartition subpartition =
+                PipelinedSubpartitionTest.createPipelinedSubpartition();
+        subpartition.add(createEventBufferConsumer(4096, Buffer.DataType.DATA_BUFFER));
+        subpartition.add(createEventBufferConsumer(4096, Buffer.DataType.DATA_BUFFER));
+
+        PipelinedSubpartitionView view =
+                subpartition.createReadView(new NoOpBufferAvailablityListener());
+        ResultPartitionProvider partitionProvider =
+                (partitionId, index, availabilityListener) -> view;
+
+        PartitionRequestQueue queue = new PartitionRequestQueue();
+        InputChannelID receiverId = new InputChannelID();
+        CreditBasedSequenceNumberingViewReader reader =
+                new CreditBasedSequenceNumberingViewReader(receiverId, 0, queue);
+        EmbeddedChannel channel = new EmbeddedChannel(queue);
+
+        reader.requestSubpartitionView(partitionProvider, new ResultPartitionID(), 0);
+        queue.notifyReaderCreated(reader);
+
+        reader.notifyDataAvailable();
+        channel.runPendingTasks();
+        Object data = channel.readOutbound();
+        assertTrue(data instanceof NettyMessage.BacklogAnnouncement);
+        NettyMessage.BacklogAnnouncement announcement = (NettyMessage.BacklogAnnouncement) data;
+        assertEquals(receiverId, announcement.receiverId);
+        assertEquals(subpartition.getBuffersInBacklog(), announcement.backlog);
+
+        subpartition.release();
+        reader.notifyDataAvailable();
+        channel.runPendingTasks();
+        assertNotNull(channel.readOutbound());
+    }
+
+    @Test
     public void testCancelPartitionRequestForUnavailableView() throws Exception {
         testCancelPartitionRequest(false);
     }
@@ -465,7 +499,7 @@ public class PartitionRequestQueueTest {
         final InputChannelID receiverId = new InputChannelID();
         final PartitionRequestQueue queue = new PartitionRequestQueue();
         final CreditBasedSequenceNumberingViewReader reader =
-                new CreditBasedSequenceNumberingViewReader(receiverId, 0, queue);
+                new CreditBasedSequenceNumberingViewReader(receiverId, 2, queue);
         final EmbeddedChannel channel = new EmbeddedChannel(queue);
 
         reader.requestSubpartitionView(partitionManager, partition.getPartitionId(), 0);

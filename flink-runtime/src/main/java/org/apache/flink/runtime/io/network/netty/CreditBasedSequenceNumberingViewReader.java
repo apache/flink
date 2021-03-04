@@ -34,6 +34,8 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /**
  * Simple wrapper for the subpartition view used in the new network credit-based mode.
  *
@@ -48,6 +50,8 @@ class CreditBasedSequenceNumberingViewReader
     private final InputChannelID receiverId;
 
     private final PartitionRequestQueue requestQueue;
+
+    private final int initialCredit;
 
     private volatile ResultSubpartitionView subpartitionView;
 
@@ -65,8 +69,10 @@ class CreditBasedSequenceNumberingViewReader
 
     CreditBasedSequenceNumberingViewReader(
             InputChannelID receiverId, int initialCredit, PartitionRequestQueue requestQueue) {
+        checkArgument(initialCredit >= 0, "Must be non-negative.");
 
         this.receiverId = receiverId;
+        this.initialCredit = initialCredit;
         this.numCreditsAvailable = initialCredit;
         this.requestQueue = requestQueue;
     }
@@ -101,7 +107,18 @@ class CreditBasedSequenceNumberingViewReader
     }
 
     @Override
+    public boolean needAnnounceBacklog() {
+        return initialCredit == 0 && numCreditsAvailable == 0;
+    }
+
+    @Override
     public void resumeConsumption() {
+        if (initialCredit == 0) {
+            // reset available credit if no exclusive buffer is available at the
+            // consumer side for all floating buffers must have been released
+            numCreditsAvailable = 0;
+        }
+
         subpartitionView.resumeConsumption();
     }
 
@@ -179,6 +196,11 @@ class CreditBasedSequenceNumberingViewReader
         } else {
             return null;
         }
+    }
+
+    @Override
+    public int getRemainingBacklog() {
+        return subpartitionView.getRemainingBacklog();
     }
 
     @Override

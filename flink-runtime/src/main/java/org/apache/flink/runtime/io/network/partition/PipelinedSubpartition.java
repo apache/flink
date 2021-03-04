@@ -276,9 +276,7 @@ public class PipelinedSubpartition extends ResultSubpartition
 
             if (buffers.isEmpty()) {
                 flushRequested = false;
-            }
-
-            while (!buffers.isEmpty()) {
+            } else {
                 BufferConsumerWithPartialRecordLength bufferConsumerWithPartialRecordLength =
                         buffers.peek();
                 BufferConsumer bufferConsumer =
@@ -300,14 +298,17 @@ public class PipelinedSubpartition extends ResultSubpartition
                     decreaseBuffersInBacklogUnsafe(bufferConsumer.isBuffer());
                 }
 
-                if (buffer.readableBytes() > 0) {
-                    break;
+                if (buffer.readableBytes() == 0 && !bufferConsumer.isFinished()) {
+                    buffer.recycleBuffer();
+                    buffer = null;
                 }
-                buffer.recycleBuffer();
-                buffer = null;
-                if (!bufferConsumer.isFinished()) {
-                    break;
-                }
+
+                // if the buffer is empty and the buffer builder is finished, we just return the
+                // empty buffer so that the downstream task can release the allocated credit for
+                // this empty buffer, this happens in two main scenarios currently:
+                // 1. all data of a buffer builder has been read and after that the buffer builder
+                // is finished
+                // 2. in approximate recovery mode, a partial record takes a whole buffer builder
             }
 
             if (buffer == null) {
@@ -501,19 +502,20 @@ public class PipelinedSubpartition extends ResultSubpartition
         }
     }
 
-    /**
-     * Gets the number of non-event buffers in this subpartition.
-     *
-     * <p><strong>Beware:</strong> This method should only be used in tests in non-concurrent access
-     * scenarios since it does not make any concurrency guarantees.
-     */
-    @SuppressWarnings("FieldAccessNotGuarded")
-    @VisibleForTesting
+    /** Gets the number of non-event buffers in this subpartition. */
     public int getBuffersInBacklog() {
-        if (flushRequested || isFinished) {
-            return buffersInBacklog;
-        } else {
-            return Math.max(buffersInBacklog - 1, 0);
+        synchronized (buffers) {
+            if (isBlocked || buffers.isEmpty()) {
+                return 0;
+            }
+
+            if (flushRequested
+                    || isFinished
+                    || !checkNotNull(buffers.peekLast()).getBufferConsumer().isBuffer()) {
+                return buffersInBacklog;
+            } else {
+                return Math.max(buffersInBacklog - 1, 0);
+            }
         }
     }
 

@@ -167,12 +167,16 @@ public class NetworkBufferPool
     public List<MemorySegment> requestMemorySegments(int numberOfSegmentsToRequest)
             throws IOException {
         checkArgument(
-                numberOfSegmentsToRequest > 0,
-                "Number of buffers to request must be larger than 0.");
+                numberOfSegmentsToRequest >= 0,
+                "Number of buffers to request must be non-negative.");
 
         synchronized (factoryLock) {
             if (isDestroyed) {
                 throw new IllegalStateException("Network buffer pool has already been destroyed.");
+            }
+
+            if (numberOfSegmentsToRequest == 0) {
+                return Collections.emptyList();
             }
 
             tryRedistributeBuffers(numberOfSegmentsToRequest);

@@ -234,6 +234,11 @@ public class CancelPartitionRequestTest {
         }
 
         @Override
+        public int getRemainingBacklog() {
+            return 0;
+        }
+
+        @Override
         public int unsynchronizedGetNumberOfQueuedBuffers() {
             return 0;
         }

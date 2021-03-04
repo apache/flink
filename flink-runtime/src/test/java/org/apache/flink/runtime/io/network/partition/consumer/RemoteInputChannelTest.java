@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -31,11 +33,15 @@ import org.apache.flink.runtime.io.network.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.TestingConnectionManager;
 import org.apache.flink.runtime.io.network.TestingPartitionRequestClient;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
 import org.apache.flink.runtime.io.network.buffer.BufferListener.NotificationResult;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
+import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.buffer.NoOpBufferPool;
 import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
@@ -1344,6 +1350,75 @@ public class RemoteInputChannelTest {
     }
 
     @Test
+    public void testOnUpstreamBlockedAndResumption() throws Exception {
+        BufferPool bufferPool = new TestBufferPool();
+        SingleInputGate inputGate = createSingleInputGate(bufferPool);
+
+        RemoteInputChannel remoteChannel1 = createRemoteInputChannel(inputGate, 2);
+        RemoteInputChannel remoteChannel2 = createRemoteInputChannel(inputGate, 0);
+        inputGate.setup();
+        remoteChannel1.requestSubpartition(0);
+        remoteChannel2.requestSubpartition(1);
+
+        remoteChannel1.onSenderBacklog(2);
+        remoteChannel2.onSenderBacklog(2);
+
+        assertEquals(4, remoteChannel1.getNumberOfAvailableBuffers());
+        assertEquals(2, remoteChannel2.getNumberOfAvailableBuffers());
+
+        Buffer barrier =
+                EventSerializer.toBuffer(
+                        new CheckpointBarrier(
+                                1L, 123L, alignedWithTimeout(getDefault(), Integer.MAX_VALUE)),
+                        false);
+        remoteChannel1.onBuffer(barrier, 0, 2);
+        remoteChannel2.onBuffer(barrier, 0, 2);
+
+        assertEquals(4, remoteChannel1.getNumberOfAvailableBuffers());
+        assertEquals(0, remoteChannel2.getNumberOfAvailableBuffers());
+
+        remoteChannel1.onSenderBacklog(4);
+        remoteChannel2.onSenderBacklog(4);
+
+        assertEquals(4, remoteChannel1.getNumberOfAvailableBuffers());
+        assertEquals(0, remoteChannel2.getNumberOfAvailableBuffers());
+
+        assertEquals(4, remoteChannel1.getUnannouncedCredit());
+        assertEquals(2, remoteChannel2.getUnannouncedCredit());
+
+        remoteChannel1.onConsumptionResumed();
+        remoteChannel2.onConsumptionResumed();
+
+        assertEquals(4, remoteChannel1.getUnannouncedCredit());
+        assertEquals(0, remoteChannel2.getUnannouncedCredit());
+    }
+
+    @Test
+    public void testRequestBuffer() throws Exception {
+        BufferPool bufferPool = new TestBufferPool();
+        SingleInputGate inputGate = createSingleInputGate(bufferPool);
+
+        RemoteInputChannel remoteChannel1 = createRemoteInputChannel(inputGate, 2);
+        RemoteInputChannel remoteChannel2 = createRemoteInputChannel(inputGate, 0);
+        inputGate.setup();
+        remoteChannel1.requestSubpartition(0);
+        remoteChannel2.requestSubpartition(1);
+
+        remoteChannel1.onSenderBacklog(2);
+        remoteChannel2.onSenderBacklog(2);
+
+        for (int i = 4; i >= 0; --i) {
+            assertEquals(4, remoteChannel1.getNumberOfRequiredBuffers());
+            remoteChannel1.requestBuffer();
+        }
+
+        for (int i = 2; i >= 0; --i) {
+            assertEquals(i, remoteChannel2.getNumberOfRequiredBuffers());
+            remoteChannel2.requestBuffer();
+        }
+    }
+
+    @Test
     public void testPrioritySequenceNumbers() throws Exception {
         int sequenceNumber = 0;
         int bufferSize = 1;
@@ -1534,6 +1609,13 @@ public class RemoteInputChannelTest {
 
     private RemoteInputChannel createRemoteInputChannel(SingleInputGate inputGate) {
         return createRemoteInputChannel(inputGate, 0, 0);
+    }
+
+    private RemoteInputChannel createRemoteInputChannel(
+            SingleInputGate inputGate, int initialCredits) {
+        return InputChannelBuilder.newBuilder()
+                .setNetworkBuffersPerChannel(initialCredits)
+                .buildRemoteChannel(inputGate);
     }
 
     private RemoteInputChannel createRemoteInputChannel(
@@ -1889,6 +1971,15 @@ public class RemoteInputChannelTest {
             assertEquals(expectedId, partitionId);
             assertEquals(expectedSubpartitionIndex, subpartitionIndex);
             assertEquals(expectedDelayMs, delayMs);
+        }
+    }
+
+    private static final class TestBufferPool extends NoOpBufferPool {
+
+        @Override
+        public Buffer requestBuffer() {
+            MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(1024);
+            return new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE);
         }
     }
 }

@@ -97,13 +97,7 @@ public abstract class ResultSubpartition {
 
     public abstract boolean isReleased();
 
-    /**
-     * Gets the number of non-event buffers in this subpartition.
-     *
-     * <p><strong>Beware:</strong> This method should only be used in tests in non-concurrent access
-     * scenarios since it does not make any concurrency guarantees.
-     */
-    @VisibleForTesting
+    /** Gets the number of non-event buffers in this subpartition. */
     abstract int getBuffersInBacklog();
 
     /**

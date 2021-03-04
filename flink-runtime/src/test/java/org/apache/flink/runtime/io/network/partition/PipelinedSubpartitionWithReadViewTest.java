@@ -132,7 +132,7 @@ public class PipelinedSubpartitionWithReadViewTest {
                 1,
                 availablityListener
                         .getNumNotifications()); // notification from finishing previous buffer.
-        assertNull(readView.getNextBuffer());
+        assertEquals(0, readView.getNextBuffer().buffer().getSize());
         assertEquals(0, subpartition.getBuffersInBacklog());
     }
 
@@ -232,6 +232,9 @@ public class PipelinedSubpartitionWithReadViewTest {
         subpartition.add(createFilledFinishedBufferConsumer(1024));
         assertEquals(1, availablityListener.getNumNotifications());
 
+        assertNextBuffer(readView, 0, true, 2, false, true);
+        assertNextBuffer(readView, 0, true, 1, false, true);
+        assertNextBuffer(readView, 0, false, 0, false, true);
         assertNextBuffer(readView, 1024, false, 0, false, true);
     }
 

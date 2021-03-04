@@ -82,8 +82,13 @@ public class BufferManager implements BufferListener, BufferRecycler {
     // ------------------------------------------------------------------------
 
     @Nullable
-    Buffer requestBuffer() {
+    Buffer requestBuffer(int initialCredit) {
         synchronized (bufferQueue) {
+            // decrease the number of buffers require to avoid the possibility of
+            // allocating more than required buffers after the buffer is taken
+            if (initialCredit == 0) {
+                --numRequiredBuffers;
+            }
             return bufferQueue.takeBuffer();
         }
     }
@@ -129,11 +134,11 @@ public class BufferManager implements BufferListener, BufferRecycler {
 
     /** Requests exclusive buffers from the provider. */
     void requestExclusiveBuffers(int numExclusiveBuffers) throws IOException {
-        Collection<MemorySegment> segments = globalPool.requestMemorySegments(numExclusiveBuffers);
-        checkArgument(
-                !segments.isEmpty(),
-                "The number of exclusive buffers per channel should be larger than 0.");
+        if (numExclusiveBuffers <= 0) {
+            return;
+        }
 
+        Collection<MemorySegment> segments = globalPool.requestMemorySegments(numExclusiveBuffers);
         synchronized (bufferQueue) {
             for (MemorySegment segment : segments) {
                 bufferQueue.addExclusiveBuffer(

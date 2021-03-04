@@ -265,6 +265,13 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
                 channelInfo,
                 channelStatePersister,
                 next.getSequenceNumber());
+
+        // ignore the empty buffer directly
+        if (buffer.readableBytes() == 0) {
+            buffer.recycleBuffer();
+            return getNextBuffer();
+        }
+
         return Optional.of(
                 new BufferAndAvailability(
                         buffer,

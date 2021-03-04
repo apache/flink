@@ -190,6 +190,11 @@ public class SortMergeSubpartitionReader implements ResultSubpartitionView, Buff
     }
 
     @Override
+    public int getRemainingBacklog() {
+        return dataBufferBacklog;
+    }
+
+    @Override
     public int unsynchronizedGetNumberOfQueuedBuffers() {
         return 0;
     }

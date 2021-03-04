@@ -55,5 +55,8 @@ public interface ResultSubpartitionView {
 
     boolean isAvailable(int numCreditsAvailable);
 
+    /** Returns the number of remaining backlog (non-event buffer) to be read. */
+    int getRemainingBacklog();
+
     int unsynchronizedGetNumberOfQueuedBuffers();
 }

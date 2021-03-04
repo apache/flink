@@ -62,7 +62,7 @@ public class BoundedBlockingSubpartitionDirectTransferReader implements ResultSu
             int numDataBuffers,
             int numDataAndEventBuffers)
             throws IOException {
-
+        checkArgument(numDataAndEventBuffers - numDataBuffers == 1, "Too many event buffers.");
         this.parent = checkNotNull(parent);
 
         checkNotNull(filePath);
@@ -91,10 +91,14 @@ public class BoundedBlockingSubpartitionDirectTransferReader implements ResultSu
 
         updateStatistics(current);
 
-        // We simply assume all the data are non-events for batch jobs to avoid pre-fetching the
-        // next header
-        Buffer.DataType nextDataType =
-                numDataAndEventBuffers > 0 ? Buffer.DataType.DATA_BUFFER : Buffer.DataType.NONE;
+        // We simply assume all the data except for the last one (EndOfPartitionEvent)
+        // are non-events for batch jobs to avoid pre-fetching the next header
+        Buffer.DataType nextDataType = Buffer.DataType.NONE;
+        if (numDataBuffers > 0) {
+            nextDataType = Buffer.DataType.DATA_BUFFER;
+        } else if (numDataAndEventBuffers > 0) {
+            nextDataType = Buffer.DataType.EVENT_BUFFER;
+        }
         return BufferAndBacklog.fromBufferAndLookahead(
                 current, nextDataType, numDataBuffers, sequenceNumber++);
     }
@@ -110,7 +114,12 @@ public class BoundedBlockingSubpartitionDirectTransferReader implements ResultSu
     public boolean isAvailable(int numCreditsAvailable) {
         // We simply assume there are no events except EndOfPartitionEvent for bath jobs,
         // then it has no essential effect to ignore the judgement of next event buffer.
-        return numCreditsAvailable > 0 && numDataAndEventBuffers > 0;
+        return (numCreditsAvailable > 0 || numDataBuffers == 0) && numDataAndEventBuffers > 0;
+    }
+
+    @Override
+    public int getRemainingBacklog() {
+        return numDataBuffers;
     }
 
     @Override

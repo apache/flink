@@ -24,6 +24,7 @@ import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.PartitionRequestClient;
+import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
@@ -79,6 +80,13 @@ public class InputChannelTestUtils {
 
     public static SingleInputGate createSingleInputGate(int numberOfChannels) {
         return new SingleInputGateBuilder().setNumberOfChannels(numberOfChannels).build();
+    }
+
+    public static SingleInputGate createSingleInputGate(BufferPool bufferPool) {
+        return new SingleInputGateBuilder()
+                .setNumberOfChannels(2)
+                .setBufferPoolFactory(bufferPool)
+                .build();
     }
 
     public static SingleInputGate createSingleInputGate(
