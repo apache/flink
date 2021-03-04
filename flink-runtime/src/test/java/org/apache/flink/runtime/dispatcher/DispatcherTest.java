@@ -32,7 +32,6 @@ import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
-import org.apache.flink.runtime.client.JobInitializationException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
@@ -46,6 +45,7 @@ import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
+import org.apache.flink.runtime.jobmaster.JobManagerRunnerResult;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.JobNotFinishedException;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -480,28 +480,27 @@ public class DispatcherTest extends TestLogger {
     }
 
     @Test
-    public void testErrorDuringInitialization() throws Exception {
+    public void testJobManagerRunnerInitializationFailureFailsJob() throws Exception {
+        final TestingJobManagerRunnerFactory testingJobManagerRunnerFactory =
+                new TestingJobManagerRunnerFactory();
+
         dispatcher =
                 createAndStartDispatcher(
-                        heartbeatServices,
-                        haServices,
-                        new ExpectedJobIdJobManagerRunnerFactory(
-                                jobId, createdJobManagerRunnerLatch));
+                        heartbeatServices, haServices, testingJobManagerRunnerFactory);
         jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
-        // create a job graph that fails during initialization
-        final FailingInitializationJobVertex failingInitializationJobVertex =
-                new FailingInitializationJobVertex("testVertex");
-        failingInitializationJobVertex.setInvokableClass(NoOpInvokable.class);
+        final JobGraph emptyJobGraph =
+                JobGraphBuilder.newStreamingJobGraphBuilder().setJobId(jobId).build();
 
-        final JobGraph blockingJobGraph =
-                JobGraphBuilder.newStreamingJobGraphBuilder()
-                        .setJobId(jobId)
-                        .addJobVertex(failingInitializationJobVertex)
-                        .build();
+        dispatcherGateway.submitJob(emptyJobGraph, TIMEOUT).get();
 
-        dispatcherGateway.submitJob(blockingJobGraph, TIMEOUT).get();
+        final TestingJobManagerRunner testingJobManagerRunner =
+                testingJobManagerRunnerFactory.takeCreatedJobManagerRunner();
+
+        final FlinkException testFailure = new FlinkException("Test failure");
+        testingJobManagerRunner.completeResultFuture(
+                JobManagerRunnerResult.forInitializationFailure(testFailure));
 
         // wait till job has failed
         dispatcherGateway.requestJobResult(jobId, TIMEOUT).get();
@@ -509,6 +508,8 @@ public class DispatcherTest extends TestLogger {
         // get failure cause
         ArchivedExecutionGraph execGraph =
                 dispatcherGateway.requestJob(jobGraph.getJobID(), TIMEOUT).get();
+        assertThat(execGraph.getState(), is(JobStatus.FAILED));
+
         Assert.assertNotNull(execGraph.getFailureInfo());
         Throwable throwable =
                 execGraph
@@ -517,7 +518,7 @@ public class DispatcherTest extends TestLogger {
                         .deserializeError(ClassLoader.getSystemClassLoader());
 
         // ensure correct exception type
-        assertTrue(throwable instanceof JobInitializationException);
+        assertThat(throwable, is(testFailure));
     }
 
     /** Test that {@link JobResult} is cached when the job finishes. */

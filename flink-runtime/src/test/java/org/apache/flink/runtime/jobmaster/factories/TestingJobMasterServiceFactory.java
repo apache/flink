@@ -24,8 +24,7 @@ import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.JobMasterService;
 import org.apache.flink.runtime.jobmaster.TestingJobMasterService;
-
-import java.util.function.Supplier;
+import org.apache.flink.util.function.SupplierWithException;
 
 /**
  * Testing implementation of the {@link JobMasterServiceFactory} which returns a {@link JobMaster}
@@ -33,9 +32,10 @@ import java.util.function.Supplier;
  */
 public class TestingJobMasterServiceFactory implements JobMasterServiceFactory {
 
-    private final Supplier<JobMasterService> jobMasterServiceSupplier;
+    private final SupplierWithException<JobMasterService, Exception> jobMasterServiceSupplier;
 
-    public TestingJobMasterServiceFactory(Supplier<JobMasterService> jobMasterServiceSupplier) {
+    public TestingJobMasterServiceFactory(
+            SupplierWithException<JobMasterService, Exception> jobMasterServiceSupplier) {
         this.jobMasterServiceSupplier = jobMasterServiceSupplier;
     }
 
@@ -49,7 +49,8 @@ public class TestingJobMasterServiceFactory implements JobMasterServiceFactory {
             JobMasterId jobMasterId,
             OnCompletionActions jobCompletionActions,
             ClassLoader userCodeClassloader,
-            long initializationTimestamp) {
+            long initializationTimestamp)
+            throws Exception {
         return jobMasterServiceSupplier.get();
     }
 }
