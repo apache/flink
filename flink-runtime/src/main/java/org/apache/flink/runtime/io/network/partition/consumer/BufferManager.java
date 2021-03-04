@@ -306,9 +306,7 @@ public class BufferManager implements BufferListener, BufferRecycler {
                 }
             }
 
-            if (notificationResult != NotificationResult.BUFFER_NOT_USED) {
-                inputChannel.notifyBufferAvailable(1);
-            }
+            inputChannel.notifyBufferAvailable(1);
         } catch (Throwable t) {
             inputChannel.setError(t);
         }
