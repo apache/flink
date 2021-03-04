@@ -393,19 +393,19 @@ public class DispatcherTest extends TestLogger {
 
     @Test(timeout = 5_000L)
     public void testNonBlockingJobSubmission() throws Exception {
+        final OneShotLatch latch = new OneShotLatch();
         dispatcher =
                 createAndStartDispatcher(
                         heartbeatServices,
                         haServices,
-                        new ExpectedJobIdJobManagerRunnerFactory(
-                                jobId, createdJobManagerRunnerLatch));
+                        new BlockingJobManagerRunnerFactory(latch::await));
         jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
-        Tuple2<JobGraph, BlockingJobVertex> blockingJobGraph = getBlockingJobGraphAndVertex();
-        JobID jobID = blockingJobGraph.f0.getJobID();
+        final JobGraph emptyJobGraph = JobGraphTestUtils.emptyJobGraph();
+        JobID jobID = emptyJobGraph.getJobID();
 
-        dispatcherGateway.submitJob(blockingJobGraph.f0, TIMEOUT).get();
+        dispatcherGateway.submitJob(emptyJobGraph, TIMEOUT).get();
 
         // ensure INITIALIZING status
         assertThat(
@@ -419,13 +419,11 @@ public class DispatcherTest extends TestLogger {
         assertEquals(jobID, multiDetails.getJobs().iterator().next().getJobId());
 
         // submission has succeeded, let the initialization finish.
-        blockingJobGraph.f1.unblock();
+        latch.trigger();
 
         // ensure job is running
         CommonTestUtils.waitUntilCondition(
-                () ->
-                        dispatcherGateway.requestJobStatus(jobGraph.getJobID(), TIMEOUT).get()
-                                == JobStatus.RUNNING,
+                () -> dispatcherGateway.requestJobStatus(jobID, TIMEOUT).get() == JobStatus.RUNNING,
                 Deadline.fromNow(Duration.of(10, ChronoUnit.SECONDS)),
                 5L);
     }
