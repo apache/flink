@@ -733,8 +733,9 @@ object WindowDistinctAggregateITCase {
   def parameters(): util.Collection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](
       Array(Boolean.box(true), HEAP_BACKEND),
+      // add SplitDistinct for HEAP back
+      Array(Boolean.box(false), HEAP_BACKEND),
       Array(Boolean.box(true), ROCKSDB_BACKEND),
-      // we only disable SplitDistinct for ROCKSDB, to reduce test time
       Array(Boolean.box(false), ROCKSDB_BACKEND))
   }
 }

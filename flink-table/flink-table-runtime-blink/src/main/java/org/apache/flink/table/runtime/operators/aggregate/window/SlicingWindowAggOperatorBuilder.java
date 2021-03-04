@@ -109,7 +109,7 @@ public class SlicingWindowAggOperatorBuilder {
         final WindowBuffer.Factory bufferFactory =
                 new RecordsWindowBuffer.Factory(keyTypes, inputType);
         final WindowCombineFunction.Factory combinerFactory =
-                new CombineRecordsFunction.Factory(generatedAggregateFunction);
+                new CombineRecordsFunction.Factory(generatedAggregateFunction, inputType);
         final SlicingWindowProcessor<Long> windowProcessor;
         if (assigner instanceof SliceSharedAssigner) {
             windowProcessor =
