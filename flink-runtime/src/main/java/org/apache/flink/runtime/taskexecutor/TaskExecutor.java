@@ -593,7 +593,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                             jobManagerConnection.getJobManagerGateway(),
                             taskInformation.getJobVertexId(),
                             tdd.getExecutionAttemptId(),
-                            taskManagerConfiguration.getTimeout());
+                            taskManagerConfiguration.getRpcTimeout());
 
             final TaskOperatorEventGateway taskOperatorEventGateway =
                     new RpcTaskOperatorEventGateway(
@@ -1051,7 +1051,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                     jobId,
                     allocationId,
                     resourceProfile,
-                    taskManagerConfiguration.getTimeout())) {
+                    taskManagerConfiguration.getSlotTimeout())) {
                 log.info("Allocated slot for {}.", allocationId);
             } else {
                 log.info("Could not allocate slot for {}.", allocationId);
@@ -1264,7 +1264,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                         getResourceID(),
                         taskExecutorRegistrationId,
                         taskSlotTable.createSlotReport(getResourceID()),
-                        taskManagerConfiguration.getTimeout());
+                        taskManagerConfiguration.getRpcTimeout());
 
         slotReportResponseFuture.whenCompleteAsync(
                 (acknowledge, throwable) -> {
@@ -1410,7 +1410,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
             CompletableFuture<Collection<SlotOffer>> acceptedSlotsFuture =
                     jobMasterGateway.offerSlots(
-                            getResourceID(), reservedSlots, taskManagerConfiguration.getTimeout());
+                            getResourceID(),
+                            reservedSlots,
+                            taskManagerConfiguration.getRpcTimeout());
 
             acceptedSlotsFuture.whenCompleteAsync(
                     handleAcceptedSlotOffers(jobId, jobMasterGateway, jobMasterId, reservedSlots),
@@ -1580,7 +1582,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         for (AllocationID activeSlotAllocationID : activeSlotAllocationIDs) {
             try {
                 if (!taskSlotTable.markSlotInactive(
-                        activeSlotAllocationID, taskManagerConfiguration.getTimeout())) {
+                        activeSlotAllocationID, taskManagerConfiguration.getSlotTimeout())) {
                     freeSlotInternal(activeSlotAllocationID, freeingCause);
                 }
             } catch (SlotNotFoundException e) {
@@ -1616,7 +1618,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 new RpcResultPartitionConsumableNotifier(
                         jobMasterGateway,
                         getRpcService().getExecutor(),
-                        taskManagerConfiguration.getTimeout());
+                        taskManagerConfiguration.getRpcTimeout());
 
         PartitionProducerStateChecker partitionStateChecker =
                 new RpcPartitionStateChecker(jobMasterGateway);
