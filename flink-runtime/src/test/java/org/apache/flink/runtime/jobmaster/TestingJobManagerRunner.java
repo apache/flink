@@ -92,6 +92,10 @@ public class TestingJobManagerRunner implements JobManagerRunner {
         resultFuture.complete(JobManagerRunnerResult.forSuccess(executionGraphInfo));
     }
 
+    public void completeResultFuture(JobManagerRunnerResult jobManagerRunnerResult) {
+        resultFuture.complete(jobManagerRunnerResult);
+    }
+
     public void completeResultFutureExceptionally(Exception e) {
         resultFuture.completeExceptionally(e);
     }
