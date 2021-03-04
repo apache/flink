@@ -205,6 +205,15 @@ public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 
                 JobStatus jobStatus = jobStatusFuture.get(5, TimeUnit.SECONDS);
 
+                if (jobStatus == JobStatus.FAILED) {
+                    LOG.warn(
+                            "Job reached status failed",
+                            client.requestJobResult(jobID)
+                                    .get()
+                                    .getSerializedThrowable()
+                                    .get()
+                                    .deserializeError(ClassLoader.getSystemClassLoader()));
+                }
                 assertNotEquals(JobStatus.FAILED, jobStatus);
             } catch (Exception e) {
                 fail("Could not connect to job: " + e);
