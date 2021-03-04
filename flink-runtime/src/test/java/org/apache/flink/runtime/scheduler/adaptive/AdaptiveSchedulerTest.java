@@ -253,6 +253,53 @@ public class AdaptiveSchedulerTest extends TestLogger {
     }
 
     @Test
+    public void testExecutionGraphGenerationSetsInitializationTimestamp() throws Exception {
+        final long initializationTimestamp = 42L;
+        final JobGraph jobGraph = createJobGraph();
+
+        final DefaultDeclarativeSlotPool declarativeSlotPool =
+                createDeclarativeSlotPool(jobGraph.getJobID());
+
+        final AdaptiveScheduler adaptiveScheduler =
+                new AdaptiveSchedulerBuilder(jobGraph, mainThreadExecutor)
+                        .setInitializationTimestamp(initializationTimestamp)
+                        .setDeclarativeSlotPool(declarativeSlotPool)
+                        .build();
+
+        adaptiveScheduler.startScheduling();
+
+        offerSlots(
+                declarativeSlotPool,
+                createSlotOffersForResourceRequirements(
+                        ResourceCounter.withResource(ResourceProfile.UNKNOWN, 1)));
+
+        final ExecutionGraph executionGraph =
+                adaptiveScheduler.createExecutionGraphWithAvailableResources();
+
+        assertThat(
+                executionGraph.getStatusTimestamp(JobStatus.INITIALIZING),
+                is(initializationTimestamp));
+    }
+
+    @Test
+    public void testInitializationTimestampForwarding() throws Exception {
+        final long expectedInitializationTimestamp = 42L;
+
+        final AdaptiveScheduler adaptiveScheduler =
+                new AdaptiveSchedulerBuilder(createJobGraph(), mainThreadExecutor)
+                        .setInitializationTimestamp(expectedInitializationTimestamp)
+                        .build();
+
+        final long initializationTimestamp =
+                adaptiveScheduler
+                        .requestJob()
+                        .getArchivedExecutionGraph()
+                        .getStatusTimestamp(JobStatus.INITIALIZING);
+
+        assertThat(initializationTimestamp, is(expectedInitializationTimestamp));
+    }
+
+    @Test
     public void testFatalErrorsForwardedToFatalErrorHandler() throws Exception {
         final TestingFatalErrorHandler fatalErrorHandler = new TestingFatalErrorHandler();
 

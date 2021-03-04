@@ -108,6 +108,7 @@ import java.util.Collections;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -211,6 +212,31 @@ public class DispatcherTest extends TestLogger {
         dispatcher.start();
 
         return dispatcher;
+    }
+
+    private static final class InitializationTimestampCapturingJobManagerRunnerFactory
+            implements JobManagerRunnerFactory {
+        private final BlockingQueue<Long> initializationTimestampQueue;
+
+        private InitializationTimestampCapturingJobManagerRunnerFactory(
+                BlockingQueue<Long> initializationTimestampQueue) {
+            this.initializationTimestampQueue = initializationTimestampQueue;
+        }
+
+        @Override
+        public JobManagerRunner createJobManagerRunner(
+                JobGraph jobGraph,
+                Configuration configuration,
+                RpcService rpcService,
+                HighAvailabilityServices highAvailabilityServices,
+                HeartbeatServices heartbeatServices,
+                JobManagerSharedServices jobManagerServices,
+                JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
+                FatalErrorHandler fatalErrorHandler,
+                long initializationTimestamp) {
+            initializationTimestampQueue.offer(initializationTimestamp);
+            return new TestingJobManagerRunner.Builder().setJobId(jobGraph.getJobID()).build();
+        }
     }
 
     /** Builder for the TestingDispatcher. */
@@ -919,38 +945,23 @@ public class DispatcherTest extends TestLogger {
     }
 
     @Test
-    public void testInitializationTimestampForwardedToExecutionGraph() throws Exception {
+    public void testInitializationTimestampForwardedToJobManagerRunner() throws Exception {
+        final BlockingQueue<Long> initializationTimestampQueue = new ArrayBlockingQueue<>(1);
         dispatcher =
                 createAndStartDispatcher(
                         heartbeatServices,
                         haServices,
-                        new ExpectedJobIdJobManagerRunnerFactory(
-                                jobId, createdJobManagerRunnerLatch));
+                        new InitializationTimestampCapturingJobManagerRunnerFactory(
+                                initializationTimestampQueue));
         jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
 
-        // ensure job is running
-        CommonTestUtils.waitUntilCondition(
-                () ->
-                        dispatcherGateway.requestJobStatus(jobGraph.getJobID(), TIMEOUT).get()
-                                == JobStatus.RUNNING,
-                Deadline.fromNow(Duration.ofSeconds(10)),
-                5L);
-
-        ArchivedExecutionGraph result = dispatcher.requestJob(jobGraph.getJobID(), TIMEOUT).get();
+        final long initializationTimestamp = initializationTimestampQueue.take();
 
         // ensure all statuses are set in the ExecutionGraph
-        assertThat(result.getStatusTimestamp(JobStatus.INITIALIZING), greaterThan(0L));
-        assertThat(result.getStatusTimestamp(JobStatus.CREATED), greaterThan(0L));
-        assertThat(result.getStatusTimestamp(JobStatus.RUNNING), greaterThan(0L));
-
-        // ensure correct order
-        assertThat(
-                result.getStatusTimestamp(JobStatus.INITIALIZING)
-                        <= result.getStatusTimestamp(JobStatus.CREATED),
-                is(true));
+        assertThat(initializationTimestamp, greaterThan(0L));
     }
 
     private static final class BlockingJobManagerRunnerFactory

@@ -73,6 +73,7 @@ public class AdaptiveSchedulerBuilder {
                     FatalExitExceptionHandler.INSTANCE.uncaughtException(
                             Thread.currentThread(), error);
     private JobStatusListener jobStatusListener = (ignoredA, ignoredB, ignoredC, ignoredD) -> {};
+    private long initializationTimestamp = System.currentTimeMillis();
 
     public AdaptiveSchedulerBuilder(
             final JobGraph jobGraph, ComponentMainThreadExecutor mainThreadExecutor) {
@@ -165,6 +166,11 @@ public class AdaptiveSchedulerBuilder {
         return this;
     }
 
+    public AdaptiveSchedulerBuilder setInitializationTimestamp(long initializationTimestamp) {
+        this.initializationTimestamp = initializationTimestamp;
+        return this;
+    }
+
     public AdaptiveScheduler build() throws Exception {
         return new AdaptiveScheduler(
                 jobGraph,
@@ -181,7 +187,7 @@ public class AdaptiveSchedulerBuilder {
                 partitionTracker,
                 restartBackoffTimeStrategy,
                 new DefaultExecutionDeploymentTracker(),
-                System.currentTimeMillis(),
+                initializationTimestamp,
                 mainThreadExecutor,
                 fatalErrorHandler,
                 jobStatusListener);
