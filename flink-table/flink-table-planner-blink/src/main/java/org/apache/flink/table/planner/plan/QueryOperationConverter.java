@@ -645,7 +645,9 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                                         RexNode convertedNode = expr.accept(this);
                                         return new RexNodeExpression(
                                                 convertedNode,
-                                                ((ResolvedExpression) expr).getOutputDataType());
+                                                ((ResolvedExpression) expr).getOutputDataType(),
+                                                null,
+                                                null);
                                     })
                             .collect(Collectors.toList());
 

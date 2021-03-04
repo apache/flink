@@ -88,10 +88,16 @@ public class ParserImpl implements Parser {
 
     @Override
     public ResolvedExpression parseSqlExpression(String sqlExpression, TableSchema inputSchema) {
-        SqlExprToRexConverter sqlExprToRexConverter =
+        final SqlExprToRexConverter sqlExprToRexConverter =
                 sqlExprToRexConverterCreator.apply(inputSchema);
-        RexNode rexNode = sqlExprToRexConverter.convertToRexNode(sqlExpression);
-        LogicalType logicalType = FlinkTypeFactory.toLogicalType(rexNode.getType());
-        return new RexNodeExpression(rexNode, TypeConversions.fromLogicalToDataType(logicalType));
+        final RexNode rexNode = sqlExprToRexConverter.convertToRexNode(sqlExpression);
+        final LogicalType logicalType = FlinkTypeFactory.toLogicalType(rexNode.getType());
+        // expand expression for serializable expression strings similar to views
+        final String sqlExpressionExpanded = sqlExprToRexConverter.expand(sqlExpression);
+        return new RexNodeExpression(
+                rexNode,
+                TypeConversions.fromLogicalToDataType(logicalType),
+                sqlExpression,
+                sqlExpressionExpanded);
     }
 }
