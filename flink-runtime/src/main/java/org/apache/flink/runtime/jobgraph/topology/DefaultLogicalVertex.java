@@ -30,8 +30,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Default implementation of {@link LogicalVertex}. It is an adapter of {@link JobVertex}. */
-public class DefaultLogicalVertex
-        implements LogicalVertex<DefaultLogicalVertex, DefaultLogicalResult> {
+public class DefaultLogicalVertex implements LogicalVertex {
 
     private final JobVertex jobVertex;
 

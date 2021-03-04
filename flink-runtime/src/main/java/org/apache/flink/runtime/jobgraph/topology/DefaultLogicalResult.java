@@ -33,8 +33,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Default implementation of {@link LogicalResult}. It is an adapter of {@link IntermediateDataSet}.
  */
-public class DefaultLogicalResult
-        implements LogicalResult<DefaultLogicalVertex, DefaultLogicalResult> {
+public class DefaultLogicalResult implements LogicalResult {
 
     private final IntermediateDataSet intermediateDataSet;
 
