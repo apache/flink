@@ -302,6 +302,23 @@ public final class Schema {
         /**
          * Declares a metadata column that is appended to this schema.
          *
+         * <p>See {@link #columnByMetadata(String, AbstractDataType, boolean)} for a detailed
+         * explanation.
+         *
+         * <p>This method uses a type string that can be easily persisted in a durable catalog.
+         *
+         * @param columnName column name
+         * @param serializableTypeString data type of the column
+         * @param isVirtual whether the column should be persisted or not
+         */
+        public Builder columnByMetadata(
+                String columnName, String serializableTypeString, boolean isVirtual) {
+            return columnByMetadata(columnName, DataTypes.of(serializableTypeString), isVirtual);
+        }
+
+        /**
+         * Declares a metadata column that is appended to this schema.
+         *
          * <p>Metadata columns allow to access connector and/or format specific fields for every row
          * of a table. For example, a metadata column can be used to read and write the timestamp
          * from and to Kafka records for time-based operations. The connector and format
@@ -327,6 +344,24 @@ public final class Schema {
             Preconditions.checkNotNull(dataType, "Data type must not be null.");
             columns.add(new UnresolvedMetadataColumn(columnName, dataType, metadataKey, false));
             return this;
+        }
+
+        /**
+         * Declares a metadata column that is appended to this schema.
+         *
+         * <p>See {@link #columnByMetadata(String, AbstractDataType, String)} for a detailed
+         * explanation.
+         *
+         * <p>This method uses a type string that can be easily persisted in a durable catalog.
+         *
+         * @param columnName column name
+         * @param serializableTypeString data type of the column
+         * @param metadataKey identifying metadata key, if null the column name will be used as
+         *     metadata key
+         */
+        public Builder columnByMetadata(
+                String columnName, String serializableTypeString, @Nullable String metadataKey) {
+            return columnByMetadata(columnName, DataTypes.of(serializableTypeString), metadataKey);
         }
 
         /**
@@ -362,6 +397,29 @@ public final class Schema {
             Preconditions.checkNotNull(columnName, "Column name must not be null.");
             columns.add(new UnresolvedMetadataColumn(columnName, dataType, metadataKey, isVirtual));
             return this;
+        }
+
+        /**
+         * Declares a metadata column that is appended to this schema.
+         *
+         * <p>See {@link #columnByMetadata(String, AbstractDataType, String, boolean)} for a
+         * detailed explanation.
+         *
+         * <p>This method uses a type string that can be easily persisted in a durable catalog.
+         *
+         * @param columnName column name
+         * @param serializableTypeString data type of the column
+         * @param metadataKey identifying metadata key, if null the column name will be used as
+         *     metadata key
+         * @param isVirtual whether the column should be persisted or not
+         */
+        public Builder columnByMetadata(
+                String columnName,
+                String serializableTypeString,
+                @Nullable String metadataKey,
+                boolean isVirtual) {
+            return columnByMetadata(
+                    columnName, DataTypes.of(serializableTypeString), metadataKey, isVirtual);
         }
 
         /**
@@ -502,7 +560,7 @@ public final class Schema {
                             columnByMetadata(
                                     metadataColumn.getName(),
                                     metadataColumn.getDataType(),
-                                    metadataColumn.getMetadataAlias().orElse(null),
+                                    metadataColumn.getMetadataKey().orElse(null),
                                     metadataColumn.isVirtual());
                         }
                     });
