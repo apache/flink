@@ -42,16 +42,16 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-/** {@link UnalignedController} cancellation test. */
+/** Unaligned checkpoints cancellation test. */
 @RunWith(Parameterized.class)
-public class UnalignedControllerCancellationTest {
+public class UnalignedCheckpointsCancellationTest {
     private final List<RuntimeEvent> events;
     private final boolean expectTriggerCheckpoint;
     private final boolean expectAbortCheckpoint;
     private final int numChannels;
     private final int channel;
 
-    public UnalignedControllerCancellationTest(
+    public UnalignedCheckpointsCancellationTest(
             boolean expectTriggerCheckpoint,
             boolean expectAbortCheckpoint,
             List<RuntimeEvent> events,

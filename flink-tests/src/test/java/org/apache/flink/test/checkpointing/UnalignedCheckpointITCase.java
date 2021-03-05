@@ -234,6 +234,7 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
             new Object[] {Topology.PIPELINE, 5, REMOTE},
             new Object[] {Topology.PIPELINE, 20},
             new Object[] {Topology.PIPELINE, 20, MIXED, 1},
+            new Object[] {Topology.PIPELINE, 20, MIXED, 5},
             new Object[] {Topology.MULTI_INPUT, 5},
             new Object[] {Topology.MULTI_INPUT, 10},
             new Object[] {Topology.UNION, 5},

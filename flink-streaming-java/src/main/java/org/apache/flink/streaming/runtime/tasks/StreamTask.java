@@ -201,6 +201,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
      */
     protected final TimerService timerService;
 
+    /**
+     * In contrast to {@link #timerService} we should not register any user timers here. It should
+     * be used only for system level timers.
+     */
+    protected final TimerService systemTimerService;
+
     /** The currently active background materialization threads. */
     private final CloseableRegistry cancelables = new CloseableRegistry();
 
@@ -338,15 +344,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
         // if the clock is not already set, then assign a default TimeServiceProvider
         if (timerService == null) {
-            ThreadFactory timerThreadFactory =
-                    new DispatcherThreadFactory(
-                            TRIGGER_THREAD_GROUP, "Time Trigger for " + getName());
-            this.timerService =
-                    new SystemProcessingTimeService(this::handleTimerException, timerThreadFactory);
+            this.timerService = createTimerService("Time Trigger for " + getName());
         } else {
             this.timerService = timerService;
         }
 
+        this.systemTimerService = createTimerService("System Time Trigger for " + getName());
         this.channelIOExecutor =
                 Executors.newSingleThreadExecutor(
                         new ExecutorThreadFactory("channel-state-unspilling"));
@@ -354,6 +357,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         injectChannelStateWriterIntoChannels();
 
         environment.getMetricGroup().getIOMetricGroup().setEnableBusyTime(true);
+    }
+
+    private TimerService createTimerService(String timerThreadName) {
+        ThreadFactory timerThreadFactory =
+                new DispatcherThreadFactory(TRIGGER_THREAD_GROUP, timerThreadName);
+        return new SystemProcessingTimeService(this::handleTimerException, timerThreadFactory);
     }
 
     private void injectChannelStateWriterIntoChannels() {
@@ -824,6 +833,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
             timerService.shutdownService();
         }
 
+        if (!systemTimerService.isTerminated()) {
+            LOG.info("System timer service is shutting down.");
+            systemTimerService.shutdownService();
+        }
+
         cancelables.close();
     }
 
@@ -915,7 +929,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                             .setAlignmentDurationNanos(0L)
                             .setBytesProcessedDuringAlignment(0L);
 
-            subtaskCheckpointCoordinator.initCheckpoint(
+            subtaskCheckpointCoordinator.initInputsCheckpoint(
                     checkpointMetaData.getCheckpointId(), checkpointOptions);
 
             boolean success =
@@ -1106,12 +1120,17 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     }
 
     private void tryShutdownTimerService() {
+        final long timeoutMs =
+                getEnvironment()
+                        .getTaskManagerInfo()
+                        .getConfiguration()
+                        .getLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT_TIMERS);
+        tryShutdownTimerService(timeoutMs, timerService);
+        tryShutdownTimerService(timeoutMs, systemTimerService);
+    }
+
+    private void tryShutdownTimerService(long timeoutMs, TimerService timerService) {
         if (!timerService.isTerminated()) {
-            final long timeoutMs =
-                    getEnvironment()
-                            .getTaskManagerInfo()
-                            .getConfiguration()
-                            .getLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT_TIMERS);
             if (!timerService.shutdownServiceUninterruptible(timeoutMs)) {
                 LOG.warn(
                         "Timer service shutdown exceeded time limit of {} ms while waiting for pending "

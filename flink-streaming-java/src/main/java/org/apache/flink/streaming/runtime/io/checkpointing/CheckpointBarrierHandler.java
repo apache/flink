@@ -174,4 +174,13 @@ public abstract class CheckpointBarrierHandler implements Closeable {
     private boolean isDuringAlignment() {
         return startOfAlignmentTimestamp > OUTSIDE_OF_ALIGNMENT;
     }
+
+    protected final Clock getClock() {
+        return clock;
+    }
+
+    /** A handle to a delayed action which can be cancelled. */
+    interface Cancellable {
+        void cancel();
+    }
 }

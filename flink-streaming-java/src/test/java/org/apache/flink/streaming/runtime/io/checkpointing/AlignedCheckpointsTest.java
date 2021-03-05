@@ -45,7 +45,6 @@ import org.apache.flink.util.clock.SystemClock;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matchers;
-import org.hamcrest.collection.IsMapContaining;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -53,25 +52,21 @@ import org.junit.Test;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.streaming.runtime.io.checkpointing.UnalignedControllerTest.addSequence;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertArrayEquals;
+import static org.apache.flink.streaming.runtime.io.checkpointing.UnalignedCheckpointsTest.addSequence;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-/** Tests for the behavior of the {@link AlignedController}. */
-public class AlignedControllerTest {
+/** Tests for the behavior of aligned checkpoints. */
+public class AlignedCheckpointsTest {
 
     protected static final int PAGE_SIZE = 512;
 
@@ -133,15 +128,13 @@ public class AlignedControllerTest {
             IndexedInputGate gate, AbstractInvokable toNotify) {
         return new CheckpointedInputGate(
                 gate,
-                new SingleCheckpointBarrierHandler(
+                SingleCheckpointBarrierHandler.aligned(
                         "Testing",
                         toNotify,
                         SystemClock.getInstance(),
                         gate.getNumberOfInputChannels(),
-                        new AlignedController(gate) {
-                            @Override
-                            protected void resetPendingCheckpoint(long cancelledId) {}
-                        }),
+                        (callable, duration) -> () -> {},
+                        gate),
                 new SyncMailboxExecutor());
     }
 
@@ -156,35 +149,6 @@ public class AlignedControllerTest {
     // ------------------------------------------------------------------------
     //  Tests
     // ------------------------------------------------------------------------
-
-    public void testGetChannelsWithUnprocessedBarriers() throws IOException {
-        mockInputGate = new MockInputGate(4, Collections.emptyList());
-        AlignedController alignedController = new AlignedController(mockInputGate);
-        BufferOrEvent barrier0 = createBarrier(1, 0);
-        BufferOrEvent barrier1 = createBarrier(1, 1);
-        BufferOrEvent barrier3 = createBarrier(1, 3);
-        alignedController.barrierAnnouncement(
-                barrier0.getChannelInfo(), (CheckpointBarrier) barrier0.getEvent(), 0);
-        alignedController.barrierReceived(
-                barrier0.getChannelInfo(), (CheckpointBarrier) barrier0.getEvent());
-        alignedController.barrierAnnouncement(
-                barrier1.getChannelInfo(), (CheckpointBarrier) barrier1.getEvent(), 1);
-        alignedController.barrierAnnouncement(
-                barrier3.getChannelInfo(), (CheckpointBarrier) barrier3.getEvent(), 42);
-
-        Collection<InputChannelInfo> blockedChannels = alignedController.getBlockedChannels();
-        Map<InputChannelInfo, Integer> announcedChannels =
-                alignedController.getSequenceNumberInAnnouncedChannels();
-
-        // blockedChannels and announcedChannels should be copies and shouldn't be cleared by the
-        // resumeConsumption
-        alignedController.resumeConsumption();
-
-        assertThat(blockedChannels, contains(barrier0.getChannelInfo()));
-        assertThat(announcedChannels, IsMapContaining.hasEntry(barrier1.getChannelInfo(), 1));
-        assertThat(announcedChannels, IsMapContaining.hasEntry(barrier3.getChannelInfo(), 42));
-        assertThat(announcedChannels.size(), equalTo(2));
-    }
 
     /**
      * Validates that the buffer behaves correctly if no checkpoint barriers come, for a single
@@ -336,10 +300,7 @@ public class AlignedControllerTest {
         check(sequence[6], inputGate.pollNext().get(), PAGE_SIZE);
         assertEquals(2L, handler.getNextExpectedCheckpointId());
         validateAlignmentTime(startTs, inputGate);
-        Integer[] expectedUnblockedChannels1 = new Integer[] {0, 1, 2};
-        assertArrayEquals(
-                expectedUnblockedChannels1,
-                mockInputGate.getAndResetLastUnblockedChannels().toArray());
+        assertThat(mockInputGate.getBlockedChannels(), empty());
 
         // pre checkpoint 2
         check(sequence[7], inputGate.pollNext().get(), PAGE_SIZE);
@@ -356,10 +317,7 @@ public class AlignedControllerTest {
         check(sequence[14], inputGate.pollNext().get(), PAGE_SIZE);
         assertEquals(3L, handler.getNextExpectedCheckpointId());
         validateAlignmentTime(startTs, inputGate);
-        Integer[] expectedUnblockedChannels2 = new Integer[] {0, 1, 2};
-        assertArrayEquals(
-                expectedUnblockedChannels2,
-                mockInputGate.getAndResetLastUnblockedChannels().toArray());
+        assertThat(mockInputGate.getBlockedChannels(), empty());
 
         check(sequence[15], inputGate.pollNext().get(), PAGE_SIZE);
         check(sequence[16], inputGate.pollNext().get(), PAGE_SIZE);
@@ -371,20 +329,14 @@ public class AlignedControllerTest {
         check(sequence[20], inputGate.pollNext().get(), PAGE_SIZE);
         check(sequence[21], inputGate.pollNext().get(), PAGE_SIZE);
         assertEquals(4L, handler.getNextExpectedCheckpointId());
-        Integer[] expectedUnblockedChannels3 = new Integer[] {0, 1, 2};
-        assertArrayEquals(
-                expectedUnblockedChannels3,
-                mockInputGate.getAndResetLastUnblockedChannels().toArray());
+        assertThat(mockInputGate.getBlockedChannels(), empty());
 
         // checkpoint 4
         check(sequence[22], inputGate.pollNext().get(), PAGE_SIZE);
         check(sequence[23], inputGate.pollNext().get(), PAGE_SIZE);
         check(sequence[24], inputGate.pollNext().get(), PAGE_SIZE);
         assertEquals(5L, handler.getNextExpectedCheckpointId());
-        Integer[] expectedUnblockedChannels4 = new Integer[] {0, 1, 2};
-        assertArrayEquals(
-                expectedUnblockedChannels4,
-                mockInputGate.getAndResetLastUnblockedChannels().toArray());
+        assertThat(mockInputGate.getBlockedChannels(), empty());
 
         // remaining data
         check(sequence[25], inputGate.pollNext().get(), PAGE_SIZE);
@@ -401,33 +353,33 @@ public class AlignedControllerTest {
     public void testMultiChannelJumpingOverCheckpoint() throws Exception {
         BufferOrEvent[] sequence = {
             // checkpoint 1
-            createBuffer(0),
-            createBuffer(2),
-            createBuffer(0),
-            createBarrier(1, 1),
-            createBarrier(1, 2),
-            createBuffer(0),
-            createBarrier(1, 0),
-            createBuffer(1),
-            createBuffer(0),
+            /* 0 */ createBuffer(0),
+            /* 1 */ createBuffer(2),
+            /* 2 */ createBuffer(0),
+            /* 3 */ createBarrier(1, 1),
+            /* 4 */ createBarrier(1, 2),
+            /* 5 */ createBuffer(0),
+            /* 6 */ createBarrier(1, 0),
+            /* 7 */ createBuffer(1),
+            /* 8 */ createBuffer(0),
 
             // checkpoint 2 will not complete: pre-mature barrier from checkpoint 3
-            createBarrier(2, 1),
-            createBuffer(2),
-            createBarrier(2, 0),
-            createBuffer(2),
-            createBarrier(3, 2),
-            createBuffer(1),
-            createBuffer(0),
-            createBarrier(3, 0),
-            createBarrier(4, 1),
-            createBuffer(2),
-            createBuffer(0),
-            createEndOfPartition(0),
-            createBuffer(2),
-            createEndOfPartition(2),
-            createBuffer(1),
-            createEndOfPartition(1)
+            /* 9 */ createBarrier(2, 1),
+            /* 10 */ createBuffer(2),
+            /* 11 */ createBarrier(2, 0),
+            /* 12 */ createBuffer(2),
+            /* 13 */ createBarrier(3, 2),
+            /* 14 */ createBuffer(1),
+            /* 15 */ createBuffer(0),
+            /* 16 */ createBarrier(3, 0),
+            /* 17 */ createBarrier(4, 1),
+            /* 18 */ createBuffer(2),
+            /* 19 */ createBuffer(0),
+            /* 20 */ createEndOfPartition(0),
+            /* 21 */ createBuffer(2),
+            /* 22 */ createEndOfPartition(2),
+            /* 23 */ createBuffer(1),
+            /* 24 */ createEndOfPartition(1)
         };
         ValidatingCheckpointHandler handler = new ValidatingCheckpointHandler();
         inputGate = createCheckpointedInputGate(3, sequence, handler);
@@ -445,10 +397,7 @@ public class AlignedControllerTest {
         check(sequence[4], inputGate.pollNext().get(), PAGE_SIZE);
         check(sequence[5], inputGate.pollNext().get(), PAGE_SIZE);
         check(sequence[6], inputGate.pollNext().get(), PAGE_SIZE);
-        Integer[] expectedUnblockedChannels1 = new Integer[] {0, 1, 2};
-        assertArrayEquals(
-                expectedUnblockedChannels1,
-                mockInputGate.getAndResetLastUnblockedChannels().toArray());
+        assertThat(mockInputGate.getBlockedChannels(), empty());
 
         check(sequence[7], inputGate.pollNext().get(), PAGE_SIZE);
         check(sequence[8], inputGate.pollNext().get(), PAGE_SIZE);
@@ -461,32 +410,25 @@ public class AlignedControllerTest {
         check(sequence[12], inputGate.pollNext().get(), PAGE_SIZE);
 
         // checkpoint 2 aborted, checkpoint 3 started
+        assertThat(mockInputGate.getBlockedChannels(), containsInAnyOrder(0, 1));
         check(sequence[13], inputGate.pollNext().get(), PAGE_SIZE);
         assertEquals(3L, inputGate.getLatestCheckpointId());
-        Integer[] expectedUnblockedChannels2 = new Integer[] {0, 1};
-        assertArrayEquals(
-                expectedUnblockedChannels2,
-                mockInputGate.getAndResetLastUnblockedChannels().toArray());
+        assertThat(mockInputGate.getBlockedChannels(), containsInAnyOrder(2));
         check(sequence[14], inputGate.pollNext().get(), PAGE_SIZE);
         check(sequence[15], inputGate.pollNext().get(), PAGE_SIZE);
         check(sequence[16], inputGate.pollNext().get(), PAGE_SIZE);
 
         // checkpoint 3 aborted, checkpoint 4 started
+        assertThat(mockInputGate.getBlockedChannels(), containsInAnyOrder(0, 2));
         check(sequence[17], inputGate.pollNext().get(), PAGE_SIZE);
         assertEquals(4L, inputGate.getLatestCheckpointId());
-        Integer[] expectedUnblockedChannels3 = new Integer[] {0, 2};
-        assertArrayEquals(
-                expectedUnblockedChannels3,
-                mockInputGate.getAndResetLastUnblockedChannels().toArray());
+        assertThat(mockInputGate.getBlockedChannels(), containsInAnyOrder(1));
         check(sequence[18], inputGate.pollNext().get(), PAGE_SIZE);
         check(sequence[19], inputGate.pollNext().get(), PAGE_SIZE);
 
         // checkpoint 4 aborted (due to end of partition)
         check(sequence[20], inputGate.pollNext().get(), PAGE_SIZE);
-        Integer[] expectedUnblockedChannels4 = new Integer[] {1};
-        assertArrayEquals(
-                expectedUnblockedChannels4,
-                mockInputGate.getAndResetLastUnblockedChannels().toArray());
+        assertThat(mockInputGate.getBlockedChannels(), empty());
         check(sequence[21], inputGate.pollNext().get(), PAGE_SIZE);
         check(sequence[22], inputGate.pollNext().get(), PAGE_SIZE);
         check(sequence[23], inputGate.pollNext().get(), PAGE_SIZE);
@@ -581,10 +523,7 @@ public class AlignedControllerTest {
             assertEquals(boe, inputGate.pollNext().get());
         }
 
-        Integer[] expectedUnblockedChannels = new Integer[] {0};
-        assertArrayEquals(
-                expectedUnblockedChannels,
-                mockInputGate.getAndResetLastUnblockedChannels().toArray());
+        assertThat(mockInputGate.getBlockedChannels(), empty());
     }
 
     @Test
@@ -630,19 +569,13 @@ public class AlignedControllerTest {
         check(sequence[5], inputGate.pollNext().get(), PAGE_SIZE);
         check(sequence[6], inputGate.pollNext().get(), PAGE_SIZE);
         assertEquals(2L, inputGate.getLatestCheckpointId());
-        Integer[] expectedUnblockedChannels1 = new Integer[] {0, 3};
-        assertArrayEquals(
-                expectedUnblockedChannels1,
-                mockInputGate.getAndResetLastUnblockedChannels().toArray());
+        assertThat(mockInputGate.getBlockedChannels(), empty());
 
         // checkpoint 3 alignment
         check(sequence[7], inputGate.pollNext().get(), PAGE_SIZE);
         check(sequence[8], inputGate.pollNext().get(), PAGE_SIZE);
         assertEquals(3L, inputGate.getLatestCheckpointId());
-        Integer[] expectedUnblockedChannels2 = new Integer[] {0, 3};
-        assertArrayEquals(
-                expectedUnblockedChannels2,
-                mockInputGate.getAndResetLastUnblockedChannels().toArray());
+        assertThat(mockInputGate.getBlockedChannels(), empty());
 
         // after checkpoint 3
         check(sequence[9], inputGate.pollNext().get(), PAGE_SIZE);
@@ -654,10 +587,7 @@ public class AlignedControllerTest {
         // checkpoint 4 alignment
         check(sequence[14], inputGate.pollNext().get(), PAGE_SIZE);
         assertEquals(4L, inputGate.getLatestCheckpointId());
-        Integer[] expectedUnblockedChannels3 = new Integer[] {3};
-        assertArrayEquals(
-                expectedUnblockedChannels3,
-                mockInputGate.getAndResetLastUnblockedChannels().toArray());
+        assertThat(mockInputGate.getBlockedChannels(), empty());
 
         check(sequence[15], inputGate.pollNext().get(), PAGE_SIZE);
         check(sequence[16], inputGate.pollNext().get(), PAGE_SIZE);
@@ -695,10 +625,7 @@ public class AlignedControllerTest {
         check(sequence[0], inputGate.pollNext().get(), PAGE_SIZE);
         check(sequence[1], inputGate.pollNext().get(), PAGE_SIZE);
         check(sequence[2], inputGate.pollNext().get(), PAGE_SIZE);
-        Integer[] expectedUnblockedChannels1 = new Integer[] {0, 1, 2};
-        assertArrayEquals(
-                expectedUnblockedChannels1,
-                mockInputGate.getAndResetLastUnblockedChannels().toArray());
+        assertThat(mockInputGate.getBlockedChannels(), empty());
 
         check(sequence[3], inputGate.pollNext().get(), PAGE_SIZE);
         check(sequence[4], inputGate.pollNext().get(), PAGE_SIZE);
@@ -713,10 +640,7 @@ public class AlignedControllerTest {
 
         // first end-of-partition encountered: checkpoint will not be completed
         check(sequence[9], inputGate.pollNext().get(), PAGE_SIZE);
-        Integer[] expectedUnblockedChannels2 = new Integer[] {0, 2};
-        assertArrayEquals(
-                expectedUnblockedChannels2,
-                mockInputGate.getAndResetLastUnblockedChannels().toArray());
+        assertThat(mockInputGate.getBlockedChannels(), empty());
 
         check(sequence[10], inputGate.pollNext().get(), PAGE_SIZE);
         check(sequence[11], inputGate.pollNext().get(), PAGE_SIZE);
@@ -744,18 +668,12 @@ public class AlignedControllerTest {
         check(sequence[0], inputGate.pollNext().get(), PAGE_SIZE);
         check(sequence[1], inputGate.pollNext().get(), PAGE_SIZE);
         assertEquals(0L, inputGate.getAlignmentDurationNanos());
-        Integer[] expectedUnblockedChannels1 = new Integer[] {0};
-        assertArrayEquals(
-                expectedUnblockedChannels1,
-                mockInputGate.getAndResetLastUnblockedChannels().toArray());
+        assertThat(mockInputGate.getBlockedChannels(), empty());
 
         toNotify.setNextExpectedCheckpointId(2);
         check(sequence[2], inputGate.pollNext().get(), PAGE_SIZE);
         check(sequence[3], inputGate.pollNext().get(), PAGE_SIZE);
-        Integer[] expectedUnblockedChannels2 = new Integer[] {0};
-        assertArrayEquals(
-                expectedUnblockedChannels2,
-                mockInputGate.getAndResetLastUnblockedChannels().toArray());
+        assertThat(mockInputGate.getBlockedChannels(), empty());
 
         toNotify.setNextExpectedCheckpointId(5);
         check(sequence[4], inputGate.pollNext().get(), PAGE_SIZE);
@@ -773,10 +691,7 @@ public class AlignedControllerTest {
                 CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER,
                 toNotify.getCheckpointFailureReason());
         assertEquals(0L, inputGate.getAlignmentDurationNanos());
-        Integer[] expectedUnblockedChannels3 = new Integer[] {0};
-        assertArrayEquals(
-                expectedUnblockedChannels3,
-                mockInputGate.getAndResetLastUnblockedChannels().toArray());
+        assertThat(mockInputGate.getBlockedChannels(), empty());
 
         check(sequence[7], inputGate.pollNext().get(), PAGE_SIZE);
         check(sequence[8], inputGate.pollNext().get(), 0);
@@ -858,30 +773,28 @@ public class AlignedControllerTest {
         startTs = System.nanoTime();
         toNotify.setNextExpectedCheckpointId(1);
         check(sequence[3], inputGate.pollNext().get(), PAGE_SIZE);
+        assertThat(mockInputGate.getBlockedChannels(), containsInAnyOrder(1));
         check(sequence[4], inputGate.pollNext().get(), PAGE_SIZE);
+        assertThat(mockInputGate.getBlockedChannels(), containsInAnyOrder(1, 2));
         check(sequence[5], inputGate.pollNext().get(), PAGE_SIZE);
         check(sequence[6], inputGate.pollNext().get(), PAGE_SIZE);
         validateAlignmentTime(startTs, inputGate);
-        Integer[] expectedUnblockedChannels1 = new Integer[] {0, 1, 2};
-        assertArrayEquals(
-                expectedUnblockedChannels1,
-                mockInputGate.getAndResetLastUnblockedChannels().toArray());
+        assertThat(mockInputGate.getBlockedChannels(), empty());
 
         check(sequence[7], inputGate.pollNext().get(), PAGE_SIZE);
         check(sequence[8], inputGate.pollNext().get(), PAGE_SIZE);
 
         // alignment of second checkpoint
         check(sequence[9], inputGate.pollNext().get(), PAGE_SIZE);
+        assertThat(mockInputGate.getBlockedChannels(), containsInAnyOrder(0));
         check(sequence[10], inputGate.pollNext().get(), PAGE_SIZE);
+        assertThat(mockInputGate.getBlockedChannels(), containsInAnyOrder(0, 2));
         check(sequence[11], inputGate.pollNext().get(), PAGE_SIZE);
 
         // canceled checkpoint on last barrier
         check(sequence[12], inputGate.pollNext().get(), 0);
         assertEquals(2, toNotify.getLastCanceledCheckpointId());
-        Integer[] expectedUnblockedChannels2 = new Integer[] {0, 2};
-        assertArrayEquals(
-                expectedUnblockedChannels2,
-                mockInputGate.getAndResetLastUnblockedChannels().toArray());
+        assertThat(mockInputGate.getBlockedChannels(), empty());
         assertEquals(
                 CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER,
                 toNotify.getCheckpointFailureReason());
@@ -895,10 +808,7 @@ public class AlignedControllerTest {
         check(sequence[16], inputGate.pollNext().get(), PAGE_SIZE);
         check(sequence[17], inputGate.pollNext().get(), PAGE_SIZE);
         validateAlignmentTime(startTs, inputGate);
-        Integer[] expectedUnblockedChannels3 = new Integer[] {0, 1, 2};
-        assertArrayEquals(
-                expectedUnblockedChannels3,
-                mockInputGate.getAndResetLastUnblockedChannels().toArray());
+        assertThat(mockInputGate.getBlockedChannels(), empty());
         check(sequence[18], inputGate.pollNext().get(), PAGE_SIZE);
         check(sequence[19], inputGate.pollNext().get(), PAGE_SIZE);
 
@@ -910,16 +820,10 @@ public class AlignedControllerTest {
                 toNotify.getCheckpointFailureReason());
         assertEquals(0L, inputGate.getAlignmentDurationNanos());
         check(sequence[21], inputGate.pollNext().get(), PAGE_SIZE);
-        Integer[] expectedUnblockedChannels4 = new Integer[] {2};
-        assertArrayEquals(
-                expectedUnblockedChannels4,
-                mockInputGate.getAndResetLastUnblockedChannels().toArray());
+        assertThat(mockInputGate.getBlockedChannels(), empty());
         check(sequence[22], inputGate.pollNext().get(), PAGE_SIZE);
         check(sequence[23], inputGate.pollNext().get(), PAGE_SIZE);
-        Integer[] expectedUnblockedChannels5 = new Integer[] {0};
-        assertArrayEquals(
-                expectedUnblockedChannels5,
-                mockInputGate.getAndResetLastUnblockedChannels().toArray());
+        assertThat(mockInputGate.getBlockedChannels(), empty());
 
         // some buffers
         check(sequence[24], inputGate.pollNext().get(), PAGE_SIZE);
@@ -933,10 +837,7 @@ public class AlignedControllerTest {
         check(sequence[28], inputGate.pollNext().get(), PAGE_SIZE);
         check(sequence[29], inputGate.pollNext().get(), PAGE_SIZE);
         validateAlignmentTime(startTs, inputGate);
-        Integer[] expectedUnblockedChannels6 = new Integer[] {0, 1, 2};
-        assertArrayEquals(
-                expectedUnblockedChannels6,
-                mockInputGate.getAndResetLastUnblockedChannels().toArray());
+        assertThat(mockInputGate.getBlockedChannels(), empty());
         check(sequence[30], inputGate.pollNext().get(), PAGE_SIZE);
         check(sequence[31], inputGate.pollNext().get(), PAGE_SIZE);
 
@@ -949,10 +850,7 @@ public class AlignedControllerTest {
                 toNotify.getCheckpointFailureReason());
         assertEquals(0L, inputGate.getAlignmentDurationNanos());
         check(sequence[34], inputGate.pollNext().get(), PAGE_SIZE);
-        Integer[] expectedUnblockedChannels7 = new Integer[] {0};
-        assertArrayEquals(
-                expectedUnblockedChannels7,
-                mockInputGate.getAndResetLastUnblockedChannels().toArray());
+        assertThat(mockInputGate.getBlockedChannels(), empty());
         check(sequence[35], inputGate.pollNext().get(), PAGE_SIZE);
 
         assertEquals(3, toNotify.getTriggeredCheckpointCounter());
@@ -1021,10 +919,7 @@ public class AlignedControllerTest {
         assertEquals(
                 CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER,
                 toNotify.getCheckpointFailureReason());
-        Integer[] expectedUnblockedChannels1 = new Integer[] {1};
-        assertArrayEquals(
-                expectedUnblockedChannels1,
-                mockInputGate.getAndResetLastUnblockedChannels().toArray());
+        assertThat(mockInputGate.getBlockedChannels(), empty());
 
         // the next checkpoint alignment
         startTs = System.nanoTime();
@@ -1034,10 +929,7 @@ public class AlignedControllerTest {
 
         // ignored barrier and unblock channel directly
         check(sequence[9], inputGate.pollNext().get(), PAGE_SIZE);
-        Integer[] expectedUnblockedChannels2 = new Integer[] {2};
-        assertArrayEquals(
-                expectedUnblockedChannels2,
-                mockInputGate.getAndResetLastUnblockedChannels().toArray());
+        assertThat(mockInputGate.getBlockedChannels(), containsInAnyOrder(1));
         check(sequence[10], inputGate.pollNext().get(), PAGE_SIZE);
         check(sequence[11], inputGate.pollNext().get(), PAGE_SIZE);
 
@@ -1046,10 +938,7 @@ public class AlignedControllerTest {
         check(sequence[12], inputGate.pollNext().get(), PAGE_SIZE);
         check(sequence[13], inputGate.pollNext().get(), PAGE_SIZE);
         validateAlignmentTime(startTs, inputGate);
-        Integer[] expectedUnblockedChannels3 = new Integer[] {0, 1, 2};
-        assertArrayEquals(
-                expectedUnblockedChannels3,
-                mockInputGate.getAndResetLastUnblockedChannels().toArray());
+        assertThat(mockInputGate.getBlockedChannels(), empty());
 
         // trailing data
         check(sequence[14], inputGate.pollNext().get(), PAGE_SIZE);
@@ -1112,15 +1001,13 @@ public class AlignedControllerTest {
 
         // future barrier aborts checkpoint
         startTs = System.nanoTime();
+        assertThat(mockInputGate.getBlockedChannels(), containsInAnyOrder(0, 1));
         check(sequence[4], inputGate.pollNext().get(), PAGE_SIZE);
         assertEquals(3, toNotify.getLastCanceledCheckpointId());
         assertEquals(
                 CheckpointFailureReason.CHECKPOINT_DECLINED_SUBSUMED,
                 toNotify.getCheckpointFailureReason());
-        Integer[] expectedUnblockedChannels1 = new Integer[] {0, 1};
-        assertArrayEquals(
-                expectedUnblockedChannels1,
-                mockInputGate.getAndResetLastUnblockedChannels().toArray());
+        assertThat(mockInputGate.getBlockedChannels(), containsInAnyOrder(2));
         check(sequence[5], inputGate.pollNext().get(), PAGE_SIZE);
         check(sequence[6], inputGate.pollNext().get(), PAGE_SIZE);
 
@@ -1134,10 +1021,7 @@ public class AlignedControllerTest {
         check(sequence[10], inputGate.pollNext().get(), PAGE_SIZE);
         check(sequence[11], inputGate.pollNext().get(), PAGE_SIZE);
         validateAlignmentTime(startTs, inputGate);
-        Integer[] expectedUnblockedChannels2 = new Integer[] {0, 1, 2};
-        assertArrayEquals(
-                expectedUnblockedChannels2,
-                mockInputGate.getAndResetLastUnblockedChannels().toArray());
+        assertThat(mockInputGate.getBlockedChannels(), empty());
 
         // remaining data
         check(sequence[12], inputGate.pollNext().get(), PAGE_SIZE);
