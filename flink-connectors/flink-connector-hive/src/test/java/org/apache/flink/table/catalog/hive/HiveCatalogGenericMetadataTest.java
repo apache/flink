@@ -24,10 +24,10 @@ import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogPartition;
+import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.functions.TestGenericUDF;
 import org.apache.flink.table.functions.TestSimpleUDF;
 import org.apache.flink.table.types.DataType;
@@ -120,7 +120,7 @@ public class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase 
             CatalogBaseTable catalogBaseTable = catalog.getTable(tablePath);
             assertTrue(
                     Boolean.parseBoolean(
-                            catalogBaseTable.getOptions().get(CatalogConfig.IS_GENERIC)));
+                            catalogBaseTable.getOptions().get(CatalogPropertiesUtil.IS_GENERIC)));
             TableSchema expectedSchema =
                     TableSchema.builder()
                             .fields(

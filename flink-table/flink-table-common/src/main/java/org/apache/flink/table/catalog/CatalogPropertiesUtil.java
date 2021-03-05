@@ -16,18 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.catalog.config;
+package org.apache.flink.table.catalog;
 
-/** Config for catalog and catalog meta-objects. */
-public class CatalogConfig {
+import org.apache.flink.annotation.Internal;
 
-    /** Flag to distinguish if a meta-object is generic Flink object or not. */
+/** Utilities for de/serializing {@link Catalog} objects into a map of string properties. */
+@Internal
+public final class CatalogPropertiesUtil {
+
+    /**
+     * Flag to distinguish if a meta-object is a generic Flink object or not.
+     *
+     * <p>It is used to distinguish between Flink's generic connector discovery logic or specialized
+     * catalog connectors.
+     */
     public static final String IS_GENERIC = "is_generic";
 
-    // Globally reserved prefix for catalog properties.
-    // User defined properties should not with this prefix.
-    // Used to distinguish properties created by Hive and Flink,
-    // as Hive metastore has its own properties created upon table creation and migration between
-    // different versions of metastore.
+    /**
+     * Globally reserved prefix for catalog properties. User-defined properties should not use this
+     * prefix. E.g. it is used to distinguish properties created by Hive and Flink, as Hive
+     * metastore has its own properties created upon table creation and migration between different
+     * versions of metastore.
+     */
     public static final String FLINK_PROPERTY_PREFIX = "flink.";
+
+    private CatalogPropertiesUtil() {
+        // no instantiation
+    }
 }
