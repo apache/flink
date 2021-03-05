@@ -98,7 +98,7 @@ public class ExecNodeGraphJsonPlanGenerator {
         mapper.registerModule(module);
 
         final JsonPlanGraph jsonPlanGraph = mapper.readValue(jsonPlan, JsonPlanGraph.class);
-        return jsonPlanGraph.convertToExecNodeGraph();
+        return jsonPlanGraph.convertToExecNodeGraph(serdeCtx);
     }
 
     private static void registerSerializers(SimpleModule module) {
@@ -237,7 +237,7 @@ public class ExecNodeGraphJsonPlanGenerator {
             return new JsonPlanGraph(execGraph.getFlinkVersion(), allNodes, allEdges);
         }
 
-        public ExecNodeGraph convertToExecNodeGraph() {
+        public ExecNodeGraph convertToExecNodeGraph(SerdeContext serdeCtx) {
             Map<Integer, ExecNode<?>> idToExecNodes = new HashMap<>();
             for (ExecNode<?> execNode : nodes) {
                 int id = execNode.getId();
@@ -248,6 +248,10 @@ public class ExecNodeGraphJsonPlanGenerator {
                                     id, execNode.getDescription()));
                 }
                 if (execNode instanceof StreamExecTableSourceScan) {
+                    DynamicTableSourceSpec tableSourceSpec =
+                            ((StreamExecTableSourceScan) execNode).getTableSourceSpec();
+                    tableSourceSpec.setReadableConfig(serdeCtx.getConfiguration());
+                    tableSourceSpec.setClassLoader(serdeCtx.getClassLoader());
                     applyProjectionPushDown((StreamExecTableSourceScan) execNode);
                 }
                 idToExecNodes.put(id, execNode);

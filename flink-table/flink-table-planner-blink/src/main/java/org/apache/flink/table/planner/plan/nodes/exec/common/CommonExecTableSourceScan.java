@@ -33,7 +33,6 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
-import org.apache.flink.table.planner.plan.nodes.exec.serde.DynamicTableSourceSpecJsonDeserializer;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -41,7 +40,6 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 import java.util.Collections;
 
@@ -52,7 +50,6 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData> {
     public static final String FIELD_NAME_SCAN_TABLE_SOURCE = "scanTableSource";
 
     @JsonProperty(FIELD_NAME_SCAN_TABLE_SOURCE)
-    @JsonDeserialize(using = DynamicTableSourceSpecJsonDeserializer.class)
     private final DynamicTableSourceSpec tableSourceSpec;
 
     protected CommonExecTableSourceScan(
@@ -62,6 +59,10 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData> {
             String description) {
         super(id, Collections.emptyList(), outputType, description);
         this.tableSourceSpec = tableSourceSpec;
+    }
+
+    public DynamicTableSourceSpec getTableSourceSpec() {
+        return tableSourceSpec;
     }
 
     @Override
@@ -103,8 +104,4 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData> {
             InputFormat<RowData, ?> inputFormat,
             InternalTypeInfo<RowData> outputTypeInfo,
             String name);
-
-    public DynamicTableSourceSpec getTableSourceSpec() {
-        return tableSourceSpec;
-    }
 }

@@ -86,6 +86,12 @@ public class CatalogTableSpecBase {
         return classLoader;
     }
 
+    @VisibleForTesting
+    @JsonIgnore
+    public ReadableConfig getReadableConfig() {
+        return configuration;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
