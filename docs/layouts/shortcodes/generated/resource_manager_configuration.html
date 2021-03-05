@@ -39,6 +39,12 @@
             <td>The time to wait before requesting new workers (Native Kubernetes / Yarn / Mesos) once the max failure rate of starting workers ('resourcemanager.start-worker.max-failure-rate') is reached.</td>
         </tr>
         <tr>
+            <td><h5>resourcemanager.taskmanager-registration.timeout</h5></td>
+            <td style="word-wrap: break-word;">5 min</td>
+            <td>Duration</td>
+            <td>Timeout for TaskManagers to register at the active resource managers. If exceeded, active resource manager will release and try to re-request the resource for the worker. If not configured, fallback to 'taskmanager.registration.timeout'.</td>
+        </tr>
+        <tr>
             <td><h5>resourcemanager.taskmanager-timeout</h5></td>
             <td style="word-wrap: break-word;">30000</td>
             <td>Long</td>
