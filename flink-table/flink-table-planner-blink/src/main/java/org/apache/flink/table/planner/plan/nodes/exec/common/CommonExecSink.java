@@ -48,7 +48,6 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
-import org.apache.flink.table.planner.plan.nodes.exec.serde.DynamicTableSinkSpecJsonDeserializer;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSinkSpec;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.sinks.TableSinkUtils;
@@ -64,7 +63,6 @@ import org.apache.flink.types.RowKind;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 import java.util.Arrays;
 import java.util.List;
@@ -81,7 +79,6 @@ public abstract class CommonExecSink extends ExecNodeBase<Object> {
     public static final String FIELD_NAME_DYNAMIC_TABLE_SINK = "dynamicTableSink";
 
     @JsonProperty(FIELD_NAME_DYNAMIC_TABLE_SINK)
-    @JsonDeserialize(using = DynamicTableSinkSpecJsonDeserializer.class)
     protected final DynamicTableSinkSpec tableSinkSpec;
 
     @JsonIgnore private final ChangelogMode changelogMode;
@@ -99,6 +96,10 @@ public abstract class CommonExecSink extends ExecNodeBase<Object> {
         this.tableSinkSpec = tableSinkSpec;
         this.changelogMode = changelogMode;
         this.isBounded = isBounded;
+    }
+
+    public DynamicTableSinkSpec getTableSinkSpec() {
+        return tableSinkSpec;
     }
 
     protected Transformation<Object> createSinkTransformation(
