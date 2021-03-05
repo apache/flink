@@ -22,14 +22,16 @@ package org.apache.flink.kubernetes.kubeclient.resources;
 public class TestingKubernetesPod extends KubernetesPod {
     private final String name;
     private final boolean isTerminated;
+    private final boolean isScheduled;
 
     public TestingKubernetesPod(String name) {
-        this(name, false);
+        this(name, true, false);
     }
 
-    public TestingKubernetesPod(String name, boolean isTerminated) {
+    public TestingKubernetesPod(String name, boolean isScheduled, boolean isTerminated) {
         super(null);
         this.name = name;
+        this.isScheduled = isScheduled;
         this.isTerminated = isTerminated;
     }
 
@@ -41,6 +43,11 @@ public class TestingKubernetesPod extends KubernetesPod {
     @Override
     public boolean isTerminated() {
         return isTerminated;
+    }
+
+    @Override
+    public boolean isScheduled() {
+        return isScheduled;
     }
 
     @Override
