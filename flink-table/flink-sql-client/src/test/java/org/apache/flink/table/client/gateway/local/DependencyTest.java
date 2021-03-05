@@ -22,15 +22,18 @@ import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
@@ -65,6 +68,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_DEFAULT_DATABASE;
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
@@ -287,21 +292,19 @@ public class DependencyTest {
                         false);
                 hiveCatalog.createTable(
                         new ObjectPath(ADDITIONAL_TEST_DATABASE, TEST_TABLE),
-                        new CatalogTableImpl(
-                                TableSchema.builder().field("testcol", DataTypes.INT()).build(),
-                                new HashMap<String, String>() {
-                                    {
-                                        put(
-                                                CatalogPropertiesUtil.IS_GENERIC,
-                                                String.valueOf(false));
-                                    }
-                                },
-                                ""),
+                        createResolvedTable(
+                                new String[] {"testcol"}, new DataType[] {DataTypes.INT()}),
                         false);
                 // create a table to test parameterized types
                 hiveCatalog.createTable(
                         new ObjectPath("default", TABLE_WITH_PARAMETERIZED_TYPES),
-                        tableWithParameterizedTypes(),
+                        createResolvedTable(
+                                new String[] {"dec", "ch", "vch"},
+                                new DataType[] {
+                                    DataTypes.DECIMAL(10, 10),
+                                    DataTypes.CHAR(5),
+                                    DataTypes.VARCHAR(15)
+                                }),
                         false);
             } catch (DatabaseAlreadyExistException
                     | TableAlreadyExistException
@@ -312,25 +315,22 @@ public class DependencyTest {
             return hiveCatalog;
         }
 
-        private CatalogTable tableWithParameterizedTypes() {
-            TableSchema tableSchema =
-                    TableSchema.builder()
-                            .fields(
-                                    new String[] {"dec", "ch", "vch"},
-                                    new DataType[] {
-                                        DataTypes.DECIMAL(10, 10),
-                                        DataTypes.CHAR(5),
-                                        DataTypes.VARCHAR(15)
-                                    })
-                            .build();
-            return new CatalogTableImpl(
-                    tableSchema,
-                    new HashMap<String, String>() {
-                        {
-                            put(CatalogPropertiesUtil.IS_GENERIC, String.valueOf(false));
-                        }
-                    },
-                    "");
+        private ResolvedCatalogTable createResolvedTable(
+                String[] fieldNames, DataType[] fieldDataTypes) {
+            final Map<String, String> options = new HashMap<>();
+            options.put(CatalogPropertiesUtil.IS_GENERIC, String.valueOf(false));
+            final CatalogTable origin =
+                    CatalogTable.of(
+                            Schema.newBuilder().fromFields(fieldNames, fieldDataTypes).build(),
+                            null,
+                            Collections.emptyList(),
+                            options);
+            final List<Column> resolvedColumns =
+                    IntStream.range(0, fieldNames.length)
+                            .mapToObj(i -> Column.physical(fieldNames[i], fieldDataTypes[i]))
+                            .collect(Collectors.toList());
+            return new ResolvedCatalogTable(
+                    origin, new ResolvedSchema(resolvedColumns, Collections.emptyList(), null));
         }
     }
 }

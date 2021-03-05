@@ -27,7 +27,6 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.api.internal.CatalogTableSchemaResolver;
 import org.apache.flink.table.calcite.CalciteParser;
 import org.apache.flink.table.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.catalog.Catalog;
@@ -44,8 +43,10 @@ import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.expressions.ExpressionBridge;
 import org.apache.flink.table.expressions.PlannerExpressionConverter;
+import org.apache.flink.table.expressions.resolver.ExpressionResolver.ExpressionResolverBuilder;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.Operation;
@@ -62,6 +63,7 @@ import org.apache.flink.table.planner.PlanningConfigurationBuilder;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.utils.CatalogManagerMocks;
+import org.apache.flink.table.utils.ExpressionResolverMocks;
 
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlSelect;
@@ -111,13 +113,7 @@ public class SqlToOperationConverterTest {
 
     @Before
     public void before() throws TableAlreadyExistException, DatabaseNotExistException {
-        catalogManager.setCatalogTableSchemaResolver(
-                new CatalogTableSchemaResolver(
-                        new ParserImpl(
-                                catalogManager,
-                                () -> getPlannerBySqlDialect(SqlDialect.DEFAULT),
-                                () -> getParserBySqlDialect(SqlDialect.DEFAULT)),
-                        true));
+        catalogManager.initSchemaResolver(true, getExpressionResolver());
         final ObjectPath path1 = new ObjectPath(catalogManager.getCurrentDatabase(), "t1");
         final ObjectPath path2 = new ObjectPath(catalogManager.getCurrentDatabase(), "t2");
         final TableSchema tableSchema =
@@ -314,8 +310,8 @@ public class SqlToOperationConverterTest {
         String sql = "select * from kafka";
         SqlNode node = getParserBySqlDialect(SqlDialect.DEFAULT).parse(sql);
         assert node instanceof SqlSelect;
-        thrown.expectCause(Matchers.isA(UnsupportedOperationException.class));
-        thrown.expectMessage("Computed columns is only supported by the Blink planner");
+        thrown.expectCause(Matchers.isA(ValidationException.class));
+        thrown.expectMessage("Invalid expression for computed column 'b'.");
         SqlToOperationConverter.convert(planner, catalogManager, node);
     }
 
@@ -687,6 +683,15 @@ public class SqlToOperationConverterTest {
         tableConfig.setSqlDialect(sqlDialect);
         return planningConfigurationBuilder.createFlinkPlanner(
                 catalogManager.getCurrentCatalog(), catalogManager.getCurrentDatabase());
+    }
+
+    private ExpressionResolverBuilder getExpressionResolver() {
+        final Parser parser =
+                new ParserImpl(
+                        catalogManager,
+                        () -> getPlannerBySqlDialect(SqlDialect.DEFAULT),
+                        () -> getParserBySqlDialect(SqlDialect.DEFAULT));
+        return ExpressionResolverMocks.basicResolver(catalogManager, functionCatalog, parser);
     }
 
     private Operation parse(String sql, SqlDialect sqlDialect) {

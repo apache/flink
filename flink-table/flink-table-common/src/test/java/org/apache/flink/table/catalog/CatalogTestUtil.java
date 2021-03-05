@@ -41,7 +41,7 @@ import static org.junit.Assert.assertTrue;
  */
 public class CatalogTestUtil {
     public static void checkEquals(CatalogTable t1, CatalogTable t2) {
-        assertEquals(t1.getClass(), t2.getClass());
+        assertEquals(t1.getTableKind(), t2.getTableKind());
         assertEquals(t1.getSchema(), t2.getSchema());
         assertEquals(t1.getComment(), t2.getComment());
         assertEquals(t1.getPartitionKeys(), t2.getPartitionKeys());
@@ -64,7 +64,7 @@ public class CatalogTestUtil {
     }
 
     public static void checkEquals(CatalogView v1, CatalogView v2) {
-        assertEquals(v1.getClass(), v2.getClass());
+        assertEquals(v1.getTableKind(), v2.getTableKind());
         assertEquals(v1.getSchema(), v1.getSchema());
         assertEquals(v1.getComment(), v2.getComment());
         assertEquals(v1.getOriginalQuery(), v2.getOriginalQuery());

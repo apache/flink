@@ -322,13 +322,8 @@ public class SqlToOperationConverter {
                                         options.put(
                                                 ((SqlTableOption) p).getKeyString(),
                                                 ((SqlTableOption) p).getValueString()));
-                CatalogTable catalogTable =
-                        new CatalogTableImpl(
-                                originalCatalogTable.getSchema(),
-                                originalCatalogTable.getPartitionKeys(),
-                                options,
-                                originalCatalogTable.getComment());
-                return new AlterTableOptionsOperation(tableIdentifier, catalogTable);
+                return new AlterTableOptionsOperation(
+                        tableIdentifier, originalCatalogTable.copy(options));
             } else {
                 throw new ValidationException(
                         String.format(

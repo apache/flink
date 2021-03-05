@@ -22,9 +22,11 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.resolver.ExpressionResolver.ExpressionResolverBuilder;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionMock;
-import org.apache.flink.table.types.utils.DataTypeFactoryMock;
+import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.table.utils.ExpressionResolverMocks;
 
 import org.junit.Test;
@@ -39,7 +41,9 @@ import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
 import static org.apache.flink.table.utils.CatalogManagerMocks.DEFAULT_CATALOG;
 import static org.apache.flink.table.utils.CatalogManagerMocks.DEFAULT_DATABASE;
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -47,6 +51,9 @@ import static org.junit.Assert.fail;
  * ResolvedCatalogView} including {@link CatalogPropertiesUtil}.
  */
 public class CatalogBaseTableResolutionTest {
+
+    private static final ObjectIdentifier IDENTIFIER =
+            ObjectIdentifier.of(DEFAULT_CATALOG, DEFAULT_DATABASE, "TestTable");
 
     private static final String COMPUTED_SQL = "orig_ts - INTERVAL '60' MINUTE";
 
@@ -115,8 +122,7 @@ public class CatalogBaseTableResolutionTest {
     public void testCatalogTableResolution() {
         final CatalogTable table = catalogTable();
 
-        // TODO uncomment
-        // assertNotNull(table.getUnresolvedSchema());
+        assertNotNull(table.getUnresolvedSchema());
 
         final ResolvedCatalogTable resolvedTable =
                 resolveCatalogBaseTable(ResolvedCatalogTable.class, table);
@@ -222,31 +228,43 @@ public class CatalogBaseTableResolutionTest {
                 VIEW_SCHEMA, comment, originalQuery, expandedQuery, Collections.emptyMap());
     }
 
-    private static <T extends CatalogBaseTable> T resolveCatalogBaseTable(
-            Class<T> expectedClass, CatalogBaseTable table) {
-        if (table instanceof DefaultCatalogTable) {
-            final DefaultCatalogTable catalogTable = (DefaultCatalogTable) table;
-            return expectedClass.cast(
-                    new ResolvedCatalogTable(
-                            catalogTable, resolveSchema(catalogTable.getUnresolvedSchema())));
-        } else if (table instanceof DefaultCatalogView) {
-            final DefaultCatalogView catalogView = (DefaultCatalogView) table;
-            return expectedClass.cast(
-                    new ResolvedCatalogView(
-                            catalogView, resolveSchema(catalogView.getUnresolvedSchema())));
-        }
-        throw new UnsupportedOperationException("Unknown catalog base table: " + table);
+    private static CatalogManager catalogManager() {
+        final CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
+
+        final ExpressionResolverBuilder expressionResolverBuilder =
+                ExpressionResolverMocks.forSqlExpression(
+                        CatalogBaseTableResolutionTest::resolveSqlExpression);
+
+        catalogManager.initSchemaResolver(true, expressionResolverBuilder);
+
+        return catalogManager;
     }
 
-    private static ResolvedSchema resolveSchema(Schema schema) {
-        final SchemaResolver resolver =
-                new DefaultSchemaResolver(
-                        true,
-                        true,
-                        new DataTypeFactoryMock(),
-                        ExpressionResolverMocks.forSqlExpression(
-                                CatalogBaseTableResolutionTest::resolveSqlExpression));
-        return resolver.resolve(schema);
+    private static <T extends CatalogBaseTable> T resolveCatalogBaseTable(
+            Class<T> expectedClass, CatalogBaseTable table) {
+        final CatalogManager catalogManager = catalogManager();
+        catalogManager.createTable(table, IDENTIFIER, false);
+
+        final Catalog catalog =
+                catalogManager.getCatalog(DEFAULT_CATALOG).orElseThrow(IllegalStateException::new);
+
+        assertTrue(
+                "GenericInMemoryCatalog expected for test",
+                catalog instanceof GenericInMemoryCatalog);
+
+        // retrieve the resolved catalog table
+        final CatalogBaseTable storedTable;
+        try {
+            storedTable = catalog.getTable(IDENTIFIER.toObjectPath());
+        } catch (TableNotExistException e) {
+            throw new RuntimeException(e);
+        }
+
+        assertTrue(
+                "In-memory implies that output table equals input table.",
+                expectedClass.isAssignableFrom(storedTable.getClass()));
+
+        return expectedClass.cast(storedTable);
     }
 
     private static ResolvedExpression resolveSqlExpression(

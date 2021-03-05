@@ -908,29 +908,6 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
   }
 
   @Test
-  def testDropTableWithIllegalWatermark(): Unit = {
-    // for FLINK-20937
-    val illegalDDL =
-      """
-        |create table t1 (
-        |  a bigint,
-        |  b bigint,
-        |  proctime as PROCTIME(),
-        |  WATERMARK FOR proctime as proctime - INTERVAL '5' SECOND
-        |) with (
-        |  'connector' = 'COLLECTION'
-        |)
-      """.stripMargin
-
-    // create table doesn't check the validity for now
-    tableEnv.executeSql(illegalDDL)
-    assert(tableEnv.listTables().sameElements(Array[String]("t1")))
-    // should success
-    tableEnv.executeSql("DROP TABLE t1")
-    assertTrue(tableEnv.listTables().isEmpty)
-  }
-
-  @Test
   def testDropViewSameNameWithTable(): Unit = {
     val createTable1 =
       """

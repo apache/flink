@@ -87,7 +87,7 @@ class TimeAttributeITCase extends StreamingTestBase {
   def testWindowAggregateOnCustomizedWatermark(): Unit = {
     JavaFunc5.openCalled = false
     JavaFunc5.closeCalled = false
-    tEnv.registerFunction("myFunc", new JavaFunc5)
+    tEnv.createTemporaryFunction("myFunc", new JavaFunc5)
     val ddl =
       s"""
         |CREATE TABLE src (
@@ -155,34 +155,6 @@ class TimeAttributeITCase extends StreamingTestBase {
       "1970-01-01T00:00:00.009,2,6.0",
       "1970-01-01T00:00:00.018,1,4.0")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
-  }
-
-  @Test
-  def testWindowAggregateOnNestedRowtime(): Unit = {
-    val ddl =
-      s"""
-        |CREATE TABLE src (
-        |  col ROW<
-        |    ts TIMESTAMP(3),
-        |    a INT,
-        |    b DOUBLE>,
-        |  WATERMARK FOR col.ts AS col.ts - INTERVAL '0.001' SECOND
-        |) WITH (
-        |  'connector' = 'values',
-        |  'data-id' = '$dataId'
-        |)
-      """.stripMargin
-    val query =
-      """
-        |SELECT TUMBLE_END(col.ts, INTERVAL '0.003' SECOND), COUNT(*)
-        |FROM src
-        |GROUP BY TUMBLE(col.ts, INTERVAL '0.003' SECOND)
-      """.stripMargin
-    tEnv.executeSql(ddl)
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(
-      "Nested field 'col.ts' as rowtime attribute is not supported right now.")
-    tEnv.sqlQuery(query)
   }
 
   // ------------------------------------------------------------------------------------------

@@ -135,7 +135,9 @@ abstract class TableEnvImpl(
     }
   )
 
-  catalogManager.setCatalogTableSchemaResolver(new CatalogTableSchemaResolver(parser, false))
+  catalogManager.initSchemaResolver(
+    isStreamingMode,
+    operationTreeBuilder.expressionResolverBuilder())
 
   def getConfig: TableConfig = config
 
@@ -456,7 +458,10 @@ abstract class TableEnvImpl(
     val objectIdentifier: ObjectIdentifier = catalogManager.qualifyIdentifier(identifier)
 
     JavaScalaConversionUtil.toScala(catalogManager.getTable(objectIdentifier))
-      .map(t => new CatalogQueryOperation(objectIdentifier, t.getResolvedSchema))
+      .map(t =>
+        new CatalogQueryOperation(
+          objectIdentifier,
+          TableSchema.fromResolvedSchema(t.getResolvedSchema)))
   }
 
   override def listModules(): Array[String] = {
@@ -688,10 +693,10 @@ abstract class TableEnvImpl(
                 alterTableRenameOp.getNewTableIdentifier.getObjectName,
                 false)
             case alterTablePropertiesOp: AlterTableOptionsOperation =>
-              catalog.alterTable(
-                alterTablePropertiesOp.getTableIdentifier.toObjectPath,
+              catalogManager.alterTable(
                 alterTablePropertiesOp.getCatalogTable,
-                false)
+                alterTablePropertiesOp.getTableIdentifier,
+                false);
           }
           TableResultImpl.TABLE_RESULT_OK
         } catch {

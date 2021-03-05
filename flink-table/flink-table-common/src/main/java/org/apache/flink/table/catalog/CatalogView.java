@@ -60,6 +60,11 @@ public interface CatalogView extends CatalogBaseTable {
         return new DefaultCatalogView(schema, comment, originalQuery, expandedQuery, options);
     }
 
+    @Override
+    default TableKind getTableKind() {
+        return TableKind.VIEW;
+    }
+
     /**
      * Original text of the view definition that also preserves the original formatting.
      *

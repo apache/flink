@@ -20,7 +20,6 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.Schema;
-import org.apache.flink.table.api.TableSchema;
 
 import javax.annotation.Nullable;
 
@@ -59,16 +58,9 @@ class DefaultCatalogView implements CatalogView {
                 "Options cannot have null keys or values.");
     }
 
-    // TODO uncomment
-    // @Override
+    @Override
     public Schema getUnresolvedSchema() {
         return schema;
-    }
-
-    @Override
-    public TableSchema getSchema() {
-        // TODO move to upper class
-        return null;
     }
 
     @Override
@@ -98,7 +90,7 @@ class DefaultCatalogView implements CatalogView {
 
     @Override
     public Optional<String> getDescription() {
-        return Optional.empty();
+        return Optional.of(getComment());
     }
 
     @Override
