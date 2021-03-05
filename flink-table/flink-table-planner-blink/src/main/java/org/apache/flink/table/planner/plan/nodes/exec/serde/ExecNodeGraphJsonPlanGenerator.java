@@ -26,6 +26,8 @@ import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushD
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
+import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecSink;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSinkSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.AbstractExecNodeExactlyOnceVisitor;
@@ -253,6 +255,11 @@ public class ExecNodeGraphJsonPlanGenerator {
                     tableSourceSpec.setReadableConfig(serdeCtx.getConfiguration());
                     tableSourceSpec.setClassLoader(serdeCtx.getClassLoader());
                     applyProjectionPushDown((StreamExecTableSourceScan) execNode);
+                } else if (execNode instanceof CommonExecSink) {
+                    DynamicTableSinkSpec tableSinkSpec =
+                            ((CommonExecSink) execNode).getTableSinkSpec();
+                    tableSinkSpec.setReadableConfig(serdeCtx.getConfiguration());
+                    tableSinkSpec.setClassLoader(serdeCtx.getClassLoader());
                 }
                 idToExecNodes.put(id, execNode);
             }
