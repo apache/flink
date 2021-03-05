@@ -107,7 +107,7 @@ public class SubtaskCheckpointCoordinatorTest {
         SubtaskCheckpointCoordinator coordinator = coordinator(unalignedCheckpointEnabled, writer);
         CheckpointStorageLocationReference locationReference =
                 CheckpointStorageLocationReference.getDefault();
-        coordinator.initCheckpoint(
+        coordinator.initInputsCheckpoint(
                 1L,
                 unalignedCheckpointEnabled
                         ? CheckpointOptions.unaligned(locationReference)

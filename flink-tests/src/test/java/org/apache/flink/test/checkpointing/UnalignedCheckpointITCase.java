@@ -126,6 +126,10 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                 "parallel pipeline with mixed channels, p = 20, timeout=1",
                 createPipelineSettings(20, 10, true, 1)
             },
+            new Object[] {
+                "parallel pipeline with mixed channels, p = 20, timeout=5",
+                createPipelineSettings(20, 10, true, 5)
+            },
             new Object[] {"Parallel cogroup, p = 5", createCogroupSettings(5)},
             new Object[] {"Parallel cogroup, p = 10", createCogroupSettings(10)},
             new Object[] {"Parallel union, p = 5", createUnionSettings(5)},

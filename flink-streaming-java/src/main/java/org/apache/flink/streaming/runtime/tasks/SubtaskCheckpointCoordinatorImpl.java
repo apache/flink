@@ -375,7 +375,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
     }
 
     @Override
-    public void initCheckpoint(long id, CheckpointOptions checkpointOptions)
+    public void initInputsCheckpoint(long id, CheckpointOptions checkpointOptions)
             throws CheckpointException {
         if (checkpointOptions.isUnalignedCheckpoint()) {
             channelStateWriter.start(id, checkpointOptions);

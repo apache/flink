@@ -69,7 +69,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for the behaviors of the {@link CheckpointedInputGate}. */
-public class UnalignedControllerTest {
+public class UnalignedCheckpointsTest {
 
     private static final long DEFAULT_CHECKPOINT_ID = 0L;
 
