@@ -336,21 +336,13 @@ public class FineGrainedSlotManager implements SlotManager {
 
     private Optional<PendingTaskManagerId> findMatchingPendingTaskManager(
             ResourceProfile totalResourceProfile, ResourceProfile defaultSlotResourceProfile) {
-        List<PendingTaskManagerId> matchedPendingTaskManagers =
-                taskManagerTracker.getPendingTaskManagers().stream()
-                        .filter(
-                                pendingTaskManager ->
-                                        pendingTaskManager
-                                                        .getTotalResourceProfile()
-                                                        .equals(totalResourceProfile)
-                                                && pendingTaskManager
-                                                        .getDefaultSlotResourceProfile()
-                                                        .equals(defaultSlotResourceProfile))
-                        .map(PendingTaskManager::getPendingTaskManagerId)
-                        .collect(Collectors.toList());
+        Collection<PendingTaskManager> matchedPendingTaskManagers =
+                taskManagerTracker.getPendingTaskManagersByTotalAndDefaultSlotResourceProfile(
+                        totalResourceProfile, defaultSlotResourceProfile);
 
         Optional<PendingTaskManagerId> matchedPendingTaskManagerIdsWithAllocatedSlots =
                 matchedPendingTaskManagers.stream()
+                        .map(PendingTaskManager::getPendingTaskManagerId)
                         .filter(
                                 (pendingTaskManagerId) ->
                                         !taskManagerTracker
@@ -362,7 +354,9 @@ public class FineGrainedSlotManager implements SlotManager {
         if (matchedPendingTaskManagerIdsWithAllocatedSlots.isPresent()) {
             return matchedPendingTaskManagerIdsWithAllocatedSlots;
         } else {
-            return matchedPendingTaskManagers.stream().findAny();
+            return matchedPendingTaskManagers.stream()
+                    .map(PendingTaskManager::getPendingTaskManagerId)
+                    .findAny();
         }
     }
 

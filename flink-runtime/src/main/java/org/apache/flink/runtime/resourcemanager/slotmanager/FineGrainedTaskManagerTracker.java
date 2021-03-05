@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -31,8 +32,10 @@ import org.slf4j.LoggerFactory;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /** Implementation of {@link TaskManagerTracker} supporting fine-grained resource management. */
 public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
@@ -49,11 +52,19 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
     private final Map<PendingTaskManagerId, Map<JobID, ResourceCounter>>
             pendingSlotAllocationRecords;
 
+    /**
+     * Pending task manager indexed by the tuple of total resource profile and default slot resource
+     * profile.
+     */
+    private final Map<Tuple2<ResourceProfile, ResourceProfile>, Set<PendingTaskManager>>
+            totalAndDefaultSlotProfilesToPendingTaskManagers;
+
     public FineGrainedTaskManagerTracker() {
         slots = new HashMap<>();
         taskManagerRegistrations = new HashMap<>();
         pendingTaskManagers = new HashMap<>();
         pendingSlotAllocationRecords = new HashMap<>();
+        totalAndDefaultSlotProfilesToPendingTaskManagers = new HashMap<>();
     }
 
     @Override
@@ -101,14 +112,30 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
         Preconditions.checkNotNull(pendingTaskManager);
         LOG.debug("Add pending task manager {}.", pendingTaskManager);
         pendingTaskManagers.put(pendingTaskManager.getPendingTaskManagerId(), pendingTaskManager);
+        totalAndDefaultSlotProfilesToPendingTaskManagers
+                .computeIfAbsent(
+                        Tuple2.of(
+                                pendingTaskManager.getTotalResourceProfile(),
+                                pendingTaskManager.getDefaultSlotResourceProfile()),
+                        ignored -> new HashSet<>())
+                .add(pendingTaskManager);
     }
 
     @Override
     public Map<JobID, ResourceCounter> removePendingTaskManager(
             PendingTaskManagerId pendingTaskManagerId) {
         Preconditions.checkNotNull(pendingTaskManagerId);
-        Preconditions.checkNotNull(pendingTaskManagers.remove(pendingTaskManagerId));
+        final PendingTaskManager pendingTaskManager =
+                Preconditions.checkNotNull(pendingTaskManagers.remove(pendingTaskManagerId));
         LOG.debug("Remove pending task manager {}.", pendingTaskManagerId);
+        totalAndDefaultSlotProfilesToPendingTaskManagers.compute(
+                Tuple2.of(
+                        pendingTaskManager.getTotalResourceProfile(),
+                        pendingTaskManager.getDefaultSlotResourceProfile()),
+                (ignored, pendingTMSet) -> {
+                    Preconditions.checkNotNull(pendingTMSet).remove(pendingTaskManager);
+                    return pendingTMSet.isEmpty() ? null : pendingTMSet;
+                });
         return Optional.ofNullable(pendingSlotAllocationRecords.remove(pendingTaskManagerId))
                 .orElse(Collections.emptyMap());
     }
@@ -232,6 +259,17 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
     @Override
     public ClusterResourceOverview getClusterResourceOverview() {
         return new ClusterResourceOverview(taskManagerRegistrations);
+    }
+
+    @Override
+    public Collection<PendingTaskManager>
+            getPendingTaskManagersByTotalAndDefaultSlotResourceProfile(
+                    ResourceProfile totalResourceProfile,
+                    ResourceProfile defaultSlotResourceProfile) {
+        return Collections.unmodifiableCollection(
+                totalAndDefaultSlotProfilesToPendingTaskManagers.getOrDefault(
+                        Tuple2.of(totalResourceProfile, defaultSlotResourceProfile),
+                        Collections.emptySet()));
     }
 
     @Override
