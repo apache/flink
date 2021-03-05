@@ -111,13 +111,13 @@ public class MemoryUtils {
     }
 
     /**
-     * Creates a cleaner to release the unsafe memory by VM GC.
+     * Creates a cleaner to release the unsafe memory.
      *
      * @param address address of the unsafe memory to release
      * @param customCleanup A custom action to clean up GC
      * @return action to run to release the unsafe memory manually
      */
-    static Runnable createMemoryGcCleaner(long address, Runnable customCleanup) {
+    static Runnable createMemoryCleaner(long address, Runnable customCleanup) {
         return () -> {
             releaseUnsafe(address);
             customCleanup.run();
