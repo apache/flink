@@ -179,7 +179,7 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
         this.settings = settings;
     }
 
-    @Test
+    @Test(timeout = 60_000)
     public void execute() throws Exception {
         execute(settings);
     }
