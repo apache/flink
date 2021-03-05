@@ -548,12 +548,11 @@ public class HiveCatalog extends AbstractCatalog {
 
         CatalogBaseTable existingTable = instantiateCatalogTable(hiveTable, hiveConf);
 
-        if (existingTable.getClass() != newCatalogTable.getClass()) {
+        if (existingTable.getTableKind() != newCatalogTable.getTableKind()) {
             throw new CatalogException(
                     String.format(
                             "Table types don't match. Existing table is '%s' and new table is '%s'.",
-                            existingTable.getClass().getName(),
-                            newCatalogTable.getClass().getName()));
+                            existingTable.getTableKind(), newCatalogTable.getTableKind()));
         }
 
         boolean isGeneric = isGenericForGet(hiveTable.getParameters());

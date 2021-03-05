@@ -76,6 +76,10 @@ class CatalogBaseTableAPICompletenessTests(PythonAPICompletenessTestCase, PyFlin
     def java_class(cls):
         return "org.apache.flink.table.catalog.CatalogBaseTable"
 
+    @classmethod
+    def excluded_methods(cls):
+        return {'getUnresolvedSchema', 'getTableKind'}
+
 
 class CatalogFunctionAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
     """

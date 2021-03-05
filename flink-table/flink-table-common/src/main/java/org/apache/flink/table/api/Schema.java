@@ -188,6 +188,31 @@ public final class Schema {
             return this;
         }
 
+        /** Adopts the given field names and field data types as physical columns of the schema. */
+        public Builder fromFields(String[] fieldNames, AbstractDataType<?>[] fieldDataTypes) {
+            Preconditions.checkNotNull(fieldNames, "Field names must not be null.");
+            Preconditions.checkNotNull(fieldDataTypes, "Field data types must not be null.");
+            Preconditions.checkArgument(
+                    fieldNames.length == fieldDataTypes.length,
+                    "Field names and field data types must have the same length.");
+            IntStream.range(0, fieldNames.length)
+                    .forEach(i -> column(fieldNames[i], fieldDataTypes[i]));
+            return this;
+        }
+
+        /** Adopts the given field names and field data types as physical columns of the schema. */
+        public Builder fromFields(
+                List<String> fieldNames, List<? extends AbstractDataType<?>> fieldDataTypes) {
+            Preconditions.checkNotNull(fieldNames, "Field names must not be null.");
+            Preconditions.checkNotNull(fieldDataTypes, "Field data types must not be null.");
+            Preconditions.checkArgument(
+                    fieldNames.size() == fieldDataTypes.size(),
+                    "Field names and field data types must have the same length.");
+            IntStream.range(0, fieldNames.size())
+                    .forEach(i -> column(fieldNames.get(i), fieldDataTypes.get(i)));
+            return this;
+        }
+
         /**
          * Declares a physical column that is appended to this schema.
          *

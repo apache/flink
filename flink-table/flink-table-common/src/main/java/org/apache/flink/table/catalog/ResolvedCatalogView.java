@@ -19,6 +19,7 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Map;
@@ -61,11 +62,10 @@ public final class ResolvedCatalogView
         return origin.getOptions();
     }
 
-    // TODO uncomment
-    // @Override
-    // public Schema getUnresolvedSchema() {
-    //     return origin.getUnresolvedSchema();
-    // }
+    @Override
+    public Schema getUnresolvedSchema() {
+        return origin.getUnresolvedSchema();
+    }
 
     @Override
     public String getComment() {

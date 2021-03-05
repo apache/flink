@@ -70,6 +70,11 @@ public interface CatalogTable extends CatalogBaseTable {
         return CatalogPropertiesUtil.deserializeCatalogTable(properties);
     }
 
+    @Override
+    default TableKind getTableKind() {
+        return TableKind.TABLE;
+    }
+
     /**
      * Check if the table is partitioned or not.
      *

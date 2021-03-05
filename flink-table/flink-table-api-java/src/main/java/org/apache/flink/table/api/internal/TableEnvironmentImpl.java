@@ -215,8 +215,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             boolean isStreamingMode,
             ClassLoader userClassLoader) {
         this.catalogManager = catalogManager;
-        this.catalogManager.setCatalogTableSchemaResolver(
-                new CatalogTableSchemaResolver(planner.getParser(), isStreamingMode));
         this.moduleManager = moduleManager;
         this.execEnv = executor;
 
@@ -260,6 +258,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                             }
                         },
                         isStreamingMode);
+
+        catalogManager.initSchemaResolver(
+                isStreamingMode, operationTreeBuilder.expressionResolverBuilder());
     }
 
     public static TableEnvironmentImpl create(Configuration configuration) {
@@ -545,7 +546,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
         return catalogManager
                 .getTable(tableIdentifier)
-                .map(t -> new CatalogQueryOperation(tableIdentifier, t.getResolvedSchema()));
+                .map(
+                        t ->
+                                new CatalogQueryOperation(
+                                        tableIdentifier,
+                                        TableSchema.fromResolvedSchema(t.getResolvedSchema())));
     }
 
     @Override
@@ -851,9 +856,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 } else if (alterTableOperation instanceof AlterTableOptionsOperation) {
                     AlterTableOptionsOperation alterTablePropertiesOp =
                             (AlterTableOptionsOperation) operation;
-                    catalog.alterTable(
-                            alterTablePropertiesOp.getTableIdentifier().toObjectPath(),
+                    catalogManager.alterTable(
                             alterTablePropertiesOp.getCatalogTable(),
+                            alterTablePropertiesOp.getTableIdentifier(),
                             false);
                 } else if (alterTableOperation instanceof AlterTableAddConstraintOperation) {
                     AlterTableAddConstraintOperation addConstraintOP =
@@ -879,8 +884,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                     oriTable.getPartitionKeys(),
                                     oriTable.getOptions(),
                                     oriTable.getComment());
-                    catalog.alterTable(
-                            addConstraintOP.getTableIdentifier().toObjectPath(), newTable, false);
+                    catalogManager.alterTable(
+                            newTable, addConstraintOP.getTableIdentifier(), false);
                 } else if (alterTableOperation instanceof AlterTableDropConstraintOperation) {
                     AlterTableDropConstraintOperation dropConstraintOperation =
                             (AlterTableDropConstraintOperation) operation;
@@ -898,10 +903,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                     oriTable.getPartitionKeys(),
                                     oriTable.getOptions(),
                                     oriTable.getComment());
-                    catalog.alterTable(
-                            dropConstraintOperation.getTableIdentifier().toObjectPath(),
-                            newTable,
-                            false);
+                    catalogManager.alterTable(
+                            newTable, dropConstraintOperation.getTableIdentifier(), false);
                 } else if (alterTableOperation instanceof AlterPartitionPropertiesOperation) {
                     AlterPartitionPropertiesOperation alterPartPropsOp =
                             (AlterPartitionPropertiesOperation) operation;
@@ -913,9 +916,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 } else if (alterTableOperation instanceof AlterTableSchemaOperation) {
                     AlterTableSchemaOperation alterTableSchemaOperation =
                             (AlterTableSchemaOperation) alterTableOperation;
-                    catalog.alterTable(
-                            alterTableSchemaOperation.getTableIdentifier().toObjectPath(),
+                    catalogManager.alterTable(
                             alterTableSchemaOperation.getCatalogTable(),
+                            alterTableSchemaOperation.getTableIdentifier(),
                             false);
                 } else if (alterTableOperation instanceof AddPartitionsOperation) {
                     AddPartitionsOperation addPartitionsOperation =
@@ -987,16 +990,16 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 } else if (alterViewOperation instanceof AlterViewPropertiesOperation) {
                     AlterViewPropertiesOperation alterTablePropertiesOp =
                             (AlterViewPropertiesOperation) operation;
-                    catalog.alterTable(
-                            alterTablePropertiesOp.getViewIdentifier().toObjectPath(),
+                    catalogManager.alterTable(
                             alterTablePropertiesOp.getCatalogView(),
+                            alterTablePropertiesOp.getViewIdentifier(),
                             false);
                 } else if (alterViewOperation instanceof AlterViewAsOperation) {
                     AlterViewAsOperation alterViewAsOperation =
                             (AlterViewAsOperation) alterViewOperation;
-                    catalog.alterTable(
-                            alterViewAsOperation.getViewIdentifier().toObjectPath(),
+                    catalogManager.alterTable(
                             alterViewAsOperation.getNewView(),
+                            alterViewAsOperation.getViewIdentifier(),
                             false);
                 }
                 return TableResultImpl.TABLE_RESULT_OK;
@@ -1154,7 +1157,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             Optional<CatalogManager.TableLookupResult> result =
                     catalogManager.getTable(describeTableOperation.getSqlIdentifier());
             if (result.isPresent()) {
-                return buildDescribeResult(result.get().getResolvedSchema());
+                return buildDescribeResult(
+                        TableSchema.fromResolvedSchema(result.get().getResolvedSchema()));
             } else {
                 throw new ValidationException(
                         String.format(

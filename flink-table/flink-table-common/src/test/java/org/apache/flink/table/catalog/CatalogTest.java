@@ -412,11 +412,7 @@ public abstract class CatalogTest {
 
         exception.expect(CatalogException.class);
         exception.expectMessage(
-                String.format(
-                        "Table types don't match. "
-                                + "Existing table is '%s' and "
-                                + "new table is 'org.apache.flink.table.catalog.CatalogTest$TestTable'.",
-                        table.getClass().getName()));
+                "Table types don't match. Existing table is 'TABLE' and new table is 'VIEW'.");
         catalog.alterTable(path1, new TestTable(), false);
     }
 
@@ -1312,20 +1308,24 @@ public abstract class CatalogTest {
      */
     public abstract CatalogPartition createPartition();
 
-    protected TableSchema createTableSchema() {
-        return TableSchema.builder()
-                .field("first", DataTypes.STRING())
-                .field("second", DataTypes.INT())
-                .field("third", DataTypes.STRING())
-                .build();
+    protected ResolvedSchema createSchema() {
+        return new ResolvedSchema(
+                Arrays.asList(
+                        Column.physical("first", DataTypes.STRING()),
+                        Column.physical("second", DataTypes.INT()),
+                        Column.physical("third", DataTypes.STRING())),
+                Collections.emptyList(),
+                null);
     }
 
-    protected TableSchema createAnotherTableSchema() {
-        return TableSchema.builder()
-                .field("first", DataTypes.STRING())
-                .field("second", DataTypes.STRING())
-                .field("third", DataTypes.STRING())
-                .build();
+    protected ResolvedSchema createAnotherSchema() {
+        return new ResolvedSchema(
+                Arrays.asList(
+                        Column.physical("first", DataTypes.STRING()),
+                        Column.physical("second", DataTypes.STRING()),
+                        Column.physical("third", DataTypes.STRING())),
+                Collections.emptyList(),
+                null);
     }
 
     protected List<String> createPartitionKeys() {
@@ -1379,8 +1379,8 @@ public abstract class CatalogTest {
                 });
     }
 
-    /** Test table used to assert on table of different class. */
-    public static class TestTable implements CatalogBaseTable {
+    /** Test table used to assert on a different table. */
+    public static class TestTable implements CatalogView {
 
         @Override
         public Map<String, String> getOptions() {
@@ -1410,6 +1410,16 @@ public abstract class CatalogTest {
         @Override
         public Optional<String> getDetailedDescription() {
             return Optional.empty();
+        }
+
+        @Override
+        public String getOriginalQuery() {
+            return "";
+        }
+
+        @Override
+        public String getExpandedQuery() {
+            return "";
         }
     }
 
