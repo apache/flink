@@ -24,19 +24,23 @@ import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Optional;
 
 /** Controls when the checkpoint should be actually triggered. */
 @Internal
-public interface CheckpointBarrierBehaviourController {
+interface CheckpointBarrierBehaviourController {
 
     /** Invoked before first {@link CheckpointBarrier} or it's announcement. */
     void preProcessFirstBarrierOrAnnouncement(CheckpointBarrier barrier);
 
     /** Invoked per every {@link CheckpointBarrier} announcement. */
-    void barrierAnnouncement(
-            InputChannelInfo channelInfo, CheckpointBarrier announcedBarrier, int sequenceNumber)
-            throws IOException;
+    Optional<CheckpointBarrier> barrierAnnouncement(
+            InputChannelInfo channelInfo,
+            CheckpointBarrier announcedBarrier,
+            int sequenceNumber,
+            DelayedActionRegistration delayedActionRegistration)
+            throws IOException, CheckpointException;
 
     /** Invoked per every received {@link CheckpointBarrier}. */
     Optional<CheckpointBarrier> barrierReceived(
@@ -46,8 +50,6 @@ public interface CheckpointBarrierBehaviourController {
     /**
      * Invoked once per checkpoint, before the first invocation of {@link
      * #barrierReceived(InputChannelInfo, CheckpointBarrier)} for that given checkpoint.
-     *
-     * @return {@code true} if checkpoint should be triggered.
      */
     Optional<CheckpointBarrier> preProcessFirstBarrier(
             InputChannelInfo channelInfo, CheckpointBarrier barrier)
@@ -56,8 +58,6 @@ public interface CheckpointBarrierBehaviourController {
     /**
      * Invoked once per checkpoint, after the last invocation of {@link
      * #barrierReceived(InputChannelInfo, CheckpointBarrier)} for that given checkpoint.
-     *
-     * @return {@code true} if checkpoint should be triggered.
      */
     Optional<CheckpointBarrier> postProcessLastBarrier(
             InputChannelInfo channelInfo, CheckpointBarrier barrier)
@@ -67,4 +67,29 @@ public interface CheckpointBarrierBehaviourController {
 
     void obsoleteBarrierReceived(InputChannelInfo channelInfo, CheckpointBarrier barrier)
             throws IOException;
+
+    /** A way to register a delayed action. */
+    @FunctionalInterface
+    interface DelayedActionRegistration {
+        Cancellable schedule(CheckpointBarrierBehaviourControllerAction callable, Duration delay);
+    }
+
+    /**
+     * An action that a {@link CheckpointBarrierBehaviourController} can make when a timer fires.
+     */
+    interface CheckpointBarrierBehaviourControllerAction {
+        Optional<CheckpointBarrier> execute() throws IOException, CheckpointException;
+    }
+
+    /** A handle to a delayed action which can be cancelled. */
+    interface Cancellable {
+        void cancel();
+    }
+
+    /** A dummy {@link DelayedActionRegistration} which does not allow for timers registration. */
+    DelayedActionRegistration ILLEGAL_REGISTRATION =
+            (callable, delay) -> {
+                throw new UnsupportedOperationException(
+                        "It is not allowed to schedule a delayed action from this method.");
+            };
 }

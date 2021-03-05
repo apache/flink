@@ -24,8 +24,12 @@ import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.util.clock.Clock;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
-import java.util.Collection;
+import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -34,6 +38,9 @@ import static org.apache.flink.util.Preconditions.checkState;
 /** Controller that can alternate between aligned and unaligned checkpoints. */
 @Internal
 public class AlternatingController implements CheckpointBarrierBehaviourController {
+
+    private static final Logger LOG = LoggerFactory.getLogger(AlternatingController.class);
+
     private final AlignedController alignedController;
     private final UnalignedController unalignedController;
     private final Clock clock;
@@ -41,6 +48,8 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
     private CheckpointBarrierBehaviourController activeController;
     private long firstBarrierArrivalTime = Long.MAX_VALUE;
     private long lastSeenBarrier = -1L;
+    private long lastCompletedBarrier = -1L;
+    private Cancellable registeredTimer = null;
 
     public AlternatingController(
             AlignedController alignedController,
@@ -53,29 +62,81 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
 
     @Override
     public void preProcessFirstBarrierOrAnnouncement(CheckpointBarrier barrier) {
+        // clean up sequence numbers in both controllers
+        alignedController.preProcessFirstBarrierOrAnnouncement(barrier);
+        unalignedController.preProcessFirstBarrierOrAnnouncement(barrier);
         activeController = chooseController(barrier);
-        activeController.preProcessFirstBarrierOrAnnouncement(barrier);
     }
 
     @Override
-    public void barrierAnnouncement(
-            InputChannelInfo channelInfo, CheckpointBarrier announcedBarrier, int sequenceNumber)
-            throws IOException {
+    public Optional<CheckpointBarrier> barrierAnnouncement(
+            InputChannelInfo channelInfo,
+            CheckpointBarrier announcedBarrier,
+            int sequenceNumber,
+            DelayedActionRegistration delayedActionRegistration)
+            throws IOException, CheckpointException {
+        boolean firstAnnouncementForId = false;
         if (lastSeenBarrier < announcedBarrier.getId()) {
             lastSeenBarrier = announcedBarrier.getId();
             firstBarrierArrivalTime = getArrivalTime(announcedBarrier);
+            firstAnnouncementForId = true;
         }
 
         Optional<CheckpointBarrier> maybeTimedOut = asTimedOut(announcedBarrier);
         announcedBarrier = maybeTimedOut.orElse(announcedBarrier);
+        checkState(
+                !activeController
+                        .barrierAnnouncement(
+                                channelInfo,
+                                announcedBarrier,
+                                sequenceNumber,
+                                delayedActionRegistration)
+                        .isPresent());
 
-        if (maybeTimedOut.isPresent() && activeController != unalignedController) {
+        if (maybeTimedOut.isPresent() && activeController == alignedController) {
             // Let's timeout this barrier
-            unalignedController.barrierAnnouncement(channelInfo, announcedBarrier, sequenceNumber);
+            return switchToUnaligned(announcedBarrier);
+        } else if (firstAnnouncementForId
+                && announcedBarrier.getCheckpointOptions().isTimeoutable()
+                && activeController == alignedController) {
+            scheduleSwitchToUnaligned(delayedActionRegistration, announcedBarrier);
+        }
+
+        return Optional.empty();
+    }
+
+    private void scheduleSwitchToUnaligned(
+            DelayedActionRegistration delayedActionRegistration,
+            CheckpointBarrier announcedBarrier) {
+        if (registeredTimer != null) {
+            registeredTimer.cancel();
+        }
+        registeredTimer =
+                delayedActionRegistration.schedule(
+                        () -> {
+                            long barrierId = announcedBarrier.getId();
+                            if (lastSeenBarrier == barrierId
+                                    && lastCompletedBarrier < barrierId
+                                    && activeController == alignedController) {
+                                // Let's timeout this barrier
+                                LOG.info(
+                                        "Checkpoint alignment for barrier {} actively timed out."
+                                                + "Switching over to unaligned checkpoints.",
+                                        barrierId);
+                                CheckpointBarrier unaligned = announcedBarrier.asUnaligned();
+                                return switchToUnaligned(unaligned);
+                            }
+                            return Optional.empty();
+                        },
+                        Duration.ofMillis(
+                                announcedBarrier.getCheckpointOptions().getAlignmentTimeout() + 1));
+    }
+
+    private long getArrivalTime(CheckpointBarrier announcedBarrier) {
+        if (announcedBarrier.getCheckpointOptions().isTimeoutable()) {
+            return clock.relativeTimeNanos();
         } else {
-            // Either we have already timed out before, or we are still going with aligned
-            // checkpoints
-            activeController.barrierAnnouncement(channelInfo, announcedBarrier, sequenceNumber);
+            return Long.MAX_VALUE;
         }
     }
 
@@ -85,9 +146,9 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
             throws IOException, CheckpointException {
         if (barrier.getCheckpointOptions().isUnalignedCheckpoint()
                 && activeController == alignedController) {
-            switchToUnaligned(channelInfo, barrier);
+            Optional<CheckpointBarrier> maybeTrigger = switchToUnaligned(barrier);
             activeController.barrierReceived(channelInfo, barrier);
-            return Optional.of(barrier);
+            return maybeTrigger;
         }
 
         Optional<CheckpointBarrier> maybeTimedOut = asTimedOut(barrier);
@@ -97,8 +158,11 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
 
         if (maybeTimedOut.isPresent()) {
             if (activeController == alignedController) {
-                switchToUnaligned(channelInfo, maybeTimedOut.get());
-                return maybeTimedOut;
+                LOG.info(
+                        "Received a barrier for a checkpoint {} with timed out alignment. Switching"
+                                + " over to unaligned checkpoints.",
+                        barrier.getId());
+                return switchToUnaligned(maybeTimedOut.get());
             } else {
                 alignedController.resumeConsumption(channelInfo);
             }
@@ -117,43 +181,64 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
             lastSeenBarrier = barrier.getId();
             firstBarrierArrivalTime = getArrivalTime(barrier);
         }
-        activeController = chooseController(barrier);
+        if (activeController == unalignedController) {
+            barrier = barrier.asUnaligned();
+        }
         return activeController.preProcessFirstBarrier(channelInfo, barrier);
     }
 
-    private void switchToUnaligned(InputChannelInfo channelInfo, CheckpointBarrier barrier)
+    private Optional<CheckpointBarrier> switchToUnaligned(CheckpointBarrier barrier)
             throws IOException, CheckpointException {
         checkState(alignedController == activeController);
 
         // timeout all not yet processed barriers for which alignedController has processed an
         // announcement
+        Map<InputChannelInfo, Integer> announcedUnalignedBarriers =
+                unalignedController.getSequenceNumberInAnnouncedChannels();
         for (Map.Entry<InputChannelInfo, Integer> entry :
                 alignedController.getSequenceNumberInAnnouncedChannels().entrySet()) {
             InputChannelInfo unProcessedChannelInfo = entry.getKey();
             int announcedBarrierSequenceNumber = entry.getValue();
-            unalignedController.barrierAnnouncement(
-                    unProcessedChannelInfo, barrier, announcedBarrierSequenceNumber);
+            if (announcedUnalignedBarriers.containsKey(unProcessedChannelInfo)) {
+                checkState(
+                        announcedUnalignedBarriers.get(unProcessedChannelInfo)
+                                == announcedBarrierSequenceNumber);
+            } else {
+                unalignedController.barrierAnnouncement(
+                        unProcessedChannelInfo,
+                        barrier,
+                        announcedBarrierSequenceNumber,
+                        ILLEGAL_REGISTRATION);
+            }
         }
-
-        // get blocked channels before resuming consumption
-        Collection<InputChannelInfo> blockedChannels = alignedController.getBlockedChannels();
-
         activeController = unalignedController;
 
-        // alignedController might have already processed some barriers, so "migrate"/forward those
+        // get blocked channels before resuming consumption
+        List<InputChannelInfo> blockedChannels = alignedController.getBlockedChannels();
+        // alignedController might have already processed some barriers, so
+        // "migrate"/forward those
         // calls to unalignedController.
-        unalignedController.preProcessFirstBarrier(channelInfo, barrier);
-        for (InputChannelInfo blockedChannel : blockedChannels) {
-            unalignedController.barrierReceived(blockedChannel, barrier);
+        Optional<CheckpointBarrier> maybeTrigger = Optional.empty();
+        for (int i = 0; i < blockedChannels.size(); i++) {
+            InputChannelInfo blockedChannel = blockedChannels.get(i);
+            if (i == 0) {
+                maybeTrigger = unalignedController.preProcessFirstBarrier(blockedChannel, barrier);
+            } else {
+                unalignedController.barrierReceived(blockedChannel, barrier);
+            }
         }
 
         alignedController.resumeConsumption();
+        return maybeTrigger;
     }
 
     @Override
     public Optional<CheckpointBarrier> postProcessLastBarrier(
             InputChannelInfo channelInfo, CheckpointBarrier barrier)
             throws IOException, CheckpointException {
+        if (lastCompletedBarrier < barrier.getId()) {
+            lastCompletedBarrier = barrier.getId();
+        }
         return activeController.postProcessLastBarrier(channelInfo, barrier);
     }
 
@@ -161,6 +246,9 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
     public void abortPendingCheckpoint(long cancelledId, CheckpointException exception)
             throws IOException {
         activeController.abortPendingCheckpoint(cancelledId, exception);
+        if (lastCompletedBarrier < cancelledId) {
+            lastCompletedBarrier = cancelledId;
+        }
     }
 
     @Override
@@ -186,11 +274,5 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
                 && barrier.getId() <= lastSeenBarrier
                 && barrier.getCheckpointOptions().getAlignmentTimeout() * 1_000_000
                         < (clock.relativeTimeNanos() - firstBarrierArrivalTime);
-    }
-
-    private long getArrivalTime(CheckpointBarrier announcedBarrier) {
-        return announcedBarrier.getCheckpointOptions().isTimeoutable()
-                ? clock.relativeTimeNanos()
-                : Long.MAX_VALUE;
     }
 }

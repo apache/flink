@@ -27,7 +27,12 @@ import org.apache.flink.streaming.runtime.tasks.SubtaskCheckpointCoordinator;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** Controller for unaligned checkpoints. */
 @Internal
@@ -35,23 +40,38 @@ public class UnalignedController implements CheckpointBarrierBehaviourController
 
     private final SubtaskCheckpointCoordinator checkpointCoordinator;
     private final CheckpointableInput[] inputs;
+    private final Map<InputChannelInfo, Integer> sequenceNumberInAnnouncedChannels;
 
     public UnalignedController(
             SubtaskCheckpointCoordinator checkpointCoordinator, CheckpointableInput... inputs) {
         this.checkpointCoordinator = checkpointCoordinator;
         this.inputs = inputs;
+        sequenceNumberInAnnouncedChannels = new HashMap<>();
     }
 
     @Override
-    public void preProcessFirstBarrierOrAnnouncement(CheckpointBarrier barrier) {}
+    public void preProcessFirstBarrierOrAnnouncement(CheckpointBarrier barrier) {
+        sequenceNumberInAnnouncedChannels.clear();
+    }
 
     @Override
-    public void barrierAnnouncement(
-            InputChannelInfo channelInfo, CheckpointBarrier announcedBarrier, int sequenceNumber)
+    public Optional<CheckpointBarrier> barrierAnnouncement(
+            InputChannelInfo channelInfo,
+            CheckpointBarrier announcedBarrier,
+            int sequenceNumber,
+            DelayedActionRegistration delayedActionRegistration)
             throws IOException {
         Preconditions.checkState(announcedBarrier.isCheckpoint());
+        Integer previousValue = sequenceNumberInAnnouncedChannels.put(channelInfo, sequenceNumber);
+        checkState(
+                previousValue == null,
+                "Stream corrupt: Repeated barrierAnnouncement [%s] overwriting [%s] for the same checkpoint on input %s",
+                announcedBarrier,
+                sequenceNumber,
+                channelInfo);
         inputs[channelInfo.getGateIdx()].convertToPriorityEvent(
                 channelInfo.getInputChannelIdx(), sequenceNumber);
+        return Optional.empty();
     }
 
     @Override
@@ -96,4 +116,8 @@ public class UnalignedController implements CheckpointBarrierBehaviourController
 
     @Override
     public void obsoleteBarrierReceived(InputChannelInfo channelInfo, CheckpointBarrier barrier) {}
+
+    Map<InputChannelInfo, Integer> getSequenceNumberInAnnouncedChannels() {
+        return Collections.unmodifiableMap(sequenceNumberInAnnouncedChannels);
+    }
 }

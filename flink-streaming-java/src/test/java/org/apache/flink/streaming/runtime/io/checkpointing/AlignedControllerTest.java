@@ -40,6 +40,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 import org.apache.flink.streaming.runtime.io.MockInputGate;
+import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierBehaviourController.DelayedActionRegistration;
 import org.apache.flink.util.clock.SystemClock;
 
 import org.hamcrest.BaseMatcher;
@@ -141,7 +142,8 @@ public class AlignedControllerTest {
                         new AlignedController(gate) {
                             @Override
                             protected void resetPendingCheckpoint(long cancelledId) {}
-                        }),
+                        },
+                        (callable, duration) -> () -> {}),
                 new SyncMailboxExecutor());
     }
 
@@ -160,17 +162,27 @@ public class AlignedControllerTest {
     public void testGetChannelsWithUnprocessedBarriers() throws IOException {
         mockInputGate = new MockInputGate(4, Collections.emptyList());
         AlignedController alignedController = new AlignedController(mockInputGate);
+        DelayedActionRegistration dummyRegistration = (callable, delay) -> () -> {};
         BufferOrEvent barrier0 = createBarrier(1, 0);
         BufferOrEvent barrier1 = createBarrier(1, 1);
         BufferOrEvent barrier3 = createBarrier(1, 3);
         alignedController.barrierAnnouncement(
-                barrier0.getChannelInfo(), (CheckpointBarrier) barrier0.getEvent(), 0);
+                barrier0.getChannelInfo(),
+                (CheckpointBarrier) barrier0.getEvent(),
+                0,
+                dummyRegistration);
         alignedController.barrierReceived(
                 barrier0.getChannelInfo(), (CheckpointBarrier) barrier0.getEvent());
         alignedController.barrierAnnouncement(
-                barrier1.getChannelInfo(), (CheckpointBarrier) barrier1.getEvent(), 1);
+                barrier1.getChannelInfo(),
+                (CheckpointBarrier) barrier1.getEvent(),
+                1,
+                dummyRegistration);
         alignedController.barrierAnnouncement(
-                barrier3.getChannelInfo(), (CheckpointBarrier) barrier3.getEvent(), 42);
+                barrier3.getChannelInfo(),
+                (CheckpointBarrier) barrier3.getEvent(),
+                42,
+                dummyRegistration);
 
         Collection<InputChannelInfo> blockedChannels = alignedController.getBlockedChannels();
         Map<InputChannelInfo, Integer> announcedChannels =

@@ -26,8 +26,9 @@ import org.apache.flink.runtime.io.network.partition.consumer.CheckpointableInpu
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -45,8 +46,9 @@ public class AlignedController implements CheckpointBarrierBehaviourController {
      * {@link #blockedChannels} are the ones for which we have already processed {@link
      * CheckpointBarrier} (via {@link #barrierReceived(InputChannelInfo, CheckpointBarrier)}. {@link
      * #sequenceNumberInAnnouncedChannels} on the other hand, are the ones that we have processed
-     * {@link #barrierAnnouncement(InputChannelInfo, CheckpointBarrier, int)} but not yet {@link
-     * #barrierReceived(InputChannelInfo, CheckpointBarrier)}.
+     * {@link #barrierAnnouncement(InputChannelInfo, CheckpointBarrier, int,
+     * DelayedActionRegistration)} but not yet {@link #barrierReceived(InputChannelInfo,
+     * CheckpointBarrier)}.
      */
     private final Map<InputChannelInfo, Boolean> blockedChannels;
 
@@ -62,8 +64,11 @@ public class AlignedController implements CheckpointBarrierBehaviourController {
     }
 
     @Override
-    public void barrierAnnouncement(
-            InputChannelInfo channelInfo, CheckpointBarrier announcedBarrier, int sequenceNumber) {
+    public Optional<CheckpointBarrier> barrierAnnouncement(
+            InputChannelInfo channelInfo,
+            CheckpointBarrier announcedBarrier,
+            int sequenceNumber,
+            DelayedActionRegistration delayedActionRegistration) {
         Integer previousValue = sequenceNumberInAnnouncedChannels.put(channelInfo, sequenceNumber);
         checkState(
                 previousValue == null,
@@ -71,6 +76,7 @@ public class AlignedController implements CheckpointBarrierBehaviourController {
                 announcedBarrier,
                 sequenceNumber,
                 channelInfo);
+        return Optional.empty();
     }
 
     @Override
@@ -127,15 +133,15 @@ public class AlignedController implements CheckpointBarrierBehaviourController {
         }
     }
 
-    public Collection<InputChannelInfo> getBlockedChannels() {
+    public List<InputChannelInfo> getBlockedChannels() {
         return blockedChannels.entrySet().stream()
-                .filter(entry -> entry.getValue())
-                .map(entry -> entry.getKey())
-                .collect(Collectors.toSet());
+                .filter(Map.Entry::getValue)
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toList());
     }
 
-    public Map<InputChannelInfo, Integer> getSequenceNumberInAnnouncedChannels() {
-        return new HashMap<>(sequenceNumberInAnnouncedChannels);
+    Map<InputChannelInfo, Integer> getSequenceNumberInAnnouncedChannels() {
+        return Collections.unmodifiableMap(sequenceNumberInAnnouncedChannels);
     }
 
     public void resumeConsumption() throws IOException {
