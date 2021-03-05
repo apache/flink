@@ -33,7 +33,8 @@ import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServicesBuilder;
 import org.apache.flink.runtime.taskexecutor.slot.TestingTaskSlotTable;
 import org.apache.flink.runtime.taskmanager.Task;
-import org.apache.flink.util.IOUtils;
+import org.apache.flink.testutils.ClassLoaderUtils;
+import org.apache.flink.util.ChildFirstClassLoader;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.CheckedSupplier;
 
@@ -45,18 +46,10 @@ import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
 
-import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 import static org.apache.flink.runtime.metrics.util.MetricUtils.METRIC_GROUP_FLINK;
 import static org.apache.flink.runtime.metrics.util.MetricUtils.METRIC_GROUP_MANAGED_MEMORY;
@@ -183,7 +176,7 @@ public class MetricUtilsTest extends TestLogger {
         @SuppressWarnings("unchecked")
         final Gauge<Long> used = (Gauge<Long>) metaspaceMetrics.get(MetricNames.MEMORY_USED);
 
-        runUntilMetricChanged("Metaspace", 10, () -> redefineAsNewClass(MetricUtils.class), used);
+        runUntilMetricChanged("Metaspace", 10, MetricUtilsTest::redefineDummyClass, used);
     }
 
     @Test
@@ -196,7 +189,7 @@ public class MetricUtilsTest extends TestLogger {
         @SuppressWarnings("unchecked")
         final Gauge<Long> used = (Gauge<Long>) nonHeapMetrics.get(MetricNames.MEMORY_USED);
 
-        runUntilMetricChanged("Non-heap", 10, () -> redefineAsNewClass(MetricUtils.class), used);
+        runUntilMetricChanged("Non-heap", 10, MetricUtilsTest::redefineDummyClass, used);
     }
 
     @Test
@@ -250,56 +243,31 @@ public class MetricUtilsTest extends TestLogger {
 
     // --------------- utility methods and classes ---------------
 
-    /** Intercept loading classes and define them based on found class resources. */
-    private static class InterceptingClassLoader extends ClassLoader {
-        private final Set<String> interceptingClassNames = new HashSet<>();
-        private final Map<String, Class<?>> interceptedClasses = new HashMap<>();
+    /**
+     * An extreme simple class with no dependencies outside "java" package to ease re-defining from
+     * its bytecode.
+     */
+    private static class Dummy {}
 
-        public InterceptingClassLoader(
-                Collection<String> interceptingClassNames, ClassLoader parent) {
-            super(parent);
-            this.interceptingClassNames.addAll(interceptingClassNames);
-        }
-
-        @Override
-        protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-            Class<?> interceptedClass = interceptedClasses.get(name);
-            if (interceptedClass != null) {
-                return interceptedClass;
-            }
-            if (!interceptingClassNames.contains(name)) {
-                return super.loadClass(name, resolve);
-            }
-            String classFileResourceName = name.replace('.', '/') + ".class";
-            try (InputStream inputStream = getResourceAsStream(classFileResourceName)) {
-                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-                IOUtils.copyBytes(inputStream, outputStream, false);
-                byte[] bytecode = outputStream.toByteArray();
-                Class<?> definedClass =
-                        defineClass(
-                                name,
-                                bytecode,
-                                0,
-                                bytecode.length,
-                                getClass().getProtectionDomain());
-                interceptedClasses.put(name, definedClass);
-                return definedClass;
-            } catch (Exception ex) {
-                throw new ClassNotFoundException(ex.getMessage(), ex);
-            }
-        }
-    }
-
-    /** Define an new class using given class's name and bytecode. */
+    /**
+     * Define an new class using {@link Dummy} class's name and bytecode to consume Metaspace and
+     * NonHeap memory.
+     */
     @SuppressWarnings("unchecked")
-    private static <T> Class<T> redefineAsNewClass(Class<T> clazz) throws ClassNotFoundException {
-        InterceptingClassLoader classLoader =
-                new InterceptingClassLoader(
-                        Collections.singleton(clazz.getName()), clazz.getClassLoader());
-        Class<T> newClass = (Class<T>) classLoader.loadClass(clazz.getName(), true);
+    private static Class<Dummy> redefineDummyClass() throws ClassNotFoundException {
+        Class<?> clazz = Dummy.class;
+        ChildFirstClassLoader classLoader =
+                new ChildFirstClassLoader(
+                        ClassLoaderUtils.getClasspathURLs(),
+                        clazz.getClassLoader(),
+                        new String[] {"java."},
+                        ignored -> {});
+
+        Class<?> newClass = Class.forName(clazz.getName(), true, classLoader);
+
         Assert.assertNotSame(clazz, newClass);
         Assert.assertEquals(clazz.getName(), newClass.getName());
-        return newClass;
+        return (Class<Dummy>) newClass;
     }
 
     private static boolean hasMetaspaceMemoryPool() {
