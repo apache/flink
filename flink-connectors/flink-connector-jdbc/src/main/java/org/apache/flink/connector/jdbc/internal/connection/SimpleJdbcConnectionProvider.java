@@ -100,7 +100,16 @@ public class SimpleJdbcConnectionProvider implements JdbcConnectionProvider, Ser
 
     @Override
     public Connection getOrEstablishConnection() throws SQLException, ClassNotFoundException {
-        if (connection == null) {
+        if (connection != null) {
+            return connection;
+        }
+        if (jdbcOptions.getDriverName() == null) {
+            connection =
+                    DriverManager.getConnection(
+                            jdbcOptions.getDbURL(),
+                            jdbcOptions.getUsername().orElse(null),
+                            jdbcOptions.getPassword().orElse(null));
+        } else {
             Driver driver = getDriver();
             Properties info = new Properties();
             jdbcOptions.getUsername().ifPresent(user -> info.setProperty("user", user));
