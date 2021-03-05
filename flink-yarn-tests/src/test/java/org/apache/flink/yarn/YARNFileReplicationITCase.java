@@ -114,7 +114,16 @@ public class YARNFileReplicationITCase extends YarnTestBase {
                 final JobResult jobResult = jobResultCompletableFuture.get();
 
                 assertThat(jobResult, is(notNullValue()));
-                assertThat(jobResult.getSerializedThrowable().isPresent(), is(false));
+                jobResult
+                        .getSerializedThrowable()
+                        .ifPresent(
+                                serializedThrowable -> {
+                                    throw new AssertionError(
+                                            "Job failed",
+                                            serializedThrowable.deserializeError(
+                                                    YARNFileReplicationITCase.class
+                                                            .getClassLoader()));
+                                });
 
                 extraVerification(configuration, applicationId);
 
