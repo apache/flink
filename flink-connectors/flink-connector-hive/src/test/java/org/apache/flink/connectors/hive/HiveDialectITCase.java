@@ -68,7 +68,7 @@ import static org.apache.flink.table.api.EnvironmentSettings.DEFAULT_BUILTIN_CAT
 import static org.apache.flink.table.api.EnvironmentSettings.DEFAULT_BUILTIN_DATABASE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
@@ -115,7 +115,8 @@ public class HiveDialectITCase {
         assertSame(parser, tableEnvInternal.getParser());
         // switching dialect will result in a new parser
         tableEnvInternal.getConfig().setSqlDialect(SqlDialect.DEFAULT);
-        assertNotSame(parser, tableEnvInternal.getParser());
+        assertNotEquals(
+                parser.getClass().getName(), tableEnvInternal.getParser().getClass().getName());
     }
 
     @Test
