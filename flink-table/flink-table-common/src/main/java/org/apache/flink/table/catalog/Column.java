@@ -65,44 +65,16 @@ public abstract class Column {
     }
 
     /**
-     * Creates a metadata column from metadata of the given column name.
-     *
-     * <p>The column is not virtual by default.
-     */
-    public static MetadataColumn metadata(String name, DataType dataType) {
-        return metadata(name, dataType, null, false);
-    }
-
-    /**
-     * Creates a metadata column from metadata of the given column name.
-     *
-     * <p>Allows to specify whether the column is virtual or not.
-     */
-    public static MetadataColumn metadata(String name, DataType type, boolean isVirtual) {
-        return metadata(name, type, null, isVirtual);
-    }
-
-    /**
-     * Creates a metadata column from metadata of the given alias.
-     *
-     * <p>The column is not virtual by default.
-     */
-    public static MetadataColumn metadata(String name, DataType type, String metadataAlias) {
-        Preconditions.checkNotNull(metadataAlias, "Metadata alias can not be null.");
-        return metadata(name, type, metadataAlias, false);
-    }
-
-    /**
      * Creates a metadata column from metadata of the given column name or from metadata of the
-     * given alias (if not null).
+     * given key (if not null).
      *
      * <p>Allows to specify whether the column is virtual or not.
      */
     public static MetadataColumn metadata(
-            String name, DataType dataType, @Nullable String metadataAlias, boolean isVirtual) {
+            String name, DataType dataType, @Nullable String metadataKey, boolean isVirtual) {
         Preconditions.checkNotNull(name, "Column name can not be null.");
         Preconditions.checkNotNull(dataType, "Column data type can not be null.");
-        return new MetadataColumn(name, dataType, metadataAlias, isVirtual);
+        return new MetadataColumn(name, dataType, metadataKey, isVirtual);
     }
 
     /**
@@ -257,14 +229,14 @@ public abstract class Column {
     /** Representation of a metadata column. */
     public static final class MetadataColumn extends Column {
 
-        private final @Nullable String metadataAlias;
+        private final @Nullable String metadataKey;
 
         private final boolean isVirtual;
 
         private MetadataColumn(
-                String name, DataType dataType, @Nullable String metadataAlias, boolean isVirtual) {
+                String name, DataType dataType, @Nullable String metadataKey, boolean isVirtual) {
             super(name, dataType);
-            this.metadataAlias = metadataAlias;
+            this.metadataKey = metadataKey;
             this.isVirtual = isVirtual;
         }
 
@@ -272,8 +244,8 @@ public abstract class Column {
             return isVirtual;
         }
 
-        public Optional<String> getMetadataAlias() {
-            return Optional.ofNullable(metadataAlias);
+        public Optional<String> getMetadataKey() {
+            return Optional.ofNullable(metadataKey);
         }
 
         @Override
@@ -290,10 +262,10 @@ public abstract class Column {
         public Optional<String> explainExtras() {
             final StringBuilder sb = new StringBuilder();
             sb.append("METADATA");
-            if (metadataAlias != null) {
+            if (metadataKey != null) {
                 sb.append(" FROM ");
                 sb.append("'");
-                sb.append(EncodingUtils.escapeSingleQuotes(metadataAlias));
+                sb.append(EncodingUtils.escapeSingleQuotes(metadataKey));
                 sb.append("'");
             }
             if (isVirtual) {
@@ -304,7 +276,7 @@ public abstract class Column {
 
         @Override
         public Column copy(DataType newDataType) {
-            return new MetadataColumn(name, newDataType, metadataAlias, isVirtual);
+            return new MetadataColumn(name, newDataType, metadataKey, isVirtual);
         }
 
         @Override
@@ -319,12 +291,12 @@ public abstract class Column {
                 return false;
             }
             MetadataColumn that = (MetadataColumn) o;
-            return isVirtual == that.isVirtual && Objects.equals(metadataAlias, that.metadataAlias);
+            return isVirtual == that.isVirtual && Objects.equals(metadataKey, that.metadataKey);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(super.hashCode(), metadataAlias, isVirtual);
+            return Objects.hash(super.hashCode(), metadataKey, isVirtual);
         }
     }
 }

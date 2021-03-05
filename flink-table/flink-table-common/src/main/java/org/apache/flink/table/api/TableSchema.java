@@ -21,7 +21,12 @@ package org.apache.flink.table.api;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
+import org.apache.flink.table.api.TableColumn.ComputedColumn;
+import org.apache.flink.table.api.TableColumn.MetadataColumn;
+import org.apache.flink.table.api.TableColumn.PhysicalColumn;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -298,6 +303,40 @@ public class TableSchema {
         return Optional.ofNullable(primaryKey);
     }
 
+    /** Helps to migrate to the new {@link Schema} class. */
+    public Schema toSchema() {
+        final Schema.Builder builder = Schema.newBuilder();
+
+        columns.forEach(
+                column -> {
+                    if (column instanceof PhysicalColumn) {
+                        final PhysicalColumn c = (PhysicalColumn) column;
+                        builder.column(c.getName(), c.getType());
+                    } else if (column instanceof MetadataColumn) {
+                        final MetadataColumn c = (MetadataColumn) column;
+                        builder.columnByMetadata(
+                                c.getName(),
+                                c.getType(),
+                                c.getMetadataAlias().orElse(null),
+                                c.isVirtual());
+                    } else if (column instanceof ComputedColumn) {
+                        final ComputedColumn c = (ComputedColumn) column;
+                        builder.columnByExpression(c.getName(), c.getExpression());
+                    } else {
+                        throw new IllegalArgumentException("Unsupported column type: " + column);
+                    }
+                });
+
+        watermarkSpecs.forEach(
+                spec -> builder.watermark(spec.getRowtimeAttribute(), spec.getWatermarkExpr()));
+
+        if (primaryKey != null) {
+            builder.primaryKeyNamed(primaryKey.getName(), primaryKey.getColumns());
+        }
+
+        return builder.build();
+    }
+
     @Override
     public String toString() {
         final StringBuilder sb = new StringBuilder();
@@ -367,6 +406,54 @@ public class TableSchema {
             return new TableSchema(
                     new String[] {ATOMIC_TYPE_FIELD_NAME}, new TypeInformation<?>[] {typeInfo});
         }
+    }
+
+    /** Helps to migrate to the new {@link ResolvedSchema} to old API methods. */
+    public static TableSchema fromResolvedSchema(ResolvedSchema resolvedSchema) {
+        final TableSchema.Builder builder = TableSchema.builder();
+
+        resolvedSchema.getColumns().stream()
+                .map(
+                        column -> {
+                            if (column instanceof Column.PhysicalColumn) {
+                                final Column.PhysicalColumn c = (Column.PhysicalColumn) column;
+                                return TableColumn.physical(c.getName(), c.getDataType());
+                            } else if (column instanceof Column.MetadataColumn) {
+                                final Column.MetadataColumn c = (Column.MetadataColumn) column;
+                                return TableColumn.metadata(
+                                        c.getName(),
+                                        c.getDataType(),
+                                        c.getMetadataKey().orElse(null),
+                                        c.isVirtual());
+                            } else if (column instanceof Column.ComputedColumn) {
+                                final Column.ComputedColumn c = (Column.ComputedColumn) column;
+                                return TableColumn.computed(
+                                        c.getName(),
+                                        c.getDataType(),
+                                        c.getExpression().asSerializableString());
+                            }
+                            throw new IllegalArgumentException(
+                                    "Unsupported column type: " + column);
+                        })
+                .forEach(builder::add);
+
+        resolvedSchema
+                .getWatermarkSpecs()
+                .forEach(
+                        spec ->
+                                builder.watermark(
+                                        spec.getRowtimeAttribute(),
+                                        spec.getWatermarkExpression().asSerializableString(),
+                                        spec.getWatermarkExpression().getOutputDataType()));
+
+        resolvedSchema
+                .getPrimaryKey()
+                .ifPresent(
+                        pk ->
+                                builder.primaryKey(
+                                        pk.getName(), pk.getColumns().toArray(new String[0])));
+
+        return builder.build();
     }
 
     public static Builder builder() {

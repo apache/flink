@@ -95,9 +95,10 @@ public class SchemaResolutionTest {
                                                 DataTypes.FIELD("name", DataTypes.STRING()),
                                                 DataTypes.FIELD("age", DataTypes.INT()),
                                                 DataTypes.FIELD("flag", DataTypes.BOOLEAN()))),
-                                Column.metadata("topic", DataTypes.STRING(), true),
+                                Column.metadata("topic", DataTypes.STRING(), null, true),
                                 Column.computed("ts", COMPUTED_COLUMN_RESOLVED),
-                                Column.metadata("orig_ts", DataTypes.TIMESTAMP(3), "timestamp"),
+                                Column.metadata(
+                                        "orig_ts", DataTypes.TIMESTAMP(3), "timestamp", false),
                                 Column.computed("proctime", PROCTIME_RESOLVED)),
                         Collections.singletonList(new WatermarkSpec("ts", WATERMARK_RESOLVED)),
                         UniqueConstraint.primaryKey(
@@ -291,7 +292,7 @@ public class SchemaResolutionTest {
 
     @Test
     public void testSourceRowDataType() {
-        final ResolvedSchema resolvedSchema = resolveSchema(SCHEMA, true, true);
+        final ResolvedSchema resolvedSchema = resolveSchema(SCHEMA);
         final DataType expectedDataType =
                 DataTypes.ROW(
                                 DataTypes.FIELD("id", DataTypes.INT().notNull()),
@@ -308,6 +309,14 @@ public class SchemaResolutionTest {
                                 DataTypes.FIELD("proctime", DataTypes.TIMESTAMP(3).notNull()))
                         .notNull();
         assertThat(resolvedSchema.toSourceRowDataType(), equalTo(expectedDataType));
+    }
+
+    @Test
+    public void testLegacySchemaCompatibility() {
+        final ResolvedSchema resolvedSchema = resolveSchema(SCHEMA);
+        final ResolvedSchema resolvedSchemaFromLegacy =
+                resolveSchema(TableSchema.fromResolvedSchema(resolvedSchema).toSchema());
+        assertThat(resolvedSchemaFromLegacy, equalTo(resolvedSchema));
     }
 
     // --------------------------------------------------------------------------------------------
