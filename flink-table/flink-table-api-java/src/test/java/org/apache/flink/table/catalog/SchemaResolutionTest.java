@@ -21,23 +21,20 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.expressions.ResolvedExpression;
-import org.apache.flink.table.expressions.resolver.ExpressionResolver;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionMock;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
-import org.apache.flink.table.utils.FunctionLookupMock;
+import org.apache.flink.table.utils.ExpressionResolverMocks;
 
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Optional;
 
 import static org.apache.flink.table.api.Expressions.callSql;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isProctimeAttribute;
@@ -311,14 +308,6 @@ public class SchemaResolutionTest {
         assertThat(resolvedSchema.toSourceRowDataType(), equalTo(expectedDataType));
     }
 
-    @Test
-    public void testLegacySchemaCompatibility() {
-        final ResolvedSchema resolvedSchema = resolveSchema(SCHEMA);
-        final ResolvedSchema resolvedSchemaFromLegacy =
-                resolveSchema(TableSchema.fromResolvedSchema(resolvedSchema).toSchema());
-        assertThat(resolvedSchemaFromLegacy, equalTo(resolvedSchema));
-    }
-
     // --------------------------------------------------------------------------------------------
 
     private static void testError(Schema schema, String errorMessage) {
@@ -345,22 +334,10 @@ public class SchemaResolutionTest {
                 new DefaultSchemaResolver(
                         isStreamingMode,
                         supportsMetadata,
-                        dataTypeFactory(),
-                        expressionResolverBuilder());
+                        new DataTypeFactoryMock(),
+                        ExpressionResolverMocks.forSqlExpression(
+                                SchemaResolutionTest::resolveSqlExpression));
         return resolver.resolve(schema);
-    }
-
-    private static ExpressionResolver.ExpressionResolverBuilder expressionResolverBuilder() {
-        return ExpressionResolver.resolverFor(
-                new TableConfig(),
-                name -> Optional.empty(),
-                new FunctionLookupMock(Collections.emptyMap()),
-                dataTypeFactory(),
-                SchemaResolutionTest::resolveSqlExpression);
-    }
-
-    private static DataTypeFactory dataTypeFactory() {
-        return new DataTypeFactoryMock();
     }
 
     private static ResolvedExpression resolveSqlExpression(
