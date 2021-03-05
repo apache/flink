@@ -37,12 +37,12 @@ import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionImpl;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
+import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.CatalogViewImpl;
 import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
@@ -121,7 +121,7 @@ import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableS
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.NOT_NULL_COLS;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.NOT_NULL_CONSTRAINT_TRAITS;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.PK_CONSTRAINT_TRAIT;
-import static org.apache.flink.table.catalog.config.CatalogConfig.FLINK_PROPERTY_PREFIX;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.FLINK_PROPERTY_PREFIX;
 import static org.apache.flink.table.catalog.hive.util.HiveStatsUtil.parsePositiveIntStat;
 import static org.apache.flink.table.catalog.hive.util.HiveStatsUtil.parsePositiveLongStat;
 import static org.apache.flink.table.catalog.hive.util.HiveTableUtil.getHadoopConfiguration;
@@ -710,7 +710,7 @@ public class HiveCatalog extends AbstractCatalog {
             // remove the schema from properties
             properties = CatalogTableImpl.removeRedundant(properties, tableSchema, partitionKeys);
         } else {
-            properties.put(CatalogConfig.IS_GENERIC, String.valueOf(false));
+            properties.put(CatalogPropertiesUtil.IS_GENERIC, String.valueOf(false));
             // Table schema
             List<FieldSchema> fields = getNonPartitionFields(hiveConf, hiveTable);
             Set<String> notNullColumns =
@@ -772,7 +772,7 @@ public class HiveCatalog extends AbstractCatalog {
                 .filter(
                         e ->
                                 e.getKey().startsWith(FLINK_PROPERTY_PREFIX)
-                                        || e.getKey().equals(CatalogConfig.IS_GENERIC))
+                                        || e.getKey().equals(CatalogPropertiesUtil.IS_GENERIC))
                 .collect(
                         Collectors.toMap(
                                 e -> e.getKey().replace(FLINK_PROPERTY_PREFIX, ""),
@@ -813,7 +813,7 @@ public class HiveCatalog extends AbstractCatalog {
         checkNotNull(partition, "Partition cannot be null");
 
         boolean isGeneric =
-                Boolean.valueOf(partition.getProperties().get(CatalogConfig.IS_GENERIC));
+                Boolean.valueOf(partition.getProperties().get(CatalogPropertiesUtil.IS_GENERIC));
 
         if (isGeneric) {
             throw new CatalogException("Currently only supports non-generic CatalogPartition");
@@ -1672,12 +1672,12 @@ public class HiveCatalog extends AbstractCatalog {
             return true;
         }
         boolean isGeneric;
-        if (!properties.containsKey(CatalogConfig.IS_GENERIC)) {
+        if (!properties.containsKey(CatalogPropertiesUtil.IS_GENERIC)) {
             // must be a generic object
             isGeneric = true;
-            properties.put(CatalogConfig.IS_GENERIC, String.valueOf(true));
+            properties.put(CatalogPropertiesUtil.IS_GENERIC, String.valueOf(true));
         } else {
-            isGeneric = Boolean.parseBoolean(properties.get(CatalogConfig.IS_GENERIC));
+            isGeneric = Boolean.parseBoolean(properties.get(CatalogPropertiesUtil.IS_GENERIC));
         }
         return isGeneric;
     }
@@ -1687,7 +1687,8 @@ public class HiveCatalog extends AbstractCatalog {
         // otherwise, this is a Hive object if 1) the key is missing 2) is_generic = false
         // this is opposite to creating an object. See createObjectIsGeneric()
         return properties != null
-                && Boolean.parseBoolean(properties.getOrDefault(CatalogConfig.IS_GENERIC, "false"));
+                && Boolean.parseBoolean(
+                        properties.getOrDefault(CatalogPropertiesUtil.IS_GENERIC, "false"));
     }
 
     public static void disallowChangeIsGeneric(boolean oldIsGeneric, boolean newIsGeneric) {

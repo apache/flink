@@ -20,9 +20,9 @@ package org.apache.flink.table.catalog.hive;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.descriptors.FileSystem;
 
@@ -54,17 +54,17 @@ public class HiveCatalogTest {
                         HiveTestUtils.createHiveConf());
 
         Map<String, String> prop = hiveTable.getParameters();
-        assertEquals(prop.remove(CatalogConfig.IS_GENERIC), String.valueOf("true"));
+        assertEquals(prop.remove(CatalogPropertiesUtil.IS_GENERIC), String.valueOf("true"));
         assertTrue(
                 prop.keySet().stream()
-                        .allMatch(k -> k.startsWith(CatalogConfig.FLINK_PROPERTY_PREFIX)));
+                        .allMatch(k -> k.startsWith(CatalogPropertiesUtil.FLINK_PROPERTY_PREFIX)));
     }
 
     @Test
     public void testCreateHiveTable() {
         Map<String, String> map = new HashMap<>(new FileSystem().path("/test_path").toProperties());
 
-        map.put(CatalogConfig.IS_GENERIC, String.valueOf(false));
+        map.put(CatalogPropertiesUtil.IS_GENERIC, String.valueOf(false));
 
         Table hiveTable =
                 HiveTableUtil.instantiateHiveTable(
@@ -73,9 +73,9 @@ public class HiveCatalogTest {
                         HiveTestUtils.createHiveConf());
 
         Map<String, String> prop = hiveTable.getParameters();
-        assertEquals(prop.remove(CatalogConfig.IS_GENERIC), String.valueOf(false));
+        assertEquals(prop.remove(CatalogPropertiesUtil.IS_GENERIC), String.valueOf(false));
         assertTrue(
                 prop.keySet().stream()
-                        .noneMatch(k -> k.startsWith(CatalogConfig.FLINK_PROPERTY_PREFIX)));
+                        .noneMatch(k -> k.startsWith(CatalogPropertiesUtil.FLINK_PROPERTY_PREFIX)));
     }
 }
