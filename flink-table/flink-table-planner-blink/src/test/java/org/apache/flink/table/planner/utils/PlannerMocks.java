@@ -19,10 +19,10 @@
 package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.internal.CatalogTableSchemaResolver;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.expressions.resolver.ExpressionResolver;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema;
@@ -62,8 +62,16 @@ public class PlannerMocks {
                         t ->
                                 plannerContext.createSqlExprToRexConverter(
                                         plannerContext.getTypeFactory().buildRelNodeRowType(t)));
-        catalogManager.setCatalogTableSchemaResolver(
-                new CatalogTableSchemaResolver(parser, isStreamingMode));
+        catalogManager.initSchemaResolver(
+                isStreamingMode,
+                ExpressionResolver.resolverFor(
+                        tableConfig,
+                        name -> {
+                            throw new UnsupportedOperationException();
+                        },
+                        functionCatalog.asLookup(parser::parseIdentifier),
+                        catalogManager.getDataTypeFactory(),
+                        parser::parseSqlExpression));
         return planner;
     }
 

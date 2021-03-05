@@ -19,7 +19,8 @@
 package org.apache.flink.table.utils;
 
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.expressions.resolver.ExpressionResolver;
 import org.apache.flink.table.expressions.resolver.ExpressionResolver.ExpressionResolverBuilder;
@@ -35,22 +36,13 @@ import java.util.Optional;
  */
 public final class ExpressionResolverMocks {
 
-    public static ExpressionResolverBuilder forSqlExpression(
-            DataTypeFactory factory, SqlExpressionResolver resolver) {
+    public static ExpressionResolverBuilder forSqlExpression(SqlExpressionResolver resolver) {
         return ExpressionResolver.resolverFor(
                 new TableConfig(),
                 name -> Optional.empty(),
                 new FunctionLookupMock(Collections.emptyMap()),
-                factory,
+                new DataTypeFactoryMock(),
                 resolver);
-    }
-
-    public static ExpressionResolverBuilder forSqlExpression(Parser parser) {
-        return forSqlExpression(parser::parseSqlExpression);
-    }
-
-    public static ExpressionResolverBuilder forSqlExpression(SqlExpressionResolver resolver) {
-        return forSqlExpression(new DataTypeFactoryMock(), resolver);
     }
 
     public static ExpressionResolverBuilder dummyResolver() {
@@ -58,5 +50,15 @@ public final class ExpressionResolverMocks {
                 (sqlExpression, inputSchema) -> {
                     throw new UnsupportedOperationException();
                 });
+    }
+
+    public static ExpressionResolverBuilder basicResolver(
+            CatalogManager catalogManager, FunctionCatalog functionCatalog, Parser parser) {
+        return ExpressionResolver.resolverFor(
+                new TableConfig(),
+                name -> Optional.empty(),
+                functionCatalog.asLookup(parser::parseIdentifier),
+                catalogManager.getDataTypeFactory(),
+                parser::parseSqlExpression);
     }
 }

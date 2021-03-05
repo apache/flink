@@ -414,17 +414,19 @@ public final class OperationTreeBuilder {
     }
 
     public Expression resolveExpression(Expression expression, QueryOperation... tableOperation) {
-        ExpressionResolver resolver =
-                ExpressionResolver.resolverFor(
-                                config,
-                                tableReferenceLookup,
-                                functionCatalog,
-                                typeFactory,
-                                sqlExpressionResolver,
-                                tableOperation)
-                        .build();
-
+        final ExpressionResolver resolver = expressionResolverBuilder(tableOperation).build();
         return resolveSingleExpression(expression, resolver);
+    }
+
+    public ExpressionResolver.ExpressionResolverBuilder expressionResolverBuilder(
+            QueryOperation... tableOperation) {
+        return ExpressionResolver.resolverFor(
+                config,
+                tableReferenceLookup,
+                functionCatalog,
+                typeFactory,
+                sqlExpressionResolver,
+                tableOperation);
     }
 
     private ResolvedExpression resolveSingleExpression(

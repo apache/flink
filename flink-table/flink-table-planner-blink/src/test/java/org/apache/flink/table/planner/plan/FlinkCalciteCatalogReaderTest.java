@@ -20,8 +20,11 @@ package org.apache.flink.table.planner.plan;
 
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable;
@@ -72,14 +75,17 @@ public class FlinkCalciteCatalogReaderTest {
     @Test
     public void testGetFlinkPreparingTableBase() {
         // Mock CatalogSchemaTable.
-        TableSchema schema = TableSchema.builder().build();
+        final ResolvedSchema schema =
+                new ResolvedSchema(Collections.emptyList(), Collections.emptyList(), null);
+        final CatalogTable catalogTable =
+                ConnectorCatalogTable.source(
+                        new TestTableSource(true, TableSchema.fromResolvedSchema(schema)), true);
+        final ResolvedCatalogTable resolvedCatalogTable =
+                new ResolvedCatalogTable(catalogTable, schema);
         CatalogSchemaTable mockTable =
                 new CatalogSchemaTable(
                         ObjectIdentifier.of("a", "b", "c"),
-                        CatalogManager.TableLookupResult.permanent(
-                                ConnectorCatalogTable.source(
-                                        new TestTableSource(true, schema), true),
-                                schema),
+                        CatalogManager.TableLookupResult.permanent(resolvedCatalogTable),
                         FlinkStatistic.UNKNOWN(),
                         null,
                         true);
