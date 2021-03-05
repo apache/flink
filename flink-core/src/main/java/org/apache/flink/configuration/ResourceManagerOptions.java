@@ -202,6 +202,20 @@ public class ResourceManagerOptions {
     public static final String CONTAINERIZED_TASK_MANAGER_ENV_PREFIX =
             "containerized.taskmanager.env.";
 
+    /** Timeout for TaskManagers to register at the active resource managers. */
+    public static final ConfigOption<Duration> TASK_MANAGER_REGISTRATION_TIMEOUT =
+            ConfigOptions.key("resourcemanager.taskmanager-registration.timeout")
+                    .durationType()
+                    .defaultValue(TaskManagerOptions.REGISTRATION_TIMEOUT.defaultValue())
+                    .withFallbackKeys(TaskManagerOptions.REGISTRATION_TIMEOUT.key())
+                    .withDescription(
+                            "Timeout for TaskManagers to register at the active resource managers. "
+                                    + "If exceeded, active resource manager will release and try to "
+                                    + "re-request the resource for the worker. If not configured, "
+                                    + "fallback to '"
+                                    + TaskManagerOptions.REGISTRATION_TIMEOUT.key()
+                                    + "'.");
+
     // ---------------------------------------------------------------------------------------------
 
     /** Not intended to be instantiated. */
