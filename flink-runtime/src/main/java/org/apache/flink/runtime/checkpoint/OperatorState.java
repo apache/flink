@@ -81,6 +81,10 @@ public class OperatorState implements CompositeStateHandle {
         return operatorID;
     }
 
+    public boolean isFullyFinished() {
+        return false;
+    }
+
     public void putState(int subtaskIndex, OperatorSubtaskState subtaskState) {
         Preconditions.checkNotNull(subtaskState);
 
