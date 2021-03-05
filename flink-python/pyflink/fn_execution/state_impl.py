@@ -16,6 +16,7 @@
 # limitations under the License.
 ################################################################################
 import collections
+from abc import ABC
 from enum import Enum
 from functools import partial
 
@@ -23,11 +24,13 @@ from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners.worker.bundle_processor import SynchronousBagRuntimeState
 from apache_beam.transforms import userstate
-from typing import List, Tuple, Any
+from typing import List, Tuple, Any, Iterable, Union
 
 from pyflink.datastream import ReduceFunction
 from pyflink.datastream.functions import AggregateFunction
-from pyflink.datastream.state import ValueState, ListState, MapState, ReducingState
+from pyflink.fn_execution.internal_state import InternalKvState, N, InternalValueState, \
+    InternalListState, InternalReducingState, InternalMergingState, InternalAggregatingState, \
+    InternalMapState
 
 
 class LRUCache(object):
@@ -80,13 +83,27 @@ class LRUCache(object):
         return iter(self._cache.values())
 
 
-class SynchronousValueRuntimeState(ValueState):
+class SynchronousKvRuntimeState(InternalKvState, ABC):
+    """
+    Base Class for partitioned State implementation.
+    """
+
+    def __init__(self,
+                 internal_state: Union[SynchronousBagRuntimeState,
+                                       'InternalSynchronousMapRuntimeState']):
+        self._internal_state = internal_state
+
+    def set_current_namespace(self, namespace: N) -> None:
+        raise Exception("This method will be implemented in FLINK-21192")
+
+
+class SynchronousValueRuntimeState(SynchronousKvRuntimeState, InternalValueState):
     """
     The runtime ValueState implementation backed by a :class:`SynchronousBagRuntimeState`.
     """
 
     def __init__(self, internal_state: SynchronousBagRuntimeState):
-        self._internal_state = internal_state
+        super(SynchronousValueRuntimeState, self).__init__(internal_state)
 
     def value(self):
         for i in self._internal_state.read():
@@ -101,13 +118,25 @@ class SynchronousValueRuntimeState(ValueState):
         self._internal_state.clear()
 
 
-class SynchronousListRuntimeState(ListState):
+class SynchronousMergingRuntimeState(SynchronousKvRuntimeState, InternalMergingState, ABC):
+    """
+    Base Class for MergingState implementation.
+    """
+
+    def __init__(self, internal_state: SynchronousBagRuntimeState):
+        super(SynchronousMergingRuntimeState, self).__init__(internal_state)
+
+    def merge_namespaces(self, target: N, sources: Iterable[N]) -> None:
+        raise Exception("This method will be implemented in FLINK-21631")
+
+
+class SynchronousListRuntimeState(SynchronousMergingRuntimeState, InternalListState):
     """
     The runtime ListState implementation backed by a :class:`SynchronousBagRuntimeState`.
     """
 
     def __init__(self, internal_state: SynchronousBagRuntimeState):
-        self._internal_state = internal_state
+        super(SynchronousListRuntimeState, self).__init__(internal_state)
 
     def add(self, v):
         self._internal_state.add(v)
@@ -126,13 +155,13 @@ class SynchronousListRuntimeState(ListState):
         self._internal_state.clear()
 
 
-class SynchronousReducingRuntimeState(ReducingState):
+class SynchronousReducingRuntimeState(SynchronousMergingRuntimeState, InternalReducingState):
     """
     The runtime ReducingState implementation backed by a :class:`SynchronousBagRuntimeState`.
     """
 
     def __init__(self, internal_state: SynchronousBagRuntimeState, reduce_function: ReduceFunction):
-        self._internal_state = internal_state
+        super(SynchronousReducingRuntimeState, self).__init__(internal_state)
         self._reduce_function = reduce_function
 
     def add(self, v):
@@ -152,13 +181,13 @@ class SynchronousReducingRuntimeState(ReducingState):
         self._internal_state.clear()
 
 
-class SynchronousAggregatingRuntimeState(ReducingState):
+class SynchronousAggregatingRuntimeState(SynchronousMergingRuntimeState, InternalAggregatingState):
     """
     The runtime AggregatingState implementation backed by a :class:`SynchronousBagRuntimeState`.
     """
 
     def __init__(self, internal_state: SynchronousBagRuntimeState, agg_function: AggregateFunction):
-        self._internal_state = internal_state
+        super(SynchronousAggregatingRuntimeState, self).__init__(internal_state)
         self._agg_function = agg_function
 
     def add(self, v):
@@ -746,10 +775,10 @@ class InternalSynchronousMapRuntimeState(object):
                 self._write_cache)
 
 
-class SynchronousMapRuntimeState(MapState):
+class SynchronousMapRuntimeState(SynchronousKvRuntimeState, InternalMapState):
 
     def __init__(self, internal_state: InternalSynchronousMapRuntimeState):
-        self._internal_state = internal_state
+        super(SynchronousMapRuntimeState, self).__init__(internal_state)
 
     def get(self, key):
         return self._internal_state.get(key)
