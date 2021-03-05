@@ -19,7 +19,6 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.Schema;
 
@@ -72,7 +71,7 @@ public class CatalogTableImpl extends AbstractCatalogTable {
         descriptor.putPartitionKeys(getPartitionKeys());
 
         Map<String, String> properties = new HashMap<>(getOptions());
-        properties.remove(CatalogConfig.IS_GENERIC);
+        properties.remove(CatalogPropertiesUtil.IS_GENERIC);
 
         descriptor.putProperties(properties);
 
