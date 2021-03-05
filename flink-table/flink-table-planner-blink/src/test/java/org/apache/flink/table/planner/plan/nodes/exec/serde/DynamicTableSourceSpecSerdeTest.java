@@ -43,7 +43,7 @@ import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertNull;
 
 /** Tests for {@link DynamicTableSourceSpec} serialization and deserialization. */
 @RunWith(Parameterized.class)
@@ -62,8 +62,6 @@ public class DynamicTableSourceSpecSerdeTest {
                         FlinkSqlOperatorTable.instance());
         ObjectMapper mapper = JsonSerdeUtil.createObjectMapper(serdeCtx);
         SimpleModule module = new SimpleModule();
-        module.addDeserializer(
-                DynamicTableSourceSpec.class, new DynamicTableSourceSpecJsonDeserializer());
         mapper.registerModule(module);
         StringWriter writer = new StringWriter(100);
         try (JsonGenerator gen = mapper.getFactory().createGenerator(writer)) {
@@ -72,7 +70,10 @@ public class DynamicTableSourceSpecSerdeTest {
         String json = writer.toString();
         DynamicTableSourceSpec actual = mapper.readValue(json, DynamicTableSourceSpec.class);
         assertEquals(spec, actual);
-        assertSame(classLoader, actual.getClassLoader());
+        assertNull(actual.getReadableConfig());
+        actual.setReadableConfig(serdeCtx.getConfiguration());
+        assertNull(actual.getClassLoader());
+        actual.setClassLoader(serdeCtx.getClassLoader());
         assertNotNull(actual.getScanTableSource());
     }
 
