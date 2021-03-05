@@ -38,6 +38,8 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import javax.annotation.Nullable;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -45,6 +47,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 import static org.apache.flink.table.api.Expressions.$;
@@ -77,48 +80,32 @@ public class HiveTableSinkITCase {
 
     @Test
     public void testHiveTableSinkWithParallelismInBatch() {
-        TableEnvironment tEnv =
+        final TableEnvironment tEnv =
                 HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
-        tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
-        tEnv.useCatalog(hiveCatalog.getName());
-        tEnv.executeSql("create database db1");
-        tEnv.useDatabase("db1");
-
-        String tableName = "test_table";
-        int parallelism = 8;
-        tEnv.executeSql(
-                String.format(
-                        "CREATE TABLE %s ("
-                                + " id int,"
-                                + " real_col int"
-                                + ") TBLPROPERTIES ("
-                                + " 'sink.parallelism' = '%s'"
-                                + ")",
-                        tableName, parallelism));
-        final String actual =
-                tEnv.explainSql(
-                        "insert into " + tableName + " select 1, 1",
-                        ExplainDetail.JSON_EXECUTION_PLAN);
-        final String expected =
-                readFromResource("/explain/testHiveTableSinkWithParallelismInBatch.out");
-
-        assertEquals(
-                replaceStreamNodeId(replaceStageId(expected)),
-                replaceStreamNodeId(replaceStageId(actual)));
+        testHiveTableSinkWithParallelismBase(
+                tEnv, "/explain/testHiveTableSinkWithParallelismInBatch.out", null);
     }
 
     @Test
     public void testSetSinkParallelismInStreaming() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        TableEnvironment tEnv =
+        final TableEnvironment tEnv =
                 HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env, SqlDialect.HIVE);
+        testHiveTableSinkWithParallelismBase(
+                tEnv, "/explain/testHiveTableSinkWithParallelismInStreaming.out", null);
+    }
+
+    private void testHiveTableSinkWithParallelismBase(
+            final TableEnvironment tEnv,
+            final String expectedResourceFileName,
+            @Nullable Integer parallelism) {
+        parallelism = Optional.ofNullable(parallelism).orElse(8);
         tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tEnv.useCatalog(hiveCatalog.getName());
         tEnv.executeSql("create database db1");
         tEnv.useDatabase("db1");
 
         String tableName = "test_table";
-        int parallelism = 8;
         tEnv.executeSql(
                 String.format(
                         "CREATE TABLE %s ("
@@ -132,12 +119,13 @@ public class HiveTableSinkITCase {
                 tEnv.explainSql(
                         "insert into " + tableName + " select 1, 1",
                         ExplainDetail.JSON_EXECUTION_PLAN);
-        final String expected =
-                readFromResource("/explain/testHiveTableSinkWithParallelismInStreaming.out");
+        final String expected = readFromResource(expectedResourceFileName);
 
         assertEquals(
                 replaceStreamNodeId(replaceStageId(expected)),
                 replaceStreamNodeId(replaceStageId(actual)));
+
+        tEnv.executeSql("drop database db1 cascade");
     }
 
     @Test
