@@ -97,6 +97,12 @@ public class FineGrainedTaskManagerTrackerTest extends TestLogger {
                         pendingTaskManager.getPendingTaskManagerId(),
                         Collections.singletonMap(jobId, resourceCounter)));
         assertThat(taskManagerTracker.getPendingTaskManagers().size(), is(1));
+        assertThat(
+                taskManagerTracker
+                        .getPendingTaskManagersByTotalAndDefaultSlotResourceProfile(
+                                ResourceProfile.ANY, ResourceProfile.ANY)
+                        .size(),
+                is(1));
 
         // Remove pending task manager
         final Map<JobID, ResourceCounter> records =
@@ -107,6 +113,12 @@ public class FineGrainedTaskManagerTrackerTest extends TestLogger {
                 taskManagerTracker
                         .getPendingAllocationsOfPendingTaskManager(
                                 pendingTaskManager.getPendingTaskManagerId())
+                        .size(),
+                is(0));
+        assertThat(
+                taskManagerTracker
+                        .getPendingTaskManagersByTotalAndDefaultSlotResourceProfile(
+                                ResourceProfile.ANY, ResourceProfile.ANY)
                         .size(),
                 is(0));
         assertTrue(records.containsKey(jobId));
