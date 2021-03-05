@@ -104,6 +104,8 @@ public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceID
         final ThresholdMeter failureRater = createStartWorkerFailureRater(configuration);
         final Duration retryInterval =
                 configuration.get(ResourceManagerOptions.START_WORKER_RETRY_INTERVAL);
+        final Duration workerRegistrationTimeout =
+                configuration.get(ResourceManagerOptions.TASK_MANAGER_REGISTRATION_TIMEOUT);
         return new ActiveResourceManager<>(
                 createResourceManagerDriver(
                         configuration, webInterfaceUrl, rpcService.getAddress()),
@@ -120,6 +122,7 @@ public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceID
                 resourceManagerMetricGroup,
                 failureRater,
                 retryInterval,
+                workerRegistrationTimeout,
                 ioExecutor);
     }
 

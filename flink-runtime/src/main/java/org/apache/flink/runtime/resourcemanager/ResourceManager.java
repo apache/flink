@@ -158,6 +158,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     /** The heartbeat manager with job managers. */
     private HeartbeatManager<Void, Void> jobManagerHeartbeatManager;
 
+    private boolean hasLeadership = false;
+
     /**
      * Represents asynchronous state clearing work.
      *
@@ -1200,7 +1202,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
             startServicesOnLeadership();
 
-            return prepareLeadershipAsync().thenApply(ignored -> true);
+            return prepareLeadershipAsync().thenApply(ignored -> hasLeadership = true);
         } else {
             return CompletableFuture.completedFuture(false);
         }
@@ -1223,6 +1225,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     public void revokeLeadership() {
         runAsyncWithoutFencing(
                 () -> {
+                    hasLeadership = false;
+
                     log.info(
                             "ResourceManager {} was revoked leadership. Clearing fencing token.",
                             getAddress());
@@ -1268,6 +1272,10 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         onFatalError(
                 new ResourceManagerException(
                         "Received an error from the LeaderElectionService.", exception));
+    }
+
+    protected boolean hasLeadership() {
+        return hasLeadership;
     }
 
     // ------------------------------------------------------------------------
