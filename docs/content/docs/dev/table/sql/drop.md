@@ -144,10 +144,14 @@ Flink SQL> SHOW TABLES;
 ## DROP TABLE
 
 ```sql
-DROP TABLE [IF EXISTS] [catalog_name.][db_name.]table_name
+DROP [TEMPORARY] TABLE [IF EXISTS] [catalog_name.][db_name.]table_name
 ```
 
 Drop a table with the given table name. If the table to drop does not exist, an exception is thrown.
+
+**TEMPORARY**
+
+Drop temporary table that has catalog and database namespaces.
 
 **IF EXISTS**
 
