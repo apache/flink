@@ -191,11 +191,13 @@ Query Results can be inserted into tables by using the insert clause.
 
 ```sql
 
-INSERT { INTO | OVERWRITE } [catalog_name.][db_name.]table_name [PARTITION part_spec] select_statement
+INSERT { INTO | OVERWRITE } [catalog_name.][db_name.]table_name [PARTITION part_spec] [column_list] select_statement
 
 part_spec:
   (part_col_name1=val1 [, part_col_name2=val2, ...])
 
+column_list:
+  (col_name1 [, column_name2, ...])
 ```
 
 **OVERWRITE**
@@ -205,6 +207,11 @@ part_spec:
 **PARTITION**
 
 `PARTITION` clause should contain static partition columns of this inserting.
+
+**COLUMN LIST**
+
+Given a table T(a INT, b INT, c INT), Flink supports INSERT INTO T(c, b) SELECT x, y FROM S. The expectation is
+that 'x' is written to column 'c' and 'y' is written to column 'b' and 'a' is set to NULL (assuming column 'a' is nullable). 
 
 ### Examples
 
@@ -231,6 +238,11 @@ INSERT OVERWRITE country_page_view PARTITION (date='2019-8-30', country='China')
 -- country is dynamic partition whose value is dynamic determined by each row.
 INSERT OVERWRITE country_page_view PARTITION (date='2019-8-30')
   SELECT user, cnt, country FROM page_view_source;
+
+-- Appends rows into the static partition (date='2019-8-30', country='China')
+-- the column cnt is set to NULL
+INSERT INTO country_page_view PARTITION (date='2019-8-30', country='China') (user)
+  SELECT user FROM page_view_source;
 ```
 
 
