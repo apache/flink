@@ -26,6 +26,7 @@ import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.utils.PrintUtils;
+import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
 import org.jline.reader.EndOfFileException;
@@ -496,11 +497,8 @@ public class CliClient implements AutoCloseable {
     private void callShowCurrentCatalog() {
         String currentCatalog;
         try {
-            currentCatalog =
-                    executor.executeSql(sessionId, "SHOW CURRENT CATALOG")
-                            .collect()
-                            .next()
-                            .toString();
+            Row result = executor.executeSql(sessionId, "SHOW CURRENT CATALOG").collect().next();
+            currentCatalog = checkNotNull(result.getField(0)).toString();
         } catch (SqlExecutionException e) {
             printExecutionException(e);
             return;
@@ -528,11 +526,8 @@ public class CliClient implements AutoCloseable {
     private void callShowCurrentDatabase() {
         String currentDatabase;
         try {
-            currentDatabase =
-                    executor.executeSql(sessionId, "SHOW CURRENT DATABASE")
-                            .collect()
-                            .next()
-                            .toString();
+            Row result = executor.executeSql(sessionId, "SHOW CURRENT DATABASE").collect().next();
+            currentDatabase = checkNotNull(result.getField(0)).toString();
         } catch (SqlExecutionException e) {
             printExecutionException(e);
             return;
@@ -626,21 +621,23 @@ public class CliClient implements AutoCloseable {
 
     private void callUseCatalog(SqlCommandCall cmdCall) {
         try {
-            executor.executeSql(sessionId, "USE CATALOG " + cmdCall.operands[0]);
+            executor.executeSql(sessionId, "USE CATALOG `" + cmdCall.operands[0] + "`");
         } catch (SqlExecutionException e) {
             printExecutionException(e);
             return;
         }
+        printInfo(CliStrings.MESSAGE_CATALOG_CHANGED);
         terminal.flush();
     }
 
     private void callUseDatabase(SqlCommandCall cmdCall) {
         try {
-            executor.executeSql(sessionId, "USE " + cmdCall.operands[0]);
+            executor.executeSql(sessionId, "USE `" + cmdCall.operands[0] + "`");
         } catch (SqlExecutionException e) {
             printExecutionException(e);
             return;
         }
+        printInfo(CliStrings.MESSAGE_DATABASE_CHANGED);
         terminal.flush();
     }
 
