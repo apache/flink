@@ -22,13 +22,20 @@ import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.RecordingChannelStateWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHandler.Cancellable;
 import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.SystemClock;
 
+import java.time.Duration;
+import java.util.concurrent.Callable;
+import java.util.function.BiFunction;
+
 /** A factory for creating instances of {@link SingleCheckpointBarrierHandler} for tests. */
 public class TestBarrierHandlerFactory {
     private final AbstractInvokable target;
+    private BiFunction<Callable<?>, Duration, Cancellable> actionRegistration =
+            (callable, delay) -> () -> {};
     private Clock clock = SystemClock.getInstance();
 
     private TestBarrierHandlerFactory(AbstractInvokable target) {
@@ -37,6 +44,12 @@ public class TestBarrierHandlerFactory {
 
     public static TestBarrierHandlerFactory forTarget(AbstractInvokable target) {
         return new TestBarrierHandlerFactory(target);
+    }
+
+    public TestBarrierHandlerFactory withActionRegistration(
+            BiFunction<Callable<?>, Duration, Cancellable> actionRegistration) {
+        this.actionRegistration = actionRegistration;
+        return this;
     }
 
     public TestBarrierHandlerFactory withClock(Clock clock) {
@@ -51,15 +64,13 @@ public class TestBarrierHandlerFactory {
     public SingleCheckpointBarrierHandler create(
             SingleInputGate inputGate, ChannelStateWriter stateWriter) {
         String taskName = "test";
-        return new SingleCheckpointBarrierHandler(
+        return SingleCheckpointBarrierHandler.alternating(
                 taskName,
                 target,
+                new TestSubtaskCheckpointCoordinator(stateWriter),
                 clock,
                 inputGate.getNumberOfInputChannels(),
-                new AlternatingController(
-                        new AlignedController(inputGate),
-                        new UnalignedController(
-                                new TestSubtaskCheckpointCoordinator(stateWriter), inputGate),
-                        clock));
+                actionRegistration,
+                inputGate);
     }
 }

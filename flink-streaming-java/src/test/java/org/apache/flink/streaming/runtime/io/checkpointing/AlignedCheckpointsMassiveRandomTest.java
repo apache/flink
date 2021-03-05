@@ -46,7 +46,7 @@ import java.util.stream.IntStream;
  * The test generates two random streams (input channels) which independently and randomly generate
  * checkpoint barriers. The two streams are very unaligned, putting heavy work on the BarrierBuffer.
  */
-public class AlignedControllerMassiveRandomTest {
+public class AlignedCheckpointsMassiveRandomTest {
 
     private static final int PAGE_SIZE = 1024;
 
@@ -70,15 +70,13 @@ public class AlignedControllerMassiveRandomTest {
             CheckpointedInputGate checkpointedInputGate =
                     new CheckpointedInputGate(
                             myIG,
-                            new SingleCheckpointBarrierHandler(
+                            SingleCheckpointBarrierHandler.aligned(
                                     "Testing: No task associated",
                                     new DummyCheckpointInvokable(),
                                     SystemClock.getInstance(),
                                     myIG.getNumberOfInputChannels(),
-                                    new AlignedController(myIG) {
-                                        @Override
-                                        protected void resetPendingCheckpoint(long cancelledId) {}
-                                    }),
+                                    (callable, duration) -> () -> {},
+                                    myIG),
                             new SyncMailboxExecutor());
 
             for (int i = 0; i < 2000000; i++) {
@@ -231,6 +229,9 @@ public class AlignedControllerMassiveRandomTest {
 
         @Override
         public void resumeConsumption(InputChannelInfo channelInfo) {}
+
+        @Override
+        public void checkpointStopped(long cancelledCheckpointId) {}
 
         @Override
         public void setup() {}

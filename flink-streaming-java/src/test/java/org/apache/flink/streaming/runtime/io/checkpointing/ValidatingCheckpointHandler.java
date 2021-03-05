@@ -25,6 +25,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
+import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -119,6 +120,11 @@ public class ValidatingCheckpointHandler extends AbstractInvokable {
 
         lastAlignmentDurationNanos = checkpointMetrics.getAlignmentDurationNanos();
         lastBytesProcessedDuringAlignment = checkpointMetrics.getBytesProcessedDuringAlignment();
+
+        if (!checkpointOptions.isUnalignedCheckpoint()) {
+            Preconditions.checkCompletedNormally(lastAlignmentDurationNanos);
+            Preconditions.checkCompletedNormally(lastBytesProcessedDuringAlignment);
+        }
 
         triggeredCheckpoints.add(checkpointMetaData.getCheckpointId());
         triggeredCheckpointOptions.add(checkpointOptions);
