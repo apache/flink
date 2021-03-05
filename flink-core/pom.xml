@@ -140,8 +140,6 @@ under the License.
 				<artifactId>japicmp-maven-plugin</artifactId>
 				<configuration>
 					<parameter>
-						<!-- This acts as a canary in case the japicmp.referenceVersion was set to an invalid value -->
-						<ignoreNonResolvableArtifacts>false</ignoreNonResolvableArtifacts>
 						<excludes combine.children="append">
 							<exclude>org.apache.flink.api.common.ExecutionConfig#CONFIG_KEY</exclude>
 							<exclude>org.apache.flink.core.fs.FileSystem\$FSKey</exclude>
