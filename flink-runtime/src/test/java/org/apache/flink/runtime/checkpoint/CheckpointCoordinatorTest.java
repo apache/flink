@@ -3351,6 +3351,21 @@ public class CheckpointCoordinatorTest extends TestLogger {
     }
 
     @Test
+    public void testResetCalledInRegionRecovery() throws Exception {
+        CheckpointCoordinator checkpointCoordinator =
+                new CheckpointCoordinatorBuilder()
+                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .build();
+
+        TestResetHook hook = new TestResetHook("id");
+
+        checkpointCoordinator.addMasterHook(hook);
+        assertFalse(hook.resetCalled);
+        checkpointCoordinator.restoreLatestCheckpointedStateToSubtasks(Collections.emptySet());
+        assertTrue(hook.resetCalled);
+    }
+
+    @Test
     public void testNotifyCheckpointAbortionInOperatorCoordinator() throws Exception {
         JobVertexID jobVertexID = new JobVertexID();
         ExecutionGraph graph =
@@ -3590,6 +3605,44 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
         public int getInvokeCounter() {
             return invokeCounter;
+        }
+    }
+
+    private static class TestResetHook implements MasterTriggerRestoreHook<String> {
+
+        private final String id;
+        boolean resetCalled;
+
+        TestResetHook(String id) {
+            this.id = id;
+            this.resetCalled = false;
+        }
+
+        @Override
+        public String getIdentifier() {
+            return id;
+        }
+
+        @Override
+        public void reset() throws Exception {
+            resetCalled = true;
+        }
+
+        @Override
+        public CompletableFuture<String> triggerCheckpoint(
+                long checkpointId, long timestamp, Executor executor) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void restoreCheckpoint(long checkpointId, @Nullable String checkpointData)
+                throws Exception {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public SimpleVersionedSerializer<String> createCheckpointDataSerializer() {
+            throw new UnsupportedOperationException();
         }
     }
 }
