@@ -228,7 +228,7 @@ public class KubernetesResourceManagerDriver
                 currentMaxAttemptId = attempt;
             }
 
-            if (pod.isTerminated()) {
+            if (pod.isTerminated() || !pod.isScheduled()) {
                 stopPod(pod.getName());
             } else {
                 recoveredWorkers.add(worker);
@@ -270,36 +270,50 @@ public class KubernetesResourceManagerDriver
                         KubernetesConfigOptions.EXTERNAL_RESOURCE_KUBERNETES_CONFIG_KEY_SUFFIX));
     }
 
-    private void terminatedPodsInMainThread(List<KubernetesPod> pods) {
+    private void handlePodEventsInMainThread(List<KubernetesPod> pods) {
         getMainThreadExecutor()
                 .execute(
                         () -> {
                             for (KubernetesPod pod : pods) {
                                 if (pod.isTerminated()) {
-                                    final String podName = pod.getName();
-                                    log.debug("TaskManager pod {} is terminated.", podName);
-
-                                    // this is a safe net, in case onModified/onDeleted/onError is
-                                    // received before onAdded
-                                    final CompletableFuture<KubernetesWorkerNode>
-                                            requestResourceFuture =
-                                                    requestResourceFutures.remove(podName);
-                                    if (requestResourceFuture != null) {
-                                        log.warn(
-                                                "Pod {} is terminated before receiving the ADDED event.",
-                                                podName);
-                                        requestResourceFuture.completeExceptionally(
-                                                new FlinkException("Pod is terminated."));
-                                    }
-
-                                    getResourceEventHandler()
-                                            .onWorkerTerminated(
-                                                    new ResourceID(podName),
-                                                    pod.getTerminatedDiagnostics());
-                                    stopPod(podName);
+                                    onPodTerminated(pod);
+                                } else if (pod.isScheduled()) {
+                                    onPodScheduled(pod);
                                 }
                             }
                         });
+    }
+
+    private void onPodScheduled(KubernetesPod pod) {
+        final String podName = pod.getName();
+        final CompletableFuture<KubernetesWorkerNode> requestResourceFuture =
+                requestResourceFutures.remove(podName);
+
+        if (requestResourceFuture == null) {
+            log.debug("Ignore TaskManager pod that is already added: {}", podName);
+            return;
+        }
+
+        log.info("Received new TaskManager pod: {}", podName);
+        requestResourceFuture.complete(new KubernetesWorkerNode(new ResourceID(podName)));
+    }
+
+    private void onPodTerminated(KubernetesPod pod) {
+        final String podName = pod.getName();
+        log.debug("TaskManager pod {} is terminated.", podName);
+
+        // this is a safe net, in case onModified/onDeleted/onError is
+        // received before onAdded
+        final CompletableFuture<KubernetesWorkerNode> requestResourceFuture =
+                requestResourceFutures.remove(podName);
+        if (requestResourceFuture != null) {
+            log.warn("Pod {} is terminated before being scheduled.", podName);
+            requestResourceFuture.completeExceptionally(new FlinkException("Pod is terminated."));
+        }
+
+        getResourceEventHandler()
+                .onWorkerTerminated(new ResourceID(podName), pod.getTerminatedDiagnostics());
+        stopPod(podName);
     }
 
     private void stopPod(String podName) {
@@ -339,42 +353,22 @@ public class KubernetesResourceManagerDriver
             implements FlinkKubeClient.WatchCallbackHandler<KubernetesPod> {
         @Override
         public void onAdded(List<KubernetesPod> pods) {
-            getMainThreadExecutor()
-                    .execute(
-                            () -> {
-                                for (KubernetesPod pod : pods) {
-                                    final String podName = pod.getName();
-                                    final CompletableFuture<KubernetesWorkerNode>
-                                            requestResourceFuture =
-                                                    requestResourceFutures.remove(podName);
-
-                                    if (requestResourceFuture == null) {
-                                        log.debug(
-                                                "Ignore TaskManager pod that is already added: {}",
-                                                podName);
-                                        continue;
-                                    }
-
-                                    log.info("Received new TaskManager pod: {}", podName);
-                                    requestResourceFuture.complete(
-                                            new KubernetesWorkerNode(new ResourceID(podName)));
-                                }
-                            });
+            handlePodEventsInMainThread(pods);
         }
 
         @Override
         public void onModified(List<KubernetesPod> pods) {
-            terminatedPodsInMainThread(pods);
+            handlePodEventsInMainThread(pods);
         }
 
         @Override
         public void onDeleted(List<KubernetesPod> pods) {
-            terminatedPodsInMainThread(pods);
+            handlePodEventsInMainThread(pods);
         }
 
         @Override
         public void onError(List<KubernetesPod> pods) {
-            terminatedPodsInMainThread(pods);
+            handlePodEventsInMainThread(pods);
         }
 
         @Override
