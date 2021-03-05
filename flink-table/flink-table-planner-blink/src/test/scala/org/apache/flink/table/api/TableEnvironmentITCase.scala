@@ -91,9 +91,10 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     TestTableSourceSinks.createCsvTemporarySinkTable(
       tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink1")
 
-    val expected = "Expect OLD planner but get BLINK planner. " +
-      "Please make sure `table.planner` is consistent with the current TableEnvironment. " +
-      "Otherwise rebuild a new TableEnvironment that is satisfied the requirement."
+    val expected = "Mismatch between configured planner and actual planner. " +
+      "Currently, the 'table.planner' can only be set " +
+      "when instantiating the table environment. Subsequent changes are not supported. " +
+      "Please instantiate a new TableEnvironment if necessary."
 
     try {
       tEnv.executeSql("insert into MySink1 select first from MyTable")
@@ -106,20 +107,16 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
 
   @Test
   def testSetExecutionMode(): Unit = {
-    val expected = if (isStreaming) {
+    if (isStreaming) {
       tEnv.getConfig.getConfiguration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
-      "Expect BATCH mode but get STREAMING mode. " +
-        "Please make sure `execution.runtime-mode` is consistent with the current " +
-        "TableEnvironment. Otherwise rebuild a new TableEnvironment that is satisfied " +
-        "the requirement."
     } else {
       tEnv.getConfig.getConfiguration.set(ExecutionOptions.RUNTIME_MODE,
         RuntimeExecutionMode.STREAMING)
-      "Expect STREAMING mode but get BATCH mode. " +
-        "Please make sure `execution.runtime-mode` is consistent with the " +
-        "current TableEnvironment. Otherwise rebuild a new TableEnvironment that is satisfied " +
-        "the requirement."
     }
+    val expected =  "Mismatch between configured planner and actual planner. " +
+      "Currently, the 'execution.runtime-mode' can only be set when instantiating the " +
+      "table environment. Subsequent changes are not supported. " +
+      "Please instantiate a new TableEnvironment if necessary."
 
     try {
       tEnv.explainSql("select first from MyTable")

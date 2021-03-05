@@ -428,10 +428,10 @@ class StreamTableEnvironmentTest extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration
       .set(TableConfigOptions.TABLE_PLANNER, PlannerType.BLINK)
     // validate
-    val expect = "Expect STREAMING BLINK planner but get STREAMING OLD planner. " +
-      "Please make sure `execution.runtime-mode` and `table.planner` are consistent with the " +
-      "current TableEnvironment. Otherwise rebuild a new TableEnvironment that is satisfied " +
-      "the requirement."
+    val expect = "Mismatch between configured planner and actual planner. " +
+      "Currently, the 'execution.runtime-mode' and 'table.planner' can only be set " +
+      "when instantiating the table environment. Subsequent changes are not supported. " +
+      "Please instantiate a new TableEnvironment if necessary."
     try {
       util.tableEnv.explainSql("select * from MyTable where a > 10")
     } catch {

@@ -638,13 +638,10 @@ abstract class BatchTableEnvImpl(
     if (!configuration.get(ExecutionOptions.RUNTIME_MODE).equals(RuntimeExecutionMode.BATCH) ||
       !configuration.get(TableConfigOptions.TABLE_PLANNER).equals(PlannerType.OLD)) {
       throw new IllegalArgumentException(
-        String.format("Expect %s %s planner but get OLD BATCH planner. " +
-          "Please make sure `execution.runtime-mode` and `table.planner` are consistent with the " +
-          "current TableEnvironment. Otherwise rebuild a new TableEnvironment that is satisfied " +
-          "the requirement.",
-          configuration.get(TableConfigOptions.TABLE_PLANNER),
-          configuration.get(ExecutionOptions.RUNTIME_MODE)
-        )
+        "Mismatch between configured planner and actual planner. " +
+          "Currently, the 'execution.runtime-mode' and 'table.planner' can only be set " +
+          "when instantiating the table environment. Subsequent changes are not supported. " +
+          "Please instantiate a new TableEnvironment if necessary."
       )
     }
 

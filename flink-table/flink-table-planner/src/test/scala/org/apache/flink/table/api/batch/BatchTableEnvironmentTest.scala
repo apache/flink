@@ -594,10 +594,11 @@ class BatchTableEnvironmentTest extends TableTestBase {
 
     util.tableEnv.getConfig.getConfiguration
       .set(TableConfigOptions.TABLE_PLANNER, PlannerType.BLINK)
-    val expect = "Expect BLINK BATCH planner but get OLD BATCH planner. " +
-      "Please make sure `execution.runtime-mode` and `table.planner` are consistent with the " +
-      "current TableEnvironment. Otherwise rebuild a new TableEnvironment that is satisfied the " +
-      "requirement."
+    val expect = "Mismatch between configured planner and actual planner. " +
+      "Currently, the 'execution.runtime-mode' and 'table.planner' can only be set " +
+      "when instantiating the table environment. Subsequent changes are not supported. " +
+      "Please instantiate a new TableEnvironment if necessary."
+
     try {
       util.tableEnv.sqlQuery("select * from MyTable where a > 10").explain()
     } catch {

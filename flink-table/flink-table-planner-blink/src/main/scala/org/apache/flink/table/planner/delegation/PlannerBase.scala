@@ -455,10 +455,11 @@ abstract class PlannerBase(
 
   protected def isSpecifiedPlanner(): Unit = {
     if (!config.getConfiguration.get(TableConfigOptions.TABLE_PLANNER).equals(PlannerType.BLINK)) {
-      throw new IllegalArgumentException("Expect OLD planner but get BLINK planner. " +
-        "Please make sure `table.planner` is consistent with the current TableEnvironment. " +
-        "Otherwise rebuild a new TableEnvironment that is satisfied " +
-        "the requirement.");
+      throw new IllegalArgumentException(
+        "Mismatch between configured planner and actual planner. " +
+          "Currently, the 'table.planner' can only be set when instantiating the " +
+          "table environment. Subsequent changes are not supported. " +
+          "Please instantiate a new TableEnvironment if necessary.");
     }
   }
 }
