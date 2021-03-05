@@ -87,7 +87,7 @@ public class HiveTableSinkITCase {
     }
 
     @Test
-    public void testSetSinkParallelismInStreaming() {
+    public void testHiveTableSinkWithParallelismInStreaming() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final TableEnvironment tEnv =
                 HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env, SqlDialect.HIVE);
