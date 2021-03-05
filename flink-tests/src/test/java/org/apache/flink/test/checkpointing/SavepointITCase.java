@@ -561,6 +561,7 @@ public class SavepointITCase extends TestLogger {
     }
 
     @Test
+    @Category(FailsWithAdaptiveScheduler.class) // FLINK-21333
     public void testStopWithSavepointFailingInSnapshotCreation() throws Exception {
         testStopWithFailingSourceInOnePipeline(
                 new SnapshotFailingInfiniteTestSource(),
@@ -573,6 +574,7 @@ public class SavepointITCase extends TestLogger {
     }
 
     @Test
+    @Category(FailsWithAdaptiveScheduler.class) // FLINK-21333
     public void testStopWithSavepointFailingAfterSnapshotCreation() throws Exception {
         testStopWithFailingSourceInOnePipeline(
                 new CancelFailingInfiniteTestSource(),
