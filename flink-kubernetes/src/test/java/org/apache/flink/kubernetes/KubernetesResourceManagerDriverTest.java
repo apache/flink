@@ -87,7 +87,12 @@ public class KubernetesResourceManagerDriverTest
                                                     .requestResource(TASK_EXECUTOR_PROCESS_SPEC)
                                                     .thenAccept(requestResourceFuture::complete));
                             final KubernetesPod pod =
-                                    createPodFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
+                                    new TestingKubernetesPod(
+                                            createPodFuture
+                                                    .get(TIMEOUT_SEC, TimeUnit.SECONDS)
+                                                    .getName(),
+                                            true,
+                                            false);
 
                             // prepare validation:
                             // - complete requestResourceFuture in main thread with correct
@@ -162,7 +167,7 @@ public class KubernetesResourceManagerDriverTest
         new Context() {
             {
                 final KubernetesPod previousAttemptPod =
-                        new TestingKubernetesPod(CLUSTER_ID + "-taskmanager-1-1", true);
+                        new TestingKubernetesPod(CLUSTER_ID + "-taskmanager-1-1", true, true);
                 final CompletableFuture<String> stopPodFuture = new CompletableFuture<>();
                 final CompletableFuture<Collection<KubernetesWorkerNode>> recoveredWorkersFuture =
                         new CompletableFuture<>();
@@ -261,7 +266,11 @@ public class KubernetesResourceManagerDriverTest
                         .setCreateTaskManagerPodFunction(
                                 (pod) -> {
                                     createTaskManagerPodFuture.complete(pod);
-                                    getPodCallbackHandler().onAdded(Collections.singletonList(pod));
+                                    getPodCallbackHandler()
+                                            .onAdded(
+                                                    Collections.singletonList(
+                                                            new TestingKubernetesPod(
+                                                                    pod.getName(), true, false)));
                                     return FutureUtils.completedVoidFuture();
                                 })
                         .setStopPodFunction(
@@ -419,7 +428,7 @@ public class KubernetesResourceManagerDriverTest
 
                         sendPodTerminatedEvent.accept(
                                 Collections.singletonList(
-                                        new TestingKubernetesPod(pod.getName(), true)));
+                                        new TestingKubernetesPod(pod.getName(), true, true)));
 
                         // make sure finishing validation
                         validationFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
