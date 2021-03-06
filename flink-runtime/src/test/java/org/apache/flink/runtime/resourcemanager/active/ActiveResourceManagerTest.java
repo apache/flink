@@ -689,7 +689,7 @@ public class ActiveResourceManagerTest extends TestLogger {
                                     registerTaskExecutor(ResourceID.generate());
                             assertThat(
                                     registerTaskExecutorFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
-                                    instanceOf(RegistrationResponse.Decline.class));
+                                    instanceOf(RegistrationResponse.Failure.class));
                         });
             }
         };

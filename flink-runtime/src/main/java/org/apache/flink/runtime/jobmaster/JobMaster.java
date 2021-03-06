@@ -681,7 +681,8 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                             unresolvedTaskManagerLocation.getExternalAddress(),
                             throwable.getMessage());
             log.error(errMsg);
-            return CompletableFuture.completedFuture(new RegistrationResponse.Decline(errMsg));
+            return CompletableFuture.completedFuture(
+                    new RegistrationResponse.Failure(new FlinkException(errMsg, throwable)));
         }
 
         final ResourceID taskManagerId = taskManagerLocation.getResourceID();
@@ -695,7 +696,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                     .handleAsync(
                             (TaskExecutorGateway taskExecutorGateway, Throwable throwable) -> {
                                 if (throwable != null) {
-                                    return new RegistrationResponse.Decline(throwable.getMessage());
+                                    return new RegistrationResponse.Failure(throwable);
                                 }
 
                                 slotPoolService.registerTaskManager(taskManagerId);
@@ -1153,7 +1154,10 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
     private class ResourceManagerConnection
             extends RegisteredRpcConnection<
-                    ResourceManagerId, ResourceManagerGateway, JobMasterRegistrationSuccess> {
+                    ResourceManagerId,
+                    ResourceManagerGateway,
+                    JobMasterRegistrationSuccess,
+                    RegistrationResponse.Rejection> {
         private final JobID jobID;
 
         private final ResourceID jobManagerResourceID;
@@ -1180,10 +1184,16 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
         @Override
         protected RetryingRegistration<
-                        ResourceManagerId, ResourceManagerGateway, JobMasterRegistrationSuccess>
+                        ResourceManagerId,
+                        ResourceManagerGateway,
+                        JobMasterRegistrationSuccess,
+                        RegistrationResponse.Rejection>
                 generateRegistration() {
             return new RetryingRegistration<
-                    ResourceManagerId, ResourceManagerGateway, JobMasterRegistrationSuccess>(
+                    ResourceManagerId,
+                    ResourceManagerGateway,
+                    JobMasterRegistrationSuccess,
+                    RegistrationResponse.Rejection>(
                     log,
                     getRpcService(),
                     "ResourceManager",
@@ -1220,6 +1230,9 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                         }
                     });
         }
+
+        @Override
+        protected void onRegistrationRejection(RegistrationResponse.Rejection rejection) {}
 
         @Override
         protected void onRegistrationFailure(final Throwable failure) {

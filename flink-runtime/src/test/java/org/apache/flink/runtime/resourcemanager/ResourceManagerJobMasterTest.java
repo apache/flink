@@ -244,7 +244,7 @@ public class ResourceManagerJobMasterTest extends TestLogger {
                         jobMasterGateway.getAddress(),
                         jobId,
                         TIMEOUT);
-        assertTrue(unMatchedLeaderFuture.get() instanceof RegistrationResponse.Decline);
+        assertTrue(unMatchedLeaderFuture.get() instanceof RegistrationResponse.Failure);
     }
 
     /** Test receive registration with invalid address from job master. */
@@ -262,7 +262,7 @@ public class ResourceManagerJobMasterTest extends TestLogger {
                         TIMEOUT);
         assertTrue(
                 invalidAddressFuture.get(5, TimeUnit.SECONDS)
-                        instanceof RegistrationResponse.Decline);
+                        instanceof RegistrationResponse.Failure);
     }
 
     /**

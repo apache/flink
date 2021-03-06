@@ -23,7 +23,7 @@ package org.apache.flink.runtime.registration;
  * RegisteredRpcConnection} have to implement this interface.
  */
 public interface RegistrationConnectionListener<
-        T extends RegisteredRpcConnection<?, ?, S>, S extends RegistrationResponse.Success> {
+        T extends RegisteredRpcConnection<?, ?, S, ?>, S extends RegistrationResponse.Success> {
 
     /**
      * This method is called by the {@link RegisteredRpcConnection} when the registration is
