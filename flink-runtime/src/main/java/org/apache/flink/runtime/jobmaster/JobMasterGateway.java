@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.time.Time;
@@ -167,6 +168,7 @@ public interface JobMasterGateway
      *
      * @param taskManagerRpcAddress the rpc address of the task manager
      * @param unresolvedTaskManagerLocation unresolved location of the task manager
+     * @param jobId jobId specifying the job for which the JobMaster should be responsible
      * @param timeout for the rpc call
      * @return Future registration response indicating whether the registration was successful or
      *     not
@@ -174,6 +176,7 @@ public interface JobMasterGateway
     CompletableFuture<RegistrationResponse> registerTaskManager(
             final String taskManagerRpcAddress,
             final UnresolvedTaskManagerLocation unresolvedTaskManagerLocation,
+            final JobID jobId,
             @RpcTimeout final Time timeout);
 
     /**

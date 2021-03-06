@@ -450,7 +450,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
         final TestingJobMasterGateway jobMasterGateway =
                 new TestingJobMasterGatewayBuilder()
                         .setRegisterTaskManagerFunction(
-                                (s, location) ->
+                                (s, location, ignored) ->
                                         CompletableFuture.completedFuture(
                                                 new JMTMRegistrationSuccess(ResourceID.generate())))
                         .setOfferSlotsFunction(

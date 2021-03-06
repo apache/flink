@@ -101,10 +101,13 @@ public class TestingJobMasterGatewayBuilder {
                             CompletableFuture.completedFuture(Collections.emptyList());
     private TriConsumer<ResourceID, AllocationID, Throwable> failSlotConsumer =
             (ignoredA, ignoredB, ignoredC) -> {};
-    private BiFunction<
-                    String, UnresolvedTaskManagerLocation, CompletableFuture<RegistrationResponse>>
+    private TriFunction<
+                    String,
+                    UnresolvedTaskManagerLocation,
+                    JobID,
+                    CompletableFuture<RegistrationResponse>>
             registerTaskManagerFunction =
-                    (ignoredA, ignoredB) ->
+                    (ignoredA, ignoredB, ignoredC) ->
                             CompletableFuture.completedFuture(
                                     new JMTMRegistrationSuccess(RESOURCE_MANAGER_ID));
     private BiConsumer<ResourceID, AccumulatorReport> taskManagerHeartbeatConsumer =
@@ -238,9 +241,10 @@ public class TestingJobMasterGatewayBuilder {
     }
 
     public TestingJobMasterGatewayBuilder setRegisterTaskManagerFunction(
-            BiFunction<
+            TriFunction<
                             String,
                             UnresolvedTaskManagerLocation,
+                            JobID,
                             CompletableFuture<RegistrationResponse>>
                     registerTaskManagerFunction) {
         this.registerTaskManagerFunction = registerTaskManagerFunction;
