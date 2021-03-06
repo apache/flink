@@ -39,7 +39,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** The connection between a TaskExecutor and the ResourceManager. */
 public class TaskExecutorToResourceManagerConnection
         extends RegisteredRpcConnection<
-                ResourceManagerId, ResourceManagerGateway, TaskExecutorRegistrationSuccess> {
+                ResourceManagerId,
+                ResourceManagerGateway,
+                TaskExecutorRegistrationSuccess,
+                RegistrationResponse.Rejection> {
 
     private final RpcService rpcService;
 
@@ -74,7 +77,10 @@ public class TaskExecutorToResourceManagerConnection
 
     @Override
     protected RetryingRegistration<
-                    ResourceManagerId, ResourceManagerGateway, TaskExecutorRegistrationSuccess>
+                    ResourceManagerId,
+                    ResourceManagerGateway,
+                    TaskExecutorRegistrationSuccess,
+                    RegistrationResponse.Rejection>
             generateRegistration() {
         return new TaskExecutorToResourceManagerConnection.ResourceManagerRegistration(
                 log,
@@ -96,6 +102,9 @@ public class TaskExecutorToResourceManagerConnection
     }
 
     @Override
+    protected void onRegistrationRejection(RegistrationResponse.Rejection rejection) {}
+
+    @Override
     protected void onRegistrationFailure(Throwable failure) {
         log.info("Failed to register at resource manager {}.", getTargetAddress(), failure);
 
@@ -108,7 +117,10 @@ public class TaskExecutorToResourceManagerConnection
 
     private static class ResourceManagerRegistration
             extends RetryingRegistration<
-                    ResourceManagerId, ResourceManagerGateway, TaskExecutorRegistrationSuccess> {
+                    ResourceManagerId,
+                    ResourceManagerGateway,
+                    TaskExecutorRegistrationSuccess,
+                    RegistrationResponse.Rejection> {
 
         private final TaskExecutorRegistration taskExecutorRegistration;
 
