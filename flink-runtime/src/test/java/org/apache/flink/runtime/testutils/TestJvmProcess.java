@@ -288,6 +288,15 @@ public abstract class TestJvmProcess {
         }
     }
 
+    public int exitCode() {
+        Process process = this.process;
+        if (process != null) {
+            return process.exitValue();
+        } else {
+            throw new IllegalStateException("process not started");
+        }
+    }
+
     // ---------------------------------------------------------------------------------------------
     // File based synchronization utilities
     // ---------------------------------------------------------------------------------------------

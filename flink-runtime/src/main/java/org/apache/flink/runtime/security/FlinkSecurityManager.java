@@ -28,10 +28,7 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
-
 import java.security.Permission;
-import java.util.function.Consumer;
 
 /**
  * {@code FlinkSecurityManager} to control certain behaviors that can be captured by Java system
@@ -58,23 +55,21 @@ public class FlinkSecurityManager extends SecurityManager {
     private final ThreadLocal<Boolean> monitorUserSystemExit = new InheritableThreadLocal<>();
     private final ClusterOptions.UserSystemExitMode userSystemExitMode;
 
-    /** The behavior to execute when the JVM exists. */
-    private final Consumer<Integer> onExitBehavior;
+    private final boolean haltOnSystemExit;
 
     @VisibleForTesting
     FlinkSecurityManager(
-            ClusterOptions.UserSystemExitMode userSystemExitMode,
-            @Nullable Consumer<Integer> onExitBehavior) {
-        this(userSystemExitMode, onExitBehavior, System.getSecurityManager());
+            ClusterOptions.UserSystemExitMode userSystemExitMode, boolean haltOnSystemExit) {
+        this(userSystemExitMode, haltOnSystemExit, System.getSecurityManager());
     }
 
     @VisibleForTesting
     FlinkSecurityManager(
             ClusterOptions.UserSystemExitMode userSystemExitMode,
-            @Nullable Consumer<Integer> onExitBehavior,
+            boolean haltOnSystemExit,
             SecurityManager originalSecurityManager) {
         this.userSystemExitMode = Preconditions.checkNotNull(userSystemExitMode);
-        this.onExitBehavior = onExitBehavior;
+        this.haltOnSystemExit = haltOnSystemExit;
         this.originalSecurityManager = originalSecurityManager;
     }
 
@@ -100,22 +95,13 @@ public class FlinkSecurityManager extends SecurityManager {
         if (userSystemExitMode == ClusterOptions.UserSystemExitMode.DISABLED && !haltOnSystemExit) {
             return null;
         }
-        Consumer<Integer> onExitBehavior = null;
-        // If halt on system exit is configured, registers a custom SecurityManager which converts
-        // graceful exists calls using {@code System#exit} into forceful exit calls using
-        // {@code Runtime#halt}. The latter does not perform a clean shutdown using the registered
-        // shutdown hooks. This may be configured to prevent deadlocks with Java 8 and the G1
-        // garbage collection, see https://issues.apache.org/jira/browse/FLINK-16510.
-        if (haltOnSystemExit) {
-            onExitBehavior = status -> Runtime.getRuntime().halt(status);
-        }
         LOG.info(
                 "FlinkSecurityManager is created with {} user system exit mode and {} exit",
                 userSystemExitMode,
                 haltOnSystemExit ? "forceful" : "graceful");
         // Add more configuration parameters that need user security manager (currently only for
         // system exit).
-        return new FlinkSecurityManager(userSystemExitMode, onExitBehavior);
+        return new FlinkSecurityManager(userSystemExitMode, haltOnSystemExit);
     }
 
     public static void setFromConfiguration(Configuration configuration) {
@@ -142,14 +128,14 @@ public class FlinkSecurityManager extends SecurityManager {
     }
 
     public static void monitorUserSystemExitForCurrentThread() {
-        if (FlinkSecurityManager.flinkSecurityManager != null) {
-            FlinkSecurityManager.flinkSecurityManager.monitorUserSystemExit();
+        if (flinkSecurityManager != null) {
+            flinkSecurityManager.monitorUserSystemExit();
         }
     }
 
     public static void unmonitorUserSystemExitForCurrentThread() {
-        if (FlinkSecurityManager.flinkSecurityManager != null) {
-            FlinkSecurityManager.flinkSecurityManager.unmonitorUserSystemExit();
+        if (flinkSecurityManager != null) {
+            flinkSecurityManager.unmonitorUserSystemExit();
         }
     }
 
@@ -193,13 +179,10 @@ public class FlinkSecurityManager extends SecurityManager {
         if (originalSecurityManager != null) {
             originalSecurityManager.checkExit(status);
         }
-        // At this point, exit is determined. Invoke exit handler if defined, otherwise check ended.
-        if (onExitBehavior != null) {
-            // Unset ourselves to allow exiting.
-            System.setSecurityManager(null);
-            // Execute the desired behavior, e.g. forceful exit instead of proceeding with
-            // System.exit().
-            onExitBehavior.accept(status);
+        // At this point, exit is determined. Halt if defined, otherwise check ended, JVM will call
+        // System.exit
+        if (haltOnSystemExit) {
+            Runtime.getRuntime().halt(status);
         }
     }
 
@@ -216,5 +199,20 @@ public class FlinkSecurityManager extends SecurityManager {
     @VisibleForTesting
     boolean userSystemExitMonitored() {
         return Boolean.TRUE.equals(monitorUserSystemExit.get());
+    }
+
+    /**
+     * Use this method to circumvent the configured {@link FlinkSecurityManager} behavior, ensuring
+     * that the current JVM process will always stop via System.exit() or
+     * Runtime.getRuntime().halt().
+     */
+    public static void forceProcessExit(int exitCode) {
+        // Unset ourselves to allow exiting in any case.
+        System.setSecurityManager(null);
+        if (flinkSecurityManager != null && flinkSecurityManager.haltOnSystemExit) {
+            Runtime.getRuntime().halt(exitCode);
+        } else {
+            System.exit(exitCode);
+        }
     }
 }
