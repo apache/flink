@@ -295,12 +295,13 @@ public class JobMasterTest extends TestLogger {
         final SchedulerNGFactory schedulerNGFactory =
                 SchedulerNGFactoryFactory.createSchedulerNGFactory(configuration);
 
+        final JobGraph jobGraph = JobGraphTestUtils.createSingleVertexJobGraph();
         final JobMaster testingJobMaster =
                 new JobMaster(
                         rpcService,
                         jobMasterConfiguration,
                         jmResourceId,
-                        JobGraphTestUtils.createSingleVertexJobGraph(),
+                        jobGraph,
                         haServices,
                         SlotPoolFactory.fromConfiguration(configuration),
                         jobManagerSharedServices,
@@ -333,6 +334,7 @@ public class JobMasterTest extends TestLogger {
                         .registerTaskManager(
                                 testingTaskManagerAddress,
                                 unresolvedTaskManagerLocation,
+                                jobGraph.getJobID(),
                                 testingTimeout)
                         .get(),
                 instanceOf(RegistrationResponse.Success.class));
@@ -348,6 +350,7 @@ public class JobMasterTest extends TestLogger {
                         .registerTaskManager(
                                 testingTaskManagerAddress,
                                 unresolvedTaskManagerLocation,
+                                jobGraph.getJobID(),
                                 testingTimeout)
                         .get(),
                 instanceOf(RegistrationResponse.Success.class));
@@ -499,6 +502,7 @@ public class JobMasterTest extends TestLogger {
                     jobMasterGateway.registerTaskManager(
                             taskExecutorGateway.getAddress(),
                             unresolvedTaskManagerLocation,
+                            jobGraph.getJobID(),
                             testingTimeout);
 
             // wait for the completion of the registration
@@ -562,8 +566,9 @@ public class JobMasterTest extends TestLogger {
         final JobManagerSharedServices jobManagerSharedServices =
                 new TestingJobManagerSharedServicesBuilder().build();
 
+        final JobGraph jobGraph = JobGraphTestUtils.createSingleVertexJobGraph();
         final JobMaster jobMaster =
-                new JobMasterBuilder(JobGraphTestUtils.createSingleVertexJobGraph(), rpcService)
+                new JobMasterBuilder(jobGraph, rpcService)
                         .withHeartbeatServices(new HeartbeatServices(5L, 1000L))
                         .withSlotPoolFactory(new TestingSlotPoolFactory(hasReceivedSlotOffers))
                         .createJobMaster();
@@ -583,6 +588,7 @@ public class JobMasterTest extends TestLogger {
                     jobMasterGateway.registerTaskManager(
                             taskExecutorGateway.getAddress(),
                             unresolvedTaskManagerLocation,
+                            jobGraph.getJobID(),
                             testingTimeout);
 
             // wait for the completion of the registration
@@ -1058,6 +1064,7 @@ public class JobMasterTest extends TestLogger {
                     .registerTaskManager(
                             taskExecutorGateway.getAddress(),
                             taskManagerUnresolvedLocation,
+                            restartingJobGraph.getJobID(),
                             testingTimeout)
                     .get();
 
@@ -1843,7 +1850,11 @@ public class JobMasterTest extends TestLogger {
 
             final Collection<SlotOffer> slotOffers =
                     registerSlotsAtJobMaster(
-                            1, jobMasterGateway, testingTaskExecutorGateway, taskManagerLocation);
+                            1,
+                            jobMasterGateway,
+                            producerConsumerJobGraph.getJobID(),
+                            testingTaskExecutorGateway,
+                            taskManagerLocation);
 
             assertThat(slotOffers, hasSize(1));
 
@@ -2039,7 +2050,11 @@ public class JobMasterTest extends TestLogger {
 
             final Collection<SlotOffer> slotOffers =
                     registerSlotsAtJobMaster(
-                            1, jobMasterGateway, testingTaskExecutorGateway, taskManagerLocation);
+                            1,
+                            jobMasterGateway,
+                            jobGraph.getJobID(),
+                            testingTaskExecutorGateway,
+                            taskManagerLocation);
 
             // check that we accepted the offered slot
             assertThat(slotOffers, hasSize(1));
@@ -2108,6 +2123,7 @@ public class JobMasterTest extends TestLogger {
                     registerSlotsAtJobMaster(
                             1,
                             jobMasterGateway,
+                            jobGraph.getJobID(),
                             testingTaskExecutorGateway,
                             taskManagerUnresolvedLocation);
 
@@ -2302,6 +2318,7 @@ public class JobMasterTest extends TestLogger {
                     registerSlotsAtJobMaster(
                             1,
                             jobMasterGateway,
+                            jobGraph.getJobID(),
                             taskExecutorGateway,
                             taskManagerUnresolvedLocation);
             assertThat(slotOffers, hasSize(1));
@@ -2330,6 +2347,7 @@ public class JobMasterTest extends TestLogger {
     private Collection<SlotOffer> registerSlotsAtJobMaster(
             int numberSlots,
             JobMasterGateway jobMasterGateway,
+            JobID jobId,
             TaskExecutorGateway taskExecutorGateway,
             UnresolvedTaskManagerLocation unresolvedTaskManagerLocation)
             throws ExecutionException, InterruptedException {
@@ -2339,6 +2357,7 @@ public class JobMasterTest extends TestLogger {
                 .registerTaskManager(
                         taskExecutorGateway.getAddress(),
                         unresolvedTaskManagerLocation,
+                        jobId,
                         testingTimeout)
                 .get();
 

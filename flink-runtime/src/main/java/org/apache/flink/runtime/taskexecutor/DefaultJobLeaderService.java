@@ -390,7 +390,8 @@ public class DefaultJobLeaderService implements JobLeaderService {
                         getTargetLeaderId(),
                         retryingRegistrationConfiguration,
                         ownerAddress,
-                        ownLocation);
+                        ownLocation,
+                        jobId);
             }
 
             @Override
@@ -440,6 +441,8 @@ public class DefaultJobLeaderService implements JobLeaderService {
 
         private final UnresolvedTaskManagerLocation unresolvedTaskManagerLocation;
 
+        private final JobID jobId;
+
         JobManagerRetryingRegistration(
                 Logger log,
                 RpcService rpcService,
@@ -449,7 +452,8 @@ public class DefaultJobLeaderService implements JobLeaderService {
                 JobMasterId jobMasterId,
                 RetryingRegistrationConfiguration retryingRegistrationConfiguration,
                 String taskManagerRpcAddress,
-                UnresolvedTaskManagerLocation unresolvedTaskManagerLocation) {
+                UnresolvedTaskManagerLocation unresolvedTaskManagerLocation,
+                JobID jobId) {
             super(
                     log,
                     rpcService,
@@ -462,6 +466,7 @@ public class DefaultJobLeaderService implements JobLeaderService {
             this.taskManagerRpcAddress = taskManagerRpcAddress;
             this.unresolvedTaskManagerLocation =
                     Preconditions.checkNotNull(unresolvedTaskManagerLocation);
+            this.jobId = Preconditions.checkNotNull(jobId);
         }
 
         @Override
@@ -470,6 +475,7 @@ public class DefaultJobLeaderService implements JobLeaderService {
             return gateway.registerTaskManager(
                     taskManagerRpcAddress,
                     unresolvedTaskManagerLocation,
+                    jobId,
                     Time.milliseconds(timeoutMillis));
         }
     }
