@@ -332,7 +332,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
     }
 
     private void terminateJVM() {
-        System.exit(FAILURE_EXIT_CODE);
+        FlinkSecurityManager.forceProcessExit(FAILURE_EXIT_CODE);
     }
 
     // --------------------------------------------------------------------------------------------
