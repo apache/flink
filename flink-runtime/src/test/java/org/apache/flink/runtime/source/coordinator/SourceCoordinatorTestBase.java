@@ -26,6 +26,7 @@ import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.api.connector.source.mocks.MockSplitEnumerator;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.MockOperatorCoordinatorContext;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
 
 import org.junit.After;
 import org.junit.Before;
@@ -65,8 +66,12 @@ public abstract class SourceCoordinatorTestBase {
         context =
                 new SourceCoordinatorContext<>(
                         coordinatorExecutor,
+                        Executors.newScheduledThreadPool(
+                                1,
+                                new ExecutorThreadFactory(
+                                        coordinatorThreadFactory.getCoordinatorThreadName()
+                                                + "-worker")),
                         coordinatorThreadFactory,
-                        1,
                         operatorCoordinatorContext,
                         new MockSourceSplitSerializer(),
                         splitSplitAssignmentTracker);
