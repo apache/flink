@@ -246,7 +246,7 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
             ResourceID jobManagerResourceId) {
         return new TestingJobMasterGatewayBuilder()
                 .setRegisterTaskManagerFunction(
-                        (s, location) ->
+                        (s, location, ignored) ->
                                 CompletableFuture.completedFuture(
                                         new JMTMRegistrationSuccess(jobManagerResourceId)))
                 .setOfferSlotsFunction(
