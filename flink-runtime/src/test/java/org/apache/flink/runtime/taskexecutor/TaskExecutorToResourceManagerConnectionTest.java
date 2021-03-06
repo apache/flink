@@ -146,7 +146,7 @@ public class TaskExecutorToResourceManagerConnectionTest extends TestLogger {
     }
 
     private class TestRegistrationConnectionListener<
-                    T extends RegisteredRpcConnection<?, ?, S>,
+                    T extends RegisteredRpcConnection<?, ?, S, ?>,
                     S extends RegistrationResponse.Success>
             implements RegistrationConnectionListener<T, S> {
 
