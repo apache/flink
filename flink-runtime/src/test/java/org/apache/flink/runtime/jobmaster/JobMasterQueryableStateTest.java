@@ -116,7 +116,7 @@ public class JobMasterQueryableStateTest extends TestLogger {
 
         final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
 
-        registerSlotsRequiredForJobExecution(jobMasterGateway);
+        registerSlotsRequiredForJobExecution(jobMasterGateway, JOB_GRAPH.getJobID());
 
         try {
             // lookup location
@@ -140,7 +140,7 @@ public class JobMasterQueryableStateTest extends TestLogger {
 
         final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
 
-        registerSlotsRequiredForJobExecution(jobMasterGateway);
+        registerSlotsRequiredForJobExecution(jobMasterGateway, JOB_GRAPH.getJobID());
 
         try {
             // lookup location
@@ -163,7 +163,7 @@ public class JobMasterQueryableStateTest extends TestLogger {
 
         final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
 
-        registerSlotsRequiredForJobExecution(jobMasterGateway);
+        registerSlotsRequiredForJobExecution(jobMasterGateway, JOB_GRAPH.getJobID());
 
         try {
             // register an irrelevant KvState
@@ -186,7 +186,7 @@ public class JobMasterQueryableStateTest extends TestLogger {
 
         final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
 
-        registerSlotsRequiredForJobExecution(jobMasterGateway);
+        registerSlotsRequiredForJobExecution(jobMasterGateway, JOB_GRAPH.getJobID());
 
         try {
             final String registrationName = "register-me";
@@ -231,7 +231,7 @@ public class JobMasterQueryableStateTest extends TestLogger {
 
         final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
 
-        registerSlotsRequiredForJobExecution(jobMasterGateway);
+        registerSlotsRequiredForJobExecution(jobMasterGateway, JOB_GRAPH.getJobID());
 
         try {
             final String registrationName = "register-me";
@@ -279,7 +279,7 @@ public class JobMasterQueryableStateTest extends TestLogger {
 
         final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
 
-        registerSlotsRequiredForJobExecution(jobMasterGateway);
+        registerSlotsRequiredForJobExecution(jobMasterGateway, JOB_GRAPH.getJobID());
 
         try {
             // duplicate registration fails task
@@ -309,10 +309,11 @@ public class JobMasterQueryableStateTest extends TestLogger {
         }
     }
 
-    private static void registerSlotsRequiredForJobExecution(JobMasterGateway jobMasterGateway)
+    private static void registerSlotsRequiredForJobExecution(
+            JobMasterGateway jobMasterGateway, JobID jobId)
             throws ExecutionException, InterruptedException {
         JobMasterTestUtils.registerTaskExecutorAndOfferSlots(
-                rpcService, jobMasterGateway, PARALLELISM, testingTimeout);
+                rpcService, jobMasterGateway, jobId, PARALLELISM, testingTimeout);
     }
 
     private static void registerKvState(

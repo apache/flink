@@ -282,6 +282,7 @@ public class JobMasterTest extends TestLogger {
                     jobMasterGateway.registerTaskManager(
                             taskExecutorGateway.getAddress(),
                             unresolvedTaskManagerLocation,
+                            jobGraph.getJobID(),
                             testingTimeout);
 
             // wait for the completion of the registration
@@ -344,8 +345,9 @@ public class JobMasterTest extends TestLogger {
         final JobManagerSharedServices jobManagerSharedServices =
                 new TestingJobManagerSharedServicesBuilder().build();
 
+        final JobGraph jobGraph = JobGraphTestUtils.singleNoOpJobGraph();
         final JobMaster jobMaster =
-                new JobMasterBuilder(JobGraphTestUtils.singleNoOpJobGraph(), rpcService)
+                new JobMasterBuilder(jobGraph, rpcService)
                         .withHeartbeatServices(new HeartbeatServices(5L, 1000L))
                         .withSlotPoolServiceSchedulerFactory(
                                 DefaultSlotPoolServiceSchedulerFactory.create(
@@ -365,6 +367,7 @@ public class JobMasterTest extends TestLogger {
                     jobMasterGateway.registerTaskManager(
                             taskExecutorGateway.getAddress(),
                             unresolvedTaskManagerLocation,
+                            jobGraph.getJobID(),
                             testingTimeout);
 
             // wait for the completion of the registration
@@ -673,6 +676,7 @@ public class JobMasterTest extends TestLogger {
             registerSlotsAtJobMaster(
                     1,
                     jobMaster.getSelfGateway(JobMasterGateway.class),
+                    jobGraph.getJobID(),
                     new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway(),
                     new LocalUnresolvedTaskManagerLocation());
 
@@ -943,7 +947,8 @@ public class JobMasterTest extends TestLogger {
             final JobMasterGateway jobMasterGateway =
                     jobMaster.getSelfGateway(JobMasterGateway.class);
 
-            registerSlotsRequiredForJobExecution(jobMasterGateway, parallelism);
+            registerSlotsRequiredForJobExecution(
+                    jobMasterGateway, inputSplitJobGraph.getJobID(), parallelism);
 
             waitUntilAllExecutionsAreScheduledOrDeployed(jobMasterGateway);
 
@@ -1211,7 +1216,11 @@ public class JobMasterTest extends TestLogger {
 
             final Collection<SlotOffer> slotOffers =
                     registerSlotsAtJobMaster(
-                            1, jobMasterGateway, testingTaskExecutorGateway, taskManagerLocation);
+                            1,
+                            jobMasterGateway,
+                            producerConsumerJobGraph.getJobID(),
+                            testingTaskExecutorGateway,
+                            taskManagerLocation);
 
             assertThat(slotOffers, hasSize(1));
 
@@ -1377,7 +1386,11 @@ public class JobMasterTest extends TestLogger {
 
             final Collection<SlotOffer> slotOffers =
                     registerSlotsAtJobMaster(
-                            1, jobMasterGateway, testingTaskExecutorGateway, taskManagerLocation);
+                            1,
+                            jobMasterGateway,
+                            jobGraph.getJobID(),
+                            testingTaskExecutorGateway,
+                            taskManagerLocation);
 
             // check that we accepted the offered slot
             assertThat(slotOffers, hasSize(1));
@@ -1446,6 +1459,7 @@ public class JobMasterTest extends TestLogger {
                     registerSlotsAtJobMaster(
                             1,
                             jobMasterGateway,
+                            jobGraph.getJobID(),
                             testingTaskExecutorGateway,
                             taskManagerUnresolvedLocation);
 
@@ -1636,6 +1650,7 @@ public class JobMasterTest extends TestLogger {
                     registerSlotsAtJobMaster(
                             1,
                             jobMasterGateway,
+                            jobGraph.getJobID(),
                             taskExecutorGateway,
                             taskManagerUnresolvedLocation);
             assertThat(slotOffers, hasSize(1));
@@ -1664,6 +1679,7 @@ public class JobMasterTest extends TestLogger {
     private Collection<SlotOffer> registerSlotsAtJobMaster(
             int numberSlots,
             JobMasterGateway jobMasterGateway,
+            JobID jobId,
             TaskExecutorGateway taskExecutorGateway,
             UnresolvedTaskManagerLocation unresolvedTaskManagerLocation)
             throws ExecutionException, InterruptedException {
@@ -1673,6 +1689,7 @@ public class JobMasterTest extends TestLogger {
                 .registerTaskManager(
                         taskExecutorGateway.getAddress(),
                         unresolvedTaskManagerLocation,
+                        jobId,
                         testingTimeout)
                 .get();
 
@@ -1747,9 +1764,9 @@ public class JobMasterTest extends TestLogger {
     }
 
     private static void registerSlotsRequiredForJobExecution(
-            JobMasterGateway jobMasterGateway, int numSlots)
+            JobMasterGateway jobMasterGateway, JobID jobId, int numSlots)
             throws ExecutionException, InterruptedException {
         JobMasterTestUtils.registerTaskExecutorAndOfferSlots(
-                rpcService, jobMasterGateway, numSlots, testingTimeout);
+                rpcService, jobMasterGateway, jobId, numSlots, testingTimeout);
     }
 }

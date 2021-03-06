@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.jobmaster;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -42,6 +43,7 @@ public class JobMasterTestUtils {
     public static void registerTaskExecutorAndOfferSlots(
             TestingRpcService rpcService,
             JobMasterGateway jobMasterGateway,
+            JobID jobId,
             int numSlots,
             Time testingTimeout)
             throws ExecutionException, InterruptedException {
@@ -66,6 +68,7 @@ public class JobMasterTestUtils {
                 .registerTaskManager(
                         taskExecutorGateway.getAddress(),
                         unresolvedTaskManagerLocation,
+                        jobId,
                         testingTimeout)
                 .get();
 
