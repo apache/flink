@@ -49,12 +49,14 @@ import org.apache.flink.runtime.persistence.filesystem.FileSystemStateStorageHel
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.flink.shaded.curator4.org.apache.curator.RetryLoop;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.api.ACLProvider;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.imps.DefaultACLProvider;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.PathChildrenCache;
 import org.apache.flink.shaded.curator4.org.apache.curator.retry.ExponentialBackoffRetry;
+import org.apache.flink.shaded.curator4.org.apache.curator.utils.ZKPaths;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.ZooDefs;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.ACL;
 
@@ -65,6 +67,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -86,7 +89,7 @@ public class ZooKeeperUtils {
      * @param configuration {@link Configuration} object containing the configuration values
      * @return {@link CuratorFramework} instance
      */
-    public static CuratorFramework startCuratorFramework(Configuration configuration) {
+    public static CuratorFramework startCuratorFramework(Configuration configuration) throws Exception {
         Preconditions.checkNotNull(configuration, "configuration");
         String zkQuorum = configuration.getValue(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM);
 
@@ -160,6 +163,17 @@ public class ZooKeeperUtils {
                         .build();
 
         cf.start();
+
+        if (aclMode == ZkClientACLMode.CREATOR) {
+            RetryLoop.callWithRetry(cf.getZookeeperClient(), new Callable<Object>() {
+                public Object call() throws Exception {
+                    ZKPaths.mkdirs(cf.getZookeeperClient().getZooKeeper(),
+                            root.startsWith("/") ? root : "/" + root, true,
+                            new DefaultACLProvider(), true);
+                    return null;
+                }
+            });
+        }
 
         return cf;
     }

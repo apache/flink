@@ -124,7 +124,7 @@ public class ZooKeeperTestEnvironment {
     }
 
     /** Creates a new client for the started ZooKeeper server/cluster. */
-    public CuratorFramework createClient() {
+    public CuratorFramework createClient() throws Exception {
         Configuration config = new Configuration();
         config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, getConnectString());
         return ZooKeeperUtils.startCuratorFramework(config);

@@ -97,7 +97,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
     private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperLeaderElectionTest.class);
 
     @Before
-    public void before() {
+    public void before() throws Exception {
         try {
             testingServer = new TestingServer();
         } catch (Exception e) {
