@@ -18,13 +18,15 @@
 
 package org.apache.flink.runtime.registration;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
+
+import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.util.concurrent.CompletableFuture;
@@ -45,9 +47,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <F> The type of the fencing token
  * @param <G> The type of the gateway to connect to.
  * @param <S> The type of the successful registration responses.
+ * @param <R> The type of the registration rejection responses.
  */
 public abstract class RetryingRegistration<
-        F extends Serializable, G extends RpcGateway, S extends RegistrationResponse.Success> {
+        F extends Serializable,
+        G extends RpcGateway,
+        S extends RegistrationResponse.Success,
+        R extends RegistrationResponse.Rejection> {
 
     // ------------------------------------------------------------------------
     // Fields
@@ -65,7 +71,7 @@ public abstract class RetryingRegistration<
 
     private final F fencingToken;
 
-    private final CompletableFuture<Tuple2<G, S>> completionFuture;
+    private final CompletableFuture<RetryingRegistrationResult<G, S, R>> completionFuture;
 
     private final RetryingRegistrationConfiguration retryingRegistrationConfiguration;
 
@@ -97,7 +103,7 @@ public abstract class RetryingRegistration<
     //  completion and cancellation
     // ------------------------------------------------------------------------
 
-    public CompletableFuture<Tuple2<G, S>> getFuture() {
+    public CompletableFuture<RetryingRegistrationResult<G, S, R>> getFuture() {
         return completionFuture;
     }
 
@@ -221,18 +227,31 @@ public abstract class RetryingRegistration<
                             (RegistrationResponse result) -> {
                                 if (!isCanceled()) {
                                     if (result instanceof RegistrationResponse.Success) {
-                                        // registration successful!
+                                        log.debug(
+                                                "Registration with {} at {} was successful.",
+                                                targetName,
+                                                targetAddress);
                                         S success = (S) result;
-                                        completionFuture.complete(Tuple2.of(gateway, success));
+                                        completionFuture.complete(
+                                                RetryingRegistrationResult.success(
+                                                        gateway, success));
+                                    } else if (result instanceof RegistrationResponse.Rejection) {
+                                        log.debug(
+                                                "Registration with {} at {} was rejected.",
+                                                targetName,
+                                                targetAddress);
+                                        R rejection = (R) result;
+                                        completionFuture.complete(
+                                                RetryingRegistrationResult.rejection(rejection));
                                     } else {
-                                        // registration refused or unknown
-                                        if (result instanceof RegistrationResponse.Decline) {
-                                            RegistrationResponse.Decline decline =
-                                                    (RegistrationResponse.Decline) result;
+                                        // registration failure
+                                        if (result instanceof RegistrationResponse.Failure) {
+                                            RegistrationResponse.Failure failure =
+                                                    (RegistrationResponse.Failure) result;
                                             log.info(
-                                                    "Registration at {} was declined: {}",
+                                                    "Registration failure at {} occurred.",
                                                     targetName,
-                                                    decline.getReason());
+                                                    failure.getReason());
                                         } else {
                                             log.error(
                                                     "Received unknown response to registration attempt: {}",
@@ -323,5 +342,59 @@ public abstract class RetryingRegistration<
 
     private void startRegistrationLater(final long delay) {
         rpcService.scheduleRunnable(this::startRegistration, delay, TimeUnit.MILLISECONDS);
+    }
+
+    static final class RetryingRegistrationResult<G, S, R> {
+        @Nullable private final G gateway;
+
+        @Nullable private final S success;
+
+        @Nullable private final R rejection;
+
+        private RetryingRegistrationResult(
+                @Nullable G gateway, @Nullable S success, @Nullable R rejection) {
+            this.gateway = gateway;
+            this.success = success;
+            this.rejection = rejection;
+        }
+
+        boolean isSuccess() {
+            return success != null && gateway != null;
+        }
+
+        boolean isRejection() {
+            return rejection != null;
+        }
+
+        public G getGateway() {
+            Preconditions.checkState(isSuccess());
+            return gateway;
+        }
+
+        public R getRejection() {
+            Preconditions.checkState(isRejection());
+            return rejection;
+        }
+
+        public S getSuccess() {
+            Preconditions.checkState(isSuccess());
+            return success;
+        }
+
+        static <
+                        G extends RpcGateway,
+                        S extends RegistrationResponse.Success,
+                        R extends RegistrationResponse.Rejection>
+                RetryingRegistrationResult<G, S, R> success(G gateway, S success) {
+            return new RetryingRegistrationResult<>(gateway, success, null);
+        }
+
+        static <
+                        G extends RpcGateway,
+                        S extends RegistrationResponse.Success,
+                        R extends RegistrationResponse.Rejection>
+                RetryingRegistrationResult<G, S, R> rejection(R rejection) {
+            return new RetryingRegistrationResult<>(null, null, rejection);
+        }
     }
 }
