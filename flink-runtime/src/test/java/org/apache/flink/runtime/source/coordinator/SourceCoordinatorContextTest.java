@@ -23,8 +23,10 @@ import org.apache.flink.api.connector.source.SplitsAssignment;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
 
 import org.junit.Test;
 
@@ -34,11 +36,14 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.runtime.source.coordinator.CoordinatorTestUtils.getSplitsAssignment;
 import static org.apache.flink.runtime.source.coordinator.CoordinatorTestUtils.verifyAssignment;
 import static org.apache.flink.runtime.source.coordinator.CoordinatorTestUtils.verifyException;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -165,8 +170,12 @@ public class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
             restoredContext =
                     new SourceCoordinatorContext<>(
                             coordinatorExecutor,
+                            Executors.newScheduledThreadPool(
+                                    1,
+                                    new ExecutorThreadFactory(
+                                            coordinatorThreadFactory.getCoordinatorThreadName()
+                                                    + "-worker")),
                             coordinatorThreadFactory,
-                            1,
                             operatorCoordinatorContext,
                             new MockSourceSplitSerializer(),
                             restoredTracker);
@@ -180,6 +189,44 @@ public class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
         assertEquals(
                 splitSplitAssignmentTracker.assignmentsByCheckpointId(),
                 restoredTracker.assignmentsByCheckpointId());
+    }
+
+    @Test
+    public void testCallableInterruptedDuringShutdownDoNotFailJob() throws InterruptedException {
+        AtomicReference<Throwable> expectedError = new AtomicReference<>(null);
+
+        ManuallyTriggeredScheduledExecutorService manualWorkerExecutor =
+                new ManuallyTriggeredScheduledExecutorService();
+        ManuallyTriggeredScheduledExecutorService manualCoordinatorExecutor =
+                new ManuallyTriggeredScheduledExecutorService();
+
+        SourceCoordinatorContext<MockSourceSplit> testingContext =
+                new SourceCoordinatorContext<>(
+                        manualCoordinatorExecutor,
+                        manualWorkerExecutor,
+                        new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory(
+                                TEST_OPERATOR_ID.toHexString(), getClass().getClassLoader()),
+                        operatorCoordinatorContext,
+                        new MockSourceSplitSerializer(),
+                        splitSplitAssignmentTracker);
+
+        testingContext.callAsync(
+                () -> {
+                    throw new InterruptedException();
+                },
+                (ignored, e) -> {
+                    if (e != null) {
+                        expectedError.set(e);
+                        throw new RuntimeException(e);
+                    }
+                });
+
+        manualWorkerExecutor.triggerAll();
+        testingContext.close();
+        manualCoordinatorExecutor.triggerAll();
+
+        assertTrue(expectedError.get() instanceof InterruptedException);
+        assertFalse(operatorCoordinatorContext.isJobFailed());
     }
 
     // ------------------------
