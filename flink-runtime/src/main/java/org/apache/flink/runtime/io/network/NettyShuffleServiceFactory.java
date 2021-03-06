@@ -156,7 +156,7 @@ public class NettyShuffleServiceFactory
                         batchShuffleReadBufferPool,
                         batchShuffleReadIOExecutor,
                         config.getBlockingSubpartitionType(),
-                        config.networkBuffersPerChannel(),
+                        config.networkBuffersPerSubpartition(),
                         config.floatingNetworkBuffersPerGate(),
                         config.networkBufferSize(),
                         config.isBlockingShuffleCompressionEnabled(),

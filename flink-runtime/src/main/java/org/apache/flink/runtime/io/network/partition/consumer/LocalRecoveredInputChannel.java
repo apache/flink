@@ -41,7 +41,7 @@ public class LocalRecoveredInputChannel extends RecoveredInputChannel {
             TaskEventPublisher taskEventPublisher,
             int initialBackOff,
             int maxBackoff,
-            int networkBuffersPerChannel,
+            int networkBuffersPerInputChannel,
             InputChannelMetrics metrics) {
         super(
                 inputGate,
@@ -51,7 +51,7 @@ public class LocalRecoveredInputChannel extends RecoveredInputChannel {
                 maxBackoff,
                 metrics.getNumBytesInLocalCounter(),
                 metrics.getNumBuffersInLocalCounter(),
-                networkBuffersPerChannel);
+                networkBuffersPerInputChannel);
 
         this.partitionManager = checkNotNull(partitionManager);
         this.taskEventPublisher = checkNotNull(taskEventPublisher);

@@ -121,7 +121,7 @@ public class RemoteInputChannel extends InputChannel {
             ConnectionManager connectionManager,
             int initialBackOff,
             int maxBackoff,
-            int networkBuffersPerChannel,
+            int networkBuffersPerInputChannel,
             Counter numBytesIn,
             Counter numBuffersIn,
             ChannelStateWriter stateWriter) {
@@ -134,9 +134,9 @@ public class RemoteInputChannel extends InputChannel {
                 maxBackoff,
                 numBytesIn,
                 numBuffersIn);
-        checkArgument(networkBuffersPerChannel >= 0, "Must be non-negative.");
+        checkArgument(networkBuffersPerInputChannel >= 0, "Must be non-negative.");
 
-        this.initialCredit = networkBuffersPerChannel;
+        this.initialCredit = networkBuffersPerInputChannel;
         this.connectionId = checkNotNull(connectionId);
         this.connectionManager = checkNotNull(connectionManager);
         this.bufferManager = new BufferManager(inputGate.getMemorySegmentProvider(), this, 0);

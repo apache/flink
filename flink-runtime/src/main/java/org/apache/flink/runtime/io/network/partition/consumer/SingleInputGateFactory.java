@@ -65,7 +65,7 @@ public class SingleInputGateFactory {
 
     @Nonnull protected final NetworkBufferPool networkBufferPool;
 
-    protected final int networkBuffersPerChannel;
+    protected final int networkBuffersPerInputChannel;
 
     private final int floatingNetworkBuffersPerGate;
 
@@ -85,7 +85,7 @@ public class SingleInputGateFactory {
         this.taskExecutorResourceId = taskExecutorResourceId;
         this.partitionRequestInitialBackoff = networkConfig.partitionRequestInitialBackoff();
         this.partitionRequestMaxBackoff = networkConfig.partitionRequestMaxBackoff();
-        this.networkBuffersPerChannel = networkConfig.networkBuffersPerChannel();
+        this.networkBuffersPerInputChannel = networkConfig.networkBuffersPerInputChannel();
         this.floatingNetworkBuffersPerGate = networkConfig.floatingNetworkBuffersPerGate();
         this.blockingShuffleCompressionEnabled =
                 networkConfig.isBlockingShuffleCompressionEnabled();
@@ -107,7 +107,7 @@ public class SingleInputGateFactory {
         SupplierWithException<BufferPool, IOException> bufferPoolFactory =
                 createBufferPoolFactory(
                         networkBufferPool,
-                        networkBuffersPerChannel,
+                        networkBuffersPerInputChannel,
                         floatingNetworkBuffersPerGate,
                         igdd.getShuffleDescriptors().length,
                         igdd.getConsumedPartitionType());
@@ -182,7 +182,7 @@ public class SingleInputGateFactory {
                             connectionManager,
                             partitionRequestInitialBackoff,
                             partitionRequestMaxBackoff,
-                            networkBuffersPerChannel,
+                            networkBuffersPerInputChannel,
                             metrics);
                 },
                 nettyShuffleDescriptor ->
@@ -213,7 +213,7 @@ public class SingleInputGateFactory {
                     taskEventPublisher,
                     partitionRequestInitialBackoff,
                     partitionRequestMaxBackoff,
-                    networkBuffersPerChannel,
+                    networkBuffersPerInputChannel,
                     metrics);
         } else {
             // Different instances => remote
@@ -226,7 +226,7 @@ public class SingleInputGateFactory {
                     connectionManager,
                     partitionRequestInitialBackoff,
                     partitionRequestMaxBackoff,
-                    networkBuffersPerChannel,
+                    networkBuffersPerInputChannel,
                     metrics);
         }
     }
@@ -234,7 +234,7 @@ public class SingleInputGateFactory {
     @VisibleForTesting
     static SupplierWithException<BufferPool, IOException> createBufferPoolFactory(
             BufferPoolFactory bufferPoolFactory,
-            int networkBuffersPerChannel,
+            int networkBuffersPerInputChannel,
             int floatingNetworkBuffersPerGate,
             int size,
             ResultPartitionType type) {

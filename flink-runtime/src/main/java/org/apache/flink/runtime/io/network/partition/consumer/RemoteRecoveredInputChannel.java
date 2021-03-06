@@ -43,7 +43,7 @@ public class RemoteRecoveredInputChannel extends RecoveredInputChannel {
             ConnectionManager connectionManager,
             int initialBackOff,
             int maxBackoff,
-            int networkBuffersPerChannel,
+            int networkBuffersPerInputChannel,
             InputChannelMetrics metrics) {
         super(
                 inputGate,
@@ -53,7 +53,7 @@ public class RemoteRecoveredInputChannel extends RecoveredInputChannel {
                 maxBackoff,
                 metrics.getNumBytesInRemoteCounter(),
                 metrics.getNumBuffersInRemoteCounter(),
-                networkBuffersPerChannel);
+                networkBuffersPerInputChannel);
 
         this.connectionId = checkNotNull(connectionId);
         this.connectionManager = checkNotNull(connectionManager);
@@ -70,7 +70,7 @@ public class RemoteRecoveredInputChannel extends RecoveredInputChannel {
                         connectionManager,
                         initialBackoff,
                         maxBackoff,
-                        networkBuffersPerChannel,
+                        networkBuffersPerInputChannel,
                         numBytesIn,
                         numBuffersIn,
                         channelStateWriter);

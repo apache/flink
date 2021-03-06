@@ -166,7 +166,7 @@ public class InputChannelTestUtils {
             SingleInputGate inputGate, int numExclusiveSegments) {
 
         return InputChannelBuilder.newBuilder()
-                .setNetworkBuffersPerChannel(numExclusiveSegments)
+                .setNetworkBuffersPerInputChannel(numExclusiveSegments)
                 .buildRemoteChannel(inputGate);
     }
 
@@ -175,7 +175,7 @@ public class InputChannelTestUtils {
 
         return InputChannelBuilder.newBuilder()
                 .setConnectionManager(mockConnectionManagerWithPartitionRequestClient(client))
-                .setNetworkBuffersPerChannel(numExclusiveSegments)
+                .setNetworkBuffersPerInputChannel(numExclusiveSegments)
                 .buildRemoteChannel(inputGate);
     }
 

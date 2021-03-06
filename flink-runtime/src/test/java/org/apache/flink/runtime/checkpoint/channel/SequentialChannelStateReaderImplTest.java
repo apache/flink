@@ -209,7 +209,7 @@ public class SequentialChannelStateReaderImplTest {
                                     .setSegmentProvider(networkBufferPool)
                                     .setChannelFactory(
                                             (builder, gate) ->
-                                                    builder.setNetworkBuffersPerChannel(
+                                                    builder.setNetworkBuffersPerInputChannel(
                                                                     buffersPerChannel)
                                                             .buildRemoteRecoveredChannel(gate))
                                     .build();

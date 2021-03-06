@@ -54,26 +54,52 @@ public class NettyShuffleEnvironmentConfigurationTest extends TestLogger {
      * MemorySize, boolean, InetAddress)} returns the correct result for new configurations via
      * {@link NettyShuffleEnvironmentOptions#NETWORK_REQUEST_BACKOFF_INITIAL}, {@link
      * NettyShuffleEnvironmentOptions#NETWORK_REQUEST_BACKOFF_MAX}, {@link
-     * NettyShuffleEnvironmentOptions#NETWORK_BUFFERS_PER_CHANNEL} and {@link
+     * NettyShuffleEnvironmentOptions#NETWORK_BUFFERS_PER_CHANNEL}, {@link
+     * NettyShuffleEnvironmentOptions#NETWORK_BUFFERS_PER_INCOMING_CHANNEL}, {@link
+     * NettyShuffleEnvironmentOptions#NETWORK_BUFFERS_PER_OUTGOING_CHANNEL} and {@link
      * NettyShuffleEnvironmentOptions#NETWORK_EXTRA_BUFFERS_PER_GATE}
      */
     @Test
     public void testNetworkRequestBackoffAndBuffers() {
+        int buffersPerChannel = 10;
+        for (int perSubpartition = -100; perSubpartition <= 100; perSubpartition += 10) {
+            for (int perInputChannel = -100; perInputChannel <= 100; perInputChannel += 10) {
+                int expectedBuffersPerSubpartition =
+                        perSubpartition < 0 ? buffersPerChannel : perSubpartition;
+                int expectedBuffersPerInputChannel =
+                        perInputChannel < 0 ? buffersPerChannel : perInputChannel;
 
-        // set some non-default values
-        final Configuration config = new Configuration();
-        config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
-        config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
-        config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, 10);
-        config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE, 100);
+                // set some non-default values
+                Configuration config = new Configuration();
+                config.setInteger(
+                        NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
+                config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
+                config.setInteger(
+                        NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL,
+                        buffersPerChannel);
+                config.setInteger(
+                        NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_OUTGOING_CHANNEL,
+                        perSubpartition);
+                config.setInteger(
+                        NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_INCOMING_CHANNEL,
+                        perInputChannel);
+                config.setInteger(
+                        NettyShuffleEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE, 100);
 
-        final NettyShuffleEnvironmentConfiguration networkConfig =
-                NettyShuffleEnvironmentConfiguration.fromConfiguration(
-                        config, MEM_SIZE_PARAM, true, InetAddress.getLoopbackAddress());
+                NettyShuffleEnvironmentConfiguration networkConfig =
+                        NettyShuffleEnvironmentConfiguration.fromConfiguration(
+                                config, MEM_SIZE_PARAM, true, InetAddress.getLoopbackAddress());
 
-        assertEquals(networkConfig.partitionRequestInitialBackoff(), 100);
-        assertEquals(networkConfig.partitionRequestMaxBackoff(), 200);
-        assertEquals(networkConfig.networkBuffersPerChannel(), 10);
-        assertEquals(networkConfig.floatingNetworkBuffersPerGate(), 100);
+                assertEquals(networkConfig.partitionRequestInitialBackoff(), 100);
+                assertEquals(networkConfig.partitionRequestMaxBackoff(), 200);
+                assertEquals(
+                        networkConfig.networkBuffersPerSubpartition(),
+                        expectedBuffersPerSubpartition);
+                assertEquals(
+                        networkConfig.networkBuffersPerInputChannel(),
+                        expectedBuffersPerInputChannel);
+                assertEquals(networkConfig.floatingNetworkBuffersPerGate(), 100);
+            }
+        }
     }
 }

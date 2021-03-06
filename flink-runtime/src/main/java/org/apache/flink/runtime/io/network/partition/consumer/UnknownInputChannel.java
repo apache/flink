@@ -56,7 +56,7 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
 
     private final int maxBackoff;
 
-    private final int networkBuffersPerChannel;
+    private final int networkBuffersPerInputChannel;
 
     private final InputChannelMetrics metrics;
 
@@ -71,7 +71,7 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
             ConnectionManager connectionManager,
             int initialBackoff,
             int maxBackoff,
-            int networkBuffersPerChannel,
+            int networkBuffersPerInputChannel,
             InputChannelMetrics metrics) {
 
         super(gate, channelIndex, partitionId, initialBackoff, maxBackoff, null, null);
@@ -82,7 +82,7 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
         this.metrics = checkNotNull(metrics);
         this.initialBackoff = initialBackoff;
         this.maxBackoff = maxBackoff;
-        this.networkBuffersPerChannel = networkBuffersPerChannel;
+        this.networkBuffersPerInputChannel = networkBuffersPerInputChannel;
     }
 
     @Override
@@ -142,7 +142,7 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
                 connectionManager,
                 initialBackoff,
                 maxBackoff,
-                networkBuffersPerChannel,
+                networkBuffersPerInputChannel,
                 metrics.getNumBytesInRemoteCounter(),
                 metrics.getNumBuffersInRemoteCounter(),
                 channelStateWriter == null ? ChannelStateWriter.NO_OP : channelStateWriter);

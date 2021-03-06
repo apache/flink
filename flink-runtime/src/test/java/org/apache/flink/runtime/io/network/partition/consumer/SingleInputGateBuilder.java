@@ -103,7 +103,7 @@ public class SingleInputGateBuilder {
         this.bufferPoolFactory =
                 SingleInputGateFactory.createBufferPoolFactory(
                         environment.getNetworkBufferPool(),
-                        config.networkBuffersPerChannel(),
+                        config.networkBuffersPerInputChannel(),
                         config.floatingNetworkBuffersPerGate(),
                         numberOfChannels,
                         partitionType);

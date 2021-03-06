@@ -50,7 +50,7 @@ public class InputChannelBuilder {
     private ConnectionManager connectionManager = new TestingConnectionManager();
     private int initialBackoff = 0;
     private int maxBackoff = 0;
-    private int networkBuffersPerChannel = 2;
+    private int networkBuffersPerInputChannel = 2;
     private InputChannelMetrics metrics =
             InputChannelTestUtils.newUnregisteredInputChannelMetrics();
 
@@ -93,8 +93,8 @@ public class InputChannelBuilder {
         return this;
     }
 
-    public InputChannelBuilder setNetworkBuffersPerChannel(int networkBuffersPerChannel) {
-        this.networkBuffersPerChannel = networkBuffersPerChannel;
+    public InputChannelBuilder setNetworkBuffersPerInputChannel(int networkBuffersPerInputChannel) {
+        this.networkBuffersPerInputChannel = networkBuffersPerInputChannel;
         return this;
     }
 
@@ -113,7 +113,8 @@ public class InputChannelBuilder {
         this.connectionManager = network.getConnectionManager();
         this.initialBackoff = network.getConfiguration().partitionRequestInitialBackoff();
         this.maxBackoff = network.getConfiguration().partitionRequestMaxBackoff();
-        this.networkBuffersPerChannel = network.getConfiguration().networkBuffersPerChannel();
+        this.networkBuffersPerInputChannel =
+                network.getConfiguration().networkBuffersPerInputChannel();
         return this;
     }
 
@@ -128,7 +129,7 @@ public class InputChannelBuilder {
                         connectionManager,
                         initialBackoff,
                         maxBackoff,
-                        networkBuffersPerChannel,
+                        networkBuffersPerInputChannel,
                         metrics);
         channel.setChannelStateWriter(stateWriter);
         return channel;
@@ -157,7 +158,7 @@ public class InputChannelBuilder {
                 connectionManager,
                 initialBackoff,
                 maxBackoff,
-                networkBuffersPerChannel,
+                networkBuffersPerInputChannel,
                 metrics.getNumBytesInRemoteCounter(),
                 metrics.getNumBuffersInRemoteCounter(),
                 stateWriter);
@@ -173,7 +174,7 @@ public class InputChannelBuilder {
                         taskEventPublisher,
                         initialBackoff,
                         maxBackoff,
-                        networkBuffersPerChannel,
+                        networkBuffersPerInputChannel,
                         metrics);
         channel.setChannelStateWriter(stateWriter);
         return channel;
@@ -189,7 +190,7 @@ public class InputChannelBuilder {
                         connectionManager,
                         initialBackoff,
                         maxBackoff,
-                        networkBuffersPerChannel,
+                        networkBuffersPerInputChannel,
                         metrics);
         channel.setChannelStateWriter(stateWriter);
         return channel;

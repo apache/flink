@@ -50,7 +50,9 @@ public class NettyShuffleEnvironmentBuilder {
 
     private int partitionRequestMaxBackoff;
 
-    private int networkBuffersPerChannel = 2;
+    private int networkBuffersPerInputChannel = 2;
+
+    private int networkBuffersPerSubpartition = 2;
 
     private int floatingNetworkBuffersPerGate = 8;
 
@@ -104,9 +106,15 @@ public class NettyShuffleEnvironmentBuilder {
         return this;
     }
 
-    public NettyShuffleEnvironmentBuilder setNetworkBuffersPerChannel(
-            int networkBuffersPerChannel) {
-        this.networkBuffersPerChannel = networkBuffersPerChannel;
+    public NettyShuffleEnvironmentBuilder setNetworkBuffersPerSubpartition(
+            int networkBuffersPerSubpartition) {
+        this.networkBuffersPerSubpartition = networkBuffersPerSubpartition;
+        return this;
+    }
+
+    public NettyShuffleEnvironmentBuilder setNetworkBuffersPerInputChannel(
+            int networkBuffersPerInputChannel) {
+        this.networkBuffersPerInputChannel = networkBuffersPerInputChannel;
         return this;
     }
 
@@ -177,7 +185,8 @@ public class NettyShuffleEnvironmentBuilder {
                         bufferSize,
                         partitionRequestInitialBackoff,
                         partitionRequestMaxBackoff,
-                        networkBuffersPerChannel,
+                        networkBuffersPerInputChannel,
+                        networkBuffersPerSubpartition,
                         floatingNetworkBuffersPerGate,
                         DEFAULT_REQUEST_SEGMENTS_TIMEOUT,
                         false,

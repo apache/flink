@@ -62,12 +62,12 @@ public class InputBuffersMetricsTest extends TestLogger {
         int numberOfRemoteChannels = 2;
         int numberOfLocalChannels = 0;
 
-        int numberOfBufferPerChannel = 2;
+        int numberOfBufferPerInputChannel = 2;
         int numberOfBuffersPerGate = 8;
 
         NettyShuffleEnvironment network =
                 new NettyShuffleEnvironmentBuilder()
-                        .setNetworkBuffersPerChannel(numberOfBufferPerChannel)
+                        .setNetworkBuffersPerInputChannel(numberOfBufferPerInputChannel)
                         .setFloatingNetworkBuffersPerGate(numberOfBuffersPerGate)
                         .build();
         closeableRegistry.registerCloseable(network::close);
@@ -93,10 +93,10 @@ public class InputBuffersMetricsTest extends TestLogger {
                 numberOfBuffersPerGate,
                 floatingBuffersUsageGauge.calculateTotalBuffers(inputGate1));
         assertEquals(
-                numberOfRemoteChannels * numberOfBufferPerChannel,
+                numberOfRemoteChannels * numberOfBufferPerInputChannel,
                 exclusiveBuffersUsageGauge.calculateTotalBuffers(inputGate1));
         assertEquals(
-                numberOfRemoteChannels * numberOfBufferPerChannel + numberOfBuffersPerGate,
+                numberOfRemoteChannels * numberOfBufferPerInputChannel + numberOfBuffersPerGate,
                 inputBufferPoolUsageGauge.calculateTotalBuffers(inputGate1));
     }
 
@@ -109,12 +109,12 @@ public class InputBuffersMetricsTest extends TestLogger {
 
         int totalNumberOfRemoteChannels = numberOfRemoteChannelsGate1 + numberOfRemoteChannelsGate2;
 
-        int buffersPerChannel = 2;
+        int buffersPerInputChannel = 2;
         int extraNetworkBuffersPerGate = 8;
 
         NettyShuffleEnvironment network =
                 new NettyShuffleEnvironmentBuilder()
-                        .setNetworkBuffersPerChannel(buffersPerChannel)
+                        .setNetworkBuffersPerInputChannel(buffersPerInputChannel)
                         .setFloatingNetworkBuffersPerGate(extraNetworkBuffersPerGate)
                         .build();
         closeableRegistry.registerCloseable(network::close);
@@ -147,16 +147,16 @@ public class InputBuffersMetricsTest extends TestLogger {
 
         int totalBuffers =
                 extraNetworkBuffersPerGate * inputGates.length
-                        + buffersPerChannel * totalNumberOfRemoteChannels;
+                        + buffersPerInputChannel * totalNumberOfRemoteChannels;
 
         int channelIndex = 1;
         for (RemoteInputChannel channel : remoteInputChannels) {
             drainAndValidate(
-                    buffersPerChannel,
-                    buffersPerChannel * channelIndex++,
+                    buffersPerInputChannel,
+                    buffersPerInputChannel * channelIndex++,
                     channel,
                     totalBuffers,
-                    buffersPerChannel * totalNumberOfRemoteChannels,
+                    buffersPerInputChannel * totalNumberOfRemoteChannels,
                     exclusiveBuffersUsageGauge,
                     inputBuffersUsageGauge,
                     inputGate1);
@@ -173,12 +173,12 @@ public class InputBuffersMetricsTest extends TestLogger {
 
         int totalNumberOfRemoteChannels = numberOfRemoteChannelsGate1 + numberOfRemoteChannelsGate2;
 
-        int buffersPerChannel = 2;
+        int buffersPerInputChannel = 2;
         int extraNetworkBuffersPerGate = 8;
 
         NettyShuffleEnvironment network =
                 new NettyShuffleEnvironmentBuilder()
-                        .setNetworkBuffersPerChannel(buffersPerChannel)
+                        .setNetworkBuffersPerInputChannel(buffersPerInputChannel)
                         .setFloatingNetworkBuffersPerGate(extraNetworkBuffersPerGate)
                         .build();
         closeableRegistry.registerCloseable(network::close);
@@ -209,16 +209,16 @@ public class InputBuffersMetricsTest extends TestLogger {
         assertEquals(0.0, inputBuffersUsageGauge.getValue(), 0.0);
 
         // drain gate1's exclusive buffers
-        drainBuffer(buffersPerChannel, remoteInputChannel1);
+        drainBuffer(buffersPerInputChannel, remoteInputChannel1);
 
         int totalBuffers =
                 extraNetworkBuffersPerGate * inputGates.length
-                        + buffersPerChannel * totalNumberOfRemoteChannels;
+                        + buffersPerInputChannel * totalNumberOfRemoteChannels;
 
         remoteInputChannel1.requestSubpartition(0);
 
         int backlog = 3;
-        int totalRequestedBuffers = buffersPerChannel + backlog;
+        int totalRequestedBuffers = buffersPerInputChannel + backlog;
 
         remoteInputChannel1.onSenderBacklog(backlog);
 
@@ -230,7 +230,7 @@ public class InputBuffersMetricsTest extends TestLogger {
 
         assertEquals(0, remoteInputChannel1.unsynchronizedGetFloatingBuffersAvailable());
         assertEquals(
-                (double) (buffersPerChannel + totalRequestedBuffers) / totalBuffers,
+                (double) (buffersPerInputChannel + totalRequestedBuffers) / totalBuffers,
                 inputBuffersUsageGauge.getValue(),
                 0.0001);
     }
