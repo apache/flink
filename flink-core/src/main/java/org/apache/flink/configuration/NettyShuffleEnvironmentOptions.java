@@ -188,7 +188,7 @@ public class NettyShuffleEnvironmentOptions {
     public static final ConfigOption<Integer> NETWORK_BUFFERS_PER_INCOMING_CHANNEL =
             key("taskmanager.network.memory.buffers-per-incoming-channel")
                     .intType()
-                    .defaultValue(-1)
+                    .defaultValue(0)
                     .withDescription(
                             "Number of network buffers to use for each incoming channel (input channel)."
                                     + " If a negative value is set, value of "
@@ -204,7 +204,7 @@ public class NettyShuffleEnvironmentOptions {
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<Integer> NETWORK_EXTRA_BUFFERS_PER_GATE =
             key("taskmanager.network.memory.floating-buffers-per-gate")
-                    .defaultValue(8)
+                    .defaultValue(1)
                     .withDescription(
                             "Number of extra network buffers to use for each outgoing/incoming gate (result partition/input gate)."
                                     + " In credit-based flow control mode, this indicates how many floating credits are shared among all the input channels."
