@@ -392,7 +392,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                                                         + "This indicates that a JobMaster leader change has happened.",
                                                 leadingJobMasterId, jobMasterId);
                                 log.debug(declineMessage);
-                                return new RegistrationResponse.Decline(declineMessage);
+                                return new RegistrationResponse.Failure(
+                                        new FlinkException(declineMessage));
                             }
                         },
                         getMainThreadExecutor());
@@ -414,7 +415,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                                     jobManagerAddress);
                         }
 
-                        return new RegistrationResponse.Decline(throwable.getMessage());
+                        return new RegistrationResponse.Failure(throwable);
                     } else {
                         return registrationResponse;
                     }
@@ -440,7 +441,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                     if (taskExecutorGatewayFuture == taskExecutorGatewayFutures.get(resourceId)) {
                         taskExecutorGatewayFutures.remove(resourceId);
                         if (throwable != null) {
-                            return new RegistrationResponse.Decline(throwable.getMessage());
+                            return new RegistrationResponse.Failure(throwable);
                         } else {
                             return registerTaskExecutorInternal(
                                     taskExecutorGateway, taskExecutorRegistration);
@@ -449,8 +450,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                         log.debug(
                                 "Ignoring outdated TaskExecutorGateway connection for {}.",
                                 resourceId.getStringWithMetadata());
-                        return new RegistrationResponse.Decline(
-                                "Decline outdated task executor registration.");
+                        return new RegistrationResponse.Failure(
+                                new FlinkException("Decline outdated task executor registration."));
                     }
                 },
                 getMainThreadExecutor());
@@ -943,7 +944,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                             + "not recognize it",
                     taskExecutorResourceId.getStringWithMetadata(),
                     taskExecutorAddress);
-            return new RegistrationResponse.Decline("unrecognized TaskExecutor");
+            return new RegistrationResponse.Failure(
+                    new FlinkException("unrecognized TaskExecutor"));
         } else {
             WorkerRegistration<WorkerType> registration =
                     new WorkerRegistration<>(

@@ -230,7 +230,11 @@ public class DefaultJobLeaderService implements JobLeaderService {
         /** Rpc connection to the job leader. */
         @GuardedBy("lock")
         @Nullable
-        private RegisteredRpcConnection<JobMasterId, JobMasterGateway, JMTMRegistrationSuccess>
+        private RegisteredRpcConnection<
+                        JobMasterId,
+                        JobMasterGateway,
+                        JMTMRegistrationSuccess,
+                        RegistrationResponse.Rejection>
                 rpcConnection;
 
         /** Leader id of the current job leader. */
@@ -371,7 +375,10 @@ public class DefaultJobLeaderService implements JobLeaderService {
         /** Rpc connection for the job manager <--> task manager connection. */
         private final class JobManagerRegisteredRpcConnection
                 extends RegisteredRpcConnection<
-                        JobMasterId, JobMasterGateway, JMTMRegistrationSuccess> {
+                        JobMasterId,
+                        JobMasterGateway,
+                        JMTMRegistrationSuccess,
+                        RegistrationResponse.Rejection> {
 
             JobManagerRegisteredRpcConnection(
                     Logger log, String targetAddress, JobMasterId jobMasterId, Executor executor) {
@@ -379,7 +386,11 @@ public class DefaultJobLeaderService implements JobLeaderService {
             }
 
             @Override
-            protected RetryingRegistration<JobMasterId, JobMasterGateway, JMTMRegistrationSuccess>
+            protected RetryingRegistration<
+                            JobMasterId,
+                            JobMasterGateway,
+                            JMTMRegistrationSuccess,
+                            RegistrationResponse.Rejection>
                     generateRegistration() {
                 return new DefaultJobLeaderService.JobManagerRetryingRegistration(
                         LOG,
@@ -414,6 +425,9 @@ public class DefaultJobLeaderService implements JobLeaderService {
             }
 
             @Override
+            protected void onRegistrationRejection(RegistrationResponse.Rejection rejection) {}
+
+            @Override
             protected void onRegistrationFailure(Throwable failure) {
                 // filter out old registration attempts
                 if (Objects.equals(getTargetLeaderId(), getCurrentJobMasterId())) {
@@ -435,7 +449,11 @@ public class DefaultJobLeaderService implements JobLeaderService {
 
     /** Retrying registration for the job manager <--> task manager connection. */
     private static final class JobManagerRetryingRegistration
-            extends RetryingRegistration<JobMasterId, JobMasterGateway, JMTMRegistrationSuccess> {
+            extends RetryingRegistration<
+                    JobMasterId,
+                    JobMasterGateway,
+                    JMTMRegistrationSuccess,
+                    RegistrationResponse.Rejection> {
 
         private final String taskManagerRpcAddress;
 

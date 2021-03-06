@@ -390,7 +390,7 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
                 registerTaskExecutor(rmGateway, invalidAddress);
         assertTrue(
                 invalidAddressFuture.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS)
-                        instanceof RegistrationResponse.Decline);
+                        instanceof RegistrationResponse.Failure);
     }
 
     private CompletableFuture<RegistrationResponse> registerTaskExecutor(
