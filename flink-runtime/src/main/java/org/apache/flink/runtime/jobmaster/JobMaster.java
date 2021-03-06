@@ -660,6 +660,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
     public CompletableFuture<RegistrationResponse> registerTaskManager(
             final String taskManagerRpcAddress,
             final UnresolvedTaskManagerLocation unresolvedTaskManagerLocation,
+            final JobID jobId,
             final Time timeout) {
 
         final TaskManagerLocation taskManagerLocation;
