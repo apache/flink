@@ -1614,7 +1614,7 @@ public class RemoteInputChannelTest {
     private RemoteInputChannel createRemoteInputChannel(
             SingleInputGate inputGate, int initialCredits) {
         return InputChannelBuilder.newBuilder()
-                .setNetworkBuffersPerChannel(initialCredits)
+                .setNetworkBuffersPerInputChannel(initialCredits)
                 .buildRemoteChannel(inputGate);
     }
 
