@@ -53,8 +53,9 @@ public interface JdbcBatchStatementExecutor<T> {
     }
 
     static <T> JdbcBatchStatementExecutor<T> dynamic(
-        JdbcStatementFactory<T> sqlFactory, JdbcStatementBuilder<T> paramSetter, JdbcKeyCreator<T> keyCreator) {
+            JdbcStatementFactory<T> sqlFactory,
+            JdbcStatementBuilder<T> paramSetter,
+            JdbcKeyCreator<T> keyCreator) {
         return new DynamicBatchStatementExecutor<>(sqlFactory, paramSetter, keyCreator);
     }
-
 }

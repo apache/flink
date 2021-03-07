@@ -35,7 +35,7 @@ import java.util.List;
 public final class XaSinkStateSerializer extends TypeSerializer<JdbcXaSinkFunctionState> {
 
     private static final TypeSerializerSnapshot<JdbcXaSinkFunctionState> SNAPSHOT =
-        new XaSinkStateSimpleXaTypeSerializerSnapshot();
+            new XaSinkStateSimpleXaTypeSerializerSnapshot();
     private final TypeSerializer<Xid> xidSerializer;
     private final TypeSerializer<CheckpointAndXid> checkpointAndXidSerializer;
 
@@ -44,8 +44,8 @@ public final class XaSinkStateSerializer extends TypeSerializer<JdbcXaSinkFuncti
     }
 
     private XaSinkStateSerializer(
-        TypeSerializer<Xid> xidSerializer,
-        TypeSerializer<CheckpointAndXid> checkpointAndXidSerializer) {
+            TypeSerializer<Xid> xidSerializer,
+            TypeSerializer<CheckpointAndXid> checkpointAndXidSerializer) {
         this.xidSerializer = xidSerializer;
         this.checkpointAndXidSerializer = checkpointAndXidSerializer;
     }
@@ -72,7 +72,7 @@ public final class XaSinkStateSerializer extends TypeSerializer<JdbcXaSinkFuncti
 
     @Override
     public JdbcXaSinkFunctionState copy(
-        JdbcXaSinkFunctionState from, JdbcXaSinkFunctionState reuse) {
+            JdbcXaSinkFunctionState from, JdbcXaSinkFunctionState reuse) {
         return from;
     }
 
@@ -110,7 +110,7 @@ public final class XaSinkStateSerializer extends TypeSerializer<JdbcXaSinkFuncti
 
     @Override
     public JdbcXaSinkFunctionState deserialize(JdbcXaSinkFunctionState reuse, DataInputView source)
-        throws IOException {
+            throws IOException {
         return deserialize(source);
     }
 
@@ -136,7 +136,7 @@ public final class XaSinkStateSerializer extends TypeSerializer<JdbcXaSinkFuncti
 
     /** Simple {@link TypeSerializerSnapshot} for {@link XaSinkStateSerializer}. */
     public static class XaSinkStateSimpleXaTypeSerializerSnapshot
-        extends SimpleTypeSerializerSnapshot<JdbcXaSinkFunctionState> {
+            extends SimpleTypeSerializerSnapshot<JdbcXaSinkFunctionState> {
         private static final int VERSION = 1;
 
         public XaSinkStateSimpleXaTypeSerializerSnapshot() {
@@ -151,7 +151,7 @@ public final class XaSinkStateSerializer extends TypeSerializer<JdbcXaSinkFuncti
 
         @Override
         public void readSnapshot(int readVersion, DataInputView in, ClassLoader classLoader)
-            throws IOException {
+                throws IOException {
             super.readSnapshot(readVersion, in, classLoader);
             in.readInt();
         }

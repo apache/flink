@@ -163,21 +163,19 @@ public abstract class JdbcXaSinkTestBase extends JdbcTestBase {
     }
 
     static JdbcXaSinkFunction<TestEntry> buildSink(
-        XidGenerator xidGenerator,
-        XaFacade xaFacade,
-        XaSinkStateHandler state,
-        int batchInterval
-    ) {
+            XidGenerator xidGenerator,
+            XaFacade xaFacade,
+            XaSinkStateHandler state,
+            int batchInterval) {
         return buildSink(
-            JdbcBatchStatementExecutor.simple(
-                String.format(INSERT_TEMPLATE, INPUT_TABLE),
-                TEST_ENTRY_JDBC_STATEMENT_BUILDER,
-                Function.identity()),
-            xidGenerator,
-            xaFacade,
-            state,
-            batchInterval
-        );
+                JdbcBatchStatementExecutor.simple(
+                        String.format(INSERT_TEMPLATE, INPUT_TABLE),
+                        TEST_ENTRY_JDBC_STATEMENT_BUILDER,
+                        Function.identity()),
+                xidGenerator,
+                xaFacade,
+                state,
+                batchInterval);
     }
 
     static final RuntimeContext TEST_RUNTIME_CONTEXT =

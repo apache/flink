@@ -50,7 +50,7 @@ public class PostgresRowConverter extends AbstractJdbcRowConverter {
     }
 
     @Override
-    public JdbcDeserializationConverter createNullableInternalConverter(LogicalType type) {
+    public JdbcDeserializationConverter createInternalConverter(LogicalType type) {
         LogicalTypeRoot root = type.getTypeRoot();
 
         if (root == LogicalTypeRoot.ARRAY) {
@@ -116,6 +116,6 @@ public class PostgresRowConverter extends AbstractJdbcRowConverter {
     // Have its own method so that Postgres can support primitives that super class doesn't support
     // in the future
     private JdbcDeserializationConverter createPrimitiveConverter(LogicalType type) {
-        return super.createNullableInternalConverter(type);
+        return super.createInternalConverter(type);
     }
 }

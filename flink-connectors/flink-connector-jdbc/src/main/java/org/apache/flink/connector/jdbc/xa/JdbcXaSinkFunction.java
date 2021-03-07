@@ -183,30 +183,30 @@ public class JdbcXaSinkFunction<T> extends AbstractRichFunction
      * @param xaFacade {@link XaFacade} to manage XA transactions
      */
     public JdbcXaSinkFunction(
-        JdbcStatementFactory<T> sqlFactory,
-        JdbcStatementBuilder<T> statementBuilder,
-        JdbcKeyCreator<T> keyCreator,
-        XaFacade xaFacade,
-        JdbcExecutionOptions executionOptions,
-        JdbcExactlyOnceOptions options) {
+            JdbcStatementFactory<T> sqlFactory,
+            JdbcStatementBuilder<T> statementBuilder,
+            JdbcKeyCreator<T> keyCreator,
+            XaFacade xaFacade,
+            JdbcExecutionOptions executionOptions,
+            JdbcExactlyOnceOptions options) {
         this(
-            new JdbcBatchingOutputFormat<>(
+                new JdbcBatchingOutputFormat<>(
+                        xaFacade,
+                        executionOptions,
+                        context -> {
+                            Preconditions.checkState(
+                                    !context.getExecutionConfig().isObjectReuseEnabled(),
+                                    "objects can not be reused with JDBC sink function");
+                            return JdbcBatchStatementExecutor.dynamic(
+                                    sqlFactory, statementBuilder, keyCreator);
+                        },
+                        JdbcBatchingOutputFormat.RecordExtractor.identity()),
                 xaFacade,
-                executionOptions,
-                context -> {
-                    Preconditions.checkState(
-                        !context.getExecutionConfig().isObjectReuseEnabled(),
-                        "objects can not be reused with JDBC sink function");
-                    return JdbcBatchStatementExecutor.dynamic(sqlFactory, statementBuilder, keyCreator);
-                },
-                JdbcBatchingOutputFormat.RecordExtractor.identity()),
-            xaFacade,
-            XidGenerator.semanticXidGenerator(),
-            new XaSinkStateHandlerImpl(),
-            options,
-            new XaGroupOpsImpl(xaFacade));
+                XidGenerator.semanticXidGenerator(),
+                new XaSinkStateHandlerImpl(),
+                options,
+                new XaGroupOpsImpl(xaFacade));
     }
-
 
     /**
      * Creates a {@link JdbcXaSinkFunction}.

@@ -28,21 +28,30 @@ import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Arrays;
-import java.util.stream.IntStream;
 
-import static org.apache.flink.connector.jdbc.JdbcTestFixture.DERBY_EBOOKSHOP_DB;
-import static org.apache.flink.connector.jdbc.JdbcTestFixture.INPUT_TABLE;
-import static org.apache.flink.connector.jdbc.JdbcTestFixture.INSERT_TEMPLATE;
-import static org.apache.flink.connector.jdbc.JdbcTestFixture.TEST_DATA;
+import static org.apache.flink.connector.jdbc.JdbcTestFixture.*;
 
 /** A simple end-to-end test for {@link JdbcXaSinkFunction}. */
-public class JdbcExactlyOnceSinkE2eTest extends JdbcXaSinkTestBase {
+public class JdbcDynamicExactlyOnceSinkE2eTest extends JdbcXaSinkTestBase {
+
+    @Override
+    @Before
+    public void initHelpers() throws Exception {
+        xaDataSource = getDbMetadata().buildXaDataSource();
+        xaHelper =
+                new JdbcXaFacadeTestHelper(
+                        getDbMetadata().buildXaDataSource(),
+                        getDbMetadata().getUrl(),
+                        Arrays.asList(INPUT_TABLE, INPUT_TABLE_2));
+        sinkHelper = buildSinkHelper(createStateHandler());
+    }
 
     @Test
-    public void testInsert() throws Exception {
+    public void testDynamicTableInsert() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         env.setRestartStrategy(new NoRestartStrategyConfiguration());
@@ -51,15 +60,28 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcXaSinkTestBase {
         env.addSource(new CheckpointAwaitingSource<>(Arrays.asList(TEST_DATA)))
                 .returns(TestEntry.class)
                 .addSink(
-                        JdbcSink.exactlyOnceSink(
-                                String.format(INSERT_TEMPLATE, INPUT_TABLE),
+                        JdbcSink.exactlyOnceSinkWithDynamicOutput(
+                                (elem) -> {
+                                    if (elem.id % 2 == 0) {
+                                        return String.format(INSERT_TEMPLATE, INPUT_TABLE);
+                                    } else {
+                                        return String.format(INSERT_TEMPLATE, INPUT_TABLE_2);
+                                    }
+                                },
                                 JdbcITCase.TEST_ENTRY_JDBC_STATEMENT_BUILDER,
+                                (elem) -> {
+                                    if (elem.id % 2 == 0) {
+                                        return "1";
+                                    } else {
+                                        return "2";
+                                    }
+                                },
                                 JdbcExecutionOptions.builder().build(),
-                                DERBY_EBOOKSHOP_DB.toConnectionOptions(),
                                 JdbcExactlyOnceOptions.defaults(),
                                 DERBY_EBOOKSHOP_DB::buildXaDataSource));
         env.execute();
-        xaHelper.assertDbContentsEquals(IntStream.range(0, TEST_DATA.length));
+        xaHelper.assertDbContentsEquals(
+                Arrays.asList(1002, 1004, 1006, 1008, 1010, 1001, 1003, 1005, 1007, 1009));
     }
 
     @Override

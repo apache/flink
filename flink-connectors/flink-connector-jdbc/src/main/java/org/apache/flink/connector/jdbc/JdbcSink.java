@@ -84,24 +84,24 @@ public class JdbcSink {
     }
 
     public static <T> SinkFunction<T> sinkWithDynamicOutput(
-        JdbcStatementFactory<T> sqlFactory,
-        JdbcStatementBuilder<T> statementBuilder,
-        JdbcKeyCreator<T> keyCreator,
-        JdbcExecutionOptions executionOptions,
-        JdbcConnectionOptions connectionOptions) {
+            JdbcStatementFactory<T> sqlFactory,
+            JdbcStatementBuilder<T> statementBuilder,
+            JdbcKeyCreator<T> keyCreator,
+            JdbcExecutionOptions executionOptions,
+            JdbcConnectionOptions connectionOptions) {
         return new GenericJdbcSinkFunction<>(
-            new JdbcBatchingOutputFormat<>(
-                new SimpleJdbcConnectionProvider(connectionOptions),
-                executionOptions,
-                context -> {
-                    Preconditions.checkState(
-                        !context.getExecutionConfig().isObjectReuseEnabled(),
-                        "objects can not be reused with JDBC sink function");
-                    return JdbcBatchStatementExecutor.dynamic(sqlFactory, statementBuilder, keyCreator);
-                },
-                JdbcBatchingOutputFormat.RecordExtractor.identity()));
+                new JdbcBatchingOutputFormat<>(
+                        new SimpleJdbcConnectionProvider(connectionOptions),
+                        executionOptions,
+                        context -> {
+                            Preconditions.checkState(
+                                    !context.getExecutionConfig().isObjectReuseEnabled(),
+                                    "objects can not be reused with JDBC sink function");
+                            return JdbcBatchStatementExecutor.dynamic(
+                                    sqlFactory, statementBuilder, keyCreator);
+                        },
+                        JdbcBatchingOutputFormat.RecordExtractor.identity()));
     }
-
 
     /**
      * Create JDBC sink which provides exactly-once guarantee.
@@ -138,21 +138,21 @@ public class JdbcSink {
     }
 
     public static <T> SinkFunction<T> exactlyOnceSinkWithDynamicOutput(
-        JdbcStatementFactory<T> sqlFactory,
-        JdbcStatementBuilder<T> statementBuilder,
-        JdbcKeyCreator<T> keyCreator,
-        JdbcExecutionOptions executionOptions,
-        JdbcExactlyOnceOptions exactlyOnceOptions,
-        SerializableSupplier<XADataSource> dataSourceSupplier) {
+            JdbcStatementFactory<T> sqlFactory,
+            JdbcStatementBuilder<T> statementBuilder,
+            JdbcKeyCreator<T> keyCreator,
+            JdbcExecutionOptions executionOptions,
+            JdbcExactlyOnceOptions exactlyOnceOptions,
+            SerializableSupplier<XADataSource> dataSourceSupplier) {
         return new JdbcXaSinkFunction<>(
-            sqlFactory,
-            statementBuilder,
-            keyCreator,
-            XaFacade.fromXaDataSourceSupplier(
-                dataSourceSupplier,
-                Optional.ofNullable(exactlyOnceOptions.getTimeoutSec())),
-            executionOptions,
-            exactlyOnceOptions);
+                sqlFactory,
+                statementBuilder,
+                keyCreator,
+                XaFacade.fromXaDataSourceSupplier(
+                        dataSourceSupplier,
+                        Optional.ofNullable(exactlyOnceOptions.getTimeoutSec())),
+                executionOptions,
+                exactlyOnceOptions);
     }
 
     private JdbcSink() {}

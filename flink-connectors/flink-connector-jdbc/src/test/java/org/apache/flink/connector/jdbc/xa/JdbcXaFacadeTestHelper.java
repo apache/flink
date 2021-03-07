@@ -46,7 +46,8 @@ class JdbcXaFacadeTestHelper implements AutoCloseable {
         this(xaDataSource, dbUrl, Collections.singletonList(table));
     }
 
-    JdbcXaFacadeTestHelper(XADataSource xaDataSource, String dbUrl, List<String> tables) throws Exception {
+    JdbcXaFacadeTestHelper(XADataSource xaDataSource, String dbUrl, List<String> tables)
+            throws Exception {
         this.xaDataSource = xaDataSource;
         this.dbUrl = dbUrl;
         this.tables = tables;
@@ -85,7 +86,7 @@ class JdbcXaFacadeTestHelper implements AutoCloseable {
         try (Connection connection = DriverManager.getConnection(dbUrl)) {
             connection.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
             connection.setReadOnly(true);
-            for(String table: tables) {
+            for (String table : tables) {
                 try (Statement st = connection.createStatement()) {
                     try (ResultSet rs = st.executeQuery("select id from " + table)) {
                         while (rs.next()) {
@@ -103,7 +104,7 @@ class JdbcXaFacadeTestHelper implements AutoCloseable {
         try (Connection connection = DriverManager.getConnection(dbUrl)) {
             connection.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
             connection.setReadOnly(true);
-            for(String table: tables) {
+            for (String table : tables) {
                 try (Statement st = connection.createStatement()) {
                     try (ResultSet rs = st.executeQuery("select count(1) from " + table)) {
                         rs.next();

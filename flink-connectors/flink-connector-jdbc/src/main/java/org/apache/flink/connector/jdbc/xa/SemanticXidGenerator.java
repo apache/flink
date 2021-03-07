@@ -51,6 +51,7 @@ class SemanticXidGenerator implements XidGenerator {
 
     @Override
     public void open() {
+        bqualBuffer = getRandomBytes(Long.BYTES);
         gtridBuffer = new byte[Long.BYTES];
     }
 
