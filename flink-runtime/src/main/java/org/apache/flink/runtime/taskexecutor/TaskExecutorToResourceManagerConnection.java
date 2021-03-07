@@ -42,14 +42,16 @@ public class TaskExecutorToResourceManagerConnection
                 ResourceManagerId,
                 ResourceManagerGateway,
                 TaskExecutorRegistrationSuccess,
-                RegistrationResponse.Rejection> {
+                TaskExecutorRegistrationRejection> {
 
     private final RpcService rpcService;
 
     private final RetryingRegistrationConfiguration retryingRegistrationConfiguration;
 
     private final RegistrationConnectionListener<
-                    TaskExecutorToResourceManagerConnection, TaskExecutorRegistrationSuccess>
+                    TaskExecutorToResourceManagerConnection,
+                    TaskExecutorRegistrationSuccess,
+                    TaskExecutorRegistrationRejection>
             registrationListener;
 
     private final TaskExecutorRegistration taskExecutorRegistration;
@@ -63,7 +65,8 @@ public class TaskExecutorToResourceManagerConnection
             Executor executor,
             RegistrationConnectionListener<
                             TaskExecutorToResourceManagerConnection,
-                            TaskExecutorRegistrationSuccess>
+                            TaskExecutorRegistrationSuccess,
+                            TaskExecutorRegistrationRejection>
                     registrationListener,
             TaskExecutorRegistration taskExecutorRegistration) {
 
@@ -80,7 +83,7 @@ public class TaskExecutorToResourceManagerConnection
                     ResourceManagerId,
                     ResourceManagerGateway,
                     TaskExecutorRegistrationSuccess,
-                    RegistrationResponse.Rejection>
+                    TaskExecutorRegistrationRejection>
             generateRegistration() {
         return new TaskExecutorToResourceManagerConnection.ResourceManagerRegistration(
                 log,
@@ -102,7 +105,9 @@ public class TaskExecutorToResourceManagerConnection
     }
 
     @Override
-    protected void onRegistrationRejection(RegistrationResponse.Rejection rejection) {}
+    protected void onRegistrationRejection(TaskExecutorRegistrationRejection rejection) {
+        registrationListener.onRegistrationRejection(getTargetAddress(), rejection);
+    }
 
     @Override
     protected void onRegistrationFailure(Throwable failure) {
@@ -120,7 +125,7 @@ public class TaskExecutorToResourceManagerConnection
                     ResourceManagerId,
                     ResourceManagerGateway,
                     TaskExecutorRegistrationSuccess,
-                    RegistrationResponse.Rejection> {
+                    TaskExecutorRegistrationRejection> {
 
         private final TaskExecutorRegistration taskExecutorRegistration;
 
