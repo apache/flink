@@ -65,6 +65,7 @@ import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotInfo;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
+import org.apache.flink.runtime.jobmaster.JMTMRegistrationRejection;
 import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -1686,6 +1687,45 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         jobManagerGateway.disconnectTaskManager(getResourceID(), cause);
     }
 
+    private void handleRejectedJobManagerConnection(
+            JobID jobId, String targetAddress, JMTMRegistrationRejection rejection) {
+        log.info(
+                "The JobManager under {} rejected the registration for job {}: {}. Releasing all job related resources.",
+                targetAddress,
+                jobId,
+                rejection.getReason());
+
+        releaseJobResources(
+                jobId,
+                new FlinkException(
+                        String.format("JobManager %s has rejected the registration.", jobId)));
+    }
+
+    private void releaseJobResources(JobID jobId, Exception cause) {
+        log.debug("Releasing job resources for job {}.", jobId, cause);
+
+        if (partitionTracker.isTrackingPartitionsFor(jobId)) {
+            // stop tracking job partitions
+            partitionTracker.stopTrackingAndReleaseJobPartitionsFor(jobId);
+        }
+
+        // free slots
+        final Set<AllocationID> allocationIds = taskSlotTable.getAllocationIdsPerJob(jobId);
+
+        if (!allocationIds.isEmpty()) {
+            for (AllocationID allocationId : allocationIds) {
+                freeSlotInternal(allocationId, cause);
+            }
+        }
+
+        jobLeaderService.removeJob(jobId);
+        jobTable.getJob(jobId)
+                .ifPresent(
+                        job -> {
+                            closeJob(job, cause);
+                        });
+    }
+
     private void scheduleResultPartitionCleanup(JobID jobId) {
         final Collection<CompletableFuture<ExecutionState>> taskTerminationFutures =
                 taskResultPartitionCleanupFuturesPerJob.remove(jobId);
@@ -1826,19 +1866,16 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         if (taskSlotTable.getAllocationIdsPerJob(jobId).isEmpty()
                 && !partitionTracker.isTrackingPartitionsFor(jobId)) {
             // we can remove the job from the job leader service
-            jobLeaderService.removeJob(jobId);
 
-            jobTable.getJob(jobId)
-                    .ifPresent(
-                            job ->
-                                    closeJob(
-                                            job,
-                                            new FlinkException(
-                                                    "TaskExecutor "
-                                                            + getAddress()
-                                                            + " has no more allocated slots for job "
-                                                            + jobId
-                                                            + '.')));
+            final FlinkException cause =
+                    new FlinkException(
+                            "TaskExecutor "
+                                    + getAddress()
+                                    + " has no more allocated slots for job "
+                                    + jobId
+                                    + '.');
+
+            releaseJobResources(jobId, cause);
         }
     }
 
@@ -2092,6 +2129,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         @Override
         public void handleError(Throwable throwable) {
             onFatalError(throwable);
+        }
+
+        @Override
+        public void jobManagerRejectedRegistration(
+                JobID jobId, String targetAddress, JMTMRegistrationRejection rejection) {
+            runAsync(() -> handleRejectedJobManagerConnection(jobId, targetAddress, rejection));
         }
     }
 
