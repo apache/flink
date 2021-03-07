@@ -38,10 +38,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /** Tests for RegisteredRpcConnection, validating the successful, failure and close behavior. */
 public class RegisteredRpcConnectionTest extends TestLogger {
@@ -67,8 +63,8 @@ public class RegisteredRpcConnectionTest extends TestLogger {
         final String connectionID = "Test RPC Connection ID";
 
         // an endpoint that immediately returns success
-        TestRegistrationGateway testGateway =
-                new TestRegistrationGateway(
+        ManualResponseTestRegistrationGateway testGateway =
+                new ManualResponseTestRegistrationGateway(
                         new RetryingRegistrationTest.TestRegistrationSuccess(connectionID));
 
         try {
@@ -102,12 +98,17 @@ public class RegisteredRpcConnectionTest extends TestLogger {
         final String testRpcConnectionEndpointAddress = "<TestRpcConnectionEndpointAddress>";
         final UUID leaderId = UUID.randomUUID();
 
-        // gateway that upon calls Throw an exception
-        TestRegistrationGateway testGateway = mock(TestRegistrationGateway.class);
         final RuntimeException registrationException =
                 new RuntimeException(connectionFailureMessage);
-        when(testGateway.registrationCall(any(UUID.class), anyLong()))
-                .thenThrow(registrationException);
+
+        // gateway that upon registration calls throws an exception
+        TestRegistrationGateway testGateway =
+                DefaultTestRegistrationGateway.newBuilder()
+                        .setRegistrationFunction(
+                                (uuid, aLong) -> {
+                                    throw registrationException;
+                                })
+                        .build();
 
         rpcService.registerGateway(testRpcConnectionEndpointAddress, testGateway);
 
@@ -140,8 +141,8 @@ public class RegisteredRpcConnectionTest extends TestLogger {
         final UUID leaderId = UUID.randomUUID();
         final String connectionID = "Test RPC Connection ID";
 
-        TestRegistrationGateway testGateway =
-                new TestRegistrationGateway(
+        ManualResponseTestRegistrationGateway testGateway =
+                new ManualResponseTestRegistrationGateway(
                         new RetryingRegistrationTest.TestRegistrationSuccess(connectionID));
 
         try {
@@ -173,7 +174,7 @@ public class RegisteredRpcConnectionTest extends TestLogger {
         final String testRpcConnectionEndpointAddress = "<TestRpcConnectionEndpointAddress>";
         final UUID leaderId = UUID.randomUUID();
         final TestRegistrationGateway testGateway =
-                new TestRegistrationGateway(
+                new ManualResponseTestRegistrationGateway(
                         new RetryingRegistrationTest.TestRegistrationSuccess(connectionId1),
                         new RetryingRegistrationTest.TestRegistrationSuccess(connectionId2));
 
