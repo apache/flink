@@ -58,9 +58,11 @@ import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTrackerImpl;
+import org.apache.flink.runtime.io.network.partition.TestingTaskExecutorPartitionTracker;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotInfo;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
+import org.apache.flink.runtime.jobmaster.JMTMRegistrationRejection;
 import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
@@ -2118,6 +2120,91 @@ public class TaskExecutorTest extends TestLogger {
         taskExecutorJobServices.close();
         leaseReleaseLatch.await();
         closeHookLatch.await();
+    }
+
+    /**
+     * Tests that the TaskExecutor releases all of its job resources if the JobMaster is not running
+     * the specified job. See FLINK-21606.
+     */
+    @Test
+    public void testReleaseOfJobResourcesIfJobMasterIsNotCorrect() throws Exception {
+        final TaskManagerServices taskManagerServices =
+                new TaskManagerServicesBuilder()
+                        .setTaskSlotTable(TaskSlotUtils.createTaskSlotTable(1))
+                        .build();
+
+        final TestingTaskExecutorPartitionTracker taskExecutorPartitionTracker =
+                new TestingTaskExecutorPartitionTracker();
+        final CompletableFuture<JobID> jobPartitionsReleaseFuture = new CompletableFuture<>();
+        // simulate that we have some partitions tracked
+        taskExecutorPartitionTracker.setIsTrackingPartitionsForFunction(ignored -> true);
+        taskExecutorPartitionTracker.setStopTrackingAndReleaseAllPartitionsConsumer(
+                jobPartitionsReleaseFuture::complete);
+
+        final TaskExecutor taskExecutor =
+                createTaskExecutor(
+                        taskManagerServices, HEARTBEAT_SERVICES, taskExecutorPartitionTracker);
+
+        final TestingJobMasterGateway jobMasterGateway =
+                new TestingJobMasterGatewayBuilder()
+                        .setRegisterTaskManagerFunction(
+                                (s, unresolvedTaskManagerLocation, jobID) ->
+                                        CompletableFuture.completedFuture(
+                                                new JMTMRegistrationRejection("foobar")))
+                        .build();
+
+        rpc.registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
+
+        final InstanceID registrationId = new InstanceID();
+        final OneShotLatch taskExecutorIsRegistered = new OneShotLatch();
+        final CompletableFuture<Tuple3<InstanceID, SlotID, AllocationID>> availableSlotFuture =
+                new CompletableFuture<>();
+        final TestingResourceManagerGateway resourceManagerGateway =
+                createRmWithTmRegisterAndNotifySlotHooks(
+                        registrationId, taskExecutorIsRegistered, availableSlotFuture);
+
+        rpc.registerGateway(resourceManagerGateway.getAddress(), resourceManagerGateway);
+
+        resourceManagerLeaderRetriever.notifyListener(
+                resourceManagerGateway.getAddress(),
+                resourceManagerGateway.getFencingToken().toUUID());
+
+        try {
+            taskExecutor.start();
+
+            final TaskExecutorGateway taskExecutorGateway =
+                    taskExecutor.getSelfGateway(TaskExecutorGateway.class);
+
+            taskExecutorIsRegistered.await();
+
+            final AllocationID allocationId = new AllocationID();
+            final SlotID slotId = new SlotID(taskExecutor.getResourceID(), 0);
+            final CompletableFuture<Acknowledge> requestSlotFuture =
+                    taskExecutorGateway.requestSlot(
+                            slotId,
+                            jobId,
+                            allocationId,
+                            ResourceProfile.UNKNOWN,
+                            jobMasterGateway.getAddress(),
+                            resourceManagerGateway.getFencingToken(),
+                            timeout);
+
+            assertThat(requestSlotFuture.get(), is(Acknowledge.get()));
+
+            // The JobManager should reject the registration which should release all job resources
+            // on the TaskExecutor
+            jobManagerLeaderRetriever.notifyListener(
+                    jobMasterGateway.getAddress(), jobMasterGateway.getFencingToken().toUUID());
+
+            // the slot should be freed
+            assertThat(availableSlotFuture.get().f1, is(slotId));
+            assertThat(availableSlotFuture.get().f2, is(allocationId));
+
+            // all job partitions should be released
+            assertThat(jobPartitionsReleaseFuture.get(), is(jobId));
+        } finally {
+            RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+        }
     }
 
     private TaskExecutorLocalStateStoresManager createTaskExecutorLocalStateStoresManager()
