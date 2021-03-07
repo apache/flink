@@ -210,11 +210,11 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         val providedTrait = new ModifyKindSetTrait(builder.build())
         createNewNode(window, children, providedTrait, requiredTrait, requester)
 
-      case windowAgg: StreamPhysicalWindowAggregate =>
-        // WindowAggregate support insert-only in input
-        val children = visitChildren(windowAgg, ModifyKindSetTrait.INSERT_ONLY)
+      case _: StreamPhysicalWindowAggregate | _: StreamPhysicalWindowRank =>
+        // WindowAggregate and WindowRank support insert-only in input
+        val children = visitChildren(rel, ModifyKindSetTrait.INSERT_ONLY)
         val providedTrait = ModifyKindSetTrait.INSERT_ONLY
-        createNewNode(windowAgg, children, providedTrait, requiredTrait, requester)
+        createNewNode(rel, children, providedTrait, requiredTrait, requester)
 
       case limit: StreamPhysicalLimit =>
         // limit support all changes in input
@@ -472,12 +472,12 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         createNewNode(rel, children, requiredTrait)
 
       case _: StreamPhysicalGroupWindowAggregate | _: StreamPhysicalGroupWindowTableAggregate |
-           _: StreamPhysicalWindowAggregate |
+           _: StreamPhysicalWindowAggregate | _: StreamPhysicalWindowRank |
            _: StreamPhysicalDeduplicate | _: StreamPhysicalTemporalSort | _: StreamPhysicalMatch |
            _: StreamPhysicalOverAggregate | _: StreamPhysicalIntervalJoin |
            _: StreamPhysicalPythonGroupWindowAggregate | _: StreamPhysicalPythonOverAggregate =>
-        // WindowAggregate, WindowTableAggregate, Deduplicate, TemporalSort, CEP, OverAggregate
-        // and IntervalJoin require nothing about UpdateKind.
+        // WindowAggregate, WindowAggregate, WindowTableAggregate, Deduplicate, TemporalSort, CEP,
+        // OverAggregate, and IntervalJoin require nothing about UpdateKind.
         val children = visitChildren(rel, UpdateKindTrait.NONE)
         createNewNode(rel, children, requiredTrait)
 

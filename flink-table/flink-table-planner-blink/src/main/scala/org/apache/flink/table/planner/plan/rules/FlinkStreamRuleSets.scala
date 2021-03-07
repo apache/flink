@@ -438,6 +438,7 @@ object FlinkStreamRuleSets {
     StreamPhysicalWindowAggregateRule.INSTANCE,
     PullUpWindowTableFunctionIntoWindowAggregateRule.INSTANCE,
     ExpandWindowTableFunctionTransposeRule.INSTANCE,
+    StreamPhysicalWindowRankRule.INSTANCE,
     // join
     StreamPhysicalJoinRule.INSTANCE,
     StreamPhysicalIntervalJoinRule.INSTANCE,
