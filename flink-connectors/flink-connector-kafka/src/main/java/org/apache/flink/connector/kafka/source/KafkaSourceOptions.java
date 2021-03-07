@@ -41,12 +41,6 @@ public class KafkaSourceOptions {
                             "The interval in milliseconds for the Kafka source to discover "
                                     + "the new partitions. A non-positive value disables the partition discovery.");
 
-    public static final ConfigOption<Long> CLOSE_TIMEOUT_MS =
-            ConfigOptions.key("close.timeout.ms")
-                    .longType()
-                    .defaultValue(10000L)
-                    .withDescription("The max time to wait when closing components.");
-
     @SuppressWarnings("unchecked")
     public static <T> T getOption(
             Properties props, ConfigOption configOption, Function<String, T> parser) {
