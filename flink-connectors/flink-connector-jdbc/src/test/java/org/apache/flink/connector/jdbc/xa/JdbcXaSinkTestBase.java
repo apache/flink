@@ -91,7 +91,7 @@ public abstract class JdbcXaSinkTestBase extends JdbcTestBase {
         sinkHelper = buildSinkHelper(createStateHandler());
     }
 
-    private XaSinkStateHandler createStateHandler() {
+    protected XaSinkStateHandler createStateHandler() {
         return new TestXaSinkStateHandler();
     }
 
@@ -136,6 +136,7 @@ public abstract class JdbcXaSinkTestBase extends JdbcTestBase {
     }
 
     static JdbcXaSinkFunction<TestEntry> buildSink(
+            JdbcBatchStatementExecutor<TestEntry> statementExecutor,
             XidGenerator xidGenerator,
             XaFacade xaFacade,
             XaSinkStateHandler state,
@@ -147,11 +148,7 @@ public abstract class JdbcXaSinkTestBase extends JdbcTestBase {
                                 JdbcExecutionOptions.builder()
                                         .withBatchIntervalMs(batchInterval)
                                         .build(),
-                                ctx ->
-                                        JdbcBatchStatementExecutor.simple(
-                                                String.format(INSERT_TEMPLATE, INPUT_TABLE),
-                                                TEST_ENTRY_JDBC_STATEMENT_BUILDER,
-                                                Function.identity()),
+                                ctx -> statementExecutor,
                                 JdbcBatchingOutputFormat.RecordExtractor.identity());
         JdbcXaSinkFunction<TestEntry> sink =
                 new JdbcXaSinkFunction<>(
@@ -163,6 +160,24 @@ public abstract class JdbcXaSinkTestBase extends JdbcTestBase {
                         new XaGroupOpsImpl(xaFacade));
         sink.setRuntimeContext(TEST_RUNTIME_CONTEXT);
         return sink;
+    }
+
+    static JdbcXaSinkFunction<TestEntry> buildSink(
+        XidGenerator xidGenerator,
+        XaFacade xaFacade,
+        XaSinkStateHandler state,
+        int batchInterval
+    ) {
+        return buildSink(
+            JdbcBatchStatementExecutor.simple(
+                String.format(INSERT_TEMPLATE, INPUT_TABLE),
+                TEST_ENTRY_JDBC_STATEMENT_BUILDER,
+                Function.identity()),
+            xidGenerator,
+            xaFacade,
+            state,
+            batchInterval
+        );
     }
 
     static final RuntimeContext TEST_RUNTIME_CONTEXT =

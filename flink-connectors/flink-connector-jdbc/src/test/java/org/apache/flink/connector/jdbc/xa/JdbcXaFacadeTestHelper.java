@@ -28,6 +28,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -37,14 +38,18 @@ import static org.junit.Assert.assertEquals;
 
 class JdbcXaFacadeTestHelper implements AutoCloseable {
     private final XADataSource xaDataSource;
-    private final String table;
+    private final List<String> tables;
     private final String dbUrl;
     private final XaFacade xaFacade;
 
     JdbcXaFacadeTestHelper(XADataSource xaDataSource, String dbUrl, String table) throws Exception {
+        this(xaDataSource, dbUrl, Collections.singletonList(table));
+    }
+
+    JdbcXaFacadeTestHelper(XADataSource xaDataSource, String dbUrl, List<String> tables) throws Exception {
         this.xaDataSource = xaDataSource;
         this.dbUrl = dbUrl;
-        this.table = table;
+        this.tables = tables;
         this.xaFacade = XaFacadeImpl.fromXaDataSource(this.xaDataSource);
         this.xaFacade.open();
     }
@@ -80,10 +85,12 @@ class JdbcXaFacadeTestHelper implements AutoCloseable {
         try (Connection connection = DriverManager.getConnection(dbUrl)) {
             connection.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
             connection.setReadOnly(true);
-            try (Statement st = connection.createStatement()) {
-                try (ResultSet rs = st.executeQuery("select id from " + table)) {
-                    while (rs.next()) {
-                        dbContents.add(rs.getInt(1));
+            for(String table: tables) {
+                try (Statement st = connection.createStatement()) {
+                    try (ResultSet rs = st.executeQuery("select id from " + table)) {
+                        while (rs.next()) {
+                            dbContents.add(rs.getInt(1));
+                        }
                     }
                 }
             }
@@ -92,16 +99,20 @@ class JdbcXaFacadeTestHelper implements AutoCloseable {
     }
 
     int countInDb() throws SQLException {
+        int counts = 0;
         try (Connection connection = DriverManager.getConnection(dbUrl)) {
             connection.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
             connection.setReadOnly(true);
-            try (Statement st = connection.createStatement()) {
-                try (ResultSet rs = st.executeQuery("select count(1) from " + table)) {
-                    rs.next();
-                    return rs.getInt(1);
+            for(String table: tables) {
+                try (Statement st = connection.createStatement()) {
+                    try (ResultSet rs = st.executeQuery("select count(1) from " + table)) {
+                        rs.next();
+                        counts += rs.getInt(1);
+                    }
                 }
             }
         }
+        return counts;
     }
 
     public XADataSource getXaDataSource() {

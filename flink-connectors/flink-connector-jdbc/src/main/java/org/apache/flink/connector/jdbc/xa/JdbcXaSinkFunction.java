@@ -22,9 +22,7 @@ import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.connector.jdbc.JdbcExactlyOnceOptions;
-import org.apache.flink.connector.jdbc.JdbcExecutionOptions;
-import org.apache.flink.connector.jdbc.JdbcStatementBuilder;
+import org.apache.flink.connector.jdbc.*;
 import org.apache.flink.connector.jdbc.internal.JdbcBatchingOutputFormat;
 import org.apache.flink.connector.jdbc.internal.executor.JdbcBatchStatementExecutor;
 import org.apache.flink.connector.jdbc.xa.XaFacade.EmptyXaTransactionException;
@@ -176,6 +174,39 @@ public class JdbcXaSinkFunction<T> extends AbstractRichFunction
                 options,
                 new XaGroupOpsImpl(xaFacade));
     }
+
+    /**
+     * Creates a {@link JdbcXaSinkFunction}.
+     *
+     * <p>All parameters must be {@link java.io.Serializable serializable}.
+     *
+     * @param xaFacade {@link XaFacade} to manage XA transactions
+     */
+    public JdbcXaSinkFunction(
+        JdbcStatementFactory<T> sqlFactory,
+        JdbcStatementBuilder<T> statementBuilder,
+        JdbcKeyCreator<T> keyCreator,
+        XaFacade xaFacade,
+        JdbcExecutionOptions executionOptions,
+        JdbcExactlyOnceOptions options) {
+        this(
+            new JdbcBatchingOutputFormat<>(
+                xaFacade,
+                executionOptions,
+                context -> {
+                    Preconditions.checkState(
+                        !context.getExecutionConfig().isObjectReuseEnabled(),
+                        "objects can not be reused with JDBC sink function");
+                    return JdbcBatchStatementExecutor.dynamic(sqlFactory, statementBuilder, keyCreator);
+                },
+                JdbcBatchingOutputFormat.RecordExtractor.identity()),
+            xaFacade,
+            XidGenerator.semanticXidGenerator(),
+            new XaSinkStateHandlerImpl(),
+            options,
+            new XaGroupOpsImpl(xaFacade));
+    }
+
 
     /**
      * Creates a {@link JdbcXaSinkFunction}.
