@@ -2256,6 +2256,30 @@ public class JobMasterTest extends TestLogger {
                         });
     }
 
+    /**
+     * Tests that the JobMaster rejects a TaskExecutor registration attempt if the expected and
+     * actual JobID are not equal. See FLINK-21606.
+     */
+    @Test
+    public void testJobMasterRejectsTaskExecutorRegistrationIfJobIdsAreNotEqual() throws Exception {
+        final JobMaster jobMaster = new JobMasterBuilder(jobGraph, rpcService).createJobMaster();
+
+        try {
+            jobMaster.start();
+
+            final CompletableFuture<RegistrationResponse> registrationResponse =
+                    jobMaster.registerTaskManager(
+                            "foobar",
+                            new LocalUnresolvedTaskManagerLocation(),
+                            new JobID(),
+                            testingTimeout);
+
+            assertThat(registrationResponse.get(), instanceOf(JMTMRegistrationRejection.class));
+        } finally {
+            RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+        }
+    }
+
     private void runJobFailureWhenTaskExecutorTerminatesTest(
             HeartbeatServices heartbeatServices,
             BiConsumer<LocalUnresolvedTaskManagerLocation, JobMasterGateway> jobReachedRunningState,

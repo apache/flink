@@ -24,6 +24,7 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServicesBuilder;
+import org.apache.flink.runtime.jobmaster.JMTMRegistrationRejection;
 import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -242,6 +243,47 @@ public class DefaultJobLeaderServiceTest extends TestLogger {
         }
     }
 
+    @Test
+    public void rejectedJobManagerRegistrationCallsJobLeaderListener() throws Exception {
+        final SettableLeaderRetrievalService leaderRetrievalService =
+                new SettableLeaderRetrievalService();
+        final TestingHighAvailabilityServices haServices =
+                new TestingHighAvailabilityServicesBuilder()
+                        .setJobMasterLeaderRetrieverFunction(ignored -> leaderRetrievalService)
+                        .build();
+
+        final JobID jobId = new JobID();
+        final CompletableFuture<JobID> rejectedRegistrationFuture = new CompletableFuture<>();
+        final TestingJobLeaderListener testingJobLeaderListener =
+                new TestingJobLeaderListener(ignored -> {}, rejectedRegistrationFuture::complete);
+
+        final JobLeaderService jobLeaderService =
+                createAndStartJobLeaderService(haServices, testingJobLeaderListener);
+
+        final TestingJobMasterGateway jobMasterGateway =
+                new TestingJobMasterGatewayBuilder()
+                        .setRegisterTaskManagerFunction(
+                                (s, unresolvedTaskManagerLocation, jobID) ->
+                                        CompletableFuture.completedFuture(
+                                                new JMTMRegistrationRejection("foobar")))
+                        .build();
+
+        rpcServiceResource
+                .getTestingRpcService()
+                .registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
+
+        try {
+            jobLeaderService.addJob(jobId, "foobar");
+
+            leaderRetrievalService.notifyListener(
+                    jobMasterGateway.getAddress(), jobMasterGateway.getFencingToken().toUUID());
+
+            assertThat(rejectedRegistrationFuture.get(), is(jobId));
+        } finally {
+            jobLeaderService.stop();
+        }
+    }
+
     private static final class FailingSettableLeaderRetrievalService
             extends SettableLeaderRetrievalService {
         @Override
@@ -281,12 +323,21 @@ public class DefaultJobLeaderServiceTest extends TestLogger {
 
         private final Consumer<JobID> jobManagerGainedLeadership;
 
+        private final Consumer<JobID> jobManagerRejectedRegistrationConsumer;
+
         private TestingJobLeaderListener() {
             this(ignored -> {});
         }
 
         private TestingJobLeaderListener(Consumer<JobID> jobManagerGainedLeadership) {
+            this(jobManagerGainedLeadership, ignored -> {});
+        }
+
+        private TestingJobLeaderListener(
+                Consumer<JobID> jobManagerGainedLeadership,
+                Consumer<JobID> jobManagerRejectedRegistrationConsumer) {
             this.jobManagerGainedLeadership = jobManagerGainedLeadership;
+            this.jobManagerRejectedRegistrationConsumer = jobManagerRejectedRegistrationConsumer;
         }
 
         @Override
@@ -305,6 +356,12 @@ public class DefaultJobLeaderServiceTest extends TestLogger {
         @Override
         public void handleError(Throwable throwable) {
             // ignored
+        }
+
+        @Override
+        public void jobManagerRejectedRegistration(
+                JobID jobId, String targetAddress, JMTMRegistrationRejection rejection) {
+            jobManagerRejectedRegistrationConsumer.accept(jobId);
         }
 
         private void waitUntilJobManagerLostLeadership() throws InterruptedException {
