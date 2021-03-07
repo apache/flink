@@ -2113,7 +2113,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     private final class ResourceManagerRegistrationListener
             implements RegistrationConnectionListener<
-                    TaskExecutorToResourceManagerConnection, TaskExecutorRegistrationSuccess> {
+                    TaskExecutorToResourceManagerConnection,
+                    TaskExecutorRegistrationSuccess,
+                    TaskExecutorRegistrationRejection> {
 
         @Override
         public void onRegistrationSuccess(
@@ -2147,6 +2149,16 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         @Override
         public void onRegistrationFailure(Throwable failure) {
             onFatalError(failure);
+        }
+
+        @Override
+        public void onRegistrationRejection(
+                String targetAddress, TaskExecutorRegistrationRejection rejection) {
+            onFatalError(
+                    new FlinkException(
+                            String.format(
+                                    "The TaskExecutor's registration at the ResourceManager %s has been rejected: %s",
+                                    targetAddress, rejection)));
         }
     }
 
