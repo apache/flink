@@ -149,7 +149,15 @@ public class KafkaSourceEnumerator
                             + "without periodic partition discovery.",
                     consumerGroupId);
             context.callAsync(
-                    this::discoverAndInitializePartitionSplit, this::handlePartitionSplitChanges);
+                    () -> {
+                        try {
+                            return discoverAndInitializePartitionSplit();
+                        } finally {
+                            // Close the admin client early because we won't use it anymore.
+                            adminClient.close();
+                        }
+                    },
+                    this::handlePartitionSplitChanges);
         }
     }
 
