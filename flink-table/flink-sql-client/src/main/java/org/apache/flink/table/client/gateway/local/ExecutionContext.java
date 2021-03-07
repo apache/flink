@@ -576,7 +576,8 @@ public class ExecutionContext<ClusterID> {
     }
 
     private TableConfig createTableConfig(EnvironmentSettings settings) {
-        final TableConfig config = new TableConfig(flinkConfig);
+        final TableConfig config = new TableConfig();
+        config.addConfiguration(flinkConfig);
         // Override the value in configuration.
         // TODO: use `table.planner` and `execution.runtime-mode` to configure the TableEnvironment
         // But we need to wait for the FLINK-21485

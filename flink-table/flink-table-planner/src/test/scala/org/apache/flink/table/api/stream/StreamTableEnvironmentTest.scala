@@ -428,19 +428,13 @@ class StreamTableEnvironmentTest extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration
       .set(TableConfigOptions.TABLE_PLANNER, PlannerType.BLINK)
     // validate
-    val expect = "Mismatch between configured planner and actual planner. " +
+    thrown.expect(classOf[IllegalArgumentException])
+    thrown.expectMessage(
+      "Mismatch between configured planner and actual planner. " +
       "Currently, the 'execution.runtime-mode' and 'table.planner' can only be set " +
       "when instantiating the table environment. Subsequent changes are not supported. " +
-      "Please instantiate a new TableEnvironment if necessary."
-    try {
-      util.tableEnv.explainSql("select * from MyTable where a > 10")
-    } catch {
-      case e: IllegalArgumentException =>
-        Assert.assertEquals(expect, e.getMessage)
-        return
-      case e: Throwable => throw e;
-    }
-    fail("Fail to trigger validation.")
+      "Please instantiate a new TableEnvironment if necessary.")
+    util.tableEnv.explainSql("select * from MyTable where a > 10")
   }
 
   private def prepareSchemaExpressionParser:

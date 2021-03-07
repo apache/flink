@@ -12,7 +12,7 @@
             <td><h5>table.planner</h5></td>
             <td style="word-wrap: break-word;">BLINK</td>
             <td><p>Enum</p>Possible values: [BLINK, OLD]</td>
-            <td>Use blink planner or old planner. The default value for the option is blink. The value of the option will also influence time semantics and so on. Currently it's forbidden to set this option after initialization of the table environment.</td>
+            <td>Use either 'blink' planner or 'old' planner. Default is blink planner. For TableEnvironment, this option is used to construct a TableEnvironment, but this option can't be changed after that. However there is no such limitation for SQL Client.</td>
         </tr>
         <tr>
             <td><h5>table.dynamic-table-options.enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>

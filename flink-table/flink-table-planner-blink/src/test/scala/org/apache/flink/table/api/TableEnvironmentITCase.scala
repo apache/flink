@@ -91,18 +91,16 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     TestTableSourceSinks.createCsvTemporarySinkTable(
       tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink1")
 
-    val expected = "Mismatch between configured planner and actual planner. " +
-      "Currently, the 'table.planner' can only be set " +
-      "when instantiating the table environment. Subsequent changes are not supported. " +
-      "Please instantiate a new TableEnvironment if necessary."
 
-    try {
-      tEnv.executeSql("insert into MySink1 select first from MyTable")
-    } catch {
-      case e: IllegalArgumentException => Assert.assertEquals(expected, e.getMessage); return
-      case e: Throwable => throw e
-    }
-    fail("Don't trigger validation.")
+    thrown.expect(classOf[IllegalArgumentException])
+    thrown.expectMessage(
+      "Mismatch between configured planner and actual planner. " +
+        "Currently, the 'table.planner' can only be set " +
+        "when instantiating the table environment. Subsequent changes are not supported. " +
+        "Please instantiate a new TableEnvironment if necessary."
+    )
+
+    tEnv.executeSql("insert into MySink1 select first from MyTable")
   }
 
   @Test
@@ -113,18 +111,16 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
       tEnv.getConfig.getConfiguration.set(ExecutionOptions.RUNTIME_MODE,
         RuntimeExecutionMode.STREAMING)
     }
-    val expected =  "Mismatch between configured planner and actual planner. " +
-      "Currently, the 'execution.runtime-mode' can only be set when instantiating the " +
-      "table environment. Subsequent changes are not supported. " +
-      "Please instantiate a new TableEnvironment if necessary."
 
-    try {
-      tEnv.explainSql("select first from MyTable")
-    } catch {
-      case e: IllegalArgumentException => Assert.assertEquals(expected, e.getMessage); return
-      case e: Throwable => throw e
-    }
-    fail("Don't trigger validation.")
+    thrown.expect(classOf[IllegalArgumentException])
+    thrown.expectMessage(
+      "Mismatch between configured runtime mode and actual runtime mode. " +
+        "Currently, the 'execution.runtime-mode' can only be set when instantiating the " +
+        "table environment. Subsequent changes are not supported. " +
+        "Please instantiate a new TableEnvironment if necessary."
+    )
+
+    tEnv.explainSql("select first from MyTable")
   }
 
   @Test

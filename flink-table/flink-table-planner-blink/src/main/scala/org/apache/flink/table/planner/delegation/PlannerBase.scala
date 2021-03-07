@@ -152,6 +152,7 @@ abstract class PlannerBase(
 
   override def translate(
       modifyOperations: util.List[ModifyOperation]): util.List[Transformation[_]] = {
+    validateAndOverrideConfiguration
     if (modifyOperations.isEmpty) {
       return List.empty[Transformation[_]]
     }
@@ -181,12 +182,6 @@ abstract class PlannerBase(
     */
   @VisibleForTesting
   private[flink] def translateToRel(modifyOperation: ModifyOperation): RelNode = {
-    // prepare the execEnv before translating
-    getExecEnv.configure(
-      getTableConfig.getConfiguration,
-      Thread.currentThread().getContextClassLoader)
-    overrideEnvParallelism()
-
     modifyOperation match {
       case s: UnregisteredSinkModifyOperation[_] =>
         val input = getRelBuilder.queryOperation(s.getChild).build()
@@ -284,8 +279,6 @@ abstract class PlannerBase(
 
   @VisibleForTesting
   private[flink] def optimize(relNodes: Seq[RelNode]): Seq[RelNode] = {
-    // different planner in different mode differs in optimization
-    isSpecifiedPlanner()
     val optimizedRelNodes = getOptimizer.optimize(relNodes)
     require(optimizedRelNodes.size == relNodes.size)
     optimizedRelNodes
@@ -293,8 +286,6 @@ abstract class PlannerBase(
 
   @VisibleForTesting
   private[flink] def optimize(relNode: RelNode): RelNode = {
-    // different planner in different mode differs in optimization
-    isSpecifiedPlanner()
     val optimizedRelNodes = getOptimizer.optimize(Seq(relNode))
     require(optimizedRelNodes.size == 1)
     optimizedRelNodes.head
@@ -422,6 +413,7 @@ abstract class PlannerBase(
     if (!isStreamingMode) {
       throw new TableException("Only streaming mode is supported now.")
     }
+    validateAndOverrideConfiguration()
     val relNodes = modifyOperations.map(translateToRel)
     val optimizedRelNodes = optimize(relNodes)
     val execGraph = translateToExecNodeGraph(optimizedRelNodes)
@@ -432,10 +424,8 @@ abstract class PlannerBase(
     if (!isStreamingMode) {
       throw new TableException("Only streaming mode is supported now.")
     }
+    validateAndOverrideConfiguration()
     val execGraph = ExecNodeGraph.createExecNodeGraph(jsonPlan, createSerdeContext)
-    // prepare the execEnv before translating
-    getExecEnv.configure(getTableConfig.getConfiguration, getClassLoader)
-    overrideEnvParallelism()
     translateToPlan(execGraph)
   }
 
@@ -453,7 +443,11 @@ abstract class PlannerBase(
     Thread.currentThread().getContextClassLoader
   }
 
-  protected def isSpecifiedPlanner(): Unit = {
+  /**
+   * Different planner has different rules. Validate the planner and runtime mode is consistent with
+   * the configuration before planner do optimization with [[ModifyOperation]] or other works.
+   */
+  protected def validateAndOverrideConfiguration(): Unit = {
     if (!config.getConfiguration.get(TableConfigOptions.TABLE_PLANNER).equals(PlannerType.BLINK)) {
       throw new IllegalArgumentException(
         "Mismatch between configured planner and actual planner. " +
@@ -461,5 +455,10 @@ abstract class PlannerBase(
           "table environment. Subsequent changes are not supported. " +
           "Please instantiate a new TableEnvironment if necessary.");
     }
+
+    getExecEnv.configure(
+      getTableConfig.getConfiguration,
+      Thread.currentThread().getContextClassLoader)
+    overrideEnvParallelism()
   }
 }

@@ -260,16 +260,21 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     public static TableEnvironmentImpl create(Configuration configuration) {
-        return create(EnvironmentSettings.fromConfiguration(configuration));
+        return create(EnvironmentSettings.fromConfiguration(configuration), configuration);
     }
 
     public static TableEnvironmentImpl create(EnvironmentSettings settings) {
+        return create(settings, settings.toConfiguration());
+    }
 
+    private static TableEnvironmentImpl create(
+            EnvironmentSettings settings, Configuration configuration) {
         // temporary solution until FLINK-15635 is fixed
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
 
-        // build configuration to init table config
-        TableConfig tableConfig = new TableConfig(settings.toConfiguration());
+        // use configuration to init table config
+        TableConfig tableConfig = new TableConfig();
+        tableConfig.addConfiguration(configuration);
 
         ModuleManager moduleManager = new ModuleManager();
 

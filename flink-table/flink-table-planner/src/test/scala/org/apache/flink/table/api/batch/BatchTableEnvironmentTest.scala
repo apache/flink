@@ -594,20 +594,16 @@ class BatchTableEnvironmentTest extends TableTestBase {
 
     util.tableEnv.getConfig.getConfiguration
       .set(TableConfigOptions.TABLE_PLANNER, PlannerType.BLINK)
-    val expect = "Mismatch between configured planner and actual planner. " +
-      "Currently, the 'execution.runtime-mode' and 'table.planner' can only be set " +
-      "when instantiating the table environment. Subsequent changes are not supported. " +
-      "Please instantiate a new TableEnvironment if necessary."
 
-    try {
-      util.tableEnv.sqlQuery("select * from MyTable where a > 10").explain()
-    } catch {
-      case e: IllegalArgumentException =>
-        Assert.assertEquals(expect, e.getMessage)
-        return
-      case e: Throwable => throw e
-    }
-    fail("Fail to trigger validation.")
+    thrown.expect(classOf[IllegalArgumentException])
+    thrown.expectMessage(
+      "Mismatch between configured planner and actual planner. " +
+        "Currently, the 'execution.runtime-mode' and 'table.planner' can only be set " +
+        "when instantiating the table environment. Subsequent changes are not supported. " +
+        "Please instantiate a new TableEnvironment if necessary."
+    )
+
+    util.tableEnv.sqlQuery("select * from MyTable where a > 10").explain()
   }
 
   private def checkData(expected: util.Iterator[Row], actual: util.Iterator[Row]): Unit = {

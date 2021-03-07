@@ -452,7 +452,9 @@ public interface BatchTableEnvironment extends TableEnvironment {
     static BatchTableEnvironment create(ExecutionEnvironment executionEnvironment) {
         Configuration configuration = new Configuration();
         configuration.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
-        return create(executionEnvironment, new TableConfig(configuration));
+        TableConfig config = new TableConfig();
+        config.addConfiguration(configuration);
+        return create(executionEnvironment, config);
     }
 
     /**

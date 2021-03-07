@@ -110,8 +110,9 @@ public interface StreamTableEnvironment extends TableEnvironment {
      */
     static StreamTableEnvironment create(
             StreamExecutionEnvironment executionEnvironment, EnvironmentSettings settings) {
-        return StreamTableEnvironmentImpl.create(
-                executionEnvironment, settings, new TableConfig(settings.toConfiguration()));
+        TableConfig config = new TableConfig();
+        config.addConfiguration(settings.toConfiguration());
+        return StreamTableEnvironmentImpl.create(executionEnvironment, settings, config);
     }
 
     /**

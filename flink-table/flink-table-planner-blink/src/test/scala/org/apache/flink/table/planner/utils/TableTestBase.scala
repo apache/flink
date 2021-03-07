@@ -17,11 +17,9 @@
  */
 package org.apache.flink.table.planner.utils
 
-import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.{LocalStreamEnvironment, StreamExecutionEnvironment}
 import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode
@@ -1275,8 +1273,6 @@ case class BatchTableTestUtil(
     catalogManager: Option[CatalogManager] = None,
     conf: TableConfig = new TableConfig)
   extends TableTestUtil(test, isStreamingMode = false, catalogManager, conf) {
-
-  conf.getConfiguration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
 
   def buildBatchProgram(firstProgramNameToRemove: String): Unit = {
     val program = FlinkBatchProgram.buildProgram(tableEnv.getConfig.getConfiguration)

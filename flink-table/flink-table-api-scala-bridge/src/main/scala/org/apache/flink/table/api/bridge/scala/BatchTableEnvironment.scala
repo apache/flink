@@ -360,7 +360,9 @@ object BatchTableEnvironment {
   def create(executionEnvironment: ExecutionEnvironment): BatchTableEnvironment = {
     val configuration = new Configuration
     configuration.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH)
-    create(executionEnvironment, new TableConfig(configuration))
+    val config = new TableConfig();
+    config.addConfiguration(configuration)
+    create(executionEnvironment, config)
   }
 
   /**

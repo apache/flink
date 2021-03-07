@@ -63,7 +63,6 @@ class StreamPlanner(
 
   override protected def translateToPlan(execGraph: ExecNodeGraph): util.List[Transformation[_]] = {
     val planner = createDummyPlanner()
-    planner.overrideEnvParallelism()
 
     execGraph.getRootNodes.map {
       case node: StreamExecNode[_] => node.translateToPlan(planner)
@@ -79,6 +78,7 @@ class StreamPlanner(
 
   override def explain(operations: util.List[Operation], extraDetails: ExplainDetail*): String = {
     require(operations.nonEmpty, "operations should not be empty")
+    validateAndOverrideConfiguration()
     val sinkRelNodes = operations.map {
       case queryOperation: QueryOperation =>
         val relNode = getRelBuilder.queryOperation(queryOperation).build()
@@ -151,6 +151,7 @@ class StreamPlanner(
   }
 
   override def explainJsonPlan(jsonPlan: String, extraDetails: ExplainDetail*): String = {
+    validateAndOverrideConfiguration()
     val execGraph = ExecNodeGraph.createExecNodeGraph(jsonPlan, createSerdeContext)
     val transformations = translateToPlan(execGraph)
     val streamGraph = ExecutorUtils.generateStreamGraph(getExecEnv, transformations)
@@ -170,12 +171,12 @@ class StreamPlanner(
     sb.toString()
   }
 
-  override def isSpecifiedPlanner(): Unit = {
-    super.isSpecifiedPlanner()
+  override def validateAndOverrideConfiguration(): Unit = {
+    super.validateAndOverrideConfiguration()
     if (!config.getConfiguration.get(ExecutionOptions.RUNTIME_MODE)
       .equals(RuntimeExecutionMode.STREAMING)) {
       throw new IllegalArgumentException(
-        "Mismatch between configured planner and actual planner. " +
+        "Mismatch between configured runtime mode and actual runtime mode. " +
           "Currently, the 'execution.runtime-mode' can only be set when instantiating the " +
           "table environment. Subsequent changes are not supported. " +
           "Please instantiate a new TableEnvironment if necessary."

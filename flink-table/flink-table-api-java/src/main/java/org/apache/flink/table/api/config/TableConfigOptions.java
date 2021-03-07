@@ -41,8 +41,10 @@ public class TableConfigOptions {
                     .enumType(PlannerType.class)
                     .defaultValue(PlannerType.BLINK)
                     .withDescription(
-                            "Use blink planner or old planner. The default value for the option is blink. "
-                                    + "The value of the option will also influence time semantics and so on. Currently it's forbidden to set this option after initialization of the table environment.");
+                            "Use either 'blink' planner or 'old' planner. Default is blink planner. "
+                                    + "For TableEnvironment, this option is used to construct a TableEnvironment, "
+                                    + "but this option can't be changed after that. "
+                                    + "However there is no such limitation for SQL Client.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Boolean> TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED =

@@ -118,7 +118,7 @@ public interface TableEnvironment {
      *     TableEnvironment}.
      */
     static TableEnvironment create(Configuration configuration) {
-        return create(EnvironmentSettings.fromConfiguration(configuration));
+        return TableEnvironmentImpl.create(configuration);
     }
 
     /**
