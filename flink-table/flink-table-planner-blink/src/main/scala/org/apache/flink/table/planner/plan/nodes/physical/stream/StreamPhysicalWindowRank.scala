@@ -80,11 +80,11 @@ class StreamPhysicalWindowRank(
     val inputRowType = inputRel.getRowType
     val inputFieldNames = inputRowType.getFieldNames.asScala.toArray
     pw.input("input", getInput)
+      .item("window", windowing.toSummaryString(inputFieldNames))
       .item("rankType", rankType)
       .item("rankRange", rankRange.toString(inputRowType.getFieldNames))
       .item("partitionBy", RelExplainUtil.fieldToString(partitionKey.toArray, inputRowType))
       .item("orderBy", RelExplainUtil.collationToString(orderKey, inputRowType))
-      .item("window", windowing.toSummaryString(inputFieldNames))
       .item("select", getRowType.getFieldNames.mkString(", "))
   }
 

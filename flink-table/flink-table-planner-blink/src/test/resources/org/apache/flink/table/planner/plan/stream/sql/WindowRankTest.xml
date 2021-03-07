@@ -44,7 +44,7 @@ LogicalProject(window_start=[$7], window_end=[$8], window_time=[$9], a=[$0], b=[
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[window_start, window_end, window_time, a, b, c, d, e])
-+- WindowRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[b DESC], window=[CUMULATE(win_start=[window_start], win_end=[window_end], max_size=[1 h], step=[10 min])], select=[a, b, c, d, e, window_start, window_end, window_time])
++- WindowRank(window=[CUMULATE(win_start=[window_start], win_end=[window_end], max_size=[1 h], step=[10 min])], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, d, e, window_start, window_end, window_time])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c, d, e, window_start, window_end, window_time])
          +- WindowTableFunction(window=[CUMULATE(time_col=[rowtime], max_size=[1 h], step=[10 min])])
@@ -82,7 +82,7 @@ LogicalProject(window_start=[$7], window_end=[$8], window_time=[$9], a=[$0], b=[
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[window_start, window_end, PROCTIME_MATERIALIZE(window_time) AS window_time, a, b, c, d, e])
-+- WindowRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[b DESC], window=[CUMULATE(win_start=[window_start], win_end=[window_end], max_size=[1 h], step=[10 min])], select=[a, b, c, d, e, window_start, window_end, window_time])
++- WindowRank(window=[CUMULATE(win_start=[window_start], win_end=[window_end], max_size=[1 h], step=[10 min])], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, d, e, window_start, window_end, window_time])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c, d, e, window_start, window_end, window_time])
          +- WindowTableFunction(window=[CUMULATE(time_col=[proctime], max_size=[1 h], step=[10 min])])
@@ -120,7 +120,7 @@ LogicalProject(window_start=[$7], window_end=[$8], window_time=[$9], a=[$0], b=[
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[window_start, window_end, window_time, a, b, c, d, e])
-+- WindowRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[b DESC], window=[HOP(win_start=[window_start], win_end=[window_end], size=[10 min], slide=[5 min])], select=[a, b, c, d, e, window_start, window_end, window_time])
++- WindowRank(window=[HOP(win_start=[window_start], win_end=[window_end], size=[10 min], slide=[5 min])], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, d, e, window_start, window_end, window_time])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c, d, e, window_start, window_end, window_time])
          +- WindowTableFunction(window=[HOP(time_col=[rowtime], size=[10 min], slide=[5 min])])
@@ -158,7 +158,7 @@ LogicalProject(window_start=[$7], window_end=[$8], window_time=[$9], a=[$0], b=[
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[window_start, window_end, PROCTIME_MATERIALIZE(window_time) AS window_time, a, b, c, d, e])
-+- WindowRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[b DESC], window=[HOP(win_start=[window_start], win_end=[window_end], size=[10 min], slide=[5 min])], select=[a, b, c, d, e, window_start, window_end, window_time])
++- WindowRank(window=[HOP(win_start=[window_start], win_end=[window_end], size=[10 min], slide=[5 min])], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, d, e, window_start, window_end, window_time])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c, d, e, window_start, window_end, window_time])
          +- WindowTableFunction(window=[HOP(time_col=[proctime], size=[10 min], slide=[5 min])])
@@ -195,7 +195,7 @@ LogicalProject(window_start=[$7], window_end=[$8], window_time=[$9], a=[$0], b=[
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[window_start, window_end, window_time, a, b, c, d, e])
-+- WindowRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[b DESC], window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], select=[a, b, c, d, e, window_start, window_end, window_time])
++- WindowRank(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, d, e, window_start, window_end, window_time])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c, d, e, window_start, window_end, window_time])
          +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])])
@@ -232,7 +232,7 @@ LogicalProject(window_start=[$7], window_end=[$8], window_time=[$9], a=[$0], b=[
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[window_start, window_end, PROCTIME_MATERIALIZE(window_time) AS window_time, a, b, c, d, e])
-+- WindowRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[b DESC], window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], select=[a, b, c, d, e, window_start, window_end, window_time])
++- WindowRank(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, d, e, window_start, window_end, window_time])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c, d, e, window_start, window_end, window_time])
          +- WindowTableFunction(window=[TUMBLE(time_col=[proctime], size=[15 min])])
@@ -287,7 +287,7 @@ LogicalProject(window_start=[$1], window_end=[$2], window_time=[$3], a=[$0], cnt
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[window_start, window_end, window_time, a, cnt, sum_d, max_d, wAvg, uv])
-+- WindowRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[], orderBy=[cnt DESC], window=[CUMULATE(win_start=[window_start], win_end=[window_end], max_size=[1 h], step=[10 min])], select=[a, window_start, window_end, window_time, cnt, sum_d, max_d, wAvg, uv])
++- WindowRank(window=[CUMULATE(win_start=[window_start], win_end=[window_end], max_size=[1 h], step=[10 min])], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[], orderBy=[cnt DESC], select=[a, window_start, window_end, window_time, cnt, sum_d, max_d, wAvg, uv])
    +- Exchange(distribution=[single])
       +- Calc(select=[a, window_start, window_end, window_time, cnt, sum_d, max_d, wAvg, uv])
          +- WindowAggregate(groupBy=[a], window=[CUMULATE(time_col=[rowtime], max_size=[1 h], step=[10 min])], select=[a, COUNT(*) AS cnt, SUM(d) AS sum_d, MAX(d) FILTER $f5 AS max_d, weightedAvg(b, e) AS wAvg, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
@@ -336,7 +336,7 @@ Calc(select=[a, window_start, window_end, EXPR$3, EXPR$4, EXPR$5])
 +- WindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[1 h])], select=[a, SUM(cnt) AS EXPR$3, SUM(sum_d) AS EXPR$4, MAX(max_d) AS EXPR$5, start('w$) AS window_start, end('w$) AS window_end])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, cnt, sum_d, max_d, window_time AS rowtime])
-         +- WindowRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[cnt DESC], window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], select=[a, window_start, window_end, window_time, cnt, sum_d, max_d, wAvg, uv])
+         +- WindowRank(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[cnt DESC], select=[a, window_start, window_end, window_time, cnt, sum_d, max_d, wAvg, uv])
             +- Exchange(distribution=[hash[a]])
                +- Calc(select=[a, window_start, window_end, window_time, cnt, sum_d, max_d, wAvg, uv])
                   +- WindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS cnt, SUM(d) AS sum_d, MAX(d) FILTER $f5 AS max_d, weightedAvg(b, e) AS wAvg, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
@@ -393,7 +393,7 @@ LogicalProject(window_start=[$1], window_end=[$2], window_time=[$3], a=[$0], cnt
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[window_start, window_end, PROCTIME_MATERIALIZE(window_time) AS window_time, a, cnt, sum_d, max_d, wAvg, uv])
-+- WindowRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[cnt DESC], window=[CUMULATE(win_start=[window_start], win_end=[window_end], max_size=[1 h], step=[10 min])], select=[a, window_start, window_end, window_time, cnt, sum_d, max_d, wAvg, uv])
++- WindowRank(window=[CUMULATE(win_start=[window_start], win_end=[window_end], max_size=[1 h], step=[10 min])], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[cnt DESC], select=[a, window_start, window_end, window_time, cnt, sum_d, max_d, wAvg, uv])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, window_start, window_end, window_time, cnt, sum_d, max_d, wAvg, uv])
          +- WindowAggregate(groupBy=[a], window=[CUMULATE(time_col=[proctime], max_size=[1 h], step=[10 min])], select=[a, COUNT(*) AS cnt, SUM(d) AS sum_d, MAX(d) FILTER $f5 AS max_d, weightedAvg(b, e) AS wAvg, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end, proctime('w$) AS window_time])
@@ -448,7 +448,7 @@ LogicalProject(window_start=[$1], window_end=[$2], window_time=[$3], a=[$0], cnt
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[window_start, window_end, window_time, a, cnt, sum_d, max_d, wAvg, uv])
-+- WindowRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[cnt DESC], window=[HOP(win_start=[window_start], win_end=[window_end], size=[10 min], slide=[5 min])], select=[a, window_start, window_end, window_time, cnt, sum_d, max_d, wAvg, uv])
++- WindowRank(window=[HOP(win_start=[window_start], win_end=[window_end], size=[10 min], slide=[5 min])], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[cnt DESC], select=[a, window_start, window_end, window_time, cnt, sum_d, max_d, wAvg, uv])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, window_start, window_end, window_time, cnt, sum_d, max_d, wAvg, uv])
          +- WindowAggregate(groupBy=[a], window=[HOP(time_col=[rowtime], size=[10 min], slide=[5 min])], select=[a, COUNT(*) AS cnt, SUM(d) AS sum_d, MAX(d) FILTER $f5 AS max_d, weightedAvg(b, e) AS wAvg, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
@@ -503,7 +503,7 @@ LogicalProject(window_start=[$1], window_end=[$2], window_time=[$3], a=[$0], cnt
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[window_start, window_end, PROCTIME_MATERIALIZE(window_time) AS window_time, a, cnt, sum_d, max_d, wAvg, uv])
-+- WindowRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[cnt DESC], window=[HOP(win_start=[window_start], win_end=[window_end], size=[10 min], slide=[5 min])], select=[a, window_start, window_end, window_time, cnt, sum_d, max_d, wAvg, uv])
++- WindowRank(window=[HOP(win_start=[window_start], win_end=[window_end], size=[10 min], slide=[5 min])], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[cnt DESC], select=[a, window_start, window_end, window_time, cnt, sum_d, max_d, wAvg, uv])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, window_start, window_end, window_time, cnt, sum_d, max_d, wAvg, uv])
          +- WindowAggregate(groupBy=[a], window=[HOP(time_col=[proctime], size=[10 min], slide=[5 min])], select=[a, COUNT(*) AS cnt, SUM(d) AS sum_d, MAX(d) FILTER $f5 AS max_d, weightedAvg(b, e) AS wAvg, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end, proctime('w$) AS window_time])
@@ -557,7 +557,7 @@ LogicalProject(window_start=[$1], window_end=[$2], window_time=[$3], a=[$0], cnt
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[window_start, window_end, window_time, a, cnt, sum_d, max_d, wAvg, uv])
-+- WindowRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[], orderBy=[cnt DESC], window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], select=[a, window_start, window_end, window_time, cnt, sum_d, max_d, wAvg, uv])
++- WindowRank(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[], orderBy=[cnt DESC], select=[a, window_start, window_end, window_time, cnt, sum_d, max_d, wAvg, uv])
    +- Exchange(distribution=[single])
       +- Calc(select=[a, window_start, window_end, window_time, cnt, sum_d, max_d, wAvg, uv])
          +- WindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS cnt, SUM(d) AS sum_d, MAX(d) FILTER $f5 AS max_d, weightedAvg(b, e) AS wAvg, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
@@ -611,7 +611,7 @@ LogicalProject(window_start=[$1], window_end=[$2], window_time=[$3], a=[$0], cnt
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[window_start, window_end, PROCTIME_MATERIALIZE(window_time) AS window_time, a, cnt, sum_d, max_d, wAvg, uv])
-+- WindowRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[cnt DESC], window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], select=[a, window_start, window_end, window_time, cnt, sum_d, max_d, wAvg, uv])
++- WindowRank(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[cnt DESC], select=[a, window_start, window_end, window_time, cnt, sum_d, max_d, wAvg, uv])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, window_start, window_end, window_time, cnt, sum_d, max_d, wAvg, uv])
          +- WindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[proctime], size=[15 min])], select=[a, COUNT(*) AS cnt, SUM(d) AS sum_d, MAX(d) FILTER $f5 AS max_d, weightedAvg(b, e) AS wAvg, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end, proctime('w$) AS window_time])
@@ -660,7 +660,7 @@ Calc(select=[a, window_start, window_end, EXPR$3, EXPR$4, EXPR$5, wAvg, uv])
 +- WindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS EXPR$3, SUM(d) AS EXPR$4, MAX(d) FILTER $f4 AS EXPR$5, weightedAvg(b, e) AS wAvg, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, d, IS TRUE(>(b, 1000)) AS $f4, b, e, c, window_time AS rowtime])
-         +- WindowRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[b DESC], window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], select=[a, b, c, d, e, window_start, window_end, window_time])
+         +- WindowRank(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, d, e, window_start, window_end, window_time])
             +- Exchange(distribution=[hash[a]])
                +- Calc(select=[a, b, c, d, e, window_start, window_end, window_time])
                   +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])])
