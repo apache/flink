@@ -20,6 +20,7 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
 
@@ -42,7 +43,7 @@ public class RocksDBStateBackendFactoryTest {
 
     private final ClassLoader cl = getClass().getClassLoader();
 
-    private final String backendKey = CheckpointingOptions.STATE_BACKEND.key();
+    private final String backendKey = StateBackendOptions.STATE_BACKEND.key();
 
     // ------------------------------------------------------------------------
 

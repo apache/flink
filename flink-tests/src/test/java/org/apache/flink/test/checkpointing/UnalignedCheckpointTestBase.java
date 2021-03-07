@@ -45,6 +45,7 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
@@ -735,7 +736,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 
             conf.setFloat(TaskManagerOptions.NETWORK_MEMORY_FRACTION, 0.9f);
             conf.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("4kb"));
-            conf.setString(CheckpointingOptions.STATE_BACKEND, "filesystem");
+            conf.setString(StateBackendOptions.STATE_BACKEND, "filesystem");
             conf.setString(
                     CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
             if (restoreCheckpoint != null) {

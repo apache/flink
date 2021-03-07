@@ -28,6 +28,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -103,7 +104,7 @@ public abstract class SavepointMigrationTestBase extends TestBaseUtils {
         LOG.info("Created temporary checkpoint directory: " + checkpointDir + ".");
         LOG.info("Created savepoint directory: " + savepointDir + ".");
 
-        config.setString(CheckpointingOptions.STATE_BACKEND, "memory");
+        config.setString(StateBackendOptions.STATE_BACKEND, "memory");
         config.setString(
                 CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
         config.set(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, MemorySize.ZERO);

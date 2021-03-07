@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
@@ -54,7 +55,7 @@ public class StateBackendLoadingTest {
 
     private final ClassLoader cl = getClass().getClassLoader();
 
-    private final String backendKey = CheckpointingOptions.STATE_BACKEND.key();
+    private final String backendKey = StateBackendOptions.STATE_BACKEND.key();
 
     // ------------------------------------------------------------------------
     //  defaults
