@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.jobmaster.JMTMRegistrationRejection;
 import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -234,7 +235,7 @@ public class DefaultJobLeaderService implements JobLeaderService {
                         JobMasterId,
                         JobMasterGateway,
                         JMTMRegistrationSuccess,
-                        RegistrationResponse.Rejection>
+                        JMTMRegistrationRejection>
                 rpcConnection;
 
         /** Leader id of the current job leader. */
@@ -378,7 +379,7 @@ public class DefaultJobLeaderService implements JobLeaderService {
                         JobMasterId,
                         JobMasterGateway,
                         JMTMRegistrationSuccess,
-                        RegistrationResponse.Rejection> {
+                        JMTMRegistrationRejection> {
 
             JobManagerRegisteredRpcConnection(
                     Logger log, String targetAddress, JobMasterId jobMasterId, Executor executor) {
@@ -390,7 +391,7 @@ public class DefaultJobLeaderService implements JobLeaderService {
                             JobMasterId,
                             JobMasterGateway,
                             JMTMRegistrationSuccess,
-                            RegistrationResponse.Rejection>
+                            JMTMRegistrationRejection>
                     generateRegistration() {
                 return new DefaultJobLeaderService.JobManagerRetryingRegistration(
                         LOG,
@@ -407,41 +408,67 @@ public class DefaultJobLeaderService implements JobLeaderService {
 
             @Override
             protected void onRegistrationSuccess(JMTMRegistrationSuccess success) {
-                // filter out old registration attempts
-                if (Objects.equals(getTargetLeaderId(), getCurrentJobMasterId())) {
-                    log.info(
-                            "Successful registration at job manager {} for job {}.",
-                            getTargetAddress(),
-                            jobId);
+                runIfValidRegistrationAttemptOrElse(
+                        () -> {
+                            log.info(
+                                    "Successful registration at job manager {} for job {}.",
+                                    getTargetAddress(),
+                                    jobId);
 
-                    jobLeaderListener.jobManagerGainedLeadership(
-                            jobId, getTargetGateway(), success);
-                } else {
-                    log.debug(
-                            "Encountered obsolete JobManager registration success from {} with leader session ID {}.",
-                            getTargetAddress(),
-                            getTargetLeaderId());
-                }
+                            jobLeaderListener.jobManagerGainedLeadership(
+                                    jobId, getTargetGateway(), success);
+                        },
+                        () ->
+                                log.debug(
+                                        "Encountered obsolete JobManager registration success from {} with leader session ID {}.",
+                                        getTargetAddress(),
+                                        getTargetLeaderId()));
             }
 
             @Override
-            protected void onRegistrationRejection(RegistrationResponse.Rejection rejection) {}
+            protected void onRegistrationRejection(JMTMRegistrationRejection rejection) {
+                runIfValidRegistrationAttemptOrElse(
+                        () -> {
+                            log.info(
+                                    "Rejected registration at job manager {} for job {}.",
+                                    getTargetAddress(),
+                                    jobId);
+
+                            jobLeaderListener.jobManagerRejectedRegistration(
+                                    jobId, getTargetAddress(), rejection);
+                        },
+                        () ->
+                                log.debug(
+                                        "Encountered obsolete JobManager registration rejection {} from {} with leader session ID {}.",
+                                        rejection,
+                                        getTargetAddress(),
+                                        getTargetLeaderId()));
+            }
 
             @Override
             protected void onRegistrationFailure(Throwable failure) {
-                // filter out old registration attempts
+                runIfValidRegistrationAttemptOrElse(
+                        () -> {
+                            log.info(
+                                    "Failed to register at job  manager {} for job {}.",
+                                    getTargetAddress(),
+                                    jobId);
+                            jobLeaderListener.handleError(failure);
+                        },
+                        () ->
+                                log.debug(
+                                        "Obsolete JobManager registration failure from {} with leader session ID {}.",
+                                        getTargetAddress(),
+                                        getTargetLeaderId(),
+                                        failure));
+            }
+
+            private void runIfValidRegistrationAttemptOrElse(
+                    Runnable runIfValid, Runnable runIfInvalid) {
                 if (Objects.equals(getTargetLeaderId(), getCurrentJobMasterId())) {
-                    log.info(
-                            "Failed to register at job  manager {} for job {}.",
-                            getTargetAddress(),
-                            jobId);
-                    jobLeaderListener.handleError(failure);
+                    runIfValid.run();
                 } else {
-                    log.debug(
-                            "Obsolete JobManager registration failure from {} with leader session ID {}.",
-                            getTargetAddress(),
-                            getTargetLeaderId(),
-                            failure);
+                    runIfInvalid.run();
                 }
             }
         }
@@ -453,7 +480,7 @@ public class DefaultJobLeaderService implements JobLeaderService {
                     JobMasterId,
                     JobMasterGateway,
                     JMTMRegistrationSuccess,
-                    RegistrationResponse.Rejection> {
+                    JMTMRegistrationRejection> {
 
         private final String taskManagerRpcAddress;
 

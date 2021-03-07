@@ -663,6 +663,17 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
             final JobID jobId,
             final Time timeout) {
 
+        if (!jobGraph.getJobID().equals(jobId)) {
+            log.debug(
+                    "Rejecting TaskManager registration attempt because of wrong job id {}.",
+                    jobId);
+            return CompletableFuture.completedFuture(
+                    new JMTMRegistrationRejection(
+                            String.format(
+                                    "The JobManager is not responsible for job %s. Maybe the TaskManager used outdated connection information.",
+                                    jobId)));
+        }
+
         final TaskManagerLocation taskManagerLocation;
         try {
             if (retrieveTaskManagerHostName) {
