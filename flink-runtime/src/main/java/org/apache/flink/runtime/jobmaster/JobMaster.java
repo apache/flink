@@ -1298,7 +1298,11 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
         }
 
         @Override
-        protected void onRegistrationRejection(RegistrationResponse.Rejection rejection) {}
+        protected void onRegistrationRejection(RegistrationResponse.Rejection rejection) {
+            handleJobMasterError(
+                    new IllegalStateException(
+                            "The ResourceManager should never reject a JobMaster registration."));
+        }
 
         @Override
         protected void onRegistrationFailure(final Throwable failure) {
