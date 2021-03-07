@@ -69,6 +69,7 @@ import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorHeartbeatPayload;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationRejection;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -877,8 +878,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                             + "not recognize it",
                     taskExecutorResourceId,
                     taskExecutorAddress);
-            return new RegistrationResponse.Failure(
-                    new FlinkException("unrecognized TaskExecutor"));
+            return new TaskExecutorRegistrationRejection(
+                    "The ResourceManager does not recognize this TaskExecutor.");
         } else {
             WorkerRegistration<WorkerType> registration =
                     new WorkerRegistration<>(

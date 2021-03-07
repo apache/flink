@@ -75,6 +75,8 @@ public class TaskExecutorToResourceManagerConnectionTest extends TestLogger {
 
     private CompletableFuture<Void> registrationSuccessFuture;
 
+    private CompletableFuture<Void> registrationRejectionFuture;
+
     @Test
     public void testResourceManagerRegistration() throws Exception {
         final TaskExecutorToResourceManagerConnection resourceManagerRegistration =
@@ -100,6 +102,21 @@ public class TaskExecutorToResourceManagerConnectionTest extends TestLogger {
 
         resourceManagerRegistration.start();
         registrationSuccessFuture.get(TEST_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+    }
+
+    @Test
+    public void testResourceManagerRegistrationIsRejected() {
+        final TaskExecutorToResourceManagerConnection resourceManagerRegistration =
+                createTaskExecutorToResourceManagerConnection();
+
+        testingResourceManagerGateway.setRegisterTaskExecutorFunction(
+                taskExecutorRegistration -> {
+                    return CompletableFuture.completedFuture(
+                            new TaskExecutorRegistrationRejection("Foobar"));
+                });
+
+        resourceManagerRegistration.start();
+        registrationRejectionFuture.join();
     }
 
     private TaskExecutorToResourceManagerConnection
@@ -138,6 +155,7 @@ public class TaskExecutorToResourceManagerConnectionTest extends TestLogger {
         rpcService.registerGateway(RESOURCE_MANAGER_ADDRESS, testingResourceManagerGateway);
 
         registrationSuccessFuture = new CompletableFuture<>();
+        registrationRejectionFuture = new CompletableFuture<>();
     }
 
     @After
@@ -147,8 +165,9 @@ public class TaskExecutorToResourceManagerConnectionTest extends TestLogger {
 
     private class TestRegistrationConnectionListener<
                     T extends RegisteredRpcConnection<?, ?, S, ?>,
-                    S extends RegistrationResponse.Success>
-            implements RegistrationConnectionListener<T, S> {
+                    S extends RegistrationResponse.Success,
+                    R extends RegistrationResponse.Rejection>
+            implements RegistrationConnectionListener<T, S, R> {
 
         @Override
         public void onRegistrationSuccess(final T connection, final S success) {
@@ -158,6 +177,11 @@ public class TaskExecutorToResourceManagerConnectionTest extends TestLogger {
         @Override
         public void onRegistrationFailure(final Throwable failure) {
             registrationSuccessFuture.completeExceptionally(failure);
+        }
+
+        @Override
+        public void onRegistrationRejection(String targetAddress, R rejection) {
+            registrationRejectionFuture.complete(null);
         }
     }
 }
