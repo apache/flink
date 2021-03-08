@@ -102,26 +102,41 @@ SqlUseCatalog SqlUseCatalog() :
 
 /**
 * Parses a create catalog statement.
-* CREATE CATALOG catalog_name [WITH (property_name=property_value, ...)];
+* <pre>CREATE CATALOG catalog_name
+*       [COMMENT catalog_comment]
+*       [WITH (property_name=property_value, ...)].</pre>
 */
 SqlCreate SqlCreateCatalog(Span s, boolean replace) :
 {
     SqlParserPos startPos;
     SqlIdentifier catalogName;
+    SqlCharStringLiteral comment = null;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
+    boolean ifNotExists = false;
 }
 {
     <CATALOG> { startPos = getPos(); }
+
+    ifNotExists = IfNotExistsOpt()
+
     catalogName = SimpleIdentifier()
+    [ <COMMENT> <QUOTED_STRING>
+        {
+            String p = SqlParserUtil.parseString(token.image);
+            comment = SqlLiteral.createCharString(p, getPos());
+        }
+    ]
     [
         <WITH>
         propertyList = TableProperties()
     ]
-    {
-        return new SqlCreateCatalog(startPos.plus(getPos()),
-            catalogName,
-            propertyList);
-    }
+
+    { return new SqlCreateCatalog(startPos.plus(getPos()),
+                    catalogName,
+                    propertyList,
+                    comment,
+                    ifNotExists); }
+
 }
 
 SqlDrop SqlDropCatalog(Span s, boolean replace) :
