@@ -789,7 +789,7 @@ class KeyedStream(DataStream):
             if callable(func):
                 func = MapFunctionWrapper(func)  # type: ignore
             else:
-                raise TypeError("The input must be a MapFunction or a callable function")
+                raise TypeError("The input func must be a MapFunction or a callable function.")
 
         class KeyedMapFunctionWrapper(KeyedProcessFunction):
 
@@ -812,7 +812,7 @@ class KeyedStream(DataStream):
             if callable(func):
                 func = FlatMapFunctionWrapper(func)  # type: ignore
             else:
-                raise TypeError("The input must be a FlatMapFunction or a callable function")
+                raise TypeError("The input func must be a FlatMapFunction or a callable function.")
 
         class KeyedFlatMapFunctionWrapper(KeyedProcessFunction):
 
@@ -848,7 +848,7 @@ class KeyedStream(DataStream):
             if callable(func):
                 func = ReduceFunctionWrapper(func)  # type: ignore
             else:
-                raise TypeError("The input must be a ReduceFunction or a callable function!")
+                raise TypeError("The input func must be a ReduceFunction or a callable function.")
         output_type = _from_java_type(self._original_data_type_info.get_java_type_info())
 
         class KeyedReduceFunctionWrapper(KeyedProcessFunction):
@@ -878,7 +878,7 @@ class KeyedStream(DataStream):
         if callable(func):
             func = FilterFunctionWrapper(func)  # type: ignore
         elif not isinstance(func, FilterFunction):
-            raise TypeError("func must be a Callable or instance of FilterFunction.")
+            raise TypeError("The input func must be a FilterFunction or a callable function.")
 
         class KeyedFilterFunctionWrapper(KeyedProcessFunction):
 
