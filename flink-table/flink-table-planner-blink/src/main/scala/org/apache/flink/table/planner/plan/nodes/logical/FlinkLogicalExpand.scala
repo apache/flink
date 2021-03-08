@@ -23,7 +23,6 @@ import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, LogicalExpand}
 
 import org.apache.calcite.plan.{Convention, RelOptCluster, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rex.RexNode
 
@@ -37,14 +36,18 @@ class FlinkLogicalExpand(
     cluster: RelOptCluster,
     traits: RelTraitSet,
     input: RelNode,
-    outputRowType: RelDataType,
     projects: util.List[util.List[RexNode]],
     expandIdIndex: Int)
-  extends Expand(cluster, traits, input, outputRowType, projects, expandIdIndex)
+  extends Expand(cluster, traits, input, projects, expandIdIndex)
   with FlinkLogicalRel {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new FlinkLogicalExpand(cluster, traitSet, inputs.get(0), outputRowType, projects, expandIdIndex)
+    new FlinkLogicalExpand(
+      cluster,
+      traitSet,
+      inputs.get(0),
+      projects,
+      expandIdIndex)
   }
 
 }
@@ -61,7 +64,6 @@ private class FlinkLogicalExpandConverter
     val newInput = RelOptRule.convert(expand.getInput, FlinkConventions.LOGICAL)
     FlinkLogicalExpand.create(
       newInput,
-      expand.getRowType,
       expand.projects,
       expand.expandIdIndex)
   }
@@ -72,11 +74,10 @@ object FlinkLogicalExpand {
 
   def create(
       input: RelNode,
-      outputRowType: RelDataType,
       projects: util.List[util.List[RexNode]],
       expandIdIndex: Int): FlinkLogicalExpand = {
     val cluster = input.getCluster
     val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).simplify()
-    new FlinkLogicalExpand(cluster, traitSet, input, outputRowType, projects, expandIdIndex)
+    new FlinkLogicalExpand(cluster, traitSet, input, projects, expandIdIndex)
   }
 }
