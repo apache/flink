@@ -312,24 +312,25 @@ public class ExecutionGraphTestUtils {
     }
 
     /** Creates an execution graph containing the given vertices. */
-    public static ExecutionGraph createSimpleTestGraph(JobVertex... vertices) throws Exception {
+    public static DefaultExecutionGraph createSimpleTestGraph(JobVertex... vertices)
+            throws Exception {
         return createExecutionGraph(TestingUtils.defaultExecutor(), vertices);
     }
 
-    public static ExecutionGraph createExecutionGraph(
+    public static DefaultExecutionGraph createExecutionGraph(
             ScheduledExecutorService executor, JobVertex... vertices) throws Exception {
 
         return createExecutionGraph(executor, Time.seconds(10L), vertices);
     }
 
-    public static ExecutionGraph createExecutionGraph(
+    public static DefaultExecutionGraph createExecutionGraph(
             ScheduledExecutorService executor, Time timeout, JobVertex... vertices)
             throws Exception {
 
         checkNotNull(vertices);
         checkNotNull(timeout);
 
-        ExecutionGraph executionGraph =
+        DefaultExecutionGraph executionGraph =
                 TestingDefaultExecutionGraphBuilder.newBuilder()
                         .setJobGraph(JobGraphTestUtils.streamingJobGraph(vertices))
                         .setFutureExecutor(executor)
