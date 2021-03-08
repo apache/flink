@@ -75,7 +75,7 @@ public class TableConfig {
     private MathContext decimalContext = MathContext.DECIMAL128;
 
     /** A configuration object to hold all key/value configuration. */
-    private Configuration configuration = new Configuration();
+    private final Configuration configuration = new Configuration();
 
     /** Gives direct access to the underlying key-value map for advanced configuration. */
     public Configuration getConfiguration() {

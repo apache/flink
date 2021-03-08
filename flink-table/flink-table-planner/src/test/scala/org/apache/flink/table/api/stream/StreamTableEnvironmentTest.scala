@@ -30,6 +30,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.java.internal.{StreamTableEnvironmentImpl => JStreamTableEnvironmentImpl}
 import org.apache.flink.table.api.bridge.java.{StreamTableEnvironment => JStreamTableEnv}
 import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.catalog.FunctionCatalog
 import org.apache.flink.table.executor.StreamExecutor
 import org.apache.flink.table.module.ModuleManager
@@ -40,7 +41,7 @@ import org.apache.flink.table.utils.{CatalogManagerMocks, TableTestBase}
 import org.apache.flink.types.Row
 
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
-import org.junit.Test
+import org.junit.{Assert, Test}
 import org.mockito.Mockito.{mock, when}
 
 import java.lang.{Integer => JInt, Long => JLong}
@@ -404,6 +405,36 @@ class StreamTableEnvironmentTest extends TableTestBase {
     val actual = util.tableEnv.sqlQuery("select * from MyTable where a > 10").explain()
     val expected = readFromResource("testExplainSqlWithSelect0.out")
     assertEquals(replaceStageId(expected), replaceStageId(actual))
+  }
+
+  @Test
+  def testSetPlannerType(): Unit = {
+    val util = streamTestUtil()
+    val createTableStmt =
+      """
+        |CREATE TABLE MyTable (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult1 = util.tableEnv.executeSql(createTableStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+
+    // set planner type
+    util.tableEnv.getConfig.getConfiguration
+      .set(TableConfigOptions.TABLE_PLANNER, PlannerType.BLINK)
+    // validate
+    thrown.expect(classOf[IllegalArgumentException])
+    thrown.expectMessage(
+      "Mismatch between configured planner and actual planner. " +
+      "Currently, the 'execution.runtime-mode' and 'table.planner' can only be set " +
+      "when instantiating the table environment. Subsequent changes are not supported. " +
+      "Please instantiate a new TableEnvironment if necessary.")
+    util.tableEnv.explainSql("select * from MyTable where a > 10")
   }
 
   private def prepareSchemaExpressionParser:

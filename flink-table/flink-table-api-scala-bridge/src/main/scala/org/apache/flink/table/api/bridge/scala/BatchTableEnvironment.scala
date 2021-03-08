@@ -17,9 +17,11 @@
  */
 package org.apache.flink.table.api.bridge.scala
 
-import org.apache.flink.api.common.JobExecutionResult
+import org.apache.flink.api.common.{JobExecutionResult, RuntimeExecutionMode}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
+import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE
 import org.apache.flink.table.api.{TableEnvironment, _}
 import org.apache.flink.table.catalog.{CatalogManager, GenericInMemoryCatalog}
 import org.apache.flink.table.descriptors.{BatchTableDescriptor, ConnectorDescriptor}
@@ -356,7 +358,11 @@ object BatchTableEnvironment {
     * @param executionEnvironment The Scala batch [[ExecutionEnvironment]] of the TableEnvironment.
     */
   def create(executionEnvironment: ExecutionEnvironment): BatchTableEnvironment = {
-    create(executionEnvironment, new TableConfig)
+    val configuration = new Configuration
+    configuration.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH)
+    val config = new TableConfig();
+    config.addConfiguration(configuration)
+    create(executionEnvironment, config)
   }
 
   /**

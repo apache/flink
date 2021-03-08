@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.planner.delegation
 
+import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.api.{ExplainDetail, TableConfig, TableException, TableSchema}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectIdentifier}
@@ -79,7 +81,6 @@ class BatchPlanner(
 
   override protected def translateToPlan(execGraph: ExecNodeGraph): util.List[Transformation[_]] = {
     val planner = createDummyPlanner()
-    planner.overrideEnvParallelism()
 
     execGraph.getRootNodes.map {
       case node: BatchExecNode[_] => node.translateToPlan(planner)
@@ -95,6 +96,7 @@ class BatchPlanner(
 
   override def explain(operations: util.List[Operation], extraDetails: ExplainDetail*): String = {
     require(operations.nonEmpty, "operations should not be empty")
+    validateAndOverrideConfiguration
     val sinkRelNodes = operations.map {
       case queryOperation: QueryOperation =>
         val relNode = getRelBuilder.queryOperation(queryOperation).build()
@@ -168,5 +170,17 @@ class BatchPlanner(
 
   override def explainJsonPlan(jsonPlan: String, extraDetails: ExplainDetail*): String = {
     throw new TableException("This method is not supported for batch planner now.")
+  }
+
+  override def validateAndOverrideConfiguration(): Unit = {
+    super.validateAndOverrideConfiguration();
+    if (!config.getConfiguration.get(ExecutionOptions.RUNTIME_MODE)
+      .equals(RuntimeExecutionMode.BATCH)) {
+      throw new IllegalArgumentException(
+        "Mismatch between configured runtime mode and actual runtime mode. " +
+          "Currently, the 'execution.runtime-mode' can only be set when instantiating the " +
+          "table environment. Subsequent changes are not supported. " +
+          "Please instantiate a new TableEnvironment if necessary.")
+    }
   }
 }
