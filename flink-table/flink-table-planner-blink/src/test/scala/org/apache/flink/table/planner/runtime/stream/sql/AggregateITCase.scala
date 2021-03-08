@@ -1376,4 +1376,70 @@ class AggregateITCase(
       "3,z")
     assertEquals(expected2.sorted, sink2.getRetractResults.sorted)
   }
+
+  @Test
+  def testCoalesceOnGroupingSets(): Unit = {
+    val empsData = List(
+      (100L, "Fred", 10, null, null, 40L, 25, true, false),
+      (110L, "Eric", 20, "M", "San Francisco", 3L, 80, null, false),
+      (110L, "John", 40, "M", "Vancouver", 2L, null, false, true),
+      (120L, "Wilma", 20, "F", null, 1L, 5, null, true),
+      (130L, "Alice", 40, "F", "Vancouver", 2L, null, false, true))
+    val tableA = failingDataSource(empsData)
+      .toTable(tEnv, 'empno, 'name, 'deptno, 'gender, 'city, 'empid, 'age, 'slacker, 'manager)
+    tEnv.registerTable("emps", tableA)
+    val sql =
+      s"""
+         |select
+         |  gender, city, coalesce(deptno, -1), count(*) as cnt
+         |from emps group by grouping sets ((gender, city), (gender, city, deptno))
+         |""".stripMargin
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+    val expected = List(
+      "F,Vancouver,-1,1",
+      "F,Vancouver,40,1",
+      "F,null,-1,1",
+      "F,null,20,1",
+      "M,San Francisco,-1,1",
+      "M,San Francisco,20,1",
+      "M,Vancouver,-1,1",
+      "M,Vancouver,40,1",
+      "null,null,-1,1",
+      "null,null,10,1")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testBooleanColumnOnGroupingSets(): Unit = {
+    val empsData = List(
+      (100L, "Fred", 10, null, null, 40L, 25, true, false),
+      (110L, "Eric", 20, "M", "San Francisco", 3L, 80, null, false),
+      (110L, "John", 40, "M", "Vancouver", 2L, null, false, true),
+      (120L, "Wilma", 20, "F", null, 1L, 5, null, true),
+      (130L, "Alice", 40, "F", "Vancouver", 2L, null, false, true))
+    val tableA = failingDataSource(empsData)
+      .toTable(tEnv, 'empno, 'name, 'deptno, 'gender, 'city, 'empid, 'age, 'slacker, 'manager)
+    tEnv.registerTable("emps", tableA)
+    val sql =
+      s"""
+         |select
+         |  gender, city, manager, count(*) as cnt
+         |from emps group by grouping sets ((city), (gender, city, manager))
+         |""".stripMargin
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+    val expected = List(
+      "F,Vancouver,true,1",
+      "F,null,true,1",
+      "M,San Francisco,false,1",
+      "M,Vancouver,true,1",
+      "null,San Francisco,null,1",
+      "null,Vancouver,null,2",
+      "null,null,false,1",
+      "null,null,null,2")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
 }

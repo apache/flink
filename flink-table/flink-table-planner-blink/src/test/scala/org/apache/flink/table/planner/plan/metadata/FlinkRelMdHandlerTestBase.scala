@@ -261,12 +261,9 @@ class FlinkRelMdHandlerTestBase {
   // id, null, score, age, height, null, class, 5
   protected lazy val (logicalExpand, flinkLogicalExpand, batchExpand, streamExpand) = {
     val cluster = studentLogicalScan.getCluster
-    val expandOutputType = ExpandUtil.buildExpandRowType(
-      cluster.getTypeFactory, studentLogicalScan.getRowType, Array.empty[Integer])
     val expandProjects = ExpandUtil.createExpandProjects(
       studentLogicalScan.getCluster.getRexBuilder,
       studentLogicalScan.getRowType,
-      expandOutputType,
       ImmutableBitSet.of(1, 3, 5),
       ImmutableList.of(
         ImmutableBitSet.of(1, 3, 5),
@@ -274,16 +271,16 @@ class FlinkRelMdHandlerTestBase {
         ImmutableBitSet.of(3)),
       Array.empty[Integer])
     val logicalExpand = new LogicalExpand(cluster, studentLogicalScan.getTraitSet,
-      studentLogicalScan, expandOutputType, expandProjects, 7)
+      studentLogicalScan, expandProjects, 7)
 
     val flinkLogicalExpand = new FlinkLogicalExpand(cluster, flinkLogicalTraits,
-      studentFlinkLogicalScan, expandOutputType, expandProjects, 7)
+      studentFlinkLogicalScan, expandProjects, 7)
 
     val batchExpand = new BatchPhysicalExpand(cluster, batchPhysicalTraits,
-      studentBatchScan, expandOutputType, expandProjects, 7)
+      studentBatchScan, expandProjects, 7)
 
     val streamExecExpand = new StreamPhysicalExpand(cluster, streamPhysicalTraits,
-      studentStreamScan, expandOutputType, expandProjects, 7)
+      studentStreamScan, expandProjects, 7)
 
     (logicalExpand, flinkLogicalExpand, batchExpand, streamExecExpand)
   }
