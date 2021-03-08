@@ -1581,3 +1581,23 @@ SqlUseModules SqlUseModules() :
         return new SqlUseModules(s.end(this), moduleNames);
     }
 }
+
+/**
+* Parses a show modules statement.
+* SHOW [FULL] MODULES;
+*/
+SqlShowModules SqlShowModules() :
+{
+    SqlParserPos startPos;
+    boolean requireFull = false;
+}
+{
+    <SHOW> { startPos = getPos(); }
+    [
+      <FULL> { requireFull = true; }
+    ]
+    <MODULES>
+    {
+        return new SqlShowModules(startPos.plus(getPos()), requireFull);
+    }
+}

@@ -93,7 +93,8 @@ public interface TableResult {
      * the column name of `SHOW DATABASES` is "database name",
      * the column name of `SHOW TABLES` is "table name",
      * the column name of `SHOW VIEWS` is "view name",
-     * the column name of `SHOW FUNCTIONS` is "function name".
+     * the column name of `SHOW FUNCTIONS` is "function name",
+     * the column name of `SHOW MODULES` is "module name".
      * </pre>
      *
      * <p>The schema of DESCRIBE:

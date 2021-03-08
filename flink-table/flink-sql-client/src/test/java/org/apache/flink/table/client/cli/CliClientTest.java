@@ -113,15 +113,7 @@ public class CliClientTest extends TestLogger {
         verifySqlCompletion(
                 "show t ", 6, Collections.emptyList(), Collections.singletonList("SET"));
         verifySqlCompletion(
-                "show",
-                7,
-                Collections.singletonList("MODULES;"),
-                Collections.singletonList("QUIT;"));
-        verifySqlCompletion(
-                "show ",
-                4,
-                Collections.singletonList("MODULES;"),
-                Collections.singletonList("QUIT;"));
+                "show ", 4, Collections.singletonList("HintA"), Collections.singletonList("QUIT;"));
         verifySqlCompletion(
                 "show modules", 13, Collections.emptyList(), Collections.singletonList("QUIT;"));
     }
@@ -487,11 +479,6 @@ public class CliClientTest extends TestLogger {
                                 Collections.singletonList(Row.of(-1L)).iterator()));
             }
             return TestTableResult.TABLE_RESULT_OK;
-        }
-
-        @Override
-        public List<String> listModules(String sessionId) throws SqlExecutionException {
-            return null;
         }
 
         @Override
