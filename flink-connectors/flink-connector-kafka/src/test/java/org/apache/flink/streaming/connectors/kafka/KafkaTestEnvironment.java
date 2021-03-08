@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.connector.kafka.source.KafkaSourceBuilder;
 import org.apache.flink.networking.NetworkFailuresProxy;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
@@ -147,6 +148,25 @@ public abstract class KafkaTestEnvironment {
     }
 
     public abstract <T> FlinkKafkaConsumerBase<T> getConsumer(
+            List<String> topics, KafkaDeserializationSchema<T> readSchema, Properties props);
+
+    public <T> KafkaSourceBuilder<T> getSourceBuilder(
+            List<String> topics, DeserializationSchema<T> deserializationSchema, Properties props) {
+        return getSourceBuilder(
+                topics, new KafkaDeserializationSchemaWrapper<T>(deserializationSchema), props);
+    }
+
+    public <T> KafkaSourceBuilder<T> getSourceBuilder(
+            String topic, KafkaDeserializationSchema<T> readSchema, Properties props) {
+        return getSourceBuilder(Collections.singletonList(topic), readSchema, props);
+    }
+
+    public <T> KafkaSourceBuilder<T> getSourceBuilder(
+            String topic, DeserializationSchema<T> deserializationSchema, Properties props) {
+        return getSourceBuilder(Collections.singletonList(topic), deserializationSchema, props);
+    }
+
+    public abstract <T> KafkaSourceBuilder<T> getSourceBuilder(
             List<String> topics, KafkaDeserializationSchema<T> readSchema, Properties props);
 
     public abstract <K, V> Collection<ConsumerRecord<K, V>> getAllRecordsFromTopic(
