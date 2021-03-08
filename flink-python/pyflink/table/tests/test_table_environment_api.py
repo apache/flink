@@ -43,7 +43,7 @@ from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkOldStreamTableTestCase, \
     PyFlinkOldBatchTableTestCase, PyFlinkBlinkBatchTableTestCase, PyFlinkBlinkStreamTableTestCase, \
     PyFlinkLegacyBlinkBatchTableTestCase, PyFlinkLegacyFlinkStreamTableTestCase, \
-    PyFlinkLegacyBlinkStreamTableTestCase
+    PyFlinkLegacyBlinkStreamTableTestCase, _load_specific_flink_module_jars
 from pyflink.util.utils import get_j_env_configuration
 
 
@@ -116,6 +116,10 @@ class TableEnvironmentTest(object):
             t_env.unload_module, 'core')
 
     def test_use_modules(self):
+        # please do not change this order since ModuleMock depends on FunctionDefinitionMock
+        _load_specific_flink_module_jars('/flink-table/flink-table-common')
+        _load_specific_flink_module_jars('/flink-table/flink-table-api-java')
+
         t_env = self.t_env
         t_env.load_module('x', Module(
             get_gateway().jvm.ModuleMock("x")
@@ -1012,11 +1016,15 @@ class BlinkBatchTableEnvironmentTests(PyFlinkBlinkBatchTableTestCase):
             self.t_env.use_modules, 'core', 'dummy')
 
     def test_use_modules(self):
+        # please do not change this order since ModuleMock depends on FunctionDefinitionMock
+        _load_specific_flink_module_jars('/flink-table/flink-table-common')
+        _load_specific_flink_module_jars('/flink-table/flink-table-api-java')
+
         self.t_env.load_module('x', Module(
-            get_gateway().jvm.ModuleMock("x")
+            get_gateway().jvm.org.apache.flink.table.utils.ModuleMock("x")
         ))
         self.t_env.load_module('y', Module(
-            get_gateway().jvm.ModuleMock("y")
+            get_gateway().jvm.org.apache.flink.table.utils.ModuleMock("y")
         ))
         self.check_list_modules('core', 'x', 'y')
         self.check_list_full_modules(3, 'core', 'x', 'y')
