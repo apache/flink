@@ -47,7 +47,6 @@ public class JsonSerdeCoverageTest {
                     "StreamExecIntervalJoin",
                     "StreamExecLookupJoin",
                     "StreamExecTemporalJoin",
-                    "StreamExecGroupAggregate",
                     "StreamExecPythonGroupAggregate",
                     "StreamExecLocalGroupAggregate",
                     "StreamExecGlobalGroupAggregate",
@@ -75,7 +74,6 @@ public class JsonSerdeCoverageTest {
                     "StreamExecMiniBatchAssigner",
                     "StreamExecMatch",
                     "StreamExecUnion",
-                    "StreamExecExchange",
                     "StreamExecValues",
                     "StreamExecDeduplicate");
 
