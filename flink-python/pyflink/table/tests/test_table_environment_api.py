@@ -122,10 +122,10 @@ class TableEnvironmentTest(object):
 
         t_env = self.t_env
         t_env.load_module('x', Module(
-            get_gateway().jvm.ModuleMock("x")
+            get_gateway().jvm.org.apache.flink.table.utils.ModuleMock("x")
         ))
         t_env.load_module('y', Module(
-            get_gateway().jvm.ModuleMock("y")
+            get_gateway().jvm.org.apache.flink.table.utils.ModuleMock("y")
         ))
         self.check_list_modules('core', 'x', 'y')
         self.check_list_full_modules(3, 'core', 'x', 'y')
