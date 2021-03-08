@@ -49,6 +49,7 @@ import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
+import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionStateBackend;
 import org.apache.flink.util.IOUtils;
@@ -122,6 +123,7 @@ public class StateBackendBenchmarkUtils {
                                         recoveryBaseDir, new JobID(), new JobVertexID(), 0)),
                         EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB,
                         TtlTimeProvider.DEFAULT,
+                        LatencyTrackingStateConfig.disabled(),
                         new UnregisteredMetricsGroup(),
                         Collections.emptyList(),
                         AbstractStateBackend.getCompressionDecorator(executionConfig),
@@ -151,6 +153,7 @@ public class StateBackendBenchmarkUtils {
                         keyGroupRange,
                         executionConfig,
                         TtlTimeProvider.DEFAULT,
+                        LatencyTrackingStateConfig.disabled(),
                         Collections.emptyList(),
                         AbstractStateBackend.getCompressionDecorator(executionConfig),
                         new LocalRecoveryConfig(
