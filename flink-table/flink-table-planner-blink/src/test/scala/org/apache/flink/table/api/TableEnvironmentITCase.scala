@@ -18,12 +18,15 @@
 
 package org.apache.flink.table.api
 
+import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.common.typeinfo.Types.STRING
 import org.apache.flink.api.scala._
+import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecutionEnvironment}
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment => ScalaStreamTableEnvironment, _}
+import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableEnvironmentInternal}
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.functions.TestGenericUDF
@@ -33,6 +36,7 @@ import org.apache.flink.table.planner.utils.TableTestUtil.{readFromResource, rep
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks, TestTableSourceWithTime}
 import org.apache.flink.types.{Row, RowKind}
 import org.apache.flink.util.{CollectionUtil, FileUtils, TestLogger}
+
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit.rules.{ExpectedException, TemporaryFolder}
 import org.junit.runner.RunWith
@@ -78,6 +82,45 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
       case _ => throw new UnsupportedOperationException("unsupported tableEnvName: " + tableEnvName)
     }
     TestTableSourceSinks.createPersonCsvTemporaryTable(tEnv, "MyTable")
+  }
+
+  @Test
+  def testSetPlannerType: Unit = {
+    tEnv.getConfig.getConfiguration.set(TableConfigOptions.TABLE_PLANNER, PlannerType.OLD)
+
+    TestTableSourceSinks.createCsvTemporarySinkTable(
+      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink1")
+
+
+    thrown.expect(classOf[IllegalArgumentException])
+    thrown.expectMessage(
+      "Mismatch between configured planner and actual planner. " +
+        "Currently, the 'table.planner' can only be set " +
+        "when instantiating the table environment. Subsequent changes are not supported. " +
+        "Please instantiate a new TableEnvironment if necessary."
+    )
+
+    tEnv.executeSql("insert into MySink1 select first from MyTable")
+  }
+
+  @Test
+  def testSetExecutionMode(): Unit = {
+    if (isStreaming) {
+      tEnv.getConfig.getConfiguration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
+    } else {
+      tEnv.getConfig.getConfiguration.set(ExecutionOptions.RUNTIME_MODE,
+        RuntimeExecutionMode.STREAMING)
+    }
+
+    thrown.expect(classOf[IllegalArgumentException])
+    thrown.expectMessage(
+      "Mismatch between configured runtime mode and actual runtime mode. " +
+        "Currently, the 'execution.runtime-mode' can only be set when instantiating the " +
+        "table environment. Subsequent changes are not supported. " +
+        "Please instantiate a new TableEnvironment if necessary."
+    )
+
+    tEnv.explainSql("select first from MyTable")
   }
 
   @Test

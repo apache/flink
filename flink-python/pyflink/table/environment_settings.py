@@ -17,6 +17,8 @@
 ################################################################################
 from pyflink.java_gateway import get_gateway
 
+from pyflink.common import Configuration
+
 __all__ = ['EnvironmentSettings']
 
 
@@ -174,6 +176,17 @@ class EnvironmentSettings(object):
         """
         return self._j_environment_settings.isStreamingMode()
 
+    def to_configuration(self) -> Configuration:
+        """
+        Convert to `pyflink.common.Configuration`.
+
+        It sets the `table.planner` and `execution.runtime-mode` according to the current
+        EnvironmentSetting.
+
+        :return: Configuration with specified value.
+        """
+        return Configuration(j_configuration=self._j_environment_settings.toConfiguration())
+
     @staticmethod
     def new_instance() -> 'EnvironmentSettings.Builder':
         """
@@ -185,3 +198,13 @@ class EnvironmentSettings(object):
         :return: A builder of EnvironmentSettings.
         """
         return EnvironmentSettings.Builder()
+
+    @staticmethod
+    def from_configuration(config: Configuration) -> 'EnvironmentSettings':
+        """
+        Create the EnvironmentSetting with specified Configuration.
+
+        :return: EnvironmentSettings.
+        """
+        return EnvironmentSettings(
+            get_gateway().jvm.EnvironmentSettings.fromConfiguration(config._j_configuration))

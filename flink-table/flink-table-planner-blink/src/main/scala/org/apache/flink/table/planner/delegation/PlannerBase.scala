@@ -22,7 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, TableConfigOptions}
-import org.apache.flink.table.api.{SqlDialect, TableConfig, TableEnvironment, TableException, TableSchema}
+import org.apache.flink.table.api.{PlannerType, SqlDialect, TableConfig, TableEnvironment, TableException, TableSchema}
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.delegation.{Executor, Parser, Planner}
@@ -152,6 +152,7 @@ abstract class PlannerBase(
 
   override def translate(
       modifyOperations: util.List[ModifyOperation]): util.List[Transformation[_]] = {
+    validateAndOverrideConfiguration
     if (modifyOperations.isEmpty) {
       return List.empty[Transformation[_]]
     }
@@ -181,12 +182,6 @@ abstract class PlannerBase(
     */
   @VisibleForTesting
   private[flink] def translateToRel(modifyOperation: ModifyOperation): RelNode = {
-    // prepare the execEnv before translating
-    getExecEnv.configure(
-      getTableConfig.getConfiguration,
-      Thread.currentThread().getContextClassLoader)
-    overrideEnvParallelism()
-
     modifyOperation match {
       case s: UnregisteredSinkModifyOperation[_] =>
         val input = getRelBuilder.queryOperation(s.getChild).build()
@@ -418,6 +413,7 @@ abstract class PlannerBase(
     if (!isStreamingMode) {
       throw new TableException("Only streaming mode is supported now.")
     }
+    validateAndOverrideConfiguration()
     val relNodes = modifyOperations.map(translateToRel)
     val optimizedRelNodes = optimize(relNodes)
     val execGraph = translateToExecNodeGraph(optimizedRelNodes)
@@ -428,10 +424,8 @@ abstract class PlannerBase(
     if (!isStreamingMode) {
       throw new TableException("Only streaming mode is supported now.")
     }
+    validateAndOverrideConfiguration()
     val execGraph = ExecNodeGraph.createExecNodeGraph(jsonPlan, createSerdeContext)
-    // prepare the execEnv before translating
-    getExecEnv.configure(getTableConfig.getConfiguration, getClassLoader)
-    overrideEnvParallelism()
     translateToPlan(execGraph)
   }
 
@@ -447,5 +441,24 @@ abstract class PlannerBase(
 
   private def getClassLoader: ClassLoader = {
     Thread.currentThread().getContextClassLoader
+  }
+
+  /**
+   * Different planner has different rules. Validate the planner and runtime mode is consistent with
+   * the configuration before planner do optimization with [[ModifyOperation]] or other works.
+   */
+  protected def validateAndOverrideConfiguration(): Unit = {
+    if (!config.getConfiguration.get(TableConfigOptions.TABLE_PLANNER).equals(PlannerType.BLINK)) {
+      throw new IllegalArgumentException(
+        "Mismatch between configured planner and actual planner. " +
+          "Currently, the 'table.planner' can only be set when instantiating the " +
+          "table environment. Subsequent changes are not supported. " +
+          "Please instantiate a new TableEnvironment if necessary.");
+    }
+
+    getExecEnv.configure(
+      getTableConfig.getConfiguration,
+      Thread.currentThread().getContextClassLoader)
+    overrideEnvParallelism()
   }
 }

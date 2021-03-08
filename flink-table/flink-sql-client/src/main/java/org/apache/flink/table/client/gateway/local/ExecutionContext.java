@@ -503,7 +503,7 @@ public class ExecutionContext<ClusterID> {
         final EnvironmentSettings settings = environment.getExecution().getEnvironmentSettings();
         final boolean noInheritedState = sessionState == null;
         // Step 0.0 Initialize the table configuration.
-        final TableConfig config = createTableConfig();
+        final TableConfig config = createTableConfig(settings);
 
         if (noInheritedState) {
             // --------------------------------------------------------------------------------------------------------------
@@ -575,9 +575,14 @@ public class ExecutionContext<ClusterID> {
         }
     }
 
-    private TableConfig createTableConfig() {
+    private TableConfig createTableConfig(EnvironmentSettings settings) {
         final TableConfig config = new TableConfig();
         config.addConfiguration(flinkConfig);
+        // Override the value in configuration.
+        // TODO: use `table.planner` and `execution.runtime-mode` to configure the TableEnvironment
+        // But we need to wait for the FLINK-21485
+        config.addConfiguration(settings.toConfiguration());
+
         Configuration conf = config.getConfiguration();
         environment.getConfiguration().asMap().forEach(conf::setString);
         ExecutionEntry execution = environment.getExecution();

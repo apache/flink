@@ -21,6 +21,7 @@ package org.apache.flink.table.api.batch
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.catalog.{GenericInMemoryCatalog, ObjectPath}
 import org.apache.flink.table.runtime.stream.sql.FunctionITCase.{SimpleScalarFunction, TestUDF}
 import org.apache.flink.table.utils.TableTestBase
@@ -28,7 +29,7 @@ import org.apache.flink.table.utils.TableTestUtil.{readFromResource, replaceStag
 import org.apache.flink.types.Row
 
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
-import org.junit.Test
+import org.junit.{Assert, Test}
 
 import java.util
 
@@ -572,6 +573,37 @@ class BatchTableEnvironmentTest extends TableTestBase {
         Row.of("c", "STRING", Boolean.box(true), null, null, null)
       ).iterator(),
       tableResult2.collect())
+  }
+
+  @Test
+  def testSettingPlanner(): Unit = {
+    val util = batchTestUtil()
+    val createTableStmt =
+      """
+        |CREATE TABLE MyTable (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult1 = util.tableEnv.executeSql(createTableStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+
+    util.tableEnv.getConfig.getConfiguration
+      .set(TableConfigOptions.TABLE_PLANNER, PlannerType.BLINK)
+
+    thrown.expect(classOf[IllegalArgumentException])
+    thrown.expectMessage(
+      "Mismatch between configured planner and actual planner. " +
+        "Currently, the 'execution.runtime-mode' and 'table.planner' can only be set " +
+        "when instantiating the table environment. Subsequent changes are not supported. " +
+        "Please instantiate a new TableEnvironment if necessary."
+    )
+
+    util.tableEnv.sqlQuery("select * from MyTable where a > 10").explain()
   }
 
   private def checkData(expected: util.Iterator[Row], actual: util.Iterator[Row]): Unit = {
