@@ -49,6 +49,7 @@ import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.ShowModulesOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
@@ -103,8 +104,10 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /** Test cases for {@link SqlToOperationConverter}. */
 public class SqlToOperationConverterTest {
@@ -345,6 +348,28 @@ public class SqlToOperationConverterTest {
 
         assertEquals(expectedModuleNames, useModulesOperation.getModuleNames());
         assertEquals("USE MODULES: [x, y, z]", useModulesOperation.asSummaryString());
+    }
+
+    @Test
+    public void testShowModules() {
+        final String sql = "SHOW MODULES";
+        Operation operation = parse(sql, SqlDialect.DEFAULT);
+        assert operation instanceof ShowModulesOperation;
+        final ShowModulesOperation showModulesOperation = (ShowModulesOperation) operation;
+
+        assertFalse(showModulesOperation.requireFull());
+        assertEquals("SHOW MODULES", showModulesOperation.asSummaryString());
+    }
+
+    @Test
+    public void testShowFullModules() {
+        final String sql = "SHOW FULL MODULES";
+        Operation operation = parse(sql, SqlDialect.DEFAULT);
+        assert operation instanceof ShowModulesOperation;
+        final ShowModulesOperation showModulesOperation = (ShowModulesOperation) operation;
+
+        assertTrue(showModulesOperation.requireFull());
+        assertEquals("SHOW FULL MODULES", showModulesOperation.asSummaryString());
     }
 
     @Test

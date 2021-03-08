@@ -162,11 +162,6 @@ public class CliResultViewTest {
         }
 
         @Override
-        public List<String> listModules(String sessionId) throws SqlExecutionException {
-            return null;
-        }
-
-        @Override
         public Parser getSqlParser(String sessionId) {
             return null;
         }

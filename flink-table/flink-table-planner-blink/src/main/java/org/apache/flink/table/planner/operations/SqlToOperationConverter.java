@@ -56,6 +56,7 @@ import org.apache.flink.sql.parser.dql.SqlShowCurrentCatalog;
 import org.apache.flink.sql.parser.dql.SqlShowCurrentDatabase;
 import org.apache.flink.sql.parser.dql.SqlShowDatabases;
 import org.apache.flink.sql.parser.dql.SqlShowFunctions;
+import org.apache.flink.sql.parser.dql.SqlShowModules;
 import org.apache.flink.sql.parser.dql.SqlShowPartitions;
 import org.apache.flink.sql.parser.dql.SqlShowTables;
 import org.apache.flink.sql.parser.dql.SqlShowViews;
@@ -90,6 +91,7 @@ import org.apache.flink.table.operations.ShowCurrentCatalogOperation;
 import org.apache.flink.table.operations.ShowCurrentDatabaseOperation;
 import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
+import org.apache.flink.table.operations.ShowModulesOperation;
 import org.apache.flink.table.operations.ShowPartitionsOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.ShowViewsOperation;
@@ -206,6 +208,8 @@ public class SqlToOperationConverter {
         } else if (validated instanceof SqlShowCurrentCatalog) {
             return Optional.of(
                     converter.convertShowCurrentCatalog((SqlShowCurrentCatalog) validated));
+        } else if (validated instanceof SqlShowModules) {
+            return Optional.of(converter.convertShowModules((SqlShowModules) validated));
         } else if (validated instanceof SqlUnloadModule) {
             return Optional.of(converter.convertUnloadModule((SqlUnloadModule) validated));
         } else if (validated instanceof SqlUseCatalog) {
@@ -896,6 +900,11 @@ public class SqlToOperationConverter {
     /** Convert USE MODULES statement. */
     private Operation convertUseModules(SqlUseModules sqlUseModules) {
         return new UseModulesOperation(sqlUseModules.moduleNames());
+    }
+
+    /** Convert SHOW [FULL] MODULES statement. */
+    private Operation convertShowModules(SqlShowModules sqlShowModules) {
+        return new ShowModulesOperation(sqlShowModules.requireFull());
     }
 
     /** Fallback method for sql query. */

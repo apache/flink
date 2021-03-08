@@ -150,11 +150,6 @@ class TestingExecutor implements Executor {
     }
 
     @Override
-    public List<String> listModules(String sessionId) throws SqlExecutionException {
-        throw new UnsupportedOperationException("Not implemented.");
-    }
-
-    @Override
     public Parser getSqlParser(String sessionId) {
         return helper.getSqlParser();
     }

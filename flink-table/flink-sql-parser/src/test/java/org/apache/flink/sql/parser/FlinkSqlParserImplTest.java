@@ -1189,6 +1189,13 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
                 .fails("(?s).*Encountered \"\\\\'core\\\\'\" at line 1, column 13.\n.*");
     }
 
+    @Test
+    public void testShowModules() {
+        sql("show modules").ok("SHOW MODULES");
+
+        sql("show full modules").ok("SHOW FULL MODULES");
+    }
+
     public static BaseMatcher<SqlNode> validated(String validatedSql) {
         return new TypeSafeDiagnosingMatcher<SqlNode>() {
             @Override

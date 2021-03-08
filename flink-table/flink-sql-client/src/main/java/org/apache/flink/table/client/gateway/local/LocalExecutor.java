@@ -311,13 +311,6 @@ public class LocalExecutor implements Executor {
     }
 
     @Override
-    public List<String> listModules(String sessionId) throws SqlExecutionException {
-        final ExecutionContext<?> context = getExecutionContext(sessionId);
-        final TableEnvironment tableEnv = context.getTableEnvironment();
-        return context.wrapClassLoader(() -> Arrays.asList(tableEnv.listModules()));
-    }
-
-    @Override
     public Parser getSqlParser(String sessionId) {
         final ExecutionContext<?> context = getExecutionContext(sessionId);
         final TableEnvironment tableEnv = context.getTableEnvironment();
@@ -411,6 +404,13 @@ public class LocalExecutor implements Executor {
     public void cancelQuery(String sessionId, String resultId) throws SqlExecutionException {
         final ExecutionContext<?> context = getExecutionContext(sessionId);
         cancelQueryInternal(context, resultId);
+    }
+
+    @VisibleForTesting
+    List<String> listModules(String sessionId) throws SqlExecutionException {
+        final ExecutionContext<?> context = getExecutionContext(sessionId);
+        final TableEnvironment tableEnv = context.getTableEnvironment();
+        return context.wrapClassLoader(() -> Arrays.asList(tableEnv.listModules()));
     }
 
     @VisibleForTesting

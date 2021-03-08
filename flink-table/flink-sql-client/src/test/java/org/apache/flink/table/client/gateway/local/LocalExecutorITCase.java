@@ -1631,7 +1631,7 @@ public class LocalExecutorITCase extends TestLogger {
     public void testLoadModuleWithModuleConfEnabled() throws Exception {
         // only blink planner supports LOAD MODULE syntax
         Assume.assumeTrue(planner.equals("blink"));
-        final Executor executor =
+        final LocalExecutor executor =
                 createModifiedExecutor(
                         MODULES_ENVIRONMENT_FILE, clusterClient, createModuleReplaceVars());
         final SessionContext session = new SessionContext("test-session", new Environment());
@@ -1653,7 +1653,7 @@ public class LocalExecutorITCase extends TestLogger {
     public void testUnloadModuleWithModuleConfEnabled() throws Exception {
         // only blink planner supports UNLOAD MODULE syntax
         Assume.assumeTrue(planner.equals("blink"));
-        final Executor executor =
+        final LocalExecutor executor =
                 createModifiedExecutor(
                         MODULES_ENVIRONMENT_FILE, clusterClient, createModuleReplaceVars());
         final SessionContext session = new SessionContext("test-session", new Environment());
@@ -1683,7 +1683,7 @@ public class LocalExecutorITCase extends TestLogger {
         replaceVars.put("$VAR_MAX_ROWS", "100");
         replaceVars.put("$VAR_RESULT_MODE", "table");
 
-        final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
+        final LocalExecutor executor = createModifiedExecutor(clusterClient, replaceVars);
         final SessionContext session = new SessionContext("test-session", new Environment());
         String sessionId = executor.openSession(session);
         assertEquals("test-session", sessionId);
@@ -1810,6 +1810,45 @@ public class LocalExecutorITCase extends TestLogger {
                         executor.executeSql(
                                 sessionId,
                                 "select substring_index('www.apache.org', '.', 2) from TableNumber1"));
+    }
+
+    @Test
+    public void testShowModules() throws Exception {
+        // only blink planner supports SHOW [FULL] MODULES syntax
+        Assume.assumeTrue(planner.equals("blink"));
+
+        final LocalExecutor executor =
+                createModifiedExecutor(
+                        MODULES_ENVIRONMENT_FILE, clusterClient, createModuleReplaceVars());
+        final SessionContext session = new SessionContext("test-session", new Environment());
+        String sessionId = executor.openSession(session);
+        assertEquals("test-session", sessionId);
+
+        verifyShowModules(
+                executor,
+                sessionId,
+                Arrays.asList(
+                        Row.of("core", true),
+                        Row.of("mymodule", true),
+                        Row.of("myhive", true),
+                        Row.of("myhive2", true)));
+
+        // check result after using modules
+        executor.executeSql(sessionId, "USE MODULES mymodule, core");
+        verifyShowModules(
+                executor,
+                sessionId,
+                Arrays.asList(
+                        Row.of("mymodule", true),
+                        Row.of("core", true),
+                        Row.of("myhive", false),
+                        Row.of("myhive2", false)));
+
+        // check result after unloading modules
+        executor.executeSql(sessionId, "UNLOAD MODULE mymodule");
+        executor.executeSql(sessionId, "UNLOAD MODULE myhive2");
+        verifyShowModules(
+                executor, sessionId, Arrays.asList(Row.of("core", true), Row.of("myhive", false)));
     }
 
     private void executeStreamQueryTable(
@@ -1958,6 +1997,38 @@ public class LocalExecutorITCase extends TestLogger {
             }
         }
         return actualResults;
+    }
+
+    private static TableSchema getShowModulesTableSchema(boolean requireFull) {
+        return TableSchema.builder()
+                .fields(
+                        requireFull
+                                ? new String[] {"module name", "used"}
+                                : new String[] {"module name"},
+                        requireFull
+                                ? new DataType[] {DataTypes.STRING(), DataTypes.BOOLEAN()}
+                                : new DataType[] {DataTypes.STRING()})
+                .build();
+    }
+
+    private void verifyShowModules(
+            LocalExecutor executor, String sessionId, List<Row> rowOfEntries) {
+        TableSchema showModulesTableSchema = getShowModulesTableSchema(false);
+        TableSchema showFullModulesTableSchema = getShowModulesTableSchema(true);
+        List<Row> rowOfNames =
+                rowOfEntries.stream()
+                        .filter(row -> row.getFieldAs(1))
+                        .map(row -> Row.project(row, new int[] {0}))
+                        .collect(Collectors.toList());
+
+        TableResult showModules = executor.executeSql(sessionId, "SHOW MODULES");
+        TableResult showFullModules = executor.executeSql(sessionId, "SHOW FULL MODULES");
+
+        assertEquals(showModulesTableSchema, showModules.getTableSchema());
+        assertEquals(showFullModulesTableSchema, showFullModules.getTableSchema());
+
+        assertEquals(rowOfNames, CollectionUtil.iteratorToList(showModules.collect()));
+        assertEquals(rowOfEntries, CollectionUtil.iteratorToList(showFullModules.collect()));
     }
 
     // --------------------------------------------------------------------------------------------
