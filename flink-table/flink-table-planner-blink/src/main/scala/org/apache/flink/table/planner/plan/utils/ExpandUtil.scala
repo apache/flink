@@ -19,11 +19,11 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder
-import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, LogicalExpand}
+import org.apache.flink.table.planner.plan.nodes.calcite.Expand
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptCluster
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory, RelDataTypeField}
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
@@ -59,7 +59,7 @@ object ExpandUtil {
     //      GROUP BY GROUPING SETS ((a, b), (a, c))
     // only field 'b' and 'c' need be outputted as duplicate fields.
     val groupIdExprs = AggregateUtil.getGroupIdExprIndexes(aggCalls)
-    val commonGroupSet = groupSets.asList().reduce((g1, g2) => g1.intersect(g2)).asList()
+    val commonGroupSet = groupSets.asList().reduce((g1, g2) => g1.intersect(g2))
     val duplicateFieldIndexes = aggCalls.zipWithIndex.flatMap {
       case (aggCall, idx) =>
         // filterArg should also be considered here.
@@ -69,10 +69,10 @@ object ExpandUtil {
         }
         if (groupIdExprs.contains(idx)) {
           List.empty[Integer]
-        } else if (commonGroupSet.containsAll(allArgList)) {
+        } else if (commonGroupSet.asList().containsAll(allArgList)) {
           List.empty[Integer]
         } else {
-          allArgList.diff(commonGroupSet)
+          allArgList.diff(commonGroupSet.asList())
         }
     }.intersect(groupSet.asList()).sorted.toArray[Integer]
 
@@ -82,8 +82,15 @@ object ExpandUtil {
     val expandIdIdxInExpand = inputType.getFieldCount
     val duplicateFieldMap = buildDuplicateFieldMap(inputType, duplicateFieldIndexes)
 
+    val unionGroupSet = groupSets.asList().reduce((g1, g2) => g1.union(g2))
+    // unionGroupSet - commonGroupSet
+    val nullabilityMayChangedIndexes = unionGroupSet.except(commonGroupSet).toList
+
     val expandRowType = buildExpandRowType(
-      cluster.getTypeFactory, inputType, duplicateFieldIndexes)
+      cluster.getTypeFactory,
+      inputType,
+      duplicateFieldIndexes,
+      nullabilityMayChangedIndexes)
     val expandProjects = createExpandProjects(
       relBuilder.getRexBuilder,
       inputType,
@@ -134,10 +141,20 @@ object ExpandUtil {
   def buildExpandRowType(
       typeFactory: RelDataTypeFactory,
       inputType: RelDataType,
-      duplicateFieldIndexes: Array[Integer]): RelDataType = {
+      duplicateFieldIndexes: Array[Integer],
+      nullabilityMayChangedIndexes: util.List[Integer]): RelDataType = {
+
+    def createNewTypeIfNullabilityChanged(origField: RelDataTypeField): RelDataType = {
+      if (null != nullabilityMayChangedIndexes &&
+        nullabilityMayChangedIndexes.contains(origField.getIndex)) {
+        return typeFactory.createTypeWithNullability(origField.getType, true)
+      }
+      origField.getType
+    }
 
     // 1. add original input fields
-    val typeList = mutable.ListBuffer(inputType.getFieldList.map(_.getType): _*)
+    val typeList = mutable
+      .ListBuffer(inputType.getFieldList.map(createNewTypeIfNullabilityChanged): _*)
     val fieldNameList = mutable.ListBuffer(inputType.getFieldNames: _*)
     val allFieldNames = mutable.Set[String](fieldNameList: _*)
 
@@ -150,7 +167,7 @@ object ExpandUtil {
     // 3. add duplicate fields
     duplicateFieldIndexes.foreach {
       duplicateFieldIdx =>
-        typeList += inputType.getFieldList.get(duplicateFieldIdx).getType
+        typeList += createNewTypeIfNullabilityChanged(inputType.getFieldList.get(duplicateFieldIdx))
         fieldNameList += buildUniqueFieldName(
           allFieldNames, inputType.getFieldNames.get(duplicateFieldIdx))
     }

@@ -184,7 +184,10 @@ class FlinkRelMdUniqueGroupsTest extends FlinkRelMdHandlerTestBase {
     // column 0 is unique key
     val ts = studentLogicalScan
     val expandOutputType = ExpandUtil.buildExpandRowType(
-      ts.getCluster.getTypeFactory, ts.getRowType, Array.empty[Integer])
+      ts.getCluster.getTypeFactory,
+      ts.getRowType,
+      Array.empty[Integer],
+      ImmutableList.of(0, 1, 2, 3))
     val expandProjects1 = ExpandUtil.createExpandProjects(
       ts.getCluster.getRexBuilder,
       ts.getRowType,

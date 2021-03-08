@@ -148,6 +148,27 @@ class GroupingSetsITCase extends BatchTestBase {
   }
 
   @Test
+  def testCoalesceOnGroupingSets(): Unit = {
+    checkResult(
+      s"""
+         |select
+         |  gender, city, coalesce(deptno, -1) as deptno, count(*) as cnt
+         |from emps group by grouping sets ((gender, city), (gender, city, deptno))
+         |""".stripMargin,
+      Seq(
+        row("F", "Vancouver", -1, 1),
+        row("F", "Vancouver", 40, 1),
+        row("F", "null", -1, 1),
+        row("F", "null", 20, 1),
+        row("M", "San Francisco", -1, 1),
+        row("M", "San Francisco", 20, 1),
+        row("M", "Vancouver", -1, 1),
+        row("M", "Vancouver", 40, 1),
+        row("null", "null", -1, 1),
+        row("null", "null", 10, 1)))
+  }
+
+  @Test
   def testCube(): Unit = {
     checkResult(
       "select deptno + 1, count(*) as c from emp group by cube(deptno, gender)",

@@ -262,7 +262,10 @@ class FlinkRelMdHandlerTestBase {
   protected lazy val (logicalExpand, flinkLogicalExpand, batchExpand, streamExpand) = {
     val cluster = studentLogicalScan.getCluster
     val expandOutputType = ExpandUtil.buildExpandRowType(
-      cluster.getTypeFactory, studentLogicalScan.getRowType, Array.empty[Integer])
+      cluster.getTypeFactory,
+      studentLogicalScan.getRowType,
+      Array.empty[Integer],
+      ImmutableList.of(1))
     val expandProjects = ExpandUtil.createExpandProjects(
       studentLogicalScan.getCluster.getRexBuilder,
       studentLogicalScan.getRowType,

@@ -152,7 +152,7 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
   def testGetSelectivityOnExpand(): Unit = {
     val ts = relBuilder.scan("MyTable3").build()
     val expandOutputType = ExpandUtil.buildExpandRowType(
-      ts.getCluster.getTypeFactory, ts.getRowType, Array.empty[Integer])
+      ts.getCluster.getTypeFactory, ts.getRowType, Array.empty[Integer], ImmutableList.of(0, 1))
     val expandProjects = ExpandUtil.createExpandProjects(
       ts.getCluster.getRexBuilder,
       ts.getRowType,
@@ -290,7 +290,7 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
     relBuilder.clear()
     val ts = relBuilder.scan("MyTable4").build()
     val expandOutputType = ExpandUtil.buildExpandRowType(
-      ts.getCluster.getTypeFactory, ts.getRowType, Array.empty[Integer])
+      ts.getCluster.getTypeFactory, ts.getRowType, Array.empty[Integer], ImmutableList.of(1, 2))
     val expandProjects = ExpandUtil.createExpandProjects(
       ts.getCluster.getRexBuilder,
       ts.getRowType,
