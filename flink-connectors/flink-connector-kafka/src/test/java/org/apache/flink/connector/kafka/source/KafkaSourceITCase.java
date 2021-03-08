@@ -18,19 +18,25 @@
 
 package org.apache.flink.connector.kafka.source;
 
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.ListAccumulator;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.streaming.api.operators.StreamMap;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Collector;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.IntegerDeserializer;
@@ -64,6 +70,42 @@ public class KafkaSourceITCase {
     @AfterClass
     public static void tearDown() throws Exception {
         KafkaSourceTestEnv.tearDown();
+    }
+
+    @Test
+    public void testTimestamp() throws Throwable {
+        final String topic = "testTimestamp";
+        KafkaSourceTestEnv.createTestTopic(topic, 1, 1);
+        KafkaSourceTestEnv.produceToKafka(
+                Arrays.asList(
+                        new ProducerRecord<>(topic, 0, 1L, "key0", 0),
+                        new ProducerRecord<>(topic, 0, 2L, "key1", 1),
+                        new ProducerRecord<>(topic, 0, 3L, "key2", 2)));
+
+        KafkaSource<PartitionAndValue> source =
+                KafkaSource.<PartitionAndValue>builder()
+                        .setBootstrapServers(KafkaSourceTestEnv.brokerConnectionStrings)
+                        .setGroupId("testTimestampAndWatermark")
+                        .setTopics(topic)
+                        .setDeserializer(new TestingKafkaRecordDeserializationSchema())
+                        .setStartingOffsets(OffsetsInitializer.earliest())
+                        .setBounded(OffsetsInitializer.latest())
+                        .build();
+
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        DataStream<PartitionAndValue> stream =
+                env.fromSource(source, WatermarkStrategy.noWatermarks(), "testTimestamp");
+
+        // Verify that the timestamp and watermark are working fine.
+        stream.transform(
+                "timestampVerifier",
+                TypeInformation.of(PartitionAndValue.class),
+                new WatermarkVerifyingOperator(v -> v));
+        stream.addSink(new DiscardingSink<>());
+        JobExecutionResult result = env.execute();
+
+        assertEquals(Arrays.asList(1L, 2L, 3L), result.getAccumulatorResult("timestamp"));
     }
 
     @Test
@@ -164,6 +206,27 @@ public class KafkaSourceITCase {
         @Override
         public TypeInformation<PartitionAndValue> getProducedType() {
             return TypeInformation.of(PartitionAndValue.class);
+        }
+    }
+
+    private static class WatermarkVerifyingOperator
+            extends StreamMap<PartitionAndValue, PartitionAndValue> {
+
+        public WatermarkVerifyingOperator(
+                MapFunction<PartitionAndValue, PartitionAndValue> mapper) {
+            super(mapper);
+        }
+
+        private static final long serialVersionUID = 2868223355944228209L;
+
+        @Override
+        public void open() throws Exception {
+            getRuntimeContext().addAccumulator("timestamp", new ListAccumulator<Long>());
+        }
+
+        @Override
+        public void processElement(StreamRecord<PartitionAndValue> element) throws Exception {
+            getRuntimeContext().getAccumulator("timestamp").add(element.getTimestamp());
         }
     }
 
