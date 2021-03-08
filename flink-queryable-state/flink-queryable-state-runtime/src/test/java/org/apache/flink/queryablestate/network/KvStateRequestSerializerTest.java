@@ -40,6 +40,7 @@ import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalMapState;
+import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import org.junit.Test;
@@ -292,6 +293,7 @@ public class KvStateRequestSerializerTest {
                                 keyGroupRange,
                                 executionConfig,
                                 TtlTimeProvider.DEFAULT,
+                                LatencyTrackingStateConfig.disabled(),
                                 Collections.emptyList(),
                                 AbstractStateBackend.getCompressionDecorator(executionConfig),
                                 TestLocalRecoveryConfig.disabled(),

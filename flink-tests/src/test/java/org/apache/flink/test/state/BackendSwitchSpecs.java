@@ -39,6 +39,7 @@ import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
+import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import org.junit.rules.TemporaryFolder;
@@ -107,6 +108,7 @@ public final class BackendSwitchSpecs {
                             TestLocalRecoveryConfig.disabled(),
                             queueStateType,
                             TtlTimeProvider.DEFAULT,
+                            LatencyTrackingStateConfig.disabled(),
                             new UnregisteredMetricsGroup(),
                             stateHandles,
                             UncompressedStreamCompressionDecorator.INSTANCE,
@@ -141,6 +143,7 @@ public final class BackendSwitchSpecs {
                             keyGroupRange,
                             executionConfig,
                             TtlTimeProvider.DEFAULT,
+                            LatencyTrackingStateConfig.disabled(),
                             stateHandles,
                             AbstractStateBackend.getCompressionDecorator(executionConfig),
                             TestLocalRecoveryConfig.disabled(),

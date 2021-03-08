@@ -27,6 +27,7 @@ import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
+import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import org.junit.runner.RunWith;
@@ -67,6 +68,7 @@ public abstract class HeapStateBackendTestBase {
                         keyGroupRange,
                         executionConfig,
                         TtlTimeProvider.DEFAULT,
+                        LatencyTrackingStateConfig.disabled(),
                         stateHandles,
                         AbstractStateBackend.getCompressionDecorator(executionConfig),
                         TestLocalRecoveryConfig.disabled(),
