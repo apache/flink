@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler.adapter;
 
+import org.apache.flink.runtime.executiongraph.DefaultExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
@@ -57,7 +58,7 @@ import static org.junit.Assert.fail;
 /** Unit tests for {@link DefaultExecutionTopology}. */
 public class DefaultExecutionTopologyTest extends TestLogger {
 
-    private ExecutionGraph executionGraph;
+    private DefaultExecutionGraph executionGraph;
 
     private DefaultExecutionTopology adapter;
 
@@ -155,7 +156,7 @@ public class DefaultExecutionTopologyTest extends TestLogger {
         v2.setSlotSharingGroup(slotSharingGroup);
         v1.setStrictlyCoLocatedWith(v2);
 
-        final ExecutionGraph executionGraph = createSimpleTestGraph(v1, v2);
+        final DefaultExecutionGraph executionGraph = createSimpleTestGraph(v1, v2);
         DefaultExecutionTopology.fromExecutionGraph(executionGraph);
     }
 

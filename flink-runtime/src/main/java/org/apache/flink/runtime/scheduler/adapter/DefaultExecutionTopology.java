@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler.adapter;
 
+import org.apache.flink.runtime.executiongraph.DefaultExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
@@ -119,7 +120,8 @@ public class DefaultExecutionTopology implements SchedulingTopology {
         return pipelinedRegion;
     }
 
-    public static DefaultExecutionTopology fromExecutionGraph(ExecutionGraph executionGraph) {
+    public static DefaultExecutionTopology fromExecutionGraph(
+            DefaultExecutionGraph executionGraph) {
         checkNotNull(executionGraph, "execution graph can not be null");
 
         ExecutionGraphIndex executionGraphIndex =
