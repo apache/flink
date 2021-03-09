@@ -64,15 +64,15 @@ class SemanticXidGenerator implements XidGenerator {
     public Xid generateXid(RuntimeContext runtimeContext, long checkpointId) {
         Optional<JobID> jobId = runtimeContext.getJobId();
         if (jobId.isPresent()) {
-            System.arraycopy(jobId.get().getBytes(), 0, gtridBuffer, 0, 16);
+            System.arraycopy(jobId.get().getBytes(), 0, gtridBuffer, 0, JobID.SIZE);
         } else {
             // fall back to RNG if jobId is unavailable for some reason
-            System.arraycopy(getRandomBytes(16), 0, gtridBuffer, 0, 16);
+            System.arraycopy(getRandomBytes(JobID.SIZE), 0, gtridBuffer, 0, JobID.SIZE);
         }
 
-        writeNumber(runtimeContext.getIndexOfThisSubtask(), gtridBuffer, 16);
+        writeNumber(runtimeContext.getIndexOfThisSubtask(), gtridBuffer, JobID.SIZE);
         // deliberately write only 4 bytes of checkpoint id
-        writeNumber((int) checkpointId, gtridBuffer, 20);
+        writeNumber((int) checkpointId, gtridBuffer, JobID.SIZE + Integer.BYTES);
         // relying on arrays copying inside XidImpl constructor
         return new XidImpl(FORMAT_ID, gtridBuffer, bqualBuffer);
     }

@@ -52,13 +52,10 @@ public class SemanticXidGeneratorTest {
 
     private void checkUniqueness(Function<Integer, Xid> generate) {
         Set<Xid> generated = new HashSet<>();
-        Set<byte[]> gtrids = new HashSet<>();
         for (int i = 0; i < COUNT; i++) {
-            Xid xid = generate.apply(i);
-            generated.add(xid);
-            gtrids.add(xid.getGlobalTransactionId());
+            // We "drop" the branch id because uniqueness of gtrid is important
+            generated.add(new XidImpl(0, generate.apply(i).getGlobalTransactionId(), new byte[0]));
         }
         assertEquals(COUNT, generated.size());
-        assertEquals(COUNT, gtrids.size());
     }
 }
