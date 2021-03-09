@@ -462,10 +462,8 @@ public class KafkaSourceBuilder<OUT> {
         // Check required configs.
         for (String requiredConfig : REQUIRED_CONFIGS) {
             checkNotNull(
-                    props.getProperty(
-                            requiredConfig,
-                            String.format(
-                                    "Property %s is required but not provided", requiredConfig)));
+                    props.getProperty(requiredConfig),
+                    String.format("Property %s is required but not provided", requiredConfig));
         }
         // Check required settings.
         checkNotNull(
