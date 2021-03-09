@@ -208,7 +208,7 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
         abstract OneInputStreamOperator<RowData, RowData> createDeduplicateOperator();
     }
 
-    /** Translator to create process time deduplicate operator. */
+    /** Translator to create row time deduplicate operator. */
     private static class RowtimeDeduplicateOperatorTranslator
             extends DeduplicateOperatorTranslator {
 
