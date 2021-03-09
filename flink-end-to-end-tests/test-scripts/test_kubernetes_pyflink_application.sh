@@ -54,6 +54,12 @@ cd "${FLINK_PYTHON_DIR}"
 
 if [[ -d "dist" ]]; then rm -Rf dist; fi
 
+pushd apache-flink-libraries
+
+python setup.py sdist
+
+popd
+
 python setup.py sdist
 
 cd dev
@@ -63,19 +69,25 @@ rm -rf .conda/pkgs
 deactivate
 
 PYFLINK_PACKAGE_FILE=$(basename "${FLINK_PYTHON_DIR}"/dist/apache-flink-*.tar.gz)
+PYFLINK_LIBRARIES_PACKAGE_FILE=$(basename "${FLINK_PYTHON_DIR}"/apache-flink-libraries/dist/apache-flink-libraries-*.tar.gz)
 echo ${PYFLINK_PACKAGE_FILE}
+echo ${PYFLINK_LIBRARIES_PACKAGE_FILE}
 # Create a new docker image that has python and PyFlink installed.
 PYFLINK_DOCKER_DIR="$TEST_DATA_DIR/pyflink_docker"
 mkdir -p "$PYFLINK_DOCKER_DIR"
 cp "${FLINK_PYTHON_DIR}/dist/${PYFLINK_PACKAGE_FILE}" $PYFLINK_DOCKER_DIR/
+cp "${FLINK_PYTHON_DIR}/apache-flink-libraries/dist/${PYFLINK_LIBRARIES_PACKAGE_FILE}" $PYFLINK_DOCKER_DIR/
 if [[ -d "dist" ]]; then rm -Rf dist; fi
 cd ${PYFLINK_DOCKER_DIR}
 echo "FROM ${PURE_FLINK_IMAGE_NAME}" >> Dockerfile
 echo "RUN apt-get update -y && apt-get install -y python3.7 python3-pip python3.7-dev && rm -rf /var/lib/apt/lists/*" >> Dockerfile
 echo "RUN ln -s /usr/bin/python3 /usr/bin/python" >> Dockerfile
 echo "COPY ${PYFLINK_PACKAGE_FILE} ${PYFLINK_PACKAGE_FILE}" >> Dockerfile
+echo "COPY ${PYFLINK_LIBRARIES_PACKAGE_FILE} ${PYFLINK_LIBRARIES_PACKAGE_FILE}" >> Dockerfile
+echo "RUN pip3 install ${PYFLINK_LIBRARIES_PACKAGE_FILE}" >> Dockerfile
 echo "RUN pip3 install ${PYFLINK_PACKAGE_FILE}" >> Dockerfile
 echo "RUN rm ${PYFLINK_PACKAGE_FILE}" >> Dockerfile
+echo "RUN rm ${PYFLINK_LIBRARIES_PACKAGE_FILE}" >> Dockerfile
 docker build --no-cache --network="host" -t ${PYFLINK_IMAGE_NAME} .
 
 kubectl create clusterrolebinding ${CLUSTER_ROLE_BINDING} --clusterrole=edit --serviceaccount=default:default --namespace=default

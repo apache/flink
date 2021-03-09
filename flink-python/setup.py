@@ -17,7 +17,6 @@
 ################################################################################
 from __future__ import print_function
 
-import glob
 import io
 import os
 import platform
@@ -43,15 +42,59 @@ def remove_if_exists(file_path):
             rmtree(file_path)
 
 
-def find_file_path(pattern):
-    files = glob.glob(pattern)
-    if len(files) < 1:
-        print("Failed to find the file %s." % pattern)
-        exit(-1)
-    if len(files) > 1:
-        print("The file pattern %s is ambiguous: %s" % (pattern, files))
-        exit(-1)
-    return files[0]
+def copy_files(src_paths, output_directory):
+    for src_path, file_mode in src_paths:
+        if os.path.isdir(src_path):
+            child_files = os.listdir(src_path)
+            for child_file in child_files:
+                dst_path = copy(os.path.join(src_path, child_file), output_directory)
+                os.chmod(dst_path, file_mode)
+        else:
+            dst_path = copy(src_path, os.path.join(output_directory, os.path.basename(src_path)))
+            os.chmod(dst_path, file_mode)
+
+
+def has_unsupported_tag(file_element):
+    unsupported_tags = ['includes', 'exclueds']
+    for unsupported_tag in unsupported_tags:
+        if file_element.getElementsByTagName(unsupported_tag):
+            print('Unsupported <{0}></{1}> tag'.format(unsupported_tag, unsupported_tag))
+            return True
+    return False
+
+
+def extracted_output_files(base_dir, file_path, output_directory):
+    extracted_file_paths = []
+    from xml.dom.minidom import parse
+    dom = parse(file_path)
+    root_data = dom.documentElement
+    file_elements = (root_data.getElementsByTagName("files")[0]).getElementsByTagName("file")
+    # extracted <files><file></file></files>
+    for file_element in file_elements:
+        source = ((file_element.getElementsByTagName('source')[0]).childNodes[0]).data
+        file_mode = int(((file_element.getElementsByTagName('fileMode')[0]).childNodes[0]).data, 8)
+        try:
+            dst = ((file_element.getElementsByTagName('outputDirectory')[0]).childNodes[0]).data
+            if dst == output_directory:
+                if has_unsupported_tag(file_element):
+                    sys.exit(-1)
+                extracted_file_paths.append((os.path.join(base_dir, source), file_mode))
+        except IndexError:
+            pass
+    # extracted <fileSets><fileSet></fileSet></fileSets>
+    file_elements = (root_data.getElementsByTagName("fileSets")[0]).getElementsByTagName("fileSet")
+    for file_element in file_elements:
+        source = ((file_element.getElementsByTagName('directory')[0]).childNodes[0]).data
+        file_mode = int(((file_element.getElementsByTagName('fileMode')[0]).childNodes[0]).data, 8)
+        try:
+            dst = ((file_element.getElementsByTagName('outputDirectory')[0]).childNodes[0]).data
+            if dst == output_directory:
+                if has_unsupported_tag(file_element):
+                    sys.exit(-1)
+                extracted_file_paths.append((os.path.join(base_dir, source), file_mode))
+        except IndexError:
+            pass
+    return extracted_file_paths
 
 
 # Currently Cython optimizing doesn't support Windows.
@@ -143,13 +186,10 @@ with io.open(os.path.join(this_directory, 'README.md'), 'r', encoding='utf-8') a
 
 TEMP_PATH = "deps"
 
-LIB_TEMP_PATH = os.path.join(TEMP_PATH, "lib")
-OPT_TEMP_PATH = os.path.join(TEMP_PATH, "opt")
 CONF_TEMP_PATH = os.path.join(TEMP_PATH, "conf")
 LOG_TEMP_PATH = os.path.join(TEMP_PATH, "log")
 EXAMPLES_TEMP_PATH = os.path.join(TEMP_PATH, "examples")
 LICENSES_TEMP_PATH = os.path.join(TEMP_PATH, "licenses")
-PLUGINS_TEMP_PATH = os.path.join(TEMP_PATH, "plugins")
 SCRIPTS_TEMP_PATH = os.path.join(TEMP_PATH, "bin")
 
 LICENSE_FILE_TEMP_PATH = os.path.join(this_directory, "LICENSE")
@@ -176,78 +216,45 @@ try:
         flink_version = VERSION.replace(".dev0", "-SNAPSHOT")
         FLINK_HOME = os.path.abspath(
             "../flink-dist/target/flink-%s-bin/flink-%s" % (flink_version, flink_version))
+        FLINK_ROOT = os.path.abspath("..")
+        FLINK_DIST = os.path.join(FLINK_ROOT, "flink-dist")
+        FLINK_BIN = os.path.join(FLINK_DIST, "src/main/flink-bin")
 
-        incorrect_invocation_message = """
-If you are installing pyflink from flink source, you must first build Flink and
-run sdist.
-
-    To build Flink with maven you can run:
-      mvn -DskipTests clean package
-    Building the source dist is done in the flink-python directory:
-      cd flink-python
-      python setup.py sdist
-      pip install dist/*.tar.gz"""
-
-        LIB_PATH = os.path.join(FLINK_HOME, "lib")
-        OPT_PATH = os.path.join(FLINK_HOME, "opt")
-        OPT_PYTHON_JAR_NAME = os.path.basename(
-            find_file_path(os.path.join(OPT_PATH, "flink-python_*.jar")))
-        OPT_SQL_CLIENT_JAR_NAME = os.path.basename(
-            find_file_path(os.path.join(OPT_PATH, "flink-sql-client_*.jar")))
-        CONF_PATH = os.path.join(FLINK_HOME, "conf")
-        EXAMPLES_PATH = os.path.join(FLINK_HOME, "examples")
+        EXAMPLES_PATH = os.path.join(this_directory, "pyflink/table/examples")
         LICENSES_PATH = os.path.join(FLINK_HOME, "licenses")
-        PLUGINS_PATH = os.path.join(FLINK_HOME, "plugins")
-        SCRIPTS_PATH = os.path.join(FLINK_HOME, "bin")
 
-        LICENSE_FILE_PATH = os.path.join(FLINK_HOME, "LICENSE")
-        README_FILE_PATH = os.path.join(FLINK_HOME, "README.txt")
+        LICENSE_FILE_PATH = os.path.join(FLINK_ROOT, "LICENSE")
+        README_FILE_PATH = os.path.join(FLINK_BIN, "README.txt")
 
         exist_licenses = os.path.exists(LICENSES_PATH)
 
-        if not os.path.isdir(LIB_PATH):
-            print(incorrect_invocation_message, file=sys.stderr)
-            sys.exit(-1)
+        FLINK_BIN_XML_FILE = os.path.join(FLINK_BIN, '../assemblies/bin.xml')
+        # copy conf files
+        os.mkdir(CONF_TEMP_PATH)
+        conf_paths = extracted_output_files(FLINK_DIST, FLINK_BIN_XML_FILE, 'conf')
+        copy_files(conf_paths, CONF_TEMP_PATH)
+
+        # copy bin files
+        os.mkdir(SCRIPTS_TEMP_PATH)
+        script_paths = extracted_output_files(FLINK_DIST, FLINK_BIN_XML_FILE, 'bin')
+        copy_files(script_paths, SCRIPTS_TEMP_PATH)
+        copy(os.path.join(this_directory, "pyflink", "bin", PYFLINK_UDF_RUNNER_SH),
+             os.path.join(SCRIPTS_TEMP_PATH, PYFLINK_UDF_RUNNER_SH))
+        copy(os.path.join(this_directory, "pyflink", "bin", PYFLINK_UDF_RUNNER_BAT),
+             os.path.join(SCRIPTS_TEMP_PATH, PYFLINK_UDF_RUNNER_BAT))
 
         try:
-            os.symlink(LIB_PATH, LIB_TEMP_PATH)
-            support_symlinks = True
-        except BaseException:  # pylint: disable=broad-except
-            support_symlinks = False
-
-        os.mkdir(OPT_TEMP_PATH)
-        if support_symlinks:
-            os.symlink(os.path.join(OPT_PATH, OPT_PYTHON_JAR_NAME),
-                       os.path.join(OPT_TEMP_PATH, OPT_PYTHON_JAR_NAME))
-            os.symlink(os.path.join(OPT_PATH, OPT_SQL_CLIENT_JAR_NAME),
-                       os.path.join(OPT_TEMP_PATH, OPT_SQL_CLIENT_JAR_NAME))
-            os.symlink(CONF_PATH, CONF_TEMP_PATH)
             os.symlink(EXAMPLES_PATH, EXAMPLES_TEMP_PATH)
-            os.symlink(PLUGINS_PATH, PLUGINS_TEMP_PATH)
             os.symlink(LICENSE_FILE_PATH, LICENSE_FILE_TEMP_PATH)
             os.symlink(README_FILE_PATH, README_FILE_TEMP_PATH)
-        else:
-            copytree(LIB_PATH, LIB_TEMP_PATH)
-            copy(os.path.join(OPT_PATH, OPT_PYTHON_JAR_NAME),
-                 os.path.join(OPT_TEMP_PATH, OPT_PYTHON_JAR_NAME))
-            copy(os.path.join(OPT_PATH, OPT_SQL_CLIENT_JAR_NAME),
-                 os.path.join(OPT_TEMP_PATH, OPT_SQL_CLIENT_JAR_NAME))
-            copytree(CONF_PATH, CONF_TEMP_PATH)
+        except BaseException:  # pylint: disable=broad-except
             copytree(EXAMPLES_PATH, EXAMPLES_TEMP_PATH)
-            copytree(PLUGINS_PATH, PLUGINS_TEMP_PATH)
             copy(LICENSE_FILE_PATH, LICENSE_FILE_TEMP_PATH)
             copy(README_FILE_PATH, README_FILE_TEMP_PATH)
         os.mkdir(LOG_TEMP_PATH)
         with open(os.path.join(LOG_TEMP_PATH, "empty.txt"), 'w') as f:
             f.write("This file is used to force setuptools to include the log directory. "
                     "You can delete it at any time after installation.")
-
-        # copy the udf runner scripts
-        copytree(SCRIPTS_PATH, SCRIPTS_TEMP_PATH)
-        copy(os.path.join(this_directory, "bin", PYFLINK_UDF_RUNNER_SH),
-             os.path.join(SCRIPTS_TEMP_PATH, PYFLINK_UDF_RUNNER_SH))
-        copy(os.path.join(this_directory, "bin", PYFLINK_UDF_RUNNER_BAT),
-             os.path.join(SCRIPTS_TEMP_PATH, PYFLINK_UDF_RUNNER_BAT))
 
         if exist_licenses and platform.system() != "Windows":
             # regenerate the licenses directory and NOTICE file as we only copy part of the
@@ -259,13 +266,20 @@ run sdist.
             GENERATED_NOTICE_FILE_PATH = os.path.join(TEMP_PATH, "NOTICE")
             os.rename(GENERATED_NOTICE_FILE_PATH, NOTICE_FILE_TEMP_PATH)
     else:
-        if not os.path.isdir(LIB_TEMP_PATH) or not os.path.isdir(OPT_TEMP_PATH) \
-                or not os.path.isdir(SCRIPTS_TEMP_PATH):
+        if not os.path.isdir(SCRIPTS_TEMP_PATH):
             print("The flink core files are not found. Please make sure your installation package "
                   "is complete, or do this in the flink-python directory of the flink source "
                   "directory.")
             sys.exit(-1)
         exist_licenses = os.path.exists(LICENSES_TEMP_PATH)
+    if VERSION.find('dev0') != -1:
+        apache_flink_libraries_dependency = 'apache-flink-libraries==%s' % VERSION
+    else:
+        split_versions = VERSION.split('.')
+        split_versions[-1] = str(int(split_versions[-1]) + 1)
+        NEXT_VERSION = '.'.join(split_versions)
+        apache_flink_libraries_dependency = 'apache-flink-libraries>=%s,<%s' % \
+                                            (VERSION, NEXT_VERSION)
 
     script_names = ["pyflink-shell.sh", "find-flink-home.sh"]
     scripts = [os.path.join(SCRIPTS_TEMP_PATH, script) for script in script_names]
@@ -288,31 +302,22 @@ run sdist.
                 'pyflink.ml.api.param',
                 'pyflink.ml.lib',
                 'pyflink.ml.lib.param',
-                'pyflink.lib',
-                'pyflink.opt',
                 'pyflink.conf',
                 'pyflink.log',
                 'pyflink.examples',
-                'pyflink.plugins',
                 'pyflink.bin']
 
     PACKAGE_DIR = {
-        'pyflink.lib': TEMP_PATH + '/lib',
-        'pyflink.opt': TEMP_PATH + '/opt',
         'pyflink.conf': TEMP_PATH + '/conf',
         'pyflink.log': TEMP_PATH + '/log',
         'pyflink.examples': TEMP_PATH + '/examples',
-        'pyflink.plugins': TEMP_PATH + '/plugins',
         'pyflink.bin': TEMP_PATH + '/bin'}
 
     PACKAGE_DATA = {
         'pyflink': ['README.txt'],
-        'pyflink.lib': ['*.jar'],
-        'pyflink.opt': ['*.*', '*/*'],
         'pyflink.conf': ['*'],
         'pyflink.log': ['*'],
         'pyflink.examples': ['*.py', '*/*.py'],
-        'pyflink.plugins': ['*', '*/*'],
         'pyflink.bin': ['*']}
 
     if exist_licenses and platform.system() != "Windows":
@@ -336,7 +341,8 @@ run sdist.
         install_requires=['py4j==0.10.8.1', 'python-dateutil==2.8.0', 'apache-beam==2.27.0',
                           'cloudpickle==1.2.2', 'avro-python3>=1.8.1,!=1.9.2,<1.10.0',
                           'jsonpickle==1.2', 'pandas>=1.0,<1.2.0', 'pyarrow>=0.15.1,<3.0.0',
-                          'pytz>=2018.3', 'numpy>=1.14.3,<1.20', 'fastavro>=0.21.4,<0.24'],
+                          'pytz>=2018.3', 'numpy>=1.14.3,<1.20', 'fastavro>=0.21.4,<0.24',
+                          apache_flink_libraries_dependency],
         cmdclass={'build_ext': build_ext},
         tests_require=['pytest==4.4.1'],
         description='Apache Flink Python API',

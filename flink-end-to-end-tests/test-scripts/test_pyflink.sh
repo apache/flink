@@ -87,6 +87,14 @@ rm -rf dist
 
 python setup.py sdist
 
+pushd apache-flink-libraries
+
+python setup.py sdist
+
+pip install dist/*
+
+popd
+
 pip install dist/*
 
 cd dev

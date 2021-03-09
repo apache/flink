@@ -284,7 +284,9 @@ under the License.
 								<delete file="${project.basedir}/lib/pyflink.zip"/>
 								<delete dir="${project.basedir}/target"/>
 								<delete dir="${project.basedir}/build"/>
+								<delete dir="${project.basedir}/apache-flink-libraries/build"/>
 								<delete dir="${project.basedir}/apache_flink.egg-info"/>
+								<delete dir="${project.basedir}/apache-flink-libraries/apache_flink_libraries.egg-info"/>
 							</target>
 						</configuration>
 					</execution>

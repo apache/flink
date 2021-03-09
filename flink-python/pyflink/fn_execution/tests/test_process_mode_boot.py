@@ -71,12 +71,12 @@ class PythonBootTests(PyFlinkTestCase):
 
         self.tmp_dir = tempfile.mkdtemp(str(time.time()), dir=self.tempdir)
         # assume that this file is in flink-python source code directory.
-        flink_python_source_root = os.path.dirname(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        pyflink_package_dir = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         runner_script = "pyflink-udf-runner.bat" if on_windows() else \
             "pyflink-udf-runner.sh"
         self.runner_path = os.path.join(
-            flink_python_source_root, "bin", runner_script)
+            pyflink_package_dir, "bin", runner_script)
 
     def run_boot_py(self):
         args = [self.runner_path, "--id", "1",
