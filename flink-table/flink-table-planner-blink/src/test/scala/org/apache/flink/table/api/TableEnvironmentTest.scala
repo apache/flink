@@ -413,8 +413,14 @@ class TableEnvironmentTest {
 
   @Test
   def testExecuteSqlWithCreateUseDropCatalog(): Unit = {
-    val tableResult1 = tableEnv.executeSql(
-      "CREATE CATALOG my_catalog WITH('type'='generic_in_memory')")
+    val createCatalogStmt =
+      """
+        |CREATE CATALOG IF NOT EXISTS my_catalog
+        |COMMENT 'my_catalog_comment' WITH (
+        |  'type'='generic_in_memory'
+        |)
+      """.stripMargin
+    val tableResult1 = tableEnv.executeSql(createCatalogStmt)
     assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
     assertTrue(tableEnv.getCatalog("my_catalog").isPresent)
 

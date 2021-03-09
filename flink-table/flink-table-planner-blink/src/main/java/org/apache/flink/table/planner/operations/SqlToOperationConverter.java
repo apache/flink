@@ -608,8 +608,13 @@ public class SqlToOperationConverter {
                                 properties.put(
                                         ((SqlTableOption) p).getKeyString(),
                                         ((SqlTableOption) p).getValueString()));
-
-        return new CreateCatalogOperation(catalogName, properties);
+        boolean ignoreIfExists = sqlCreateCatalog.isIfNotExists();
+        String catalogComment =
+                sqlCreateCatalog
+                        .getComment()
+                        .map(comment -> comment.getNlsString().getValue())
+                        .orElse(null);
+        return new CreateCatalogOperation(catalogName, properties, ignoreIfExists, catalogComment);
     }
 
     /** Convert DROP CATALOG statement. */

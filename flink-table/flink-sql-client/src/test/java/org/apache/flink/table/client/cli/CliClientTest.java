@@ -310,7 +310,9 @@ public class CliClientTest extends TestLogger {
                 new TestingExecutorBuilder()
                         .setExecuteSqlConsumer((s, s2) -> TestTableResult.TABLE_RESULT_OK)
                         .build();
-        testExecuteSql(executor, "create catalog c1 with('type'='generic_in_memory');");
+        testExecuteSql(
+                executor,
+                "create catalog if not exists c1 comment 'c1_comment' with('type'='generic_in_memory');");
         assertThat(executor.getNumExecuteSqlCalls(), is(1));
     }
 
