@@ -89,7 +89,8 @@ public class ZooKeeperUtils {
      * @param configuration {@link Configuration} object containing the configuration values
      * @return {@link CuratorFramework} instance
      */
-    public static CuratorFramework startCuratorFramework(Configuration configuration) throws Exception {
+    public static CuratorFramework startCuratorFramework(Configuration configuration)
+            throws Exception {
         Preconditions.checkNotNull(configuration, "configuration");
         String zkQuorum = configuration.getValue(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM);
 
@@ -165,14 +166,19 @@ public class ZooKeeperUtils {
         cf.start();
 
         if (aclMode == ZkClientACLMode.CREATOR) {
-            RetryLoop.callWithRetry(cf.getZookeeperClient(), new Callable<Object>() {
-                public Object call() throws Exception {
-                    ZKPaths.mkdirs(cf.getZookeeperClient().getZooKeeper(),
-                            root.startsWith("/") ? root : "/" + root, true,
-                            new DefaultACLProvider(), true);
-                    return null;
-                }
-            });
+            RetryLoop.callWithRetry(
+                    cf.getZookeeperClient(),
+                    new Callable<Object>() {
+                        public Object call() throws Exception {
+                            ZKPaths.mkdirs(
+                                    cf.getZookeeperClient().getZooKeeper(),
+                                    root.startsWith("/") ? root : "/" + root,
+                                    true,
+                                    new DefaultACLProvider(),
+                                    true);
+                            return null;
+                        }
+                    });
         }
 
         return cf;
