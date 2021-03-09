@@ -219,8 +219,8 @@ public class CheckpointedInputGateTest {
 
                 ValidatingCheckpointHandler validatingHandler = new ValidatingCheckpointHandler(1);
                 SingleCheckpointBarrierHandler barrierHandler =
-                        AlternatingControllerTest.barrierHandler(
-                                singleInputGate, validatingHandler, new MockChannelStateWriter());
+                        TestBarrierHandlerBuilder.builder(validatingHandler)
+                                .build(singleInputGate, new MockChannelStateWriter());
                 CheckpointedInputGate checkpointedInputGate =
                         new CheckpointedInputGate(
                                 singleInputGate,
@@ -376,8 +376,8 @@ public class CheckpointedInputGateTest {
                         new TaskMailboxImpl(), 0, StreamTaskActionExecutor.IMMEDIATE);
 
         SingleCheckpointBarrierHandler barrierHandler =
-                AlternatingControllerTest.barrierHandler(
-                        singleInputGate, abstractInvokable, stateWriter);
+                TestBarrierHandlerBuilder.builder(abstractInvokable)
+                        .build(singleInputGate, stateWriter);
         CheckpointedInputGate checkpointedInputGate =
                 new CheckpointedInputGate(
                         singleInputGate,

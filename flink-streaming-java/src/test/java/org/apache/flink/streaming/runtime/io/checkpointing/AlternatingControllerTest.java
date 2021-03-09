@@ -19,7 +19,6 @@ package org.apache.flink.streaming.runtime.io.checkpointing;
 
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.RecordingChannelStateWriter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -27,18 +26,15 @@ import org.apache.flink.runtime.event.RuntimeEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EventAnnouncement;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
-import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.TestInputChannel;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator;
-import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxProcessor;
+import org.apache.flink.streaming.util.TestCheckpointedInputGateBuilder;
 import org.apache.flink.util.clock.ManualClock;
 
 import org.junit.Test;
@@ -74,7 +70,13 @@ public class AlternatingControllerTest {
 
     @Test
     public void testChannelUnblockedAfterDifferentBarriers() throws Exception {
-        CheckpointedInputGate gate = buildGate(new ValidatingCheckpointHandler(), 3);
+        CheckpointedInputGate gate =
+                TestCheckpointedInputGateBuilder.builder(
+                                3,
+                                TestBarrierHandlerBuilder.builder(new ValidatingCheckpointHandler())
+                                                .withClock(clock)
+                                        ::build)
+                        .build();
         long barrierId = 1L;
         long ts = clock.relativeTimeNanos();
         long timeout = 10;
@@ -107,26 +109,35 @@ public class AlternatingControllerTest {
     @Test
     public void testChannelResetOnNewBarrier() throws Exception {
         RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
-        CheckpointedInputGate gate =
-                buildRemoteInputGate(new ValidatingCheckpointHandler(), 2, stateWriter);
+        try (CheckpointedInputGate gate =
+                TestCheckpointedInputGateBuilder.builder(
+                                2,
+                                TestBarrierHandlerBuilder.builder(new ValidatingCheckpointHandler())
+                                                .withClock(clock)
+                                        ::build)
+                        .withChannelStateWriter(stateWriter)
+                        .withRemoteChannels()
+                        .withMailboxExecutor()
+                        .build()) {
 
-        sendBarrier(
-                0,
-                clock.relativeTimeMillis(),
-                SAVEPOINT,
-                gate,
-                0); // using AC because UC would require ordering in gate while polling
-        ((RemoteInputChannel) gate.getChannel(0))
-                .onBuffer(createBuffer(1024), 1, 0); // to be captured
-        send(
-                toBuffer(
-                        new CheckpointBarrier(
-                                1, clock.relativeTimeMillis(), unaligned(getDefault())),
-                        true),
-                1,
-                gate);
+            sendBarrier(
+                    0,
+                    clock.relativeTimeMillis(),
+                    SAVEPOINT,
+                    gate,
+                    0); // using AC because UC would require ordering in gate while polling
+            ((RemoteInputChannel) gate.getChannel(0))
+                    .onBuffer(createBuffer(1024), 1, 0); // to be captured
+            send(
+                    toBuffer(
+                            new CheckpointBarrier(
+                                    1, clock.relativeTimeMillis(), unaligned(getDefault())),
+                            true),
+                    1,
+                    gate);
 
-        assertFalse(stateWriter.getAddedInput().isEmpty());
+            assertFalse(stateWriter.getAddedInput().isEmpty());
+        }
     }
 
     /**
@@ -135,29 +146,31 @@ public class AlternatingControllerTest {
      */
     @Test
     public void testSwitchToUnalignedByUpstream() throws Exception {
-        SingleInputGate inputGate = new SingleInputGateBuilder().setNumberOfChannels(2).build();
-        inputGate.setInputChannels(
-                new TestInputChannel(inputGate, 0), new TestInputChannel(inputGate, 1));
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
-        barrierHandler(inputGate, target);
-        CheckpointedInputGate gate = buildGate(target, 2);
+        try (CheckpointedInputGate gate =
+                TestCheckpointedInputGateBuilder.builder(
+                                2,
+                                TestBarrierHandlerBuilder.builder(target).withClock(clock)::build)
+                        .build()) {
 
-        CheckpointBarrier aligned =
-                new CheckpointBarrier(
-                        1,
-                        clock.relativeTimeMillis(),
-                        alignedWithTimeout(getDefault(), Integer.MAX_VALUE));
+            CheckpointBarrier aligned =
+                    new CheckpointBarrier(
+                            1,
+                            clock.relativeTimeMillis(),
+                            alignedWithTimeout(getDefault(), Integer.MAX_VALUE));
 
-        send(
-                toBuffer(new EventAnnouncement(aligned, 0), true),
-                0,
-                gate); // process announcement but not the barrier
-        assertEquals(0, target.triggeredCheckpointCounter);
-        send(
-                toBuffer(aligned.asUnaligned(), true),
-                1,
-                gate); // pretend it came from upstream before the first (AC) barrier was picked up
-        assertEquals(1, target.triggeredCheckpointCounter);
+            send(
+                    toBuffer(new EventAnnouncement(aligned, 0), true),
+                    0,
+                    gate); // process announcement but not the barrier
+            assertEquals(0, target.triggeredCheckpointCounter);
+            send(
+                    toBuffer(aligned.asUnaligned(), true),
+                    1,
+                    gate); // pretend it came from upstream before the first (AC) barrier was picked
+            // up
+            assertEquals(1, target.triggeredCheckpointCounter);
+        }
     }
 
     @Test
@@ -175,63 +188,89 @@ public class AlternatingControllerTest {
         int numBarriers = 123;
         int numChannels = 123;
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
-        CheckpointedInputGate gate = buildGate(target, numChannels);
-        List<Long> barriers = new ArrayList<>();
-        for (long barrier = 0; barrier < numBarriers; barrier++) {
-            barriers.add(barrier);
-            CheckpointType type = barrier % 2 == 0 ? CHECKPOINT : SAVEPOINT;
-            for (int channel = 0; channel < numChannels; channel++) {
-                send(
-                        barrier(
-                                        barrier,
-                                        clock.relativeTimeMillis(),
-                                        alignedNoTimeout(type, getDefault()))
-                                .retainBuffer(),
-                        channel,
-                        gate);
+        try (CheckpointedInputGate gate =
+                TestCheckpointedInputGateBuilder.builder(
+                                numChannels,
+                                TestBarrierHandlerBuilder.builder(target).withClock(clock)::build)
+                        .build()) {
+
+            List<Long> barriers = new ArrayList<>();
+            for (long barrier = 0; barrier < numBarriers; barrier++) {
+                barriers.add(barrier);
+                CheckpointType type = barrier % 2 == 0 ? CHECKPOINT : SAVEPOINT;
+                for (int channel = 0; channel < numChannels; channel++) {
+                    send(
+                            barrier(
+                                            barrier,
+                                            clock.relativeTimeMillis(),
+                                            alignedNoTimeout(type, getDefault()))
+                                    .retainBuffer(),
+                            channel,
+                            gate);
+                }
             }
+            assertEquals(barriers, target.triggeredCheckpoints);
         }
-        assertEquals(barriers, target.triggeredCheckpoints);
     }
 
     @Test
     public void testAlignedNeverTimeoutableCheckpoint() throws Exception {
         int numChannels = 2;
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
-        CheckpointedInputGate gate = buildGate(target, numChannels);
+        try (CheckpointedInputGate gate =
+                TestCheckpointedInputGateBuilder.builder(
+                                numChannels,
+                                TestBarrierHandlerBuilder.builder(target).withClock(clock)::build)
+                        .build()) {
 
-        Buffer neverTimeoutableCheckpoint = withTimeout(Integer.MAX_VALUE);
-        send(neverTimeoutableCheckpoint, 0, gate);
-        sendData(1000, 1, gate);
-        assertEquals(0, target.getTriggeredCheckpointCounter());
+            Buffer neverTimeoutableCheckpoint = withTimeout(Integer.MAX_VALUE);
+            send(neverTimeoutableCheckpoint, 0, gate);
+            sendData(1000, 1, gate);
+            assertEquals(0, target.getTriggeredCheckpointCounter());
 
-        send(neverTimeoutableCheckpoint, 1, gate);
-        assertEquals(1, target.getTriggeredCheckpointCounter());
+            send(neverTimeoutableCheckpoint, 1, gate);
+            assertEquals(1, target.getTriggeredCheckpointCounter());
+        }
     }
 
     @Test
     public void testTimeoutAlignment() throws Exception {
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
-        testTimeoutBarrierOnTwoChannels(target, buildRemoteInputGate(target, 2));
+        try (CheckpointedInputGate gate =
+                TestCheckpointedInputGateBuilder.builder(
+                                2,
+                                TestBarrierHandlerBuilder.builder(target).withClock(clock)::build)
+                        .withRemoteChannels()
+                        .withMailboxExecutor()
+                        .build()) {
+            testTimeoutBarrierOnTwoChannels(target, gate);
+        }
     }
 
     @Test
     public void testTimeoutAlignmentAfterProcessingBarrier() throws Exception {
         int numChannels = 3;
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
-        CheckpointedInputGate gate = buildRemoteInputGate(target, numChannels);
+        try (CheckpointedInputGate gate =
+                TestCheckpointedInputGateBuilder.builder(
+                                numChannels,
+                                TestBarrierHandlerBuilder.builder(target).withClock(clock)::build)
+                        .withRemoteChannels()
+                        .withMailboxExecutor()
+                        .build()) {
 
-        send(
-                barrier(
-                        1,
-                        clock.relativeTimeMillis(),
-                        alignedWithTimeout(getDefault(), Integer.MAX_VALUE)),
-                2,
-                gate);
+            send(
+                    barrier(
+                            1,
+                            clock.relativeTimeMillis(),
+                            alignedWithTimeout(getDefault(), Integer.MAX_VALUE)),
+                    2,
+                    gate);
 
-        assertEquals(0, target.getTriggeredCheckpointCounter());
+            assertEquals(0, target.getTriggeredCheckpointCounter());
 
-        testTimeoutBarrierOnTwoChannels(target, gate);
+            testTimeoutBarrierOnTwoChannels(target, gate);
+        }
     }
 
     private void testTimeoutBarrierOnTwoChannels(
@@ -271,7 +310,13 @@ public class AlternatingControllerTest {
     public void testTimeoutAlignmentOnFirstBarrier() throws Exception {
         int numChannels = 2;
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
-        CheckpointedInputGate gate = buildRemoteInputGate(target, numChannels);
+        CheckpointedInputGate gate =
+                TestCheckpointedInputGateBuilder.builder(
+                                numChannels,
+                                TestBarrierHandlerBuilder.builder(target).withClock(clock)::build)
+                        .withRemoteChannels()
+                        .withMailboxExecutor()
+                        .build();
 
         long alignmentTimeout = 100;
         Buffer checkpointBarrier = withTimeout(alignmentTimeout);
@@ -300,7 +345,14 @@ public class AlternatingControllerTest {
     public void testTimeoutAlignmentOnUnalignedCheckpoint() throws Exception {
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
         RecordingChannelStateWriter channelStateWriter = new RecordingChannelStateWriter();
-        CheckpointedInputGate gate = buildRemoteInputGate(target, 2, channelStateWriter);
+        CheckpointedInputGate gate =
+                TestCheckpointedInputGateBuilder.builder(
+                                2,
+                                TestBarrierHandlerBuilder.builder(target).withClock(clock)::build)
+                        .withChannelStateWriter(channelStateWriter)
+                        .withRemoteChannels()
+                        .withMailboxExecutor()
+                        .build();
 
         getChannel(gate, 0).onBuffer(withTimeout(Integer.MAX_VALUE).retainBuffer(), 0, 0);
 
@@ -433,7 +485,11 @@ public class AlternatingControllerTest {
         int numChannels = 2;
         int bufferSize = 1000;
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
-        CheckpointedInputGate gate = buildGate(target, numChannels);
+        CheckpointedInputGate gate =
+                TestCheckpointedInputGateBuilder.builder(
+                                numChannels,
+                                TestBarrierHandlerBuilder.builder(target).withClock(clock)::build)
+                        .build();
 
         long startNanos = clock.relativeTimeNanos();
         long checkpoint1CreationTime = clock.relativeTimeMillis() - 10;
@@ -503,7 +559,11 @@ public class AlternatingControllerTest {
     public void testMetricsSingleChannel() throws Exception {
         int numChannels = 1;
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
-        CheckpointedInputGate gate = buildGate(target, numChannels);
+        CheckpointedInputGate gate =
+                TestCheckpointedInputGateBuilder.builder(
+                                numChannels,
+                                TestBarrierHandlerBuilder.builder(target).withClock(clock)::build)
+                        .build();
 
         long checkpoint1CreationTime = clock.relativeTimeMillis() - 10;
         long startNanos = clock.relativeTimeNanos();
@@ -555,7 +615,8 @@ public class AlternatingControllerTest {
         };
         inputGate.setInputChannels(channels);
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
-        SingleCheckpointBarrierHandler barrierHandler = barrierHandler(inputGate, target);
+        SingleCheckpointBarrierHandler barrierHandler =
+                TestBarrierHandlerBuilder.builder(target).withClock(clock).build(inputGate);
 
         for (int i = 0; i < 4; i++) {
             int channel = i % 2;
@@ -593,7 +654,8 @@ public class AlternatingControllerTest {
         inputGate.setInputChannels(
                 new TestInputChannel(inputGate, 0), new TestInputChannel(inputGate, 1));
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
-        SingleCheckpointBarrierHandler barrierHandler = barrierHandler(inputGate, target);
+        SingleCheckpointBarrierHandler barrierHandler =
+                TestBarrierHandlerBuilder.builder(target).withClock(clock).build(inputGate);
 
         final long id = 1;
         barrierHandler.processBarrier(
@@ -613,7 +675,8 @@ public class AlternatingControllerTest {
         TestInputChannel secondChannel = new TestInputChannel(inputGate, 1);
         inputGate.setInputChannels(firstChannel, secondChannel);
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
-        SingleCheckpointBarrierHandler barrierHandler = barrierHandler(inputGate, target);
+        SingleCheckpointBarrierHandler barrierHandler =
+                TestBarrierHandlerBuilder.builder(target).withClock(clock).build(inputGate);
 
         long checkpointId = 10;
         long outOfOrderSavepointId = 5;
@@ -643,7 +706,8 @@ public class AlternatingControllerTest {
         TestInputChannel fast = new TestInputChannel(gate, 0, false, true);
         TestInputChannel slow = new TestInputChannel(gate, 1, false, true);
         gate.setInputChannels(fast, slow);
-        SingleCheckpointBarrierHandler barrierHandler = barrierHandler(gate, target);
+        SingleCheckpointBarrierHandler barrierHandler =
+                TestBarrierHandlerBuilder.builder(target).withClock(clock).build(gate);
         CheckpointedInputGate checkpointedGate =
                 new CheckpointedInputGate(gate, barrierHandler, new SyncMailboxExecutor());
 
@@ -717,70 +781,6 @@ public class AlternatingControllerTest {
         return toBuffer(
                 checkpointBarrier,
                 checkpointBarrier.getCheckpointOptions().isUnalignedCheckpoint());
-    }
-
-    private static SingleCheckpointBarrierHandler barrierHandler(
-            SingleInputGate inputGate, AbstractInvokable target) {
-        return barrierHandler(inputGate, target, new RecordingChannelStateWriter());
-    }
-
-    public static SingleCheckpointBarrierHandler barrierHandler(
-            SingleInputGate inputGate, AbstractInvokable target, ChannelStateWriter stateWriter) {
-        String taskName = "test";
-        return new SingleCheckpointBarrierHandler(
-                taskName,
-                target,
-                clock,
-                inputGate.getNumberOfInputChannels(),
-                new AlternatingController(
-                        new AlignedController(inputGate),
-                        new UnalignedController(
-                                new TestSubtaskCheckpointCoordinator(stateWriter), inputGate),
-                        clock));
-    }
-
-    private static CheckpointedInputGate buildGate(AbstractInvokable target, int numChannels) {
-        SingleInputGate gate =
-                new SingleInputGateBuilder().setNumberOfChannels(numChannels).build();
-        TestInputChannel[] channels = new TestInputChannel[numChannels];
-        for (int i = 0; i < numChannels; i++) {
-            channels[i] = new TestInputChannel(gate, i, false, true);
-        }
-        gate.setInputChannels(channels);
-        return new CheckpointedInputGate(
-                gate, barrierHandler(gate, target), new SyncMailboxExecutor());
-    }
-
-    private static CheckpointedInputGate buildRemoteInputGate(
-            AbstractInvokable target, int numChannels) throws IOException {
-        return buildRemoteInputGate(target, numChannels, new RecordingChannelStateWriter());
-    }
-
-    private static CheckpointedInputGate buildRemoteInputGate(
-            AbstractInvokable target, int numChannels, ChannelStateWriter channelStateWriter)
-            throws IOException {
-        int maxUsedBuffers = 10;
-        NetworkBufferPool networkBufferPool =
-                new NetworkBufferPool(numChannels * maxUsedBuffers, 4096);
-        SingleInputGate gate =
-                new SingleInputGateBuilder()
-                        .setChannelFactory(InputChannelBuilder::buildRemoteChannel)
-                        .setNumberOfChannels(numChannels)
-                        .setSegmentProvider(networkBufferPool)
-                        .setBufferPoolFactory(
-                                networkBufferPool.createBufferPool(numChannels, maxUsedBuffers))
-                        .setChannelStateWriter(channelStateWriter)
-                        .build();
-        gate.setup();
-        gate.requestPartitions();
-        // do not fire events automatically. If you need events, you should expose mailboxProcessor
-        // and
-        // execute it step by step
-        MailboxProcessor mailboxProcessor = new MailboxProcessor();
-        return new CheckpointedInputGate(
-                gate,
-                barrierHandler(gate, target, channelStateWriter),
-                mailboxProcessor.getMainMailboxExecutor());
     }
 
     private static void assertAnnouncement(CheckpointedInputGate gate)
