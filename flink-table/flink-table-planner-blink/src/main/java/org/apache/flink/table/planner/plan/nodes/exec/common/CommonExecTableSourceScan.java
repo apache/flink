@@ -85,11 +85,9 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData> {
         } else if (provider instanceof SourceProvider) {
             Source<RowData, ?, ?> source = ((SourceProvider) provider).createSource();
             // TODO: Push down watermark strategy to source scan
-            Transformation<RowData> transformation =
-                    env.fromSource(source, WatermarkStrategy.noWatermarks(), operatorName)
-                            .getTransformation();
-            transformation.setOutputType(outputTypeInfo);
-            return transformation;
+            return env.fromSource(
+                            source, WatermarkStrategy.noWatermarks(), operatorName, outputTypeInfo)
+                    .getTransformation();
         } else if (provider instanceof DataStreamScanProvider) {
             Transformation<RowData> transformation =
                     ((DataStreamScanProvider) provider).produceDataStream(env).getTransformation();
