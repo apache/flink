@@ -172,13 +172,13 @@ metadata fields for its value format.
     </tr>
     <tr>
       <td><code>ingestion-timestamp</code></td>
-      <td><code>TIMESTAMP(3) WITH LOCAL TIME ZONE NULL</code></td>
+      <td><code>TIMESTAMP_LTZ(3) NULL</code></td>
       <td>The timestamp at which the connector processed the event. Corresponds to the <code>ts_ms</code>
       field in the Debezium record.</td>
     </tr>
     <tr>
       <td><code>source.timestamp</code></td>
-      <td><code>TIMESTAMP(3) WITH LOCAL TIME ZONE NULL</code></td>
+      <td><code>TIMESTAMP_LTZ(3) NULL</code></td>
       <td>The timestamp at which the source system created the event. Corresponds to the <code>source.ts_ms</code>
       field in the Debezium record.</td>
     </tr>

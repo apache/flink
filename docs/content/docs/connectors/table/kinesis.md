@@ -76,7 +76,7 @@ The following metadata can be exposed as read-only (`VIRTUAL`) columns in a tabl
     <tbody>
     <tr>
       <td><code><a href="https://docs.aws.amazon.com/kinesis/latest/APIReference/API_Record.html#Streams-Type-Record-ApproximateArrivalTimestamp">timestamp</a></code></td>
-      <td><code>TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL</code></td>
+      <td><code>TIMESTAMP_LTZ(3) NOT NULL</code></td>
       <td>The approximate time when the record was inserted into the stream.</td>
     </tr>
     <tr>

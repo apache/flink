@@ -478,6 +478,14 @@ public final class DataTypes {
     }
 
     /**
+     * Data type of a timestamp WITH LOCAL time zone. This is a synonym for {@link
+     * DataTypes#TIMESTAMP_WITH_LOCAL_TIME_ZONE(int)}.
+     */
+    public static DataType TIMESTAMP_LTZ(int precision) {
+        return new AtomicDataType(new LocalZonedTimestampType(precision));
+    }
+
+    /**
      * Data type of a timestamp WITH LOCAL time zone {@code TIMESTAMP WITH LOCAL TIME ZONE} with 6
      * digits of fractional seconds by default.
      *
@@ -500,6 +508,14 @@ public final class DataTypes {
      * @see LocalZonedTimestampType
      */
     public static DataType TIMESTAMP_WITH_LOCAL_TIME_ZONE() {
+        return new AtomicDataType(new LocalZonedTimestampType());
+    }
+
+    /**
+     * Data type of a timestamp WITH LOCAL time zone. This is a synonym for {@link
+     * DataTypes#TIMESTAMP_WITH_LOCAL_TIME_ZONE()}.
+     */
+    public static DataType TIMESTAMP_LTZ() {
         return new AtomicDataType(new LocalZonedTimestampType());
     }
 

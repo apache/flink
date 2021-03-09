@@ -160,7 +160,7 @@ Types
             <td>Always resolves to the current timestamp of the local machine.</td>
         </tr>
         <tr>
-            <td>TIMESTAMP WITH LOCAL TIMEZONE</td>
+            <td>TIMESTAMP_LTZ</td>
             <td>random</td>
             <td>Always resolves to the current timestamp of the local machine.</td>
         </tr>

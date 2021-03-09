@@ -79,6 +79,7 @@ import java.util.stream.Stream;
  *   <li>{@code DOUBLE PRECISION} as a synonym for {@code DOUBLE}
  *   <li>{@code TIME WITHOUT TIME ZONE} as a synonym for {@code TIME}
  *   <li>{@code TIMESTAMP WITHOUT TIME ZONE} as a synonym for {@code TIMESTAMP}
+ *   <li>{@code TIMESTAMP WITH LOCAL TIME ZONE} as a synonym for {@code TIMESTAMP_LTZ}
  *   <li>{@code type ARRAY} as a synonym for {@code ARRAY<type>}
  *   <li>{@code type MULTISET} as a synonym for {@code MULTISET<type>}
  *   <li>{@code ROW(...)} as a synonym for {@code ROW<...>}
@@ -319,6 +320,7 @@ public final class LogicalTypeParser {
         LOCAL,
         ZONE,
         TIMESTAMP,
+        TIMESTAMP_LTZ,
         INTERVAL,
         YEAR,
         MONTH,
@@ -558,6 +560,8 @@ public final class LogicalTypeParser {
                     return parseTimeType();
                 case TIMESTAMP:
                     return parseTimestampType();
+                case TIMESTAMP_LTZ:
+                    return parseTimestampLtzType();
                 case INTERVAL:
                     return parseIntervalType();
                 case ARRAY:
@@ -711,6 +715,11 @@ public final class LogicalTypeParser {
                 }
             }
             return new TimestampType(precision);
+        }
+
+        private LogicalType parseTimestampLtzType() {
+            int precision = parseOptionalPrecision(LocalZonedTimestampType.DEFAULT_PRECISION);
+            return new LocalZonedTimestampType(precision);
         }
 
         private LogicalType parseIntervalType() {
