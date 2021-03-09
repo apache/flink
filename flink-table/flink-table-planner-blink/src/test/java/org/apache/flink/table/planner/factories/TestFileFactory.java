@@ -196,8 +196,10 @@ public class TestFileFactory implements DynamicTableSourceFactory, DynamicTableS
 
         @Override
         public TypeInformation<RowData> getProducedType() {
-            // For ScanTableSource the output type is determined by planner,
-            // the result of this method would not be used.
+            // For ScanTableSource, the output type is determined by the planner,
+            // and the result of this method will not be used.
+            // The purpose of returning null is to verify that the planner can
+            // handle the output type correctly.
             return null;
         }
     }
