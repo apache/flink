@@ -108,9 +108,7 @@ public class MiniClusterITCase extends TestLogger {
     }
 
     @Test
-    @Category(
-            FailsWithAdaptiveScheduler
-                    .class) // AdaptiveScheduler scales the job down to a parallelism of 1
+    @Category(FailsWithAdaptiveScheduler.class) // FLINK-21403
     public void testHandleStreamingJobsWhenNotEnoughSlot() throws Exception {
         try {
             final JobVertex vertex = new JobVertex("Test Vertex");
