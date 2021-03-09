@@ -88,8 +88,6 @@ WatermarkStrategy
     override def extractTimestamp(element: (Long, String), recordTimestamp: Long): Long = element._1
   })
 {% endhighlight %}
-
-(Using Scala Lambdas here currently doesn't work because Scala is stupid and it's hard to support this. #fus)
 </div>
 </div>
 
