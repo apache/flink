@@ -32,7 +32,7 @@ from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.find_flink_home import _find_flink_source_root
 from pyflink.java_gateway import get_gateway
 from pyflink.table import DataTypes, CsvTableSink, StreamTableEnvironment, EnvironmentSettings, \
-    Module, ResultKind
+    Module, ResultKind, ModuleEntry
 from pyflink.table.descriptors import FileSystem, OldCsv, Schema
 from pyflink.table.explain_detail import ExplainDetail
 from pyflink.table.expressions import col
@@ -43,7 +43,7 @@ from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkOldStreamTableTestCase, \
     PyFlinkOldBatchTableTestCase, PyFlinkBlinkBatchTableTestCase, PyFlinkBlinkStreamTableTestCase, \
     PyFlinkLegacyBlinkBatchTableTestCase, PyFlinkLegacyFlinkStreamTableTestCase, \
-    PyFlinkLegacyBlinkStreamTableTestCase
+    PyFlinkLegacyBlinkStreamTableTestCase, _load_specific_flink_module_jars
 from pyflink.util.utils import get_j_env_configuration
 
 
@@ -96,6 +96,52 @@ class TableEnvironmentTest(object):
         actual = t_env.list_user_defined_functions()
         expected = ['python_scalar_func', 'scalar_func', 'agg_func', 'table_func']
         self.assert_equals(actual, expected)
+
+    def test_load_module_twice(self):
+        t_env = self.t_env
+        self.check_list_modules('core')
+        self.check_list_full_modules(1, 'core')
+        self.assertRaisesRegex(
+            Py4JJavaError, "A module with name 'core' already exists",
+            t_env.load_module, 'core', Module(
+                get_gateway().jvm.org.apache.flink.table.module.CoreModule.INSTANCE))
+
+    def test_unload_module_twice(self):
+        t_env = self.t_env
+        t_env.unload_module('core')
+        self.check_list_modules()
+        self.check_list_full_modules(0)
+        self.assertRaisesRegex(
+            Py4JJavaError, "No module with name 'core' exists",
+            t_env.unload_module, 'core')
+
+    def test_use_modules(self):
+        # please do not change this order since ModuleMock depends on FunctionDefinitionMock
+        _load_specific_flink_module_jars('/flink-table/flink-table-common')
+        _load_specific_flink_module_jars('/flink-table/flink-table-api-java')
+
+        t_env = self.t_env
+        t_env.load_module('x', Module(
+            get_gateway().jvm.org.apache.flink.table.utils.ModuleMock("x")
+        ))
+        t_env.load_module('y', Module(
+            get_gateway().jvm.org.apache.flink.table.utils.ModuleMock("y")
+        ))
+        self.check_list_modules('core', 'x', 'y')
+        self.check_list_full_modules(3, 'core', 'x', 'y')
+
+        t_env.use_modules('y', 'core')
+        self.check_list_modules('y', 'core')
+        self.check_list_full_modules(2, 'y', 'core', 'x')
+
+    def check_list_modules(self, *expected_used_modules: str):
+        self.assert_equals(self.t_env.list_modules(), list(expected_used_modules))
+
+    def check_list_full_modules(self, used_module_cnt: int, *expected_loaded_modules: str):
+        self.assert_equals(self.t_env.list_full_modules(),
+                           [ModuleEntry(module,
+                                        expected_loaded_modules.index(module) < used_module_cnt)
+                            for module in expected_loaded_modules])
 
     def test_unload_and_load_module(self):
         t_env = self.t_env
@@ -942,6 +988,59 @@ class BlinkBatchTableEnvironmentTests(PyFlinkBlinkBatchTableTestCase):
         actual = t_env.list_user_defined_functions()
         expected = ['scalar_func', 'agg_func', 'table_func']
         self.assert_equals(actual, expected)
+
+    def test_load_module_twice(self):
+        self.check_list_modules('core')
+        self.check_list_full_modules(1, 'core')
+        self.assertRaisesRegex(
+            Py4JJavaError, "A module with name 'core' already exists",
+            self.t_env.load_module, 'core', Module(
+                get_gateway().jvm.org.apache.flink.table.module.CoreModule.INSTANCE))
+
+    def test_unload_module_twice(self):
+        self.t_env.unload_module('core')
+        self.check_list_modules()
+        self.check_list_full_modules(0)
+        self.assertRaisesRegex(
+            Py4JJavaError, "No module with name 'core' exists",
+            self.t_env.unload_module, 'core')
+
+    def test_use_duplicated_modules(self):
+        self.assertRaisesRegex(
+            Py4JJavaError, "Module 'core' appears more than once",
+            self.t_env.use_modules, 'core', 'core')
+
+    def test_use_nonexistent_module(self):
+        self.assertRaisesRegex(
+            Py4JJavaError, "No module with name 'dummy' exists",
+            self.t_env.use_modules, 'core', 'dummy')
+
+    def test_use_modules(self):
+        # please do not change this order since ModuleMock depends on FunctionDefinitionMock
+        _load_specific_flink_module_jars('/flink-table/flink-table-common')
+        _load_specific_flink_module_jars('/flink-table/flink-table-api-java')
+
+        self.t_env.load_module('x', Module(
+            get_gateway().jvm.org.apache.flink.table.utils.ModuleMock("x")
+        ))
+        self.t_env.load_module('y', Module(
+            get_gateway().jvm.org.apache.flink.table.utils.ModuleMock("y")
+        ))
+        self.check_list_modules('core', 'x', 'y')
+        self.check_list_full_modules(3, 'core', 'x', 'y')
+
+        self.t_env.use_modules('y', 'core')
+        self.check_list_modules('y', 'core')
+        self.check_list_full_modules(2, 'y', 'core', 'x')
+
+    def check_list_modules(self, *expected_used_modules: str):
+        self.assert_equals(self.t_env.list_modules(), list(expected_used_modules))
+
+    def check_list_full_modules(self, used_module_cnt: int, *expected_loaded_modules: str):
+        self.assert_equals(self.t_env.list_full_modules(),
+                           [ModuleEntry(module,
+                                        expected_loaded_modules.index(module) < used_module_cnt)
+                            for module in expected_loaded_modules])
 
     def test_unload_and_load_module(self):
         t_env = self.t_env

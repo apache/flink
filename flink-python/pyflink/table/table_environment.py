@@ -33,7 +33,8 @@ from pyflink.common import JobExecutionResult
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.java_gateway import get_gateway
 from pyflink.serializers import BatchedSerializer, PickleSerializer
-from pyflink.table import Table, EnvironmentSettings, Module, Expression, ExplainDetail, TableSink
+from pyflink.table import Table, EnvironmentSettings, Expression, ExplainDetail, \
+    Module, ModuleEntry, TableSink
 from pyflink.table.catalog import Catalog
 from pyflink.table.descriptors import StreamTableDescriptor, BatchTableDescriptor, \
     ConnectorDescriptor, ConnectTableDescriptor
@@ -49,7 +50,7 @@ from pyflink.table.udf import UserDefinedFunctionWrapper, AggregateFunction, uda
 from pyflink.table.utils import to_expression_jarray
 from pyflink.util import utils
 from pyflink.util.utils import get_j_env_configuration, is_local_deployment, load_java_class, \
-    to_j_explain_detail_arr
+    to_j_explain_detail_arr, to_jarray
 
 __all__ = [
     'BatchTableEnvironment',
@@ -188,6 +189,18 @@ class TableEnvironment(object):
         .. versionadded:: 1.12.0
         """
         self._j_tenv.unloadModule(module_name)
+
+    def use_modules(self, *module_names: str):
+        """
+        Use an array of :class:`~pyflink.table.Module` with given names.
+        ValidationException is thrown when there is duplicate name or no module with the given name.
+
+        :param module_names: Names of the modules to be used.
+
+        .. versionadded:: 1.13.0
+        """
+        j_module_names = to_jarray(get_gateway().jvm.String, module_names)
+        self._j_tenv.useModules(j_module_names)
 
     def create_java_temporary_system_function(self, name: str, function_class_name: str):
         """
@@ -590,7 +603,7 @@ class TableEnvironment(object):
 
     def list_modules(self) -> List[str]:
         """
-        Gets the names of all modules registered in this environment.
+        Gets the names of all modules used in this environment.
 
         :return: List of module names.
 
@@ -598,6 +611,17 @@ class TableEnvironment(object):
         """
         j_module_name_array = self._j_tenv.listModules()
         return [item for item in j_module_name_array]
+
+    def list_full_modules(self) -> List[ModuleEntry]:
+        """
+        Gets the names and statuses of all modules loaded in this environment.
+
+        :return: List of module names and use statuses.
+
+        .. versionadded:: 1.13.0
+        """
+        j_module_entry_array = self._j_tenv.listFullModules()
+        return [ModuleEntry(entry.name(), entry.used()) for entry in j_module_entry_array]
 
     def list_databases(self) -> List[str]:
         """
